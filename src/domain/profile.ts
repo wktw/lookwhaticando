@@ -75,7 +75,7 @@ export type WateringSlot = Exclude<TimeOfDay, 'anytime'>;
 
 /** RFC 5545 TEXT escaping: backslash, semicolon, comma and newlines. */
 function icsText(text: string): string {
-  return text.replace(/\\/g, '\\\\').replace(/;/g, '\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n');
+  return text.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n');
 }
 
 /** RFC 5545 line folding: lines longer than 75 octets continue on the next line after a space. */

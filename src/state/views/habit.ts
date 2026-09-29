@@ -5,12 +5,13 @@
 import type { AppState, DateKey, Habit, HabitRule, PlantLook } from '../types';
 import { logStatus, showedUp } from '@/domain/activity';
 import { habitTally, monthWindow, weekWindow, habitPhrase, type HabitPhrase, type Tally } from '@/domain/consistency';
-import { monthDayLabel, monthFromIndex, monthIndex, monthLabel, shortDateLabel, type MonthKey } from '@/domain/dates';
+import { monthDayLabel, monthFromIndex, monthIndex, monthLabel, shortDateLabel, type MonthKey, type WeekStart } from '@/domain/dates';
 import { habitCreatedOn, logsOf, streakOf, trackingCtx } from '@/domain/economy';
 import { RUNGS } from '@/domain/streaks';
 import { MAX_BIG_HABITS, bigHabitCount, currentOffer, habitInputFromTemplate, habitInputOf, validateHabitInput, type HabitIssue } from '@/domain/habits';
 import { ownedPlantSpecies, ownedPots } from '@/domain/collection';
 import { TEMPLATES } from '@/catalog/templates';
+import { ruleChangeText, type RuleChange } from '@/catalog/format';
 import type { HabitInput } from '../api';
 import { pauseCovering, pauseReturnDay } from '@/domain/pauses';
 import { ruleAt, ruleSegments } from '@/domain/rules';
@@ -46,10 +47,13 @@ export interface HabitDetailVM {
   habit: Habit;
   /** The rule in effect today. */
   rule: HabitRule;
-  /** "Every day" · "Mon/Wed/Fri" · "3× a week"… */
+  /** "Every day" · "Mon/Wed/Fri" · "3 times a week"… (`scheduleText(rule.schedule, weekStart)`). */
   scheduleLabel: string;
-  /** A rule edit waiting to start (next period, tomorrow, or after today's rewarded check-in): "From Oct 1: Mon/Wed/Fri". */
-  upcoming: { from: DateKey; rule: HabitRule; label: string } | null;
+  /**
+   * A rule edit waiting to start (next period, tomorrow, or after today's rewarded check-in), as data
+   * (`change`, worded by `ruleChangeText`) and in words: "From Oct 1: Mon/Wed/Fri".
+   */
+  upcoming: { from: DateKey; rule: HabitRule; change: RuleChange; label: string } | null;
   archived: boolean;
   /** First day rewards can pay for (the creation day). */
   createdOn: DateKey;
@@ -76,8 +80,8 @@ export interface HabitDetailVM {
   offer: 'grow' | 'tinier' | null;
   /** Paused: "{habit} is resting until {date}." (CHECKIN_TOASTS.paused / pausedOpen). */
   pause: { paused: boolean; back: DateKey | null; upcoming: { start: DateKey; end?: DateKey } | null };
-  /** The habit's rule history, oldest first ("Since Sep 22: Mon/Wed/Fri"). */
-  history: { from: DateKey | null; label: string }[];
+  /** The habit's rule history, oldest first, as data (`change`) and in words (`ruleChangeText`: "Since Sep 22: Mon/Wed/Fri"). */
+  history: { from: DateKey | null; change: RuleChange; label: string }[];
   /** "Why it matters" (§14.1), editable from day 0. */
   why: string | null;
   /** Keeping Company (§14.1): the companion, its stories and today's routine. */
@@ -112,6 +116,12 @@ export interface LooksVM {
   /** A read is due (Blooming / Evergreen) and waits for 10 eligible live check-in days. */
   waiting: 'bloom' | 'evergreen' | null;
 }
+
+/** A rule as a history row's data (RuleChange, src/catalog/format.ts). */
+function changeOf(habit: Habit, date: DateKey, rule: Pick<HabitRule, 'schedule' | 'target'>, first: boolean): RuleChange {
+  return { date, first, schedule: rule.schedule, target: rule.target, unit: habit.unit ?? null };
+}
+const withLabel = <T extends { change: RuleChange }>(row: T, weekStart: WeekStart): T & { label: string } => ({ ...row, label: ruleChangeText(row.change, weekStart) });
 
 export function habitDetailVM(s: AppState, env: ViewEnv, id: string): HabitDetailVM | null {
   const habit = s.habits.find((h) => h.id === id);
@@ -164,7 +174,7 @@ export function habitDetailVM(s: AppState, env: ViewEnv, id: string): HabitDetai
     habit,
     rule,
     scheduleLabel: scheduleLabel(rule.schedule, s.settings.weekStart),
-    upcoming: pending ? { from: pending.from, rule: pending, label: `From ${monthDayLabel(pending.from)}: ${scheduleLabel(pending.schedule, s.settings.weekStart)}` } : null,
+    upcoming: pending ? withLabel({ from: pending.from, rule: pending, change: changeOf(habit, pending.from, pending, false) }, s.settings.weekStart) : null,
     archived: habit.archivedOn !== undefined,
     createdOn: habitCreatedOn(habit, s.settings.dayStartsAt, env.local),
     plant,
@@ -187,12 +197,7 @@ export function habitDetailVM(s: AppState, env: ViewEnv, id: string): HabitDetai
       back,
       upcoming: upcoming ? { start: upcoming.start, ...(upcoming.end ? { end: upcoming.end } : {}) } : null,
     },
-    history: ruleSegments(habit).map((seg) => ({
-      from: seg.start,
-      label: `${seg.start ? `From ${monthDayLabel(seg.start)}` : `Since ${monthDayLabel(habit.startedOn)}`}: ${scheduleLabel(seg.rule.schedule, s.settings.weekStart)}${
-        seg.rule.target > 1 ? ` · ${seg.rule.target}${habit.unit ? ` ${habit.unit}` : ''}` : ''
-      }`,
-    })),
+    history: ruleSegments(habit).map((seg) => withLabel({ from: seg.start, change: changeOf(habit, seg.start ?? habit.startedOn, seg.rule, !seg.start) }, s.settings.weekStart)),
     why: habit.why ?? null,
     companion: companionVM(s, env, habit),
     keepsakes: (s.keepsakes ?? []).filter((k) => k.habitId === id).map((k) => keepsakeVM(s, k)),

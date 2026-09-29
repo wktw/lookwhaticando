@@ -9,7 +9,7 @@
  */
 import type { HabitPhrase } from '@/domain/consistency';
 import type { StreakUnit } from '@/domain/streaks';
-import type { DateKey, TimeOfDay, Weekday } from '@/state/types';
+import type { DateKey, Schedule, TimeOfDay, Weekday } from '@/state/types';
 import type { PlaceId } from './types';
 import { MONTH_NAMES, MONTH_SHORT, WEEKDAY_NAMES, monthDayLabel, monthIndex, parseDateKey, shortDateLabel, weekday, weekdaysLabel, type WeekStart } from '@/domain/dates';
 import {
@@ -20,6 +20,7 @@ import {
   PLACE_LINES,
   PROGRESS_LINES,
   RUN,
+  SCHEDULE_LINES,
   STAGE_FORECAST,
   STAGE_NAMES,
   STATUS_LINE,
@@ -103,6 +104,44 @@ export function consistencyText(p: HabitPhrase, weekStart: WeekStart): string | 
     }
   }
   return p.tiny > 0 ? fillLine(CONSISTENCY_LINES.tiny, { phrase: text, tiny: num(p.tiny) }) : text;
+}
+
+/* ------------------------------------------------------------------ */
+/* How often (the Habit Editor, Habit Detail)                          */
+/* ------------------------------------------------------------------ */
+
+/** "Every day" · "Mon/Wed/Fri" · "3 times a week" · "Once every 2 weeks" · "Twice a month" · "Once a quarter". */
+export function scheduleText(schedule: Schedule, weekStart: WeekStart = 1): string {
+  switch (schedule.kind) {
+    case 'daily':
+      return SCHEDULE_LINES.daily;
+    case 'days':
+      return schedule.days.length === 7 ? SCHEDULE_LINES.daily : weekdaysLabel(schedule.days, weekStart);
+    case 'weekly':
+    case 'monthly': {
+      const t = SCHEDULE_LINES.times as Record<number | 'other', string>;
+      const times = fillLine(t[schedule.times] ?? t.other, { count: num(schedule.times) });
+      const table = SCHEDULE_LINES[schedule.kind] as Record<number, string>;
+      const every = table[schedule.every] ?? table[1]!;
+      return fillLine(SCHEDULE_LINES.flexible, { times, every });
+    }
+  }
+}
+
+/** A rule in the habit's history: "Since Sep 22: Every day" · "From Oct 6: Mon/Wed/Fri · 8 glasses". */
+export interface RuleChange {
+  /** The rule's first day; `first` rules read "Since" (the habit's start), later ones "From". */
+  date: DateKey;
+  first: boolean;
+  schedule: Schedule;
+  target: number;
+  unit: string | null;
+}
+
+export function ruleChangeText(r: RuleChange, weekStart: WeekStart = 1): string {
+  let schedule = scheduleText(r.schedule, weekStart);
+  if (r.target > 1) schedule = fillLine(r.unit ? SCHEDULE_LINES.target : SCHEDULE_LINES.targetBare, { schedule, target: num(r.target), unit: r.unit ?? '' });
+  return fillLine(r.first ? SCHEDULE_LINES.since : SCHEDULE_LINES.from, { date: monthDayLabel(r.date), schedule });
 }
 
 /* ------------------------------------------------------------------ */

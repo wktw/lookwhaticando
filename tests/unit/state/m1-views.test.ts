@@ -21,7 +21,9 @@ import {
   recordLines,
   restingRow,
   restsLine,
+  ruleChangeText,
   runText,
+  scheduleText,
   showedUpLine,
   soFarLine,
   statusLine,
@@ -331,5 +333,22 @@ describe('every line the formatters make from view-model data keeps the voice', 
     expect(vineChip({ done: 0, total: 0, flexibleCheckins: 0 })).toBeNull();
     expect(yearSummaryLine({ year: 2026, checkins: 0, daysShowedUp: 0 })).toBeNull();
     expect(recordLines({ totalCheckins: 0, tinyCheckins: 0, bestStreak: null, bestMonth: null, perfectDays: 0, showUpDays: 0 })).toEqual([]);
+  });
+});
+
+describe('how often, in words (VOICE.md §22)', () => {
+  it('scheduleText and ruleChangeText', () => {
+    expect(scheduleText({ kind: 'daily' })).toBe('Every day');
+    expect(scheduleText({ kind: 'days', days: [1, 3, 5] })).toBe('Mon/Wed/Fri');
+    expect(scheduleText({ kind: 'days', days: [0, 1, 2, 3, 4, 5, 6] })).toBe('Every day');
+    expect(scheduleText({ kind: 'weekly', times: 3, every: 1 })).toBe('3 times a week');
+    expect(scheduleText({ kind: 'weekly', times: 1, every: 2 })).toBe('Once every 2 weeks');
+    expect(scheduleText({ kind: 'monthly', times: 2, every: 1 })).toBe('Twice a month');
+    expect(scheduleText({ kind: 'monthly', times: 1, every: 3 })).toBe('Once a quarter');
+    expect(scheduleText({ kind: 'monthly', times: 1, every: 12 })).toBe('Once a year');
+    expect(ruleChangeText({ date: '2026-09-22', first: true, schedule: { kind: 'daily' }, target: 8, unit: 'glasses' })).toBe('Since Sep 22: Every day · 8 glasses');
+    expect(ruleChangeText({ date: '2026-10-06', first: false, schedule: { kind: 'days', days: [1, 3, 5] }, target: 1, unit: null })).toBe('From Oct 6: Mon/Wed/Fri');
+    expect(ruleChangeText({ date: '2026-10-06', first: false, schedule: { kind: 'daily' }, target: 3, unit: null })).toBe('From Oct 6: Every day · 3');
+    for (const sc of SCHEDULES) expect(voiceProblems(scheduleText(sc)), scheduleText(sc)).toEqual([]);
   });
 });

@@ -1073,6 +1073,11 @@ or avoid" ("Do it" · "Avoid it") · "Why it matters" · "Who keeps it company?"
 "Plant it" (new) / "Save" (edit). With 3 long habits already: "3 long habits is the most at once. Pick a
 shorter time, or pause one of the others."
 
+How often, as a habit's summary (Habit Detail, the history): "Every day" · "Mon/Wed/Fri" · "3 times a
+week" · "Once every 2 weeks" · "Twice a month" · "Once a quarter" · "Once a year". A change: "From Oct 6:
+Mon/Wed/Fri"; the first rule: "Since Sep 22: Every day"; a count habit adds its amount: "Every day · 8
+glasses". (`SCHEDULE_LINES` in lines.ts, worded by `scheduleText` and `ruleChangeText` in format.ts.)
+
 About: "Look after the little things." · "Your habits grow the plants. The plants become a home." · "How it
 works" · "Credits" · "Version {version}".
 

@@ -8,11 +8,11 @@
  * `runText`, `forecastLine`, `cardAriaLabel`), which the screens and the fx layer share.
  */
 import type { AppState, BloomColour, BloomShape, DateKey, DayLog, Habit, Schedule } from '../types';
-import { longDateLabel, type PeriodRef, type StatusLine } from '@/catalog/format';
+import { longDateLabel, scheduleText, type PeriodRef, type StatusLine } from '@/catalog/format';
 import { companionOf, routineOn, type RoutineOn } from '@/domain/company';
 import { stackOrder } from '@/domain/stacking';
 import type { LocalTimeReader } from '@/domain/dates';
-import { addDays, monthDayLabel, startOfWeek, weekdaysLabel, type WeekStart } from '@/domain/dates';
+import { addDays, monthDayLabel, startOfWeek, type WeekStart } from '@/domain/dates';
 import { canSetRest, logStatus, restStanding, showedUp, type LogStatus } from '@/domain/activity';
 import { habitPhrase, habitTally, trailingWindow, isPctReady, type HabitPhrase } from '@/domain/consistency';
 import { bestFlourishes, completedOccurrences, daysSinceCreation, habitCreatedOn, logsOf, memoByHabit, streakOf, trackingCtx } from '@/domain/economy';
@@ -36,23 +36,12 @@ export interface ViewEnv {
 /* Labels                                                              */
 /* ------------------------------------------------------------------ */
 
-const TIMES_WORD: Record<number, string> = { 1: 'Once', 2: 'Twice' };
-const timesWord = (n: number): string => TIMES_WORD[n] ?? `${n}×`;
-const WEEK_EVERY: Record<number, string> = { 1: 'a week', 2: 'every 2 weeks', 3: 'every 3 weeks', 4: 'every 4 weeks' };
-const MONTH_EVERY: Record<number, string> = { 1: 'a month', 2: 'every 2 months', 3: 'a quarter', 6: 'every 6 months', 12: 'a year' };
-
-/** "Every day" · "Mon/Wed/Fri" · "3× a week" · "Once every 2 weeks" · "Twice a month" · "Once a quarter". */
+/**
+ * "Every day" · "Mon/Wed/Fri" · "3 times a week" · "Once every 2 weeks" · "Twice a month" · "Once a
+ * quarter" (`scheduleText` in src/catalog/format.ts, SCHEDULE_LINES in lines.ts).
+ */
 export function scheduleLabel(schedule: Schedule, weekStart: WeekStart): string {
-  switch (schedule.kind) {
-    case 'daily':
-      return 'Every day';
-    case 'days':
-      return schedule.days.length === 7 ? 'Every day' : weekdaysLabel(schedule.days, weekStart);
-    case 'weekly':
-      return `${timesWord(schedule.times)} ${WEEK_EVERY[everyOf(schedule)]}`;
-    case 'monthly':
-      return `${timesWord(schedule.times)} ${MONTH_EVERY[everyOf(schedule)]}`;
-  }
+  return scheduleText(schedule, weekStart);
 }
 
 /** "Sep 27" / "Saturday, September 27" helpers re-exported for screens. */

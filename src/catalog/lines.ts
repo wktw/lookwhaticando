@@ -2007,6 +2007,25 @@ export const STATUS_LINE = {
   new: 'Just planted',
 } as const;
 
+/**
+ * How often a habit is on (VOICE.md §22, the Habit Editor and Habit Detail): "Every day" ·
+ * "Mon/Wed/Fri" · "3 times a week" · "Once every 2 weeks" · "Twice a month" · "Once a quarter".
+ * `scheduleText()` in format.ts builds it. A rule change in the history: "From Oct 6: Mon/Wed/Fri",
+ * the first rule "Since Sep 22: Every day", and a count rule adds its target ("Every day · 8 glasses").
+ * Slots: {count}, {times}, {every}, {date}, {schedule}, {target}, {unit}.
+ */
+export const SCHEDULE_LINES = {
+  daily: 'Every day',
+  times: { 1: 'Once', 2: 'Twice', other: '{count} times' },
+  weekly: { 1: 'a week', 2: 'every 2 weeks', 3: 'every 3 weeks', 4: 'every 4 weeks' },
+  monthly: { 1: 'a month', 2: 'every 2 months', 3: 'a quarter', 6: 'every 6 months', 12: 'a year' },
+  flexible: '{times} {every}',
+  from: 'From {date}: {schedule}',
+  since: 'Since {date}: {schedule}',
+  target: '{schedule} · {target} {unit}',
+  targetBare: '{schedule} · {target}',
+} as const;
+
 /** Flexible periods by `every` (weekly: 1–4 weeks; monthly: 1, 2, 3, 6, 12 months). */
 export const PERIOD_WORDS = {
   weekly: { 1: 'week', 2: 'fortnight', 3: '3 weeks', 4: '4 weeks' },
