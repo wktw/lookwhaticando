@@ -5,6 +5,7 @@
  * stroke width. No faces, no gloss, no outlines around shapes.
  */
 import type { JSX } from 'preact';
+import type { Species } from '@/catalog/types';
 import { circlePath, cogPath, flowerPath, heartPath, roundRectPath, sparklePath } from './shapes';
 
 export interface GlyphState {
@@ -12,6 +13,11 @@ export interface GlyphState {
   filled: boolean;
   /** The icon's stroke width; fine details are drawn relative to it. */
   sw: number;
+  /**
+   * The Shelf tab only: whose silhouette sits on the pot rim (your closest pet's species). Left out: the cat; null: no
+   * pets yet, a sprig in the pot.
+   */
+  species?: Species | null;
 }
 
 export type Glyph = (s: GlyphState) => JSX.Element;

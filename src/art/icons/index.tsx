@@ -7,6 +7,7 @@
 import type { JSX } from 'preact';
 import { GLYPH_ALIASES, UI_GLYPHS, type Glyph } from './glyphs';
 import { TAB_GLYPHS } from './tabs';
+import type { Species } from '@/catalog/types';
 
 export type IconName =
   | 'tab-today' | 'tab-progress' | 'tab-capsules' | 'tab-shelf' | 'tab-meadow' | 'tab-you'
@@ -30,6 +31,11 @@ export interface IconProps {
   filled?: boolean;
   /** Stroke width of the line parts in grid units (default 2, crisp at 24 px). */
   strokeWidth?: number;
+  /**
+   * `tab-shelf` only: the species of your closest pet (DESIGN §1), drawn on the pot rim. Left out: the cat; null: no
+   * pets yet (a sprig in the pot). Pick it with `closestPet` (favourite, then out on the Shelf, then most friendship).
+   */
+  species?: Species | null;
 }
 
 const GLYPHS: Record<IconName, Glyph> = { ...TAB_GLYPHS, ...UI_GLYPHS, ...GLYPH_ALIASES };
@@ -46,7 +52,7 @@ export const ICON_ALIASES: Partial<Record<IconName, IconName>> = {
   tiny: 'sprout',
 };
 
-export function Icon({ name, size = 24, title, class: cls, style, filled = false, strokeWidth = 2 }: IconProps) {
+export function Icon({ name, size = 24, title, class: cls, style, filled = false, strokeWidth = 2, species }: IconProps) {
   const px = typeof size === 'number' ? `${size}px` : size;
   return (
     <svg
@@ -64,7 +70,7 @@ export function Icon({ name, size = 24, title, class: cls, style, filled = false
       aria-hidden={title ? undefined : true}
       focusable="false"
     >
-      {GLYPHS[name]({ filled, sw: strokeWidth })}
+      {GLYPHS[name]({ filled, sw: strokeWidth, species })}
     </svg>
   );
 }

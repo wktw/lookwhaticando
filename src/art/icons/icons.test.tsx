@@ -8,7 +8,8 @@ import { Icon, ICON_ALIASES, ICON_NAMES, CoinIcon, StampIcon, SwapIcon, TicketIc
 import { SOFT_OPACITY } from '@/art/icons/glyphs';
 import { circlePath, cogPath, crescentPath, flowerPath, heartPath, memo, ringSegmentPath, roundRectPath, scallopPath, sparklePath, starPath } from '@/art/icons/shapes';
 import tabsCss from '@/art/icons/tabs.module.css';
-import { SHELF_CAT_PARTS } from '@/art/icons/tabs';
+import { SHELF_CAT_PARTS, SHELF_PETS } from '@/art/icons/tabs';
+import { SPECIES } from '@/catalog/types';
 import { STAMP_RIM } from '@/art/icons/currency';
 
 function mount(node: VNode): HTMLElement {
@@ -125,6 +126,24 @@ describe('tab icons', () => {
       expect(SHELF_CAT_PARTS[1]).not.toContain(SHELF_CAT_PARTS[0]);
       expect(SHELF_CAT_PARTS[2]).not.toContain(SHELF_CAT_PARTS[0]);
     }
+  });
+
+  it('draws your closest pet on the Shelf tab: eight species, each its own silhouette, and a sprig before the first pet', () => {
+    const drawn = new Set<string>();
+    for (const species of SPECIES) {
+      for (const filled of [false, true]) {
+        const svg = mount(<Icon name="tab-shelf" species={species} filled={filled} />).querySelector('svg')!;
+        expect(svg.querySelector(`[data-species="${species}"]`), species).not.toBeNull();
+        const ds = [...svg.querySelectorAll('path')].map((p) => p.getAttribute('d'));
+        for (const part of SHELF_PETS[species].parts) expect(ds, species).toContain(part);
+        if (!filled) drawn.add(svg.innerHTML.replace(/data-species="[a-z]+"/, ''));
+      }
+    }
+    expect(drawn.size).toBe(SPECIES.length);
+    const none = mount(<Icon name="tab-shelf" species={null} />).querySelector('svg')!;
+    expect(none.querySelector('[data-species="none"]')).not.toBeNull();
+    // Left out, the cat (older callers).
+    expect(mount(<Icon name="tab-shelf" />).innerHTML).toBe(mount(<Icon name="tab-shelf" species="cat" />).innerHTML);
   });
 
   it('switches the active mass for lamplight in CSS', () => {

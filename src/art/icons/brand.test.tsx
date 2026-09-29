@@ -5,8 +5,11 @@ import type { VNode } from 'preact';
 import { CatkinSprig, Wordmark } from '@/art/icons';
 import { CATKIN_BODY, CATKIN_LIT, SPRIG_CATKINS } from '@/art/icons/brand';
 import { DAY_LIGHT, NIGHT_LIGHT, type LightFrom } from '@/art/light';
-import { AppIconArt, FAVICON_TILE, WALL_SHADOW_OPACITY, squirclePath, type AppIconShape } from '@/app/AppIconArt';
-import { SplashArt } from '@/app/SplashArt';
+import { AppIconArt, FAVICON_TILE, ICON_CALF, ICON_CAT, IconScene, WALL_SHADOW_OPACITY, squirclePath, type AppIconShape } from '@/art/icons/appIcon';
+import { LaunchArt as SplashArt } from '@/art/icons/splash';
+import { poseBounds } from '@/art/pets/bounds';
+import { SPECIES_ART } from '@/art/pets/species';
+import { getLook } from '@/art/pets/looks';
 import { GumballArt, CabinetMark } from '@/app/GumballArt';
 import { MATERIAL } from '@/art/icons/palette';
 import cabinetCss from '@/art/icons/cabinet.module.css';
@@ -92,12 +95,37 @@ describe('app icon', () => {
     }
   });
 
-  it('shows a plum-black cat with gold eyes on a terracotta pot', () => {
-    const html = mount(<AppIconArt />).innerHTML;
-    expect(html).toContain(MATERIAL.plum);
-    expect(html).toContain(MATERIAL.catEye);
+  it('shows the app’s own black cat on a terracotta pot, with a Holstein calf beside it (DESIGN §1 "Many animals")', () => {
+    const host = mount(<AppIconArt />);
+    const html = host.innerHTML;
     expect(html).toContain(MATERIAL.terracotta);
     expect(html).not.toMatch(/#000000|"black"/i);
+    // PetArt's own drawings, not a separate icon cat: in the picture and in its wall shadow.
+    expect(host.querySelectorAll('[data-animal="pet-cat-black"] svg.pet-art')).toHaveLength(2);
+    expect(host.querySelectorAll('[data-animal="pet-cow-holstein"] svg.pet-art')).toHaveLength(2);
+    expect(host.querySelectorAll('svg.pet-art.is-silhouette')).toHaveLength(2);
+  });
+
+  it('keeps the cat at least 35% of the icon’s width, and the calf about 55–60% of the cat’s height', () => {
+    const drawn = (petId: string, pose: 'loaf' | 'sit', size: number) => {
+      const look = getLook(petId);
+      const { id, rig } = SPECIES_ART[look.species].rigFor(look);
+      const b = poseBounds(id, rig, pose);
+      const s = rig.scale * (look.scale ?? 1);
+      return { w: ((b.x1 - b.x0) * s * size) / 100, h: ((94 - b.y0) * s * size) / 100 };
+    };
+    const cat = drawn(ICON_CAT.petId, 'loaf', ICON_CAT.size);
+    const calf = drawn(ICON_CALF.petId, 'sit', ICON_CALF.size);
+    expect(cat.w).toBeGreaterThanOrEqual(35);
+    expect(calf.h / cat.h).toBeGreaterThan(0.5);
+    expect(calf.h / cat.h).toBeLessThan(0.65);
+  });
+
+  it('lights the launch screen’s scene by the lamp at night', () => {
+    const day = mount(<IconScene />).innerHTML;
+    const night = mount(<IconScene night />).innerHTML;
+    expect(night).not.toBe(day);
+    expect(day).toContain(MATERIAL.terracotta);
   });
 
   it('crops the favicon to the cat and pot on a deeper tile, without the beam or cast shadow', () => {
@@ -135,10 +163,12 @@ describe('app icon', () => {
 });
 
 describe('launch screen and cabinet mark', () => {
-  it('puts the wordmark on paper in both themes', () => {
+  it('puts the icon’s cat and calf over the wordmark on paper in both themes', () => {
     for (const theme of ['light', 'night'] as const) {
       const host = mount(<SplashArt theme={theme} width={390} height={844} />);
       expect(host.textContent).toBe('catkin');
+      expect(host.querySelector('[data-animal="pet-cat-black"]')).not.toBeNull();
+      expect(host.querySelector('[data-animal="pet-cow-holstein"]')).not.toBeNull();
       expect(host.querySelector('[data-splash]')!.getAttribute('data-splash')).toBe(theme);
     }
   });

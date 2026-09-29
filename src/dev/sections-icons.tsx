@@ -10,15 +10,15 @@ import type { ComponentChildren, JSX } from 'preact';
 import { CatkinSprig, Wordmark } from '@/art/icons/brand';
 import { Icon, ICON_ALIASES, ICON_NAMES, CoinIcon, StampIcon, SwapIcon, TicketIcon, type IconName } from '@/art/icons';
 import { NIGHT_LIGHT } from '@/art/light';
-import { AppIconArt, type AppIconShape } from '@/app/AppIconArt';
-import { SplashArt } from '@/app/SplashArt';
+import { AppIconArt, type AppIconShape } from '@/art/icons/appIcon';
+import { LaunchArt as SplashArt } from '@/art/icons/splash';
 import { GumballArt } from '@/app/GumballArt';
 import { AddToHomeArt, AndroidMenuArt, ChromeInstallArt, CompactShareArt, DockArt, HomeScreenArt, MacDockArt, ShareStepArt, ViewMoreArt } from '@/app/installArt';
 import { BadgeMedal } from '@/art/badges';
 import { BADGES } from '@/catalog/badges';
 import { HabitIcon } from '@/art/habit-icons';
 import { HABIT_ICONS } from '@/catalog/habitIcons';
-import { PASTELS } from '@/catalog/types';
+import { PASTELS, SPECIES } from '@/catalog/types';
 import type { GallerySection } from './sections';
 
 /**
@@ -182,6 +182,21 @@ function Tabs() {
                     <Icon name={n} size={s} filled />
                   </span>
                 ))}
+              </div>
+            ))}
+          </div>
+          {/* The Shelf tab is your closest pet (DESIGN §1): every species, quiet and active, and the sprig before the first pet. */}
+          <div class="gal-row" style={{ gap: '16px', color: 'var(--ink-2)' }}>
+            {([...SPECIES, null] as const).map((sp) => (
+              <div key={String(sp)} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+                <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                  <Icon name="tab-shelf" species={sp} size={24} />
+                  <span style={{ color: 'var(--ink)' }}>
+                    <Icon name="tab-shelf" species={sp} size={24} filled />
+                  </span>
+                  <Icon name="tab-shelf" species={sp} size={48} filled />
+                </div>
+                <Caption>{sp ?? 'no pets yet'}</Caption>
               </div>
             ))}
           </div>
