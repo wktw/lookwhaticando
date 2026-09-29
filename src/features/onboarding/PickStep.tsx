@@ -1,7 +1,7 @@
 /**
  * Step 2 (DESIGN §9.6, VOICE §16): "Pick up to 3." The eight starter chips, "More ideas" (every
  * other template) and "Make my own" (just a name). Each pick stands on the sill above as a cutting
- * in a glass. "Plant them" makes the habits (`completeOnboarding`).
+ * in a glass. "Plant these" makes the habits (`completeOnboarding`).
  */
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { ONBOARDING, SETTINGS, fillLine } from '@/catalog/lines';

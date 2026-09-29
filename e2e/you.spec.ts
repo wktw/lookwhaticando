@@ -19,7 +19,7 @@ async function onboard(page: Page) {
   await name.fill('Sam');
   await page.getByRole('button', { name: 'Next' }).click();
   for (const name of ['Drink water', 'Walk', 'Read']) await page.getByRole('button', { name, exact: true }).click();
-  await page.getByRole('button', { name: 'Plant them' }).click();
+  await page.getByRole('button', { name: 'Plant these' }).click();
   await page.getByRole('button', { name: 'Skip' }).click();
   await page.getByRole('button', { name: 'Not yet, I’ll earn it' }).first().click();
   await expect(page.locator('main')).toHaveAttribute('aria-label', 'Today');
