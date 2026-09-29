@@ -12,6 +12,7 @@ import type { DateKey, Effort, Schedule, PetState, TimeOfDay, MeadowZoneId } fro
 export type CoinReason = 'checkin' | 'perfect' | 'period' | 'home' | 'rung' | 'letter' | 'badge' | 'gift' | 'refund' | 'exchange';
 
 export type GameEvent =
+  /** `amount` < 0 when coins leave the wallet by a refund (un-check) or the sparkle exchange. */
   | { type: 'coins'; amount: number; reason: CoinReason; habitId?: string }
   | { type: 'stars'; amount: number; reason: 'showup' | 'letter' | 'bloom' | 'badge' | 'fusion' | 'gift' }
   | { type: 'tickets'; amount: number }
@@ -32,7 +33,11 @@ export type GameEvent =
   | { type: 'petLevel'; petId: string; level: number }
   | { type: 'favoriteFound'; petId: string; treatId: string }
   | { type: 'letter'; letterId: string }
-  | { type: 'restock'; treats: number };
+  | { type: 'restock'; treats: number }
+  /** Stage 2: a check-in on a Blooming+ plant dropped a harvest treat into the basket (DESIGN §13.10). */
+  | { type: 'harvest'; habitId: string; treatId: string; firstTime: boolean }
+  /** Stage 2: a species album was completed. `stars` = paid by the album itself (the first album's come via its badge). */
+  | { type: 'album'; albumId: string; stars: number; exclusive?: string };
 
 /* ------------------------------------------------------------------ */
 /* Action inputs & results                                              */

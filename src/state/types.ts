@@ -133,8 +133,11 @@ export interface PetState {
   inMeadow: boolean;
   favorite: boolean;
   obtainedAt: number;
-  /** Per-day XP caps; reset when `date` changes. */
-  daily: { date: DateKey; pets: number; treats: number; buddy: number };
+  /**
+   * Per-day XP caps; reset when `date` changes. `favorites` (added in stage 2, optional for older
+   * saves) counts favorite treats fed that day: only the first pays the +12 (DESIGN §13.10).
+   */
+  daily: { date: DateKey; pets: number; treats: number; buddy: number; favorites?: number };
 }
 
 export interface OwnedItem {
@@ -221,14 +224,22 @@ export interface AppState {
    *   older entries are folded into totals by compaction.
    * - sunshine: per-habit lifetime sunshine total (monotone except refunds inside the window).
    * - bestStage: per-habit highest plant stage ever reached (plants never shrink).
-   * - once: once-only grant keys → value (true, or the tier paid for upgradable grants). Key formats:
-   *   'perfect|<date>' · 'period|<habitId>|<periodStart>' · 'rung|<habitId>|<tierDays>' ·
-   *   'showup|<n>' · 'weekly|<weekStart>' (tier) · 'bloom|<YYYY-MM>' (tier) · 'badge|<id>' ·
-   *   'home|<gapStart>' · 'stage|<habitId>|<stage>' · 'exclusive|<collectibleId>' · 'birthday|<YYYY>'
+   * - once: once-only grant keys → value (true, or a number noted below). Key formats:
+   *   'perfect|<date>' (coins paid) · 'period|<habitId>|<periodStart>' · 'rung|<habitId>|<tierDays>' ·
+   *   'showup|<n>' · 'weekly|<weekStart>' (stars paid) · 'bloom|<YYYY-MM>' (stars paid) ·
+   *   'home|<gapStart>' (day number of the grant, for the 14-day cooldown) · 'exclusive|<collectibleId>' ·
+   *   'birthday|<YYYY>' · 'album|<albumId>' · 'harvest|<habitId>|<date>' · 'gift|first-sprout' (coins) ·
+   *   'grow|<habitId>|<date>'. Badges live in `badges`; plant stages in `bestStage`.
+   *   Keys that can no longer be earned are pruned by compaction (domain/economy.ts).
    * - daily: coins paid by check-ins per WALL-CLOCK action day (the 40-coin full-rate budget).
    */
   ledger: {
-    recent: Record<string, { coins: number; sunshine: number }>;
+    /**
+     * `coins`/`sunshine`: currently held for the occurrence. `cap` (stage 2): the full-rate value of
+     * the first in-target grant, so a re-check never pays more than the original. `lvl` (stage 2):
+     * the level currently granted ('over' = a flexible check-in beyond `times`); absent = none.
+     */
+    recent: Record<string, { coins: number; sunshine: number; cap?: number; lvl?: 'tiny' | 'full' | 'over' }>;
     sunshine: Record<string, number>;
     bestStage: Record<string, number>;
     once: Record<string, number | true>;
@@ -238,7 +249,7 @@ export interface AppState {
   collection: Record<string, OwnedItem>;
   pity: Partial<Record<MachineId, PityCounter>>;
   pets: Record<string, PetState>;
-  /** Treat servings. Each owned recipe restocks 1 free serving per morning (max 3 banked). */
+  /** Treat servings. Each owned recipe restocks 2 free servings per morning (bank up to 5; DESIGN §13.10). */
   pantry: Record<string, { servings: number; restockedOn: DateKey }>;
   meadow: {
     zones: MeadowZoneId[];
@@ -246,7 +257,7 @@ export interface AppState {
   };
   /** badges[badgeId] = epoch ms when earned */
   badges: Record<string, number>;
-  /** Letters (weekly/monthly recaps) waiting to be shown. */
+  /** Letters (weekly letters, monthly bouquets), kept forever in the Letterbox; unread until `readAt`. */
   inbox: Letter[];
   pendingReveal?: PendingReveal;
   /** Clock guard: the latest app day / time ever observed (device clock rollback protection). */
@@ -270,6 +281,8 @@ export type Letter =
       quote?: { habitId: string; date: DateKey; text: string };
       newFriends: string[];
       plantsGrown: string[];
+      /** Epoch ms when opened (stage 2): letters stay in the Letterbox forever (DESIGN §13.10). */
+      readAt?: number;
     }
   | {
       kind: 'monthly';
@@ -281,4 +294,14 @@ export type Letter =
       stars: number;
       previousPct?: number;
       growingBonus: boolean;
+      /** The Monthly Bouquet (stage 2): stems per habit with ≥ 1 check-in (DESIGN §13.10). */
+      stems?: BouquetStem[];
+      readAt?: number;
     };
+
+/** One habit's stems in a Monthly Bouquet: clamp(round(checkIns / 4), 1, 7) of its plant species. */
+export interface BouquetStem {
+  habitId: string;
+  plant: PlantSpeciesId;
+  count: number;
+}
