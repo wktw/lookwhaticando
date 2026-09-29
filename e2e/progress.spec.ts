@@ -36,6 +36,18 @@ async function seed(page: Page, envelope: string): Promise<void> {
   }, envelope);
 }
 
+// A cold dev server compiles the screen, the sheets and the art on first request: warm them once,
+// so the first test on a busy machine isn't timing Vite.
+test.beforeAll(async ({ browser }) => {
+  const page = await browser.newPage();
+  await seed(page, DEMO);
+  await page.goto('./#/progress', { timeout: 120_000 });
+  await page.waitForSelector('[data-section="memory"]', { timeout: 120_000 });
+  await page.getByRole('button', { name: /^Read, / }).click();
+  await page.waitForSelector('[data-habit-detail]', { timeout: 120_000 });
+  await page.close();
+});
+
 const viewports = [
   { name: 'phone', viewport: { width: 390, height: 844 } },
   { name: 'desktop', viewport: { width: 1280, height: 800 } },
