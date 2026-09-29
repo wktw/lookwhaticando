@@ -11,20 +11,28 @@ export interface PlantTagProps {
   name: string;
   /** An optional italic line under the name, e.g. the anchor ("after coffee"). */
   note?: string;
-  /** The name's font size in px; the tag, its hole and its stake scale with it. Default 14. */
-  size?: number;
+  /**
+   * The name's font size: px, or any CSS length (a scene passes room units, `calc(3.1 * 1cqh)`); the tag, its hole and
+   * its stake scale with it. Never smaller than the legible floors: 11 px for the name, 10 px for the note. Default 14.
+   */
+  size?: number | string;
   /** Stuck in the soil on a little stake (default), or propped against the pot with no stake. */
   stand?: 'stake' | 'propped';
-  /** Widest the tag gets, in em of the name; longer names are truncated with an ellipsis. Default 9. */
+  /**
+   * Which side of its anchor the card reaches to (a scene puts the tag on the pot's side away from the resident's
+   * head). `left` mirrors the tag: the stake at the card's right end, the card tipped the other way. Default right.
+   */
+  side?: 'left' | 'right';
+  /** Widest the tag gets, in em of the name; longer names are truncated with an ellipsis. 0: as wide as its words. Default 9. */
   maxWidth?: number;
   class?: string;
   style?: JSX.CSSProperties;
 }
 
-export function PlantTag({ name, note, size = 14, stand = 'stake', maxWidth = 9, class: cls, style }: PlantTagProps) {
-  const vars = { '--tag-size': `${size}px`, '--tag-max': `${maxWidth}em` } as JSX.CSSProperties;
+export function PlantTag({ name, note, size = 14, stand = 'stake', side = 'right', maxWidth = 9, class: cls, style }: PlantTagProps) {
+  const vars = { '--tag-size': typeof size === 'number' ? `${size}px` : size, '--tag-max': maxWidth > 0 ? `${maxWidth}em` : 'none' } as JSX.CSSProperties;
   return (
-    <span class={[s.tag, stand === 'propped' ? s.propped : s.staked, cls].filter(Boolean).join(' ')} style={{ ...vars, ...style }} data-stand={stand}>
+    <span class={[s.tag, stand === 'propped' ? s.propped : s.staked, side === 'left' ? s.left : '', cls].filter(Boolean).join(' ')} style={{ ...vars, ...style }} data-stand={stand} data-side={side}>
       <span class={s.card}>
         <span class={s.hole} aria-hidden="true" />
         <span class={s.lines}>
@@ -32,7 +40,7 @@ export function PlantTag({ name, note, size = 14, stand = 'stake', maxWidth = 9,
             {name}
           </span>
           {note && (
-            <span class={s.note} title={note}>
+            <span class={s.note} title={note} data-part="note">
               {note}
             </span>
           )}

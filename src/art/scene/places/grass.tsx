@@ -7,7 +7,16 @@ import type { Ground } from '../arrange';
 import { depthZ, type RoomRows } from '../room';
 import type { RoomPalette } from '../palette';
 import { seeded } from '../sill/scenery';
-import { painter, Solid, oval } from './kit';
+import { painter as basePainter, Solid, oval } from './kit';
+import { toneChroma } from '../palette';
+import type { Light } from '@/art/light';
+import type { TimeOfDay } from '../time';
+
+/** After dark the grass keeps its green, tinted toward the lamplit indigo room rather than greyed (DESIGN §10.1). */
+function painter(time: TimeOfDay, light: Light) {
+  const p = basePainter(time, light);
+  return time === 'night' ? { ...p, c: (hex: string) => toneChroma(time, hex) } : p;
+}
 import { GRASS, GRASS_W } from './shapes';
 import type { PlaceDrawProps, PlaceScene } from './types';
 
@@ -164,5 +173,7 @@ export const GRASS_PLACE: PlaceScene = {
   front: Front,
   frontZ: depthZ(1) + 20,
   ground,
+  // After dark the Sill's table lamp on the end of the bench lights the pasture (its pool is anchored to its shade).
+  lamp: { x: 162.4, y: GRASS.bench.top, size: 24 },
   crop: [10, 4, 144, 96],
 };

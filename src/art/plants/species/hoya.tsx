@@ -62,7 +62,7 @@ function umbel(k: Kit, at: Pt, drop: number, open: number, key: number) {
   return (
     <g key={key}>
       <path d={`M${f(x)} ${f(y)}Q${f(x + 1.4)} ${f(y + drop * 0.5)} ${f(c[0])} ${f(c[1] - 2)}`} fill="none" stroke={VINE} stroke-width={0.6} stroke-linecap="round" />
-      <g transform={`translate(${f(c[0])} ${f(c[1])}) scale(${f(lerp(0.75, 1, open))})`}>
+      <g transform={`translate(${f(c[0])} ${f(c[1])}) scale(${f(lerp(0.75, 1, open) * k.bloom)})`}>
         {open > 0 ? (
           <>
             <path d={UMBEL.stars} fill={k.lit(STAR)} />

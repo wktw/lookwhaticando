@@ -62,9 +62,8 @@ const box = shapes('decor-cardboard-box', {
   },
 });
 
-export const cardboardBox: DecorRenderer = (o) => {
-  const p = paint(o);
-  const arrow = (x: number) => [
+function boxArrow(p: ReturnType<typeof paint>, x: number) {
+  return [
     thin(
       p,
       line([
@@ -85,25 +84,17 @@ export const cardboardBox: DecorRenderer = (o) => {
       1.3,
     ),
   ];
+}
+
+/** The box's front face, its folded-down front flap and the tape: drawn again over a pet asleep in the box. */
+export const cardboardBoxFront: DecorRenderer = (o) => {
+  const p = paint(o);
   return (
     <g>
-      {contact(p, 50, 92.4, 38, 2.6)}
-      {solid(p, box.back, KRAFT.flap)}
-      <path
-        d={poly([
-          [16, 45.5],
-          [21.5, 38.5],
-          [78.5, 38.5],
-          [84, 45.5],
-        ])}
-        fill={p.c(KRAFT.inside)}
-      />
-      {solid(p, box.flapL, KRAFT.flap)}
-      {solid(p, box.flapR, KRAFT.flap)}
       {solid(p, box.front, KRAFT.face, [
         cast(p, rect(16, 59.5, 68, 2.6)),
-        ...arrow(25),
-        ...arrow(31),
+        ...boxArrow(p, 25),
+        ...boxArrow(p, 31),
         thin(
           p,
           line([
@@ -127,6 +118,28 @@ export const cardboardBox: DecorRenderer = (o) => {
         ])}
         fill={p.c(KRAFT.tape)}
       />
+    </g>
+  );
+};
+
+export const cardboardBox: DecorRenderer = (o) => {
+  const p = paint(o);
+  return (
+    <g>
+      {contact(p, 50, 92.4, 38, 2.6)}
+      {solid(p, box.back, KRAFT.flap)}
+      <path
+        d={poly([
+          [16, 45.5],
+          [21.5, 38.5],
+          [78.5, 38.5],
+          [84, 45.5],
+        ])}
+        fill={p.c(KRAFT.inside)}
+      />
+      {solid(p, box.flapL, KRAFT.flap)}
+      {solid(p, box.flapR, KRAFT.flap)}
+      {cardboardBoxFront(o)}
     </g>
   );
 };

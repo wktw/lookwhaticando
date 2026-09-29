@@ -1,10 +1,16 @@
 /**
  * What a scene is given: the habit pots, the pets who live here and the decor she has placed.
  * Plain data, so screens, the gallery and tests describe a Shelf the same way.
+ *
+ * Coordinates: a scene lays everything out in room units (see room.ts). The store keeps decor as fractions of its
+ * place (`PlacedDecor.x/y`, 0..1); the scene owns the conversion. Pass `decorToScene(placed)` (decor.ts) and the
+ * scene resolves the fractions against the place it is drawn in; edits come back as fractions (`EditDecor.onMove`).
  */
-import type { Outfit } from '@/state/types';
+import type { KeepsakeKind, Outfit } from '@/state/types';
 import type { Personality, PlaceId, PlantSpeciesId, PotId, Species } from '@/catalog/types';
+import type { Routine } from '@/domain/routines';
 import { getCollectible } from '@/catalog/collectibles';
+import type { PlantLookArt } from '@/art/plants/looks';
 import type { PetPose } from './actors/adapters';
 
 /** A habit's plant on the sill. */
@@ -23,6 +29,17 @@ export interface SillPot {
   damp?: boolean;
   /** Bumps to replay the watering reaction. */
   pulse?: number;
+  /** The plant's chosen look from Blooming (DESIGN §14.2); left out: Classic. */
+  look?: PlantLookArt;
+  /** Flourishes after Evergreen: 0–8 permanent visitors (DESIGN §5.5). */
+  flourishes?: number;
+  /** The resident's came-home day: a small bow tied round the pot (DESIGN §13). */
+  bow?: boolean;
+  /**
+   * The companion's routine today (DESIGN §14.1): its object stands by the pot (the open book, the mat, the bowl…)
+   * and the companion settles on it. Left out on a day without one, which looks exactly like an ordinary day.
+   */
+  routine?: Routine;
 }
 
 /** A pet out on the Shelf. */
@@ -36,20 +53,61 @@ export interface ShelfPet {
   outfit?: Outfit;
   /** The habit it keeps company: it lives in that plant (DESIGN §14.1). */
   home?: string;
-  /** Which place it is out in (default: the Sill). */
+  /** Which place it is out in (default: the Sill; a place that is not open falls back to the Sill). */
   place?: PlaceId;
+  /**
+   * Its favourite spot (DESIGN §8.2, L4 "claims a favourite spot"), where it goes first when it is free: a pot's rim
+   * `'pot:<habitId>'`, a placed decor item `'decor:<placement id>'` (a bed, a box), or a place id (the place it
+   * prefers; `place` still says where it is out).
+   */
+  favouriteSpot?: string;
 }
 
 /** A decor item placed on the Shelf. */
 export interface ShelfDecor {
+  /** The placement id (`PlacedDecor.id`): editing reports it back. */
   key?: string;
+  /** A decor collectible id, or a keepsake: `'keepsake:<id>'` with `keepsake` set, or `'keepsake-<kind>'`. */
   itemId: string;
   place?: PlaceId;
-  /** Units from the place's left edge; omitted = a free default spot. */
+  /**
+   * Where it stands as the store keeps it: fractions of the place (0..1 across its floor, 0 back … 1 front). The
+   * scene resolves them against the place it draws (`decorToScene` fills this in). Wins over `x`/`depth`.
+   */
+  frac?: { x: number; y: number };
+  /** Units from the place's left edge; omitted (and no `frac`) = a free default spot. */
   x?: number;
   /** 0 back … 1 front of the surface. */
   depth?: number;
   flip?: boolean;
+  /** For a keepsake placed as decor: its kind, which picks its art (DESIGN §14.1). */
+  keepsake?: KeepsakeKind;
+}
+
+/** How a pet was touched on the Shelf (DESIGN §8.2). */
+export type PetGesture = 'tap' | 'stroke' | 'boop' | 'carry';
+
+/**
+ * Decor edit mode (DESIGN §9.4): every placed item gets a hit box you can drag, and which is a keyboard button too
+ * (Arrow keys move it, F flips it, Delete or Backspace removes it). Positions come back as the store keeps them:
+ * fractions of the place (`frac.x` across, `frac.y` back to front).
+ */
+export interface EditDecor {
+  onMove(key: string, frac: { x: number; y: number }, place: PlaceId): void;
+  onFlip(key: string): void;
+  onRemove(key: string): void;
+}
+
+/** Ritual things on the sill (DESIGN §8.2, §13, §14.1), for the Today band and the Sill. */
+export interface SillExtras {
+  /** The Cutting, the lifetime gauge: a pothos cutting by the window that grows into a vine framing it. */
+  cutting?: { stage: number; overall: number };
+  /** Today's found thing (an L6+ pet left it); `seed` picks which. With `onTap` it is a button. */
+  found?: { seed: number; label?: string; onTap?: () => void };
+  /** A note waiting on the sill, clipped with a paper clip: a real button that opens it. */
+  note?: { kind: 'sundayNote' | 'herbarium' | 'anniversary' | 'story'; label?: string; onOpen: () => void };
+  /** Her birthday: a tiny cake on the sill. */
+  cake?: boolean;
 }
 
 /** Where and how a pet is shown right now. */
@@ -62,8 +120,11 @@ export interface PetSpot {
   facing: 'left' | 'right';
   /** Asleep or awake: drives the expression. */
   asleep: boolean;
-  /** Standing on something other than the floor of the place (a pot rim, a bed, another pet, the water). */
-  perch?: 'rim' | 'bed' | 'back' | 'shelf' | 'water';
+  /**
+   * Standing on something other than the floor of the place (a pot rim, beside a cutting's glass, a bed, a routine's
+   * object, another pet, the water, or held up in a hand).
+   */
+  perch?: 'rim' | 'glass' | 'bed' | 'prop' | 'back' | 'shelf' | 'water' | 'held';
   /** Which perch, when on one. */
   perchId?: string;
   /** Stretched up and leaning the way it faces (a rabbit reaching to sniff a leaf). */

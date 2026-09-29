@@ -72,7 +72,7 @@ const headings = ({ a0, n, droop }: Chain) => {
 
 /** A flower hanging from a tip: a pale tube, two flared layers of petals, stamens held out beyond. */
 function flower(k: Kit, at: Pt, a: number, open: number, key: number) {
-  const s = lerp(0.5, 1, open);
+  const s = lerp(0.5, 1, open) * k.bloom;
   return (
     <g key={key} transform={`translate(${f(at[0])} ${f(at[1])}) rotate(${f(a)}) scale(${f(s)})`}>
       <path d="M-1 0C-1.2 -2 -0.9 -4 0 -5.6C0.9 -4 1.2 -2 1 0Z" fill={k.lit(TUBE)} />

@@ -9,9 +9,10 @@ import type { PetSpot, ShelfPet } from './model';
 import { petKey, speciesOf } from './model';
 import type { PetPose } from './actors/adapters';
 import { PERSONALITY_BY_ID } from '@/catalog/personalities';
-import { baseline, clamp, depthZ, type RoomRows } from './room';
+import { baseline, clamp, depthScale, depthZ, type RoomRows } from './room';
 import { inBeam, type Beam } from './sill/layout';
 import { seeded } from './sill/scenery';
+import { reachBehind } from '@/art/pets/world';
 
 /** Somewhere raised a pet can sit: a pot rim, a shelf, a quilt. */
 export interface Perch {
@@ -25,7 +26,11 @@ export interface Perch {
   w: number;
   /** The habit whose pot this is (its resident sits here first). */
   owner?: string;
-  kind: 'rim' | 'shelf' | 'bed' | 'water';
+  /**
+   * A pot's rim; beside a cutting's glass (no rim yet); the object of a habit's routine (the book, the mat); a shelf;
+   * a bed (decor a pet sleeps in); the water.
+   */
+  kind: 'rim' | 'glass' | 'prop' | 'shelf' | 'bed' | 'water';
   /** Species drawn to it (a frog to the lily pad, ducks to the water). Empty: anyone. */
   likes?: readonly Species[];
   /** The pose it asks for (floating is a loaf; a shelf top is anything). */
@@ -38,6 +43,12 @@ export interface Perch {
 export interface Obstacle {
   x0: number;
   x1: number;
+}
+
+/** A light after dark that pets gather under (the lamp, a jam-jar lantern): x and how strongly it draws them. */
+export interface GroundLight {
+  x: number;
+  strength: number;
 }
 
 /** The floor of a place, as the pets see it. */
@@ -54,6 +65,8 @@ export interface Ground {
   beam: Beam | null;
   /** Where the lamp stands (evening gathering spot). */
   lampX?: number;
+  /** Other lights after dark (glowing decor): pets gather under the nearest warm light. */
+  lights?: readonly GroundLight[];
   perches: readonly Perch[];
   obstacles: readonly Obstacle[];
   /** Pet canvas edge in units. */
@@ -70,6 +83,26 @@ export function routineAt(hour: number): 'sleep' | 'lamp' | 'day' {
   return 'day';
 }
 
+/** Species awake at night and asleep by day (a hamster: up and about under the lamp, curled up in the sun). */
+export const NOCTURNAL: Readonly<Partial<Record<Species, true>>> = { hamster: true };
+
+/**
+ * A species' routine now: most follow the clock (`routineAt`) after dark and are about by day; a nocturnal one is
+ * active under Lamplight all night and naps through the day.
+ */
+export function routineFor(species: Species, hour: number, night: boolean): 'sleep' | 'lamp' | 'day' {
+  if (NOCTURNAL[species]) return night ? 'lamp' : 'sleep';
+  return night ? routineAt(hour) : 'day';
+}
+
+/** Where the evening gathering is: under the nearest warm light to `x` (the lamp, or a glowing decor item). */
+export function gatherX(g: Ground, x: number): number | undefined {
+  const lights: GroundLight[] = [...(g.lampX != null ? [{ x: g.lampX, strength: 1 }] : []), ...(g.lights ?? [])];
+  if (!lights.length) return undefined;
+  // A light pulls by its strength over distance: a lantern nearby wins over the lamp across the room.
+  return lights.reduce((best, l) => (Math.abs(l.x - x) / l.strength < Math.abs(best.x - x) / best.strength ? l : best)).x;
+}
+
 function hash(s: string): number {
   let h = 2166136261;
   for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619);
@@ -83,7 +116,7 @@ export function groundSpot(g: Ground, x: number, depth: number, pose: PetPose, a
 }
 
 export function perchSpot(p: Perch, pose: PetPose, asleep: boolean, facing: 'left' | 'right', dx = 0): PetSpot {
-  const perch = p.kind === 'rim' ? 'rim' : p.kind === 'bed' ? 'bed' : p.kind === 'water' ? 'water' : 'shelf';
+  const perch = p.kind;
   return { x: p.x + dx, depth: p.depth, y: p.y, pose: p.pose && !asleep ? p.pose : pose, facing: p.facing ?? facing, asleep, perch, perchId: p.id, z: p.z + 1 };
 }
 
@@ -109,23 +142,70 @@ export function nearestFree(g: Ground, want: number, taken: readonly number[]): 
   return clamp(want, g.x0 + reach(g), g.x1 - reach(g));
 }
 
+/**
+ * Where a pet sits along a pot rim, relative to the perch: a rim perch marks where a loafing cat's middle goes, so a
+ * longer pet (a cow, a beagle) slides out over the lip by the extra length behind it and a small one tucks in. Its
+ * back edge then meets the plant where a cat's would, and the leaves stay in view (the M1 audit's 40% rule).
+ */
+export function seatDx(g: Ground, p: Perch, species: Species, pose: PetPose): number {
+  if (p.kind !== 'rim') return 0;
+  const at = pose === 'sleep' || pose === 'sit' || pose === 'stand' ? pose : 'loaf';
+  const extra = (reachBehind(species, at) - reachBehind('cat', 'loaf')) * g.petSize * depthScale(p.depth);
+  return (p.facing === 'left' ? -1 : 1) * extra;
+}
+
+/** A pet on a perch, seated for its species (see `seatDx`). */
+export function seatOn(g: Ground, p: Perch, species: Species, pose: PetPose, asleep: boolean, facing: 'left' | 'right'): PetSpot {
+  return perchSpot(p, pose, asleep, facing, seatDx(g, p, species, p.pose && !asleep ? p.pose : pose));
+}
+
+/** A resident's own perch: its routine's object when one is out, else its pot's rim (or beside its cutting's glass). */
+export function homePerch(g: Ground, habitId: string | undefined): Perch | undefined {
+  if (!habitId) return undefined;
+  const own = g.perches.filter((q) => q.owner === habitId);
+  return own.find((q) => q.kind === 'prop') ?? own.find((q) => q.kind === 'rim') ?? own.find((q) => q.kind === 'glass');
+}
+
+/** The perch a favourite spot names ('pot:<habitId>' a rim, 'decor:<key>' a bed), if this ground has it. */
+export function favouritePerch(g: Ground, spot: string | undefined): Perch | undefined {
+  if (!spot) return undefined;
+  if (spot.startsWith('pot:')) {
+    const id = spot.slice(4);
+    return g.perches.find((q) => q.owner === id && q.kind === 'rim') ?? g.perches.find((q) => q.owner === id && q.kind === 'glass');
+  }
+  if (spot.startsWith('decor:')) return g.perches.find((q) => q.id === `bed:${spot.slice(6)}`);
+  return undefined;
+}
+
 /** Everyone's spot for this moment, deterministic for the same pets and ground. */
 export function arrangePets(g: Ground, pets: readonly ShelfPet[], m: Moment): Map<string, PetSpot> {
   const out = new Map<string, PetSpot>();
-  const routine = m.light.night ? routineAt(m.hour) : 'day';
   const taken: number[] = [];
   const perched = new Set<string>();
   const mid = (g.x0 + g.x1) / 2;
+  const routineOf = (p: ShelfPet) => routineFor(speciesOf(p.petId), m.hour, m.light.night);
 
-  // Residents first: on their own pot's rim (awake in a loaf, curled up at night).
+  // Residents first: on their routine's object or their own pot's rim (awake in a loaf, curled up asleep).
   for (const p of pets) {
     const key = petKey(p);
-    const rim = p.home ? g.perches.find((q) => q.owner === p.home && q.kind === 'rim') : undefined;
-    if (!rim) continue;
+    const home = homePerch(g, p.home);
+    if (!home) continue;
     const sp = speciesOf(p.petId);
-    const asleep = routine === 'sleep';
-    out.set(key, perchSpot(rim, asleep ? 'sleep' : REST_POSE[sp], asleep, rim.x > mid ? 'left' : 'right'));
-    perched.add(rim.id);
+    const asleep = routineOf(p) === 'sleep';
+    out.set(key, seatOn(g, home, sp, asleep ? 'sleep' : REST_POSE[sp], asleep, home.x > mid ? 'left' : 'right'));
+    perched.add(home.id);
+  }
+
+  // Then favourite spots (DESIGN §8.2, L4), while they are free.
+  for (const p of pets) {
+    const key = petKey(p);
+    if (out.has(key)) continue;
+    const fav = favouritePerch(g, p.favouriteSpot);
+    if (!fav || perched.has(fav.id)) continue;
+    const sp = speciesOf(p.petId);
+    const asleep = routineOf(p) === 'sleep';
+    out.set(key, seatOn(g, fav, sp, asleep ? 'sleep' : REST_POSE[sp], asleep, fav.x > mid ? 'left' : 'right'));
+    perched.add(fav.id);
   }
 
   // Then anyone drawn to a particular perch (a frog to the lily pad) takes it while it is free.
@@ -135,16 +215,16 @@ export function arrangePets(g: Ground, pets: readonly ShelfPet[], m: Moment): Ma
     const sp = speciesOf(p.petId);
     const liked = g.perches.find((q) => q.kind !== 'rim' && q.likes?.includes(sp) && !perched.has(q.id));
     if (!liked) continue;
-    const asleep = routine === 'sleep';
+    const asleep = routineOf(p) === 'sleep';
     out.set(key, perchSpot(liked, asleep ? 'sleep' : REST_POSE[sp], asleep, liked.x > mid ? 'left' : 'right'));
     perched.add(liked.id);
   }
 
   // At bedtime, beds first (a matchbox bed, a basket): whoever is nearest in the list gets one.
-  if (routine === 'sleep') {
+  {
     for (const p of pets) {
       const key = petKey(p);
-      if (out.has(key)) continue;
+      if (out.has(key) || routineOf(p) !== 'sleep') continue;
       const bed = g.perches.find((q) => q.kind === 'bed' && !perched.has(q.id));
       if (!bed) break;
       out.set(key, perchSpot(bed, 'sleep', true, bed.x > mid ? 'left' : 'right'));
@@ -160,16 +240,22 @@ export function arrangePets(g: Ground, pets: readonly ShelfPet[], m: Moment): Ma
     const r = seeded(hash(key));
     const personality = p.personality ? PERSONALITY_BY_ID.get(p.personality) : undefined;
     const sleepy = (personality?.behavior.nap ?? 2) >= 3;
+    const routine = routineOf(p);
     let want: number;
     let asleep = false;
     let pose: PetPose;
-    if (routine === 'sleep') {
+    if (routine === 'sleep' && m.light.night) {
       asleep = true;
       pose = 'sleep';
       want = (g.lampX ?? mid) - g.petSize * (0.6 + i * 0.75);
+    } else if (routine === 'sleep') {
+      // A nocturnal pet asleep by day, somewhere out of the way along the floor.
+      asleep = true;
+      pose = 'sleep';
+      want = g.x0 + ((i + 0.5) / Math.max(1, rest.length)) * (g.x1 - g.x0);
     } else if (routine === 'lamp') {
       pose = r() < 0.5 ? REST_POSE[sp] : AWAKE_POSE[sp];
-      want = (g.lampX ?? mid) - g.petSize * (0.7 + i * 0.8);
+      want = (gatherX(g, g.x0 + ((i + 0.5) / Math.max(1, rest.length)) * (g.x1 - g.x0)) ?? mid) - g.petSize * (0.7 + (i % 3) * 0.8);
     } else {
       const sunLover = p.personality === 'sunny' || p.personality === 'sleepy' || p.personality === 'dreamy';
       if (g.beam && (sunLover || i === 0)) {

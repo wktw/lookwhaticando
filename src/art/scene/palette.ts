@@ -4,6 +4,7 @@
  * Paint goes on as SVG attributes so any layer can be serialised on its own (photo mode).
  */
 import { mix } from './color';
+import { channels, fromHsl, toHsl } from '@/art/plants/math';
 import type { Season, TimeOfDay } from './time';
 
 export interface RoomPalette {
@@ -290,6 +291,23 @@ const TONE: Record<TimeOfDay, readonly [string, number] | null> = {
 };
 
 const toned = new Map<string, string>();
+
+/**
+ * Like `tone`, but a living green keeps its colour after dark: the lightness of the toned colour, a hue turned a
+ * little toward the lamplit indigo room, and at least 45% of its own saturation (never the grey a plain mix makes).
+ */
+export function toneChroma(time: TimeOfDay, hex: string): string {
+  const out = tone(time, hex);
+  if (!TONE[time] || time !== 'night') return out;
+  const key = `c${time}${hex}`;
+  let hit = toned.get(key);
+  if (!hit) {
+    const [h, s] = toHsl(channels(hex));
+    const [, s2, l2] = toHsl(channels(out));
+    toned.set(key, (hit = fromHsl(h + (200 - h) * 0.28, Math.max(s2, s * 0.45), l2)));
+  }
+  return hit;
+}
 
 /** `hex` as it looks at this time of day (memoised). */
 export function tone(time: TimeOfDay, hex: string): string {

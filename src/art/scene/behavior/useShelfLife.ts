@@ -11,19 +11,20 @@ import type { ActorView } from '../actors/PetActor';
 import type { Moment } from '../time';
 import { useVisible } from '../hooks';
 import { Director, type DirectorPet } from './director';
+import { petNode } from '../query';
 
 export function useShelfLife(
   pets: readonly DirectorPet[],
   start: ReadonlyMap<string, PetSpot>,
   { moment, live, sceneRef, vignettes = true, opening }: { moment: Moment; live: boolean; sceneRef: RefObject<HTMLElement>; vignettes?: boolean; opening?: string },
-): ReadonlyMap<string, Signal<ActorView>> {
+): { views: ReadonlyMap<string, Signal<ActorView>>; director: Director } {
   const director = useMemo(
     () =>
       new Director(pets, start, {
         moment,
         vignettes,
         reduced: prefersReducedMotion,
-        element: (key) => sceneRef.current?.querySelector<HTMLElement>(`[data-pet="${CSS.escape(key)}"]`) ?? null,
+        element: (key) => petNode(sceneRef.current, key),
       }),
     // A new cast or a new stage makes a new director; the moment is passed on below.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -53,5 +54,5 @@ export function useShelfLife(
     };
   }, [director, live, opening]);
 
-  return director.views;
+  return { views: director.views, director };
 }

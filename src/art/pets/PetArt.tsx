@@ -22,8 +22,11 @@ export interface PetArtProps {
   petId: string;
   outfit?: Outfit;
   expression?: Expression;
-  /** A true posture (DESIGN §8.1). Default 'sit'. */
-  pose?: Pose;
+  /**
+   * A true posture (DESIGN §8.1). Default 'sit'. `carry` is the pet lifted by a hand on the Shelf (DESIGN §8.2): the
+   * standing body held up with its legs dangling, no contact shadow, swinging a little like a pendulum while live.
+   */
+  pose?: ArtPose;
   /** Windowlight: where the light comes from, and whether it is the lamp. Default: the window, from the left. */
   light?: Light;
   /** Idle life: breathing, blinking, a tail flick, the walk cycle. */
@@ -51,6 +54,12 @@ export interface PetArtProps {
   /** Override look (gallery and tests). */
   look?: PetLook;
 }
+
+/** Every pose PetArt draws: the rigs' true postures, and `carry` (derived from the stand). */
+export type ArtPose = Pose | 'carry';
+
+/** How far a carried pet's legs hang below their hips, as a stretch of the leg (DESIGN §8.2 "dangling feet"). */
+export const DANGLE = 1.24;
 
 /** Stable pseudo-random 0..1 from a string (desynchronised idle timings). */
 function hash01(s: string): number {
@@ -88,7 +97,7 @@ function gloveT(sock: string, k: number): string {
   return `translate(0 ${fmt(y)}) scale(1 ${k}) translate(0 ${fmt(-y)})`;
 }
 
-function Layers({ layers, c, part, cls }: { layers?: Layer[]; c: DrawCtx; part: 'front' | 'frontB' | 'back' | 'backB'; cls?: string }) {
+function Layers({ layers, c, part, cls, dangle }: { layers?: Layer[]; c: DrawCtx; part: 'front' | 'frontB' | 'back' | 'backB'; cls?: string; dangle?: boolean }) {
   if (!layers?.length) return null;
   const t = c.tones;
   const rim = t.dark && !c.silhouette;
@@ -110,8 +119,10 @@ function Layers({ layers, c, part, cls }: { layers?: Layer[]; c: DrawCtx; part: 
         {glow && <path d={glow} fill={c.night ? 'var(--lamp)' : DAY_RIM} opacity={c.night ? 0.45 : 0.5} />}
       </>
     );
-    return l.cls ? (
-      <g key={i} class={l.cls}>
+    // A carried pet's legs hang from the hip: the leg (and its crescents) stretched down from its top.
+    const hang = dangle ? legHang(l.d) : undefined;
+    return l.cls || hang ? (
+      <g key={i} class={l.cls} transform={hang}>
         {shapes}
       </g>
     ) : (
@@ -119,6 +130,14 @@ function Layers({ layers, c, part, cls }: { layers?: Layer[]; c: DrawCtx; part: 
     );
   });
   return cls ? <g class={cls}>{items}</g> : <>{items}</>;
+}
+
+/** Where a leg hangs from when carried: stretched down from its top edge. Cached per path. */
+const hips = new Map<string, number>();
+function legHang(d: string): string {
+  let y = hips.get(d);
+  if (y === undefined) hips.set(d, (y = pathBox(d).y0));
+  return `translate(0 ${fmt(y)}) scale(1 ${DANGLE}) translate(0 ${fmt(-y)})`;
 }
 
 /** The window's cool edge light on a dark coat by day (the style frames' "rim light"). */
@@ -257,11 +276,12 @@ export function PetArt(props: PetArtProps) {
 
   const pxStr = typeof size === 'number' ? `${size}px` : size;
   const label = title ?? (silhouette ? undefined : getCollectible(petId)?.name);
-  const classes = ['pet-art', `species-${look.species}`, live ? 'is-animated' : '', silhouette ? 'is-silhouette' : '', props.class ?? ''].filter(Boolean).join(' ');
+  // Breathing and blinking stay under reduced motion (DESIGN §10.5): the root and the blink groups are motion-safe.
+  const classes = ['pet-art', `species-${look.species}`, live ? 'is-animated ck-motion-safe' : '', silhouette ? 'is-silhouette' : '', props.class ?? ''].filter(Boolean).join(' ');
   const flip = facing === 'left' ? 'translate(100 0) scale(-1 1)' : '';
 
   // Breathing is a transform on the <svg> itself (pet.css), so it composites as one box.
-  const svg = (children: JSX.Element, pose: Pose | 'sprite') => (
+  const svg = (children: JSX.Element, pose: ArtPose | 'sprite') => (
     <svg
       class={classes}
       data-tier={tier}
@@ -295,9 +315,12 @@ export function PetArt(props: PetArtProps) {
   }
 
   const expr = canonicalExpression(props.expression);
-  const asked = props.pose ?? 'sit';
+  const askedArt = props.pose ?? 'sit';
+  const carried = askedArt === 'carry';
+  const asked: Pose = carried ? 'stand' : askedArt;
   // Size floors: ≤ 32 px the closed-eye loaf; below 48 px a curl reads as a blob, so it loafs too.
   const pose: Pose = tier === 'small' || (tier === 'medium' && asked === 'sleep') ? SPRITE_POSE : asked;
+  const dangle = carried && pose === 'stand';
   const p: PoseRig = rig.poses[pose];
   const sleepy = tier === 'medium' && asked === 'sleep';
   const closed = !!p.eyesClosed || sleepy || (tier === 'small' && expr !== 'happy');
@@ -426,14 +449,29 @@ export function PetArt(props: PetArtProps) {
   );
   const figure = (
     <>
-      <Layers layers={p.back} c={ctx} part="back" cls={walkB ? 'pet-walk-a' : undefined} />
+      <Layers layers={p.back} c={ctx} part="back" cls={walkB ? 'pet-walk-a' : undefined} dangle={dangle} />
       {walkB && <Layers layers={p.frameB!.back} c={ctx} part="backB" cls="pet-walk-b" />}
       {bob ? <g class={bob}>{lower}</g> : lower}
-      <Layers layers={p.front} c={ctx} part="front" cls={walkB ? 'pet-walk-a' : undefined} />
+      <Layers layers={p.front} c={ctx} part="front" cls={walkB ? 'pet-walk-a' : undefined} dangle={dangle} />
       {walkB && <Layers layers={p.frameB!.front} c={ctx} part="frontB" cls="pet-walk-b" />}
       {bob ? <g class={bob}>{upper}</g> : upper}
     </>
   );
+
+  if (dangle) {
+    // Held by the scruff: the figure hangs from just above the neck, tipped a little nose-up, and swings.
+    const [hx, hy] = [p.neck.x, p.neck.y - 8];
+    return svg(
+      <g transform={scaleT}>
+        <g transform={`translate(${fmt(hx)} ${fmt(hy)})`}>
+          <g class={live ? 'pet-dangle' : undefined}>
+            <g transform={`rotate(-7) translate(${fmt(-hx)} ${fmt(-hy)})`}>{figure}</g>
+          </g>
+        </g>
+      </g>,
+      'carry',
+    );
+  }
 
   return svg(
     <g transform={scaleT}>

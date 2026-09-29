@@ -1,55 +1,44 @@
 /**
- * A placed decor item (drawn by the items module, `DECOR_ENTRIES`) standing on the Shelf in the scene's
- * light: flipped items get the mirrored light so their crescent still falls away from the window, and
- * lights (a jam-jar lantern, a paper star) glow warm after dark.
+ * A placed decor item (drawn by the items module, `DECOR_ENTRIES`, or a keepsake or routine object) standing on the
+ * Shelf in the scene's light: flipped items get the mirrored light so their crescent still falls away from the window.
+ * Lights (a jam-jar lantern, a paper star) paint their own halo; the scene lays their pool on the sill under them, so
+ * each source has exactly one halo (DESIGN §10.4).
  */
 import { memo } from 'preact/compat';
 import type { Light } from '@/art/light';
-import { DECOR_ENTRIES } from '../decor';
+import type { DecorEntry } from '../decor';
 import { DECOR_BASELINE, PET_UNITS } from '../room';
-import { useUid } from '../uid';
-import { decorSize, mirrored } from '../fit';
+import { mirrored } from '../fit';
 import { standAt, u } from './stand';
 import s from '../shelf.module.css';
 
 export interface DecorItemProps {
+  entry: DecorEntry;
+  /** For the DOM (tests, edit mode). */
   itemId: string;
   x: number;
   /** Baseline in units (for hanging items: the y it hangs from). */
   y: number;
   z: number;
-  /** A pet's canvas edge in units: decor sizes are measured against a sitting cat (PET_UNITS). */
-  petSize: number;
+  /** Canvas edge in units (before the depth scale). */
+  size: number;
   light: Light;
   flip?: boolean;
   scale?: number;
+  /** Draw only the part in front of a napping pet (a box's front face), over it. */
+  front?: boolean;
 }
 
-export const DecorItem = memo(function DecorItem({ itemId, x, y, z, petSize, light, flip = false, scale = 1 }: DecorItemProps) {
-  const glowId = useUid('dglow');
-  const entry = DECOR_ENTRIES[itemId];
-  if (!entry) return null;
-  const size = decorSize(itemId, petSize);
+export const DecorItem = memo(function DecorItem({ entry, itemId, x, y, z, size, light, flip = false, scale = 1, front = false }: DecorItemProps) {
+  const draw = front ? entry.front : entry.art;
+  if (!draw) return null;
   const hanging = entry.hang === 'window';
   const style = hanging
     ? { position: 'absolute' as const, left: u(x - size / 2), top: u(y), width: u(size), height: u(size), zIndex: z }
     : standAt(x, y, size, DECOR_BASELINE, z, scale);
-  const glow = light.night ? entry.glow : undefined;
-  const art = entry.art({ night: light.night, light: flip ? mirrored(light) : light, line: PET_UNITS / entry.size });
+  const art = draw({ night: light.night, light: flip ? mirrored(light) : light, line: PET_UNITS / entry.size });
   return (
-    <svg class={s.decor} style={style} viewBox="0 0 100 100" aria-hidden="true" focusable="false" overflow="visible" data-decor={itemId}>
-      {glow && (
-        <>
-          <defs>
-            <radialGradient id={glowId}>
-              <stop offset="0" stop-color="var(--lamp, #FFC98A)" stop-opacity={0.55} />
-              <stop offset="0.4" stop-color="var(--lamp, #FFC98A)" stop-opacity={0.2} />
-              <stop offset="1" stop-color="var(--lamp, #FFC98A)" stop-opacity={0} />
-            </radialGradient>
-          </defs>
-          <circle cx={glow[0]} cy={glow[1]} r={glow[2] * 1.3} fill={`url(#${glowId})`} />
-        </>
-      )}
+    <svg class={s.decor} style={style} viewBox="0 0 100 100" aria-hidden="true" focusable="false" overflow="visible" data-decor={itemId} data-part={front ? 'front' : undefined}>
       {flip ? <g transform="translate(100 0) scale(-1 1)">{art}</g> : art}
     </svg>
   );

@@ -73,7 +73,7 @@ function cluster(k: Kit, at: Pt, side: number, n: number, open: number, key: str
         const hy = end[1] + dy;
         const fill = k.lit(i % 2 ? '#F5CBD5' : '#FCEEF1');
         return petal ? (
-          <g key={i} transform={`translate(${f(hx)} ${f(hy)}) rotate(${(i * 23) % 40 - 18}) scale(${f(lerp(0.7, 1, open))})`}>
+          <g key={i} transform={`translate(${f(hx)} ${f(hy)}) rotate(${(i * 23) % 40 - 18}) scale(${f(lerp(0.7, 1, open) * k.bloom)})`}>
             <ellipse rx={2.5} ry={1.7} fill={fill} />
             <ellipse rx={1.2} ry={2.3} fill={fill} />
             <circle r={0.7} fill="#F2CF6A" />

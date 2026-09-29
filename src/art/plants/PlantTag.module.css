@@ -10,7 +10,8 @@
   flex-direction: column;
   align-items: center;
   max-width: 100%;
-  font-size: var(--tag-size, 14px);
+  /* Legible floors: 11 px for the name (10 px for the note, below), whatever size a scene asks for. */
+  font-size: max(11px, var(--tag-size, 14px));
   line-height: 1.25;
   vertical-align: bottom;
 }
@@ -53,6 +54,24 @@
   transform-origin: 20% 100%;
 }
 
+/* Mirrored: the tag reaches to the left of its anchor, tipped the other way. */
+.left {
+  align-items: flex-end;
+}
+
+.left .card {
+  transform: rotate(3deg);
+}
+
+.left.propped .card {
+  transform: rotate(-6deg);
+  transform-origin: 80% 100%;
+}
+
+.left .stake {
+  transform: rotate(3deg);
+}
+
 /* The punched hole: the card's own colour pushed back, with a darker lip. */
 .hole {
   flex: none;
@@ -83,7 +102,7 @@
 
 .note {
   margin-top: -0.05em;
-  font-size: 0.78em;
+  font-size: max(10px, 0.78em);
   font-style: italic;
   color: var(--tag-ink-2);
 }

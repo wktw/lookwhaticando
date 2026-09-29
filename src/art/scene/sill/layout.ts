@@ -124,10 +124,11 @@ const SASH = 70;
  * Lay out a sill for `pots` pots at least `minWidth` units wide (the viewport, in units).
  * With room to spare the pots spread out (up to `maxPitch`), and the rest is free sill.
  */
-export function sillLayout(spec: SillSpec, pots: number, minWidth = 0): SillLayout {
+export function sillLayout(spec: SillSpec, pots: number, minWidth = 0, extraRoam = 0): SillLayout {
   const n = Math.max(0, Math.floor(pots));
+  const roam = spec.roam + Math.max(0, extraRoam);
   const jarGap = spec.jarInRow ? spec.scale.jar * 0.72 : spec.pitch * 0.5;
-  const natural = spec.lead + spec.first + Math.max(0, n - 1) * spec.pitch + jarGap + spec.roam + spec.tail;
+  const natural = spec.lead + spec.first + Math.max(0, n - 1) * spec.pitch + jarGap + roam + spec.tail;
   const spare = Math.max(0, minWidth - natural);
   let pitch = n > 1 ? Math.min(spec.maxPitch, spec.pitch + spare / (n - 1 + 0.8)) : spec.pitch;
   let first = spec.first;
@@ -136,7 +137,7 @@ export function sillLayout(spec: SillSpec, pots: number, minWidth = 0): SillLayo
   const x0 = spec.lead;
   const potX = (i: number) => x0 + first + i * pitch;
   const jarX = n > 0 ? potX(n - 1) + Math.max(jarGap, pitch * 0.78) : x0 + first;
-  const contentRight = spec.jarInRow ? jarX + spec.scale.jar / 2 + spec.roam : (n > 0 ? potX(n - 1) + pitch * 0.5 : x0) + spec.roam;
+  const contentRight = spec.jarInRow ? jarX + spec.scale.jar / 2 + roam : (n > 0 ? potX(n - 1) + pitch * 0.5 : x0) + roam;
   const width = Math.max(minWidth, contentRight + spec.tail);
   const x1 = width - spec.tail;
   const panes = Math.max(1, Math.round((x1 - x0) / SASH));

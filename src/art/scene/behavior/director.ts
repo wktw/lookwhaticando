@@ -226,6 +226,24 @@ export class Director {
     }
   }
 
+  /** A hand has the pet (a touch, a carry): it stops what it was doing and waits. */
+  hold(key: string): void {
+    const t = this.timers.get(key);
+    if (t) clearTimeout(t);
+    this.timers.delete(key);
+    this.busy.add(key);
+  }
+
+  /** The hand lets go: the pet is put `at` a spot (a carry's landing), and carries on with its day after a while. */
+  release(key: string, at?: PetSpot, ms = 5000): void {
+    const view = this.views.get(key);
+    const pet = this.pets.get(key);
+    if (!view || !pet) return;
+    if (at) view.value = { ...at, move: 0, hop: false, sunny: !!pet.ground.beam && !at.perch };
+    this.busy.delete(key);
+    if (this.running) this.schedule(key, ms);
+  }
+
   /** Reduced motion: one pet fades out, and back in somewhere else. */
   private relocateOne(): void {
     if (!this.running) return;

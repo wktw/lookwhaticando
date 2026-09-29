@@ -87,9 +87,9 @@ const FACE_SPOT = ell(0, 0.3, 0.4, 0.32);
  * spotted lilac on the lip, opening from the bottom tier up. Returned as path data (column, flowers, spots), so all
  * the spikes on a plant share three paths.
  */
-function flowerSpike(tip: Pt, a: number, open: number) {
+function flowerSpike(tip: Pt, a: number, open: number, scale = 1) {
   const L = 8;
-  const at = placeMatrix(tip[0], tip[1], a, 1);
+  const at = placeMatrix(tip[0], tip[1], a, scale);
   const col = bake(`M-1.3 0.6C-1.5 -2.6 -1.2 -5.6 -0.6 -${L}C-0.3 -${L + 0.8} 0.3 -${L + 0.8} 0.6 -${L}C1.2 -5.6 1.5 -2.6 1.3 0.6Z`, at);
   let white = '';
   let spots = '';
@@ -143,7 +143,7 @@ function potted(g: Growth, k: Kit, m: Mouth) {
   });
   const budding = g.stage === 4 ? 1 + Math.round(g.progress) : 0;
   const n = budding || Math.min(tips.length, Math.ceil(g.blooms * 0.8));
-  const spikes = tips.slice(0, n).map((t) => flowerSpike(t.tip, t.a, budding ? 0 : 1));
+  const spikes = tips.slice(0, n).map((t) => flowerSpike(t.tip, t.a, budding ? 0 : 1, k.bloom));
   const join = (key: 'col' | 'white' | 'spots') => spikes.map((sp) => sp[key]).join('');
   return {
     back: (

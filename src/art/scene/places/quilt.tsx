@@ -168,8 +168,8 @@ export const QUILT_PLACE: PlaceScene = {
     </g>
   ),
   ground,
-  lampAt: [152.5, 40],
-  // The bedside lamp lights the quilt: the nap pile is the brightest thing in the room.
-  pool: { x: 98, y: 66, r: 76 },
+  // The bedside lamp's shade: its pool is anchored there and reaches across the quilt to the nap pile.
+  lampAt: [152.5, 37.3],
+  pool: { x: 152.5, y: 37.3, r: 104 },
   crop: [6, 0, 150, 100],
 };

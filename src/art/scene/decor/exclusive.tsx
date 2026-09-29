@@ -6,17 +6,18 @@
 import { Glow, cast, contact, crescentOf, flat, lit, paint, shapes, solid, thin, type DecorRenderer } from './kit';
 import { dots, ell, ellPts, leaf, n, poly, rect, smooth, trap, type Pt } from './geo';
 
-/* ---------------- The Window Seat: a cushioned seat built into the window ---------------- */
+/*
+ * ---------------- The Window Seat: a cushioned bench in an alcove by the window ----------------
+ * DESIGN §10.4: one light, from the real window. The seat is built in beside it, so its alcove has a plain back wall
+ * and tied-back linen curtains, and no glass, sky or moon of its own.
+ */
 
 const SEAT = {
   wall: '#FCF7EF',
   recess: '#E6DACB',
-  frame: '#FDFAF4',
-  sky: '#D6E8F4',
-  skyLow: '#E8F1F3',
-  tree: '#B9D0A6',
-  nightSky: '#3A3760',
-  star: '#FFE7B0',
+  hoopWood: '#D9BE9A',
+  hoopPin: '#C9A052',
+  linen: '#F6EFE3',
   curtain: '#F3E7D6',
   tie: '#E3A083',
   wood: '#F4ECDF',
@@ -45,24 +46,8 @@ const seat = shapes('decor-window-seat', {
   recess: { d: ARCH(13, 87, 13.5, 39, 92), k: 0 },
   /** The recess again, lit as a hollow: its shade falls inside it, along the jamb and arch head nearest the light. */
   reveal: { d: ARCH(13, 87, 13.5, 39, 92), k: -0.9 },
-  frame: { d: ARCH(22, 78, 20, 42, 71), k: 0.4 },
-  glass: { d: ARCH(25, 75, 23.2, 43, 68.6), k: 0 },
-  tree: {
-    d: `${smooth(
-      [
-        [25, 62],
-        [30, 54],
-        [38, 51.6],
-        [45, 55],
-        [48, 62],
-        [48, 69],
-        [25, 69],
-      ],
-      false,
-    )}Z`,
-    k: 0,
-    clip: 'glass',
-  },
+  /** An embroidery hoop on the alcove's back wall (the seat has no window of its own: the room's window is the light). */
+  hoop: { d: ell(50, 34, 8.4), k: 0.6 },
   curtainL: {
     d: smooth([
       [14, 22],
@@ -121,19 +106,6 @@ const seat = shapes('decor-window-seat', {
   stripes: { d: 'M30 70H70V72H30ZM30 76H70V78H30Z', k: 0, clip: 'throw' },
 });
 
-/** Sun through the two lower panes, landing on the cushion either side of the bar's shadow. Its slant follows the light. */
-function beam(from: 'left' | 'top' | 'right'): string {
-  const s = from === 'left' ? 6 : from === 'right' ? -6 : 0;
-  const pane = (x0: number, x1: number) =>
-    poly([
-      [x0, 63.4],
-      [x1, 63.4],
-      [x1 + s, 72.6],
-      [x0 + s, 72.6],
-    ]);
-  return pane(29, 48.6) + pane(51.4, 71);
-}
-
 /** The pothos trails two vines over the cushion's edge, its leaves hanging off alternate sides. */
 const VINES = 'M71.4 55C66.6 59 64.4 64.6 65 70.6C65.4 76 64 80.4 62.4 85M80.6 55.4C84 60.4 85.4 66 84.6 73';
 /** Leaf base on the vine, then where its tip hangs to. */
@@ -154,19 +126,12 @@ export const windowSeat: DecorRenderer = (o) => {
       {solid(p, seat.wall, SEAT.wall)}
       {flat(p, seat.recess, SEAT.recess)}
       {crescentOf(p, seat.reveal)}
-      {solid(p, seat.frame, SEAT.frame)}
-      {flat(p, seat.glass, p.night ? SEAT.nightSky : SEAT.sky)}
-      {p.night ? (
-        <g fill={SEAT.star}>
-          <path d="M62 30.4a6 6 0 1 0 4.6 9.6a4.8 4.8 0 1 1 -4.6 -9.6Z" />
-          <circle cx={36} cy={34} r={0.9} />
-          <circle cx={44} cy={29} r={0.7} />
-          <circle cx={58} cy={52} r={0.8} />
-        </g>
-      ) : (
-        [<path d={rect(25, 58, 50, 10.6)} fill={p.c(SEAT.skyLow)} />, flat(p, seat.tree, SEAT.tree)]
-      )}
-      {thin(p, 'M50 22.6V69M24 45.6H76', SEAT.frame, 2.2)}
+      {thin(p, 'M50 22.6V26', SEAT.hoopPin, 1.2)}
+      {solid(p, seat.hoop, SEAT.hoopWood, [
+        <path d={ell(50, 34, 7.2)} fill={p.c(SEAT.linen)} />,
+        thin(p, 'M50 39.6C50 37 49.6 35.4 50 33.6M50 37.4C48.4 36.4 47.4 36.8 46.8 37.6', SEAT.leaf, 0.7),
+        <path d={`${ell(48.6, 31.6, 1.3)}${ell(51.4, 31.6, 1.3)}${ell(50, 30.2, 1.3)}${ell(50, 33, 1.3)}`} fill={p.c(SEAT.cushion)} />,
+      ])}
       {solid(p, seat.curtainL, SEAT.curtain, thin(p, 'M18.4 52.4L25 50.6', SEAT.tie, 1.6))}
       {solid(p, seat.curtainR, SEAT.curtain, thin(p, 'M81.6 52.4L75 50.6', SEAT.tie, 1.6))}
       {solid(p, seat.base, SEAT.wood, [
@@ -179,7 +144,6 @@ export const windowSeat: DecorRenderer = (o) => {
         thin(p, 'M16 71H84', SEAT.piping, 1.1),
         ...[28, 50, 72].map((x) => <circle key={x} cx={x} cy={67} r={1.1} fill={p.c(SEAT.button)} />),
       ])}
-      {!p.night && <path d={beam(p.from)} fill="var(--sun)" />}
       {solid(p, seat.leafB, SEAT.leafDeep)}
       {solid(p, seat.leafA, SEAT.leaf)}
       {solid(p, seat.leafC, SEAT.leaf)}

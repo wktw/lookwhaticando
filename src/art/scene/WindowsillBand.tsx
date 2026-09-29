@@ -14,7 +14,7 @@ import { useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState 
 import { effect, signal, type ReadonlySignal } from '@preact/signals';
 import type { Hemisphere } from '@/art/light';
 import { prefersReducedMotion } from '@/fx/motion';
-import type { ShelfPet, SillPot } from './model';
+import type { ShelfPet, SillExtras, SillPot } from './model';
 import { petKey } from './model';
 import type { Moment } from './time';
 import { outsidePalette, ROOM } from './palette';
@@ -27,7 +27,7 @@ import { PetLayer } from './actors/PetLayer';
 import type { ActorView } from './actors/PetActor';
 import { u } from './actors/stand';
 import { useWidthUnits, useWindowMoment } from './hooks';
-import { baseline, depthScale, PLANT_BASELINE, POT_RIM } from './room';
+import { baseline, depthScale } from './room';
 import { OBJECT_BASE } from './props/shapes';
 import { CoinJar, pileTop } from './props/CoinJar';
 import { Coin } from './props/Coin';
@@ -37,12 +37,21 @@ import { lampPoolCss } from './props/LampPool';
 import { bandCollapse } from './band';
 import { sceneTokens } from './SillScene';
 import { useUid } from './uid';
+import { DECOR_ENTRIES } from './decor';
+import { decorSize } from './fit';
+import { foundFor } from './objects/found';
+import { CuttingPot, CuttingVine, vineReach } from './objects/cutting';
+import { SillNote, SillThing } from './sill/SillSegment';
 import { scrollKeyTarget } from './ScrollFrame';
 import s from './shelf.module.css';
 import b from './band.module.css';
+import { petNode } from './query';
 
 export interface WindowsillBandHandle {
-  /** A thin stream of water onto that habit's pot; the soil darkens and the plant reacts. */
+  /**
+   * A thin stream of water onto that habit's pot; the soil darkens and the plant reacts. A pot not on the band (the
+   * band shows up to six) gets its coin instead, so the check-in is never silent.
+   */
   pour(habitId: string): void;
   /** A brass coin drops into the jar. */
   coinToJar(): void;
@@ -50,7 +59,7 @@ export interface WindowsillBandHandle {
   react(petKey: string): void;
 }
 
-export interface WindowsillBandProps {
+export interface WindowsillBandProps extends SillExtras {
   /** Today's habit pots, left to right (up to six are shown). */
   pots: readonly SillPot[];
   /** The pets living in them (each with `home` set to its habit). */
@@ -68,6 +77,10 @@ export interface WindowsillBandProps {
    * this much as the band collapses, so the chip never sits over a resident.
    */
   chipInset?: number;
+  /** Show every plant tag (default off: the band's pots are the cards' plants, named below it). */
+  tags?: boolean;
+  /** Show only this habit's tag (the pot she last tapped or checked in). */
+  tagFor?: string;
   class?: string;
   style?: JSX.CSSProperties;
 }
@@ -115,6 +128,7 @@ export const WindowsillBand = forwardRef(function WindowsillBand(props: Windowsi
   const view = outsidePalette(moment.time, moment.season);
   const light = childLight(moment.light);
 
+  // The band's end is pinned, so its own width comes off the pot row's view.
   const world = useMemo(() => sillWorld(BAND_SPEC, pots, [], room, moment.light.sun, widthU, moment.season), [pots, room, moment.light.sun, widthU, moment.season]);
   const residents = useMemo(() => pets.filter((p) => p.home && pots.some((q) => q.habitId === p.home)), [pets, pots]);
   const start = useMemo(() => arrangePets(world.ground, residents, moment), [world, residents, moment.time]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -147,19 +161,18 @@ export const WindowsillBand = forwardRef(function WindowsillBand(props: Windowsi
     setPulses((p) => ({ ...p, [habitId]: (p[habitId] ?? 0) + 1 }));
   }, []);
 
-  useImperativeHandle(
-    ref,
-    () => ({
+  useImperativeHandle(ref, () => {
+    const handle: WindowsillBandHandle = {
       pour(habitId) {
-        const i = pots.findIndex((p) => p.habitId === habitId);
-        const at = world.layout.pots[i];
-        if (!at) return;
+        const at = world.pots.find((p) => p.habitId === habitId);
+        if (!at) return handle.coinToJar();
         if (prefersReducedMotion()) return water(habitId);
-        const size = BAND_SPEC.scale.pot * depthScale(at.depth);
-        const soil = baseline(BAND_SPEC.rows, at.depth) - ((PLANT_BASELINE - POT_RIM.y + 2) / 100) * size;
+        const size = at.size * at.scale;
+        const soil = at.y - ((at.metrics.foot - at.metrics.mouth.y) / 100) * size;
         const id = ++pourIds;
-        // Beside the resident, onto the soil just inside the rim.
-        setPours((list) => [...list, { id, x: at.x + size * 0.19, y: soil }]);
+        // Onto the soil just inside the rim, on the side away from the resident.
+        const side = at.tagSide === 'left' ? -1 : 1;
+        setPours((list) => [...list, { id, x: at.x + side * at.metrics.mouth.hw * 0.5 * (size / 100), y: soil }]);
         later(() => water(habitId), SOIL_AT_MS);
         later(() => setPours((list) => list.filter((p) => p.id !== id)), POUR_MS + 400);
       },
@@ -179,15 +192,15 @@ export const WindowsillBand = forwardRef(function WindowsillBand(props: Windowsi
         setLooks((l) => ({ ...l, [key]: 'surprised' }));
         later(() => setLooks((l) => ({ ...l, [key]: undefined })), 900);
         if (prefersReducedMotion()) return;
-        const body = sceneRef.current?.querySelector<HTMLElement>(`[data-pet="${CSS.escape(key)}"] > div`);
+        const body = petNode(sceneRef.current, key)?.querySelector<HTMLElement>(':scope > div');
         if (!body) return;
         body.classList.remove(s.react!);
         void body.offsetWidth;
         body.classList.add(s.react!);
       },
-    }),
-    [pots, world, water, later],
-  );
+    };
+    return handle;
+  }, [pots, world, water, later]);
 
   // The pot row scrolls with Arrow keys too, one pot at a time.
   const onScrollKey = (e: KeyboardEvent) => {
@@ -214,7 +227,7 @@ export const WindowsillBand = forwardRef(function WindowsillBand(props: Windowsi
         <div class={b.follow} style={{ ...sceneTokens(room.tokens), background: room.wall }}>
           <div ref={sceneRef} class={[s.scene, b.scroll, room.night ? s.night : ''].filter(Boolean).join(' ')} style={{ right: u(E.width), background: room.wall }} data-time={moment.time} tabIndex={0} role="group" aria-label="Today’s plants" onKeyDown={onScrollKey}>
             <div class={s.track} style={{ width: u(world.layout.width) }}>
-              <SillSegment world={world} room={room} view={view} light={light} pots={pots} coins={coins} uid={uid} animated damp={damp} pulses={pulses} potClass={b.snap} pinned moonX={bandMoonX(widthU)}>
+              <SillSegment world={world} room={room} view={view} light={light} pots={pots} coins={coins} uid={uid} animated damp={damp} pulses={pulses} potClass={b.snap} pinned moonX={bandMoonX(widthU)} tags={props.tags} tagFor={props.tagFor}>
                 <PetLayer pets={residents} views={views} size={BAND_SPEC.scale.pet} light={light} animated expressions={looks} />
                 {pours.map((p) => (
                   <Fragment key={p.id}>
@@ -248,6 +261,7 @@ export const WindowsillBand = forwardRef(function WindowsillBand(props: Windowsi
               <rect y={rows.nosing} width={E.width} height={1.6} fill={room.underNosing} />
             </svg>
             {room.night && <div class={b.pool} style={{ left: u(E.lamp - 64), top: u(rows.sillBack - 84), width: u(128), height: u(128), background: lampPoolCss() }} />}
+            {props.cutting && <BandCutting cutting={props.cutting} light={light} />}
             <div class={s.prop} style={standAt(E.lamp, baseline(rows, lampDepth), BAND_SPEC.scale.lamp, OBJECT_BASE, 2, depthScale(lampDepth))}>
               <TableLamp light={light} on={room.night} />
             </div>
@@ -262,12 +276,48 @@ export const WindowsillBand = forwardRef(function WindowsillBand(props: Windowsi
               ) : (
                 <Coin key={coin.n} class={b.coin} style={{ left: u(E.jar - 2.2), top: u(jarTop - 3), width: u(4.4), height: u(4.4) }} />
               ))}
+            <BandExtras extras={props} light={light} />
           </div>
         </div>
       </div>
     </div>
   );
 });
+
+/** The Cutting in the band: in its glass or pot by the pinned jamb, its vine climbing the jamb as it grows. */
+function BandCutting({ cutting, light }: { cutting: NonNullable<SillExtras['cutting']>; light: Parameters<typeof CuttingVine>[0]['light'] }) {
+  const rows = BAND_SPEC.rows;
+  const depth = BAND_SPEC.backRow - 0.34;
+  const size = BAND_SPEC.scale.pot * 0.5;
+  const x = BAND_END.jamb + 4.6;
+  const y = baseline(rows, depth);
+  const top = y - size * 0.42;
+  return (
+    <>
+      <svg viewBox={`0 0 ${BAND_END.width} 100`} width="100%" height="100%" preserveAspectRatio="none" aria-hidden="true" focusable="false" style={{ position: 'absolute', inset: 0, zIndex: 1 }}>
+        <CuttingVine path={[[x, top], [BAND_END.jamb / 2, top - 4], [BAND_END.jamb / 2, 1]]} reach={vineReach(cutting.stage, cutting.overall)} light={light} />
+      </svg>
+      <div class={s.prop} style={standAt(x, y, size, 95, 1, depthScale(depth))} data-cutting={cutting.stage}>
+        <CuttingPot stage={cutting.stage} light={light} />
+      </div>
+    </>
+  );
+}
+
+/** The band's rituals at its pinned end, always in view: a note to open, a found thing, the birthday cake. */
+function BandExtras({ extras, light }: { extras: SillExtras; light: Parameters<typeof CuttingVine>[0]['light'] }) {
+  const rows = BAND_SPEC.rows;
+  const pet = BAND_SPEC.scale.pet;
+  return (
+    <>
+      {extras.note && <SillNote x={BAND_END.jamb + 8} depth={1} size={pet * 0.62} rows={rows} light={light} note={extras.note} />}
+      {extras.cake && <SillThing kind="cake" x={BAND_END.jar + 12} depth={1} size={decorSize(DECOR_ENTRIES['decor-birthday-cake'], pet)} rows={rows} light={light} entry={DECOR_ENTRIES['decor-birthday-cake']!} />}
+      {extras.found && (
+        <SillThing kind="found" x={BAND_END.lamp + 9} depth={1} size={decorSize(foundFor(extras.found.seed), pet)} rows={rows} light={light} entry={foundFor(extras.found.seed)} label={extras.found.label ?? 'Something on the sill'} onTap={extras.found.onTap} />
+      )}
+    </>
+  );
+}
 
 /**
  * Where the band's moon hangs: in the last pane before the pinned jamb, as the band opens (scrolled to

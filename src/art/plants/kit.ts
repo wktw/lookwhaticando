@@ -31,6 +31,8 @@ export interface Kit {
    * on the shade side. Lit from above, the lowest leaves are the shaded ones.
    */
   tone(p: Inks, tone: number, x: number, y?: number): string;
+  /** How big the flowers are drawn (1; a Petite look draws them smaller, DESIGN §14.2). */
+  bloom: number;
 }
 
 /**
@@ -74,7 +76,19 @@ export function kitFor(light: Light = DAY_LIGHT): Kit {
       const t = Math.min(2, Math.max(0, Math.round(tone)) + (shaded ? 1 : 0));
       return t === 0 ? lit(p[0]) : p[t]!;
     },
+    bloom: 1,
   };
   kits.set(key, kit);
   return kit;
+}
+
+const bloomKits = new Map<string, Kit>();
+
+/** The same light with the flowers drawn at `bloom` × their size (memoised). */
+export function kitWithBloom(k: Kit, bloom: number): Kit {
+  if (bloom === k.bloom) return k;
+  const key = `${k.light.from}${k.night ? 'n' : 'd'}${bloom}`;
+  let out = bloomKits.get(key);
+  if (!out) bloomKits.set(key, (out = { ...k, bloom }));
+  return out;
 }

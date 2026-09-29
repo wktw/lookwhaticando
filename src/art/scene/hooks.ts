@@ -1,6 +1,7 @@
 /** Small DOM hooks for scenes: their width in room units, pausing when nobody can see them, and the clock. */
 import type { RefObject } from 'preact';
 import { useEffect, useMemo, useState } from 'preact/hooks';
+import { retainWindowClock, windowClock, windowHemisphere, windowMoment } from './moment';
 import type { Hemisphere } from '@/art/light';
 import { momentAt, type Moment } from './time';
 
@@ -59,51 +60,23 @@ export function useVisible(ref: RefObject<HTMLElement>, onChange?: (visible: boo
   return visible;
 }
 
-/** Milliseconds from `now` to the next quarter hour on the local clock (at least 1 s). */
-export function msToNextQuarter(now: Date): number {
-  const next = new Date(now);
-  next.setSeconds(0, 0);
-  next.setMinutes(Math.floor(now.getMinutes() / 15) * 15 + 15);
-  return Math.max(1000, next.getTime() - now.getTime());
-}
+export { msToNextQuarter } from './moment';
 
 /**
- * The window's moment, kept current (DESIGN §10.4: Windowlight updates in 15-minute steps). With no
- * pinned `moment` or `now`, it re-reads the clock at each quarter hour and when the page comes back
- * into view (a resumed app), and re-renders only when the moment actually changed: at most 96 times
- * a day, never per frame.
+ * The window's moment, kept current (DESIGN §10.4: Windowlight updates in 15-minute steps). With no pinned `moment`
+ * or `now`, it follows the app's one shared clock (`windowMoment` in moment.ts: re-read at each quarter hour and when
+ * the page comes back into view), re-rendering only when the moment actually changes: at most 96 times a day. A
+ * `hemisphere` different from the app's is honoured for this scene.
  */
 export function useWindowMoment(opts: { now?: Date; moment?: Moment; hemisphere?: Hemisphere }): Moment {
   const { now, moment, hemisphere } = opts;
   const follow = !moment && !now;
-  const [clock, setClock] = useState(() => new Date());
-  useEffect(() => {
-    if (!follow) return;
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    const reread = () => {
-      clearTimeout(timer);
-      const t = new Date();
-      // Same quarter hour, same light: keep the old Date so nothing downstream re-renders.
-      setClock((prev) => (quarterKey(prev) === quarterKey(t) ? prev : t));
-      timer = setTimeout(reread, msToNextQuarter(t));
-    };
-    timer = setTimeout(reread, msToNextQuarter(new Date()));
-    const onVisible = () => {
-      if (document.visibilityState === 'visible') reread();
-    };
-    document.addEventListener('visibilitychange', onVisible);
-    return () => {
-      clearTimeout(timer);
-      document.removeEventListener('visibilitychange', onVisible);
-    };
-  }, [follow]);
-  const date = now ?? clock;
-  const key = quarterKey(date);
+  useEffect(() => (follow ? retainWindowClock() : undefined), [follow]);
+  const shared = follow ? windowMoment.value : null;
+  const own = follow && hemisphere && hemisphere !== windowHemisphere.value ? windowClock.value : null;
+  const date = now ?? own;
+  const key = date ? `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}-${date.getHours()}-${Math.floor(date.getMinutes() / 15)}` : '';
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const computed = useMemo(() => momentAt(date, hemisphere), [key, hemisphere]);
-  return moment ?? computed;
-}
-
-function quarterKey(d: Date): string {
-  return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}-${d.getHours()}-${Math.floor(d.getMinutes() / 15)}`;
+  const computedMoment = useMemo(() => (date ? momentAt(date, hemisphere) : null), [key, hemisphere]);
+  return moment ?? computedMoment ?? shared!;
 }

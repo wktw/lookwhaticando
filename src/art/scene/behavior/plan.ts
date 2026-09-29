@@ -7,7 +7,7 @@ import type { Personality, Species } from '@/catalog/types';
 import { PERSONALITY_BY_ID } from '@/catalog/personalities';
 import type { PetSpot } from '../model';
 import type { PetPose } from '../actors/adapters';
-import { AWAKE_POSE, REST_POSE, groundSpot, nearestFree, perchSpot, routineAt, type Ground, type Perch } from '../arrange';
+import { AWAKE_POSE, REST_POSE, gatherX, groundSpot, nearestFree, perchSpot, routineFor, seatOn, type Ground, type Perch } from '../arrange';
 import { clamp } from '../room';
 
 export type ActKind = 'idle' | 'wander' | 'sit' | 'nap' | 'play';
@@ -17,11 +17,11 @@ type Weights = Record<ActKind, number>;
 
 const NEUTRAL: Weights = { idle: 3, wander: 3, sit: 3, nap: 2, play: 2 };
 
-/** Personality weights bent by the time of day. */
-export function actWeights(personality: Personality | undefined, hour: number, night: boolean): Weights {
+/** Personality weights bent by the time of day (and by the species' own clock: a hamster is up at night). */
+export function actWeights(personality: Personality | undefined, hour: number, night: boolean, species: Species = 'cat'): Weights {
   const base = (personality && PERSONALITY_BY_ID.get(personality)?.behavior) || NEUTRAL;
   const w: Weights = { ...base };
-  const routine = night ? routineAt(hour) : 'day';
+  const routine = routineFor(species, hour, night);
   if (routine === 'sleep') return { idle: w.idle * 0.05, wander: w.wander * 0.02, sit: w.sit * 0.05, nap: w.nap * 20 + 10, play: 0 };
   if (routine === 'lamp') return { ...w, wander: w.wander * 0.5, play: w.play * 0.3, sit: w.sit * 1.6, nap: w.nap * 1.4 };
   if (hour < 10) return { ...w, idle: w.idle * 1.4, nap: w.nap * 0.5 };
@@ -75,8 +75,8 @@ const between = (rnd: () => number, a: number, b: number) => a + rnd() * (b - a)
 /** The next act as one or two steps. */
 export function planAct(input: PlanInput): { kind: ActKind; steps: Step[] } {
   const { species, at, ground: g, rnd } = input;
-  const kind = pickAct(actWeights(input.personality, input.hour, input.night), rnd());
-  const routine = input.night ? routineAt(input.hour) : 'day';
+  const kind = pickAct(actWeights(input.personality, input.hour, input.night, species), rnd());
+  const routine = routineFor(species, input.hour, input.night);
   const rest: PetPose = REST_POSE[species];
   const awake: PetPose = AWAKE_POSE[species];
   const mid = (g.x0 + g.x1) / 2;
@@ -96,11 +96,13 @@ export function planAct(input: PlanInput): { kind: ActKind; steps: Step[] } {
 
   // Where to go, if anywhere.
   const target = (): PetSpot => {
-    if (input.home && (kind === 'nap' || kind === 'sit') && rnd() < 0.45) return perchSpot(input.home, rest, false, at.facing);
+    if (input.home && (kind === 'nap' || kind === 'sit') && rnd() < 0.45) return seatOn(g, input.home, species, rest, false, at.facing);
     const liked = g.perches.filter((q) => q.kind !== 'rim' && q.likes?.includes(species) && !input.perchesTaken?.has(q.id) && q.id !== at.perchId);
     if (liked.length && (kind === 'nap' || kind === 'sit' || kind === 'idle') && rnd() < 0.5) return perchSpot(liked[Math.floor(rnd() * liked.length)]!, rest, false, at.facing);
     let want: number;
-    if (routine === 'lamp' && g.lampX != null) want = g.lampX - between(rnd, 0.5, 2.6) * g.petSize;
+    const light = routine === 'lamp' ? gatherX(g, at.x) : undefined;
+    // Under the lamp (it stands at the room's right, so they gather to its left), or either side of a lantern.
+    if (light != null) want = light === g.lampX ? light - between(rnd, 0.5, 2.6) * g.petSize : light + (rnd() < 0.5 ? -1 : 1) * between(rnd, 0.45, 1.2) * g.petSize;
     else if (routine === 'day' && g.beam && (kind === 'nap' || input.personality === 'sunny' || rnd() < 0.35)) {
       want = between(rnd, g.beam.x0, g.beam.x1) + g.beam.slant * 0.6;
     } else want = kind === 'wander' ? between(rnd, g.x0, g.x1) : at.x + between(rnd, -1, 1) * g.petSize * 1.5;

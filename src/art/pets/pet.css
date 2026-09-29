@@ -11,7 +11,7 @@
   flex: none;
 }
 
-.pet-art :is(.pet-blink, .pet-slowblink, .pet-tailflick, .pet-earflick, .pet-throat, .pet-chew, .pet-wag, .pet-twitch, .pet-wave, .pet-bob, .pet-waddle, .pet-hop) {
+.pet-art :is(.pet-blink, .pet-slowblink, .pet-tailflick, .pet-earflick, .pet-throat, .pet-chew, .pet-wag, .pet-twitch, .pet-wave, .pet-bob, .pet-waddle, .pet-hop, .pet-dangle) {
   transform-box: view-box;
   transform-origin: 0 0;
 }
@@ -247,16 +247,30 @@
   }
 }
 
+/* ---------- carried: a springy pendulum from the scruff, settling ---------- */
+.pet-art.is-animated .pet-dangle {
+  animation: pet-dangle 1.6s var(--ease-in-out, ease-in-out) infinite;
+}
+@keyframes pet-dangle {
+  0%,
+  100% {
+    transform: rotate(4deg);
+  }
+  50% {
+    transform: rotate(-4deg);
+  }
+}
+
 /* ---------- reduced motion: breathing and blinks only ---------- */
 @media (prefers-reduced-motion: reduce) {
-  .pet-art.is-animated :is(.pet-tailflick, .pet-earflick, .pet-throat, .pet-wag, .pet-twitch, .pet-wave, .pet-chew, .pet-bob, .pet-waddle, .pet-hop, .pet-walk-a, .pet-walk-b) {
+  .pet-art.is-animated :is(.pet-tailflick, .pet-earflick, .pet-throat, .pet-wag, .pet-twitch, .pet-wave, .pet-chew, .pet-bob, .pet-waddle, .pet-hop, .pet-walk-a, .pet-walk-b, .pet-dangle) {
     animation: none;
   }
   .pet-art.is-animated .pet-walk-b {
     opacity: 0;
   }
 }
-[data-motion='reduced'] .pet-art.is-animated :is(.pet-tailflick, .pet-earflick, .pet-throat, .pet-wag, .pet-twitch, .pet-wave, .pet-chew, .pet-bob, .pet-waddle, .pet-hop, .pet-walk-a, .pet-walk-b) {
+[data-motion='reduced'] .pet-art.is-animated :is(.pet-tailflick, .pet-earflick, .pet-throat, .pet-wag, .pet-twitch, .pet-wave, .pet-chew, .pet-bob, .pet-waddle, .pet-hop, .pet-walk-a, .pet-walk-b, .pet-dangle) {
   animation: none;
 }
 [data-motion='reduced'] .pet-art.is-animated .pet-walk-b {

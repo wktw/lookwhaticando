@@ -31,8 +31,8 @@ describe('decor contract', () => {
   it('holds exactly the catalog decor: no Meadow-era entries or fields remain', () => {
     expect(Object.keys(DECOR_ENTRIES).sort()).toEqual(catalogIds);
     for (const [id, entry] of Object.entries(DECOR_ENTRIES)) {
-      expect(entry.sky, id).toBeUndefined();
-      expect(entry.tied, id).toBeUndefined();
+      expect('sky' in entry, id).toBe(false);
+      expect('tied' in entry, id).toBe(false);
     }
   });
 

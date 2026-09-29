@@ -6,9 +6,9 @@ import { describe, expect, it } from 'vitest';
 import { NIGHT_LIGHT, windowLight } from '@/art/light';
 import { PLACES } from '@/catalog/places';
 import type { PlaceId } from '@/catalog/types';
-import { baseline, byDepth, depthOf, depthScale, depthZ, PLANT_BASELINE, POT_RIM } from './room';
+import { baseline, byDepth, depthOf, depthScale, depthZ, potMetrics } from './room';
 import { BAND_MAX_POTS, BAND_SPEC, SILL_SPEC, beamQuad, castVector, inBeam, potCut, sillLayout, sunbeam } from './sill/layout';
-import { BEAM_BY_SEASON, lightTarget, sillWorld } from './sill/world';
+import { BEAM_BY_SEASON, openScroll, sillWorld } from './sill/world';
 import { GLASS_CLIP, nightMoonX, WindowView } from './sill/Backdrop';
 import { BAND_MOON_INSET, bandMoonX } from './WindowsillBand';
 import { readdirSync } from 'node:fs';
@@ -20,7 +20,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { ROOM, outsidePalette, type RoomPalette } from './palette';
 import { msToNextQuarter } from './hooks';
-import { tagBox, tagStake } from './actors/PotSlot';
+import { TAG_MAX_POT_SHARE, TAG_NOTE_MIN_SCENE_PX, tagBox } from './actors/PotSlot';
 import { scrollKeyTarget } from './ScrollFrame';
 import { SEASONS } from './time';
 import { bandCollapse, BAND_CLOSED_PX, BAND_OPEN_PX } from './band';
@@ -225,7 +225,7 @@ describe('the Today band framing', () => {
   });
 
   it('keeps the top two fifths for the greeting chip and the wallet: no pot canvas reaches above them', () => {
-    const top = baseline(BAND_SPEC.rows, BAND_SPEC.backRow) - (PLANT_BASELINE / 100) * BAND_SPEC.scale.pot * depthScale(BAND_SPEC.backRow);
+    const top = baseline(BAND_SPEC.rows, BAND_SPEC.backRow) - (potMetrics('terracotta').foot / 100) * BAND_SPEC.scale.pot * depthScale(BAND_SPEC.backRow);
     expect(top).toBeGreaterThanOrEqual(24);
     expect(BAND_SPEC.rows.glassBottom).toBeGreaterThanOrEqual(50);
   });
@@ -235,7 +235,7 @@ describe('the Today band framing', () => {
     const px = (units: number) => (units / 100) * BAND_OPEN_PX;
     const s = depthScale(BAND_SPEC.backRow);
     const foot = baseline(BAND_SPEC.rows, BAND_SPEC.backRow);
-    const rim = px(foot - ((PLANT_BASELINE - POT_RIM.y) / 100) * BAND_SPEC.scale.pot * s);
+    const rim = px(foot - potMetrics('terracotta').height * BAND_SPEC.scale.pot * s);
     // A resident loafing on the rim: its head rises about a third of its canvas above the rim.
     const head = rim - px(0.36 * BAND_SPEC.scale.pet);
     // Visible band content spans [clip - follow, clip - follow + 64] in the band's own pixels.
@@ -307,17 +307,25 @@ describe('placement bounds per place', () => {
     }
   });
 
-  it('seats a resident on its own pot’s rim, and everyone asleep after eleven', () => {
+  it('seats a resident on its own pot’s rim, and everyone asleep after eleven but the hamster, who is up at night', () => {
     const g = sillWorld(SILL_SPEC, POTS, [], ROOM.day, 0.5, 0).ground;
     const day = arrangePets(g, PETS, at(0.5));
     expect(day.get('pet-cat-grey')).toMatchObject({ perch: 'rim', perchId: 'rim:h1' });
+    // A hamster naps through the day (DESIGN §8.2 routines, bent for a nocturnal species).
+    expect(day.get('pet-hamster-syrian')?.asleep).toBe(true);
     const late = arrangePets(sillWorld(SILL_SPEC, POTS, [], ROOM.night, 1, 0).ground, PETS, at(1, true, 23.5));
-    for (const s of late.values()) expect(s.asleep).toBe(true);
+    for (const [key, s] of late) expect(s.asleep, key).toBe(key !== 'pet-hamster-syrian');
   });
 
-  it('keeps a cutting in its glass free of residents (no rim yet)', () => {
-    const world = sillWorld(SILL_SPEC, [pot(0, 1), pot(1, 5)], [], ROOM.day, 0.5, 0);
-    expect(world.ground.perches.map((p) => p.owner)).toEqual(['h1']);
+  it('seats a cutting’s resident on the sill beside its glass (no rim yet), on the side away from its empty pot', () => {
+    const world = sillWorld(SILL_SPEC, [pot(0, 1), pot(1, 5)], [], ROOM.day, 0.2, 0);
+    expect(world.ground.perches.map((p) => `${p.kind}:${p.owner}`)).toEqual(['glass:h0', 'rim:h1']);
+    const glass = world.ground.perches[0]!;
+    // Morning light from the left: the empty pot stands to the right, the resident to the left of the glass.
+    expect(glass.x).toBeLessThan(world.layout.pots[0]!.x);
+    expect(glass.y).toBeCloseTo(baseline(SILL_SPEC.rows, world.layout.pots[0]!.depth));
+    const spots = arrangePets(world.ground, [{ petId: 'pet-cat-grey', home: 'h0' }], at(0.2));
+    expect(spots.get('pet-cat-grey')).toMatchObject({ perch: 'glass', perchId: 'glass:h0' });
   });
 });
 
@@ -365,7 +373,7 @@ describe('the night sky', () => {
     const viewU = (390 / 300) * 100;
     for (const pots of [1, 3, 6, 9]) {
       const world = sillWorld(SILL_SPEC, POTS.slice(0, pots).concat(Array.from({ length: Math.max(0, pots - 6) }, (_, i) => pot(10 + i))), [], ROOM.night, 1, pots <= 3 ? viewU : 0);
-      const left = Math.max(0, lightTarget(world) - viewU / 2);
+      const left = openScroll(world, viewU);
       const win = world.layout.window;
       const sky = skyFor(win.x0, win.x1, SILL_SPEC.rows.glassBottom, 3, nightMoonX(world.layout));
       expect(sky.moon.x - sky.moon.r, `${pots} pots`).toBeGreaterThanOrEqual(left);
@@ -424,34 +432,48 @@ describe('the clock', () => {
 });
 
 describe('plant tags', () => {
+  const named = POTS.map((p) => ({ ...p, name: 'Drink water', note: 'after coffee' }));
+
   it('never cover a resident’s head, day or night', () => {
     const pets: ShelfPet[] = POTS.map((p, i) => ({ petId: i % 2 ? 'pet-cow-highland' : 'pet-cat-grey', home: p.habitId }));
-    const named = POTS.map((p) => ({ ...p, name: 'Drink water', note: 'after coffee' }));
     for (const [room, m] of [
       [ROOM.day, at(0.5)],
       [ROOM.night, at(1, true)],
     ] as const) {
       const world = sillWorld(SILL_SPEC, named, [], room, m.light.sun, 130);
       const spots = arrangePets(world.ground, pets, m);
-      world.layout.pots.forEach((p, i) => {
-        const rim = world.ground.perches.find((q) => q.owner === named[i]!.habitId)!;
-        const side = rim.facing === 'right' ? 'left' : 'right';
-        const tag = tagBox(tagStake(p.x, baseline(SILL_SPEC.rows, p.depth), SILL_SPEC.scale.pot, depthScale(p.depth), side), side, 'Drink water', 'after coffee', 300);
+      for (const place of world.pots) {
+        const tag = tagBox(place, 'Drink water', 'after coffee', 300);
         for (const spot of spots.values()) {
           const [a, b, c, d] = headBox(spot, SILL_SPEC.scale.pet);
           const overlap = tag[0] < c && a < tag[2] && tag[1] < d && b < tag[3];
-          expect(overlap, `tag ${i} over a head at ${spot.x}`).toBe(false);
+          expect(overlap, `tag ${place.habitId} over a head at ${spot.x}`).toBe(false);
         }
-      });
+      }
+    }
+  });
+
+  it('stand low against the pot, below the rim, no taller than a third of it (the Sill from 300 px; the band hides them)', () => {
+    for (const spec of [SILL_SPEC]) {
+      const world = sillWorld(spec, named, [], ROOM.day, 0.5, 130);
+      for (const place of world.pots) {
+        for (const sceneH of [300, 440, 520, 700]) {
+          const [, y0, , y1] = tagBox(place, 'Drink water', 'after coffee', sceneH);
+          expect(y0, `${sceneH} px`).toBeGreaterThan(place.rimY);
+          expect(y1 - y0, `${sceneH} px`).toBeLessThanOrEqual(place.potH * TAG_MAX_POT_SHARE + 1e-6);
+        }
+      }
     }
   });
 
   it('use legible type and leave the note off a short scene rather than cut it', () => {
-    const tall = tagBox({ x: 50, y: 60 }, 'right', 'Read', 'before bed', 300);
-    const short = tagBox({ x: 50, y: 60 }, 'right', 'Read', 'before bed', 168);
+    const place = sillWorld(SILL_SPEC, named, [], ROOM.day, 0.5, 130).pots[0]!;
+    const tall = tagBox(place, 'Read', 'before bed', TAG_NOTE_MIN_SCENE_PX);
+    const short = tagBox(place, 'Read', 'before bed', 300);
     expect(short[3] - short[1]).toBeLessThan(tall[3] - tall[1]);
     // The name alone is at least 11 px tall on a 168 px scene.
-    expect(((short[3] - short[1]) * 168) / 100).toBeGreaterThanOrEqual(11);
+    const band = tagBox(place, 'Read', undefined, 168);
+    expect(((band[3] - band[1]) * 168) / 100).toBeGreaterThanOrEqual(11);
   });
 });
 

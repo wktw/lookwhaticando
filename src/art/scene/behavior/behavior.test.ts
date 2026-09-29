@@ -146,8 +146,8 @@ describe('vignettes', () => {
     const c = ctx(['duck', 'duck', 'cat']);
     expect(findVignette(c, 0)?.vignette.id).toBe('duck-line');
     expect(findVignette(c, 0.99)).toBeNull();
-    // The cat on a cow's back waits for the lying cow (the round cow would hide under the cat).
-    expect(findVignette(ctx(['cow', 'cat']), 0)).toBeNull();
+    // The long lying cow has landed: a cat can sleep on its back.
+    expect(findVignette(ctx(['cow', 'cat']), 0)?.vignette.id).toBe('cat-on-cow');
   });
 
   it('can be staged on a still scene', () => {
@@ -164,9 +164,10 @@ describe('vignettes', () => {
     expect(bunny.reach).toBe(true);
     expect(bunny.facing).toBe(bunny.x > rim.x ? 'left' : 'right');
     expect(bunny.pose).toBe('sit');
-    // Not staged while it waits for its art.
-    const still = stageVignette('cat-on-cow', 'sill', g, at(0.5), [{ petId: 'pet-cow-beltie' }, { petId: 'pet-cat-calico' }], new Map());
-    expect(still.size).toBe(0);
+    // The cat on the cow's back stages too, now that the lying cow is in.
+    const pair: ShelfPet[] = [{ petId: 'pet-cow-beltie' }, { petId: 'pet-cat-calico' }];
+    const still = stageVignette('cat-on-cow', 'sill', g, at(0.5), pair, arrangePets(g, pair, at(0.5)));
+    expect(still.get('pet-cat-calico')).toMatchObject({ perch: 'back', asleep: true });
   });
 });
 
