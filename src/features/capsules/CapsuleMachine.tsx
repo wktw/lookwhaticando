@@ -63,11 +63,12 @@ export function CapsuleMachine({
   useEffect(() => onBusyChange?.(busy), [busy]);
 
   const colors = machine.theme.capsules;
+  // The one capsule in the chute or the tray takes the close-up glint; the pile keeps its matte arc.
   const capsule = (tint: number) => (
     <>
       <use href={`#${uid}-shell-${tint % colors.length}`} />
       <use href={`#${uid}-shade`} />
-      <use href={`#${uid}-glint`} />
+      <use href={`#${uid}-glint-close`} />
     </>
   );
   const windowLayer = (

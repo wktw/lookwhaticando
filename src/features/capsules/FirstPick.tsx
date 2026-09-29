@@ -61,5 +61,3 @@ export function FirstPick({ onDone, onPlace, onLetThemChoose }: FirstPickProps) 
   );
 }
 
-/** The older name, kept for callers. */
-export { FirstPick as CatsOrCowsPick };

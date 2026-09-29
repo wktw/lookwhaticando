@@ -1,7 +1,10 @@
 // @vitest-environment jsdom
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { WISH_PRICE } from '@/catalog/machines';
+import { getCollectible } from '@/catalog/collectibles';
+import { newPetState } from '@/domain/friendship';
 import { state, today, wish } from '@/state/store';
+import { toasts } from '@/ui/toast';
 import { CapsulesScreen, availableCabinets } from './CapsulesScreen';
 import { button, buttonWithText, click, installDom, key, mount, pause, revealDialog, until } from './testing';
 
@@ -124,5 +127,56 @@ describe('Special Order', () => {
     await click(button('Order'), 'Order');
     const alert = await until(() => document.querySelector('[role="alert"]'), 'the notice');
     expect(alert.textContent).toBe(`A Classic is ${WISH_PRICE.common} stamps at the counter. There are 30 on the card.`);
+  });
+
+  it('the order’s reveal is cleared from the store once shown, so the cabinet never replays it', async () => {
+    vi.mocked(wish).mockImplementation((itemId) => {
+      // The store commits an order before it animates (pendingReveal with order: true).
+      state.value = { ...state.value, pendingReveal: { machineId: 'cats', itemId, isNew: true, stardust: 0, fusedStars: 0, order: true, at: 0 } };
+      return { ok: true, itemId, stars: 2, events: [] };
+    });
+    await click(buttonWithText('Special Order'), 'Special Order');
+    await until(orderSheet, 'the Special Order sheet');
+    await click(orderSheet()!.querySelector('ul li button'), 'a tile');
+    await click(button('Order'), 'Order');
+    await until(revealDialog, 'the reveal');
+    expect(state.value.pendingReveal?.order).toBe(true);
+    await until(() => document.activeElement?.tagName === 'H2', 'the card');
+    await key(document.activeElement!, 'Escape');
+    await until(() => !revealDialog(), 'the reveal to close');
+    expect(state.value.pendingReveal).toBeUndefined();
+  });
+
+  it('after a reload mid-reveal, the order comes back as an order, not as a capsule from the cabinet', async () => {
+    view?.unmount();
+    const itemId = 'pet-cat-siamese';
+    state.value = { ...state.value, pendingReveal: { machineId: 'cats', itemId, isNew: true, stardust: 0, fusedStars: 0, order: true, at: 0 } };
+    view = mount(<CapsulesScreen />);
+    const reveal = await until(revealDialog, 'the order’s reveal');
+    await until(() => reveal.textContent?.includes(getCollectible(itemId)!.name), 'the card');
+    expect(reveal.textContent).toMatch(/Your order/);
+    expect(document.querySelectorAll('[role="dialog"]')).toHaveLength(1);
+    await key(document.activeElement!, 'Escape');
+    await until(() => !revealDialog(), 'the reveal to close');
+    expect(state.value.pendingReveal).toBeUndefined();
+  });
+
+  it('"Let {name} choose" lets a new pet pick, and says what it chose', async () => {
+    view?.unmount();
+    const itemId = 'pet-bunny-lop';
+    const pet = newPetState(itemId, () => 0.5, Date.now(), today.value, true);
+    state.value = {
+      ...state.value,
+      pets: { ...state.value.pets, [itemId]: pet },
+      pendingReveal: { machineId: 'garden', itemId, isNew: true, stardust: 0, fusedStars: 0, order: true, at: 0 },
+    };
+    view = mount(<CapsulesScreen />);
+    await until(() => button(`Let ${pet.name} choose`), 'the Let-choose button');
+    expect(button(`Find ${pet.name} a plant`)).not.toBeNull();
+    await click(button(`Let ${pet.name} choose`), 'Let choose');
+    await until(() => !revealDialog(), 'the reveal to close');
+    const note = await until(() => toasts.value.find((t) => t.key === `chose-${itemId}`), 'the note');
+    expect(String(note.message)).toMatch(new RegExp(`^${pet.name} chose .+\\.$`));
+    expect(state.value.pendingReveal).toBeUndefined();
   });
 });

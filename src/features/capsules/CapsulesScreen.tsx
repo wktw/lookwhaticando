@@ -1,9 +1,10 @@
 import type { ComponentChildren } from 'preact';
 import { signal } from '@preact/signals';
 import { useRef, useState } from 'preact/hooks';
-import { MACHINES, getMachine } from '@/catalog/machines';
+import { MACHINES, MACHINE_BY_ID, getMachine } from '@/catalog/machines';
 import type { MachineDef, MachineId } from '@/catalog/types';
 import { capsulesView } from '@/state/selectors';
+import { finishReveal, state } from '@/state/store';
 import { MachineCarousel } from './MachineCarousel';
 import { MachineInfo } from './MachineInfo';
 import { WalletStrip } from './WalletStrip';
@@ -12,7 +13,7 @@ import { OddsSheet } from './OddsSheet';
 import { SpecialOrderSheet } from './SpecialOrder';
 import { RevealOverlay, type PlaceHandlers } from './RevealOverlay';
 import { useSceneLight } from './sceneLight';
-import type { RevealData } from './reveal';
+import { capsuleShell, revealFromPending, type RevealData } from './reveal';
 import s from './CapsulesScreen.module.css';
 
 /** The cabinet you were last looking at, kept while you visit other tabs. */
@@ -30,6 +31,19 @@ export function freeCabinets(): ReadonlySet<MachineId> {
   return new Set(capsulesView.value.machines.filter((m) => m.free).map((m) => m.id));
 }
 
+/** A Special Order the store committed but whose reveal never finished (a reload mid-reveal): "Your order: a Siamese." */
+function unfinishedOrder(): RevealData | null {
+  const p = state.value.pendingReveal;
+  if (!p?.order) return null;
+  return revealFromPending(p, capsuleShell(MACHINE_BY_ID.get(p.machineId)?.theme.capsules ?? ['#DDD4F1', '#F6E6B4'], 0));
+}
+
+/** The order's reveal has been shown: clear it from the store (only if it is still the order's). */
+function finishOrder(itemId: string): void {
+  const p = state.value.pendingReveal;
+  if (p?.order && p.itemId === itemId) finishReveal();
+}
+
 /**
  * The Capsules screen (DESIGN §9.3): the wallet strip, the cabinet carousel with each lineup
  * leaflet, the series info (price, collected, pity, the lucky meter), and the Odds, Lineup and
@@ -44,7 +58,7 @@ export function CapsulesScreen({ onPlace, onLetThemChoose }: PlaceHandlers & { c
   const machine = machines[index]!;
   const [busy, setBusy] = useState(false);
   const [sheet, setSheet] = useState<SheetName>(null);
-  const [ordered, setOrdered] = useState<RevealData | null>(null);
+  const [ordered, setOrdered] = useState<RevealData | null>(unfinishedOrder);
   const orderButton = useRef<HTMLElement | null>(null);
 
   return (
@@ -101,7 +115,11 @@ export function CapsulesScreen({ onPlace, onLetThemChoose }: PlaceHandlers & { c
         <RevealOverlay
           data={ordered}
           light={light}
-          onClose={() => setOrdered(null)}
+          onClose={() => {
+            // Placing it and "Let {name} choose" close the reveal first, so every way out lands here.
+            finishOrder(ordered.itemId);
+            setOrdered(null);
+          }}
           returnFocus={() => orderButton.current}
           onPlace={onPlace}
           onLetThemChoose={onLetThemChoose}

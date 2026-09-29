@@ -108,7 +108,7 @@ export function LeafletFull({ machine }: { machine: MachineDef }) {
                       ?
                       <LeafletSparkle />
                     </span>
-                  ) : <CollectibleArt id={e.item.id} size="100%" />}
+                  ) : <CollectibleArt id={e.item.id} size="100%" px={60} />}
                 </span>
                 <span class={s.itemText} aria-hidden="true">
                   <span class={s.itemNo}>{e.number}</span>

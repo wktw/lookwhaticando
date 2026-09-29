@@ -289,7 +289,7 @@ function OrderBody({ initialMachine, onOrdered }: { initialMachine: MachineId; o
 
 /** A Secret stays a secret at the counter too: it can be ordered, and it's still a surprise. */
 function OrderArt({ item }: { item: Tile }) {
-  if (!item.hidden) return <CollectibleArt id={item.id} size="100%" />;
+  if (!item.hidden) return <CollectibleArt id={item.id} size="100%" px={64} />;
   return (
     <span class={s.secretMark} aria-hidden="true">
       ?

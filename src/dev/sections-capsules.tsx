@@ -520,7 +520,7 @@ export const SECTIONS: GallerySection[] = [
   },
   {
     id: 'capsules-first',
-    title: 'Onboarding: Cats or Cows?',
+    title: 'Onboarding: Who comes home first?',
     render: (params) => {
       seedWallet(params);
       return (

@@ -316,7 +316,7 @@ export function RevealOverlay({
               </div>
             )}
             <div class={s.rising}>
-              <CollectibleArt id={data.itemId} size="100%" />
+              <CollectibleArt id={data.itemId} size="100%" px={180} />
             </div>
           </div>
         )}

@@ -4,7 +4,8 @@ import type { MachineDef } from '@/catalog/types';
 import { RARITY_FINISH } from '@/catalog/types';
 import { getCollectible } from '@/catalog/collectibles';
 import { MACHINE_BY_ID, seriesLabel } from '@/catalog/machines';
-import { renamePet, state } from '@/state/store';
+import { letPetChoose, renamePet, state } from '@/state/store';
+import { choseLine } from '@/catalog/format';
 import { selectSeries } from '@/state/selectors';
 import type { Light } from '@/art/light';
 import { CollectibleArt } from '@/art/CollectibleArt';
@@ -15,6 +16,7 @@ import { CoinIcon, StampIcon, SwapIcon, TicketIcon } from '@/art/icons';
 import { sfx } from '@/fx/sound';
 import { haptic } from '@/fx/haptics';
 import { Button } from '@/ui/Button';
+import { toast } from '@/ui/toast';
 import { RarityPill } from '@/ui/Pill';
 import { SPECIES_NOUN, cameHomeLabel, duplicateLine, fusionLine, kindLabel, orderLine, paymentPhrase, revealLine, revealSentence } from './copy';
 import { nameIdeas } from './names';
@@ -157,9 +159,15 @@ export function RevealCard({ data, light, onClose, pullAgain, onPlace, onLetThem
     else location.hash = '#/shelf';
   };
 
+  // "Let {name} choose" (VOICE §10): the pet picks a plant to keep company, or a place it loves,
+  // and a note says which. A host can take over (the onboarding flow does its own telling).
   const letChoose = () => {
     onClose();
-    onLetThemChoose?.(def.id);
+    if (onLetThemChoose) return onLetThemChoose(def.id);
+    const chose = letPetChoose(def.id);
+    if (!chose) return;
+    const habit = chose.habitId ? state.value.habits.find((h) => h.id === chose.habitId) : null;
+    toast({ key: `chose-${def.id}`, message: choseLine(petName, chose, habit), tone: 'sage' });
   };
 
   // Only something new needs a place: a repeat pet is already home, and a repeat decor already has a spot.
@@ -175,7 +183,7 @@ export function RevealCard({ data, light, onClose, pullAgain, onPlace, onLetThem
           </div>
         )}
         <div class={quick ? s.figure : `${s.figure} ${s.stepOut}`}>
-          <CollectibleArt id={data.itemId} size="100%" animated />
+          <CollectibleArt id={data.itemId} size="100%" px={160} animated />
         </div>
         {data.secret && <Sparkle />}
       </div>

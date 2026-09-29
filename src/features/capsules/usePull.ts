@@ -36,7 +36,8 @@ function resumeFor(machine: MachineDef): RevealData | null {
   const held = unopened.get(machine.id);
   if (held) return held;
   const pending = state.value.pendingReveal;
-  if (pending?.machineId !== machine.id) return null;
+  // A Special Order's reveal belongs to the counter (CapsulesScreen), never to a cabinet's pull.
+  if (pending?.machineId !== machine.id || pending.order) return null;
   return revealFromPending(pending, capsuleShell(machine.theme.capsules, 0));
 }
 

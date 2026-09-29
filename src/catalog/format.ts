@@ -10,9 +10,10 @@
 import type { HabitPhrase } from '@/domain/consistency';
 import type { StreakUnit } from '@/domain/streaks';
 import type { DateKey, Schedule, TimeOfDay, Weekday } from '@/state/types';
-import type { PlaceId } from './types';
+import type { PlaceId, PlantSpeciesId } from './types';
 import { MONTH_NAMES, MONTH_SHORT, WEEKDAY_NAMES, monthDayLabel, monthIndex, parseDateKey, shortDateLabel, weekday, weekdaysLabel, type WeekStart } from '@/domain/dates';
 import {
+  COMPANION,
   CONSISTENCY_LINES,
   COUNTS,
   MEMORIES,
@@ -26,6 +27,7 @@ import {
   STATUS_LINE,
   TODAY_LINES,
   fillLine,
+  plantPhrase,
 } from './lines';
 import { PLACE_BY_ID } from './places';
 
@@ -414,6 +416,16 @@ export function placePhrase(place: PlaceId): string {
 /** "{name} moved to the Saucer Pond." / "{name} moved back to the Sill." */
 export function movedToPlaceLine(name: string, place: PlaceId): string {
   return place === 'sill' ? fillLine(PLACE_LINES.movedHome, { name }) : fillLine(PLACE_LINES.moved, { name, place: placePhrase(place) });
+}
+
+/**
+ * What "Let {name} choose" chose (VOICE §10, store.letPetChoose): a plant to keep company first
+ * ("Biscuit chose the Walk plant, for the sun."), else a place ("Biscuit chose the Saucer Pond.").
+ * `habit` is the chosen habit's name and plant, when it chose one.
+ */
+export function choseLine(name: string, chose: { habitId: string | null; place: PlaceId }, habit?: { name: string; plant: PlantSpeciesId } | null): string {
+  if (chose.habitId && habit) return fillLine(COMPANION.chose, { name, plant: plantPhrase(habit.name, habit.plant) });
+  return fillLine(PLACE_LINES.chose, { name, place: placePhrase(chose.place) });
 }
 
 /** A dated Memory on the Pet Card (the kinds of `PetMemory`). */

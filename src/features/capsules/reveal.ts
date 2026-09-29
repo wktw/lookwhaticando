@@ -48,7 +48,10 @@ export function revealFromPull(r: PullResult, shell: RevealData['shell']): Revea
   };
 }
 
-/** A pull the store committed before a reload (commit before animate, §7.1): resume its reveal. */
+/**
+ * A pull (or a Special Order, `order: true`) the store committed before a reload (commit before
+ * animate, §7.1): resume its reveal.
+ */
 export function revealFromPending(p: PendingReveal, shell: RevealData['shell']): RevealData | null {
   const def = getCollectible(p.itemId);
   if (!def) return null;
@@ -62,7 +65,7 @@ export function revealFromPending(p: PendingReveal, shell: RevealData['shell']):
     fusedStars: p.fusedStars,
     friendshipXp: p.friendshipXp,
     shell,
-    via: 'pull',
+    via: p.order ? 'order' : 'pull',
   };
 }
 

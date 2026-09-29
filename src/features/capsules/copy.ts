@@ -8,7 +8,7 @@
 import type { Category, CollectibleDef, MachineDef, MachineId, Rarity, Species } from '@/catalog/types';
 import { RARITY_FINISH, RARITY_LABEL as TIER } from '@/catalog/types';
 import { seriesLabel } from '@/catalog/machines';
-import { DUPLICATE_LINES, REVEAL_LINES, SECRET_LINES, SECRET_REVEAL, capitalise, fillLine, withArticle } from '@/catalog/lines';
+import { CATEGORY_LABELS, DUPLICATE_LINES, REVEAL_LINES, SECRET_LINES, SECRET_REVEAL, capitalise, fillLine, withArticle } from '@/catalog/lines';
 import type { PullError } from '@/state/api';
 import type { Payment } from './payment';
 
@@ -25,15 +25,8 @@ export function finishLabel(rarity: Rarity, secret = false): string {
   return `${tierLabel(rarity, secret)} · ${RARITY_FINISH[rarity]}`;
 }
 
-/** Categories as filter chips (VOICE §3: pets, never "friends"). */
-export const CATEGORY_LABEL: Record<Category, string> = {
-  pet: 'Pets',
-  wearable: 'Wearables',
-  treat: 'Treats',
-  decor: 'Decor',
-  plant: 'Plants',
-  pot: 'Pots',
-};
+/** Categories as filter chips (lines.ts CATEGORY_LABELS; VOICE §3: pets, never "friends"). */
+export const CATEGORY_LABEL: Record<Category, string> = CATEGORY_LABELS;
 
 const SLOT_LABEL = { head: 'Head wear', face: 'Face wear', neck: 'Neckwear', body: 'Outfit' } as const;
 
