@@ -169,9 +169,12 @@ export function statusLine(line: StatusLine, weekStart: WeekStart = 1): string |
   }
 }
 
-/** A card's screen-reader name: "Drink water, 5 of 8 glasses" for a count habit, else the name (the pressed state says the rest). */
+/**
+ * A card's screen-reader name: "Drink water, 5 of 8 glasses" for a count habit with a watering, else
+ * the name (the pressed state says the rest; never "0 of 8").
+ */
 export function cardAriaLabel(card: { name: string; count: number; target: number; unit: string | null; flexible: boolean }): string {
-  if (card.flexible || card.target <= 1) return card.name;
+  if (card.flexible || card.target <= 1 || card.count < 1) return card.name;
   return fillLine(card.unit ? TODAY_LINES.cardAria : TODAY_LINES.cardAriaBare, { habit: card.name, count: num(card.count), target: num(card.target), unit: card.unit ?? '' });
 }
 
@@ -196,32 +199,37 @@ export function forecastLine(plant: { displayStage: number; checkinsToNext: numb
 
 export const blockLabel = (id: TimeOfDay): string => TODAY_LINES.blocks[id];
 
-/** A folded block: "Morning 3/3". */
+/** A folded block: "Morning 3/3" (just "Morning" before anything in it is watered: never "0/3"). */
 export function blockSummary(block: { id: TimeOfDay; done: number; total: number }): string {
+  if (block.done < 1) return blockLabel(block.id);
   return fillLine(TODAY_LINES.blockSummary, { block: blockLabel(block.id), done: num(block.done), total: num(block.total) });
 }
 
 /**
  * The vine chip on the sill ledge: "3 of 5 · +18 coins", "3 of 5" before any coins (or with Quiet
- * rewards), "2 watered" with only flexible habits watered, and null with nothing on.
+ * rewards), "2 watered" with only flexible habits watered, and null with nothing watered yet or
+ * nothing on (never "0 of 5").
  */
 export function vineChip(p: { done: number; total: number; flexibleCheckins: number }, coins = 0): string | null {
-  if (p.total > 0) {
+  if (p.total > 0 && p.done > 0) {
     if (coins > 0) return fillLine(plural(coins, TODAY_LINES.vineCoins), { done: num(p.done), total: num(p.total), coins: num(coins) });
     return fillLine(TODAY_LINES.vine, { done: num(p.done), total: num(p.total) });
   }
   return p.flexibleCheckins > 0 ? fillLine(TODAY_LINES.vineFlexible, { count: num(p.flexibleCheckins) }) : null;
 }
 
-/** The day's progressbar value text: "3 of 5 watered" (null with nothing on). */
+/**
+ * The day's progressbar value text: "3 of 5 watered". Null before the first watering or with nothing
+ * on (never "0 of 5"): the screen then gives the bar no value text.
+ */
 export function dayProgressAria(p: { done: number; total: number }): string | null {
-  return p.total > 0 ? fillLine(TODAY_LINES.dayAria, { done: num(p.done), total: num(p.total) }) : null;
+  return p.total > 0 && p.done > 0 ? fillLine(TODAY_LINES.dayAria, { done: num(p.done), total: num(p.total) }) : null;
 }
 
-/** A week-strip day for screen readers: "Saturday, September 27, 3 of 5 watered", or just the date. */
+/** A week-strip day for screen readers: "Saturday, September 27, 3 of 5 watered", or just the date (nothing on, or nothing watered). */
 export function weekDayAria(day: { date: DateKey; done: number; due: number }): string {
   const date = longDateLabel(day.date);
-  return day.due > 0 ? fillLine(TODAY_LINES.weekDayAria, { date, done: num(day.done), total: num(day.due) }) : date;
+  return day.due > 0 && day.done > 0 ? fillLine(TODAY_LINES.weekDayAria, { date, done: num(day.done), total: num(day.due) }) : date;
 }
 
 /** "Resting: 2 habits · back Oct 6" (the date only when every paused habit has one). */

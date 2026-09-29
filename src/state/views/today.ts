@@ -17,6 +17,7 @@ import { weekdayName } from '@/catalog/format';
 import { companionOfferOpen, habitsWithoutCompanion, pairOf, petsWithoutHabit, suggestHabitFor, type RoutineOn } from '@/domain/company';
 import { birthdayCards, cameHomeToday } from '@/domain/rituals';
 import { hemisphereOf, seasonAt } from '@/domain/seasonReview';
+import { petPlace } from '@/domain/places';
 import { ritualDate, ritualKind, type RitualKind } from './pets';
 import { seasonReviewVM, type SeasonReviewVM } from './season';
 import { OFF_DAYS_PER_MONTH, canLogOn, isInBackfillWindow, offDaysRemaining } from '@/domain/activity';
@@ -241,10 +242,14 @@ export function currentBlock(hour: number, dayStartsAt = 0, minute = 0): Exclude
   return 'evening';
 }
 
-/** Pets out on the Shelf in band order: favourites first, then the closest friends, then who came home first. */
-export function sillResidents(s: Pick<AppState, 'pets'>): string[] {
+/**
+ * Pets out on the Sill in band order: favourites first, then the closest friends, then who came
+ * home first. A pet spending the day in another place (the Saucer Pond, the Quilt…) isn't on the
+ * sill, so it doesn't take a pot as the nearest pet (a companion still sits in its own pot).
+ */
+export function sillResidents(s: Pick<AppState, 'pets' | 'shelf'>): string[] {
   return Object.values(s.pets)
-    .filter((p) => p.inMeadow)
+    .filter((p) => p.inMeadow && petPlace(s, p) === 'sill')
     .sort((a, b) => Number(b.favorite) - Number(a.favorite) || b.xp - a.xp || a.obtainedAt - b.obtainedAt || (a.id < b.id ? -1 : 1))
     .map((p) => p.id);
 }

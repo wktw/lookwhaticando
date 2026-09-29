@@ -122,7 +122,7 @@ describe('time blocks follow the app day (DESIGN §13.2 "The current block comes
     g.checkIn(m);
     const vm = todayVM(g.state, envOf(g));
     expect(vm.blocks.map((b) => [b.id, b.current, b.collapsed, blockSummary(b)])).toEqual([
-      ['evening', true, false, 'Evening 0/1'],
+      ['evening', true, false, 'Evening'],
       ['morning', false, true, 'Morning 1/1'],
     ]);
   });

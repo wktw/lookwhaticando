@@ -118,10 +118,10 @@ describe('Today: layout', () => {
     g.checkIn(m);
     const vm = todayVM(g.state, envOf(g));
     expect(vm.blocks.map((b) => [b.id, b.current, b.collapsed, blockSummary(b)])).toEqual([
-      ['evening', true, false, 'Evening 0/1'],
-      ['anytime', false, false, 'Anytime 0/1'],
+      ['evening', true, false, 'Evening'],
+      ['anytime', false, false, 'Anytime'],
       ['morning', false, true, 'Morning 1/1'],
-      ['midday', false, false, 'Midday 0/1'],
+      ['midday', false, false, 'Midday'],
     ]);
     expect(vm.progress).toMatchObject({ done: 1, total: 4 });
     expect(vineChip(vm.progress, vm.coinsToday)).toBe(`1 of 4 · +${vm.coinsToday} coins`);
