@@ -1,117 +1,165 @@
-import type { ArtCtx, SpeciesArt } from '../types';
-import { OUTLINE, STROKE } from '../geometry';
-import { lighten } from '../color';
-import { blinks, Eye, faceInk, OpenMouth } from '../face';
-import { MIRROR } from './parts';
-
-/** Webbed foot: an oval with three round toes, outlined as one shape (stroke pass, then fill pass). */
-function Foot({ cx, fill }: { cx: number; fill: string }) {
-  const toes = [-5, 0, 5].map((dx) => ({ cx: cx + dx, cy: 94, r: 2.2 }));
-  const shapes = (
-    <>
-      <ellipse cx={cx} cy={92.2} rx={7.4} ry={3.2} />
-      {toes.map((t) => (
-        <circle key={t.cx} {...t} />
-      ))}
-    </>
-  );
-  return (
-    <g>
-      <g fill={fill} stroke={OUTLINE} stroke-width={STROKE * 1.8}>
-        {shapes}
-      </g>
-      <g fill={fill}>{shapes}</g>
-    </g>
-  );
-}
+import { FROG_HAUNCH, FROG_RIG } from './frog.rig';
+import type { DrawCtx, SpeciesArt, SpriteCtx } from './art';
+import { Blush, Eyes, Mouth } from '../face';
+import { dots, rng } from './marks';
+import { circle, ellipse, tube, twoCircles } from '../shape';
+import type { Pose } from '../types';
 
 /**
- * The left eye bump as it sits on the body path: a dome filled with fur (its lower edge melts into
- * the face) and the bump's own contour. Mirror for the right.
+ * Frogs: the wide mouth line (the one line a frog always has), big eye bumps, a pale throat
+ * that pulses and puffs when pleased (DESIGN §10.4), a folded haunch.
  */
-const BUMP_FILL =
-  'M22.6 36.5 C22.6 31 27 26.5 33 26.5 C38.5 26.5 42.5 29.8 43.6 35 C44.1 37.2 44.9 38.6 45.6 40 C41 43.6 28.6 44.4 23.6 41 C23.2 39.4 22.8 38 22.6 36.5 Z';
-const BUMP_EDGE = 'M22.6 36.5 C22.6 31 27 26.5 33 26.5 C38.5 26.5 42.5 29.8 43.6 35 C43.9 36.4 44.4 37.5 44.9 38.4';
 
-function EyeBump({ ctx, mirror }: { ctx: ArtCtx; mirror?: boolean }) {
+const BELLY: Record<Pose, string> = {
+  sit: ellipse(59, 93, 17, 11),
+  loaf: ellipse(60, 94, 18, 9.5),
+  sleep: ellipse(60, 94, 18, 9.5),
+  stand: ellipse(52, 90.5, 24, 6.5),
+  walk: ellipse(52, 90.5, 24, 6.5),
+};
+
+/** The Red-eyed Tree Frog's flank: a blue patch along the side, crossed by thin cream bars. */
+const FLANK_SIT = {
+  patch: 'M20 73C27 67.6 38 67.6 46 73.6C45.8 76 45 78 44 79C38 74.4 28 73 20 75.6Z',
+  bars: 'M26.3 70.6H27.7V73.8H26.3ZM32.3 69.8H33.7V74.4H32.3ZM38.3 70.4H39.7V75.4H38.3Z',
+};
+const FLANK_LOAF = {
+  patch: 'M16 76C24 70.8 36 70.8 44 76.4C43.8 78.6 43 80.4 42 81.2C36 77.2 26 76 16 78.4Z',
+  bars: 'M23.3 73.6H24.7V77H23.3ZM29.3 72.6H30.7V77H29.3ZM35.3 73H36.7V78H35.3Z',
+};
+const FLANK_SIDE = {
+  patch: 'M39 76C46 72.4 56 72.2 64 75.2C57 78.8 47 79.6 39 76Z',
+  bars: 'M45.3 74.4H46.7V77.8H45.3ZM51.3 73.6H52.7V78.2H51.3ZM57.3 74H58.7V77.8H57.3Z',
+};
+/** The Red-eyed Tree Frog's flank: a blue lens along the side over the haunch, crossed by thin cream bars. */
+const FLANK: Record<Pose, { patch: string; bars: string }> = { sit: FLANK_SIT, loaf: FLANK_LOAF, sleep: FLANK_LOAF, stand: FLANK_SIDE, walk: FLANK_SIDE };
+
+function bodyDetail(c: DrawCtx) {
+  const t = c.tones;
+  const flank = c.has('flanks') ? FLANK[c.pose] : null;
   return (
-    <g transform={mirror ? MIRROR : undefined}>
-      <path d={BUMP_FILL} fill={ctx.look.palette.body} />
-      <path d={BUMP_EDGE} fill="none" stroke={OUTLINE} stroke-width={STROKE} stroke-linecap="round" />
-    </g>
-  );
-}
-
-function FrogEyes({ ctx }: { ctx: ArtCtx }) {
-  const { eyes } = ctx.anchors;
-  return (
-    <g class={blinks(ctx) ? 'pet-blink' : undefined}>
-      <Eye x={eyes.left} y={eyes.y} ctx={ctx} side="l" scale={1.08} />
-      <Eye x={eyes.right} y={eyes.y} ctx={ctx} side="r" scale={1.08} />
-    </g>
-  );
-}
-
-export const frog: SpeciesArt = {
-  back: () => null,
-  overlay: (ctx) => {
-    const p = ctx.look.palette;
-    const belly = p.belly ?? lighten(p.body, 0.55);
-    const { x, y } = ctx.anchors.mouth;
-    return (
-      <g fill={belly}>
-        <ellipse cx={50} cy={84} rx={26} ry={16} />
-        <ellipse class="pet-throat" style={{ '--throat-origin': `${x}px ${y + 4}px` }} cx={x} cy={y + 7.2} rx={7.4} ry={3.4} opacity={0.9} />
-      </g>
-    );
-  },
-  feet: (ctx) => {
-    const p = ctx.look.palette;
-    const fill = p.feet ?? p.body;
-    return (
-      <g>
-        <Foot cx={34} fill={fill} />
-        <Foot cx={66} fill={fill} />
-      </g>
-    );
-  },
-  // The eye bumps are redrawn over head wear, so hats sit behind the eyes (like bunny ears).
-  ears: (ctx) => (
     <g>
-      <EyeBump ctx={ctx} />
-      <EyeBump ctx={ctx} mirror />
-      <FrogEyes ctx={ctx} />
+      {flank && (
+        <>
+          <path d={flank.patch} fill={t.mark} />
+          <path d={flank.bars} fill={t.mark2} />
+        </>
+      )}
+      <path d={BELLY[c.pose]} fill={c.has('glass') ? '#F6F7EC' : t.under} />
+      {c.has('glass') && <circle cx={c.pose === 'stand' || c.pose === 'walk' ? 56 : 61} cy={c.pose === 'stand' || c.pose === 'walk' ? 87.4 : 88.6} r={1.5} fill="#E7939A" />}
+      <path d={FROG_HAUNCH[c.pose]} fill={t.legFar} />
     </g>
-  ),
-  eyes: (ctx) => (ctx.hidden?.has('ears') ? <FrogEyes ctx={ctx} /> : null),
-  mouth: (ctx) => {
-    const { x, y } = ctx.anchors.mouth;
-    const e = ctx.expression;
-    if (e === 'eat' || e === 'surprised') {
-      return <OpenMouth x={x} y={y} w={e === 'surprised' ? 4.6 : 7.4} h={e === 'surprised' ? 4.8 : 4} />;
-    }
-    if (e === 'happy' || e === 'love') {
+  );
+}
+
+function face(c: DrawCtx) {
+  const f = c.face;
+  const t = c.tones;
+  const a = FROG_RIG.head;
+  const happy = f.expr === 'happy';
+  // Happy is a throat puff (DESIGN §10.4): the throat fills out; the mouth line keeps its rest curve.
+  const throat = happy ? ellipse(3, 23.6, 11.8, 6.8) : ellipse(3, 22.6, 11, 5.4);
+  const glassEdge = c.has('glass') ? c.crescent('head', `rim-${c.lit}`) : '';
+  return (
+    <g>
+      {glassEdge && <path d={glassEdge} fill="#F4F8E6" opacity={0.7} />}
+      <g transform="translate(3 19)">
+        <g class={c.animated && !happy ? 'pet-throat' : undefined}>
+          <path d={throat} transform="translate(-3 -19)" fill={t.under} />
+        </g>
+      </g>
+      <Blush f={f} y={13.4} left={-12.4} right={17} rx={3.2} ry={1.8} opacity={0.85} />
+      <Eyes f={f} y={a.eyes.y} y2={a.eyes.y + 3} left={a.eyes.left} right={a.eyes.right} r={a.eyes.r} r2={a.eyes.r * 0.94} />
+      <g fill={t.far}>
+        <circle cx={4.4} cy={9} r={0.7} />
+        <circle cx={8.4} cy={9.6} r={0.7} />
+      </g>
+      <path
+        class="pet-line"
+        d="M-9 12.8Q2.8 15 15 13.4"
+        fill="none"
+        stroke={t.dark ? t.line : t.ink}
+        stroke-opacity={0.5}
+        stroke-width={0.85}
+        stroke-linecap="round"
+      />
+      <Mouth f={f} x={2.8} y={15.6} s={1.1} />
+    </g>
+  );
+}
+
+const marks: SpeciesArt['marks'] = {
+  throat: {},
+  belly: {},
+  dots: {
+    body: (c) => <path d={dots(8, 4, 84, 60, 14, 3, 6.1)} fill={c.tones.mark} />,
+    head: (c) => <path d={`${circle(-9, -7, 1.8)}${circle(10, -4, 1.6)}${circle(-13, 2, 1.3)}`} fill={c.tones.mark} />,
+  },
+  x: {
+    // A Spring Peeper's X sits on its back, behind the head: thin and quiet.
+    body: (c) => <path d={`${tube([[13, 12], [33, 44]], 3.2, 2.8)}${tube([[33, 12], [13, 44]], 3.2, 2.8)}`} fill={c.tones.mark} opacity={0.8} />,
+  },
+  moss: {
+    body: (c) => {
+      const rand = rng(4.2);
+      let d1 = '';
+      let d2 = '';
+      for (let i = 0; i < 26; i++) {
+        const u = rand() * 100;
+        const v = rand() * 70;
+        const r = 1.6 + rand() * 2.4;
+        if (i % 3 === 0) d2 += ellipse(u, v, r, r * 0.9);
+        else d1 += ellipse(u, v, r, r * 0.9);
+      }
       return (
         <g>
-          <path d={`M${x - 9} ${y - 0.4} Q${x} ${y + 9.4} ${x + 9} ${y - 0.4} Z`} fill="#C75B73" stroke={OUTLINE} stroke-width={1.6} stroke-linejoin="round" />
-          <path d={`M${x - 4.4} ${y + 4.4} Q${x} ${y + 2.2} ${x + 4.4} ${y + 4.4} Q${x} ${y + 6.8} ${x - 4.4} ${y + 4.4} Z`} fill="#FF9FB8" />
+          <path d={d1} fill={c.tones.mark} />
+          <path d={d2} fill={c.tones.mark2} />
         </g>
       );
-    }
-    const smile = e === 'sleep' ? `M${x - 6} ${y + 0.4} Q${x} ${y + 3} ${x + 6} ${y + 0.4}` : `M${x - 9} ${y - 0.6} Q${x} ${y + 5.6} ${x + 9} ${y - 0.6}`;
-    return (
-      <g>
-        {e === 'wink' && (
-          <path
-            d={`M${x + 1} ${y + 2.2} Q${x + 1.4} ${y + 6.6} ${x + 3.8} ${y + 6} Q${x + 5.8} ${y + 5.2} ${x + 4.8} ${y + 1.6}`}
-            fill="#FF9FB8"
-            stroke={OUTLINE}
-            stroke-width={1.3}
-            stroke-linejoin="round"
-          />
-        )}
-        <path d={smile} fill="none" stroke={faceInk(ctx)} stroke-width={1.7} stroke-linecap="round" />
-      </g>
-    );
+    },
+    head: (c) => <path d={`${circle(-12, -4, 1.8)}${circle(-4, -8, 1.5)}${circle(12, -2, 1.4)}${circle(5, -3, 1)}`} fill={c.tones.mark} />,
   },
+  glass: {},
+  jeans: {},
+  // Drawn in bodyDetail, under the haunch.
+  flanks: {},
 };
+
+function top(c: DrawCtx) {
+  if (!c.trait('wave') || c.face.expr !== 'happy' || c.silhouette) return null;
+  const x = c.pose === 'stand' || c.pose === 'walk' ? 71 : 70;
+  const y = c.pose === 'stand' || c.pose === 'walk' ? 78 : 80;
+  return (
+    <g transform={`translate(${x} ${y})`}>
+      <g class={c.animated ? 'pet-wave' : undefined}>
+        <path d={tube([[0, 0], [3, -8], [4, -15]], 4.4, 3.6)} fill={c.tones.leg} />
+        <path d={`${circle(4.2, -16.4, 1.2)}${circle(2.4, -16.2, 1)}${circle(6, -15.6, 1)}`} fill={c.tones.foot} />
+      </g>
+    </g>
+  );
+}
+
+function sprite({ tones: t }: SpriteCtx) {
+  return (
+    <g>
+      <path d="M8 92C8 66 26 50 50 50C74 50 92 66 92 92Z" fill={t.coat} />
+      <path d={twoCircles([36, 50], 14, [62, 45], 16)} fill={t.head} />
+      <path d={ellipse(58, 93, 24, 12)} fill={t.under} />
+      <circle cx={36} cy={50} r={4.2} fill={t.ink} />
+      <circle cx={62} cy={45} r={4.6} fill={t.ink} />
+    </g>
+  );
+}
+
+export const FROG_ART: SpeciesArt = {
+  species: 'frog',
+  rigFor: () => ({ id: 'frog', rig: FROG_RIG }),
+  ears: () => null,
+  face,
+  marks,
+  bodyDetail,
+  top,
+  sprite,
+};
+

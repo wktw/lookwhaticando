@@ -1,183 +1,222 @@
+import type { JSX } from 'preact';
 import { PETS, WEARABLES } from '@/catalog/collectibles';
-import { SPECIES, type Species } from '@/catalog/types';
+import { SPECIES, type Species, type WearableSlot } from '@/catalog/types';
+import type { Light } from '@/art/light';
 import { PetArt } from '@/art/pets/PetArt';
-import { PATTERNS } from '@/art/pets/patterns';
-import { TRAITS } from '@/art/pets/traits';
-import { LOOKS } from '@/art/pets/looks';
-import type { Expression, PatternId, PetLook, TraitId } from '@/art/pets/types';
-import type { Outfit } from '@/state/types';
-import { CollectibleArt } from '@/art/CollectibleArt';
+import { EXPRESSIONS, POSES, type Expression, type Pose } from '@/art/pets/types';
+import { WEARABLE_ART } from '@/art/wearables';
 import type { GallerySection } from './sections';
 
 /**
- * Pets module gallery. Useful params: ?only=pets (all sections), &ids=pet-cow-moon,pet-cat-black
- * to focus pets, &size=260 to enlarge, &expr=happy, &facing=left, &slot=head to filter wearables,
- * &model=pet-dog-pom,pet-bunny-lop to fit wearables on other pets, &traits=crown,bangs.
+ * Pets gallery (animals and wearables). Most sections take &species=cat,cow to focus species,
+ * &ids=pet-cat-calico,… to focus pets, &size=… to change the drawing size and &facing=left.
  */
 
-const EXPRESSIONS: Expression[] = ['idle', 'happy', 'sleep', 'love', 'eat', 'surprised', 'wink'];
-
-/** One representative per species, used for the expression matrix and wearable fitting. */
+/** One model per species: the coats the style frames were drawn with, where there is one. */
 const MODELS: Record<Species, string> = {
-  cat: 'pet-cat-orange',
+  cat: 'pet-cat-calico',
   cow: 'pet-cow-holstein',
   dog: 'pet-dog-shiba',
-  bunny: 'pet-bunny-white',
-  frog: 'pet-frog-green',
+  bunny: 'pet-bunny-dutch',
+  frog: 'pet-frog-tree',
   bear: 'pet-bear-brown',
-  hamster: 'pet-hamster-golden',
-  duck: 'pet-duck-yellow',
+  hamster: 'pet-hamster-syrian',
+  duck: 'pet-duck-mallard',
 };
 
-function pickPets(params: URLSearchParams) {
-  const ids = params.get('ids')?.split(',');
-  return ids ? PETS.filter((p) => ids.includes(p.id)) : PETS;
-}
-
-function pickWearables(params: URLSearchParams) {
-  const slot = params.get('slot');
-  const ids = params.get('ids')?.split(',');
-  return WEARABLES.filter((w) => (!slot || w.slot === slot) && (!ids || ids.includes(w.id)));
-}
-
-/** Traits the species art reads itself (ear and tail styles, horns), shown alongside TRAITS. */
-const STYLE_TRAITS: TraitId[] = ['lop-ears', 'pointy-ears', 'floppy-ears', 'bat-ears', 'curly-tail', 'long-horns'];
-
-/** Wearable models: one per species, or the pets named in &model=. */
-function pickModels(params: URLSearchParams): string[] {
-  return params.get('model')?.split(',') ?? SPECIES.map((s) => MODELS[s]);
-}
-
-/** Pets whose traits reshape them or cover the body, fitted with representative wear. */
-const TRAIT_MODELS = [
-  'pet-dog-golden',
-  'pet-dog-pom',
-  'pet-bunny-lop',
-  'pet-bunny-boo',
-  'pet-cat-jack',
-  'pet-cow-ghost',
-  'pet-cat-mermaid',
-  'pet-cow-highland',
-  'pet-frog-prince',
-  'pet-cat-lucky',
-  'pet-bear-hug',
-  'pet-duck-sailor',
-  'pet-cat-cloud',
-  'pet-hamster-gingerbread',
+const DAYS: { label: string; light: Light }[] = [
+  { label: 'window left', light: { from: 'left', night: false } },
+  { label: 'window top', light: { from: 'top', night: false } },
+  { label: 'window right', light: { from: 'right', night: false } },
 ];
-const TRAIT_OUTFITS: Outfit[] = [
-  {},
-  { head: 'wear-pom-beanie', neck: 'wear-knit-scarf' },
-  { head: 'wear-evergreen-crown', face: 'wear-star-shades' },
-  { head: 'wear-pink-bow', neck: 'wear-bell-collar', body: 'wear-cozy-hoodie' },
-  { head: 'wear-witch-hat', body: 'wear-overalls' },
-  { neck: 'wear-flower-lei', body: 'wear-duck-float' },
-  { face: 'wear-milk-mustache', body: 'wear-garden-apron' },
+const NIGHTS: { label: string; light: Light }[] = [
+  { label: 'lamp left', light: { from: 'left', night: true } },
+  { label: 'lamp top', light: { from: 'top', night: true } },
+  { label: 'lamp right', light: { from: 'right', night: true } },
 ];
 
-function patternLook(species: Species, pattern: PatternId): PetLook {
-  return {
-    species,
-    pattern,
-    palette: { body: '#FFF3E6', pattern: '#B48C80', pattern2: '#8FB8E8', belly: '#FFFFFF', earInner: '#FFC4D3', nose: '#F58CAA' },
-  };
+/**
+ * A Lamplight card, so night drawings read correctly on the day gallery. Night cells carry
+ * data-theme="night"; tokens.css scopes the night tokens to :root only, so until it also matches
+ * nested [data-theme='night'] (requested in NOTES-pets.md) the card mirrors them here.
+ */
+const NIGHT_CARD = {
+  background: '#2d2733',
+  color: '#f4ede6',
+  '--shade': 'rgba(10, 8, 22, 0.3)',
+  '--contact': 'rgba(0, 0, 0, 0.22)',
+  '--card': '#2d2733',
+} as JSX.CSSProperties;
+
+const ROW: JSX.CSSProperties = { display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'flex-end', marginBottom: '6px' };
+/** A comparison row that must not wrap (day beside night): it scrolls sideways instead. */
+const STRIP: JSX.CSSProperties = { ...ROW, flexWrap: 'nowrap', overflowX: 'auto' };
+const CELL: JSX.CSSProperties = { padding: '6px', borderRadius: '12px', gap: '2px' };
+
+const pickSpecies = (params: URLSearchParams, fallback: readonly Species[] = SPECIES): Species[] => {
+  const s = params.get('species')?.split(',');
+  return s?.length ? SPECIES.filter((x) => s.includes(x)) : [...fallback];
+};
+const pickPets = (params: URLSearchParams) => {
+  const ids = params.get('ids')?.split(',');
+  const species = pickSpecies(params);
+  return PETS.filter((p) => (ids ? ids.includes(p.id) : species.includes(p.species)));
+};
+const modelFor = (params: URLSearchParams, s: Species) => params.get('ids')?.split(',').find((i) => i.startsWith(`pet-${s}-`)) ?? MODELS[s];
+const facingOf = (params: URLSearchParams) => (params.get('facing') === 'left' ? 'left' : 'right');
+const sizeOf = (params: URLSearchParams, fallback: number) => Number(params.get('size') ?? fallback);
+
+function Cell({ children, label, night }: { children: JSX.Element; label: string; night?: boolean }) {
+  return (
+    <div class="gal-cell" data-theme={night ? 'night' : undefined} style={{ ...CELL, ...(night ? NIGHT_CARD : {}) }}>
+      {children}
+      <small style={night ? { color: '#cfc5c9' } : undefined}>{label}</small>
+    </div>
+  );
 }
+
+function Heading({ children }: { children: string }) {
+  return <h3 style={{ margin: '10px 0 4px', fontSize: '15px' }}>{children}</h3>;
+}
+
+function PoseMatrix({ species, params }: { species: Species; params: URLSearchParams }) {
+  const id = modelFor(params, species);
+  return (
+    <div>
+      <Heading>{species}</Heading>
+      {POSES.map((pose) => (
+        <div style={STRIP} key={pose}>
+          {[...DAYS, ...NIGHTS].map(({ label, light }) => (
+            <Cell key={label} label={`${pose} · ${label}`} night={light.night}>
+              <PetArt petId={id} pose={pose} light={light} size={sizeOf(params, 160)} facing={facingOf(params)} animated={params.has('animate')} />
+            </Cell>
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** A strip of small pets on a card, where they live at that size. */
+function SmallStrip({ ids, size, pose }: { ids: string[]; size: number; pose: Pose }) {
+  return (
+    <div class="gal-cell" style={{ ...CELL, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-end', gap: '6px', marginTop: '8px' }}>
+      {ids.map((id) => (
+        <PetArt key={id} petId={id} pose={pose} size={size} />
+      ))}
+      <small style={{ width: '100%', textAlign: 'left' }}>{`${size} px`}</small>
+    </div>
+  );
+}
+
+function WearRow({ id, params }: { id: string; params: URLSearchParams }) {
+  const w = WEARABLES.find((x) => x.id === id)!;
+  const art = WEARABLE_ART[id];
+  const models = pickSpecies(params, ['cat', 'cow', 'frog', 'hamster', 'duck']);
+  const poses = (params.get('poses')?.split(',') as Pose[] | undefined) ?? (['sit', 'loaf', 'stand'] as Pose[]);
+  const light: Light = { from: (params.get('light') as Light['from']) ?? 'left', night: params.has('night') };
+  return (
+    <div style={{ ...ROW, alignItems: 'center', marginBottom: '8px' }}>
+      <Cell label={`${w.name} · ${w.slot}`}>
+        <svg viewBox="0 0 100 100" width={64} height={64} aria-hidden="true">
+          {art?.icon()}
+        </svg>
+      </Cell>
+      {models.flatMap((s) =>
+        poses.map((pose) => <PetArt key={`${s}-${pose}`} petId={modelFor(params, s)} pose={pose} light={light} outfit={{ [w.slot]: w.id }} size={sizeOf(params, 84)} />),
+      )}
+    </div>
+  );
+}
+
+const wearSection = (id: string, title: string, slots: WearableSlot[]): GallerySection => ({
+  id,
+  title,
+  render: (params) => {
+    const ids = params.get('ids')?.split(',');
+    return (
+      <div>
+        {WEARABLES.filter((w) => slots.includes(w.slot) && (!ids || ids.includes(w.id))).map((w) => (
+          <WearRow key={w.id} id={w.id} params={params} />
+        ))}
+      </div>
+    );
+  },
+});
 
 export const SECTIONS: GallerySection[] = [
   {
-    id: 'pets-all',
-    title: 'All pets · 130px, animated',
+    id: 'pets-reference',
+    title: 'Pets · the style-frame line-up (Pz_poses), then at 48, 32 and 20 px',
     render: (params) => {
-      const size = Number(params.get('size') ?? 130);
-      const expr = (params.get('expr') as Expression) || 'idle';
-      const facing = params.get('facing') === 'left' ? 'left' : 'right';
+      const lineup: [string, Pose][] = [
+        ['pet-cat-orange', 'loaf'],
+        ['pet-cat-calico', 'sleep'],
+        ['pet-cat-black', 'loaf'],
+        ['pet-cow-highland', 'loaf'],
+        ['pet-cow-beltie', 'stand'],
+        ['pet-cow-holstein', 'loaf'],
+      ];
       return (
-        <div class="gal-grid" style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${size + 20}px, 1fr))` }}>
-          {pickPets(params).map((p) => (
-            <div class="gal-cell" key={p.id}>
-              <PetArt petId={p.id} size={size} expression={expr} facing={facing} animated />
-              <b>{p.name}</b>
-              <small>
-                {p.species} · {p.rarity}
-              </small>
-            </div>
-          ))}
+        <div>
+          <div class="gal-row" style={{ gap: '0' }}>
+            {lineup.map(([id, pose]) => (
+              <PetArt key={id} petId={id} pose={pose} size={sizeOf(params, 150)} facing="left" />
+            ))}
+          </div>
+          <div class="gal-row" style={{ gap: '10px', marginTop: '8px' }}>
+            {[48, 32, 20].flatMap((size) => lineup.map(([id, pose]) => <PetArt key={`${id}${size}`} petId={id} pose={pose} size={size} facing="left" />))}
+          </div>
         </div>
       );
     },
   },
   {
-    id: 'pets-small',
-    title: 'All pets · 56px (collection grid)',
-    render: (params) => (
-      <div class="gal-row" style={{ gap: '10px' }}>
-        {pickPets(params).map((p) => (
-          <PetArt key={p.id} petId={p.id} size={56} title={p.name} />
-        ))}
-      </div>
-    ),
-  },
-  {
-    id: 'pets-moonlit',
-    title: "Moonlit variants ('moonlit:<petId>', DESIGN §13.6)",
-    render: (params) => (
-      <div class="gal-row" style={{ gap: '8px' }}>
-        {pickPets(params).map((p) => (
-          <PetArt key={p.id} petId={`moonlit:${p.id}`} size={Number(params.get('size') ?? 80)} title={`Moonlit ${p.name}`} />
-        ))}
-      </div>
-    ),
-  },
-  {
-    id: 'pets-list',
-    title: 'List view · 44px rows',
-    render: (params) => (
-      <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))', gap: '6px' }}>
-        {pickPets(params).map((p) => (
-          <li
-            key={p.id}
-            style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'var(--card)', borderRadius: '14px', padding: '4px 12px 4px 6px' }}
-          >
-            <PetArt petId={p.id} size={44} shadow={false} />
-            <span style={{ display: 'grid', lineHeight: 1.2 }}>
-              <b style={{ fontSize: '14px' }}>{p.defaultName}</b>
-              <small style={{ fontSize: '12px', color: 'var(--ink-2)' }}>{p.name}</small>
-            </span>
-          </li>
-        ))}
-      </ul>
-    ),
-  },
-  {
-    id: 'pets-expressions',
-    title: 'Every species × every expression',
+    id: 'pets-one',
+    title: 'Pets · large drawings (&id=a,b &pose=sit,loaf &expr &light=left|top|right &night &size &facing &outfit=wear-… &fit)',
     render: (params) => {
-      const size = Number(params.get('size') ?? 110);
-      const only = params.get('species');
+      const light: Light = { from: (params.get('light') as Light['from'] | null) ?? 'left', night: params.has('night') };
+      const ids = (params.get('id') ?? MODELS.cat).split(',');
+      const poses = (params.get('pose') ?? 'sit').split(',') as Pose[];
+      const outfit: Partial<Record<WearableSlot, string>> = {};
+      for (const o of params.get('outfit')?.split(',') ?? []) {
+        const w = WEARABLES.find((x) => x.id === o);
+        if (w) outfit[w.slot] = o;
+      }
       return (
-        <div style={{ display: 'grid', gap: '6px' }}>
-          {SPECIES.filter((s) => !only || s === only).map((s) => (
-            <div class="gal-row" key={s} style={{ gap: '6px', alignItems: 'center' }}>
-              <small style={{ width: '60px' }}>{s}</small>
-              {EXPRESSIONS.map((e) => (
-                <PetArt key={e} petId={MODELS[s]} expression={e} size={size} />
-              ))}
-            </div>
-          ))}
+        <div class="gal-row" style={{ gap: '6px' }}>
+          {ids.flatMap((id) =>
+            poses.map((pose) => (
+              <div key={id + pose} style={{ background: 'var(--card)', ...(light.night ? NIGHT_CARD : {}), borderRadius: '12px' }}>
+                <PetArt
+                  petId={id}
+                  pose={pose}
+                  light={light}
+                  outfit={outfit}
+                  size={sizeOf(params, 300)}
+                  facing={facingOf(params)}
+                  expression={(params.get('expr') as Expression | null) ?? 'rest'}
+                  animated={params.has('animate')}
+                  fit={params.has('fit')}
+                />
+              </div>
+            )),
+          )}
         </div>
       );
     },
   },
   {
-    id: 'pets-patterns',
-    title: 'Patterns on every species (faces stay clear)',
-    render: () => (
-      <div style={{ display: 'grid', gap: '4px' }}>
-        {(Object.keys(PATTERNS) as PatternId[]).map((pattern) => (
-          <div class="gal-row" key={pattern} style={{ gap: '4px', alignItems: 'center' }}>
-            <small style={{ width: '90px' }}>{pattern}</small>
-            {SPECIES.map((s) => (
-              <PetArt key={s} petId={MODELS[s]} look={patternLook(s, pattern)} size={88} shadow={false} />
+    id: 'pets-overview',
+    title: 'Pets · every species in every pose, window light from the left',
+    render: (params) => (
+      <div>
+        {pickSpecies(params).map((s) => (
+          <div style={ROW} key={s}>
+            {POSES.map((pose) => (
+              <Cell key={pose} label={`${s} · ${pose}`}>
+                <PetArt petId={modelFor(params, s)} pose={pose} size={sizeOf(params, 120)} facing={facingOf(params)} animated={params.has('animate')} />
+              </Cell>
             ))}
           </div>
         ))}
@@ -185,88 +224,163 @@ export const SECTIONS: GallerySection[] = [
     ),
   },
   {
-    id: 'pets-wearables',
-    title: 'Every wearable on all 8 species',
+    id: 'pets-poses',
+    title: 'Pets · every species in every pose × window light (left, top, right) and lamplight, 160 px',
+    render: (params) => (
+      <div>
+        {pickSpecies(params).map((s) => (
+          <PoseMatrix key={s} species={s} params={params} />
+        ))}
+      </div>
+    ),
+  },
+  {
+    id: 'pets-looks',
+    title: 'Pets · every look at 72 px in tile mode (&world for true scale), then at 32 px and 20 px on a card (&pose=sit)',
     render: (params) => {
-      const size = Number(params.get('size') ?? 72);
+      const pose = (params.get('pose') as Pose | null) ?? 'sit';
+      const pets = pickPets(params);
       return (
-        <div style={{ display: 'grid', gap: '8px' }}>
-          {pickWearables(params).map((w) => (
-            <div class="gal-row" key={w.id} style={{ gap: '2px', alignItems: 'center' }}>
-              <small style={{ width: '110px' }}>
-                <b>{w.name}</b>
-                <br />
-                {w.slot} · {w.rarity}
-              </small>
-              {pickModels(params).map((id) => (
-                <PetArt key={id} petId={id} size={size} outfit={{ [w.slot]: w.id }} shadow={false} />
-              ))}
-            </div>
-          ))}
+        <div>
+          <div style={ROW}>
+            {pets.map((p) => (
+              <Cell key={p.id} label={p.name}>
+                <PetArt petId={p.id} pose={pose} size={sizeOf(params, 72)} facing={facingOf(params)} fit={!params.has('world')} />
+              </Cell>
+            ))}
+          </div>
+          <SmallStrip ids={pets.map((p) => p.id)} size={32} pose={pose} />
+          <SmallStrip ids={pets.map((p) => p.id)} size={20} pose={pose} />
         </div>
       );
     },
   },
   {
-    id: 'pets-traits',
-    title: 'Every trait on every species (unused traits get reviewed too)',
-    render: (params) => {
-      const only = params.get('traits')?.split(',');
-      const ids = [...(Object.keys(TRAITS) as TraitId[]), ...STYLE_TRAITS].filter((t) => !only || only.includes(t));
-      const size = Number(params.get('size') ?? 80);
-      return (
-        <div style={{ display: 'grid', gap: '4px' }}>
-          {ids.map((trait) => (
-            <div class="gal-row" key={trait} style={{ gap: '4px', alignItems: 'center' }}>
-              <small style={{ width: '90px' }}>{trait}</small>
-              {SPECIES.map((s) => {
-                const base = LOOKS[MODELS[s]]!;
-                return <PetArt key={s} petId={MODELS[s]} look={{ ...base, traits: [trait] }} size={size} shadow={false} />;
-              })}
+    id: 'pets-floors',
+    title: 'Pets · size floors: the pose at 160, 64 and 48 px; the closed-eye loaf at 32 px; the three-shape sprite at 20 px',
+    render: (params) => (
+      <div>
+        {pickSpecies(params).map((s) => (
+          <div key={s} class="gal-row" style={{ gap: '14px', marginBottom: '8px' }}>
+            {[160, 64, 48, 32, 20].map((size) => (
+              <PetArt key={size} petId={modelFor(params, s)} pose={(params.get('pose') as Pose | null) ?? 'stand'} size={size} />
+            ))}
+          </div>
+        ))}
+      </div>
+    ),
+  },
+  {
+    id: 'pets-expressions',
+    title: 'Pets · expressions per species (still, so the slow blink holds half-closed; &animate for idle life)',
+    render: (params) => (
+      <div>
+        {pickSpecies(params).map((s) => (
+          <div style={ROW} key={s}>
+            {EXPRESSIONS.map((e) => (
+              <Cell key={e} label={`${s} · ${e}`}>
+                <PetArt petId={modelFor(params, s)} expression={e} pose={(params.get('pose') as Pose | null) ?? 'sit'} size={sizeOf(params, 120)} animated={params.has('animate')} />
+              </Cell>
+            ))}
+          </div>
+        ))}
+      </div>
+    ),
+  },
+  {
+    id: 'pets-wear-icons',
+    title: 'Wearables · every inventory icon on a card tile, at 88 and 44 px',
+    render: () => (
+      <div style={ROW}>
+        {WEARABLES.map((w) => (
+          <Cell key={w.id} label={w.name}>
+            <div style={{ display: 'flex', alignItems: 'flex-end', gap: '4px' }}>
+              <svg viewBox="0 0 100 100" width={88} height={88} aria-hidden="true">
+                {WEARABLE_ART[w.id]?.icon()}
+              </svg>
+              <svg viewBox="0 0 100 100" width={44} height={44} aria-hidden="true">
+                {WEARABLE_ART[w.id]?.icon()}
+              </svg>
             </div>
-          ))}
+          </Cell>
+        ))}
+      </div>
+    ),
+  },
+  {
+    id: 'pets-fit',
+    title: 'Pets · tile mode (fit) beside world scale, at 72 px and in a 240 px reveal (&pose=sit)',
+    render: (params) => {
+      const pose = (params.get('pose') as Pose | null) ?? 'sit';
+      const ids = params.get('ids')?.split(',') ?? SPECIES.map((s) => MODELS[s]);
+      return (
+        <div>
+          <div style={ROW}>
+            {ids.map((id) => (
+              <Cell key={id} label={`${id.replace('pet-', '')} · world, tile`}>
+                <div style={{ display: 'flex', alignItems: 'flex-end' }}>
+                  <PetArt petId={id} pose={pose} size={sizeOf(params, 72)} />
+                  <PetArt petId={id} pose={pose} size={sizeOf(params, 72)} fit />
+                </div>
+              </Cell>
+            ))}
+          </div>
+          <div style={ROW}>
+            {['pet-hamster-syrian', 'pet-frog-peeper', 'pet-duck-call', 'pet-cow-highland'].map((id) => (
+              <Cell key={id} label={`${id.replace('pet-', '')} · reveal, tile`}>
+                <PetArt petId={id} pose={pose} size={240} fit />
+              </Cell>
+            ))}
+          </div>
         </div>
       );
     },
   },
+  wearSection('pets-wear-head', 'Wearables · head, on a cat, a cow, a frog, a hamster and a duck in sit, loaf and stand, with the icon', ['head']),
+  wearSection('pets-wear-neck', 'Wearables · face and neck, on five species in sit, loaf and stand, with the icon', ['face', 'neck']),
+  wearSection('pets-wear-body', 'Wearables · body, on five species in sit, loaf and stand, with the icon', ['body']),
   {
-    id: 'pets-wear-traits',
-    title: 'Trait-heavy pets wearing things',
-    render: (params) => {
-      const size = Number(params.get('size') ?? 80);
-      const ids = params.get('ids')?.split(',') ?? TRAIT_MODELS;
-      return (
-        <div style={{ display: 'grid', gap: '4px' }}>
-          {ids.map((id) => (
-            <div class="gal-row" key={id} style={{ gap: '4px', alignItems: 'center' }}>
-              <small style={{ width: '90px' }}>{id.replace('pet-', '')}</small>
-              {TRAIT_OUTFITS.map((outfit, i) => (
-                <PetArt key={i} petId={id} outfit={outfit} size={size} shadow={false} />
-              ))}
-            </div>
+    id: 'pets-moonlit',
+    title: 'Pets · Moonlit variants under the lamp, beside the everyday coat (&all for every pet)',
+    render: (params) => (
+      <div style={ROW}>
+        {pickPets(params)
+          .filter((_, i) => params.has('all') || params.has('ids') || params.has('species') || i % 4 === 0)
+          .map((p) => (
+            <Cell key={p.id} label={`Moonlit ${p.name}`} night>
+              <div style={{ display: 'flex', alignItems: 'flex-end' }}>
+                <PetArt petId={p.id} size={sizeOf(params, 88)} light={{ from: 'right', night: true }} />
+                <PetArt petId={`moonlit:${p.id}`} size={sizeOf(params, 88)} light={{ from: 'right', night: true }} />
+              </div>
+            </Cell>
           ))}
-        </div>
-      );
-    },
+      </div>
+    ),
   },
   {
-    id: 'pets-wearable-icons',
-    title: 'Wearable icons (collection book)',
-    render: (params) => {
-      const size = Number(params.get('size') ?? 96);
-      return (
-        <div class="gal-grid" style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${size + 24}px, 1fr))` }}>
-          {pickWearables(params).map((w) => (
-            <div class="gal-cell" key={w.id}>
-              <CollectibleArt id={w.id} size={size} />
-              <b>{w.name}</b>
-              <small>
-                {w.slot} · {w.rarity}
-              </small>
-            </div>
+    id: 'pets-modes',
+    title: 'Pets · Field Guide "not yet" (muted, no filter) and Secret silhouettes, beside the owned drawing',
+    render: (params) => (
+      <div>
+        <div style={ROW}>
+          {pickSpecies(params).map((s) => (
+            <Cell key={s} label={`${s} · owned, muted, silhouette`}>
+              <div style={{ display: 'flex', alignItems: 'flex-end' }}>
+                <PetArt petId={modelFor(params, s)} size={sizeOf(params, 88)} />
+                <PetArt petId={modelFor(params, s)} size={sizeOf(params, 88)} muted />
+                <PetArt petId={modelFor(params, s)} size={sizeOf(params, 88)} silhouette />
+              </div>
+            </Cell>
           ))}
         </div>
-      );
-    },
+        <div style={ROW}>
+          {pickPets(params)
+            .filter((_, i) => params.has('species') || i % 3 === 0)
+            .map((p) => (
+              <PetArt key={p.id} petId={p.id} size={64} muted />
+            ))}
+        </div>
+      </div>
+    ),
   },
 ];

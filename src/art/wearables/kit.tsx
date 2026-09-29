@@ -1,127 +1,139 @@
-import type { JSX } from 'preact';
-import { useId } from 'preact/hooks';
-import type { ArtCtx, WearableArt } from '../pets/types';
-import { ANCHORS, BODY_PATH, OUTLINE, STROKE, bodyHalfWidthAt } from '../pets/geometry';
-import { headTransform } from '../pets/placement';
+import type { ComponentChildren, JSX } from 'preact';
+import type { WearCtx, WearableArt } from '../pets/types';
+import type { WearableSlot } from '@/catalog/types';
+import { fmt } from '../pets/shape';
 
 /**
- * Shared wearable plumbing. Head items are drawn once in head-local coordinates and placed on
- * any species via placement.ts; neck and face items draw from ctx anchors; body items draw a
- * "fabric" from the body-wear line down (PetArt clips it to the silhouette) and reuse the same
- * fabric inside a flat-lay garment for their icon.
+ * Shared plumbing for wearables: small real objects in the same flat, outline-free language as
+ * the pets (DESIGN §10.4). Head items are drawn for a 20-unit crown with the origin where the
+ * item meets the head; face items for eyes 14 units apart; neck items for a collar 10 units each
+ * side of the throat; body items in the canonical body frame. Each item also draws its icon.
  */
 
-export const INK = OUTLINE;
-export const SW = STROKE;
+/** Real-object colours (the tokens' pastel families, deepened where an object needs it). */
+export const C = {
+  cream: '#FBF4E8',
+  /** Cream wool: a step warmer than paper, so it still reads on a white coat. */
+  wool: '#F0E1C6',
+  woolDeep: '#D9C4A0',
+  oat: '#E9DCC6',
+  linen: '#EEDDB9',
+  linenDeep: '#D9C193',
+  blush: '#EFB4C1',
+  blushDeep: '#DE8FA2',
+  rose: '#E07F8F',
+  butter: '#F2D98A',
+  straw: '#E7CB86',
+  strawDeep: '#D4B06A',
+  sage: '#B5CC9C',
+  sageDeep: '#8FAE7E',
+  leaf: '#8DB07A',
+  leafDeep: '#6F9463',
+  mint: '#A9D3C0',
+  sky: '#B3D1E8',
+  denim: '#8FA9C8',
+  lavender: '#C8BAE6',
+  lavenderDeep: '#A898D0',
+  lilac: '#DDB6DA',
+  navy: '#3F4A6E',
+  red: '#D8625E',
+  redDeep: '#B94E4C',
+  rust: '#C8734A',
+  mustard: '#E0B04F',
+  pumpkin: '#E39A55',
+  brass: '#D8B769',
+  brassDeep: '#B8954A',
+  silver: '#C9CDD4',
+  silverDeep: '#A3A9B3',
+  leather: '#9A6B4E',
+  leatherDeep: '#7E5540',
+  heather: '#B3ADB6',
+  ink: '#3B3236',
+  paper: '#FFFDF9',
+  white: '#FFFFFF',
+} as const;
 
-interface HeadItemOptions {
-  /** Placement on the pet (canvas units / degrees / relative scale). */
-  dx?: number;
-  dy?: number;
-  rotate?: number;
-  scale?: number;
-  /** Icon placement: the head-local origin lands at (iconX, iconY), scaled by iconScale. */
-  iconX?: number;
-  iconY?: number;
-  iconScale?: number;
-  iconRotate?: number;
-  /** Sit in front of ears and horns (see WearableArt.overEars). */
-  overEars?: WearableArt['overEars'];
-  /**
-   * A hair clip drawn centered on (0, 0) that sits at this head-local spot, or at the species'
-   * own clip anchor (the top of a frog's eye bump) when it has one.
-   */
-  clip?: { x: number; y: number };
+/** The shade for wear: the same lavender ink as the pets' crescents. */
+export const SHADE = 'var(--shade)';
+
+/** +1 when the shade falls on the right (light from the left), −1 when it falls left, 0 from above. */
+export const shadeDir = (ctx: WearCtx) => (ctx.light.from === 'left' ? 1 : ctx.light.from === 'right' ? -1 : 0);
+
+/** A shade shape authored for the right-hand side, mirrored or dropped to follow the light. */
+export function Shade({ ctx, d, under }: { ctx: WearCtx | null; d: string; under?: string }) {
+  const dir = ctx ? shadeDir(ctx) : 1;
+  if (dir === 0) return under ? <path d={under} fill={SHADE} /> : null;
+  return <path d={d} fill={SHADE} transform={dir < 0 ? 'scale(-1 1)' : undefined} />;
 }
 
-/** Icons render as components, so every instance gets its own ids for clip paths and gradients. */
-function WithUid({ children }: { children: (uid: string) => JSX.Element }) {
-  return children(`wi${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`);
+const t = (x: number, y: number, s = 1, r = 0) => `translate(${fmt(x)} ${fmt(y)})${r ? ` rotate(${fmt(r)})` : ''}${s !== 1 ? ` scale(${fmt(s)})` : ''}`;
+
+/** Places a head item on the crown. */
+export function AtHat({ ctx, children, s = 1, dx = 0, dy = 0, r = 0 }: { ctx: WearCtx; children: ComponentChildren; s?: number; dx?: number; dy?: number; r?: number }) {
+  const h = ctx.head.hat;
+  const k = h.w / 20;
+  return <g transform={t(h.x + dx * k, h.y + dy * k, k * s, h.r + r)}>{children}</g>;
 }
 
-/** An icon whose drawing needs unique ids (clips, gradients). */
-export const iconWithUid = (draw: (uid: string) => JSX.Element) => () => <WithUid>{draw}</WithUid>;
-
-/** Places a head item: on the head anchor, or at the species' clip anchor for hair clips. */
-function headPlacement(ctx: ArtCtx, o: HeadItemOptions): string {
-  const { anchors } = ctx;
-  if (o.clip && anchors.clip) {
-    const k = ((anchors.head.width / 40) * (o.scale ?? 1)).toFixed(3);
-    return `translate(${anchors.clip.x} ${anchors.clip.y}) rotate(${anchors.clip.rotate}) scale(${k})`;
-  }
-  const base = headTransform(anchors, o);
-  return o.clip ? `${base} translate(${o.clip.x} ${o.clip.y})` : base;
+/** Places a clip or a sprig by the far ear. */
+export function AtEar({ ctx, children, s = 1 }: { ctx: WearCtx; children: ComponentChildren; s?: number }) {
+  const e = ctx.head.ear;
+  return <g transform={t(e.x, e.y, (ctx.head.hat.w / 20) * s, e.r)}>{children}</g>;
 }
 
-/** A head item drawn in head-local coordinates: (0, 0) is the top-center of the head, 40 wide. */
-export function headItem(draw: (uid: string) => JSX.Element, o: HeadItemOptions = {}): WearableArt {
-  const iconAt = `translate(${o.iconX ?? 50} ${o.iconY ?? 62}) rotate(${o.iconRotate ?? 0}) scale(${o.iconScale ?? 1.8})`;
-  return {
-    overEars: o.overEars,
-    render: (ctx) => <g transform={headPlacement(ctx, o)}>{draw(ctx.uid)}</g>,
-    icon: iconWithUid((uid) => <g transform={iconAt}>{draw(uid)}</g>),
+/** Places face wear on the eye line. */
+export function AtEyes({ ctx, children }: { ctx: WearCtx; children: ComponentChildren }) {
+  const e = ctx.head.eyes;
+  return <g transform={t((e.left + e.right) / 2, e.y, (e.right - e.left) / 14)}>{children}</g>;
+}
+
+/**
+ * Scales a collar-frame item to this neck. Anything hanging `hang` units below the collar line is
+ * shortened (never below 60%) so a bandana tip or a bell stops above the floor on a low-slung pet.
+ */
+export function AtNeck({ ctx, children, hang = 0 }: { ctx: WearCtx; children: ComponentChildren; hang?: number }) {
+  const s = ctx.neck.w / 10;
+  const k = hang > 0 ? Math.max(0.6, Math.min(1, ctx.neck.drop / hang)) : 1;
+  return <g transform={k < 1 ? `scale(${fmt(s)} ${fmt(s * k)})` : `scale(${fmt(s)})`}>{children}</g>;
+}
+
+/** The icon canvas placement for an item drawn in its wearing frame. */
+export const Icon = ({ at, children }: { at: string; children: ComponentChildren }) => <g transform={at}>{children}</g>;
+
+/** A flat-lay garment outline for body-wear icons: a small sweater, seen from the front. */
+export const GARMENT = 'M36 22C40 26 46 28 50 28C54 28 60 26 64 22L80 30L88 50L78 54L74 46V82C66 86 34 86 26 82V46L22 54L12 50L20 30Z';
+export const GARMENT_NECK = 'M36 22C40 26 46 28 50 28C54 28 60 26 64 22L61 21C58 24 54 25 50 25C46 25 42 24 39 21Z';
+
+interface Spec {
+  slot: WearableSlot;
+  /** Draws the item in its wearing frame (see the file comment). */
+  draw: (ctx: WearCtx | null) => JSX.Element;
+  /** Head items: where it goes. */
+  at?: 'hat' | 'ear' | 'eyes';
+  front?: boolean;
+  hideIn?: WearableArt['hideIn'];
+  hood?: WearableArt['hood'];
+  /** Icon placement of the wearing-frame drawing on the 100×100 icon canvas. */
+  icon: string | (() => JSX.Element);
+  /** Neck items: how far the item hangs below the collar line, in collar units. */
+  hang?: number;
+}
+
+/** Builds a WearableArt from a drawing in its wearing frame. */
+export function item(spec: Spec): WearableArt {
+  const render = (ctx: WearCtx) => {
+    const art = spec.draw(ctx);
+    if (spec.slot === 'neck')
+      return (
+        <AtNeck ctx={ctx} hang={spec.hang}>
+          {art}
+        </AtNeck>
+      );
+    if (spec.slot === 'body') return art;
+    if (spec.at === 'ear') return <AtEar ctx={ctx}>{art}</AtEar>;
+    if (spec.at === 'eyes' || spec.slot === 'face') return <AtEyes ctx={ctx}>{art}</AtEyes>;
+    return <AtHat ctx={ctx}>{art}</AtHat>;
   };
-}
-
-/** A generic cat-sized context for drawing neck and face items as icons, centered and large. */
-export const ICON_CTX: ArtCtx = {
-  uid: 'icon',
-  bodyClip: 'none',
-  expression: 'idle',
-  anchors: {
-    ...ANCHORS.cat,
-    eyes: { y: 50, left: 39.5, right: 60.5 },
-    mouth: { x: 50, y: 50 },
-    neck: { y: 36, left: 20, right: 80 },
-    body: { top: 36, bottom: 93 },
-  },
-  body: { path: BODY_PATH, halfWidthAt: (y) => (y < 30 ? bodyHalfWidthAt(y) : 30) },
-  look: { species: 'cat', pattern: 'none', palette: { body: '#FFFFFF', earInner: '#FFC4D3', nose: '#F58CAA' } },
-};
-
-/** Icon for face/neck items: render on the icon context, optionally zoomed around (50, 50). */
-export function ctxIcon(render: WearableArt['render'], zoom = 1, dy = 0) {
-  return iconWithUid((uid) => <g transform={`translate(50 ${50 + dy}) scale(${zoom}) translate(-50 -50)`}>{render({ ...ICON_CTX, uid })}</g>);
-}
-
-/** Flat-lay sweater silhouette (with sleeves) used for body-wear icons. Neckline dips at y≈26. */
-export const TOP_PATH =
-  'M31 21 C37 25.5 44 27 50 27 C56 27 63 25.5 69 21 L85.6 30.6 C87.6 31.8 88.2 34 87.2 36 L80.4 49.4 L71.6 45.8 L72 81 C72 84 70 86 67 86 L33 86 C30 86 28 84 28 81 L28.4 45.8 L19.6 49.4 L12.8 36 C11.8 34 12.4 31.8 14.4 30.6 Z';
-
-/**
- * Icon for body wear: the garment's fabric clipped into a flat-lay silhouette, outlined,
- * with ribbed cuffs and hem. `extra` draws details on top (pockets, buttons).
- */
-export function garmentIcon(fabric: (top: number) => JSX.Element, opts: { path?: string; rib?: string; extra?: JSX.Element } = {}) {
-  const path = opts.path ?? TOP_PATH;
-  return iconWithUid((uid) => (
-    <g stroke-linejoin="round" stroke-linecap="round">
-      <clipPath id={`${uid}-garment`}>
-        <path d={path} />
-      </clipPath>
-      <g clip-path={`url(#${uid}-garment)`}>
-        {fabric(22)}
-        {opts.rib && (
-          <g fill="none" stroke={opts.rib} stroke-width={3.4}>
-            <path d="M29 84.4 L71 84.4" />
-            <path d="M31 22.6 C37 27 44 28.6 50 28.6 C56 28.6 63 27 69 22.6" />
-            <path d="M12.6 35.6 L20 49" />
-            <path d="M87.4 35.6 L80 49" />
-          </g>
-        )}
-      </g>
-      <path d={path} fill="none" stroke={INK} stroke-width={SW} />
-      {opts.extra}
-    </g>
-  ));
-}
-
-/** A body-wear neckline: ribbed collar band following the body-wear top line. */
-export function Neckline({ top, color, dip = 7 }: { top: number; color: string; dip?: number }) {
-  return (
-    <g fill="none">
-      <path d={`M0 ${top} Q50 ${top + dip} 100 ${top}`} stroke={color} stroke-width={5} />
-      <path d={`M0 ${top - 2.2} Q50 ${top + dip - 2.2} 100 ${top - 2.2}`} stroke={INK} stroke-width={SW * 0.8} />
-    </g>
-  );
+  const icon = typeof spec.icon === 'string' ? () => <Icon at={spec.icon as string}>{spec.draw(null)}</Icon> : spec.icon;
+  return { slot: spec.slot, render, icon, front: spec.front, hideIn: spec.hideIn, hood: spec.hood };
 }

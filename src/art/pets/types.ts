@@ -1,200 +1,216 @@
 import type { JSX } from 'preact';
 import type { Species, WearableSlot } from '@/catalog/types';
-import type { Anchors, BodyShape } from './geometry';
+import type { Light } from '@/art/light';
 
-export type Expression = 'idle' | 'happy' | 'sleep' | 'love' | 'eat' | 'surprised' | 'wink';
+/**
+ * What a pet's face is doing (DESIGN §10.4). No mouth at rest; a mouth appears only for a yawn,
+ * a blep or chewing. Happy is a squint, a blush and a posture, never an open grin.
+ * `idle`, `love`, `eat` and `wink` are the Mochi-era names, kept as aliases.
+ */
+export type Expression = 'rest' | 'blink' | 'happy' | 'sleep' | 'yawn' | 'blep' | 'chew' | 'surprised' | 'idle' | 'love' | 'eat' | 'wink';
+export type CanonicalExpression = Exclude<Expression, 'idle' | 'love' | 'eat' | 'wink'>;
+export const EXPRESSIONS: readonly CanonicalExpression[] = ['rest', 'blink', 'happy', 'sleep', 'yawn', 'blep', 'chew', 'surprised'] as const;
 
-/** Body-clipped surface patterns. Species art may add more; keep names descriptive. */
-export type PatternId =
-  | 'none'
+const ALIASES: Record<Expression, CanonicalExpression> = {
+  rest: 'rest',
+  blink: 'blink',
+  happy: 'happy',
+  sleep: 'sleep',
+  yawn: 'yawn',
+  blep: 'blep',
+  chew: 'chew',
+  surprised: 'surprised',
+  idle: 'rest',
+  love: 'happy',
+  eat: 'chew',
+  wink: 'blink',
+};
+export const canonicalExpression = (e: Expression | undefined): CanonicalExpression => (e ? ALIASES[e] : undefined) ?? 'rest';
+
+/** True postures (DESIGN §8.1). `walk` alternates two key frames in CSS. */
+export type Pose = 'sit' | 'loaf' | 'stand' | 'walk' | 'sleep';
+export const POSES: readonly Pose[] = ['sit', 'loaf', 'stand', 'walk', 'sleep'] as const;
+
+/**
+ * Coat markings. Each species draws the ones that exist on that animal; a test checks that every
+ * look only asks for markings its species can draw.
+ */
+export type MarkId =
+  // shared
+  | 'belly' // pale chest and belly (the pose's chest crescent)
+  | 'muzzle' // pale muzzle
+  | 'socks' // pale paws
+  | 'points' // colour points: mask, ears, legs, tail
+  // cats
   | 'tabby'
-  | 'calico'
-  | 'tuxedo'
-  | 'siamese'
-  | 'cow'
-  | 'cow-hearts'
-  | 'cow-moons'
-  | 'cow-stars'
-  | 'sprinkles'
-  | 'seeds'
-  | 'petals'
-  | 'stars'
-  | 'hearts'
+  | 'patches' // calico and cow-cat patches (mark, mark2)
+  | 'tuxedo' // white bib, chin and socks
+  | 'van' // Turkish Van: colour on the head and tail only
+  | 'heart' // one heart-ish patch
+  | 'ticked' // Abyssinian ticking
+  | 'brindle' // tortoiseshell mottling
+  | 'blaze' // a white inverted V on the muzzle
+  | 'gloves' // Birman: white paws, a short way up the leg
+  | 'mitts' // mitted Ragdoll: white paws reaching higher
+  // cows
+  | 'holstein' // map patches
+  | 'belt' // Belted Galloway
+  | 'roan' // blue-roan speckle
+  | 'whiteface' // Hereford
+  | 'ring' // pale muzzle ring (Jersey, Brown Swiss)
+  | 'stars' // Night-sky Cow: a static star field inside the patches
+  | 'shag' // Highland: a shaggy scalloped hem
+  // dogs
+  | 'saddle' // a dark back (beagle)
+  | 'tricolour' // Bernese
+  | 'spots' // Dalmatian
+  | 'urajiro' // Shiba: cream cheeks, brows, chest
+  | 'mask' // Husky
+  | 'blenheim' // Cavalier ear and eye patches
+  // rabbits
+  | 'dutch'
+  | 'harlequin'
+  | 'silver' // Silver Fox ticking
+  // frogs
+  | 'throat'
+  | 'dots' // dark spots (Golden Frog, Blue Frog)
+  | 'x' // Spring Peeper
+  | 'glass' // Glass Frog: pale belly with a visible heart dot
+  | 'moss' // raised bumps
+  | 'jeans' // Strawberry Frog: blue legs
+  | 'flanks' // Red-eyed Tree Frog: blue flanks
+  // bears
   | 'panda'
-  | 'socks'
-  | 'patch'
-  | 'stripes'
-  | 'candy-stripes'
-  | 'melon'
-  | 'rainbow'
-  | 'nebula'
-  | 'icing'
-  | 'belly-only'
-  // Added by the pets module:
-  | 'spots' // small round dalmatian spots
-  | 'urajiro' // shiba cream cheeks, brows and chest
-  | 'raindrops'
-  | 'snowflakes'
-  | 'mallard'; // green hood with a white neck ring
+  | 'crescent' // Sun Bear chest crescent
+  | 'spectacles'
+  // hamsters
+  | 'dorsal' // a dark stripe down the back
+  | 'brows' // Roborovski pale brows
+  // ducks
+  | 'mallard'
+  | 'mandarin'
+  | 'sheen' // Cayuga green sheen
+  | 'speculum'; // a blue wing flash
 
-/** Extra built-in features that are part of a variant (not removable like wearables). */
+/** Real anatomy that changes the drawing, not just the colour. */
 export type TraitId =
-  | 'sprout' // Mochi's two-leaf sprout
-  | 'golden' // shimmer + tiny crown sparkle (Golden Mochi)
-  | 'strawberry-cap' // leafy strawberry calyx on head
-  | 'lucky-paw' // raised paw + koban coin (Lucky Cat)
-  | 'mushroom-cap'
-  | 'crown' // tiny gold crown (Frog Prince)
-  | 'frosting' // frosting swirl + cherry (Cupcake Bear)
-  | 'lilypad-hat'
-  | 'acorn-cap'
-  | 'ghost-sheet' // Boo Bunny
-  | 'pumpkin-shell' // Jack-o'-Kitty sits in a pumpkin
-  | 'ghost-tail' // Boo-vine: wispy ghost bottom, translucent
-  | 'antlers' // Reindeer Cow (+ red nose via palette)
-  | 'ribbon' // Jingle Cat ribbon bow
-  | 'wings' // Cupid Kitty
-  | 'heart-hold' // Hug Bear holds a heart
-  | 'bangs' // Highland Cow fluffy fringe over eyes
-  | 'lop-ears' // Lop Bunny
-  | 'mermaid-tail'
-  | 'sailor-collar'
-  | 'flower' // flower behind ear (Sakura variants)
-  | 'nightcap'
-  | 'halo-glow'
-  | 'cloud-fluff' // puffy cloud outline bumps (Cloud Kitty)
-  | 'kissy' // puckered lips (Kissy Frog)
-  | 'rainbow-belly'
-  | 'daifuku-bean' // red bean dot + extra round (Daifuku Hamster)
-  | 'cheeks' // hamster cheek pouches (default for hamsters)
-  | 'gingerbread'
-  // Added by the pets module. Dog ear/tail styles are read by the dog species art (default: floppy ears, wag tail).
-  | 'pointy-ears' // shiba, corgi
-  | 'floppy-ears' // golden, dachshund, dalmatian
-  | 'bat-ears' // frenchie
-  | 'fluffy' // pom, samoyed: scalloped fluffy outline + chest ruff, ears peek out of the fluff
-  | 'curly-tail' // shiba, pom, samoyed
-  | 'long-horns' // Highland Cow: long, wide horns sweeping up (read by the cow species art)
-  | 'witch-hat' // Witchy Cat's tiny crooked hat
-  | 'red-nose' // Reindeer Cow's shiny nose
-  | 'forelock' // cow hair tuft between the horns
-  | 'starfish' // Sandy Cat's hair accessory
-  | 'rose' // Rose Bunny's rose, tucked by the ear
-  | 'nori' // onigiri seaweed wrap (Snowball Hamster)
-  | 'moonlit'; // star speckles of the code-drawn Moonlit variants (DESIGN §13.6)
+  | 'lop' // lop ears
+  | 'fold' // Scottish Fold ears
+  | 'tufts' // lynx tips on the ears
+  | 'ruff' // a mane of chest fur
+  | 'longhair' // a plumed tail and a fuller coat
+  | 'sphynx' // no fur: skin with a few wrinkle lines
+  | 'mane' // Lionhead
+  | 'angora' // all fluff
+  | 'short-ears' // Netherland Dwarf
+  | 'big-feet' // Snowshoe Hare
+  | 'long-horns' // Highland
+  | 'fringe' // Highland fringe over the eyes
+  | 'fluffy' // Pomeranian, Samoyed
+  | 'pointy-ears'
+  | 'bat-ears'
+  | 'floppy-ears'
+  | 'long-ears' // beagle, cavalier: ears past the jaw
+  | 'curled-tail'
+  | 'stub-tail' // French Bulldog: a screw stub, no long tail
+  | 'short-muzzle' // French Bulldog: a flat face
+  | 'long-body' // dachshund, corgi
+  | 'crest' // Crested Duck
+  | 'upright' // Runner Duck
+  | 'toe-pads' // tree frogs
+  | 'wave'; // Golden Frog waves when happy
 
 export interface PetPalette {
-  body: string;
-  /** Belly/muzzle patch color (optional). */
-  belly?: string;
-  /** Inner ear. */
-  earInner: string;
-  /** Outer ear override (e.g. siamese points). Defaults to body. */
+  /** The main coat. */
+  coat: string;
+  /** Pale underside: chest, belly, the inside of the legs. */
+  under?: string;
+  /** Primary marking colour. */
+  mark?: string;
+  /** Secondary marking colour (calico's third colour). */
+  mark2?: string;
+  /** Colour points and masks. */
+  point?: string;
+  /** Head colour, when it differs from the coat (a mallard's hood, a Hereford's face). */
+  head?: string;
+  /** Outer ear. Defaults to the head colour. */
   ear?: string;
-  /** Primary pattern color. */
-  pattern?: string;
-  /** Secondary pattern color (calico third color, etc.). */
-  pattern2?: string;
-  nose: string;
-  /** Cow/bear muzzle. */
+  /** Inner ear. */
+  earIn?: string;
+  nose?: string;
+  /** Cow, bear and dog muzzles. */
   muzzle?: string;
-  /** Feet override (tuxedo socks, siamese points). Defaults to body. */
-  feet?: string;
-  /** Tail override. Defaults to body. */
-  tail?: string;
-  /** Horns (cow), beak (duck), antlers. */
-  accent?: string;
-  /** Eye color override (defaults to EYE cocoa). With `iris`, this is the pupil. */
+  /** Iris colour: the eye becomes an iris with a graphite pupil. */
   eye?: string;
-  /** Colored irises (e.g. a black cat's golden eyes): open eyes get an iris with a pupil. */
-  iris?: string;
-  /** Face line color (closed eyes, mouth) for dark fur, where cocoa lines would vanish. */
-  ink?: string;
+  /** The second eye, for odd eyes. */
+  eye2?: string;
+  /** Legs, when they differ from the coat. */
+  leg?: string;
+  /** Socks, mittens, paws. */
+  paw?: string;
+  tail?: string;
+  /** Tail tip. */
+  tip?: string;
+  horn?: string;
+  hoof?: string;
+  /** A duck's bill. */
+  bill?: string;
+  /** Webbed feet, toe pads. */
+  foot?: string;
 }
 
 export interface PetLook {
   species: Species;
   palette: PetPalette;
-  pattern: PatternId;
-  traits?: TraitId[];
-  /** Special presentation for rare/ultra variants. */
-  aura?: 'sparkle' | 'holo' | 'glow' | 'ghost';
-  /** Resting eyes for the idle expression: drowsy half-lids (Sleepy Bear) or happy closed arcs (Samoyed). */
-  idleEyes?: 'drowsy' | 'happy';
+  marks?: readonly MarkId[];
+  traits?: readonly TraitId[];
+  /** A dark coat: pale eye rings by day and a rim light at night (DESIGN §10.4). */
+  dark?: boolean;
+  /** Size relative to the species (a Maine Coon is big for a cat; a Call Duck is small). */
+  scale?: number;
+  /** Width relative to height (a stocky Highland). */
+  stocky?: number;
+  /** Moonlit variants: a few pale static flecks on the coat. */
+  flecks?: boolean;
 }
 
-/** Rendering context passed to species/pattern/trait/wearable renderers. */
-export interface ArtCtx {
-  /** Unique id prefix for this SVG instance (clipPaths, gradients). */
+/**
+ * What a wearable renderer receives. Head and face wear draw in the head's own frame (origin at
+ * the head centre), so they follow every pose and tilt. Neck wear draws in a collar frame (origin
+ * at the throat, x along the collar). Body wear draws in the canonical body frame (0–100 × 0–100,
+ * rump to chest and back to belly), clipped to the torso, so it fits every posture.
+ */
+export interface WearCtx {
+  species: Species;
+  pose: Pose;
+  /** The light in the art's own frame, so shade can go on the side away from it. */
+  light: Light;
   uid: string;
-  /** url(#…) reference to the body clip path. */
-  bodyClip: string;
-  expression: Expression;
-  anchors: Anchors;
-  /** This species' silhouette (path + half-width sampler for fitting wear). */
-  body: BodyShape;
-  look: PetLook;
-  /** Species parts replaced by a trait (see TraitArt.replaces). */
-  hidden?: ReadonlySet<BodyPart>;
-}
-
-/** Parts of the species art a trait can take over (e.g. a mermaid tail replaces feet and tail). */
-export type BodyPart = 'tail' | 'ears' | 'feet' | 'mouth';
-
-export interface SpeciesArt {
-  /** Behind the body: horns, wings, anything that isn't a tail or ears. */
-  back: (ctx: ArtCtx) => JSX.Element | null;
-  /** Tail, behind the body (animated tails use className "pet-tail"). Omitted when a trait replaces it. */
-  tail?: (ctx: ArtCtx) => JSX.Element | null;
+  /** Head frame: where a hat sits (centre of the crown, usable width, tilt), the eyes, a clip spot. */
+  head: {
+    hat: { x: number; y: number; w: number; r: number };
+    eyes: { y: number; left: number; right: number };
+    ear: { x: number; y: number; r: number };
+  };
   /**
-   * Ears (and cow horns, frog eye bumps). Drawn behind the body, or in front of head wear when
-   * `anchors.headWearBehindFeatures` is true, so hats never hide them.
+   * Collar frame: half-width of the neck, and `drop`, how far below the collar line (in collar
+   * units) something may hang before it would reach the floor.
    */
-  ears?: (ctx: ArtCtx) => JSX.Element | null;
-  /** Clipped to the body, drawn over the pattern: muzzle patches, belly shapes. */
-  overlay?: (ctx: ArtCtx) => JSX.Element | null;
-  /** Feet nubs on the ground; the default is two cocoa-outlined ovals. */
-  feet?: (ctx: ArtCtx) => JSX.Element | null;
-  /** Over the face and neck/face wear (e.g. whiskers, duck wings, hamster paws). */
-  front?: (ctx: ArtCtx) => JSX.Element | null;
-  /** Mouth/nose for the given expression. */
-  mouth: (ctx: ArtCtx) => JSX.Element | null;
-  /** Optional custom eyes; default eyes are used when omitted. */
-  eyes?: (ctx: ArtCtx) => JSX.Element | null;
-}
-
-export interface TraitArt {
-  /** Behind the body. */
-  back?: (ctx: ArtCtx) => JSX.Element | null;
-  /** Clipped to the body, over the pattern and species overlay (under body wear). */
-  surface?: (ctx: ArtCtx) => JSX.Element | null;
-  /** On top of everything except head wear. */
-  front?: (ctx: ArtCtx) => JSX.Element | null;
-  /** Drawn above head wear (rare; e.g. golden sparkles). */
-  top?: (ctx: ArtCtx) => JSX.Element | null;
-  /** Replaces the species' mouth for this expression; return null to keep the species' own mouth. */
-  mouth?: (ctx: ArtCtx) => JSX.Element | null;
-  /** Reshapes the silhouette (fluff, ghost wisps). Wear still fits through the returned halfWidthAt. */
-  body?: (shape: BodyShape, anchors: Anchors) => BodyShape;
-  /** Species parts this trait replaces. */
-  replaces?: readonly BodyPart[];
-  /** A wearable slot this trait fills (a crown, a cap): it steps aside while real wear is in that slot. */
-  occupies?: WearableSlot;
+  neck: { w: number; drop: number };
+  /** Body frame: how much wider than tall one frame unit is on screen (to keep motifs round). */
+  body: { aspect: number };
 }
 
 export interface WearableArt {
-  /** Render the item in pet canvas coordinates using ctx.anchors. Body wear is auto-clipped to the body. */
-  render: (ctx: ArtCtx) => JSX.Element | null;
-  /**
-   * Head wear only: draw in front of ears and horns (bows, clips, wreaths) even on species that wear
-   * hats behind them. A function decides per pet (a wreath sits in front of bunny ears but behind a
-   * frog's eye bumps).
-   */
-  overEars?: boolean | ((ctx: ArtCtx) => boolean);
-  /** Optional unclipped layer behind the pet (a backpack, a hood). */
-  behind?: (ctx: ArtCtx) => JSX.Element | null;
-  /** Body wear only: an unclipped layer over the body outline (a floatie ring, apron ties). */
-  over?: (ctx: ArtCtx) => JSX.Element | null;
-  /** Optional standalone icon rendering (collection book / reveal) on a 100×100 canvas. Defaults to render() on a ghost body. */
-  icon?: () => JSX.Element;
+  /** Head and face wear draw in the head frame, neck wear in the collar frame, body wear in the body frame. */
+  slot: WearableSlot;
+  render: (ctx: WearCtx) => JSX.Element | null;
+  /** Head wear that sits in front of ears and horns (a clip, a wreath) rather than behind them. */
+  front?: boolean;
+  /** Poses this item cannot sit well in; it hides there. */
+  hideIn?: readonly Pose[];
+  /** Body wear with a hood that stays up: drawn in the head frame, behind the ears. */
+  hood?: (ctx: WearCtx) => JSX.Element | null;
+  /** Standalone art on a 100×100 canvas for inventory tiles and reveals. */
+  icon: () => JSX.Element;
 }

@@ -1,96 +1,60 @@
 import type { WearableArt } from '../pets/types';
-import {
-  bakersHat,
-  bucketHat,
-  cowgirlHat,
-  fishHat,
-  frogHat,
-  leafUmbrella,
-  milkCarton,
-  nightcap,
-  pomBeanie,
-  santaHat,
-  strawberryHat,
-  sunHat,
-  witchHat,
-} from './hats';
-import { cherryClips, crescentClip, daisyCrown, earmuffs, evergreenCrown, halo, heartHeadband, mapleCrown, pinkBow, roseCrown, sakuraClip } from './headpieces';
-import { heartGlasses, heartShades, milkMustache, readingGlasses, sleepMask, starShades } from './face';
-import { autumnScarf, bellCollar, bowTie, cloudScarf, cowbell, flowerLei, ginghamBandana, heartLocket, knitScarf, pawBandana } from './neck';
-import {
-  cozyHoodie,
-  cozyStripes,
-  duckFloat,
-  festiveSweater,
-  frillyApron,
-  gardenApron,
-  overalls,
-  pumpkinCardigan,
-  raincoat,
-  starryPajamas,
-  tinyBackpack,
-} from './body';
+import { blossomClip, blossomCrown, crescentPin, daisyChain, earmuffs, flowerCrown, knitBeret, knitCap, laurelSprig, leafUmbrella, nightcap, partyHat, pompomHat, rainHat, ribbonBow, roseClip, strawHat, sunHat, thimbleHat, witchHat } from './head';
+import { heartShades, sleepMask } from './face';
+import { bellCollar, cowbell, dogBandana, flowerLei, ginghamBandana, heartLocket, knitScarf, leafScarf, petalCollar, tagCollar, winterScarf } from './neck';
+import { clearRaincoat, dogRaincoat, fairisleSweater, heartKnit, heatherShawl, knitSweater, linenApron, pumpkinCardigan, starryPajamas, stripedTee, woolRug } from './body';
 
 /**
- * Wearable art, keyed by collectible id. Each renderer draws in pet canvas coordinates using
- * ctx.anchors and ctx.body so the same item fits all eight species; each icon draws the item
- * alone, centered and large on a 100×100 canvas. Files are split by slot.
+ * Wearable art by collectible id (DESIGN §8.3): small real things, fitted to every species and
+ * posture through the head, collar and body frames (see kit.tsx). Each has an inventory icon.
  */
 export const WEARABLE_ART: Record<string, WearableArt> = {
-  // head: hats
-  'wear-pom-beanie': pomBeanie,
-  'wear-bakers-hat': bakersHat,
-  'wear-strawberry-hat': strawberryHat,
-  'wear-nightcap': nightcap,
-  'wear-witch-hat': witchHat,
-  'wear-santa-hat': santaHat,
-  'wear-cowgirl-hat': cowgirlHat,
-  'wear-bucket-hat': bucketHat,
-  'wear-frog-hat': frogHat,
-  'wear-sun-hat': sunHat,
+  // head
+  'wear-laurel-sprig': laurelSprig,
+  'wear-party-hat': partyHat,
+  'wear-ribbon-bow': ribbonBow,
+  'wear-thimble-hat': thimbleHat,
+  'wear-straw-hat': strawHat,
+  'wear-daisy-chain': daisyChain,
+  'wear-knit-cap': knitCap,
+  'wear-rain-hat': rainHat,
   'wear-leaf-umbrella': leafUmbrella,
-  'wear-fish-hat': fishHat,
-  'wear-milk-carton': milkCarton,
-  // head: bows, clips, crowns
-  'wear-pink-bow': pinkBow,
-  'wear-daisy-crown': daisyCrown,
-  'wear-rose-crown': roseCrown,
-  'wear-maple-crown': mapleCrown,
-  'wear-sakura-clip': sakuraClip,
-  'wear-cherry-clips': cherryClips,
-  'wear-crescent-clip': crescentClip,
-  'wear-halo': halo,
-  'wear-heart-headband': heartHeadband,
+  'wear-flower-crown': flowerCrown,
+  'wear-knit-beret': knitBeret,
+  'wear-nightcap': nightcap,
+  'wear-crescent-pin': crescentPin,
+  'wear-witch-hat': witchHat,
+  'wear-pompom-hat': pompomHat,
   'wear-earmuffs': earmuffs,
-  'wear-evergreen-crown': evergreenCrown,
+  'wear-rose-clip': roseClip,
+  'wear-blossom-clip': blossomClip,
+  'wear-blossom-crown': blossomCrown,
+  'wear-sun-hat': sunHat,
   // face
-  'wear-reading-glasses': readingGlasses,
-  'wear-milk-mustache': milkMustache,
-  'wear-star-shades': starShades,
   'wear-sleep-mask': sleepMask,
-  'wear-heart-glasses': heartGlasses,
   'wear-heart-shades': heartShades,
   // neck
   'wear-bell-collar': bellCollar,
-  'wear-paw-bandana': pawBandana,
-  'wear-gingham-bandana': ginghamBandana,
   'wear-cowbell': cowbell,
-  'wear-bow-tie': bowTie,
-  'wear-cloud-scarf': cloudScarf,
-  'wear-autumn-scarf': autumnScarf,
+  'wear-gingham-bandana': ginghamBandana,
+  'wear-dog-bandana': dogBandana,
+  'wear-tag-collar': tagCollar,
   'wear-knit-scarf': knitScarf,
+  'wear-leaf-scarf': leafScarf,
+  'wear-winter-scarf': winterScarf,
   'wear-heart-locket': heartLocket,
+  'wear-petal-collar': petalCollar,
   'wear-flower-lei': flowerLei,
   // body
-  'wear-cozy-stripes': cozyStripes,
-  'wear-overalls': overalls,
-  'wear-cozy-hoodie': cozyHoodie,
-  'wear-tiny-backpack': tinyBackpack,
-  'wear-garden-apron': gardenApron,
-  'wear-frilly-apron': frillyApron,
+  'wear-knit-sweater': knitSweater,
+  'wear-wool-rug': woolRug,
+  'wear-dog-raincoat': dogRaincoat,
+  'wear-clear-raincoat': clearRaincoat,
+  'wear-linen-apron': linenApron,
   'wear-starry-pajamas': starryPajamas,
+  'wear-heather-shawl': heatherShawl,
   'wear-pumpkin-cardigan': pumpkinCardigan,
-  'wear-festive-sweater': festiveSweater,
-  'wear-raincoat': raincoat,
-  'wear-duck-float': duckFloat,
+  'wear-fairisle-sweater': fairisleSweater,
+  'wear-heart-knit': heartKnit,
+  'wear-striped-tee': stripedTee,
 };
