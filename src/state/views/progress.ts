@@ -142,7 +142,52 @@ export function progressRecords(s: AppState, today: DateKey): { totalCheckins: n
   return { totalCheckins, tinyCheckins, best, bestMonth, closedMonths };
 }
 
+/** A one-entry cache: the last value, kept while every part of its key is the same object or value. */
+function lastOf<T>(): (key: readonly unknown[], fn: () => T) => T {
+  let held: { key: readonly unknown[]; value: T } | null = null;
+  return (key, fn) => {
+    if (held && held.key.length === key.length && held.key.every((k, i) => k === key[i])) return held.value;
+    const value = fn();
+    held = { key, value };
+    return value;
+  };
+}
+
+type ProgressStats = Omit<ProgressVM, 'garden' | 'cutting' | 'badges' | 'records'> & { records: Omit<ProgressVM['records'], 'perfectDays' | 'showUpDays'> };
+const statsMemo = lastOf<ProgressStats>();
+const gardenMemo = lastOf<GardenPlantVM[]>();
+
+/**
+ * The Progress screen's numbers. Two parts walk the history, and each is kept until its own inputs
+ * change (the save is copy-on-write, so an unchanged part keeps its identity): the statistics
+ * (habits, logs, off days, the week's start, the day), and the plants (those, plus the growth
+ * ledger). A coin, a pet moving or a pin costs nothing here.
+ */
 export function progressVM(s: AppState, env: ViewEnv): ProgressVM {
+  const stats = statsMemo([s.habits, s.logs, s.offDays, s.settings.weekStart, s.settings.dayStartsAt, env.today, env.local], () => progressStats(s, env));
+  const garden = gardenMemo([s.habits, s.logs, s.offDays, s.ledger, s.settings, env.today, env.local], () => gardenOf(s, env));
+  return {
+    ...stats,
+    records: { ...stats.records, perfectDays: s.lifetime.perfectDays, showUpDays: s.lifetime.showUpDays },
+    garden,
+    cutting: cuttingOf(s),
+    badges: { earned: BADGES.filter((b) => s.badges[b.id] !== undefined).length, total: BADGES.length },
+  };
+}
+
+/** Every habit's plant: live habits in order, then the retired ones on the balcony shelf. */
+function gardenOf(s: AppState, env: ViewEnv): GardenPlantVM[] {
+  const byOrder = [...s.habits].sort((a, b) => a.order - b.order);
+  return [...byOrder.filter((h) => h.archivedOn === undefined), ...byOrder.filter((h) => h.archivedOn !== undefined)].map((h) => ({
+    habitId: h.id,
+    habitName: h.name,
+    icon: h.icon,
+    retired: h.archivedOn !== undefined,
+    plant: plantVM(s, h, env.today, env.local),
+  }));
+}
+
+function progressStats(s: AppState, env: ViewEnv): ProgressStats {
   const today = env.today;
   const t = trackingOf(s);
   const month = today.slice(0, 7);
@@ -180,12 +225,6 @@ export function progressVM(s: AppState, env: ViewEnv): ProgressVM {
   const steady = mostConsistentHabit(t, today);
   const busiest = busiestTimeOfDay(t, today, env.local);
 
-  const byOrder = [...s.habits].sort((a, b) => a.order - b.order);
-  const garden: GardenPlantVM[] = [
-    ...byOrder.filter((h) => h.archivedOn === undefined),
-    ...byOrder.filter((h) => h.archivedOn !== undefined),
-  ].map((h) => ({ habitId: h.id, habitName: h.name, icon: h.icon, retired: h.archivedOn !== undefined, plant: plantVM(s, h, today, env.local) }));
-
   return {
     hero: {
       month,
@@ -207,16 +246,11 @@ export function progressVM(s: AppState, env: ViewEnv): ProgressVM {
       tinyCheckins: rec.tinyCheckins,
       bestStreak: rec.best ? { habitId: rec.best.habit.id, name: rec.best.habit.name, length: rec.best.run.length, unit: rec.best.run.unit, polarity: rec.best.habit.polarity } : null,
       bestMonth: rec.bestMonth ? { month: rec.bestMonth.month, label: monthLabel(rec.bestMonth.month), percent: percent(rec.bestMonth.tally)! } : null,
-      perfectDays: s.lifetime.perfectDays,
-      showUpDays: s.lifetime.showUpDays,
     },
     insights: {
       strongestWeekday: strongest ? { weekday: strongest.weekday, name: WEEKDAY_NAMES[strongest.weekday]!, percent: strongest.percent } : null,
       mostConsistent: steady ? { habitId: steady.habitId, name: habitName(s, steady.habitId) ?? '', percent: steady.percent } : null,
       busiestTime: busiest ? { block: busiest.block, peakHour: busiest.peakHour } : null,
     },
-    garden,
-    cutting: cuttingOf(s),
-    badges: { earned: BADGES.filter((b) => s.badges[b.id] !== undefined).length, total: BADGES.length },
   };
 }
