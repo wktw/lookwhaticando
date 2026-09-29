@@ -1,0 +1,54 @@
+.wallet {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 14px 12px;
+  border-radius: var(--r-lg);
+  background: var(--card);
+  box-shadow: var(--shadow-sm);
+}
+
+.coins {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transform-origin: 20% 50%;
+}
+
+.big {
+  font-family: var(--font-display);
+  font-size: var(--fs-headline);
+  font-weight: 600;
+  line-height: 1;
+  color: var(--ink);
+}
+
+.unit {
+  margin-top: 3px;
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  color: var(--ink-2);
+}
+
+.row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--line);
+}
+
+.mini {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--font-display);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.mini small {
+  font-size: var(--fs-micro);
+  color: var(--ink-2);
+}

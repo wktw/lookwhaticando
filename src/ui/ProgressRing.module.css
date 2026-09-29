@@ -1,0 +1,52 @@
+.ring {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+}
+
+.dial {
+  position: absolute;
+  inset: 0;
+  transform: rotate(-90deg);
+}
+
+.track {
+  fill: none;
+  stroke: var(--t100);
+}
+
+.fill {
+  fill: none;
+  stroke: var(--t500);
+  stroke-linecap: round;
+  transition:
+    stroke-dashoffset 900ms var(--ease-out),
+    opacity 200ms ease;
+}
+
+.center {
+  position: relative;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  line-height: 1.1;
+}
+
+.sparkle {
+  position: absolute;
+  left: 50%;
+  color: var(--butter-500);
+  transform: translate(-50%, -50%);
+  animation: twinkle 1.8s var(--ease-in-out) infinite;
+}
+
+@keyframes twinkle {
+  0%,
+  100% {
+    transform: translate(-50%, -50%) scale(0.8) rotate(0deg);
+  }
+  50% {
+    transform: translate(-50%, -50%) scale(1.25) rotate(45deg);
+  }
+}

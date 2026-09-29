@@ -1,0 +1,107 @@
+.btn {
+  --d: 40px;
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  min-width: 44px;
+  min-height: 44px;
+  border-radius: 50%;
+  color: var(--ink-2);
+  isolation: isolate;
+}
+
+.btn:focus-visible {
+  border-radius: 50%;
+}
+
+.face {
+  display: grid;
+  place-items: center;
+  width: var(--d);
+  height: var(--d);
+  border-radius: 50%;
+  background: var(--face, transparent);
+  transition:
+    transform 160ms var(--ease-out),
+    background-color var(--t-micro) ease;
+}
+
+.btn:active:not(:disabled) .face {
+  transform: scale(0.9);
+  transition-duration: 60ms;
+}
+
+.btn:disabled {
+  opacity: 0.4;
+}
+
+.sm {
+  --d: 34px;
+}
+.lg {
+  --d: 50px;
+  min-width: 52px;
+  min-height: 52px;
+}
+
+/* plain */
+@media (hover: hover) {
+  .plain:hover:not(:disabled) {
+    --face: var(--bg-2);
+    color: var(--ink);
+  }
+}
+.plain[aria-pressed='true'] {
+  --face: var(--t100);
+  color: var(--ink);
+}
+
+/* soft */
+.soft {
+  --face: var(--t100);
+  color: var(--ink);
+}
+:global([data-theme='night']) .soft {
+  --face: var(--t300);
+}
+@media (hover: hover) {
+  .soft:hover:not(:disabled) .face {
+    transform: scale(1.06);
+  }
+}
+.soft[aria-pressed='true'] {
+  --face: var(--t300);
+}
+
+/* card: floats over art */
+.card {
+  --face: var(--card);
+  color: var(--ink);
+}
+.card .face {
+  box-shadow: var(--shadow-sm);
+}
+
+/* candy: a tiny candy button with a lip */
+.candy {
+  --face: var(--t500);
+  color: var(--on-pastel);
+}
+.candy .face {
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.42);
+  transform: translateY(-2px);
+}
+.lip {
+  position: absolute;
+  z-index: -1;
+  width: var(--d);
+  height: var(--d);
+  border-radius: 50%;
+  background: var(--tlip);
+  transform: translateY(2px);
+  box-shadow: var(--candy-drop);
+}
+.candy:active:not(:disabled) .face {
+  transform: translateY(1px);
+}

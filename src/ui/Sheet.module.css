@@ -1,0 +1,242 @@
+.layer {
+  --sheet-gap: 12px;
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+.layer[data-state='exit'] {
+  pointer-events: none;
+}
+
+.scrim {
+  position: absolute;
+  inset: 0;
+  background: var(--scrim);
+  opacity: 0;
+  transition: opacity 320ms ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.layer[data-state='open'] .scrim {
+  opacity: 1;
+}
+/* A sheet stacked on another only adds a whisper more dimming. */
+.layer + .layer .scrim {
+  background: rgba(74, 53, 64, 0.14);
+}
+
+.sheet {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 640px;
+  max-height: calc(100dvh - var(--safe-top) - var(--sheet-gap) - var(--kb, 0px));
+  margin-bottom: var(--kb, 0px);
+  border-radius: var(--r-xl) var(--r-xl) 0 0;
+  background: var(--card);
+  box-shadow:
+    0 -1px 0 rgba(255, 255, 255, 0.6) inset,
+    0 -12px 40px -14px rgba(74, 53, 64, 0.32);
+  outline: none;
+  transform: translateY(0);
+  transform-origin: 50% 0;
+  transition: transform 480ms cubic-bezier(0.2, 0.9, 0.25, 1);
+  will-change: transform;
+}
+.sheet:focus-visible {
+  outline: none;
+  border-radius: var(--r-xl) var(--r-xl) 0 0;
+}
+/* The surface continues below the bottom edge, so pulling the sheet up (rubber band) never
+   opens a gap under it. */
+.sheet::after {
+  content: '';
+  position: absolute;
+  top: calc(100% - 1px);
+  right: 0;
+  left: 0;
+  height: 100vh;
+  background: var(--card);
+  pointer-events: none;
+}
+
+.tall {
+  height: calc(100dvh - var(--safe-top) - var(--sheet-gap) - var(--kb, 0px));
+}
+
+.layer[data-state='enter'] .sheet,
+.layer[data-state='exit'] .sheet {
+  transform: translateY(calc(100% + 40px));
+}
+.layer[data-state='exit'] .sheet {
+  transition-duration: 300ms;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.9, 0.6);
+}
+
+/* Pushed back when another sheet stacks on top. */
+.behind .sheet {
+  transform: translateY(-6px) scale(0.95);
+}
+
+.peek {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% - 26px);
+  z-index: 1;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.grabber {
+  display: flex;
+  justify-content: center;
+  flex: none;
+  padding: 8px 0 0;
+  cursor: grab;
+  touch-action: none;
+}
+.grabber span {
+  width: 40px;
+  height: 5px;
+  border-radius: var(--r-pill);
+  background: var(--ink-3);
+  opacity: 0.55;
+}
+.hasPeek {
+  /* leave room above for the art peeking over the top edge */
+  --sheet-gap: 64px;
+}
+.hasPeek .grabber {
+  visibility: hidden;
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-3);
+  flex: none;
+  padding: 6px 12px 8px 22px;
+  touch-action: none;
+}
+.hasPeek .header {
+  padding-top: 26px;
+}
+
+.titles {
+  flex: 1;
+  min-width: 0;
+  padding: 10px 0 2px;
+}
+
+.title {
+  font-size: var(--fs-headline);
+  color: var(--ink);
+  text-wrap: balance;
+}
+
+.desc {
+  margin-top: 4px;
+  font-size: var(--fs-caption);
+  color: var(--ink-2);
+  text-wrap: pretty;
+}
+
+.close {
+  margin-left: auto;
+}
+
+.body {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 6px 22px calc(24px + var(--safe-bottom));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+.hasFooter .body {
+  padding-bottom: 12px;
+}
+
+.footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  flex: none;
+  padding: 12px 22px calc(14px + var(--safe-bottom));
+  border-top: 1px solid var(--line);
+}
+.footer > * {
+  flex: 1 1 0;
+}
+
+/* ---------- Wide screens: a centered dialog ---------- */
+.sm {
+  --w: 420px;
+}
+.md {
+  --w: 540px;
+}
+.lg {
+  --w: 700px;
+}
+
+@media (min-width: 900px) {
+  .layer {
+    align-items: center;
+    padding: 32px;
+  }
+  .sheet {
+    width: min(var(--w), 100%);
+    max-width: none;
+    max-height: min(86vh, 860px);
+    margin: 0;
+    border-radius: var(--r-xl);
+    box-shadow: var(--shadow-lg);
+    transform-origin: 50% 60%;
+    transition:
+      transform 380ms var(--ease-pop),
+      opacity 220ms ease;
+  }
+  .sheet:focus-visible {
+    border-radius: var(--r-xl);
+  }
+  .sheet::after {
+    content: none;
+  }
+  .tall {
+    height: auto;
+    min-height: min(60vh, 560px);
+  }
+  .layer[data-state='enter'] .sheet,
+  .layer[data-state='exit'] .sheet {
+    transform: translateY(18px) scale(0.95);
+    opacity: 0;
+  }
+  .layer[data-state='exit'] .sheet {
+    transition-duration: 200ms;
+    transition-timing-function: ease;
+  }
+  .behind .sheet {
+    transform: scale(0.96);
+    opacity: 0.6;
+  }
+  .grabber {
+    display: none;
+  }
+  .header {
+    padding: 16px 14px 8px 26px;
+    touch-action: auto;
+  }
+  .hasPeek .header {
+    padding-top: 34px;
+  }
+  .body {
+    padding: 6px 26px 26px;
+  }
+  .footer {
+    padding: 14px 26px 20px;
+  }
+}
