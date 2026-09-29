@@ -57,11 +57,11 @@ function useRitualReader(): ComponentType | null {
 
 /**
  * The screen's first frame is the hero, the months and the plants; everything below the fold
- * follows in three small steps after it (the calendar, then the year, then records, pins and the
- * memory shelf), each in its own idle slice, so opening Progress on a long history stays quick and
+ * follows in four small steps after it (the calendar, the year, records and pins, the memory
+ * shelf), each in its own idle slice, so opening Progress on a long history stays quick and
  * a tap right after it is never kept waiting behind one long task.
  */
-const STAGES = 3;
+const STAGES = 4;
 function useStages(): number {
   const [stage, setStage] = useState(0);
   useEffect(() => {
@@ -215,10 +215,10 @@ export function ProgressScreen() {
                 </Section>
               </div>
               <PinsSection />
-              <MemorySection retired={retired.length} />
             </>
           )}
-          {stage < STAGES && <div class={s.pending} style={{ minHeight: `${(STAGES - stage) * 600}px` }} aria-hidden="true" />}
+          {stage >= 4 && <MemorySection retired={retired.length} />}
+          {stage < STAGES && <div class={s.pending} style={{ minHeight: `${(STAGES - stage) * 450}px` }} aria-hidden="true" />}
         </>
       )}
       {Reader && <Reader />}
