@@ -276,6 +276,11 @@ export interface Settings {
   compactToday?: boolean;
   /** "Quote my notes in the Sunday Note" (only starred notes are ever quoted). Absent = on. */
   quoteNotes?: boolean;
+  /**
+   * You › Accessibility "Keyboard shortcuts: 1–5 switch tabs, N plants a habit". Absent = the
+   * device default (on with a mouse or trackpad, off on touch; src/app/shortcuts.ts).
+   */
+  keyboardShortcuts?: boolean;
 }
 
 export type Hemisphere = 'north' | 'south';

@@ -19,7 +19,8 @@ interface MarkProps {
   style?: JSX.CSSProperties;
 }
 
-export function Sparkle({ size = 12, color = 'currentColor', class: cls, style }: MarkProps) {
+/** The Secret's sparkle: on the Secret pill and the Secret's reveal, and nowhere else. */
+export function SecretSparkle({ size = 12, color = 'currentColor', class: cls, style }: MarkProps) {
   const px = typeof size === 'number' ? `${size}px` : size;
   return (
     <svg viewBox="-10 -10 20 20" width={px} height={px} class={cls} style={style} aria-hidden="true" focusable="false">

@@ -400,7 +400,12 @@ Favourite spot · Came home**. Species pages have completion rewards (stamps + a
   sill is in the sun."
 * **Burst rule**: rapid check-ins each play their own ring and chip, but only one coin flies at a time and the live region
   announces once after 1.2 s of quiet. **Celebration queue**: all events from one action merge into one banner, anchored in
-  the band. Priority: plant Blooming/Evergreen > Showing-up rung > perfect day > streak rung > pin > friendship > period goal.
+  the band. Priority (`PRIORITY` in src/fx/celebrationPlan.ts): an exclusive > plant Blooming/Evergreen (a new look, then a
+  keepsake, as its first "also" lines) > Showing-up rung > perfect day > in-a-row rung > pin > full Field Guide page > best
+  friends > companion moved in > story on the tag > welcome home > period goal > small stage > favourite found > friendship
+  level > found thing > first harvest > swaps to a stamp > season review > note on the sill. Silent in the planner:
+  companion XP (it feeds the check-in note's aside), retired, restock, check-in, uncheck. Notes that point somewhere (the note
+  on the sill, a story, a found thing, the season review) keep their own toast beside a banner.
   Nothing opens modally at launch. Notes and pages arrive **on the sill** ("There's a note on the sill") and open on tap.
 
 #### 9.1.1 Card status line (first match wins)
@@ -440,6 +445,11 @@ in a line; a bunny sniffing a new leaf, never damaging it). Decor edit mode (dra
 places with coins) · the **Pet Card** (Likes · Known for · Favourite spot · Came home · friendship dots · personality ·
 favourite treat or its hint · wardrobe · feed from the pantry · keeps which habit company · Memories · rename) · the **Field
 Guide** · the basket (harvest + pantry) · **photo mode** (stretch; renders from the scene model, never the DOM).
+
+Decor positions are stored as fractions (`PlacedDecor.x/y`, 0..1). In a place they are fractions of the place's floor; on the
+Sill, `x` is a fraction of the Sill's natural length for its pots (`sillFloor`, from the window's left edge, with no room added
+for the screen or for tall decor), so the same stored spot is the same place on a phone and a desktop. Adding a habit adds a
+pot's length, so a placement moves along by at most one pot.
 
 ### 9.5 You
 
@@ -509,6 +519,9 @@ instead of heavy boxes · 44 px minimum targets.
   on the side away from the window, plus a flat contact shadow. The sunbeam is a pale cream parallelogram with the
   window-bar shadows inside it, and pets inside it cast floor shadows. At night the lamp becomes the source from the other side and
   every shade flips. Crescents are **precomputed** per pose × 2 facings × 3 light positions (no runtime clip math).
+  **One lamp design**: every indoor place (the Sill, the Bookshelf, the Quilt…) uses the Sill's table lamp. The one exception
+  is the Balcony Box, which is outdoors: its night light is the jam-jar lantern on the plant stand (`BALCONY_PLACE.lampAt`),
+  and its pool is anchored to the lantern.
 * **Animals: true postures, small.** Real silhouettes and anatomy. Heads 20–40% oversized, never blobs. At most 3 fills + ink
   per animal (~25 nodes). **Eyes**: solid graphite dots. **Mouth**: none at rest; only for a yawn, a blep or chewing.
   **Blush**: only as a reaction. **Happy** = a squint + blush + posture, never an open-mouthed grin. A cow's happy is a

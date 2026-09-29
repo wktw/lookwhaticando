@@ -35,6 +35,7 @@ import {
 } from '@/catalog/format';
 import { addDays } from '@/domain/dates';
 import { newPetState } from '@/domain/friendship';
+import { FIRST_CAPSULE_KEY } from '@/domain/gacha';
 import { BLOOMING } from '@/domain/growth';
 import * as shelf from '@/domain/shelf';
 import { buildDemo } from '@/state/demo';
@@ -43,7 +44,7 @@ import { badgesVM } from '@/state/views/pets';
 import { habitDetailVM } from '@/state/views/habit';
 import { progressVM } from '@/state/views/progress';
 import { yearQuiltVM } from '@/state/views/calendar';
-import { bandPets, bandPots, todayVM, type TodayVM } from '@/state/views/today';
+import { bandPets, bandPots, monthJarStems, todayVM, type TodayVM } from '@/state/views/today';
 import type { ViewEnv } from '@/state/views/common';
 import { Game, UTC, at } from '../domain/game';
 
@@ -382,5 +383,27 @@ describe('the Shelf tab shows your closest pet (DESIGN §1 Many animals)', () =>
     expect(tabSpecies('today')).toBeUndefined();
     const { petsVM } = await import('@/state/views/pets');
     expect(closestPet(demo)).toEqual(petsVM(demo).closest);
+  });
+});
+
+describe('the month jar (DESIGN §13, Pressing Day)', () => {
+  it('holds one stem per habit watered since the 1st, in habit order, and nothing from last month', () => {
+    const [a, b] = demo.habits;
+    const s: Pick<typeof demo, 'habits' | 'logs'> = { habits: demo.habits, logs: { [a!.id]: { '2026-09-01': { kind: 'log' as const, count: 1 } }, [b!.id]: { '2026-08-31': { kind: 'log' as const, count: 1 }, '2026-09-02': { kind: 'rest' as const } } } };
+    expect(monthJarStems(s, '2026-09-29')).toEqual([{ habitId: a!.id, plant: a!.plant }]);
+    expect(monthJarStems(s, '2026-10-01')).toEqual([]);
+    const vm = todayVM(demo, demoEnv);
+    expect(vm.monthJar.length).toBeGreaterThan(0);
+    expect(vm.monthJar.every((m) => demo.habits.some((h) => h.id === m.habitId && h.plant === m.plant))).toBe(true);
+  });
+});
+
+describe('the first-capsule card (VOICE §16 step 6)', () => {
+  it('says the capsule is waiting while it is still on the house, and to water anything once it is not', () => {
+    const fresh = { ...demo, profile: { ...demo.profile, onboarded: true }, lifetime: { ...demo.lifetime, pulls: 0 }, ledger: { ...demo.ledger, once: {} } };
+    expect(todayVM(fresh, demoEnv)).toMatchObject({ firstCapsule: true, firstCapsuleWaiting: true });
+    const taken = { ...fresh, ledger: { ...fresh.ledger, once: { [FIRST_CAPSULE_KEY]: true as const } } };
+    expect(todayVM(taken, demoEnv)).toMatchObject({ firstCapsule: true, firstCapsuleWaiting: false });
+    expect(todayVM(demo, demoEnv).firstCapsuleWaiting).toBe(false);
   });
 });

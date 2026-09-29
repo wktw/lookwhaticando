@@ -73,6 +73,11 @@
   --lamp: #ffc98a;
   --shade: rgba(94, 76, 154, 0.16);
   --contact: rgba(59, 50, 54, 0.08);
+  /* Both inks by name, whatever the theme (src/art/shade.ts holds the same values; a test keeps them equal). */
+  --shade-day: rgba(94, 76, 154, 0.16);
+  --shade-lamp: rgba(10, 8, 22, 0.3);
+  --contact-day: rgba(59, 50, 54, 0.08);
+  --contact-lamp: rgba(0, 0, 0, 0.22);
 
   /* Rarity (always paired with a printed tier word and a static finish) */
   --rarity-common: var(--sage-500);

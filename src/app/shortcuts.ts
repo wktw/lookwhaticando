@@ -8,20 +8,17 @@
  * with a modifier held, while typing, or under an open sheet.
  */
 import { state } from '@/state/store';
+import type { Settings } from '@/state/types';
 import { anyLayerOpen } from '@/ui/sheetStack';
 import { navigate } from './router';
 import { tabForDigit } from './routes';
 
 /** Ask whoever owns the habit editor to open it for a new habit. */
 export const NEW_HABIT_EVENT = 'ck:new-habit';
-/** The older name of the same event, still dispatched for listeners that use it. */
-export const NEW_HABIT_EVENT_ALIAS = 'mm:new-habit';
 
 declare global {
   interface WindowEventMap {
     'ck:new-habit': CustomEvent<void>;
-    /** @deprecated listen for 'ck:new-habit'. */
-    'mm:new-habit': CustomEvent<void>;
   }
 }
 
@@ -39,8 +36,8 @@ export function pointerIsFine(): boolean {
  * Whether the single-key shortcuts are on: the setting when she has made a choice, else the
  * device default (on with a fine pointer, off on touch).
  */
-export function shortcutsEnabled(settings: object = state.value.settings, fine: boolean = pointerIsFine()): boolean {
-  const choice = (settings as { keyboardShortcuts?: unknown }).keyboardShortcuts;
+export function shortcutsEnabled(settings: Pick<Settings, 'keyboardShortcuts'> = state.value.settings, fine: boolean = pointerIsFine()): boolean {
+  const choice = settings.keyboardShortcuts;
   return typeof choice === 'boolean' ? choice : fine;
 }
 
@@ -52,10 +49,7 @@ export function installShortcuts({ enabled = () => shortcutsEnabled() }: { enabl
     if ((!tab && !isNew) || !enabled()) return;
     e.preventDefault();
     if (tab) navigate(tab);
-    else {
-      window.dispatchEvent(new CustomEvent(NEW_HABIT_EVENT));
-      window.dispatchEvent(new CustomEvent(NEW_HABIT_EVENT_ALIAS));
-    }
+    else window.dispatchEvent(new CustomEvent(NEW_HABIT_EVENT));
   };
   window.addEventListener('keydown', onKey);
   return () => window.removeEventListener('keydown', onKey);

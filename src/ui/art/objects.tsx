@@ -7,7 +7,8 @@
  * lit side warms toward var(--lamp). Crescents are precomputed (./objectPaths).
  */
 import type { ComponentChildren } from 'preact';
-import { DAY_LIGHT, NIGHT_LIGHT, type Light } from '@/art/light';
+import { artLightNow } from '@/art/scene/moment';
+import { DAY_LIGHT, type Light } from '@/art/light';
 import { DROP, NOTE, TIN_CAN, type Crescents } from './objectPaths';
 
 export interface ObjectArtProps {
@@ -20,9 +21,9 @@ export interface ObjectArtProps {
   class?: string;
 }
 
-/** The light that matches the page theme, for drawings outside a lit scene (empty states, errors). */
+/** The app's one light (DESIGN §10.4), for drawings outside a lit scene: the lamp in Lamplight, else the window now. */
 export function themeLight(): Light {
-  return typeof document !== 'undefined' && document.documentElement.dataset.theme === 'night' ? NIGHT_LIGHT : DAY_LIGHT;
+  return artLightNow();
 }
 
 /** A solid shape: its fill, the lamp's warmth at night, and its shade crescent. */

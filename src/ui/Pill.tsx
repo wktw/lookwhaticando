@@ -2,7 +2,7 @@ import type { ComponentChildren, JSX } from 'preact';
 import { RARITY_FINISH, RARITY_LABEL as TIER_LABEL, type Rarity } from '@/catalog/types';
 import { cx } from './cx';
 import { toneClass, type Tone } from './tone';
-import { Sparkle } from './Sparkle';
+import { SecretSparkle } from './SecretSparkle';
 import s from './Pill.module.css';
 
 export interface PillProps {
@@ -37,7 +37,7 @@ export function RarityPill({ rarity, label, secret = false, size = 'md', class: 
   const text = label ?? (secret ? 'Secret' : RARITY_LABEL[rarity]);
   return (
     <span class={cx(s.pill, s.tier, s[rarity], secret && s.secret, s[size], cls)} title={`${text}, ${secret ? 'holographic, blind-embossed' : RARITY_FINISH[rarity]}`}>
-      {secret && <Sparkle size={size === 'sm' ? 8 : 10} class={s.sparkle} />}
+      {secret && <SecretSparkle size={size === 'sm' ? 8 : 10} class={s.sparkle} />}
       {text}
     </span>
   );

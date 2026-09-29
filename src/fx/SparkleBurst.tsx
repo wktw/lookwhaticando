@@ -1,5 +1,5 @@
 import { h, render } from 'preact';
-import { SPARKLE_PATH } from '@/ui/Sparkle';
+import { SPARKLE_PATH } from '@/ui/SecretSparkle';
 import { fxLayer, toPoint, type Point } from './layer';
 import { prefersReducedMotion } from './motion';
 import s from './SparkleBurst.module.css';

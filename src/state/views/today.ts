@@ -33,6 +33,7 @@ import { birthdayOn } from '@/domain/rollover';
 import { habitCard, liveHabits, longDateLabel, monthDayLabel, type HabitCardVM, type ViewEnv } from './common';
 import { aggregateDayState, type DayState } from './calendar';
 import { firstTrackedDay } from '@/domain/insights';
+import { FIRST_CAPSULE_MACHINES, canPullFree } from '@/domain/gacha';
 
 export interface WeekStripDay {
   date: DateKey;
@@ -179,6 +180,11 @@ export interface TodayVM {
   empty: boolean;
   /** No capsule pulled yet: the pinned "Your first capsule: water anything." card (§9.6). */
   firstCapsule: boolean;
+  /**
+   * The first capsule is still on the house on a first-pick cabinet ("Not yet, I’ll earn it"): the
+   * card says TODAY_LINES.firstCapsuleWaiting instead.
+   */
+  firstCapsuleWaiting: boolean;
   /** Rewards are paused by the clock guard (calm banner). */
   clockBehind: boolean;
   quietRewards: boolean;
@@ -214,6 +220,26 @@ export interface TodayVM {
   cameHome: { petId: string; years: number }[];
   /** "Find {name} a plant": the Keeping Company offer, when it may be shown today. */
   companionOffer: CompanionOfferVM | null;
+  /**
+   * This month's flowers (DESIGN §13, Pressing Day): one stem per habit watered so far this
+   * calendar month, in habit order, for the jar on the sill (`MonthJar` in @/art/progress).
+   */
+  monthJar: { habitId: string; plant: PlantSpeciesId }[];
+}
+
+/** Habits with at least one watering from the 1st of `today`'s month through `today` (the month jar's stems). */
+export function monthJarStems(s: Pick<AppState, 'habits' | 'logs'>, today: DateKey): { habitId: string; plant: PlantSpeciesId }[] {
+  const { day } = parseDateKey(today);
+  const days = Array.from({ length: day }, (_, i) => addDays(today, -i));
+  return s.habits
+    .filter((h) => {
+      const logs = s.logs[h.id];
+      return !!logs && days.some((d) => {
+        const l = logs[d];
+        return l?.kind === 'log' && l.count > 0;
+      });
+    })
+    .map((h) => ({ habitId: h.id, plant: h.plant }));
 }
 
 /** The Keeping Company offer (§14.1): at most once a day, never again after 3 declines. */
@@ -409,6 +435,7 @@ export function todayVM(s: AppState, env: ViewEnv, date: DateKey = env.today): T
     },
     empty: s.habits.every((h) => h.archivedOn !== undefined && h.archivedOn < today),
     firstCapsule: s.profile.onboarded && s.lifetime.pulls === 0,
+    firstCapsuleWaiting: s.profile.onboarded && FIRST_CAPSULE_MACHINES.some((m) => canPullFree(s, m)),
     clockBehind: rewardsPaused(s, env.now),
     quietRewards: s.settings.quietRewards,
     sill,
@@ -418,6 +445,7 @@ export function todayVM(s: AppState, env: ViewEnv, date: DateKey = env.today): T
     pendingReveal: s.pendingReveal !== undefined,
     showCompanions,
     compactToday: s.settings.compactToday === true,
+    monthJar: monthJarStems(s, today),
     season: { name: season.name, start: season.start, end: season.end, hemisphere },
     seasonReview: seasonReviewVM(s, env),
     storyWaiting: showCompanions ? storyWaiting(s) : null,

@@ -785,6 +785,7 @@ retired Aug 30" · "Summer, on the sill".
 On the first open of a new season, a Today card: never modal, skippable, 15 seconds at most.
 
 - Title: "{Season}, on the sill." → "Summer, on the sill."
+- The note when the card arrives: "{Season}, on the sill. It’s on Today."
 - Each plant, counts only: "Walk · Cutting to Blooming · 71 waterings".
 - Then: "Autumn starts today. How should each habit go on?"
 - Chips, per habit: "Keep going" (preselected) · "Tinier" · "Grow" · "Rest till next season" · "Finish"
@@ -869,6 +870,9 @@ caption is prefilled from her latest Moment ("{date} · ‘{moment}’"), otherw
 | plan | "{date} · Left by the pot: a paperclip." |
 | Evergreen | "{date} · Left by the pot: a brass seed." |
 
+When it arrives, a note names the thing, in the caption's words: "{name} left {thing} by the pot." → "Pudding left a
+pebble from the path by the pot." (`KEEPSAKE_NOTE`, `KEEPSAKE_THINGS`).
+
 ### Known for
 
 The companion relates to the habit's objects the way real animals do (`KNOWN_FOR`, 14 archetypes from the
@@ -944,7 +948,8 @@ Ninety seconds or less to the first capsule, and every step skippable ("Skip").
    cabinet." Then "Put a coin in" · "Turn the handle" · "Twist to open, or tap". The first capsule is always
    a pet.
 5. "Name" (a suggestion filled in, "Another name") · "Came home: today" · "Find {name} a plant".
-6. The other way out: "Not yet, I’ll earn it" → Today, with a pinned card: "Your first capsule: water
+6. The other way out: "Not yet, I’ll earn it" → Today, with a pinned card. While the free capsule is still
+   on the house: "Your first capsule is waiting on the Capsules tab." Otherwise: "Your first capsule: water
    anything."
 
 Before step 1, on iPhone and Mac Safari tabs, the install gate (section 19).

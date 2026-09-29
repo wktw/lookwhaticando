@@ -10,6 +10,8 @@
  */
 import { computed, effect } from '@preact/signals';
 import { state } from '@/state/store';
+import { hemisphereOf } from '@/domain/hemisphere';
+import { setWindowHemisphere } from '@/art/scene/moment';
 import type { Settings } from '@/state/types';
 
 export type ResolvedTheme = 'light' | 'night';
@@ -47,6 +49,14 @@ export function applyMotion(pref: Settings['reduceMotion']): void {
   else delete root.dataset.motion;
 }
 
+function localTimeZone(): string | undefined {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone;
+  } catch {
+    return undefined;
+  }
+}
+
 /** Follow settings (and the OS, for 'auto') until the returned stop fn is called. */
 export function startThemeSync(): () => void {
   const dark = matchMedia('(prefers-color-scheme: dark)');
@@ -57,9 +67,13 @@ export function startThemeSync(): () => void {
   dark.addEventListener('change', onSystem);
   const stopTheme = effect(() => applyTheme(resolveTheme(theme.value, dark.matches)));
   const stopMotion = effect(() => applyMotion(motion.value));
+  // The one light follows the real window, so it needs the hemisphere (settings, else the time zone).
+  const hemisphere = computed(() => hemisphereOf(state.value, localTimeZone()));
+  const stopLight = effect(() => setWindowHemisphere(hemisphere.value));
   return () => {
     dark.removeEventListener('change', onSystem);
     stopTheme();
     stopMotion();
+    stopLight();
   };
 }

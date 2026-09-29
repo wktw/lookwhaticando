@@ -303,7 +303,7 @@ export function validateState(x: unknown): ValidationResult {
     r.check(oneOf(['auto', 'light', 'night'] as const)(st.theme), 'settings.theme', 'unknown theme');
     r.check(oneOf(['auto', 'on', 'off'] as const)(st.reduceMotion), 'settings.reduceMotion', 'unknown value');
     for (const k of ['sound', 'haptics', 'quickOpen', 'quietRewards'] as const) r.check(isBool(st[k]), `settings.${k}`, 'not a boolean');
-    for (const k of ['showCompanions', 'compactToday', 'quoteNotes'] as const) r.check(st[k] === undefined || isBool(st[k]), `settings.${k}`, 'not a boolean');
+    for (const k of ['showCompanions', 'compactToday', 'quoteNotes', 'keyboardShortcuts'] as const) r.check(st[k] === undefined || isBool(st[k]), `settings.${k}`, 'not a boolean');
     r.check(st.hemisphere === undefined || st.hemisphere === 'north' || st.hemisphere === 'south', 'settings.hemisphere', 'not north/south');
     r.check(isNum(st.volume) && st.volume >= 0 && st.volume <= 1, 'settings.volume', 'not 0–1');
     checkRecord(r, st.reminders, 'settings.reminders', (v, k, path) => r.check(['morning', 'midday', 'evening'].includes(k) && isStr(v) && HHMM.test(v), path, 'not HH:MM'));

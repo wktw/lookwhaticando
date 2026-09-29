@@ -10,6 +10,8 @@ import type { PlantSpeciesId, Species } from '@/catalog/types';
 import { MONTH_NAMES, WEEKDAY_NAMES, parseDateKey, weekday } from '@/domain/dates';
 
 import type { RitualKind } from '@/state/api';
+import type { StreakUnit } from '@/domain/streaks';
+import { runText } from '@/catalog/format';
 import type { BloomColour, BloomShape, DateKey, KeepsakeKind, SeasonName } from '@/state/types';
 import {
   BLOOM_LINES,
@@ -23,6 +25,15 @@ import {
   STAGE_LINES,
   STAGE_NAMES,
   TODAY_LINES,
+  COMPANION,
+  KEEPSAKE_NOTE,
+  KEEPSAKE_THINGS as THINGS,
+  LOOKS,
+  PERFECT_DAY,
+  PET_CARD,
+  SEASON_REVIEW,
+  STORIES,
+  WELCOME_HOME,
   capitalise,
   fillLine,
   fits,
@@ -154,33 +165,22 @@ export function longDate(date: DateKey): string {
   return `${WEEKDAY_NAMES[weekday(date)]}, ${MONTH_NAMES[month - 1]} ${day}`;
 }
 
-/** Everything that's on is watered or resting (VOICE §5). "perfect day" is the internal name only. */
-export const PERFECT_DAY = {
-  title: 'Everything’s watered',
-  text: 'The whole sill is in the sun.',
-  /** From 8 pm, or with the lamp on. */
-  lampText: 'The whole sill is in the lamplight.',
-  /** As an "also" line under a bigger moment. */
-  line: 'Everything watered',
-} as const;
+/** Everything that's on is watered or resting (lines.ts PERFECT_DAY, VOICE §5). */
+export { PERFECT_DAY };
 
-/** Welcome home never mentions the gap (VOICE §5). */
+/** Welcome home never mentions the gap (lines.ts WELCOME_HOME, VOICE §5). */
 export function welcomeHomeLine(tickets: number): string {
-  return tickets > 0 ? 'Everything kept. There’s a ticket on the sill.' : 'Everything kept.';
+  return tickets > 0 ? WELCOME_HOME.ticket : WELCOME_HOME.none;
 }
 
 /** A ritual on the sill (lines.ts TODAY_LINES.letterWaiting): "There’s a note on the sill." · "There’s a page on the sill." */
 export const noteOnSillLine = (kind: RitualKind = 'sundayNote') => TODAY_LINES.letterWaiting[kind];
 export const NOTE_ON_SILL = noteOnSillLine();
 
-const RUNG_UNITS = { days: ['day', 'days'], times: ['', ''], weeks: ['week', 'weeks'], months: ['month', 'months'] } as const;
-
-/** A rung (VOICE §5): "Walk: 7 days in a row." · "Yoga: 21 in a row." · "No snooze: held off 14 days." */
-export function rungLine(habit: string, streak: number, unit: keyof typeof RUNG_UNITS, avoid = false): string {
-  if (avoid && unit === 'days') return `${habit}: held off ${plural(streak, 'day')}.`;
-  const [one, many] = RUNG_UNITS[unit];
-  const what = one ? `${streak} ${streak === 1 ? one : many}` : `${streak}`;
-  return `${habit}: ${what} in a row.`;
+/** A rung (VOICE §5, format.ts runText): "Walk: 7 days in a row." · "Yoga: 21 in a row." · "No snooze: held off 14 days." */
+export function rungLine(habit: string, streak: number, unit: StreakUnit, avoid = false): string {
+  const run = runText({ length: streak, unit, polarity: avoid ? 'avoid' : 'build' }, avoid ? 'card' : 'long');
+  return `${habit}: ${run.charAt(0).toLowerCase()}${run.slice(1)}.`;
 }
 
 /** A period goal (VOICE §5): "Yoga, watered for the week." */
@@ -230,25 +230,11 @@ export function exclusiveLine(id: string, name: string): string {
   return EXCLUSIVE_LINES[id] ?? fillLine(EXCLUSIVE_LINES.fallback, { A: withArticle(name, true) });
 }
 
-/** What a companion leaves by the pot, by the habit's family (VOICE §13, the keepsake captions). */
-export const KEEPSAKE_THINGS: Readonly<Record<KeepsakeKind, string>> = {
-  move: 'a pebble from the path',
-  read: 'a paper bookmark',
-  hydrate: 'a piece of sea glass',
-  rest: 'a small feather',
-  mind: 'a smooth grey stone',
-  create: 'a scrap of yarn',
-  tidy: 'a spare button',
-  cook: 'a dried bean',
-  care: 'a hair tie',
-  garden: 'a seed',
-  connect: 'a folded note',
-  plan: 'a paperclip',
-  'brass-seed': 'a brass seed',
-};
+/** What a companion leaves by the pot, by the habit's family (lines.ts KEEPSAKE_THINGS, VOICE §13). */
+export const KEEPSAKE_THINGS: Readonly<Record<KeepsakeKind, string>> = THINGS;
 
-/** The keepsake note (VOICE §13): "{name} left {thing} by the pot." */
-export const KEEPSAKE_LINE = '{name} left {thing} by the pot.';
+/** The keepsake note (lines.ts KEEPSAKE_NOTE, VOICE §13): "{name} left {thing} by the pot." */
+export const KEEPSAKE_LINE = KEEPSAKE_NOTE;
 
 /** "Pudding left a pebble from the path by the pot." */
 export const keepsakeLine = (name: string, kind: KeepsakeKind) => fillLine(KEEPSAKE_LINE, { name, thing: KEEPSAKE_THINGS[kind] ?? 'something small' });
@@ -258,33 +244,33 @@ export const keepsakeLine = (name: string, kind: KeepsakeKind) => fillLine(KEEPS
 /* ------------------------------------------------------------------ */
 
 /** "Pudding moved into the Read plant." (VOICE §13) */
-export const companionLine = (name: string, habit: HabitRef | undefined) => `${name} moved into ${plantOf(habit)}.`;
+export const companionLine = (name: string, habit: HabitRef | undefined) => fillLine(COMPANION.movedIn, { name, plant: plantOf(habit) });
 
 /** "There’s a story on the plant tag for Walk." (VOICE §13) */
-export const storyLine = (habit: string) => `There’s a story on the plant tag for ${habit}.`;
+export const storyLine = (habit: string) => fillLine(STORIES.waiting, { habit });
 
-const LOOK_COLOUR: Record<BloomColour, string> = { dawn: 'Dawn', sunlit: 'Sunlit', twilight: 'Twilight', wildflower: 'Wildflower' };
-const LOOK_SHAPE: Record<BloomShape, string> = { classic: 'Classic', petite: 'Petite', paired: 'Paired' };
+const LOOK_COLOUR: Record<BloomColour, string> = LOOKS.colours;
+const LOOK_SHAPE: Record<BloomShape, string> = LOOKS.shapes;
 
 /** "A new look for the Walk plant: Twilight." · with a shape, "Dawn · Paired" (VOICE §14). */
 export function lookLine(habit: HabitRef | undefined, colour: BloomColour, shape: BloomShape): string {
   const look = shape === 'classic' ? LOOK_COLOUR[colour] : `${LOOK_COLOUR[colour]} · ${LOOK_SHAPE[shape]}`;
-  return `A new look for ${plantOf(habit)}: ${look}.`;
+  return fillLine(LOOKS.newLook, { plant: plantOf(habit), look });
 }
 
 const SEASON: Record<SeasonName, string> = { spring: 'Spring', summer: 'Summer', autumn: 'Autumn', winter: 'Winter' };
 
 /** The season just ended waits as a card on Today (VOICE §12): "Summer, on the sill. It’s on Today." */
-export const seasonReviewLine = (season: SeasonName) => `${SEASON[season]}, on the sill. It’s on Today.`;
+export const seasonReviewLine = (season: SeasonName) => fillLine(SEASON_REVIEW.waiting, { Season: SEASON[season] });
 
 /* ------------------------------------------------------------------ */
 /* Pets                                                                */
 /* ------------------------------------------------------------------ */
 
 export const BEST_FRIENDS = {
-  eyebrow: 'Best friends',
-  title: (name: string) => `You and ${name}`,
-  text: 'There’s a small brass tag to show it.',
+  eyebrow: PET_CARD.bestFriendsBanner.eyebrow,
+  title: (name: string) => fillLine(PET_CARD.bestFriendsBanner.title, { name }),
+  text: PET_CARD.bestFriendsBanner.text,
   line: (name: string) => `${name}, best friends`,
 } as const;
 
@@ -299,7 +285,7 @@ export function friendshipLine(name: string, level: number, species: Species = '
 }
 
 /** "Pudding’s favourite is the strawberry. It’s on the Pet Card now." (VOICE §9) */
-export const favouriteLine = (name: string, treat: string) => `${name}’s favourite is the ${treat.toLowerCase()}. It’s on the Pet Card now.`;
+export const favouriteLine = (name: string, treat: string) => fillLine(PET_CARD.favouriteFound, { name, treat: treat.toLowerCase() });
 
 /** The found thing (lines.ts FOUND_LINE, without its "+1 swap": the note carries the swap token). */
 export function foundLine(name: string, seed: number): string {

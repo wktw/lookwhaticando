@@ -2128,6 +2128,8 @@ export const TODAY_LINES = {
   clockBehind: 'The clock on this device reads earlier than catkin last saw. Coins and stamps wait until it’s right again.',
   openShelf: 'Open the Shelf',
   firstCapsule: 'Your first capsule: water anything.',
+  /** The same card while the onboarding capsule is still on the house (`firstCapsuleWaiting`). */
+  firstCapsuleWaiting: 'Your first capsule is waiting on the Capsules tab.',
   letterWaiting: { sundayNote: 'There’s a note on the sill.', herbarium: 'There’s a page on the sill.', anniversary: 'There’s a note on the sill.' },
   storyWaiting: 'There’s a story on the plant tag for {habit}.',
   /** A count habit's card, for screen readers ("Drink water, 5 of 8 glasses"). */
@@ -2357,6 +2359,17 @@ export const KEEPSAKE_CAPTIONS = {
   'brass-seed': '{date} · Left by the pot: a brass seed.',
 } as const;
 
+/**
+ * The keepsake's note when it arrives (§13): "{name} left {thing} by the pot." The things are the
+ * caption's own words, by family (KEEPSAKE_CAPTIONS).
+ */
+export const KEEPSAKE_NOTE = '{name} left {thing} by the pot.';
+export const KEEPSAKE_THINGS = Object.fromEntries(
+  Object.entries(KEEPSAKE_CAPTIONS)
+    .filter(([k]) => k !== 'moment')
+    .map(([k, v]) => [k, v.slice(v.indexOf(': ') + 2, -1)]),
+) as Readonly<Record<Exclude<keyof typeof KEEPSAKE_CAPTIONS, 'moment'>, string>>;
+
 /** Blooms Like You (§14.2): plain words, and it pays nothing. Slots: {plant}, {look}, {count}, {anchor}. */
 export const LOOKS = {
   colours: { dawn: 'Dawn', sunlit: 'Sunlit', twilight: 'Twilight', wildflower: 'Wildflower' },
@@ -2393,6 +2406,8 @@ export const TIME_NUDGE = {
 /** The Season Review card (§14.3). Slots: {Season}, {season}, {habit}, {from}, {to}, {count}, {date}. */
 export const SEASON_REVIEW = {
   title: '{Season}, on the sill.',
+  /** The note when the card arrives: it says where the card is. */
+  waiting: '{Season}, on the sill. It’s on Today.',
   plant: { one: '{habit} · {from} to {to} · 1 watering', other: '{habit} · {from} to {to} · {count} waterings' },
   plantSame: { one: '{habit} · {to} · 1 watering', other: '{habit} · {to} · {count} waterings' },
   ask: '{Season} starts today. How should each habit go on?',
@@ -2414,6 +2429,19 @@ export const BIRTHDAY = {
 } as const;
 
 /** Came-home days and the moving-in anniversary (§13). Slots: {name}, {years}, {habit}, {Count}, {Years}. */
+/** Perfect day (§5): every habit that's on is watered or resting. "perfect day" is the internal name only. */
+export const PERFECT_DAY = {
+  title: 'Everything’s watered',
+  text: 'The whole sill is in the sun.',
+  /** From 8 pm, or with the lamp on. */
+  lampText: 'The whole sill is in the lamplight.',
+  /** As an "also" line under a bigger moment. */
+  line: 'Everything watered',
+} as const;
+
+/** Welcome home (§5) never mentions the gap. */
+export const WELCOME_HOME = { none: 'Everything kept.', ticket: 'Everything kept. There’s a ticket on the sill.' } as const;
+
 export const CAME_HOME = {
   pet: { one: '{name} came home a year ago today.', other: '{name} came home {years} years ago today.' },
   anniversary: {

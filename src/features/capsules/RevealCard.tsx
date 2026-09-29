@@ -18,6 +18,7 @@ import { haptic } from '@/fx/haptics';
 import { Button } from '@/ui/Button';
 import { toast } from '@/ui/toast';
 import { RarityPill } from '@/ui/Pill';
+import { SecretSparkle } from '@/ui/SecretSparkle';
 import { SPECIES_NOUN, cameHomeLabel, duplicateLine, fusionLine, kindLabel, orderLine, paymentPhrase, revealLine, revealSentence } from './copy';
 import { nameIdeas } from './names';
 import type { Payment } from './payment';
@@ -74,14 +75,6 @@ export function specialBandVars(theme: MachineDef['theme']): Record<string, stri
   };
 }
 
-/** One four-point sparkle: the Secret's, and only the Secret's. */
-function Sparkle() {
-  return (
-    <svg class={s.sparkle} viewBox="-10 -10 20 20" aria-hidden="true" focusable="false">
-      <path d="M0 -9C0.8 -2.4 2.4 -0.8 9 0 2.4 0.8 0.8 2.4 0 9-0.8 2.4-2.4 0.8-9 0-2.4-0.8-0.8-2.4 0-9Z" fill="#F2C94C" />
-    </svg>
-  );
-}
 
 /**
  * The folded paper insert, opened out (DESIGN §7.2 step 6): the figure stands on it beside the
@@ -185,7 +178,7 @@ export function RevealCard({ data, light, onClose, pullAgain, onPlace, onLetThem
         <div class={quick ? s.figure : `${s.figure} ${s.stepOut}`}>
           <CollectibleArt id={data.itemId} size="100%" px={160} animated />
         </div>
-        {data.secret && <Sparkle />}
+        {data.secret && <SecretSparkle class={s.sparkle} color="var(--star)" />}
       </div>
 
       <section class={s.card} aria-labelledby={titleId}>

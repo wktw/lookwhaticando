@@ -40,7 +40,7 @@ export function sanitizeSettings(patch: Partial<Settings>): Partial<Settings> {
   if (typeof patch.dayStartsAt === 'number') out.dayStartsAt = clampDayStartsAt(patch.dayStartsAt);
   if (patch.theme === 'auto' || patch.theme === 'light' || patch.theme === 'night') out.theme = patch.theme;
   if (patch.reduceMotion === 'auto' || patch.reduceMotion === 'on' || patch.reduceMotion === 'off') out.reduceMotion = patch.reduceMotion;
-  for (const k of ['sound', 'haptics', 'quickOpen', 'quietRewards', 'showCompanions', 'compactToday', 'quoteNotes'] as const) if (typeof patch[k] === 'boolean') out[k] = patch[k];
+  for (const k of ['sound', 'haptics', 'quickOpen', 'quietRewards', 'showCompanions', 'compactToday', 'quoteNotes', 'keyboardShortcuts'] as const) if (typeof patch[k] === 'boolean') out[k] = patch[k];
   if (patch.hemisphere === 'north' || patch.hemisphere === 'south') out.hemisphere = patch.hemisphere;
   if (typeof patch.volume === 'number' && Number.isFinite(patch.volume)) out.volume = Math.min(1, Math.max(0, patch.volume));
   if (patch.reminders && typeof patch.reminders === 'object') {

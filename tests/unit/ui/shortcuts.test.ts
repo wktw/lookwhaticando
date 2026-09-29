@@ -24,6 +24,12 @@ describe('single-key shortcuts (WCAG 2.1.4)', () => {
     expect(shortcutsEnabled({}, false)).toBe(false);
   });
 
+  it('the setting is stored and kept by updateSettings; anything but a boolean is dropped', async () => {
+    const { sanitizeSettings } = await import('@/domain/profile');
+    expect(sanitizeSettings({ keyboardShortcuts: false })).toEqual({ keyboardShortcuts: false });
+    expect(sanitizeSettings({ keyboardShortcuts: 'yes' as unknown as boolean })).toEqual({});
+  });
+
   it('"1" does nothing when they are off', () => {
     location.hash = '#/capsules';
     stop = installShortcuts({ enabled: () => false });
@@ -40,7 +46,7 @@ describe('single-key shortcuts (WCAG 2.1.4)', () => {
     expect(location.hash).toBe('#/progress');
   });
 
-  it('N asks for a new habit as ck:new-habit, and still as the old mm:new-habit', () => {
+  it('N asks for a new habit as ck:new-habit (the old mm:new-habit is gone)', () => {
     const heard: string[] = [];
     const a = () => heard.push('ck');
     const b = () => heard.push('mm');
@@ -50,6 +56,6 @@ describe('single-key shortcuts (WCAG 2.1.4)', () => {
     press('n');
     window.removeEventListener('ck:new-habit', a);
     window.removeEventListener('mm:new-habit', b);
-    expect(heard).toEqual(['ck', 'mm']);
+    expect(heard).toEqual(['ck']);
   });
 });

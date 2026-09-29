@@ -1,6 +1,6 @@
 import { lighting as machineLighting } from '@/art/machines/lighting';
 import { paint } from './decor/kit';
-import { CONTACT_DAY, SHADE_DAY } from '@/art/shade';
+import { CONTACT_DAY, CONTACT_LAMP, SHADE_DAY, SHADE_LAMP } from '@/art/shade';
 /**
  * The Shelf's geometry and light: layout of the Sill and the band, depth order, the sunbeam against
  * the sun, placement bounds in every place, the night lamp, and the band's collapse math.
@@ -521,5 +521,12 @@ describe('the scene’s art tokens', () => {
     expect(norm(decorNight.contact)).toBe(norm(token(night, '--contact')));
     expect(norm(SHADE_DAY)).toBe(norm(token(day, '--shade')));
     expect(norm(CONTACT_DAY)).toBe(norm(token(day, '--contact')));
+    // The named inks, for art that must look right whatever the page theme.
+    expect(norm(token(day, '--shade-day'))).toBe(norm(SHADE_DAY));
+    expect(norm(token(day, '--shade-lamp'))).toBe(norm(SHADE_LAMP));
+    expect(norm(token(day, '--contact-day'))).toBe(norm(CONTACT_DAY));
+    expect(norm(token(day, '--contact-lamp'))).toBe(norm(CONTACT_LAMP));
+    expect(norm(SHADE_LAMP)).toBe(norm(token(night, '--shade')));
+    expect(norm(CONTACT_LAMP)).toBe(norm(token(night, '--contact')));
   });
 });

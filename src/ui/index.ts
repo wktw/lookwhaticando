@@ -21,7 +21,7 @@ export { EmptyState, type EmptyStateProps } from './EmptyState';
 export { SectionHeader, type SectionHeaderProps } from './SectionHeader';
 export { ListRow, ListGroup, type ListRowProps, type ListGroupProps } from './ListRow';
 export { AnimatedNumber, type AnimatedNumberProps } from './AnimatedNumber';
-export { Sparkle, SPARKLE_PATH, Glint, GLINT_PATH } from './Sparkle';
+export { SecretSparkle, SPARKLE_PATH, Glint, GLINT_PATH } from './SecretSparkle';
 export { announce, announceSettled, cancelSettled, SETTLE_MS } from './announce';
 export { overlayRoot } from './overlay';
 export { toneClass, type Tone } from './tone';
