@@ -99,13 +99,17 @@ test('habits are arranged by dragging the grip', async ({ page }) => {
 
 test('a watering time offers its calendar file', async ({ page }) => {
   await openYou(page);
-  await page.getByLabel('Morning').selectOption('07:30');
-  const add = page.getByRole('button', { name: 'Add to calendar, Morning 7:30 am' });
-  await expect(add).toBeVisible();
-  const download = page.waitForEvent('download');
-  await add.click();
-  const file = await download;
-  expect(file.suggestedFilename()).toBe('catkin-watering-time-morning.ics');
+  await page.getByLabel('Morning', { exact: true }).selectOption('07:30');
+  const name = 'Add to calendar, Morning 7:30 am';
+  if (/iPhone/.test(await page.evaluate(() => navigator.userAgent))) {
+    // An iPhone: a real link to the static file, which Calendar takes even from the installed app.
+    await expect(page.getByRole('link', { name })).toHaveAttribute('href', 'cal/morning-0730.ics');
+  } else {
+    const add = page.getByRole('button', { name });
+    const download = page.waitForEvent('download');
+    await add.click();
+    expect((await download).suggestedFilename()).toBe('catkin-watering-time-morning.ics');
+  }
   // The static files for installed iPhone apps are served too.
   const res = await page.request.get('./cal/morning-0730.ics');
   expect(res.ok()).toBe(true);
@@ -118,7 +122,7 @@ test('a backup is copied, and imported again with Undo import', async ({ page, c
   await openYou(page);
   const data = section(page, 'Your data');
   await data.getByRole('button', { name: 'Copy backup' }).click();
-  await expect(page.getByText('Copied. Paste it somewhere safe, like a note to yourself.')).toBeVisible();
+  await expect(page.getByText('Copied. Paste it somewhere safe, like a note to yourself.').first()).toBeVisible();
   const payload = await page.evaluate(() => navigator.clipboard.readText());
   expect(payload.startsWith('CK1:')).toBe(true);
 
@@ -150,9 +154,9 @@ test('the demo opens with its pill, and leaving it brings her own plants back', 
 test('Start over asks twice, then onboarding starts again', async ({ page }) => {
   await openYou(page);
   await section(page, 'Your data').getByRole('button', { name: 'Start over' }).click();
-  await page.getByRole('alertdialog').getByRole('button', { name: 'Start over' }).click();
-  await expect(page.getByRole('alertdialog')).toContainText('The daily copies stay on this device.');
-  await page.getByRole('alertdialog').getByRole('button', { name: 'Start over' }).click();
+  await page.getByRole('alertdialog').filter({ hasText: 'Every habit, plant and pet' }).getByRole('button', { name: 'Start over' }).click();
+  const again = page.getByRole('alertdialog').filter({ hasText: 'The daily copies stay on this device.' });
+  await again.getByRole('button', { name: 'Start over' }).click();
   await expect(page.locator('main h1')).toHaveText('New place. Which plants came with you?');
 });
 

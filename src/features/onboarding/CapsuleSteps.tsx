@@ -67,10 +67,13 @@ export function FirstPickStep({ onFinish, onPlace }: { onFinish: () => void; onP
     return (
       <div class={s.step}>
         <div class={s.pickedHead}>
-          {!busy && <IconButton icon="chevron-left" label={ONBOARDING_COPY.choose} onClick={() => setPicked(null)} />}
+          {/* Back to the four, until the coin is in (the space stays, so the title never jumps). */}
+          <span class={s.back} style={{ visibility: busy ? 'hidden' : 'visible' }}>
+            <IconButton icon="chevron-left" label={ONBOARDING_COPY.choose} disabled={busy} onClick={() => setPicked(null)} />
+          </span>
           <h1 class={s.title}>{seriesLabel(m)}</h1>
         </div>
-        <p class={s.lead}>{ONBOARDING.firstPickLead}</p>
+        <p class={s.lead}>{m.tagline}</p>
         <div class={s.machine}>
           <CapsuleMachine
             machine={m}

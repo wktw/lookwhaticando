@@ -177,7 +177,7 @@ export function Onboarding() {
           ))}
         </ol>
         <Button variant="quiet" size="sm" class={s.skip} onClick={phase === 'first' ? finish : skip}>
-          {phase === 'first' ? ONBOARDING.notYet : ONBOARDING.skip}
+          {ONBOARDING.skip}
         </Button>
       </header>
 

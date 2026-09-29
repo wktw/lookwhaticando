@@ -89,8 +89,9 @@ function ArrangeList({ habits }: { habits: Habit[] }) {
     }
   });
 
-  const commit = (next: readonly string[], id: string, focus?: 'grip' | 'up' | 'down') => {
-    if (next === ids) return;
+  /** Saves an order and reads the move out. `force`: a drag, whose order is already on screen. */
+  const commit = (next: readonly string[], id: string, focus?: 'grip' | 'up' | 'down', force = false) => {
+    if (next === ids && !force) return;
     setOrder(next);
     reorderHabits([...next]);
     haptic('tick');
@@ -142,7 +143,7 @@ function ArrangeList({ habits }: { habits: Habit[] }) {
       if (from && !prefersReducedMotion()) el.animate?.([{ transform: from }, { transform: 'none' }], { duration: 160, easing: 'cubic-bezier(.2,.8,.2,1)' });
     }
     const saved = [...habits].sort(byOrder).map((h) => h.id);
-    if (saved.join() !== ids.join()) commit(ids, d.id);
+    if (saved.join() !== ids.join()) commit(ids, d.id, undefined, true);
   };
 
   return (

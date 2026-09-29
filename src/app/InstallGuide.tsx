@@ -102,7 +102,9 @@ async function install() {
   if (await promptInstall()) toast({ message: INSTALL_COPY.installedToast, tone: 'sage' });
 }
 
-function Steps({ steps }: { steps: InstallStep[] }) {
+/** The numbered steps; `level` keeps the heading order (h2 under the gate's h1, h3 in a sheet). */
+function Steps({ steps, level = 3 }: { steps: InstallStep[]; level?: 2 | 3 }) {
+  const H = level === 2 ? 'h2' : 'h3';
   return (
     <ol class={s.steps}>
       {steps.map((step, i) => (
@@ -112,7 +114,7 @@ function Steps({ steps }: { steps: InstallStep[] }) {
               {i + 1}
             </span>
             <div>
-              <h3 class={s.stepTitle}>{step.title}</h3>
+              <H class={s.stepTitle}>{step.title}</H>
               <p class={s.stepBody}>{step.text}</p>
             </div>
           </div>
@@ -185,7 +187,7 @@ export function InstallGate({ onPeek, onPaste, onStay, platform }: { onPeek: () 
         {guide.title}
       </h1>
       <p class={s.gateText}>{key === 'mac-safari' ? INSTALL_COPY.gateTextMac : INSTALL_COPY.gateText}</p>
-      <Steps steps={guide.steps} />
+      <Steps steps={guide.steps} level={2} />
       <Button variant="quiet" size="lg" block class={s.peek} onClick={onPeek}>
         {INSTALL_COPY.gatePeek}
       </Button>

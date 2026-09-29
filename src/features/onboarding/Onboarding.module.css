@@ -374,6 +374,10 @@
   margin-left: -10px;
 }
 
+.back {
+  display: inline-flex;
+}
+
 .machine {
   display: flex;
   justify-content: center;
