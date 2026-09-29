@@ -6,6 +6,7 @@
  */
 import { expect, test, type Page } from '@playwright/test';
 import { buildDemo } from '../src/state/demo';
+import { getCollectible } from '../src/catalog/collectibles';
 import { encodeEnvelope, SAVE_KEY } from '../src/state/persist';
 import type { AppState } from '../src/state/types';
 import { expectNoAxeViolations, horizontalOverflow, openRoute, watchErrors } from './support';
@@ -111,6 +112,32 @@ test.describe('phone journeys', () => {
     expect(errors, errors.join('\n')).toEqual([]);
   });
 
+  test('the Field Guide holds the things too: Treats, with rarity in words, and the card counts everything', async ({ page }, info) => {
+    const errors = watchErrors(page);
+    await openShelf(page);
+    await expect(page.locator('#shelf-guide-count')).toHaveText(/^\d+ of \d+$/);
+    await page.getByRole('button', { name: /^Treats, / }).click();
+    const guide = page.getByRole('dialog', { name: 'Field Guide' });
+    await expect(guide.getByRole('tab', { name: /^Treats/ })).toHaveAttribute('aria-selected', 'true');
+    await expect(guide.getByRole('tab', { name: /^Wardrobe/ })).toBeVisible();
+    await expect(guide.getByRole('tabpanel').getByRole('heading', { name: 'Treats' })).toBeVisible();
+    await expectNoAxeViolations(page, info);
+    expect(errors, errors.join('\n')).toEqual([]);
+  });
+
+  test('the basket offers a bake only for a treat running out, and a feed tap never spends coins', async ({ page }, info) => {
+    const errors = watchErrors(page);
+    const pantry = Object.fromEntries(Object.keys(demo.pantry).map((k) => [k, { ...demo.pantry[k]!, servings: 5 }]));
+    const low = Object.keys(pantry).find((k) => getCollectible(k)?.category === 'treat' && getCollectible(k)?.source !== 'harvest' && (demo.collection[k]?.count ?? 0) > 0)!;
+    pantry[low] = { ...pantry[low]!, servings: 0 };
+    await openShelf(page, { ...demo, pantry, wallet: { ...demo.wallet, coins: 100 } });
+    await page.getByRole('button', { name: 'Basket', exact: true }).click();
+    const sheet = page.getByRole('dialog', { name: 'Basket and pantry' });
+    await expect(sheet.getByRole('button', { name: /^Bake a tray/ })).toHaveCount(1);
+    await expectNoAxeViolations(page, info);
+    expect(errors, errors.join('\n')).toEqual([]);
+  });
+
   test('opening a place asks first, spends the coins and shows the place', async ({ page }) => {
     const errors = watchErrors(page);
     await openShelf(page, { ...demo, wallet: { ...demo.wallet, coins: 5000 } });
@@ -129,6 +156,8 @@ test.describe('phone journeys', () => {
     const errors = watchErrors(page);
     await openShelf(page, { ...demo, pets: {}, habits: demo.habits.map((h) => ({ ...h, companionId: undefined })) });
     await expect(page.getByText('The sill is ready for someone.')).toBeVisible();
+    // Nothing to arrange and no one to feed: no Decorate, no Basket.
+    await expect(page.getByRole('button', { name: 'Basket', exact: true })).toHaveCount(0);
     await page.getByRole('button', { name: 'Go to Capsules' }).click();
     await expect(page).toHaveURL(/#\/capsules$/);
     expect(errors, errors.join('\n')).toEqual([]);

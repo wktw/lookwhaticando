@@ -66,7 +66,8 @@ function Shelf({ id, title, empty, rows, coins }: { id: string; title: string; e
       {rows.length === 0 ? (
         <p class={s.empty}>{empty}</p>
       ) : (
-        <ul class={s.list}>
+        // A tab stop, so the sheet scrolls from the keyboard when no row has a button.
+        <ul class={s.list} tabIndex={0} aria-labelledby={id}>
           {rows.map((t) => (
             <li key={t.id} class={s.row}>
               <span class={s.rowArt} aria-hidden="true">

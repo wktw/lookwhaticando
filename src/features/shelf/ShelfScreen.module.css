@@ -409,11 +409,6 @@
   line-height: 1.4;
 }
 
-.placePrice {
-  color: var(--ink);
-  font-weight: 800;
-  font-variant-numeric: tabular-nums;
-}
 
 /* ---------- decor edit tray ---------- */
 .tray {
@@ -568,7 +563,7 @@
 
   .tools {
     grid-template-columns: 1fr auto;
-    align-items: center;
+    align-items: start;
   }
 
   /* Every opened place fits: the names wrap rather than hide past the edge. */

@@ -214,13 +214,16 @@ function Page({ page }: { page: GuidePage }) {
       <ul class={s.grid}>
         {items.map((item) => (
           <li key={item.id}>
-            <Tile item={item} name={pets[item.id]?.name ?? null} series={series} />
+            <Tile item={page.id === 'moonlit' ? { ...item, name: unprefixed(item.name, page.name) } : item} name={pets[item.id]?.name ?? null} series={series} />
           </li>
         ))}
       </ul>
     </div>
   );
 }
+
+/** On the Moonlit page its things drop the page's own word ("Belted Galloway", not "Moonlit Belted…"). */
+const unprefixed = (name: string, prefix: string) => (name.startsWith(`${prefix} `) ? name.slice(prefix.length + 1) : name);
 
 function mostCommon(xs: readonly string[]): string | null {
   const n = new Map<string, number>();

@@ -92,7 +92,7 @@ describe('the Shelf', () => {
     // The jar is said once, above the places; each locked place keeps its price and its room.
     expect(view.root.textContent).toContain('There are 12 coins in the jar.');
     expect(view.root.textContent).not.toContain('in the jar. There');
-    expect(view.root.textContent).toContain('1,000 coins');
+    expect(view.root.textContent).toContain('1,000 coins. ');
   });
 
   it('on a first day, offers no Decorate or Basket with nothing in them', async () => {

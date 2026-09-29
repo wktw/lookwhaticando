@@ -53,7 +53,8 @@ export const PlacesMap = memo(function PlacesMap({ onBuy, onGo }: PlacesMapProps
                 p.here > 0 && <p class={s.placeFacts}>{fillLine(SHELF_COPY.placeMap.here, { count: num(p.here) })}</p>
               ) : (
                 <p class={s.placeFacts}>
-                  {!p.canAfford && <span class={s.placePrice}>{priceLine(p.price)}</span>}
+                  {/* The picture's badge shows the price; this says it to VoiceOver (the art is named by the place). */}
+                  <span class="sr-only">{`${priceLine(p.price)}. `}</span>
                   <span>{PLACE_LINES.room}</span>
                 </p>
               )}

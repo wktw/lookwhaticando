@@ -38,11 +38,19 @@ and the basket, wired to the store. The demo household (`src/features/shelf/demo
      {count} in the jar." / "There’s 1 in the jar." / "Watering fills the jar."
    - "{count} here" (pets in a place), "More in the morning" (a treat with no servings left, instead
      of a 0), "Each treat restocks 2 servings every morning, up to 5."
-   - Pet Card: "Friendship: {level}" (the dots' label), "Indoors, {name} rests and waits for a place on
+   - The jar, said once above the places while one is out of reach: "There are {count} coins in the
+     jar." / "There’s 1 coin in the jar." / "Watering fills the jar."
+   - Decor edit mode when everything she owns is already out (instead of EMPTY.decor, which says
+     decor "goes here"): "Everything you have is out. More comes from the capsules."
+   - The found thing's VoiceOver label: "{A}, from {name}" ("A button, from Pudding").
+   - Pet Card: "{name} keeps it company" (a Find-a-plant chip for a habit that has a companion),
+     "Move {name} out of {plant}?" (asked before that companion moves out),
+     "Friendship: {level}" (the dots' label), "Indoors, {name} rests and waits for a place on
      the Shelf.", "The Shelf has room for {count} pets out. Bring someone indoors first.", "Favourite"
      (the treat's tag and the heart button), "Left by the pot" (keepsakes), "Things to wear come from
      the capsules."
-   - Field Guide: "{owned} of {total}", "Visits {from} to {to}", "This page is full.", "Pages".
+   - Field Guide: "{owned} of {total}", "Visits {from} to {to}", "This page is full.", "Pages",
+     "Moonlit" (its page, beside the species pages and the category pages).
 3. **A shared opener for the waiting note.** The note clipped to the sill is a button on the Shelf too;
    with nothing to open it here, a Sunday Note / Herbarium page / anniversary takes her to Today (where
    its card is) and a story opens Habit Detail. An `openLetter(id)` beside `openPetCard` in
@@ -60,12 +68,29 @@ and the basket, wired to the store. The demo household (`src/features/shelf/demo
 6. **Art: decor edit mode labels.** `DecorEdit.tsx` names every item "Keepsake" (not what it is) and
    has inline English ("Arrow keys move it, F flips it, Delete removes it."); `decorLabel` in
    `src/features/shelf/copy.ts` words a keepsake by its thing ("A paper bookmark").
-7. **Pets in edit mode.** While she decorates, the pets aren't buttons (`interactive={false}`): the
+7. **Memories: which rule wins.** The card now lists `pet.moments` (the day it came home, each
+   "Look at us" bloom) with `pet.memories`, oldest first (DESIGN §14.1: a bloom "makes a Memory").
+   Came-home always exists, so VOICE §17's `EMPTY.memories` ("Memories start once you’re best
+   friends.") never shows now. Either keep it that way (and retire the line), or say which of the two
+   the card should follow.
+8. **Art: `ObjectArt` `fit`.** At tile size a flat keepsake (the paper bookmark) is a sliver on the
+   100 canvas. `src/features/shelf/FitObject.tsx` crops the svg to its measured box; a `fit` prop on
+   `ObjectArt` (like PetArt's) would do it in the art.
+9. **Art: `ShelfSceneHandle.fracAtView(place)`.** A new thing in decor edit mode lands at the view's
+    middle, measured on the floor the scene keeps fractions on (`decorXAtView` in model.ts uses
+    `sillFloor(SILL_SPEC, pots)` and each place's `ground`). The scene could answer this itself with
+    `sceneToFrac` on its own floor, so the screen never repeats the scene's geometry.
+10. **tests/unit/voice.test.ts: a longer timeout.** The voice lint scans all of src; alone it takes
+    about 5.4 s (over the default 5 s), and under load it times out, failing the full `npx vitest run`.
+    `it(..., 30_000)` or `vi.setConfig` in that file would keep it green.
+11. **Pets in edit mode.** While she decorates, the pets aren't buttons (`interactive={false}`): the
    decor hit boxes sit above them and axe flagged the obscured pet buttons (target-size).
 
 ## Known gaps
 
 - Photo mode (stretch) is not built.
 - A carried pet can't be dropped into another place (request 5).
+- The Pet Card's feed row shows the favourite and 5 more; "Basket and pantry" (every treat, and a
+  bake for any at its last serving) opens over the card when there are more.
 - The basket holds harvest-only treats (cat grass, catnip, lavender shortbread); strawberries are a
   starter recipe, so they are in the pantry even though her strawberry plant tops them up.
