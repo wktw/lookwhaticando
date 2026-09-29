@@ -1,238 +1,300 @@
-/** Emblems for check-in, consistency and plant-growth badges. */
-import { crescentPath, flowerPath, heartPath, scallopPath } from '@/art/icons/shapes';
-import { Blush, Dots, EF, Gleam, Spark, type Emblem } from './kit';
+/** Emblems for showing up, plants and the time of day. Real things: a sprout, a can, a sill, a lamp. */
+import { circlePath } from '@/art/icons/shapes';
+import { E, shade } from '../palette';
+import { Detail, Flower, Leaf, Paw, Pot, type Emblem } from './kit';
 
-const DAISY = flowerPath(20, 20, 7.5, 17, 8);
-const SUNFLOWER = flowerPath(20, 20, 10, 17.6, 9);
-const ROSETTE_OUT = flowerPath(20, 20, 12.6, 18.4, 7);
-const ROSETTE_MID = flowerPath(20, 20, 7.6, 12.6, 7, 180 / 7);
-const GARDEN_BLOOM = flowerPath(20, 10.4, 2.4, 6, 5);
-const MOON = crescentPath(17, 21.5, 12.5, 24.8, 13.6, 10.6);
-const CANOPY = scallopPath(20, 15.4, 9.8, 7);
-const MONTH_HEART = heartPath(28, 28.2, 5.6);
-const BOUQUET = {
-  top: flowerPath(20, 10.2, 2.8, 7, 5),
-  left: flowerPath(12.2, 16, 2.6, 6.6, 5, 20),
-  right: flowerPath(27.8, 16, 2.6, 6.6, 5, -20),
-};
+/** The moon: a disc with a disc bitten out (computed offline, committed). */
+const MOON = 'M19.11 9.14A13 13 0 1 0 33.4 25.9A11.2 11.2 0 0 1 19.11 9.14Z';
 
-/** A rainbow band between two radii, as one closed shape. */
-const band = (ro: number, ri: number, cy = 23) => `M${20 - ro} ${cy}A${ro} ${ro} 0 0 1 ${20 + ro} ${cy}H${20 + ri}A${ri} ${ri} 0 0 0 ${20 - ri} ${cy}Z`;
-/** A puffy cloud sitting on (x, y). */
-const cloud = (x: number, y: number) =>
-  `M${x - 6} ${y}h12a2.6 2.6 0 0 0 .2-5.2 3.6 3.6 0 0 0-6.6-1.6 3 3 0 0 0-5 2.4A2.2 2.2 0 0 0 ${x - 6} ${y}z`;
+/** Heart-shaped pothos leaf with its base at the origin. */
+const POTHOS = 'M0 0C-3-1.2-6-.6-6.8-4.6-7.6-8.8-3.8-12.2 0-14.6 3.8-12.2 7.6-8.8 6.8-4.6 6-.6 3-1.2 0 0Z';
+const POTHOS_HALF = 'M0 0C3-1.2 6-.6 6.8-4.6 7.6-8.8 3.8-12.2 0-14.6 .8-9.6.8-4.8 0 0Z';
+function Pothos({ x, y, a, s = 1, color = E.leaf }: { x: number; y: number; a: number; s?: number; color?: string }) {
+  return (
+    <g transform={`translate(${x} ${y}) rotate(${a}) scale(${s})`}>
+      <path d={POTHOS} fill={color} />
+      <Detail>
+        <path d={POTHOS_HALF} fill={shade(color)} />
+      </Detail>
+    </g>
+  );
+}
 
-/** A paw print centered on its main pad. */
-const PAW_TOES: [number, number, number][] = [
-  [-4.6, -2.6, -25],
-  [-1.7, -5.6, -8],
-  [1.7, -5.6, 8],
-  [4.6, -2.6, 25],
-];
-
-/** One leaf pointing up from its base, used to fan leaves out of a pot. */
-const LEAF_UP = 'M0 0C-3.2-3-3.4-8.6 0-12 3.4-8.6 3.2-3 0 0z';
-
-/** A cherry-blossom petal (notched tip) pointing up from the flower center. */
-const BLOSSOM_PETAL = 'M0-2C-5-4.5-7.5-10-4-14.2c1.4-1.4 3-.8 4 1 1-1.8 2.6-2.4 4-1 3.5 4.2 1 9.7-4 12.2z';
-const BLOSSOM_ANGLES = [0, 72, 144, 216, 288];
-/** Stamen dots between the blossom's petals. */
-const BLOSSOM_STAMENS = BLOSSOM_ANGLES.map((a) => {
-  const rad = (a * Math.PI) / 180;
-  return { key: a, cx: 20 + 6.2 * Math.sin(rad), cy: 20.6 - 6.2 * Math.cos(rad) };
+/** Points along the week garland (a quadratic from (4, 28) over (32, 6) to (60, 28)). */
+const GARLAND = Array.from({ length: 7 }, (_, i) => {
+  const t = i / 6;
+  return { x: 4 + 56 * t, y: 28 - 44 * t + 44 * t * t };
 });
+const GARLAND_COLORS = [E.blush, E.paper, E.butter, E.blush, E.paper, E.butter, E.blush];
 
 export const GROWTH_EMBLEMS: Record<string, Emblem> = {
-  'first-checkin': ({ p }) => (
+  /** A first sprout: two seed leaves out of a mound of soil. */
+  'first-checkin': () => (
     <g>
-      <path d="M7 31.5c2.5-4.6 23.5-4.6 26 0z" fill={p.brown} />
-      <path d="M20 29V17.5" fill="none" />
-      <path d="M20 22c-4.2.9-9-1.4-10-6.8 5.3-.9 9.2 1.7 10 6.8z" fill={p.leaf} />
-      <path d="M20 17.8c0-5.8 4-9.8 10.2-9.8.2 6-4 9.9-10.2 9.8z" fill={p.leaf} />
-      <path d="M12.6 16.2c2.6 1 4.8 2.7 6.4 5M27.4 10.6c-2.8 1.4-5 3.6-6.4 6.2" fill="none" stroke-width={EF} />
-      <Gleam d="M23.4 12.4c1-1.2 2.3-2 3.8-2.4" />
-      <Spark x={9} y={9} r={2.8} fill={p.butter} />
+      <path d="M7 37c3.4-6 26.6-6 30 0z" fill={E.soil} />
+      <path d="M22 34V21.6" fill="none" stroke={E.leafDeep} stroke-width={2.4} stroke-linecap="round" />
+      <path d="M21.6 25.4C16.6 27.2 10.6 25 9 18.2c6.6-1.6 11.6 1.4 12.6 7.2z" fill={E.leaf} />
+      <path d="M22.4 22.2C22.4 15 27.2 10 34.8 10.2c.2 7.4-4.8 12.2-12.4 12z" fill={E.leafLight} />
+      <Detail>
+        <path d="M21.6 25.4C16.6 27.2 10.6 25 9 18.2 13.4 20 17.6 22.4 21.6 25.4z" fill={shade(E.leaf)} />
+        <path d="M22.4 22.2C26 17.6 30 13.6 34.8 10.2c.2 7.4-4.8 12.2-12.4 12z" fill={shade(E.leafLight)} />
+      </Detail>
     </g>
   ),
-  'first-perfect-day': ({ p }) => (
+  /** A perfect day: a full watering can, pouring. */
+  'first-perfect-day': () => (
     <g>
-      <path d={DAISY} fill={p.white} />
-      <circle cx={20} cy={20} r={7} fill={p.butter} />
-      <Dots l={17.4} r={22.6} y={19.2} ink={p.ink} size={0.8} />
-      <path d="M18.4 22q1.6 1.4 3.2 0" fill="none" stroke-width={EF} />
-      <Blush l={15.6} r={24.4} y={22} color={p.cheek} />
+      <path d="M11.4 21.4c0-7.8 13.2-7.8 13.2 0" fill="none" stroke={E.skyDeep} stroke-width={2.6} stroke-linecap="round" />
+      <path d="M26 30.6l9.4-11.2 2.8 2.4-10 12.6z" fill={E.sky} />
+      <rect x={33.8} y={15.4} width={7.4} height={3.8} rx={1.4} transform="rotate(40 37.5 17.3)" fill={E.skyDeep} />
+      <path d="M8 21h19v10.2a4.4 4.4 0 0 1-4.4 4.4H12.4A4.4 4.4 0 0 1 8 31.2z" fill={E.sky} />
+      <ellipse cx={17.5} cy={21} rx={9.5} ry={1.6} fill={E.skyDeep} />
+      <Detail>
+        <path d="M23 22.6h4v8.6a4.4 4.4 0 0 1-4 4.38z" fill={shade(E.sky)} />
+        <g fill={E.skyDeep}>
+          <ellipse cx={39.8} cy={24.2} rx={1.1} ry={1.7} />
+          <ellipse cx={41.4} cy={29.6} rx={1.1} ry={1.7} />
+          <ellipse cx={37.2} cy={29} rx={1.1} ry={1.7} />
+        </g>
+      </Detail>
     </g>
   ),
-  'perfect-week': ({ p }) => (
+  /** A perfect week: seven day-flowers on one garland (a 64 × 40 box). */
+  'perfect-week': () => (
     <g>
-      <path d={band(15, 11.2)} fill={p.blush} />
-      <path d={band(11.2, 7.4)} fill={p.butter} />
-      <path d={band(7.4, 3.6)} fill={p.sky} />
-      <path d={cloud(8.6, 28.5)} fill={p.white} />
-      <path d={cloud(31.4, 28.5)} fill={p.white} />
-      <Spark x={32} y={9} r={2.8} fill={p.butter} />
+      <path d="M4 28Q32 6 60 28" fill="none" stroke={E.leafDeep} stroke-width={1.8} stroke-linecap="round" />
+      <Detail>
+        {GARLAND.slice(0, 6).map((p, i) => {
+          const q = GARLAND[i + 1]!;
+          const mx = (p.x + q.x) / 2;
+          const my = (p.y + q.y) / 2 - 1.6;
+          return <Leaf key={i} x={mx} y={my} a={i < 3 ? -40 : 40} len={5.4} width={2.4} />;
+        })}
+      </Detail>
+      {GARLAND.map((p, i) => (
+        <Flower key={i} x={p.x} y={p.y} r={4.8} color={GARLAND_COLORS[i]!} centre={GARLAND_COLORS[i] === E.butter ? E.blushDeep : E.butterDeep} />
+      ))}
     </g>
   ),
-  'checkins-10': ({ p }) => (
-    <g fill={p.peach} stroke-width={EF}>
+  /** Ten tiny steps: two paw prints, walking up. */
+  'checkins-10': () => (
+    <g>
+      <Paw x={14.4} y={30} a={-14} color={E.peachInk} />
+      <Paw x={29.2} y={16.4} a={16} color={E.peachInk} />
+    </g>
+  ),
+  /** Fifty: a pothos in a terracotta pot, one vine over the rim. */
+  'checkins-50': () => (
+    <g>
+      <path d="M21 26L12.4 17.6M21.6 26l-3.2-12.4M22.4 26l4-13.6M23 26l8.4-8.6" fill="none" stroke={E.stem} stroke-width={1.4} stroke-linecap="round" />
+      <Pothos x={12.8} y={18} a={-58} s={0.72} color={E.leafDeep} />
+      <Pothos x={18.4} y={14} a={-18} s={0.8} color={E.leaf} />
+      <Pothos x={26.2} y={13.2} a={18} s={0.84} color={E.leafLight} />
+      <Pothos x={31} y={18} a={56} s={0.72} color={E.leaf} />
+      <path d="M33.4 26.8c3.2 1.8 4.4 5.2 3.6 9.6" fill="none" stroke={E.stem} stroke-width={1.3} stroke-linecap="round" />
+      <Pothos x={36.6} y={31.4} a={150} s={0.46} color={E.leafDeep} />
+      <Pothos x={36.8} y={36.6} a={196} s={0.44} color={E.leafLight} />
+      <Pot x={9.6} y={24.6} w={24.8} h={16} />
+    </g>
+  ),
+  /** A hundred: three pots in a row on the sill (a 64 × 40 box). */
+  'checkins-100': () => (
+    <g>
+      {/* pilea: round leaves on fine stems */}
+      <path d="M12 21v-6M12 20l-4-7M12 20l4.4-6.4" fill="none" stroke={E.stem} stroke-width={1.2} stroke-linecap="round" />
+      <circle cx={7.6} cy={12.4} r={3.2} fill={E.leaf} />
+      <circle cx={12} cy={9.8} r={3.4} fill={E.leafLight} />
+      <circle cx={16.8} cy={12.6} r={3.1} fill={E.leafDeep} />
+      <Pot x={5} y={20} w={14} h={12} />
+      {/* snake plant */}
+      <path d="M28 20c-1.2-5-.8-10 1.4-14.4 1 4.6 1.2 9.4.4 14.4zM32 20c.4-6 1.6-11 4.2-15.2.6 5.2 0 10.2-1.8 15.2zM30.4 20c-1.4-3.6-3.2-6.4-5.6-8.4.2 3.2 1.4 6 3 8.4z" fill={E.leafDeep} />
+      <Pot x={25} y={19.6} w={14} h={12.4} color={E.cream} rim={E.paper} />
+      <rect x={26.6} y={25.6} width={10.8} height={1.6} fill={E.blush} />
+      {/* a small flowering plant */}
+      <Leaf x={50} y={22} a={-50} len={7} width={3} color={E.leaf} />
+      <Leaf x={52.6} y={22} a={46} len={7} width={3} color={E.leafDeep} />
+      <path d="M51.4 21.6V14" fill="none" stroke={E.stem} stroke-width={1.2} stroke-linecap="round" />
+      <Flower x={51.4} y={12.4} r={4} color={E.paper} />
+      <Pot x={45} y={21.6} w={13} h={10.4} color={E.blush} rim={E.blushDeep} />
+      <rect x={1} y={32} width={62} height={4.6} rx={1.4} fill={E.wood} />
+      <Detail>
+        <rect x={1} y={35} width={62} height={1.6} rx={0.8} fill={E.woodDeep} />
+      </Detail>
+    </g>
+  ),
+  /** Two hundred and fifty: an African violet in flower. */
+  'checkins-250': () => (
+    <g>
+      <g>
+        {[
+          [9.6, 25.4, -70, E.leafDeep],
+          [14.4, 21.4, -38, E.leaf],
+          [34.4, 25.4, 70, E.leafDeep],
+          [29.6, 21.4, 38, E.leaf],
+          [22, 20, 0, E.leafLight],
+        ].map(([x, y, a, c]) => (
+          <ellipse key={a} cx={x} cy={y} rx={4.6} ry={6} transform={`rotate(${a} ${x} ${y})`} fill={c as string} />
+        ))}
+      </g>
+      <Flower x={15.4} y={15} r={4.6} color={E.lavender} />
+      <Flower x={22.6} y={10.6} r={4.8} color={E.lavender} />
+      <Flower x={29.4} y={15.6} r={4.6} color={E.lavender} />
+      <Flower x={22.4} y={19.4} r={4.2} color={E.lavender} />
+      <Pot x={11.5} y={26} w={21} h={13.4} color={E.lavender} rim={E.lavenderDeep} />
+    </g>
+  ),
+  /** Five hundred: this month's flowers in a glass jar. */
+  'checkins-500': () => (
+    <g>
+      <path d="M19.4 37L15.4 13M22 37V9M24.6 37l5.2-22" fill="none" stroke={E.stem} stroke-width={1.5} stroke-linecap="round" />
+      <Leaf x={17} y={24} a={-42} len={7} width={2.8} />
+      <Leaf x={26.4} y={25} a={42} len={7} width={2.8} color={E.leafDeep} />
+      <Flower x={15} y={11.4} r={5} color={E.blush} />
+      <Flower x={22} y={7.4} r={4.8} color={E.butter} centre={E.blushDeep} />
+      <Flower x={30.2} y={13} r={4.8} color={E.paper} />
+      <path d="M13 21h18v14.4a4 4 0 0 1-4 4H17a4 4 0 0 1-4-4z" fill={E.glass} fill-opacity={0.9} />
+      <path d="M13 29.4h18v6a4 4 0 0 1-4 4H17a4 4 0 0 1-4-4z" fill={E.sky} fill-opacity={0.75} />
+      <rect x={12} y={18.8} width={20} height={3} rx={1.4} fill={E.paper} />
+      <Detail>
+        <path d="M27.6 21H31v14.4a4 4 0 0 1-3.4 3.96z" fill={E.lavender} fill-opacity={0.5} />
+      </Detail>
+    </g>
+  ),
+  /** A thousand: the window, framed all round by the pothos that grew from one cutting. */
+  'checkins-1000': () => (
+    <g>
+      <path d="M9 38V20a13 13 0 0 1 26 0v18z" fill={E.paper} />
+      <path d="M12 37V20.4a10 10 0 0 1 20 0V37z" fill={E.sky} />
+      <rect x={21} y={9.6} width={2} height={28} fill={E.paper} />
+      <rect x={12} y={24} width={20} height={2} fill={E.paper} />
+      <rect x={6} y={37} width={32} height={3.6} rx={1.4} fill={E.wood} />
+      <path d="M9.4 36.4C5.6 28 7.2 15.4 15.4 9.6S31.8 5.8 35.6 14.2" fill="none" stroke={E.stem} stroke-width={1.5} stroke-linecap="round" />
       {[
-        [11.4, 29.2, 0.9],
-        [26, 23.2, 0.9],
-        [17.4, 11.8, 1],
-      ].map(([x, y, s]) => (
-        <g key={x} transform={`translate(${x} ${y}) rotate(18) scale(${s})`}>
-          <path d="M0-.6c2.6 0 4.4 2.3 4.4 4.2 0 1.7-1.4 2.4-4.4 2.4s-4.4-.7-4.4-2.4c0-1.9 1.8-4.2 4.4-4.2z" />
-          {PAW_TOES.map(([tx, ty, rot]) => (
-            <ellipse key={tx} cx={tx} cy={ty} rx={1.6} ry={1.9} transform={`rotate(${rot} ${tx} ${ty})`} />
-          ))}
+        [8.2, 31, -70, E.leaf],
+        [7.6, 22.4, -40, E.leafLight],
+        [11.2, 13.6, -24, E.leaf],
+        [18.4, 8.4, 4, E.leafDeep],
+        [26.2, 7.6, 30, E.leafLight],
+        [33, 10.6, 56, E.leaf],
+        [36, 18, 100, E.leafDeep],
+      ].map(([x, y, a, c]) => (
+        <Pothos key={a} x={x as number} y={y as number} a={a as number} s={0.46} color={c as string} />
+      ))}
+    </g>
+  ),
+  /** The first rest day: a moon, and a small cloud. */
+  'first-rest': () => (
+    <g>
+      <path d={MOON} fill={E.butter} />
+      <path d="M24.6 37h12.2a3.2 3.2 0 0 0 .2-6.4 4.2 4.2 0 0 0-7.8-1.8 3.4 3.4 0 0 0-5.2 3A2.6 2.6 0 0 0 24.6 37z" fill={E.paper} />
+    </g>
+  ),
+  /** Coming back: a house key on its ring, with a paper tag. */
+  comeback: () => (
+    <g>
+      <path d="M13.2 20.6c-3 3.6-5.4 7-6.4 10.4" fill="none" stroke={E.woodDeep} stroke-width={1.2} stroke-linecap="round" />
+      <g transform="rotate(-14 9 34)">
+        <path d={`M4.2 29.6h8.6a1.6 1.6 0 0 1 1.6 1.6v7.2a1.6 1.6 0 0 1-1.6 1.6H4.2L1.4 36.4v-3.6z${circlePath(4.4, 34.8, 0.9)}`} fill={E.paper} fill-rule="evenodd" />
+        <rect x={6.8} y={33} width={5.6} height={1.4} rx={0.7} fill={E.blushDeep} />
+        <rect x={6.8} y={35.8} width={3.8} height={1.4} rx={0.7} fill={E.blushDeep} />
+      </g>
+      <g transform="translate(15.6 15.6) rotate(42)">
+        <path d={`${circlePath(0, 0, 7.4)}${circlePath(0, 0, 3.2)}`} fill={E.brass} fill-rule="evenodd" />
+        <path d="M6.6-2.4H26a1.6 1.6 0 0 1 1.6 1.6v1.6a1.6 1.6 0 0 1-1.6 1.6h-.8v3.4h-3V2.4h-2v2.4h-3V2.4H6.6z" fill={E.brass} />
+        <Detail>
+          <path d="M6.6.6H27.4v.2a1.6 1.6 0 0 1-1.6 1.6H6.6z" fill={E.brassDeep} />
+        </Detail>
+      </g>
+    </g>
+  ),
+  /** The first bloom: one begonia flower, open. */
+  'first-bloom': () => (
+    <g>
+      <path d="M22 28v11" fill="none" stroke={E.leafDeep} stroke-width={2.2} stroke-linecap="round" />
+      <Leaf x={21.6} y={37.4} a={-58} len={10} width={4.2} />
+      <Leaf x={22.4} y={35.4} a={54} len={9} width={3.8} color={E.leafDeep} />
+      <Flower x={22} y={18.6} r={13.2} color={E.paper} centre={E.butter} />
+      <Detail>
+        <Flower x={22} y={18.6} r={7.6} color={E.blush} centre={E.butter} />
+        <g fill={E.butterDeep}>
+          <circle cx={20.6} cy={17.6} r={0.9} />
+          <circle cx={23.4} cy={17.8} r={0.9} />
+          <circle cx={22} cy={20} r={0.9} />
+        </g>
+      </Detail>
+    </g>
+  ),
+  /** Evergreen: a laurel sprig (the Laurel Sprig is the first Evergreen's reward). */
+  'first-evergreen': () => (
+    <g>
+      <path d="M12.6 39C17.6 30.6 21.8 20.8 29.4 7.6" fill="none" stroke={E.stem} stroke-width={2} stroke-linecap="round" />
+      {[
+        [15.2, 34.2],
+        [18.4, 27.6],
+        [21.8, 20.8],
+        [25.4, 14],
+      ].map(([x, y]) => (
+        <g key={y}>
+          <Leaf x={x!} y={y!} a={-36} len={10} width={3.8} color={E.leaf} />
+          <Leaf x={x!} y={y!} a={82} len={10} width={3.8} color={E.leafDeep} />
         </g>
       ))}
+      <Leaf x={29.2} y={8} a={26} len={9} width={3.6} color={E.leafLight} />
     </g>
   ),
-  'checkins-50': ({ p }) => (
-    <g>
-      {[-62, -31, 0, 31, 62].map((a, i) => (
-        <path key={a} d={LEAF_UP} transform={`translate(20 22.5) rotate(${a}) scale(${i % 2 ? 1.1 : 1})`} fill={i % 2 ? p.leafDeep : p.leaf} />
-      ))}
-      <rect x={10} y={22.5} width={20} height={4} rx={1.6} fill={p.peachDeep} />
-      <path d="M11.6 26.5h16.8l-1.8 8.2a2 2 0 0 1-2 1.6h-9.2a2 2 0 0 1-2-1.6z" fill={p.peach} />
-      <Gleam d="M14.2 29.2l.6 3.4" width={1.6} />
-    </g>
-  ),
-  'checkins-100': ({ p }) => (
-    <g>
-      {/* A little garden planter, labelled 100. */}
-      <path d={LEAF_UP} transform="translate(12 23.4) rotate(-34) scale(.62)" fill={p.leaf} />
-      <path d={LEAF_UP} transform="translate(12.6 23.4) rotate(8) scale(.72)" fill={p.leafDeep} />
-      <path d={LEAF_UP} transform="translate(27.4 23.4) rotate(-8) scale(.72)" fill={p.leafDeep} />
-      <path d={LEAF_UP} transform="translate(28 23.4) rotate(34) scale(.62)" fill={p.leaf} />
-      <path d="M20 23V14" fill="none" />
-      <path d="M20 20.2c-2.6.4-4.6-.8-5.2-3.2 2.6-.4 4.6.8 5.2 3.2z" fill={p.leaf} stroke-width={EF} />
-      <path d={GARDEN_BLOOM} fill={p.blush} />
-      <circle cx={20} cy={10.4} r={1.8} fill={p.gold} stroke-width={1.2} />
-      <path d="M8 23.4h24l-1.8 10a2 2 0 0 1-2 1.6H11.8a2 2 0 0 1-2-1.6z" fill={p.wood} />
-      <rect x={6.6} y={21.6} width={26.8} height={3.6} rx={1.6} fill={p.brown} />
-      <rect x={13.4} y={26.8} width={13.2} height={5.8} rx={1.4} fill={p.white} stroke-width={EF} />
-      <g fill="none" stroke={p.blushDeep} stroke-width={1.5}>
-        <path d="M15.6 28.6l1-.7v3.4" />
-        <ellipse cx={19.9} cy={29.6} rx={1.2} ry={1.7} />
-        <ellipse cx={23.8} cy={29.6} rx={1.2} ry={1.7} />
+  /** A steady month: a herbarium page with one pressed leaf, taped down (a 64 × 40 box). */
+  'steady-month': () => (
+    <g transform="rotate(-4 32 20)">
+      <rect x={14} y={1.6} width={36} height={37} rx={1.6} fill={E.paper} />
+      <Detail>
+        <rect x={46.6} y={1.6} width={3.4} height={37} fill={shade(E.paper)} />
+      </Detail>
+      <g transform="translate(29.6 30) rotate(24)">
+        <path d="M0 0C-7.4-3-8.8-12.6-4.6-19.4-2.8-22.4-.8-24.4 0-25.6c.8 1.2 2.8 3.2 4.6 6.2C8.8-12.6 7.4-3 0 0z" fill={E.leaf} />
+        <Detail>
+          <path d="M0 0C7.4-3 8.8-12.6 4.6-19.4 2.8-22.4.8-24.4 0-25.6c.6 8.4.6 17 0 25.6z" fill={E.leafDeep} />
+        </Detail>
+        <path d="M0 4V-22" fill="none" stroke={E.stem} stroke-width={1.2} stroke-linecap="round" />
       </g>
-      <Spark x={32.6} y={10} r={2.6} fill={p.butter} />
+      <rect x={23.4} y={30.6} width={9} height={3.4} rx={0.6} transform="rotate(-18 27.9 32.3)" fill={E.cream} />
+      <rect x={33.4} y={8} width={8} height={3.2} rx={0.6} transform="rotate(30 37.4 9.6)" fill={E.cream} />
+      <rect x={36} y={33.6} width={10} height={1.6} rx={0.8} fill={E.mintDeep} />
     </g>
   ),
-  'checkins-250': ({ p }) => (
+  /** Early bird: the sun coming up behind the sill, a sparrow already on it. */
+  'early-bird': () => (
     <g>
-      <path d={SUNFLOWER} fill={p.butter} />
-      <circle cx={20} cy={20} r={8.2} fill={p.brown} />
-      <g fill={p.wood} stroke="none">
-        {[
-          [17.4, 17.2],
-          [22.6, 17.2],
-          [20, 20],
-          [17.4, 22.8],
-          [22.6, 22.8],
-        ].map(([x, y]) => (
-          <circle key={`${x}-${y}`} cx={x} cy={y} r={1.1} />
-        ))}
+      <g stroke={E.peach} stroke-width={2.2} stroke-linecap="round" fill="none">
+        <path d="M18 6.4v3.4M7.6 11.2l2.4 2.4M28.4 11.2L26 13.6M3.6 21.4h3.2M29.2 21.4h3.2" />
       </g>
-      <Gleam d="M9 13.6a12 12 0 0 1 3.2-3.8" width={1.6} />
+      <path d="M6.8 29a11.2 11.2 0 0 1 22.4 0z" fill={E.peach} />
+      <rect x={3} y={28.4} width={38} height={4.8} rx={1.6} fill={E.wood} />
+      <Detail>
+        <rect x={3} y={31.6} width={38} height={1.6} rx={0.8} fill={E.woodDeep} />
+      </Detail>
+      {/* a sparrow on the sill, facing the sun */}
+      <path d="M40.6 20.6l-4.4 3.6 1.2-4.8z" fill={E.soil} />
+      <path d="M26 21.4c0-3.6 3.4-5.4 6.6-4.2 3.2 1.2 4.4 4.6 3.4 7.4-.9 2.6-3.6 3.8-6.2 3.6-2.4-.2-3.8-2.4-3.8-6.8z" fill={E.soil} />
+      <circle cx={27.8} cy={18.8} r={3.4} fill={E.soil} />
+      <path d="M24.6 18.4l-2.4.8 2.4.9z" fill={E.butterDeep} />
+      <circle cx={26.9} cy={18.2} r={0.75} fill={E.ink} />
+      <Detail>
+        <path d="M30.6 21.6c2.2-.8 4.2 0 5.2 1.8-1.6 2-4.4 2.2-5.2-1.8z" fill={shade(E.soil)} />
+      </Detail>
+      <path d="M29.8 28.2v-1.8M32.2 28.2v-1.8" fill="none" stroke={E.woodDeep} stroke-width={0.9} stroke-linecap="round" />
     </g>
   ),
-  'checkins-500': ({ p }) => (
+  /** Winding down: the lamp on, its warm pool on the table. */
+  'wind-down': () => (
     <g>
-      <path d="M13.4 23.4c-3.8.6-6.6-1.4-7.2-4.8 3.4-.4 6 1.4 7.2 4.8zM26.6 23.4c3.8.6 6.6-1.4 7.2-4.8-3.4-.4-6 1.4-7.2 4.8z" fill={p.leaf} />
-      <path d={BOUQUET.top} fill={p.lavender} />
-      <path d={BOUQUET.left} fill={p.blush} />
-      <path d={BOUQUET.right} fill={p.butter} />
-      <g fill={p.gold} stroke-width={1.2}>
-        <circle cx={20} cy={10.4} r={1.6} />
-        <circle cx={12.4} cy={16} r={1.5} />
-        <circle cx={27.6} cy={16} r={1.5} />
-      </g>
-      <path d="M11 21.4h18L20.9 36.2a1 1 0 0 1-1.8 0z" fill={p.white} />
-      <path d="M15.4 21.4l4.6 8.6" fill="none" stroke-width={EF} />
-      <path d="M20 27.2c-2-1.8-4.6-2-4.8-.2-.2 1.6 2.6 1.4 4.8.2zm0 0c2-1.8 4.6-2 4.8-.2.2 1.6-2.6 1.4-4.8.2z" fill={p.blushDeep} stroke-width={1.3} />
-    </g>
-  ),
-  'checkins-1000': ({ p }) => (
-    <g>
-      <path d={ROSETTE_OUT} fill={p.blush} />
-      <path d={ROSETTE_MID} fill={p.peach} />
-      <circle cx={20} cy={20} r={5.6} fill={p.butter} />
-      <Spark x={20} y={20} r={3} fill={p.white} />
-      <Gleam d="M6.8 15.2a14 14 0 0 1 3.6-5.4" width={1.6} />
-    </g>
-  ),
-  'first-rest': ({ p }) => (
-    <g>
-      <path d={MOON} fill={p.butter} />
-      <path d="M8.6 22.6q1.6 1.6 3.4.4M13.6 26.4q1.8 1.2 3.4-.4" fill="none" stroke-width={EF} />
-      <Blush l={9.4} r={16.8} y={27.8} color={p.cheek} />
-      <Gleam d="M8.2 15.4a11 11 0 0 1 3.6-5" />
-      <path d="M24.6 6.6h4.6l-4.6 5h4.6M31 13.4h3l-3 3.4h3" fill="none" stroke-width={EF} />
-      <Spark x={31} y={27.4} r={2.8} fill={p.white} />
-    </g>
-  ),
-  comeback: ({ p }) => (
-    <g>
-      <path d="M20 26.5v10" fill="none" />
-      <path d="M20 34.4c-4.5 0-8-3-8.5-7.6 4.5.3 7.9 3.3 8.5 7.6z" fill={p.leaf} />
-      <path d="M20 31.4c3.5-.5 6-3 6.5-6.6-3.5.2-5.9 2.7-6.5 6.6z" fill={p.leaf} />
-      <path d="M12.4 11.4c-.5 9.6 2 15.1 7.6 15.1s8.1-5.5 7.6-15.1l-3.6 3.8-4-5.6-4 5.6z" fill={p.blush} />
-      <path d="M16 15.2q.8 6.6 4 11.3M24 15.2q-.8 6.6-4 11.3" fill="none" stroke-width={EF} />
-      <Gleam d="M14.6 15.2c-.1 2.4.3 4.4 1.2 6.2" width={1.6} />
-      <Spark x={31.6} y={10.4} r={2.8} fill={p.butter} />
-    </g>
-  ),
-  'first-bloom': ({ p }) => (
-    <g>
-      {BLOSSOM_ANGLES.map((a) => (
-        <path key={a} d={BLOSSOM_PETAL} transform={`translate(20 20.6) rotate(${a})`} fill={p.blush} />
-      ))}
-      <circle cx={20} cy={20.6} r={3.6} fill={p.blushDeep} stroke-width={EF} />
-      <g fill={p.gold} stroke="none">
-        {BLOSSOM_STAMENS.map(({ key, cx, cy }) => (
-          <circle key={key} cx={cx} cy={cy} r={1.1} />
-        ))}
-      </g>
-    </g>
-  ),
-  'first-evergreen': ({ p }) => (
-    <g>
-      <path d="M17.8 35.4l.9-10h2.6l.9 10z" fill={p.wood} />
-      <path d={CANOPY} fill={p.leaf} />
-      <ellipse cx={15.2} cy={11.6} rx={4.8} ry={3.3} transform="rotate(-32 15.2 11.6)" fill={p.sage} stroke="none" />
-      <g fill={p.blushDeep} stroke-width={1.2}>
-        <circle cx={24.4} cy={13.6} r={1.7} />
-        <circle cx={15.4} cy={19.8} r={1.7} />
-        <circle cx={25} cy={21.2} r={1.7} />
-      </g>
-      <Gleam d="M10.8 12.8a9.4 9.4 0 0 1 3.4-4.2" />
-      <Spark x={31.8} y={7.4} r={3.2} fill={p.gold} />
-      <Spark x={7.4} y={27.4} r={2.2} fill={p.butter} />
-      <Spark x={33.2} y={27.8} r={1.8} fill={p.white} />
-    </g>
-  ),
-  'steady-month': ({ p }) => (
-    <g>
-      <rect x={7} y={9} width={26} height={25} rx={4.2} fill={p.white} />
-      <path d="M7 16v-2.8A4.2 4.2 0 0 1 11.2 9h17.6A4.2 4.2 0 0 1 33 13.2V16z" fill={p.mint} />
-      <path d="M7 16h26M14 6.4v5M26 6.4v5" fill="none" />
-      <g fill={p.mintDeep} stroke="none">
-        {[
-          [12.2, 21.4],
-          [17.4, 21.4],
-          [22.6, 21.4],
-          [27.8, 21.4],
-          [12.2, 28],
-          [17.4, 28],
-          [22.6, 28],
-        ].map(([x, y]) => (
-          <circle key={`${x}-${y}`} cx={x} cy={y} r={2} />
-        ))}
-      </g>
-      <path d={MONTH_HEART} fill={p.blushDeep} stroke-width={1.3} />
+      <ellipse cx={22} cy={37.4} rx={15} ry={3.4} fill={E.lamp} fill-opacity={0.55} />
+      <rect x={21} y={20} width={2} height={13} fill={E.brass} />
+      <path d="M15.4 33h13.2a2.2 2.2 0 0 1 2.2 2.2v1.4H13.2v-1.4a2.2 2.2 0 0 1 2.2-2.2z" fill={E.blush} />
+      <path d="M15.6 8.6h12.8l5.2 12.2H10.4z" fill="#FFE8BE" />
+      <Detail>
+        <path d="M24.8 8.6h3.6l5.2 12.2h-5.4z" fill="#F4CF94" />
+        <path d="M24.2 33h4.4a2.2 2.2 0 0 1 2.2 2.2v1.4h-6.6z" fill={E.blushDeep} />
+      </Detail>
     </g>
   ),
 };

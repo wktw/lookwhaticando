@@ -1,329 +1,430 @@
 /**
- * Gallery sections for the icons module: UI glyphs, tab icons, currency, habit icons, badge
- * medals and an in-context mock. View all with /gallery.html?only=icons, one with ?only=<id>.
- * Review helpers: `&zoom=<px>` resizes the UI, habit and badge grids; `&ids=a,b` filters the
- * habit showcase and badge grid; `&theme=night` renders the whole page in Moonlight Meadow.
- * The dark panels carry data-theme="night", so theme-aware art (habit stickers, locked medals)
- * shows its night look there too.
+ * Gallery sections for the icons module. View all with /gallery.html?only=icons, one with ?only=<id>:
+ * icons-brand, icons-appicon, icons-splash, icons-install, icons-tabs, icons-currency, icons-pins,
+ * icons-pinsizes, icons-habits, icons-habittones, icons-glyphs. Add &theme=night for lamplight; the dark
+ * panels also carry the night tokens inline, so day and night sit side by side.
+ * icons-appicon&stage=<shape>&size=<px> and icons-splash&splash=<theme>&w&h are the bare stages that
+ * scripts/generate-icons.mjs screenshots.
  */
 import type { ComponentChildren, JSX } from 'preact';
-import { Icon, ICON_NAMES, CoinIcon, StarIcon, StardustIcon, TicketIcon, type IconName } from '@/art/icons';
-import { HabitIcon } from '@/art/habit-icons';
+import { CatkinSprig, Wordmark } from '@/art/icons/brand';
+import { Icon, ICON_ALIASES, ICON_NAMES, CoinIcon, StampIcon, SwapIcon, TicketIcon, type IconName } from '@/art/icons';
+import { NIGHT_LIGHT } from '@/art/light';
+import { AppIconArt, type AppIconShape } from '@/app/AppIconArt';
+import { SplashArt } from '@/app/SplashArt';
+import { GumballArt } from '@/app/GumballArt';
+import { AddToHomeArt, AndroidMenuArt, ChromeInstallArt, CompactShareArt, DockArt, HomeScreenArt, MacDockArt, ShareStepArt, ViewMoreArt } from '@/app/installArt';
 import { BadgeMedal } from '@/art/badges';
 import { BADGES } from '@/catalog/badges';
+import { HabitIcon } from '@/art/habit-icons';
 import { HABIT_ICONS } from '@/catalog/habitIcons';
 import { PASTELS } from '@/catalog/types';
 import type { GallerySection } from './sections';
 
-const TAB_NAMES = ICON_NAMES.filter((n) => n.startsWith('tab-'));
-const UI_NAMES = ICON_NAMES.filter((n) => !n.startsWith('tab-'));
+/**
+ * A self-contained Lamplight panel: the night tokens this module reads, set inline, plus
+ * data-theme="night" for theme-aware CSS. So night art can sit beside day art on one page.
+ */
+const NIGHT_TOKENS = {
+  '--bg': '#1e1a22',
+  '--card': '#2d2733',
+  '--ink': '#f4ede6',
+  '--ink-2': '#cfc5c9',
+  '--ink-3': '#afa3a9',
+  '--ink-disabled': '#7d7280',
+  '--line': '#3d3545',
+  '--blush-300': '#86506a',
+  '--blush-700': '#f6c9d3',
+  '--lavender-300': '#5e5084',
+  '--shadow-sm': '0 1px 0 rgba(0, 0, 0, 0.2), 0 2px 8px -4px rgba(0, 0, 0, 0.5)',
+};
+const NIGHT = { ...NIGHT_TOKENS, background: '#1E1A22', color: '#F4EDE6', borderRadius: '18px', padding: '18px' } as JSX.CSSProperties;
+const DAY: JSX.CSSProperties = { background: '#FAF6EF', color: '#3B3236', borderRadius: '18px', padding: '18px' };
 
-/** A self-contained "Moonlight Meadow" surface (night --bg, --card, --ink, --ink-2), so night art can sit beside light. */
-const NIGHT: JSX.CSSProperties = { background: '#221C30', color: '#F8EEF3', borderRadius: '18px', padding: '14px' };
-const NIGHT_CARD = '#342C4B';
-const NIGHT_INK_2 = '#CBBCD0';
-const zoomOf = (params: URLSearchParams) => Number(params.get('zoom')) || 0;
-
-function Label({ children }: { children: ComponentChildren }) {
+function Caption({ children }: { children: ComponentChildren }) {
   return <small style={{ fontSize: '11px', color: 'inherit', opacity: 0.75, textAlign: 'center', lineHeight: 1.2 }}>{children}</small>;
 }
 
-function GlyphCell({ name, color, card, zoom }: { name: IconName; color: string; card?: string; zoom: number }) {
-  const sizes = zoom ? [zoom] : [20, 24, 32];
+function Brand() {
   return (
-    <div class="gal-cell" style={{ color, ...(card ? { background: card, boxShadow: 'none' } : {}) }}>
-      <div class="gal-row" style={{ gap: '10px' }}>
-        {sizes.map((s) => (
-          <Icon key={s} name={name} size={s} />
-        ))}
+    <div class="gal-row" style={{ gap: '18px', alignItems: 'stretch' }}>
+      <div style={{ ...DAY, display: 'flex', flexDirection: 'column', gap: '18px' }}>
+        <Wordmark size={64} />
+        <Wordmark size={32} />
+        <Wordmark size={18} />
+        <Wordmark size={32} sprig={false} />
+        <div class="gal-row" style={{ alignItems: 'flex-end' }}>
+          {[160, 96, 48, 32, 20].map((s) => (
+            <CatkinSprig key={s} size={s} />
+          ))}
+        </div>
       </div>
-      <Label>{name}</Label>
+      <div data-theme="night" style={{ ...NIGHT, display: 'flex', flexDirection: 'column', gap: '18px' }}>
+        <Wordmark size={64} />
+        <Wordmark size={32} />
+        <Wordmark size={18} />
+        <Wordmark size={32} sprig={false} />
+        <div class="gal-row" style={{ alignItems: 'flex-end' }}>
+          {[160, 96, 48, 32, 20].map((s) => (
+            <CatkinSprig key={s} size={s} light={NIGHT_LIGHT} />
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
 
-function GlyphGrid({ color, card, zoom }: { color: string; card?: string; zoom: number }) {
-  return (
-    <div class="gal-grid" style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${zoom ? zoom + 40 : 130}px, 1fr))`, gap: '10px' }}>
-      {UI_NAMES.map((n) => (
-        <GlyphCell key={n} name={n} color={color} card={card} zoom={zoom} />
-      ))}
-    </div>
-  );
-}
+const WALLPAPERS = [
+  { name: 'light wallpaper', bg: '#EDE7DF' },
+  { name: 'dark wallpaper', bg: '#1C1A24' },
+];
 
-/** A mock tab bar: one tab active at a time, like the real app shell. */
-function TabBar({ active, ink, activeInk, surface }: { active: IconName; ink: string; activeInk: string; surface: string }) {
+function AppIcons({ params }: { params: URLSearchParams }) {
+  const stage = params.get('stage') as AppIconShape | null;
+  if (stage) {
+    // A bare stage for scripts/generate-icons.mjs: exactly one icon, nothing else.
+    const size = Number(params.get('size')) || 512;
+    return (
+      <div id="icon-stage" style={{ width: `${size}px`, height: `${size}px`, lineHeight: 0 }}>
+        <AppIconArt size={size} shape={stage} />
+      </div>
+    );
+  }
   return (
-    <div style={{ display: 'flex', justifyContent: 'space-around', background: surface, borderRadius: '22px', padding: '10px 6px', width: '360px' }}>
-      {TAB_NAMES.map((n) => (
-        <div key={n} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px', color: n === active ? activeInk : ink }}>
-          <Icon name={n} size={28} filled={n === active} />
-          <span style={{ fontFamily: 'var(--font-display)', fontSize: '11px', fontWeight: 600 }}>{n.slice(4)}</span>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+      <AppIconArt size={1024} shape="squircle" title="catkin app icon, 1024 px" />
+      {WALLPAPERS.map((w) => (
+        <div key={w.name} style={{ background: w.bg, borderRadius: '18px', padding: '22px', color: w.bg === '#1C1A24' ? '#EEE' : '#333' }}>
+          <div class="gal-row" style={{ gap: '26px', alignItems: 'flex-end' }}>
+            {[180, 60, 29].map((s) => (
+              <div key={s} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
+                <AppIconArt size={s} shape="squircle" />
+                <Caption>{s}</Caption>
+              </div>
+            ))}
+            {(['square', 'maskable'] as const).map((shape) => (
+              <div key={shape} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
+                <AppIconArt size={120} shape={shape} />
+                <Caption>{shape}</Caption>
+              </div>
+            ))}
+            <Caption>{w.name}</Caption>
+          </div>
         </div>
       ))}
     </div>
   );
 }
 
-const CURRENCY = [
+const TAB_NAMES: IconName[] = ['tab-today', 'tab-progress', 'tab-capsules', 'tab-shelf', 'tab-you'];
+const TAB_LABELS = ['Today', 'Progress', 'Capsules', 'Shelf', 'You'];
+const GLYPH_NAMES = ICON_NAMES.filter((n) => !n.startsWith('tab-') && !ICON_ALIASES[n]);
+
+/** A tab bar mock: one tab active at a time, inactive tabs in --ink-2 like the app shell. */
+function TabBarMock({ active }: { active: number }) {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        justifyContent: 'space-around',
+        width: '380px',
+        padding: '10px 6px 8px',
+        borderRadius: '22px',
+        background: 'var(--card)',
+        boxShadow: 'var(--shadow-sm)',
+        color: 'var(--ink-2)',
+      }}
+    >
+      {TAB_NAMES.map((n, i) => (
+        <div key={n} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px', color: i === active ? 'var(--ink)' : 'var(--ink-2)' }}>
+          <Icon name={n} size={26} filled={i === active} />
+          <span style={{ fontSize: '11px', fontWeight: i === active ? 800 : 650 }}>{TAB_LABELS[i]}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function Tabs() {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+      {[false, true].map((night) => (
+        <div key={String(night)} data-theme={night ? 'night' : 'light'} style={{ ...(night ? NIGHT : DAY), display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <div class="gal-row" style={{ gap: '22px', color: 'var(--ink-2)' }}>
+            {TAB_NAMES.map((n) => (
+              <div key={n} style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                {[24, 28, 48].map((s) => (
+                  <Icon key={s} name={n} size={s} />
+                ))}
+                {[24, 28, 48].map((s) => (
+                  <span key={s} style={{ color: 'var(--ink)' }}>
+                    <Icon name={n} size={s} filled />
+                  </span>
+                ))}
+              </div>
+            ))}
+          </div>
+          <div class="gal-row">
+            {TAB_NAMES.map((n, i) => (
+              <TabBarMock key={n} active={i} />
+            ))}
+          </div>
+          <div class="gal-row" style={{ alignItems: 'flex-end' }}>
+            {[28, 36, 40, 64, 120].map((sz) => (
+              <GumballArt key={sz} size={sz} />
+            ))}
+            <Caption>the raised Capsules mark (GumballArt)</Caption>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+const TOKENS = [
   { name: 'Coin', C: CoinIcon },
-  { name: 'Star', C: StarIcon },
-  { name: 'Stardust', C: StardustIcon },
+  { name: 'Stamp', C: StampIcon },
+  { name: 'Swap', C: SwapIcon },
   { name: 'Ticket', C: TicketIcon },
 ];
 
-export const SECTIONS: GallerySection[] = [
-  {
-    id: 'icons-ui',
-    title: 'UI icons · 20 / 24 / 32 px · ink, accent, night',
-    render: (params) => {
-      const zoom = zoomOf(params);
-      return (
-        <div style={{ display: 'grid', gap: '16px' }}>
-          <GlyphGrid color="var(--ink)" zoom={zoom} />
-          <GlyphGrid color="var(--blush-700)" zoom={zoom} />
-          <div data-theme="night" style={NIGHT}>
-            <GlyphGrid color="#F8EEF3" card={NIGHT_CARD} zoom={zoom} />
-          </div>
-        </div>
-      );
-    },
-  },
-  {
-    id: 'icons-tabs',
-    title: 'Tab icons · outline & filled (active sticker) · tab bars use --ink-2 / --ink',
-    render: () => (
-      <div style={{ display: 'grid', gap: '16px' }}>
-        <div class="gal-row">
-          {TAB_NAMES.map((n) => (
-            <div class="gal-cell" key={n} style={{ color: 'var(--ink-2)' }}>
-              <div class="gal-row" style={{ gap: '10px' }}>
-                <Icon name={n} size={24} />
-                <Icon name={n} size={24} filled />
-                <Icon name={n} size={48} />
-                <Icon name={n} size={48} filled />
-                <Icon name={n} size={120} />
-                <Icon name={n} size={120} filled />
+function Tokens({ fs }: { fs: number }) {
+  const t = { width: `${fs * 1.15}px`, height: `${fs * 1.15}px` };
+  return (
+    <p style={{ fontSize: `${fs}px`, margin: 0, lineHeight: 1.5 }}>
+      Walk, watered. +5 <CoinIcon style={t} /> · 3 <StampIcon style={t} /> enclosed · <SwapIcon count={4} style={t} /> 4 of 10 swaps · 1{' '}
+      <TicketIcon style={t} /> on the sill.
+    </p>
+  );
+}
+
+function Currency() {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+      {[false, true].map((night) => (
+        <div key={String(night)} data-theme={night ? 'night' : 'light'} style={{ ...(night ? NIGHT : DAY), display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          <div class="gal-row" style={{ gap: '28px', alignItems: 'flex-end' }}>
+            {TOKENS.map(({ name, C }) => (
+              <div key={name} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
+                <div class="gal-row" style={{ gap: '10px', alignItems: 'flex-end' }}>
+                  {[96, 48, 20, 14].map((s) => (
+                    <C key={s} size={s} />
+                  ))}
+                </div>
+                <Caption>{name}</Caption>
               </div>
-              <Label>{n}</Label>
-            </div>
-          ))}
-        </div>
-        <div class="gal-row">
-          {TAB_NAMES.map((n) => (
-            <TabBar key={n} active={n} ink="var(--ink-2)" activeInk="var(--ink)" surface="var(--card)" />
-          ))}
-        </div>
-        <div class="gal-row" data-theme="night" style={NIGHT}>
-          {TAB_NAMES.map((n) => (
-            <TabBar key={n} active={n} ink={NIGHT_INK_2} activeInk="#F8EEF3" surface={NIGHT_CARD} />
-          ))}
-          <div class="gal-row" style={{ color: NIGHT_INK_2, gap: '14px' }}>
-            {TAB_NAMES.map((n) => (
-              <span key={n} style={{ display: 'inline-flex', gap: '6px' }}>
-                <Icon name={n} size={64} />
-                <Icon name={n} size={64} filled />
-              </span>
             ))}
           </div>
-        </div>
-      </div>
-    ),
-  },
-  {
-    id: 'icons-currency',
-    title: 'Currency · 16 / 24 / 48 px (+ stardust levels)',
-    render: () => (
-      <div style={{ display: 'grid', gap: '16px' }}>
-        <div class="gal-row">
-          {CURRENCY.map(({ name, C }) => (
-            <div class="gal-cell" key={name}>
-              <div class="gal-row" style={{ gap: '10px' }}>
-                <C size={16} />
-                <C size={24} />
-                <C size={48} />
-                <C size={120} />
+          <div class="gal-row" style={{ gap: '6px' }}>
+            {Array.from({ length: 11 }, (_, i) => (
+              <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                <SwapIcon count={i} size={40} />
+                <Caption>{i}</Caption>
               </div>
-              <Label>{name}</Label>
-            </div>
-          ))}
-        </div>
-        <div class="gal-row">
-          <div class="gal-cell">
-            <div class="gal-row" style={{ gap: '10px' }}>
-              {[0, 0.1, 0.3, 0.5, 0.7, 0.9, 1].map((l) => (
-                <StardustIcon key={l} size={56} level={l} />
-              ))}
-            </div>
-            <Label>Stardust level 0 · 0.1 · 0.3 · 0.5 · 0.7 · 0.9 · 1</Label>
+            ))}
           </div>
-          <div class="gal-cell" data-theme="night" style={{ background: NIGHT_CARD }}>
-            <div class="gal-row" style={{ gap: '10px' }}>
-              {CURRENCY.map(({ name, C }) => (
-                <C key={name} size={32} />
-              ))}
-            </div>
-            <Label>
-              <span style={{ color: '#F8EEF3' }}>Night card</span>
-            </Label>
-          </div>
-          <div class="gal-cell">
-            <div style={{ display: 'flex', gap: '12px', fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: '16px' }}>
-              {CURRENCY.map(({ name, C }, i) => (
-                <span key={name} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                  <C size={18} title={name} /> {[128, 6, 4, 2][i]}
-                </span>
-              ))}
-            </div>
-            <Label>Wallet pill (18 px)</Label>
-          </div>
-        </div>
-      </div>
-    ),
-  },
-  {
-    id: 'icons-habits',
-    title: 'Habit icons · every tone at 28 px (&zoom=22 for the legibility floor) · light + night (sticker edge)',
-    render: (params) => {
-      const size = zoomOf(params) || 28;
-      const grid: JSX.CSSProperties = { display: 'grid', gridTemplateColumns: `140px repeat(${PASTELS.length}, ${size + 6}px)`, gap: '4px 6px', alignItems: 'center' };
-      return (
-        <div class="gal-row" style={{ alignItems: 'flex-start', gap: '16px' }}>
-          {[{ bg: 'var(--card)', ink: 'var(--ink-2)', theme: undefined }, { bg: NIGHT_CARD, ink: NIGHT_INK_2, theme: 'night' }].map(({ bg, ink, theme }) => (
-            <div key={bg} data-theme={theme} style={{ ...grid, background: bg, color: ink, padding: '12px', borderRadius: '18px' }}>
-              {HABIT_ICONS.map((icon) => [
-                <small key={icon.id} style={{ fontSize: '11px' }}>
-                  {icon.id}
-                </small>,
-                ...PASTELS.map((tone) => <HabitIcon key={`${icon.id}-${tone}`} id={icon.id} tone={tone} size={size} />),
-              ])}
-            </div>
-          ))}
-        </div>
-      );
-    },
-  },
-  {
-    id: 'icons-habits-showcase',
-    title: 'Habit icons · 48 px showcase (&ids=a,b filters, &zoom=px enlarges)',
-    render: (params) => {
-      const size = zoomOf(params) || 48;
-      const ids = params.get('ids')?.split(',');
-      return (
-        <div class="gal-grid" style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${Math.max(96, size + 24)}px, 1fr))`, gap: '10px' }}>
-          {HABIT_ICONS.filter((icon) => !ids || ids.includes(icon.id)).map((icon, i) => (
-            <div class="gal-cell" key={icon.id}>
-              <HabitIcon id={icon.id} tone={PASTELS[i % PASTELS.length]} size={size} title={icon.label} />
-              <Label>
-                {icon.label} · {icon.id}
-              </Label>
-            </div>
-          ))}
-        </div>
-      );
-    },
-  },
-  {
-    id: 'icons-badges',
-    title: 'Badge medals · earned & unearned at 88 px (&zoom=px enlarges, &ids=a,b filters)',
-    render: (params) => {
-      const size = zoomOf(params) || 88;
-      const ids = params.get('ids')?.split(',');
-      return (
-        <div class="gal-grid" style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${size * 2 + 40}px, 1fr))`, gap: '10px' }}>
-          {BADGES.filter((b) => !ids || ids.includes(b.id)).map((b) => (
-            <div class="gal-cell" key={b.id}>
-              <div class="gal-row" style={{ gap: '6px' }}>
-                <BadgeMedal badgeId={b.id} earned size={size} title={b.name} />
-                <BadgeMedal badgeId={b.id} earned={false} size={size} title={`${b.name} (locked)`} />
-              </div>
-              <b>{b.name}</b>
-              <Label>
-                {b.id} · {b.color} · {b.stars}★
-              </Label>
-            </div>
-          ))}
-        </div>
-      );
-    },
-  },
-  {
-    id: 'icons-badges-sizes',
-    title: 'Badge medals · 48 / 64 / 120 px, light & night',
-    render: () => {
-      const picks = ['first-checkin', 'perfect-week', 'night-owl', 'set-complete', 'first-ultra'];
-      const row = (earned: boolean) => (
-        <div class="gal-row" style={{ gap: '8px' }}>
-          {picks.map((id) => [48, 64, 120].map((s) => <BadgeMedal key={`${id}-${s}`} badgeId={id} earned={earned} size={s} />))}
-        </div>
-      );
-      return (
-        <div style={{ display: 'grid', gap: '12px' }}>
-          <div class="gal-cell" style={{ alignItems: 'flex-start' }}>
-            {row(true)}
-            {row(false)}
-          </div>
-          <div class="gal-cell" data-theme="night" style={{ alignItems: 'flex-start', background: NIGHT_CARD }}>
-            {row(true)}
-            {row(false)}
-          </div>
-        </div>
-      );
-    },
-  },
-  {
-    id: 'icons-context',
-    title: 'In context · habit rows, streak glyph, wallet, badge shelf (real tokens: add &theme=night)',
-    render: () => <ContextCard />,
-  },
-];
-
-const SAMPLE_HABITS = [
-  { icon: 'water', name: 'Drink water', tone: 'sky', sub: '5 / 8 glasses', streak: false },
-  { icon: 'yoga', name: 'Yoga', tone: 'lavender', sub: '2 of 3 this week', streak: false },
-  { icon: 'stretch', name: 'Morning stretch', tone: 'blush', sub: '4 days', streak: true },
-  { icon: 'book', name: 'Read', tone: 'peach', sub: '12 days', streak: true },
-  { icon: 'watering-can', name: 'Water the plants', tone: 'sage', sub: '26 of last 30 days', streak: false },
-] as const;
-
-/** A tiny mock of Today + a badge shelf on the real theme tokens, to judge the sets side by side. */
-function ContextCard() {
-  return (
-    <div style={{ background: 'var(--card)', color: 'var(--ink)', borderRadius: '22px', padding: '14px 16px', width: '360px', display: 'grid', gap: '10px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: '20px' }}>Today</span>
-        <span style={{ display: 'inline-flex', gap: '10px', fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: '15px' }}>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
-            <CoinIcon size={18} title="Coins" /> 128
-          </span>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
-            <StarIcon size={18} title="Stars" /> 6
-          </span>
-        </span>
-      </div>
-      {SAMPLE_HABITS.map((h) => (
-        <div key={h.icon} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <span style={{ background: `var(--${h.tone}-100)`, borderRadius: '14px', padding: '6px', display: 'inline-flex' }}>
-            <HabitIcon id={h.icon} tone={h.tone} size={34} />
-          </span>
-          <span style={{ flex: 1, display: 'grid' }}>
-            <b style={{ fontSize: '15px' }}>{h.name}</b>
-            <small style={{ color: 'var(--ink-2)', display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '13px' }}>
-              {h.streak && <Icon name="streak" size={15} style={{ color: 'var(--peach-700)' }} />}
-              {h.sub}
-            </small>
-          </span>
-          <button type="button" aria-label={`More actions for ${h.name}`} style={{ color: 'var(--ink-2)', padding: '6px' }}>
-            <Icon name="more" size={20} />
-          </button>
+          <Tokens fs={15} />
+          <Tokens fs={20} />
         </div>
       ))}
-      <div class="gal-row" style={{ gap: '4px', justifyContent: 'space-between' }}>
-        {['first-checkin', 'perfect-week', 'comeback', 'night-owl', 'set-complete'].map((id, i) => (
-          <BadgeMedal key={id} badgeId={id} earned={i < 3} size={58} />
-        ))}
+    </div>
+  );
+}
+
+function Glyphs({ params }: { params: URLSearchParams }) {
+  const zoom = Number(params.get('zoom')) || 0;
+  const sizes = zoom ? [zoom] : [20, 28];
+  const only = params.get('names')?.split(',');
+  const names = only ? GLYPH_NAMES.filter((n) => only.includes(n)) : GLYPH_NAMES;
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+      {[false, true].map((night) => (
+        <div
+          key={String(night)}
+          data-theme={night ? 'night' : 'light'}
+          style={{ ...(night ? NIGHT : DAY), display: 'grid', gridTemplateColumns: `repeat(auto-fill, minmax(${zoom ? zoom + 30 : 104}px, 1fr))`, gap: '10px' }}
+        >
+          {names.map((n) => (
+            <div key={n} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', color: 'var(--ink)' }}>
+              <div class="gal-row" style={{ gap: '10px', alignItems: 'center' }}>
+                {sizes.map((s) => (
+                  <Icon key={s} name={n} size={s} filled={n === 'heart'} />
+                ))}
+                {!zoom && <Icon name={n} size={28} style={{ color: 'var(--blush-700)' }} />}
+              </div>
+              <Caption>{n}</Caption>
+            </div>
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function Pins({ params }: { params: URLSearchParams }) {
+  const size = Number(params.get('zoom')) || 88;
+  const only = params.get('ids')?.split(',');
+  const badges = only ? BADGES.filter((b) => only.includes(b.id)) : BADGES;
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+      {[false, true].map((night) => (
+        <div
+          key={String(night)}
+          data-theme={night ? 'night' : 'light'}
+          style={{ ...(night ? NIGHT : DAY), display: 'grid', gridTemplateColumns: `repeat(auto-fill, minmax(${size * 2 + 24}px, 1fr))`, gap: '14px 10px' }}
+        >
+          {badges.map((b) => (
+            <div key={b.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+              <div class="gal-row" style={{ gap: '6px' }}>
+                <BadgeMedal badgeId={b.id} earned size={size} title={b.name} />
+                <BadgeMedal badgeId={b.id} earned={false} size={size} title={`${b.name}, not yet`} />
+              </div>
+              <Caption>
+                {b.name} · {b.color}
+              </Caption>
+            </div>
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function PinSizes() {
+  const picks = ['first-checkin', 'checkins-100', 'first-capsule', 'wind-down', 'first-harvest', 'steady-month'];
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+      {[false, true].map((night) => (
+        <div key={String(night)} data-theme={night ? 'night' : 'light'} style={{ ...(night ? NIGHT : DAY) }}>
+          <div class="gal-row" style={{ gap: '10px', alignItems: 'flex-end' }}>
+            {picks.map((id) => [32, 48, 64, 120].map((s) => <BadgeMedal key={`${id}-${s}`} badgeId={id} earned size={s} />))}
+          </div>
+          <div class="gal-row" style={{ gap: '10px', alignItems: 'flex-end', marginTop: '10px' }}>
+            {picks.map((id) => [32, 48, 64, 120].map((s) => <BadgeMedal key={`${id}-${s}`} badgeId={id} earned={false} size={s} />))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** All 48 habit icons at 20 and 40 px, each in a different family, on day and night cards. */
+function HabitIcons({ params }: { params: URLSearchParams }) {
+  const zoom = Number(params.get('zoom')) || 0;
+  const only = params.get('ids')?.split(',');
+  const icons = only ? HABIT_ICONS.filter((i) => only.includes(i.id)) : HABIT_ICONS;
+  const sizes = zoom ? [zoom] : [20, 40];
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+      {[false, true].map((night) => (
+        <div
+          key={String(night)}
+          data-theme={night ? 'night' : 'light'}
+          style={{ ...(night ? NIGHT : DAY), display: 'grid', gridTemplateColumns: `repeat(auto-fill, minmax(${zoom ? zoom + 24 : 96}px, 1fr))`, gap: '12px 8px' }}
+        >
+          {icons.map((icon, i) => (
+            <div key={icon.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+              <div class="gal-row" style={{ gap: '8px', alignItems: 'center' }}>
+                {sizes.map((s) => (
+                  <HabitIcon key={s} id={icon.id} tone={PASTELS[i % PASTELS.length]} size={s} title={icon.label} />
+                ))}
+              </div>
+              <Caption>{icon.id}</Caption>
+            </div>
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** One icon in all eight families (&id=water). */
+function HabitTones({ params }: { params: URLSearchParams }) {
+  const ids = (params.get('id') ?? 'water,book,watering-can,piggy-bank').split(',');
+  return (
+    <div style={{ ...DAY, display: 'flex', flexDirection: 'column', gap: '10px' }}>
+      {ids.map((id) => (
+        <div key={id} class="gal-row" style={{ gap: '10px' }}>
+          {PASTELS.map((t) => (
+            <HabitIcon key={t} id={id} tone={t} size={40} />
+          ))}
+          {PASTELS.map((t) => (
+            <HabitIcon key={`${t}-20`} id={id} tone={t} size={20} />
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function Splash({ params }: { params: URLSearchParams }) {
+  const theme = params.get('splash') as 'light' | 'night' | null;
+  if (theme) {
+    // A bare full-screen stage for scripts/generate-icons.mjs.
+    const w = Number(params.get('w')) || 390;
+    const h = Number(params.get('h')) || 844;
+    return (
+      <div id="splash-stage" style={{ position: 'fixed', inset: 0, zIndex: 9999 } as JSX.CSSProperties}>
+        <SplashArt theme={theme} width={w} height={h} />
+      </div>
+    );
+  }
+  return (
+    <div class="gal-row" style={{ gap: '18px', alignItems: 'flex-start' }}>
+      {(['light', 'night'] as const).map((t) => (
+        <div key={t} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
+          <div style={{ borderRadius: '28px', overflow: 'hidden', boxShadow: 'var(--shadow-md)' }}>
+            <SplashArt theme={t} width={236} height={512} />
+          </div>
+          <Caption>{t} · 236 × 512</Caption>
+        </div>
+      ))}
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
+        <div style={{ borderRadius: '18px', overflow: 'hidden', boxShadow: 'var(--shadow-md)' }}>
+          <SplashArt theme="light" width={375} height={667} />
+        </div>
+        <Caption>SE · 375 × 667</Caption>
       </div>
     </div>
   );
 }
+
+const INSTALL_ART = [
+  { name: 'ShareStepArt', A: () => <ShareStepArt /> },
+  { name: 'ShareStepArt · address bar', A: () => <ShareStepArt inAddressBar /> },
+  { name: 'CompactShareArt', A: CompactShareArt },
+  { name: 'ViewMoreArt', A: ViewMoreArt },
+  { name: 'AddToHomeArt', A: AddToHomeArt },
+  { name: 'HomeScreenArt', A: HomeScreenArt },
+  { name: 'MacDockArt', A: MacDockArt },
+  { name: 'DockArt', A: DockArt },
+  { name: 'ChromeInstallArt', A: ChromeInstallArt },
+  { name: 'AndroidMenuArt', A: AndroidMenuArt },
+];
+
+function Install() {
+  return (
+    <div class="gal-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))' }}>
+      {INSTALL_ART.map(({ name, A }) => (
+        <div key={name} class="gal-cell">
+          <A />
+          <Caption>{name}</Caption>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export const SECTIONS: GallerySection[] = [
+  { id: 'icons-brand', title: 'Wordmark and sprig · day and lamplight', render: () => <Brand /> },
+  { id: 'icons-appicon', title: 'App icon · 1024, 180, 60, 29 px on light and dark wallpapers', render: (p) => <AppIcons params={p} /> },
+  { id: 'icons-splash', title: 'Launch screens · paper, the sprig and the wordmark', render: (p) => <Splash params={p} /> },
+  { id: 'icons-install', title: 'Install guide art (&theme=night for lamplight)', render: () => <Install /> },
+  { id: 'icons-tabs', title: 'Tab icons · inactive and active at 24, 28, 48 px · day and lamplight', render: () => <Tabs /> },
+  { id: 'icons-currency', title: 'Currency tokens · 96, 48, 20, 14 px and inline at 15 and 20 px', render: () => <Currency /> },
+  { id: 'icons-pins', title: 'Pins · earned and not yet (&zoom=<px>, &ids=a,b)', render: (p) => <Pins params={p} /> },
+  { id: 'icons-pinsizes', title: 'Pins at 32, 48, 64, 120 px', render: () => <PinSizes /> },
+  { id: 'icons-habits', title: 'Habit icons · all 48 at 20 and 40 px (&zoom=<px>, &ids=a,b)', render: (p) => <HabitIcons params={p} /> },
+  { id: 'icons-habittones', title: 'Habit icons in every family (&id=a,b)', render: (p) => <HabitTones params={p} /> },
+  { id: 'icons-glyphs', title: 'UI glyphs · 20 and 28 px (&zoom=<px> for one size, &names=a,b to filter)', render: (p) => <Glyphs params={p} /> },
+];

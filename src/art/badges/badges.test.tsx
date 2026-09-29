@@ -1,62 +1,85 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
 import { render } from 'preact';
 import { BADGES } from '@/catalog/badges';
-import { BadgeMedal } from '@/art/badges';
+import { BadgeMedal, EnamelPin, PIN_PLATE, PLATES, plateFor } from '@/art/badges';
 import { BADGE_EMBLEMS } from '@/art/badges/emblems';
-import { EARNED, LOCKED } from '@/art/badges/palette';
+import { METAL, NOT_YET, plateEnamel } from '@/art/badges/palette';
+import css from '@/art/badges/badge.module.css';
 
-function medal(badgeId: string, earned: boolean, size = 88) {
+function pin(badgeId: string, earned: boolean, size = 88) {
   const host = document.createElement('div');
   render(<BadgeMedal badgeId={badgeId} earned={earned} size={size} />, host);
   return host.querySelector('svg')!;
 }
 
-describe('badge medals', () => {
-  it('has a custom emblem for every catalog badge', () => {
+describe('pins', () => {
+  it('has an emblem for every catalog badge, including the newest', () => {
     for (const b of BADGES) expect(BADGE_EMBLEMS[b.id], b.id).toBeTypeOf('function');
+    for (const id of ['wind-down', 'album-complete', 'first-harvest']) expect(BADGE_EMBLEMS[id], id).toBeTypeOf('function');
   });
 
-  it('draws earned medals in color and unearned ones muted', () => {
+  it('gives every badge an enamel pin: a plate in its family with a brass rim', () => {
     for (const b of BADGES) {
-      const earned = medal(b.id, true).outerHTML;
-      const locked = medal(b.id, false).outerHTML;
-      expect(earned, b.id).toContain(EARNED.gold);
-      expect(locked, b.id).not.toContain(EARNED.gold);
-      expect(locked, b.id).not.toContain(EARNED.ink);
+      const svg = pin(b.id, true);
+      const plate = PLATES[plateFor(b.id)].d;
+      const face = svg.querySelector(`path[d="${plate}"][fill="${plateEnamel(b.color)}"]`);
+      expect(face, b.id).not.toBeNull();
+      expect(face!.getAttribute('stroke'), b.id).toBe(METAL.rim);
+      expect(svg.getAttribute('data-earned')).toBe('true');
+      expect(svg.querySelector(`.${css.emblem}`)!.children.length, b.id).toBeGreaterThan(0);
     }
   });
 
-  it('gives each medal instance its own gradient id', () => {
+  it('draws every unearned pin outline-only: a dashed plate in --ink-disabled, no enamel or metal', () => {
+    for (const b of BADGES) {
+      const svg = pin(b.id, false);
+      const plate = svg.querySelector(`path[d="${PLATES[plateFor(b.id)].d}"]`)!;
+      expect(plate.getAttribute('fill'), b.id).toBe('none');
+      expect(plate.getAttribute('stroke'), b.id).toBe(NOT_YET);
+      expect(plate.getAttribute('stroke-dasharray'), b.id).toBeTruthy();
+      expect(svg.getAttribute('class'), b.id).toContain(css.notYet);
+      expect(svg.innerHTML, b.id).not.toContain(METAL.rim);
+      expect(svg.innerHTML, b.id).not.toContain(plateEnamel(b.color));
+    }
+    expect(NOT_YET).toContain('--ink-disabled');
+  });
+
+  it('only cuts pins to known plates', () => {
+    for (const plate of Object.values(PIN_PLATE)) expect(PLATES[plate]).toBeDefined();
+    expect(plateFor('not-a-badge')).toBe('round');
+  });
+
+  it('never uses gradients, filters or masks, and needs no element ids', () => {
+    for (const b of BADGES) {
+      for (const earned of [true, false]) {
+        const svg = pin(b.id, earned);
+        expect(svg.querySelector('linearGradient, radialGradient, filter, mask, [id]'), b.id).toBeNull();
+      }
+    }
+  });
+
+  it('is decorative unless titled', () => {
+    expect(pin('first-checkin', true).getAttribute('aria-hidden')).toBe('true');
     const host = document.createElement('div');
-    render(
-      <div>
-        <BadgeMedal badgeId="first-ultra" earned />
-        <BadgeMedal badgeId="first-ultra" earned />
-      </div>,
-      host,
-    );
-    const [a, b] = [...host.querySelectorAll('linearGradient')].map((g) => g.id);
-    expect(a).toBeTruthy();
-    expect(a).not.toBe(b);
+    render(<EnamelPin badgeId="first-checkin" earned={false} title="First Sprout, not yet" />, host);
+    const svg = host.querySelector('svg')!;
+    expect(svg.getAttribute('role')).toBe('img');
+    expect(svg.getAttribute('aria-label')).toBe('First Sprout, not yet');
   });
 
-  it('switches to the compact shelf layout at 64 px and below', () => {
-    const scale = (size: number) => /scale\(([\d.]+)\)/.exec(medal('night-owl', true, size).innerHTML)![1];
-    expect(Number(scale(48))).toBeGreaterThan(Number(scale(88)));
-    expect(scale(64)).toBe(scale(48));
-    const host = document.createElement('div');
-    render(<BadgeMedal badgeId="night-owl" earned size={48} compact={false} />, host);
-    expect(host.querySelector('svg')!.innerHTML).toBe(medal('night-owl', true, 88).innerHTML);
+  it('uses a heavier rim at grid sizes (64 px and below)', () => {
+    const rim = (size: number, compact?: boolean) => {
+      const host = document.createElement('div');
+      render(<BadgeMedal badgeId="first-checkin" earned size={size} compact={compact} />, host);
+      return Number(host.querySelector(`path[stroke="${METAL.rim}"]`)!.getAttribute('stroke-width'));
+    };
+    expect(rim(48)).toBeGreaterThan(rim(120));
+    expect(rim(64)).toBe(rim(48));
+    expect(rim(48, false)).toBe(rim(120));
   });
 
-  it('repaints every locked swatch at night (the CSS mirrors LOCKED)', () => {
-    const css = readFileSync('src/art/badges/badge.module.css', 'utf8');
-    for (const hex of Object.values(LOCKED)) expect(css, hex).toMatch(new RegExp(`\\[(fill|stroke)='${hex}' i\\]`));
-  });
-
-  it('still renders a medal for an unknown badge id', () => {
-    expect(medal('future-badge', true).querySelectorAll('path').length).toBeGreaterThan(3);
+  it('still renders a pin for an unknown badge id', () => {
+    expect(pin('future-badge', true).querySelectorAll('path').length).toBeGreaterThan(3);
   });
 });

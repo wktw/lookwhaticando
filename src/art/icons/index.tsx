@@ -1,17 +1,21 @@
 /**
- * UI icon set + currency art. Glyphs sit on a 24-unit grid with rounded 2 px currentColor
- * strokes (./glyphs.tsx); the five tab icons are two-state illustrations (./tabs.tsx).
+ * UI icon set, currency tokens and the brand mark. Glyphs sit on a 24-unit grid as flat currentColor
+ * shapes with a softer second tone (./glyphs.tsx); the five tab icons have a quiet and an active state
+ * (./tabs.tsx); currency tokens are small printed objects (./currency.tsx); the wordmark and sprig
+ * live in ./brand.tsx.
  */
 import type { JSX } from 'preact';
-import { UI_GLYPHS, type Glyph } from './glyphs';
+import { GLYPH_ALIASES, UI_GLYPHS, type Glyph } from './glyphs';
 import { TAB_GLYPHS } from './tabs';
 
 export type IconName =
-  | 'tab-today' | 'tab-progress' | 'tab-capsules' | 'tab-meadow' | 'tab-you'
-  | 'plus' | 'check' | 'close' | 'chevron-left' | 'chevron-right' | 'chevron-down' | 'more'
-  | 'edit' | 'pause' | 'play' | 'archive' | 'trash' | 'calendar' | 'bell' | 'share' | 'camera'
+  | 'tab-today' | 'tab-progress' | 'tab-capsules' | 'tab-shelf' | 'tab-meadow' | 'tab-you'
+  | 'plus' | 'check' | 'close' | 'chevron-left' | 'chevron-right' | 'chevron-down' | 'chevron-up' | 'more'
+  | 'edit' | 'pause' | 'play' | 'archive' | 'trash' | 'calendar' | 'bell' | 'share' | 'export' | 'import' | 'camera'
   | 'gear' | 'info' | 'sparkle' | 'heart' | 'streak' | 'moon' | 'sun' | 'undo' | 'note'
-  | 'search' | 'grip' | 'download' | 'upload' | 'lock' | 'gift' | 'wand' | 'volume' | 'mute';
+  | 'search' | 'grip' | 'download' | 'upload' | 'lock' | 'gift' | 'wand' | 'volume' | 'mute'
+  | 'watering-can' | 'sprout' | 'drop' | 'lamp' | 'hanger' | 'bowl' | 'frame' | 'pot' | 'book'
+  | 'magnifier' | 'field-guide' | 'rest' | 'tiny';
 
 export interface IconProps {
   name: IconName;
@@ -20,18 +24,27 @@ export interface IconProps {
   class?: string;
   style?: JSX.CSSProperties;
   /**
-   * Active/solid state. Tab icons become full-color stickers (pastel fills, cocoa line, cream
-   * die-cut edge that may paint slightly past the box); `heart` becomes solid. Other glyphs ignore it.
+   * Active/solid state. Tab icons switch from quiet (currentColor, soft body) to filled in the
+   * accent family; `heart` becomes solid. Other glyphs ignore it.
    */
   filled?: boolean;
-  /** Stroke width in grid units (default 2, crisp at 24 px). */
+  /** Stroke width of the line parts in grid units (default 2, crisp at 24 px). */
   strokeWidth?: number;
 }
 
-const GLYPHS: Record<IconName, Glyph> = { ...TAB_GLYPHS, ...UI_GLYPHS };
+const GLYPHS: Record<IconName, Glyph> = { ...TAB_GLYPHS, ...UI_GLYPHS, ...GLYPH_ALIASES };
 
-/** Every icon name, in display order (gallery, tests). */
+/** Every icon name, in display order (gallery, tests). Aliases come last. */
 export const ICON_NAMES = Object.keys(GLYPHS) as IconName[];
+
+/** Names that only repeat another drawing (kept so older screens keep working). */
+export const ICON_ALIASES: Partial<Record<IconName, IconName>> = {
+  'tab-meadow': 'tab-shelf',
+  magnifier: 'search',
+  'field-guide': 'book',
+  rest: 'moon',
+  tiny: 'sprout',
+};
 
 export function Icon({ name, size = 24, title, class: cls, style, filled = false, strokeWidth = 2 }: IconProps) {
   const px = typeof size === 'number' ? `${size}px` : size;
@@ -42,8 +55,7 @@ export function Icon({ name, size = 24, title, class: cls, style, filled = false
       height={px}
       class={cls}
       style={style}
-      fill="none"
-      stroke="currentColor"
+      fill="currentColor"
       stroke-width={strokeWidth}
       stroke-linecap="round"
       stroke-linejoin="round"
@@ -51,12 +63,13 @@ export function Icon({ name, size = 24, title, class: cls, style, filled = false
       aria-label={title}
       aria-hidden={title ? undefined : true}
       focusable="false"
-      overflow={filled ? 'visible' : undefined}
     >
       {GLYPHS[name]({ filled, sw: strokeWidth })}
     </svg>
   );
 }
 
-export { CoinIcon, StarIcon, StardustIcon, TicketIcon } from './currency';
-export type { CurrencyIconProps, StardustIconProps } from './currency';
+export { CoinIcon, StampIcon, SwapIcon, TicketIcon, StarIcon, StardustIcon, STAMP_INK } from './currency';
+export type { CurrencyIconProps, SwapIconProps, StardustIconProps } from './currency';
+export { CatkinSprig, Wordmark } from './brand';
+export type { CatkinSprigProps, WordmarkProps } from './brand';

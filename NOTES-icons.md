@@ -1,73 +1,78 @@
 # Icons module: notes for the lead
 
-## API additions (all optional, stub APIs unchanged)
+Everything in this module was redrawn in the catkin language (flat, matte, no outlines, lit from the
+window on the left, hard shade on the far side). Gallery: `/gallery.html?only=icons` (all sections), or
+`icons-brand`, `icons-appicon`, `icons-splash`, `icons-install`, `icons-tabs`, `icons-currency`, `icons-pins`,
+`icons-pinsizes`, `icons-habits`, `icons-habittones`, `icons-glyphs`. Add `&theme=night` for lamplight.
 
-- `Icon`: new optional props `filled?: boolean` and `strokeWidth?: number` (default 2). New export
-  `ICON_NAMES: IconName[]`.
-  - The tab icons are two-state. Inactive (outline) is pure currentColor like every glyph. Active
-    (`filled`) is a sticker: fixed brand pastels, one cocoa line and a cream die-cut edge
-    (`#FFF9F2`). The edge is invisible on the light bars and makes the icon read on the night bar.
-    It paints up to about 1 px outside the icon box, so the `<svg>` gets `overflow="visible"` while filled.
-  - `heart` with `filled` becomes solid (for favorites). Every other glyph ignores `filled`.
-  - Fine details scale with `strokeWidth`, so `strokeWidth={2.25}` stays even.
-  - No element ids anywhere, so `Icon` is safe to render hundreds of times per page.
-- `StardustIcon`: new optional `level?: number` (0..1, default 0.7). Wire it as
-  `level={wallet.stardust / 10}`. Any non-zero level shows at least a 15% layer, so one stardust
-  never looks like an empty jar. The stub's doc comment called this prop `fill`, but the brief says
-  `level`, so I used `level`. No `fill` prop was ever typed, so nothing breaks.
-- New type exports: `CurrencyIconProps` (unchanged) and `StardustIconProps`.
-- `HabitIcon`: `tone` defaults to `'blush'`. Unknown ids fall back to the sparkle. New optional
-  `sticker?: boolean`:
-  - By default the icon gets a cream die-cut sticker edge **at night only**. This is driven by CSS
-    (`[data-theme='night']` on any ancestor, or the OS dark scheme unless the root is
-    `data-theme='light'`), so the cocoa line reads on dark chips.
-  - `sticker` shows the edge always. `sticker={false}` leaves it out of the DOM, for example on a
-    photo-mode export with a known light background.
-  - New export `habitIconColors(tone)` returns `{ fill, soft, ink }`, for code that calls
-    `HABIT_ICON_ART[id]` directly. Every renderer is self-contained (it carries its own outline
-    style). Prefer `HabitIcon` in UI, because the raw renderers have no night edge.
-- `BadgeMedal`: new optional `class`, `style` and `compact`.
-  - `compact` defaults to on for numeric sizes ≤ 64 px. It gives a 1.26× emblem, 14 bolder scallops,
-    no inner band, shorter ribbons, a larger lock and no decorative sparkles, which is what a shelf
-    or grid needs.
-  - Locked medals use the soft lavender-grey `LOCKED` swatches plus a heart lock. At night,
-    `badge.module.css` repaints the same swatches in deep lavenders with a light line. Opacity is
-    not dimmed. Unknown badge ids still render, with a sparkle emblem.
-- Shared helpers anyone may import:
-  - `@/art/icons/shapes`: `starPath`, `scallopPath`, `cogPath`, `flowerPath`, `sparklePath`,
-    `heartPath`, `crescentPath`, and `memo` (a cache for builders called from render).
-  - `@/art/icons/palette`: `COCOA`, `PASTEL[key][100|300|500|700]` (light hexes), `ACCENT`, `STICKER`
-    and `HOLO` (the ultra gradient stops).
-  - `@/art/icons/sticker`: `StickerBacking`, the die-cut edge used by the tabs and habit icons.
-    Other art can reuse it. Pass a fresh copy of the drawing as its children.
+## API changes (all backwards compatible; old names kept)
 
-## Integration suggestions (for the app shell / fxui module)
+- `@/art/icons`
+  - New: `Wordmark` (lowercase Castoro "catkin" as real text, optional `sprig`, `size` in px, inherits `color`)
+    and `CatkinSprig` (`size` = height, optional `light: Light` for the lamp side; colours follow the page theme
+    by default).
+  - New currency names: `StampIcon`, `SwapIcon` (`count` 0–10), `TicketIcon`, `CoinIcon`. `StarIcon` is an alias
+    of `StampIcon`; `StardustIcon` still takes `level` (swaps / 10) and draws the swap ring. Prefer
+    `<SwapIcon count={wallet.stardust % 10} />`. New export `STAMP_INK` (the stamp/swap lavender).
+  - Currency tokens now default to `display: inline-block; vertical-align: -0.2em`, so `+5 {coin}` sits in running
+    text. Flex/grid parents are unaffected; a `style` prop overrides it.
+  - `IconName` gains: `tab-shelf` (`tab-meadow` kept as an alias), `chevron-up`, `export`, `import`, `watering-can`,
+    `sprout`, `drop`, `lamp`, `hanger`, `bowl`, `frame`, `pot`, `book`, and aliases `magnifier` (search),
+    `field-guide` (book), `rest` (moon), `tiny` (sprout). New export `ICON_ALIASES`.
+  - Glyphs are now solid currentColor shapes with a soft second tone (`fill-opacity` 0.36); only thin things
+    (arrows, chevrons, wires, sound waves) are strokes. The root `<svg>` sets `fill="currentColor"`.
+- Tab icons: `<Icon name="tab-…" filled={active} />`.
+  - Inactive is quiet: all currentColor (the shell's `--ink-2`), the body in the soft tone.
+  - Active is filled in the accent family: the body `--blush-500` (`--blush-300` at night) and the structure
+    `--blush-700` (tabs.module.css). Labels: keep `--ink` for the active label, `--ink-2` for the rest.
+- `@/art/badges`: `BadgeMedal` now draws an enamel pin (alias `EnamelPin`). Same props. `compact` (default for
+  numeric sizes ≤ 64) now only thickens the brass rim and lengthens the dashes. New exports `PLATES`,
+  `PIN_PLATE`, `plateFor`. Unearned pins are outline-only (a dashed plate plus a thin emblem outline in
+  `--ink-disabled`); please say "not yet" in the `title` or the caption next to them.
+- `@/art/habit-icons`: same `HabitIcon` / `HABIT_ICON_ART` API. Renderers now also accept optional `light` (300)
+  and `shade` tones; `habitIconColors(tone)` returns all five. The `sticker` prop is accepted but does nothing
+  (there is no outline left to protect at night).
+- `@/app/GumballArt`: now the small capsule cabinet mark (alias `CabinetMark`), same props.
+- `@/app/AppIconArt`, `@/app/SplashArt`, `@/app/installArt`: same exports and props.
+- Removed internal helpers nobody else imported: `src/art/icons/sticker.*`, `src/art/badges/medal.tsx`, and
+  the Mochi palette exports (`COCOA`, `PASTEL`, `ACCENT`, `STICKER`, `HOLO`). The new palette is `FAMILY`,
+  `MATERIAL`, `INK`, `SHADE_INK`, `mix`, `shadeOf` in `@/art/icons/palette`.
 
-- **Tab bar:** use `<Icon name="tab-today" filled={active} size={26–28} />`.
-  - Inactive: `color: var(--ink-2)` for both the icon and the label. That is 5.5:1 on the light card
-    and about 7:1 on the night card, so it meets AA for 11 px labels.
-  - Active: `color: var(--ink)` for the label, and pass `filled`. The icon brings its own colors.
-  - Do **not** use `--ink-3` for labels. It is 2.4:1 in light and 3.5:1 at night.
-- **Streak glyph:** `<Icon name="streak" size={15} style={{ color: 'var(--peach-700)' }} />` sits
-  well inline with 13–14 px text. `--peach-700` is 4.6:1 on white and flips to a light peach at
-  night. Don't use peach-500, which is 2:1. The streak glyph is an 8-petal daisy head. The You tab is
-  a tulip with a face and the gear is a real cog, so the three never read alike.
-- **Icon-only buttons:** give the `<button>` the `aria-label` and keep the icon decorative (no
-  `title`). A `title` makes the icon itself `role="img"`.
-- **Habit chips:** put a `var(--<tone>-100)` rounded square behind `HabitIcon` at 34–40 px. At night
-  the sticker edge takes care of contrast. See `icons-context` with `&theme=night`.
-- **Gallery:** add `&theme=night` to any `?only=icons…` URL for the real night tokens. Dark panels
-  inside the light gallery carry `data-theme="night"`, so theme-aware art shows its night look there too.
+## Generated files
 
-## Contract observations / requests
+`npm run icons` (scripts/generate-icons.mjs) now shoots the stages in `src/dev/sections-icons.tsx`
+(`icons-appicon&stage=…`, `icons-splash&splash=…`) instead of the fxui ones, and writes
+`public/icons/favicon.svg` by serializing the real `AppIconArt` (no hand-kept copy). All icon PNGs, the
+favicon, the inline favicon in `index.html` and all 22 launch images were regenerated. The startup-image list
+in `index.html` is unchanged.
 
-1. `BadgeDef.emoji` (catalog/badges.ts) is no longer used by the art, because every badge now has a
-   custom SVG emblem. Keep it for copy if you like, or drop it in a later contract pass.
-2. Please document these in DESIGN.md (§9 / §10.4) so other modules match:
-   - the tab-icon active state (outline → cocoa-lined pastel sticker with a cream edge);
-   - the night sticker edge on habit icons;
-   - the locked-badge treatment (lavender-grey by day, deep lavender with a light line at night).
-3. `useId` is used only by `StardustIcon` (jar clip) and `BadgeMedal` (the Ultra Lucky holo gradient).
-   It is unique only within one Preact render root. Those defs have identical content per instance,
-   so id collisions across separate roots are harmless. Worth knowing if anyone renders medals
-   through a second `render()` (e.g. photo mode).
+## Contract requests (files I do not own)
+
+1. **App shell (`src/app/TabBar.tsx`, `src/app/Sidebar.tsx`)**: pass `filled={active}` to the tab `<Icon>`.
+   The Sidebar brand lockup still shows `PetArt pet-mochi` and "Mochi Meadow"; replace it with
+   `<Wordmark size={30} />` and an `aria-label` of "catkin, go to Today".
+2. **`src/app/routes.ts`**: rename the tab to `{ id: 'shelf', label: 'Shelf', icon: 'tab-shelf' }` (DESIGN §4;
+   `#/shelf`). `tab-meadow` keeps working until then.
+3. **`src/app/InstallGuide.tsx` copy**: still says "Mochi Meadow" (steps, peek) and "a cozy spot in your Dock"
+   ("cozy" is banned, §12), and gives the app a pronoun ("She opens in her own window"). Suggested:
+   "catkin opens full-screen, works offline and gets its own icon." / "catkin gets its own window in your Dock."
+4. **`src/dev/sections-fxui.tsx`**: its `fxui-appicon` / `fxui-splash` stages (`#mm-icon-stage`,
+   `#mm-splash-stage`) are no longer used by the generator; they can go.
+5. **`src/dev/gallery.tsx` and `gallery.html`**: the heading and title still read "Mochi Meadow · Art Gallery".
+6. **`src/catalog/badges.ts`** (read-only for me): `emoji` is unused by the art now (every pin has a drawn
+   emblem). Some names and descriptions predate catkin: "Meadow Museum", "Ooh, Shiny", "Turn the crank",
+   "collection book", "machines". Worth a voice pass (§12).
+7. **`docs/DESIGN.md`**: please record the tab states above, the pin treatment (brass rim, family-300 enamel,
+   dashed "not yet"), the currency objects (brass coin with a sprig stamp, lavender inked stamp, 10-segment
+   swap ring, blush ticket stub) and that habit icons are flat prints in five tones of one family.
+8. **`src/ui/Sparkle.tsx`** (not mine) still exports the kawaii four-point sparkle used across the UI; the
+   install art no longer uses it.
+
+## Known gaps
+
+- Crescents are hand-authored or computed offline and committed as path strings (the coin, stamp, moon,
+  capsule, tag, catkin and the app icon's strips). The app icon's black cat gets its lavender rim light by
+  layering its plum coat nudged away from the window over a lavender copy (no clip, mask or filter).
+- The app icon's squircle variant clips with one static `clipPath` (the icon outline), as before.
+- Habit icons are drawn for light-from-the-left only; they do not take a `light` prop (they are printed labels
+  on a stake, not standing objects in the scene).

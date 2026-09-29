@@ -143,3 +143,31 @@ export function heartPath(cx: number, cy: number, w: number): string {
     `C${p(10, 1.8)} ${p(2.4, 6.6)} ${p(0, 8.2)}Z`
   );
 }
+
+/** A circle as one closed subpath, so it can be combined with others (e.g. an even-odd hole). */
+export function circlePath(cx: number, cy: number, r: number): string {
+  return `M${r2(cx - r)} ${r2(cy)}a${r2(r)} ${r2(r)} 0 1 0 ${r2(2 * r)} 0a${r2(r)} ${r2(r)} 0 1 0 ${r2(-2 * r)} 0Z`;
+}
+
+/** A rounded rectangle as one closed subpath. */
+export function roundRectPath(x: number, y: number, w: number, h: number, r: number): string {
+  const k = Math.min(r, w / 2, h / 2);
+  return (
+    `M${r2(x + k)} ${r2(y)}H${r2(x + w - k)}A${r2(k)} ${r2(k)} 0 0 1 ${r2(x + w)} ${r2(y + k)}V${r2(y + h - k)}` +
+    `A${r2(k)} ${r2(k)} 0 0 1 ${r2(x + w - k)} ${r2(y + h)}H${r2(x + k)}A${r2(k)} ${r2(k)} 0 0 1 ${r2(x)} ${r2(y + h - k)}` +
+    `V${r2(y + k)}A${r2(k)} ${r2(k)} 0 0 1 ${r2(x + k)} ${r2(y)}Z`
+  );
+}
+
+/**
+ * An annular sector (a ring segment) between radii `inner` and `outer`, from angle `a0` to `a1`
+ * (degrees, 0 = up, clockwise). Used by the swap ring.
+ */
+export function ringSegmentPath(cx: number, cy: number, inner: number, outer: number, a0: number, a1: number): string {
+  const pt = (rad: number, deg: number) => {
+    const a = ((deg - 90) * Math.PI) / 180;
+    return `${r2(cx + rad * Math.cos(a))} ${r2(cy + rad * Math.sin(a))}`;
+  };
+  const large = a1 - a0 > 180 ? 1 : 0;
+  return `M${pt(outer, a0)}A${outer} ${outer} 0 ${large} 1 ${pt(outer, a1)}L${pt(inner, a1)}A${inner} ${inner} 0 ${large} 0 ${pt(inner, a0)}Z`;
+}
