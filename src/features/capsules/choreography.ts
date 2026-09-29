@@ -106,3 +106,34 @@ export function animateDrop(capsule: Element, flap: Element | null, reduced: boo
     ),
   ).then(() => timers.forEach(clearTimeout));
 }
+
+export type Jolt = 'chunk' | 'nope' | 'clink';
+
+const JOLTS: Record<Jolt, { frames: Keyframe[]; duration: number }> = {
+  // The whole machine squashes as the mechanism lets go.
+  chunk: {
+    frames: [
+      { transform: 'none' },
+      { transform: 'translateY(3px) scale(1.025, 0.965)', offset: 0.3 },
+      { transform: 'translateY(-2px) scale(0.99, 1.015)', offset: 0.65 },
+      { transform: 'none' },
+    ],
+    duration: 300,
+  },
+  // A gentle head-shake: "not quite yet".
+  nope: {
+    frames: [{ transform: 'none' }, { transform: 'rotate(-2.5deg)' }, { transform: 'rotate(2.5deg)' }, { transform: 'rotate(-1.5deg)' }, { transform: 'none' }],
+    duration: 420,
+  },
+  clink: {
+    frames: [{ transform: 'none' }, { transform: 'translateY(1.5px)' }, { transform: 'none' }],
+    duration: 140,
+  },
+};
+
+/** A quick physical reaction of the whole machine (skipped with reduced motion). */
+export function jolt(el: HTMLElement | null, kind: Jolt, reduced: boolean): void {
+  if (!el || reduced) return;
+  const { frames, duration } = JOLTS[kind];
+  el.animate(frames, { duration, easing: 'ease-out' });
+}

@@ -12,8 +12,9 @@ import { sfx } from '@/fx/sound';
 import { haptic } from '@/fx/haptics';
 import { CandyButton, cx } from './ui/CandyButton';
 import { useDome } from './useDome';
-import { TICK_DEG, TURN_TARGET, useCrank } from './useCrank';
-import { animateCoin, animateDrop, animateSink } from './choreography';
+import { useCrank } from './useCrank';
+import { TICK_DEG, TURN_TARGET } from './ratchet';
+import { animateCoin, animateDrop, animateSink, jolt } from './choreography';
 import { machineCandy, pullErrorNotice, type FriendlyNotice } from './copy';
 import { prefersReducedMotion, wait } from './motion';
 import { revealFromPull, type RevealData } from './reveal';
@@ -23,6 +24,12 @@ import s from './CapsuleMachine.module.css';
 
 type Phase = 'idle' | 'inserting' | 'ready' | 'turning' | 'dropping' | 'landed' | 'revealing';
 type Payment = 'price' | 'ticket';
+
+/**
+ * A pull that hasn't been opened yet. The item is already yours once the crank completes, so if
+ * you leave mid-drop (another tab, say), the capsule is waiting for you when you come back.
+ */
+const unopened = new Map<MachineDef['id'], RevealData>();
 
 export interface CapsuleMachineProps {
   machine: MachineDef;
@@ -52,11 +59,11 @@ export function CapsuleMachine({ machine, active, onBusyChange }: CapsuleMachine
   const uid = `cm${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`;
   const dome = useDome(machine, active);
 
-  const [phase, setPhase] = useState<Phase>('idle');
+  const [phase, setPhase] = useState<Phase>(() => (active && unopened.has(machine.id) ? 'revealing' : 'idle'));
   const [payment, setPayment] = useState<Payment>('price');
   const [notice, setNotice] = useState<FriendlyNotice | null>(null);
   const [say, setSay] = useState('');
-  const [reveal, setReveal] = useState<RevealData | null>(null);
+  const [reveal, setReveal] = useState<RevealData | null>(() => (active ? (unopened.get(machine.id) ?? null) : null));
   const [sinking, setSinking] = useState<DomeBody | null>(null);
   const [origin, setOrigin] = useState<DOMRect | null>(null);
   // Async choreography reads the live phase, not the one captured when it started.
@@ -68,6 +75,7 @@ export function CapsuleMachine({ machine, active, onBusyChange }: CapsuleMachine
   const coinEl = useRef<SVGGElement>(null);
   const outEl = useRef<SVGGElement>(null);
   const sinkEl = useRef<SVGGElement>(null);
+  const stageEl = useRef<HTMLDivElement>(null);
   const crankButton = useRef<HTMLButtonElement>(null);
   const insertButton = useRef<HTMLButtonElement>(null);
   const run = useRef({ ticks: 0, completing: false, autoTurning: false, refocus: false }).current;
@@ -119,6 +127,7 @@ export function CapsuleMachine({ machine, active, onBusyChange }: CapsuleMachine
       setNotice(n);
       setSay(n.text);
       haptic('light');
+      jolt(stageEl.current, 'nope', prefersReducedMotion());
       return;
     }
     setNotice(null);
@@ -130,6 +139,7 @@ export function CapsuleMachine({ machine, active, onBusyChange }: CapsuleMachine
       await animateCoin(coinEl.current, reduced, () => {
         sfx.play('coin');
         haptic('light');
+        jolt(stageEl.current, 'clink', reduced);
       });
     }
     setPhase('ready');
@@ -186,6 +196,7 @@ export function CapsuleMachine({ machine, active, onBusyChange }: CapsuleMachine
     const reduced = prefersReducedMotion();
     sfx.play('ratchet', { pitch: 0.55, volume: 1 });
     haptic('medium');
+    jolt(stageEl.current, 'chunk', reduced);
     void finishTurn(dir, reduced);
 
     // The result is decided now, at the drop.
@@ -203,7 +214,9 @@ export function CapsuleMachine({ machine, active, onBusyChange }: CapsuleMachine
     const colors = machine.theme.capsules;
     const tint = body?.tint ?? 0;
     const shell = { color: colors[tint % colors.length]!, color2: colors[(tint + 2) % colors.length]! };
-    setReveal(revealFromPull(outcome, shell));
+    const pulled = revealFromPull(outcome, shell);
+    unopened.set(machine.id, pulled);
+    setReveal(pulled);
     setSinking(body);
     dome.stir(0.2, dir * 0.5);
     await wait(reduced ? 0 : 60);
@@ -247,6 +260,7 @@ export function CapsuleMachine({ machine, active, onBusyChange }: CapsuleMachine
   /* ---------------- reveal ---------------- */
 
   const closeReveal = (again?: boolean) => {
+    unopened.delete(machine.id);
     setReveal(null);
     setOrigin(null);
     resetMachine();
@@ -304,7 +318,7 @@ export function CapsuleMachine({ machine, active, onBusyChange }: CapsuleMachine
 
   return (
     <div class={s.machine} style={{ '--halo': machine.theme.trim } as Record<string, string>}>
-      <div class={s.stage}>
+      <div ref={stageEl} class={s.stage}>
         <MachineArt
           machine={machine}
           class={cx(s.art, turnable && 'is-ready')}

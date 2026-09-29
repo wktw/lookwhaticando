@@ -2,24 +2,7 @@ import type { ComponentChildren, JSX, Ref } from 'preact';
 import { useId } from 'preact/hooks';
 import type { MachineDef } from '@/catalog/types';
 import type { DomeBody } from '@/fx/physics';
-import {
-  CAP,
-  CHUTE,
-  COLLAR,
-  CRANK,
-  CRANK_REST,
-  DECAL,
-  DOME,
-  DOME_INNER,
-  FEET,
-  GROUND_Y,
-  OUTLINE,
-  SLOT,
-  STROKE,
-  VIEWBOX,
-  bodyPath,
-  capPath,
-} from './geometry';
+import { CAP, CHUTE, COLLAR, CRANK, CRANK_REST, DECAL, DOME, DOME_INNER, FEET, GROUND_Y, OUTLINE, SLOT, STROKE, VIEWBOX, bodyPath, capPath } from './geometry';
 import { shade, tint } from './color';
 import { DomeCapsules } from './DomeCapsules';
 import { MOTIFS, type MotifCtx } from './motifs';

@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'preact/hooks';
 import { getCollectible } from '@/catalog/collectibles';
 import { PERSONALITY_BY_ID } from '@/catalog/personalities';
-import { renamePet } from '@/state/store';
+import { renamePet, state } from '@/state/store';
 import { StarIcon, StardustIcon } from '@/art/icons';
 import { sfx } from '@/fx/sound';
 import { haptic } from '@/fx/haptics';
@@ -46,7 +46,8 @@ export function RevealCard({ data, onClose, onPullAgain }: RevealCardProps) {
   if (!def) return null;
   const newPet = def.category === 'pet' && data.isNew && data.pet;
   const personality = data.pet ? PERSONALITY_BY_ID.get(data.pet.personality) : undefined;
-  const title = newPet ? `Meet ${petName}!` : def.name;
+  // A repeat friend is greeted by the name you know them by; the variant is on the line below.
+  const title = newPet ? `Meet ${petName}!` : def.category === 'pet' ? (state.value.pets[def.id]?.name ?? def.defaultName) : def.name;
   const summary = `You got ${def.name}, ${RARITY_LABEL[data.rarity]}. ${data.isNew ? 'New!' : `Duplicate, plus ${data.stardust} stardust.`}`;
 
   const saveName = (e: Event) => {

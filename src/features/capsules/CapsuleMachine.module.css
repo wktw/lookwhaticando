@@ -11,6 +11,7 @@
   position: relative;
   height: var(--machine-h);
   aspect-ratio: 240 / 350;
+  transform-origin: 50% 92%;
 }
 
 /* A soft shop-window spotlight in the series color. */

@@ -1,19 +1,16 @@
 import { useRef } from 'preact/hooks';
 import type { JSX } from 'preact';
+import { Ratchet, angleDelta } from './ratchet';
 
-/** Degrees of turning that release a capsule (DESIGN §9.3). */
-export const TURN_TARGET = 300;
-/** A ratchet click every this many degrees. */
-export const TICK_DEG = 30;
-/** Rotation that commits a direction; either way counts, as long as it stays consistent. */
-const COMMIT_DEG = 12;
 /** A press that moves less than this is a tap (auto-turn), not a drag. */
 const TAP_DEG = 10;
+/** Closer than this to the hub (px), the pointer's angle is noise. */
+const DEAD_ZONE = 8;
 
 export interface CrankCallbacks {
   /** First real movement of a drag. */
   onGrab: () => void;
-  /** Progress moved forward by `delta` degrees (0..TURN_TARGET total), turning in `dir`. */
+  /** The crank moved forward by `delta` degrees, to `progress` (0..TURN_TARGET), turning in `dir`. */
   onAdvance: (progress: number, delta: number, dir: 1 | -1) => void;
   /** Tap, click, Enter or Space: turn it automatically. */
   onAutoTurn: () => void;
@@ -26,35 +23,28 @@ interface Drag {
   /** Last pointer angle; null until the pointer is far enough from the hub. */
   last: number | null;
   moved: number;
-  pending: number;
 }
 
 function angleAt(d: Drag, x: number, y: number): number | null {
   const dx = x - d.cx;
   const dy = y - d.cy;
-  // Too close to the hub, the angle is noise.
-  if (dx * dx + dy * dy < 64) return null;
+  if (dx * dx + dy * dy < DEAD_ZONE * DEAD_ZONE) return null;
   return (Math.atan2(dy, dx) * 180) / Math.PI;
 }
 
 /**
- * Circular drag on the crank: angle via atan2 around the hub, cumulative rotation with a
- * ratchet (only the committed direction advances; backing up never undoes progress).
- * Returns pointer + click handlers for the crank button and the live progress state.
+ * Circular drag on the crank: angle via atan2 around the hub (pointer capture keeps the drag
+ * even when the finger strays), fed through a ratchet. Returns handlers for the crank button.
  */
 export function useCrank(enabled: boolean, cb: CrankCallbacks) {
   const drag = useRef<Drag | null>(null);
-  const turn = useRef({ progress: 0, dir: 0 as 0 | 1 | -1, suppressClick: false });
+  const ratchet = useRef(new Ratchet()).current;
+  const suppressClick = useRef(false);
   const cbs = useRef(cb);
   cbs.current = cb;
 
-  const advance = (delta: number) => {
-    const t = turn.current;
-    if (t.dir === 0 || delta <= 0 || t.progress >= TURN_TARGET) return;
-    const next = Math.min(TURN_TARGET, t.progress + delta);
-    const d = next - t.progress;
-    t.progress = next;
-    cbs.current.onAdvance(next, d, t.dir);
+  const report = (moved: number) => {
+    if (moved > 0 && ratchet.dir !== 0) cbs.current.onAdvance(ratchet.progress, moved, ratchet.dir);
   };
 
   const handlers: Pick<JSX.ButtonHTMLAttributes<HTMLButtonElement>, 'onPointerDown' | 'onPointerMove' | 'onPointerUp' | 'onPointerCancel' | 'onClick'> = {
@@ -62,7 +52,7 @@ export function useCrank(enabled: boolean, cb: CrankCallbacks) {
       if (!enabled || e.button !== 0) return;
       const el = e.currentTarget;
       const r = el.getBoundingClientRect();
-      const d: Drag = { pointerId: e.pointerId, cx: r.left + r.width / 2, cy: r.top + r.height / 2, last: null, moved: 0, pending: 0 };
+      const d: Drag = { pointerId: e.pointerId, cx: r.left + r.width / 2, cy: r.top + r.height / 2, last: null, moved: 0 };
       d.last = angleAt(d, e.clientX, e.clientY);
       drag.current = d;
       el.setPointerCapture(e.pointerId);
@@ -76,36 +66,27 @@ export function useCrank(enabled: boolean, cb: CrankCallbacks) {
         d.last = a;
         return;
       }
-      let delta = a - d.last;
-      if (delta > 180) delta -= 360;
-      if (delta < -180) delta += 360;
+      const delta = angleDelta(d.last, a);
       d.last = a;
       d.moved += Math.abs(delta);
-      const t = turn.current;
-      if (t.dir === 0) {
-        d.pending += delta;
-        if (Math.abs(d.pending) < COMMIT_DEG) return;
-        t.dir = d.pending > 0 ? 1 : -1;
-        cbs.current.onGrab();
-        advance(Math.abs(d.pending));
-        return;
-      }
-      if (Math.sign(delta) === t.dir) advance(Math.abs(delta));
+      const wasCommitted = ratchet.dir !== 0;
+      const moved = ratchet.turn(delta);
+      if (!wasCommitted && ratchet.dir !== 0) cbs.current.onGrab();
+      report(moved);
     },
     onPointerUp: (e) => {
       const d = drag.current;
       if (!d || e.pointerId !== d.pointerId) return;
       drag.current = null;
       // A real drag already turned the crank; swallow the click that follows it.
-      turn.current.suppressClick = d.moved >= TAP_DEG;
+      suppressClick.current = d.moved >= TAP_DEG;
     },
     onPointerCancel: () => {
       drag.current = null;
     },
     onClick: () => {
-      const t = turn.current;
-      if (t.suppressClick) {
-        t.suppressClick = false;
+      if (suppressClick.current) {
+        suppressClick.current = false;
         return;
       }
       if (enabled) cbs.current.onAutoTurn();
@@ -115,16 +96,13 @@ export function useCrank(enabled: boolean, cb: CrankCallbacks) {
   return {
     handlers,
     /** Current progress in degrees. */
-    progress: () => turn.current.progress,
-    direction: () => turn.current.dir,
+    progress: () => ratchet.progress,
     /** Programmatic turning (auto-turn animation). */
-    advanceBy: (delta: number) => {
-      if (turn.current.dir === 0) turn.current.dir = 1;
-      advance(delta);
-    },
+    advanceBy: (delta: number) => report(ratchet.push(delta)),
     reset: () => {
-      turn.current = { progress: 0, dir: 0, suppressClick: false };
+      ratchet.reset();
       drag.current = null;
+      suppressClick.current = false;
     },
   };
 }

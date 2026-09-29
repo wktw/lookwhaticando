@@ -31,9 +31,10 @@ export function MachineCarousel({ machines, index, onIndex, busy, onBusyChange }
 
   const scrollToIndex = (i: number, smooth: boolean) => {
     const el = track.current;
-    if (!el) return;
+    const left = i * (el?.clientWidth ?? 0);
+    if (!el || Math.abs(el.scrollLeft - left) < 1) return;
     heading.current = i;
-    el.scrollTo({ left: i * el.clientWidth, behavior: smooth && !prefersReducedMotion() ? 'smooth' : 'auto' });
+    el.scrollTo({ left, behavior: smooth && !prefersReducedMotion() ? 'smooth' : 'auto' });
   };
 
   // Come back to the machine you were last looking at.
