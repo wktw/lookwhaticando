@@ -13,7 +13,7 @@
  * but the UI owns the copy (never "down", never red).
  */
 import type { AppState, DateKey, Habit, Weekday } from '@/state/types';
-import { consistencyText } from '@/catalog/format';
+import { consistencyText } from '@/catalog/formatCore';
 import {
   addDays,
   daysInRange,

@@ -11,8 +11,9 @@ import { MONTH_NAMES, WEEKDAY_NAMES, parseDateKey, weekday } from '@/domain/date
 
 import type { RitualKind } from '@/state/api';
 import type { StreakUnit } from '@/domain/streaks';
-import { runText } from '@/catalog/format';
+import { runText } from '@/catalog/formatCore';
 import type { BloomColour, BloomShape, DateKey, KeepsakeKind, SeasonName } from '@/state/types';
+import { capitalise, fillLine, fits, lineText, plantPhrase, withArticle } from '@/catalog/lineKit';
 import {
   BLOOM_LINES,
   CHECKIN_TOASTS,
@@ -24,23 +25,17 @@ import {
   HARVEST_LINES,
   STAGE_LINES,
   STAGE_NAMES,
-  TODAY_LINES,
+  LETTER_WAITING,
   COMPANION,
   KEEPSAKE_NOTE,
   KEEPSAKE_THINGS as THINGS,
   LOOKS,
   PERFECT_DAY,
-  PET_CARD,
+  PET_CARD_CORE as PET_CARD,
   SEASON_REVIEW,
   STORIES,
   WELCOME_HOME,
-  capitalise,
-  fillLine,
-  fits,
-  lineText,
-  plantPhrase,
-  withArticle,
-} from '@/catalog/lines';
+} from '@/catalog/linesCore';
 
 /** Plant stages (DESIGN §5.5): the one list, in lines.ts. */
 export { STAGE_NAMES };
@@ -173,8 +168,8 @@ export function welcomeHomeLine(tickets: number): string {
   return tickets > 0 ? WELCOME_HOME.ticket : WELCOME_HOME.none;
 }
 
-/** A ritual on the sill (lines.ts TODAY_LINES.letterWaiting): "There’s a note on the sill." · "There’s a page on the sill." */
-export const noteOnSillLine = (kind: RitualKind = 'sundayNote') => TODAY_LINES.letterWaiting[kind];
+/** A ritual on the sill (TODAY_LINES.letterWaiting, from linesCore.ts): "There’s a note on the sill." · "There’s a page on the sill." */
+export const noteOnSillLine = (kind: RitualKind = 'sundayNote') => LETTER_WAITING[kind];
 export const NOTE_ON_SILL = noteOnSillLine();
 
 /** A rung (VOICE §5, format.ts runText): "Walk: 7 days in a row." · "Yoga: 21 in a row." · "No snooze: held off 14 days." */

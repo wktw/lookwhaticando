@@ -25,7 +25,8 @@
  */
 import { HABIT_ICON_IDS } from '@/catalog/habitIcons';
 import { TEMPLATES } from '@/catalog/templates';
-import { HABIT_ISSUES, fillLine } from '@/catalog/lines';
+import { fillLine } from '@/catalog/lineKit';
+import { HABIT_ISSUES } from '@/catalog/linesCore';
 import type { HabitTemplate, PastelKey, PotId } from '@/catalog/types';
 import { PASTELS } from '@/catalog/types';
 import type { HabitInput } from '@/state/api';

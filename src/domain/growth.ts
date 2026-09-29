@@ -35,7 +35,7 @@ export type PlantStage = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7;
 /** Sunshine needed for each stage (index = stage). */
 export const STAGE_THRESHOLDS = [0, 1, 4, 10, 21, 42, 90, 180] as const;
 /** The stage names live with the copy (src/catalog/lines.ts); this is the same list. */
-import { STAGE_NAMES, type StageName } from '@/catalog/lines';
+import { STAGE_NAMES, type StageName } from '@/catalog/linesCore';
 export { STAGE_NAMES, type StageName };
 
 export const ROOTING: PlantStage = 1;

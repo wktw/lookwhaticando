@@ -8,7 +8,8 @@
  * `runText`, `forecastLine`, `cardAriaLabel`), which the screens and the fx layer share.
  */
 import type { AppState, BloomColour, BloomShape, DateKey, DayLog, Habit, Schedule } from '../types';
-import { longDateLabel, scheduleText, type PeriodRef, type StatusLine } from '@/catalog/format';
+import { longDateLabel, scheduleText } from '@/catalog/formatCore';
+import type { PeriodRef, StatusLine } from '@/catalog/format';
 import { companionOf, routineOn, type RoutineOn } from '@/domain/company';
 import { stackOrder } from '@/domain/stacking';
 import type { LocalTimeReader } from '@/domain/dates';

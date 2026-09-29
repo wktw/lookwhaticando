@@ -75,7 +75,7 @@ export interface PlantArtProps {
 export type PlantFit = 'scene' | 'icon';
 export type PlantLayer = 'all' | 'back' | 'front';
 
-export { STAGE_NAMES as PLANT_STAGE_NAMES } from '@/catalog/lines';
+export { STAGE_NAMES as PLANT_STAGE_NAMES } from '@/catalog/linesCore';
 
 /** Blooms beyond this are not drawn. */
 export const MAX_BLOOMS = 6;

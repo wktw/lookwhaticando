@@ -3,7 +3,8 @@
  * Settings are clamped to their valid ranges on the way in, so the rest of the domain can trust them.
  */
 import type { AppState, DateKey, Settings, TimeOfDay } from '@/state/types';
-import { DATA, REMINDERS, fillLine } from '@/catalog/lines';
+import { fillLine } from '@/catalog/lineKit';
+import { DATA, REMINDERS } from '@/catalog/linesCore';
 import { logStatus } from './activity';
 import { clampDayStartsAt, isDateKey } from './dates';
 import { ruleAt } from './rules';
