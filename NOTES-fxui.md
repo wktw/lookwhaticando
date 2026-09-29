@@ -2,7 +2,8 @@
 
 ## Contract-change requests (files outside fxui ownership)
 
-1. **`vite.config.ts`: the launch images ARE precached. Please fix (perf bug, not cosmetic).**
+1. **Done (M1, m1/build):** `includeAssets` is gone and the precache skips `splash/**`, `screenshots/**` and Latin Extended Nunito.
+   ~~**`vite.config.ts`: the launch images ARE precached. Please fix (perf bug, not cosmetic).**~~
    `includeAssets: ['icons/*.png', 'icons/*.svg', 'splash/*.png']` adds every matching file to the precache
    manifest regardless of `workbox.globIgnores`, so `dist/sw.js` precaches all 22 `splash/*.png` on first
    install over cellular, although iOS fetches its one launch image itself and never through the service
@@ -21,14 +22,15 @@
 3. **`src/styles/global.css` `:focus-visible { border-radius: 12px }`** changes the *shape* of whatever gets
    focus (pills become rounded rectangles, sheets lose their 30px corners). Modern outlines already follow the
    element's own radius. Request: drop `border-radius` from that rule. fxui components override it locally.
-4. **Single-file build (`--mode single`): strip the startup-image block.** `dist-single/index.html` still
+4. **Done (M1, m1/build):** the single-file build strips the block, inlines the apple-touch-icon and copies no public/ folder.
+   ~~**Single-file build (`--mode single`): strip the startup-image block.**~~ `dist-single/index.html` still
    carries the 22 `<link rel="apple-touch-startup-image">` tags. Browsers don't fetch them on load (iOS only
    reads them when adding to the Home Screen), so this is dead weight rather than 22 failing requests, but a
    tiny `transformIndexHtml` plugin that removes `<!--startup-images-->…<!--/startup-images-->` when
    `single` is true would tidy it. The favicon is already solved: generate-icons inlines it as a `data:` URI
    between `<!--favicon-->` markers, so the lone HTML file has it.
-5. DESIGN §11 says the single-file build produces `dist-single/MochiMeadow.html`; it currently produces
-   `dist-single/index.html` (vite config, not fxui).
+5. ~~DESIGN §11 says the single-file build produces `dist-single/MochiMeadow.html`; it currently produces
+   `dist-single/index.html` (vite config, not fxui).~~ **Done:** `npm run build:single` writes `dist-single/catkin.html`, as DESIGN §11 now says.
 6. **`src/styles/tokens.css` auto-dark block** (`@media (prefers-color-scheme: dark)`) doesn't redefine
    `--shadow-sm/md/lg`. The app always sets `data-theme`, so only the gallery without `?theme=` on a dark OS
    is affected. Low priority.

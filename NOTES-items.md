@@ -67,7 +67,9 @@ Branch `catkin/items`. Everything here is outside the items module's ownership, 
     (`decor-mushroom-house`, `decor-cherry-tree`, `decor-picnic-blanket`, `decor-yarn-basket`, `decor-heart-balloons`,
     `decor-little-barn`, `decor-tulip-bed`, `decor-tea-party`, `decor-fairy-lights`), which now render nothing. Please
     drop those presets, or point them at catalog decor.
-11. **Bundle: lazy-load the item art.** `shade.gen.ts` (about 186 KB raw, 58 KB gzipped) reaches the main chunk through
+11. **In progress (M1, m1/build):** `shade.gen.ts` has its own `art-shade` chunk; it leaves the first paint once CelebrationArt
+    loads on demand (NOTES-m1-build.md request 1).
+    **Bundle: lazy-load the item art.** `shade.gen.ts` (about 186 KB raw, 58 KB gzipped) reaches the main chunk through
     `CollectibleArt` → `art/items` → `scene/decor/kit`. Its path data is already at 0.1 precision, so rounding
     further would cost visible accuracy. The Shelf and Field Guide routes, and `CollectibleArt`, should
     `import()` the treat and decor art as their own chunk, so users who never open them do not download it.

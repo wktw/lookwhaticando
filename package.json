@@ -9,19 +9,23 @@
     "build": "vite build",
     "build:single": "vite build --mode single && node -e \"require('node:fs').renameSync('dist-single/index.html','dist-single/catkin.html')\"",
     "preview": "vite preview --host",
-    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p e2e/tsconfig.json",
     "test": "vitest run",
     "test:watch": "vitest",
     "e2e": "playwright test",
-    "shots": "node scripts/screenshots.mjs",
+    "e2e:preview": "E2E_TARGET=preview playwright test",
+    "size": "node scripts/size-budget.mjs",
+    "shots": "node scripts/shoot.mjs",
     "icons": "node scripts/generate-icons.mjs",
-    "check": "npm run typecheck && npm run test && npm run build"
+    "manifest-assets": "node scripts/manifest-assets.mjs",
+    "check": "npm run typecheck && npm run test && npm run build && npm run size && npm run build:single && npm run e2e:preview"
   },
   "dependencies": {
     "@preact/signals": "^2.11.2",
     "preact": "^10.29.8"
   },
   "devDependencies": {
+    "@axe-core/playwright": "4.13.0",
     "@fontsource-variable/nunito": "^5.3.0",
     "@fontsource/castoro": "^5.3.0",
     "@playwright/test": "1.56.1",
