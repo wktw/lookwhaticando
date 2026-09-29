@@ -179,6 +179,12 @@ export interface TraitArt {
 export interface WearableArt {
   /** Render the item in pet canvas coordinates using ctx.anchors. Body wear is auto-clipped to the body. */
   render: (ctx: ArtCtx) => JSX.Element | null;
+  /** Head wear only: draw in front of ears and horns (bows, clips, wreaths) even on species that wear hats behind them. */
+  overEars?: boolean;
+  /** Optional unclipped layer behind the pet (a backpack, a hood). */
+  behind?: (ctx: ArtCtx) => JSX.Element | null;
+  /** Body wear only: an unclipped layer over the body outline (a floatie ring, apron ties). */
+  over?: (ctx: ArtCtx) => JSX.Element | null;
   /** Optional standalone icon rendering (collection book / reveal) on a 100×100 canvas. Defaults to render() on a ghost body. */
   icon?: () => JSX.Element;
 }

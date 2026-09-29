@@ -75,6 +75,8 @@ export interface Anchors {
   headWearBehindFeatures: boolean;
   /** Blush centers; `size` scales the blush ovals. Defaults to beside and below the eyes. */
   cheeks?: { y: number; left: number; right: number; size?: number };
+  /** Top of the tallest head feature (ear tips, horns, eye bumps), for things that float above (a halo). */
+  crown?: number;
 }
 
 const neck = (y: number, halfWidth: number) => ({ y, left: 50 - halfWidth, right: 50 + halfWidth });
@@ -89,6 +91,7 @@ export const ANCHORS: Record<Species, Anchors> = {
     body: { top: 72, bottom: 93 },
     headFeatures: [{ x: 29, width: 16 }, { x: 71, width: 16 }],
     headWearBehindFeatures: false,
+    crown: 21,
   },
   dog: {
     head: { x: 50, y: 27.5, width: 40 },
@@ -98,6 +101,7 @@ export const ANCHORS: Record<Species, Anchors> = {
     body: { top: 73, bottom: 93 },
     headFeatures: [{ x: 29, width: 16 }, { x: 71, width: 16 }],
     headWearBehindFeatures: false,
+    crown: 15,
     cheeks: { y: 63, left: 30, right: 70 },
   },
   cow: {
@@ -108,16 +112,18 @@ export const ANCHORS: Record<Species, Anchors> = {
     body: { top: 77, bottom: 93 },
     headFeatures: [{ x: 35, width: 10 }, { x: 65, width: 10 }],
     headWearBehindFeatures: true,
+    crown: 22.5,
     cheeks: { y: 60.5, left: 27.5, right: 72.5 },
   },
   bunny: {
-    head: { x: 50, y: 26, width: 34 },
+    head: { x: 50, y: 26.5, width: 42 },
     eyes: { y: 57, left: 39.5, right: 60.5 },
     mouth: { x: 50, y: 62.5 },
     neck: neck(71, 33.4),
     body: { top: 71, bottom: 93 },
     headFeatures: [{ x: 41, width: 11 }, { x: 59, width: 11 }],
     headWearBehindFeatures: true,
+    crown: 3.5,
     cheeks: { y: 63, left: 32, right: 68 },
   },
   frog: {
@@ -128,6 +134,7 @@ export const ANCHORS: Record<Species, Anchors> = {
     body: { top: 66, bottom: 93 },
     headFeatures: [{ x: 33, width: 22 }, { x: 67, width: 22 }],
     headWearBehindFeatures: false,
+    crown: 26.5,
     cheeks: { y: 51, left: 25, right: 75, size: 1.25 },
   },
   bear: {
@@ -138,6 +145,7 @@ export const ANCHORS: Record<Species, Anchors> = {
     body: { top: 74, bottom: 93 },
     headFeatures: [{ x: 27, width: 14 }, { x: 73, width: 14 }],
     headWearBehindFeatures: false,
+    crown: 27.6,
     cheeks: { y: 64, left: 29.5, right: 70.5 },
   },
   hamster: {
@@ -148,6 +156,7 @@ export const ANCHORS: Record<Species, Anchors> = {
     body: { top: 75, bottom: 93 },
     headFeatures: [{ x: 29, width: 11 }, { x: 71, width: 11 }],
     headWearBehindFeatures: false,
+    crown: 33.6,
     cheeks: { y: 67, left: 27, right: 73 },
   },
   duck: {
@@ -158,6 +167,7 @@ export const ANCHORS: Record<Species, Anchors> = {
     body: { top: 68, bottom: 93 },
     headFeatures: [],
     headWearBehindFeatures: false,
+    crown: 20,
     cheeks: { y: 58, left: 31.5, right: 68.5 },
   },
 };
