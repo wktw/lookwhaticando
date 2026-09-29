@@ -475,8 +475,8 @@
   text-align: center;
   overflow-wrap: anywhere;
   hyphens: auto;
-  /* An engraved name is read whole: up to three lines. */
-  -webkit-line-clamp: 3;
+  /* An engraved name is read whole (the longest, "Two hundred and fifty waterings", takes four lines). */
+  -webkit-line-clamp: 4;
   -webkit-box-orient: vertical;
 }
 
