@@ -362,9 +362,9 @@
   font-size: 1.125rem;
 }
 
-/* A plant or pot still in a capsule: a quiet teaser (the art's own muted repaint is waiting on a fix, see NOTES). */
+/* A plant or pot still in a capsule: a quiet teaser, drawn with the art's own muted repaint (Field Guide "not yet"). */
 .locked .tileArt {
-  opacity: 0.45;
+  opacity: 0.8;
 }
 
 /* "Colour, plant, amount and more": the rest of the form, folded for a first habit. */

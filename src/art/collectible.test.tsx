@@ -115,3 +115,18 @@ describe('CardPlant', () => {
     expect(cardFrame('pothos', 0, 'blush', 1)[2]).toBeGreaterThan(glassOnly!);
   });
 });
+
+describe('muteTree keeps keys scoped (NOTES-w2-today request 3)', () => {
+  it('a muted plant renders with no duplicate-key warning', async () => {
+    await import('preact/debug');
+    const { vi } = await import('vitest');
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    try {
+      for (const id of ['plant-pilea', 'plant-snakeplant', 'plant-lavender', 'plant-orchid', 'plant-violet']) html(<CollectibleArt id={id} size={48} muted />);
+      const dup = spy.mock.calls.filter((c) => String(c[0]).includes('same key'));
+      expect(dup).toEqual([]);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+});

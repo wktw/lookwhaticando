@@ -175,14 +175,14 @@ export function HabitEditor({ vm, onDone, formId, onDirty }: HabitEditorProps) {
   const plantTiles: RadioTile<PlantSpeciesId>[] = PLANTS.filter((p) => p.source === 'starter' || owned.has(p.plant) || MACHINE_BY_ID.has(p.source as MachineId)).map((p) => ({
     value: p.plant,
     label: p.name,
-    art: <CollectibleArt id={p.id} size={48} />,
+    art: <CollectibleArt id={p.id} size={48} muted={!owned.has(p.plant)} />,
     ...(owned.has(p.plant) ? {} : { disabled: true, hint: seriesOf(p.source) }),
   }));
   const ownedPots = new Set(vm.pots);
   const potTiles: RadioTile<PotId>[] = POTS.filter((p) => p.source === 'starter' || ownedPots.has(p.pot) || MACHINE_BY_ID.has(p.source as MachineId)).map((p) => ({
     value: p.pot,
     label: p.name,
-    art: <CollectibleArt id={p.id} size={40} />,
+    art: <CollectibleArt id={p.id} size={40} muted={!ownedPots.has(p.pot)} />,
     ...(ownedPots.has(p.pot) ? {} : { disabled: true, hint: seriesOf(p.source) }),
   }));
   const kinds = E.howOften.options;
