@@ -1,13 +1,10 @@
 /**
  * Item art for treats and decor (100×100 canvas, same outline language as pets).
- * STUB: the world module fills TREAT_ART and DECOR_ART for every catalog id.
+ * Treats: ./treats.tsx (garden module). Decor: ./decor.tsx (world module).
  */
-import type { JSX } from 'preact';
-
-export type ItemRenderer = () => JSX.Element;
-
-export const TREAT_ART: Record<string, ItemRenderer> = {};
-export const DECOR_ART: Record<string, ItemRenderer> = {};
+export type { ItemRenderer } from './types';
+export { TREAT_ART } from './treats';
+export { DECOR_ART } from './decor';
 
 /** Neutral gift-box placeholder for items without art yet. */
 export function PlaceholderItem() {

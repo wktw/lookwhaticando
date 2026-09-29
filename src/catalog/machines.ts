@@ -23,6 +23,15 @@ export const MACHINES: readonly MachineDef[] = [
     odds: { ...COIN_ODDS },
   },
   {
+    id: 'puppy',
+    name: 'Puppy Park',
+    tagline: 'Pups, playthings, and very good snacks.',
+    currency: 'coins',
+    price: 25,
+    theme: { body: '#BBDCF6', trim: '#FFE593', glass: '#F5FAFF', capsules: ['#FFE593', '#BBDCF6', '#FFCBA8', '#FFFFFF', '#C3DFB4'], ink: '#1F4F75' },
+    odds: { ...COIN_ODDS },
+  },
+  {
     id: 'sakura',
     name: 'Sakura Garden',
     tagline: 'Bunnies, frogs, blossoms, and new plants for your habits.',
@@ -109,7 +118,7 @@ export function getMachine(id: MachineId): MachineDef {
   return m;
 }
 
-export const STANDARD_MACHINE_IDS: readonly StandardMachineId[] = ['kitty', 'moo', 'sakura', 'sweets', 'dreamy'];
+export const STANDARD_MACHINE_IDS: readonly StandardMachineId[] = ['kitty', 'moo', 'puppy', 'sakura', 'sweets', 'dreamy'];
 export const SEASONAL_MACHINE_IDS: readonly SeasonalMachineId[] = ['pumpkin', 'snow', 'love', 'rainy', 'beach'];
 
 /** Duplicate → stardust by rarity (DESIGN §6.4). */

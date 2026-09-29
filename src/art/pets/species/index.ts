@@ -7,6 +7,7 @@ import { placeholder } from './placeholder';
 export const SPECIES_ART: Record<Species, SpeciesArt> = {
   cat,
   cow: placeholder,
+  dog: placeholder,
   bunny: placeholder,
   frog: placeholder,
   bear: placeholder,

@@ -153,6 +153,32 @@ const MOO: CollectibleDef[] = [
 ];
 
 /* ------------------------------------------------------------------------ */
+/* Puppy Park                                                                */
+/* ------------------------------------------------------------------------ */
+
+const PUPPY: CollectibleDef[] = [
+  pet('dog-corgi', 'dog', 'Corgi', 'Waffles', 'common', 'puppy', 'Mostly loaf. A little bit fox. Zero regrets.'),
+  pet('dog-pom', 'dog', 'Pomeranian', 'Puff', 'common', 'puppy', 'A dandelion that learned to bark.'),
+  pet('dog-dachshund', 'dog', 'Dachshund', 'Frankie', 'common', 'puppy', 'Floppy ears, big heart, bigger opinions about squirrels.'),
+  pet('dog-shiba', 'dog', 'Shiba Inu', 'Kinako', 'uncommon', 'puppy', 'Much cute. Very good. Wow.'),
+  pet('dog-golden', 'dog', 'Golden Pup', 'Butter', 'uncommon', 'puppy', 'Believes every single person is their best friend.'),
+  pet('dog-dalmatian', 'dog', 'Dalmatian', 'Domino', 'uncommon', 'puppy', 'Counted her spots once. Got distracted by a ball.'),
+  pet('dog-frenchie', 'dog', 'Frenchie', 'Brie', 'rare', 'puppy', 'Bat ears, snorty laugh, impeccable taste.'),
+  pet('dog-samoyed', 'dog', 'Samoyed', 'Snowpuff', 'rare', 'puppy', 'Smiles so hard her eyes disappear.'),
+  pet('dog-cottoncandy', 'dog', 'Cotton Candy Pom', 'Floss', 'ultra', 'puppy', 'Spun from pink and blue sugar. Barks in sparkles.'),
+  wear('bow-tie', 'neck', 'Bow Tie', 'common', 'puppy', 'For very good boys, girls, and friends.'),
+  wear('pom-beanie', 'head', 'Pom Beanie', 'common', 'puppy', 'Knit, cozy, crowned with a pom-pom.'),
+  wear('star-shades', 'face', 'Star Sunglasses', 'uncommon', 'puppy', 'Instant celebrity. Paparazzi not included.'),
+  wear('cozy-hoodie', 'body', 'Cozy Hoodie', 'uncommon', 'puppy', 'Oversized, soft, with a tiny front pocket.'),
+  wear('tiny-backpack', 'body', 'Tiny Backpack', 'rare', 'puppy', 'Packed with snacks and big plans.'),
+  treat('bone-biscuit', ['crunchy', 'savory'], 'Bone Biscuit', 'common', 'puppy', 'The classic. Crunchy and wholesome.'),
+  treat('pb-cookie', ['sweet', 'crunchy'], 'Peanut Butter Cookie', 'common', 'puppy', 'Nutty, chewy, completely irresistible.'),
+  treat('pup-cup', ['sweet', 'drink'], 'Pup Cup', 'uncommon', 'puppy', 'A little cup of whipped cream. Pure bliss.'),
+  decor('tennis-balls', 'ground-center', 'Tennis Balls', 'common', 'puppy', 'Three fuzzy balls, slightly slobbery.'),
+  decor('dog-house', 'back-left', 'Dog House', 'rare', 'puppy', 'A cozy house with a name above the door.'),
+];
+
+/* ------------------------------------------------------------------------ */
 /* Sakura Garden                                                             */
 /* ------------------------------------------------------------------------ */
 
@@ -337,6 +363,7 @@ export const COLLECTIBLES: readonly CollectibleDef[] = [
   ...EXCLUSIVE,
   ...KITTY,
   ...MOO,
+  ...PUPPY,
   ...SAKURA,
   ...SWEETS,
   ...DREAMY,

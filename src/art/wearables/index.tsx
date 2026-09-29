@@ -1,5 +1,5 @@
 import type { WearableArt, ArtCtx } from '../pets/types';
-import { OUTLINE, STROKE, bodyHalfWidthAt } from '../pets/geometry';
+import { OUTLINE, STROKE } from '../pets/geometry';
 
 /**
  * Wearable art, keyed by collectible id. Each renderer draws in pet canvas coordinates
@@ -29,9 +29,9 @@ const pinkBow: WearableArt = {
 
 /** Collar band following the neck line, with a golden bell. */
 const bellCollar: WearableArt = {
-  render: ({ anchors }) => {
+  render: ({ anchors, body }) => {
     const y = anchors.neck.y;
-    const hw = bodyHalfWidthAt(y) - 0.6;
+    const hw = body.halfWidthAt(y) - 0.6;
     return (
       <g stroke={OUTLINE} stroke-width={STROKE * 0.85} stroke-linejoin="round">
         <path d={`M${50 - hw} ${y - 1.8} Q50 ${y + 5} ${50 + hw} ${y - 1.8} L${50 + hw} ${y + 2.2} Q50 ${y + 9} ${50 - hw} ${y + 2.2} Z`} fill="#F58CAA" />

@@ -28,7 +28,8 @@ export interface Pause {
 export interface Habit {
   id: string;
   name: string;
-  emoji: string;
+  /** HabitIconId from catalog/habitIcons.ts (custom drawn icon). */
+  icon: string;
   color: PastelKey;
   plant: PlantSpeciesId;
   pot: PotId;

@@ -76,9 +76,10 @@ export const TREAT_TAG_HINTS: Record<TreatTag, string> = {
 };
 
 /** Pet "voices" for the sound synth. */
-export const SPECIES_VOICE: Record<Species, 'mew' | 'moo' | 'squeak' | 'ribbit' | 'grr' | 'peep' | 'quack'> = {
+export const SPECIES_VOICE: Record<Species, 'mew' | 'moo' | 'woof' | 'squeak' | 'ribbit' | 'grr' | 'peep' | 'quack'> = {
   cat: 'mew',
   cow: 'moo',
+  dog: 'woof',
   bunny: 'squeak',
   frog: 'ribbit',
   bear: 'grr',

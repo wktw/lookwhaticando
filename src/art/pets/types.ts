@@ -1,6 +1,6 @@
 import type { JSX } from 'preact';
 import type { Species } from '@/catalog/types';
-import type { Anchors } from './geometry';
+import type { Anchors, BodyShape } from './geometry';
 
 export type Expression = 'idle' | 'happy' | 'sleep' | 'love' | 'eat' | 'surprised' | 'wink';
 
@@ -105,6 +105,8 @@ export interface ArtCtx {
   bodyClip: string;
   expression: Expression;
   anchors: Anchors;
+  /** This species' silhouette (path + half-width sampler for fitting wear). */
+  body: BodyShape;
   look: PetLook;
 }
 

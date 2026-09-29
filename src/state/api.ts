@@ -35,7 +35,7 @@ export type GameEvent =
 
 export interface HabitInput {
   name: string;
-  emoji: string;
+  icon: string;
   color: PastelKey;
   plant: PlantSpeciesId;
   pot: PotId;

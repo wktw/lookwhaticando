@@ -7,8 +7,8 @@
 export type Rarity = 'common' | 'uncommon' | 'rare' | 'ultra';
 export const RARITIES: readonly Rarity[] = ['common', 'uncommon', 'rare', 'ultra'] as const;
 
-export type Species = 'cat' | 'cow' | 'bunny' | 'frog' | 'bear' | 'hamster' | 'duck';
-export const SPECIES: readonly Species[] = ['cat', 'cow', 'bunny', 'frog', 'bear', 'hamster', 'duck'] as const;
+export type Species = 'cat' | 'cow' | 'dog' | 'bunny' | 'frog' | 'bear' | 'hamster' | 'duck';
+export const SPECIES: readonly Species[] = ['cat', 'cow', 'dog', 'bunny', 'frog', 'bear', 'hamster', 'duck'] as const;
 
 export type Category = 'pet' | 'wearable' | 'treat' | 'decor' | 'plant' | 'pot';
 export type WearableSlot = 'head' | 'face' | 'neck' | 'body';
@@ -27,7 +27,7 @@ export const DECOR_SLOTS: readonly DecorSlot[] = [
 
 export type TreatTag = 'fruity' | 'sweet' | 'savory' | 'drink' | 'crunchy' | 'fresh';
 
-export type StandardMachineId = 'kitty' | 'moo' | 'sakura' | 'sweets' | 'dreamy';
+export type StandardMachineId = 'kitty' | 'moo' | 'puppy' | 'sakura' | 'sweets' | 'dreamy';
 export type SeasonalMachineId = 'pumpkin' | 'snow' | 'love' | 'rainy' | 'beach';
 export type MachineId = StandardMachineId | SeasonalMachineId;
 
@@ -148,7 +148,8 @@ export interface HabitTemplate {
   id: string;
   group: 'body' | 'mind' | 'home' | 'heart';
   name: string;
-  emoji: string;
+  /** HabitIconId (custom drawn icon, see catalog/habitIcons.ts). */
+  icon: string;
   schedule:
     | { kind: 'daily' }
     | { kind: 'weekdays'; days: number[] }

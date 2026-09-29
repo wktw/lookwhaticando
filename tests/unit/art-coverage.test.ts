@@ -10,6 +10,8 @@ import { SPECIES_ART, PLACEHOLDER_SPECIES } from '@/art/pets/species';
 import { WEARABLE_ART } from '@/art/wearables';
 import { TREAT_ART, DECOR_ART } from '@/art/items';
 import { PLANT_SPECIES_WITH_ART, POTS_WITH_ART } from '@/art/plants';
+import { HABIT_ICON_ART } from '@/art/habit-icons';
+import { HABIT_ICONS } from '@/catalog/habitIcons';
 
 describe('pets art', () => {
   it('every species has real art', () => {
@@ -49,5 +51,11 @@ describe('garden art', () => {
   it('every pot has art', () => {
     const pots = new Set<PotId>(POTS.map((p) => p.pot));
     for (const p of pots) expect(POTS_WITH_ART.has(p), p).toBe(true);
+  });
+});
+
+describe('habit icons', () => {
+  it('every habit icon id has art', () => {
+    for (const i of HABIT_ICONS) expect(HABIT_ICON_ART[i.id], i.id).toBeTypeOf('function');
   });
 });

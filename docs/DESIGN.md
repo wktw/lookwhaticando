@@ -579,3 +579,34 @@ decorative SVG gets `aria-hidden` · rem-based type that respects user font-size
 | M3 | Polish & ship | **Judges' panel**: fresh-eyes reviewers score the app like competition judges, and the top issues get fixed before release. |
 
 Audit logs are kept in [`AUDITS.md`](./AUDITS.md).
+
+---
+
+## 13. Amendments from the M0 audit
+
+The M0 panel critiqued this spec from six perspectives, and skeptics then tried to refute each finding. These
+amendments **override** earlier sections wherever they conflict. (Full log in `AUDITS.md`.)
+
+### 13.1 Art & collection (decided by the lead ahead of the full verdicts)
+
+* **Puppies return** (they were in the concept). New species **dog** and a new standard machine **Puppy Park**
+  (Corgi, Pomeranian, Dachshund, Shiba, Golden Pup, Dalmatian, Frenchie, Samoyed, secret: Cotton Candy Pom), with
+  dog treats, a dog house, tennis balls, a hoodie and a tiny backpack.
+* **Species have their own silhouettes.** Every pet stays in the *mochi family* (soft, seated, head and body fused),
+  but proportions vary by species: a rounder, wider hamster; a taller pear-shaped bunny; a flatter, wider frog; a sturdy,
+  broad-faced cow; a pear duck with a head tuft; a round bear; a slightly longer-snouted dog. `BODIES[species]` in
+  `art/pets/geometry.ts` carries each path and its half-width sampler, so neck and body wear still hugs every species.
+  Species also get their own *idle personality* (cats knead and swish, cows chew and flick ears, bunnies twitch noses,
+  frogs puff throats, dogs wag, hamsters nibble, ducks bob).
+* **Plants never look static.** `PlantArt` takes `progress` (0–1 within a stage) for continuous detail such as an extra leaf,
+  a fattening bud or a deepening color, and `blooms` for growth *after* Evergreen: extra flowers or fruit, one per 30
+  sunshine, visually capped at 6, with a golden sparkle at the cap.
+* **Custom habit icons replace emoji.** System emoji clash with the hand-drawn art and render differently on iPhone,
+  Mac and Windows. `catalog/habitIcons.ts` lists 48 icons drawn in the brand style (`art/habit-icons`). `Habit.icon` holds
+  the icon id, and icons are suggested automatically from the habit name. Emoji may still appear inside *copy*.
+* **Capsules are blind boxes, not loot.** Each machine is a **series** with a lineup card (like a blind-box poster).
+  Its ultra item is the series **Secret**, shown as a "?" silhouette until pulled. Copy says "series", "lineup" and
+  "secret", never "loot" or "gacha".
+* **Today feels like the world.** Today's header is a **windowsill scene**: the time-of-day sky outside the window,
+  the buddy lounging on the sill, and your most-grown habit plants in their pots. When a habit is checked, its plant on the
+  sill gets watered and the buddy reacts right there.

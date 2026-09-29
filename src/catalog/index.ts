@@ -4,3 +4,4 @@ export * from './machines';
 export * from './templates';
 export * from './personalities';
 export * from './badges';
+export * from './habitIcons';

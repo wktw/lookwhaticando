@@ -2,7 +2,7 @@ import type { JSX } from 'preact';
 import { useId, useMemo } from 'preact/hooks';
 import type { Outfit } from '@/state/types';
 import { getCollectible } from '@/catalog/collectibles';
-import { ANCHORS, BODY_PATH, FOOT_LEFT, FOOT_RIGHT, OUTLINE, STROKE, VIEWBOX } from './geometry';
+import { ANCHORS, BODIES, FOOT_LEFT, FOOT_RIGHT, OUTLINE, STROKE, VIEWBOX } from './geometry';
 import type { ArtCtx, Expression, PetLook } from './types';
 import { getLook } from './looks';
 import { SPECIES_ART } from './species';
@@ -51,8 +51,9 @@ export function PetArt(props: PetArtProps) {
   const look = props.look ?? getLook(petId);
   const species = SPECIES_ART[look.species];
   const anchors = ANCHORS[look.species];
+  const body = BODIES[look.species];
   const bodyClipId = `${uid}-body`;
-  const ctx: ArtCtx = { uid, bodyClip: `url(#${bodyClipId})`, expression, anchors, look };
+  const ctx: ArtCtx = { uid, bodyClip: `url(#${bodyClipId})`, expression, anchors, body, look };
 
   const r = useMemo(() => hash01(petId + rawId), [petId, rawId]);
   const timing = {
@@ -97,7 +98,7 @@ export function PetArt(props: PetArtProps) {
     >
       <defs>
         <clipPath id={bodyClipId}>
-          <path d={BODY_PATH} />
+          <path d={body.path} />
         </clipPath>
       </defs>
       {shadow && <ellipse class="pet-shadow" cx={50} cy={94.5} rx={31} ry={3.6} fill={OUTLINE} opacity={0.12} />}
@@ -106,7 +107,7 @@ export function PetArt(props: PetArtProps) {
           {traits.map((t, i) => t.back && <g key={`tb${i}`}>{t.back(ctx)}</g>)}
           {species.back(ctx)}
           {/* body fill */}
-          <path d={BODY_PATH} fill={p.body} />
+          <path d={body.path} fill={p.body} />
           {/* surface: pattern, species overlay, shading, clothing, all clipped to the body */}
           <g clip-path={ctx.bodyClip}>
             {pattern(ctx)}
@@ -115,7 +116,7 @@ export function PetArt(props: PetArtProps) {
             <ellipse cx={50} cy={97} rx={40} ry={12} fill={OUTLINE} opacity={0.07} />
             {bodyWear}
           </g>
-          <path d={BODY_PATH} fill="none" stroke={OUTLINE} stroke-width={STROKE} stroke-linejoin="round" />
+          <path d={body.path} fill="none" stroke={OUTLINE} stroke-width={STROKE} stroke-linejoin="round" />
           {/* feet */}
           <g fill={p.feet ?? p.body} stroke={OUTLINE} stroke-width={STROKE * 0.9}>
             <ellipse {...FOOT_LEFT} />

@@ -9,6 +9,10 @@ export interface PlantArtProps {
   species: PlantSpeciesId;
   /** 0 Seed … 7 Evergreen */
   stage: number;
+  /** 0..1 progress within the current stage: drives continuous detail (an extra leaf, a fattening bud). */
+  progress?: number;
+  /** Extra blooms/fruit earned after Evergreen (keeps growing forever, capped visually). */
+  blooms?: number;
   pot: PotId;
   size?: number | string;
   /** Gentle idle sway. */

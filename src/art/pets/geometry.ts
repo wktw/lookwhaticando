@@ -23,7 +23,7 @@ export const EYE = '#4A3540';
 export const BODY_PATH =
   'M50 28 C69 28 83 41 84.5 60 C86 76 79 92.5 64 93 L36 93 C21 92.5 14 76 15.5 60 C17 41 31 28 50 28 Z';
 
-/** Half-width of the body outline at a given y (approximate, for fitting wearables). */
+/** Half-width of the BASE body outline at a given y. Prefer ctx.body.halfWidthAt (species-aware). */
 export function bodyHalfWidthAt(y: number): number {
   // Sampled from BODY_PATH; linear interpolation between samples.
   const samples: [number, number][] = [
@@ -102,6 +102,7 @@ export const ANCHORS: Record<Species, Anchors> = {
     mouth: { x: 50, y: 60 },
     headFeatures: [{ x: 33, width: 20 }, { x: 67, width: 20 }],
   },
+  dog: { ...BASE, headFeatures: [{ x: 28, width: 16 }, { x: 72, width: 16 }] },
   bear: { ...BASE, headFeatures: [{ x: 27, width: 14 }, { x: 73, width: 14 }] },
   hamster: { ...BASE, headFeatures: [{ x: 29, width: 11 }, { x: 71, width: 11 }] },
   duck: { ...BASE, mouth: { x: 50, y: 66 }, headFeatures: [] },
@@ -109,3 +110,27 @@ export const ANCHORS: Record<Species, Anchors> = {
 
 export const FOOT_LEFT = { cx: 38.5, cy: 92.6, rx: 7, ry: 3.6 };
 export const FOOT_RIGHT = { cx: 61.5, cy: 92.6, rx: 7, ry: 3.6 };
+
+/**
+ * Species silhouettes. Every species stays in the "mochi" family (soft, sitting, head+body
+ * fused) but may vary proportions (a rounder hamster, a pear-shaped bunny, a flatter frog…).
+ * `halfWidthAt` must describe the species path so neck/body wear hugs it.
+ * All species currently use the base body; the pets module may give each its own.
+ */
+export interface BodyShape {
+  path: string;
+  halfWidthAt: (y: number) => number;
+}
+
+const BASE_BODY: BodyShape = { path: BODY_PATH, halfWidthAt: bodyHalfWidthAt };
+
+export const BODIES: Record<Species, BodyShape> = {
+  cat: BASE_BODY,
+  cow: BASE_BODY,
+  dog: BASE_BODY,
+  bunny: BASE_BODY,
+  frog: BASE_BODY,
+  bear: BASE_BODY,
+  hamster: BASE_BODY,
+  duck: BASE_BODY,
+};
