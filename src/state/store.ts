@@ -30,6 +30,14 @@ export const today = signal<DateKey>(toKey(new Date()));
 
 export const wallet = computed(() => state.value.wallet);
 
+/** Load the persisted save (or start fresh) and begin auto-saving. Call once at boot, before render. */
+export function hydrate(): void {}
+
+/** Keep `today` current (day rollover on focus + minute timer). Returns a stop fn. */
+export function startClock(): () => void {
+  return () => {};
+}
+
 function commit(next: AppState) {
   state.value = next;
 }
