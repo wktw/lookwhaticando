@@ -84,7 +84,7 @@ describe('CelebrationHost', () => {
     const banners = document.querySelectorAll('#overlay-root [role="group"]');
     expect(banners).toHaveLength(1);
     expect(banners[0]!.getAttribute('aria-label')).toContain('Perfect day');
-    expect(banners[0]!.textContent).toContain('Fifty & Flourishing pin');
+    expect(banners[0]!.textContent).toContain('Fifty waterings pin');
   });
 
   it('reserves rewards the instant they arrive, and hands check-in coins to the screen’s own flourish', async () => {

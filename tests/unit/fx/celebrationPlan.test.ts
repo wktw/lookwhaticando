@@ -64,7 +64,7 @@ describe('planCelebration', () => {
     expect(plan.banner?.title).toBe('30 days of showing up');
     expect(plan.banner?.text).toBe('2 stamps and a ticket, enclosed.');
     expect(plan.banner?.confetti).toBe('big');
-    expect(plan.banner?.also).toEqual(['Perfect day', 'Fifty & Flourishing pin']);
+    expect(plan.banner?.also).toEqual(['Perfect day', 'Fifty waterings pin']);
     expect(plan.banner?.rewards).toEqual({ coins: 72, stars: 2, tickets: 1, stardust: 0 });
     expect(plan.toasts).toEqual([]);
   });
