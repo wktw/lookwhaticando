@@ -10,6 +10,7 @@ import type { PlantSpeciesId, PotId } from '@/catalog/types';
 import { PLANTS, POTS } from '@/catalog/collectibles';
 import { CardPlant, PlantArt, PlantTag, PotArt, PLANT_STAGE_NAMES, tagAnchor, FLOURISHES } from '@/art/plants';
 import type { PlantLookArt } from '@/art/plants';
+import { DayGlyph, MonthJar, NoteCard, Pressing } from '@/art/progress';
 import { DAY_LIGHT, NIGHT_LIGHT, type Light } from '@/art/light';
 import type { GallerySection } from './sections';
 
@@ -262,6 +263,50 @@ function LooksDemo() {
   );
 }
 
+/** The Progress screen's and the rituals' drawings: day glyphs, pressings, note cards and the month's jar. */
+function ProgressArt() {
+  const days: [Parameters<typeof DayGlyph>[0]['state'], number | null, string][] = [
+    ['done', 1, 'done'],
+    ['done', null, 'done (weekly)'],
+    ['partial', 0.66, '2 of 3'],
+    ['partial', 0.25, '1 of 4'],
+    ['tiny', 1, 'tiny'],
+    ['rest', null, 'rest'],
+    ['off', null, 'off'],
+    ['paused', null, 'paused'],
+    ['none', 0, 'empty'],
+  ];
+  const stems = (['begonia', 'pothos', 'lavender', 'violet', 'catgrass', 'tulip', 'pilea'] as PlantSpeciesId[]).map((plant, i) => ({ habitId: `h${i}`, plant }));
+  return (
+    <div style={{ display: 'grid', gap: '12px' }}>
+      {[DAY_LIGHT, NIGHT_LIGHT].map((light) => (
+        <div key={String(light.night)} style={{ display: 'grid', gap: '10px', padding: '12px', borderRadius: '14px', background: light.night ? '#2b2436' : 'var(--card)', color: light.night ? '#f4ede6' : undefined }}>
+          <div class="gal-row" style={{ gap: '12px' }}>
+            {days.map(([state, fraction, label]) => (
+              <div key={label} style={{ display: 'grid', justifyItems: 'center', gap: '2px', fontSize: '11px' }}>
+                <DayGlyph state={state} fraction={fraction} size={32} light={light} />
+                <DayGlyph state={state} fraction={fraction} size={16} light={light} />
+                {label}
+              </div>
+            ))}
+          </div>
+          <div class="gal-row" style={{ gap: '14px', alignItems: 'flex-end' }}>
+            {([['begonia', 1, 0], ['pothos', 0.6, 2], ['lavender', 0.25, 4], ['violet', 0.05, 6]] as [PlantSpeciesId, number, number][]).map(([sp, share, rests]) => (
+              <Pressing key={sp} species={sp} share={share} rests={rests} size={110} light={light} />
+            ))}
+            <NoteCard kind="sundayNote" sketch="read" size={120} light={light} />
+            <NoteCard kind="herbarium" pressings={[{ species: 'begonia', share: 0.9 }, { species: 'lavender', share: 0.5, rests: 2 }, { species: 'pothos', share: 0.3 }]} size={120} light={light} />
+            <NoteCard kind="anniversary" size={96} light={light} />
+            <NoteCard kind="story" size={96} light={light} />
+            <MonthJar stems={stems} size={120} light={light} />
+            <MonthJar stems={stems.slice(0, 1)} size={80} light={light} />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 /** Small-size tests: the same plants at 64, 32 and 20 px, framed as icons (`&fit=scene` for the full canvas). */
 function SmallSizes({ params }: { params: URLSearchParams }) {
   const stage = Number(params.get('stage') ?? 5);
@@ -414,6 +459,7 @@ export const SECTIONS: GallerySection[] = [
   { id: 'garden-cards', title: 'Plants at card size (40 px)', render: (params) => <HabitCards params={params} /> },
   { id: 'garden-cardplant', title: 'The card plant: resident peeking, the icon on a stake (56 and 40 px, day and lamplight)', render: () => <CardPlants /> },
   { id: 'garden-looks', title: 'Blooms Like You looks, and the Flourishes', render: () => <LooksDemo /> },
+  { id: 'garden-progress', title: 'Progress and ritual art: day glyphs (32 and 16 px), pressings, note cards, the month’s jar', render: () => <ProgressArt /> },
   { id: 'garden-small', title: 'Plants at 64, 32 and 20 px', render: (params) => <SmallSizes params={params} /> },
   { id: 'garden-glass', title: 'The water glass: Cutting and Rooting, close up, beside the empty pot', render: (params) => <GlassDemo params={params} /> },
   { id: 'garden-blooms', title: 'Blooms: 0, 2, 4 and 6 showing', render: (params) => <BloomsDemo params={params} /> },
