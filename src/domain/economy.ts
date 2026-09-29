@@ -920,7 +920,11 @@ export function onceKeyExpired(s: AppState, key: string, value: number | true, t
     case 'found':
       return parts[1]! < today;
     case 'company':
-      // Companion XP is once per occurrence; occurrences leave the refund window after a week.
+      // Companion XP is once per occurrence; occurrences leave the refund window after a week. A
+      // flexible occurrence's key ('company|<habit>|<periodKey>|<date>', valued with the period's
+      // last day number) is kept like a period key: while its period could overlap one that can
+      // still take a rewardable check-in.
+      if (parts.length === 4) return (typeof value === 'number' ? value : dayNumber(parts[2]!)) < dayNumber(addDays(today, -(BACKFILL_DAYS + 7)));
       return parts[2]! < addDays(today, -LEDGER_DAYS);
     case 'grow':
       // An accepted offer keeps the offer closed for GROW_COOLDOWN_DAYS.

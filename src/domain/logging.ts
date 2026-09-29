@@ -159,8 +159,9 @@ export function rewardPass(tx: Tx, habitId: string, date: DateKey, opts: PassOpt
   }
   if (up && flexible && st.next !== 'over') payPeriodGoal(tx, habitId, date);
   const stage = updatePlantStage(tx, habitId);
-  // Keeping Company (§14.1): the companion's XP and its next story come with a completing check-in.
-  if (up && opts.user && (st.next === 'tiny' || st.next === 'full')) companionCheckin(tx, habitId, date);
+  // Keeping Company (§14.1): the companion's XP and its next story come with a completing check-in,
+  // a count habit's day-end tiny grant included (rollover.closeDays, the only non-user pass).
+  if (up && (st.next === 'tiny' || st.next === 'full')) companionCheckin(tx, habitId, date);
   if (up && opts.user && st.next !== 'over' && stage >= BLOOMING && harvest(tx, habit)) trigger = { ...trigger, harvested: true };
   if (up && payPerfectDay(tx, date) && isPerfectWeek(tx.s, date)) trigger = { ...trigger, perfectWeek: true };
   payRungs(tx, habitId, opts.bestBefore);

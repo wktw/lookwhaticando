@@ -167,7 +167,8 @@ describe('birthday, came-home days and the moving-in anniversary', () => {
       },
     };
     expect(cameHomeToday(g.state, '2027-09-29', UTC)).toEqual([{ petId: cat, years: 2 }]);
-    expect(birthdayCards(g.state)).toEqual([cat]);
+    // §13: each pet leaves a card, indoors too (by who came home first).
+    expect(birthdayCards(g.state)).toEqual([cat, cow]);
   });
 
   it('the anniversary note: once a year, on the first open within a week of it, paying nothing', () => {

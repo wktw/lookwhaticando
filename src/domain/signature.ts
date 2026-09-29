@@ -5,7 +5,8 @@
  * - Only live check-in stamps (`DayLog.at`) count: backfill and history edits never write them.
  *   A day's time is its last stamp (the check-in that completed it; a count habit's last glass).
  * - Dropped: catch-up bursts (the stamp sits in a 120-second window holding check-ins of ≥ 3
- *   habits, this one included: logging a morning's worth at once says nothing about the morning)
+ *   habits, this one included, measured in time across app days: logging a morning's worth at
+ *   once says nothing about the morning)
  *   and anything from 23:00 to 03:59 (late catch-ups; the app day starts at 3 am by default).
  * - Only the stamps still kept (the last 120 days, logging.ts `STAMP_DAYS`) are read, so a re-read
  *   reflects how she keeps it now.
@@ -27,8 +28,10 @@
  *
  * ## The nudge
  * "You set Walk for mornings but usually water it after 6 pm. Move it to Evening?": when ≥ 60% of
- * the eligible days (≥ 10) fall in another time block than the habit's (the Today blocks: morning
- * until 11:00, midday until 17:00, then evening). Offered once: either answer closes it.
+ * the eligible days (≥ 10) fall in another time block than the habit's (the Today blocks, by
+ * Today's own rule: morning from the day start until 11:00, midday until 17:00, then evening, and
+ * the hours before the day start are the previous day's evening). Offered once: either answer
+ * closes it.
  */
 import type { AppState, BloomColour, BloomShape, DateKey, Habit, PlantLook, PlantLooks, TimeBand, TimeOfDay } from '@/state/types';
 import { inLifetime, logStatus, showedUp } from './activity';
@@ -67,14 +70,21 @@ export interface EligibleTime {
 /* Eligible check-in times                                             */
 /* ------------------------------------------------------------------ */
 
-/** Whether the stamp `t` of `habitId` on `date` sits in a catch-up burst (≥ 3 habits within 120 s). */
+/**
+ * Whether the stamp `t` of `habitId` on `date` sits in a catch-up burst (≥ 3 habits within 120 s).
+ * A burst is measured in time, not per app day: stamps filed under the neighbouring app days count
+ * too (a burst can straddle the day start, which may be as late as 6:00).
+ */
 export function inBurst(s: Pick<AppState, 'habits' | 'logs'>, date: DateKey, habitId: string, t: number): boolean {
   const near: { ms: number; h: string }[] = [];
+  const days = [addDays(date, -1), date, addDays(date, 1)];
   for (const h of s.habits) {
     if (h.id === habitId) continue;
-    const log = s.logs[h.id]?.[date];
-    if (log?.kind !== 'log' || !log.at) continue;
-    for (const ms of log.at) if (Math.abs(ms - t) <= SIGNATURE.burstMs) near.push({ ms, h: h.id });
+    for (const d of days) {
+      const log = s.logs[h.id]?.[d];
+      if (log?.kind !== 'log' || !log.at) continue;
+      for (const ms of log.at) if (Math.abs(ms - t) <= SIGNATURE.burstMs) near.push({ ms, h: h.id });
+    }
   }
   if (new Set(near.map((n) => n.h)).size < SIGNATURE.burstHabits - 1) return false;
   // The tightest window holding a set starts at its earliest stamp: t itself or a stamp before it.
@@ -124,9 +134,12 @@ export function bandOf(minute: number): Exclude<TimeBand, 'all-sorts'> {
   return minute < SIGNATURE.dawnBefore ? 'dawn' : minute < SIGNATURE.twilightFrom ? 'sunlit' : 'twilight';
 }
 
-/** The Today time block a minute of the day falls in (views/today.ts `currentBlock`, from 4 am). */
-export function blockOfMinute(minute: number): Exclude<TimeOfDay, 'anytime'> {
-  return minute < 11 * 60 ? 'morning' : minute < 17 * 60 ? 'midday' : 'evening';
+/**
+ * The Today time block a minute of the day falls in, by Today's own rule (views/today.ts
+ * `currentBlock`): the minutes before the day start belong to the previous app day's evening.
+ */
+export function blockOfMinute(minute: number, dayStartsAt = 0): Exclude<TimeOfDay, 'anytime'> {
+  return minute < dayStartsAt ? 'evening' : minute < 11 * 60 ? 'morning' : minute < 17 * 60 ? 'midday' : 'evening';
 }
 
 export interface TimeReading {
@@ -151,14 +164,14 @@ function median(xs: number[]): number | null {
 
 const round15 = (m: number): number => Math.min(23 * 60 + 45, Math.round(m / 15) * 15);
 
-/** Reads the usual time from eligible check-in times. */
-export function readTimes(times: readonly EligibleTime[]): TimeReading {
+/** Reads the usual time from eligible check-in times (`dayStartsAt` places them in Today's blocks). */
+export function readTimes(times: readonly EligibleTime[], dayStartsAt = 0): TimeReading {
   const n = times.length;
   const counts = { dawn: 0, sunlit: 0, twilight: 0 };
   const blocks = { morning: 0, midday: 0, evening: 0 };
   for (const t of times) {
     counts[bandOf(t.minute)]++;
-    blocks[blockOfMinute(t.minute)]++;
+    blocks[blockOfMinute(t.minute, dayStartsAt)]++;
   }
   const enough = n >= SIGNATURE.minEligibleDays;
   let band: TimeBand = 'all-sorts';
@@ -298,9 +311,9 @@ export interface TimeNudge {
 }
 
 /** "Move it to Evening?" (see module doc), or null. */
-export function timeNudge(s: Pick<AppState, 'habits' | 'logs'>, habit: Habit, today: DateKey, local: LocalTimeReader): TimeNudge | null {
+export function timeNudge(s: Pick<AppState, 'habits' | 'logs' | 'settings'>, habit: Habit, today: DateKey, local: LocalTimeReader): TimeNudge | null {
   if (habit.timeNudge !== undefined || habit.timeOfDay === 'anytime' || habit.archivedOn !== undefined) return null;
-  const r = readTimes(eligibleTimes(s, habit, today, local));
+  const r = readTimes(eligibleTimes(s, habit, today, local), s.settings.dayStartsAt);
   if (r.block === null || r.block === habit.timeOfDay || r.usualMinute === null) return null;
   return { from: habit.timeOfDay, to: r.block, band: r.band, usualMinute: r.usualMinute };
 }

@@ -209,10 +209,9 @@ export function cameHomeToday(s: Pick<AppState, 'pets' | 'settings'>, today: Dat
   return out.sort((a, b) => (a.petId < b.petId ? -1 : 1));
 }
 
-/** The pets that leave a birthday card: every pet out on the Shelf (by who came home first). */
+/** The pets that leave a birthday card (§13 "each pet leaves a one-line card"): every pet, out or indoors, by who came home first. */
 export function birthdayCards(s: Pick<AppState, 'pets'>): string[] {
   return Object.values(s.pets)
-    .filter((p) => p.inMeadow)
     .sort((a, b) => a.obtainedAt - b.obtainedAt || (a.id < b.id ? -1 : 1))
     .map((p) => p.id);
 }

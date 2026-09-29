@@ -11,15 +11,17 @@
  *   is always possible.
  * - **Friendship grows through the habit**: each completing check-in on the reward path gives the
  *   companion `min(30, round(5 × 7/expectedPerWeek))` XP, once per occurrence (an un-check and
- *   re-check can't pay twice) and at most 30 XP per pet per app day from habits.
+ *   re-check can't pay twice, and for a flexible rule an occurrence is one of the period's `times`,
+ *   not a date, so moving a check-in to another day can't either) and at most 30 XP per
+ *   pet per app day from habits. A count habit's day-end tiny grant pays it too.
  * - **Companion sunshine** is the habit's sunshine grown while paired, per pet × habit. It is kept
  *   occurrence by occurrence in the ledger entry (`LedgerEntry.co`), so it follows the day exactly
  *   like the plant's sunshine: an un-check inside the refund window takes the share back, and a
  *   rule edit re-prices it.
  * - **Three stories** unlock by companion sunshine only (petting can never unlock them), in order,
- *   at most one per check-in, and stay once unlocked. Thresholds in check-in-equivalents: one
- *   faithful week is 7 sunshine for every rhythm (growth.ts: 7 / expectedPerWeek per occurrence),
- *   so **The start** needs 7 (about a week), **Why it matters** 21 (about three weeks; Budding's
+ *   at most one per check-in (only with an occurrence's first payment), and stay once unlocked.
+ *   Thresholds in check-in-equivalents: one faithful week is 7 sunshine for every rhythm
+ *   (growth.ts: 7 / expectedPerWeek per occurrence), so **The start** needs 7 (about a week), **Why it matters** 21 (about three weeks; Budding's
  *   threshold) and **Look at us** 42 (Blooming's threshold) with the plant at Blooming.
  * - **Keepsakes**: when a plant with a companion first reaches Rooting, Budding, Blooming or
  *   Evergreen, the companion leaves one dated keepsake by the pot (one per plant per stage, by
@@ -30,8 +32,10 @@ import { getCollectible } from '@/catalog/collectibles';
 import type { GameEvent } from '@/state/api';
 import type { AppState, Company, CompanyPair, DateKey, Habit, HabitRule, Keepsake, LedgerEntry, StoryId } from '@/state/types';
 import { inLifetime, logStatus, showedUp } from './activity';
+import { dayNumber } from './dates';
 import { dailyFor, addXp } from './friendship';
 import { BLOOMING } from './growth';
+import { evaluatePeriod, flexPeriodAt } from './periods';
 import { ruleAt } from './rules';
 import { KEEPSAKE_STAGES, SPECIES_ROUTINES, keepsakeKind, routineOf, routinePhase, type Routine, type RoutinePhase } from './routines';
 import { expectedPerWeek } from './schedule';
@@ -229,28 +233,58 @@ const round6 = (x: number): number => Math.round(x * 1e6) / 1e6;
 /* After a completing check-in (called by logging.rewardPass)          */
 /* ------------------------------------------------------------------ */
 
-const companyKey = (habitId: string, date: DateKey): string => `company|${habitId}|${date}`;
+/**
+ * The once-key of the occurrence a completing check-in on `date` brings, or null when it was
+ * already paid.
+ * - Day-based rules: the date is the occurrence (`company|<habitId>|<date>`).
+ * - Flexible rules: a period holds `times` occurrences, whichever days they land on. The check-in
+ *   pays only while the period's achieved occurrences exceed the paid check-in dates inside it
+ *   (any companion key of the habit dated within the period's days counts, day-based ones
+ *   included), and its key is `company|<habitId>|<periodKey>|<date>`, valued with the period's
+ *   last day number for compaction. Moving a weekly habit's one check-in to the next day therefore
+ *   pays nothing new, and a week-start change that regroups the days can't either: the paid date
+ *   still lies in whichever period now holds it.
+ */
+function occurrenceKey(tx: Tx, habit: Habit, date: DateKey): { key: string; value: number | true } | null {
+  const p = flexPeriodAt(habit, date, tx.s.settings.weekStart);
+  const prefix = `company|${habit.id}|`;
+  if (!p) {
+    const key = `${prefix}${date}`;
+    return hasOnce(tx.s, key) ? null : { key, value: true };
+  }
+  const paid = new Set<DateKey>();
+  for (const k of Object.keys(tx.s.ledger.once)) {
+    if (!k.startsWith(prefix)) continue;
+    const parts = k.slice(prefix.length).split('|');
+    const d = parts[parts.length - 1]!;
+    if (parts.length <= 2 && d >= p.from && d <= p.to) paid.add(d);
+  }
+  const achieved = evaluatePeriod(habit, tx.s.logs[habit.id] ?? {}, p, { today: tx.env.today, weekStart: tx.s.settings.weekStart, offDays: tx.s.offDays }).achieved;
+  const key = `${prefix}${p.key}|${date}`;
+  if (achieved <= paid.size || hasOnce(tx.s, key)) return null;
+  return { key, value: dayNumber(p.end) };
+}
 
 /**
  * A completing check-in on the reward path: the companion's XP (once per occurrence, ≤ 30 a day),
- * then the next story if its companion sunshine is reached. Returns the XP paid.
+ * then the next story if its companion sunshine is reached. Both come only with an occurrence not
+ * paid before: an Undo and re-check, or tiny then full, of the same occurrence brings neither
+ * (§14.1 "one story per check-in"; §5.2 Undo restores the day exactly). Returns the XP paid.
  */
 export function companionCheckin(tx: Tx, habitId: string, date: DateKey): number {
   const habit = tx.s.habits.find((h) => h.id === habitId);
   if (!habit || rewardsPaused(tx.s, tx.env.now)) return 0;
   const petId = companionOf(tx.s, habit);
   if (!petId) return 0;
-  let paid = 0;
-  const key = companyKey(habitId, date);
-  if (!hasOnce(tx.s, key)) {
-    setOnce(tx, key);
-    const daily = dailyFor(tx.s.pets[petId]!, tx.env.today);
-    paid = Math.max(0, Math.min(companionXpFor(ruleAt(habit, date)), COMPANION_XP.perDay - daily.company));
-    if (paid > 0) {
-      tx.pet(petId).daily = { ...daily, company: daily.company + paid };
-      tx.emit({ type: 'companionXp', petId, habitId, date, xp: paid });
-      addXp(tx, petId, paid);
-    }
+  const occ = occurrenceKey(tx, habit, date);
+  if (!occ) return 0;
+  setOnce(tx, occ.key, occ.value);
+  const daily = dailyFor(tx.s.pets[petId]!, tx.env.today);
+  const paid = Math.max(0, Math.min(companionXpFor(ruleAt(habit, date)), COMPANION_XP.perDay - daily.company));
+  if (paid > 0) {
+    tx.pet(petId).daily = { ...daily, company: daily.company + paid };
+    tx.emit({ type: 'companionXp', petId, habitId, date, xp: paid });
+    addXp(tx, petId, paid);
   }
   unlockNextStory(tx, habit, petId);
   return paid;

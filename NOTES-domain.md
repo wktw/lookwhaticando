@@ -182,6 +182,12 @@ stamps of §6 (unchanged, upward differences only).
 3. **Companion XP**: the tiny version counts as a completing check-in (full XP); once per occurrence
    (an un-check and re-check can't pay twice); the 30-a-day cap is per pet per action day; only
    reward-path check-ins (the 6-day window), never history, never a flexible check-in beyond `times`.
+   A count habit's day-end tiny grant (rollover) pays it too. For a flexible rule an occurrence is one
+   of the period's `times`, not a date: a check-in pays only while the period's achieved occurrences
+   exceed the paid check-in dates inside it (key `company|<habit>|<periodKey>|<date>`, valued with the
+   period's last day number), so moving a weekly check-in to the next day, or regrouping the week by
+   changing the week start, pays nothing new. A story unlocks only with an
+   occurrence's first payment (Undo + re-check, or tiny then full, brings none).
 4. **The offer's counters are global**: one offer a day in all, and after 3 declines in all it never
    comes back. Pairing by hand is always possible, and pairing counts as the day's offer.
 5. Archiving, retiring or deleting a habit frees its companion (and its followers stop following it).
@@ -195,23 +201,29 @@ stamps of §6 (unchanged, upward differences only).
 8. **The colour**: a day's time is its last live stamp; bands Dawn < 9:00 ≤ Sunlit < 18:00 ≤ Twilight;
    "usually" = a band with ≥ 60% of the eligible days, else Wildflower; only the stamps still kept (120
    days), so the Evergreen re-read reflects now. A read with < 10 eligible days waits and is retried on
-   later check-ins (it never guesses a colour). A burst is ≥ 3 habits' stamps inside one 120-s window.
+   later check-ins (it never guesses a colour). A burst is ≥ 3 habits' stamps inside one 120-s window,
+   measured in time: stamps under the neighbouring app days count (a burst can straddle the day start).
 9. **The shape**: Paired beats Petite; Petite counts the whole history. A kept-together day is one where
    both were done and, when both were live, the follower came at or after the anchor.
 10. A new look is shown unless she chose one herself; a re-read equal to a look she has adds nothing.
-11. **The nudge** uses the Today blocks (morning < 11:00 ≤ midday < 17:00 ≤ evening) with the same ≥ 60%
-    of ≥ 10 days; "offered once" means either answer closes it for good.
+11. **The nudge** uses the Today blocks by Today's own rule (`currentBlock`: before the day start is the
+    previous day's evening, then morning < 11:00 ≤ midday < 17:00 ≤ evening) with the same ≥ 60% of ≥ 10
+    days; "offered once" means either answer closes it for good.
 12. **Journal**: nothing inks before day 8; the steadiest day from day 15 (ties to the earlier day of her
     week); the tiny sentence appears only for a habit that has or had a tiny version.
 13. **Seasons** are meteorological (Mar/Jun/Sep/Dec 1 in the north, six months on in the south); the
-    southern-zone list is in `hemisphere.ts`, and onboarding stores the inference.
+    southern-zone list in `hemisphere.ts` is every tzdata zone.tab zone with latitude < 0, their
+    backward aliases and the ids ICU reports (`America/Cordoba`…); onboarding stores the inference.
 14. **The review card** is only for the season just ended, only if she opened the app during it and it
     had a watering. Seasons she never opened the app in are filed silently; a season with no watering is
     not filed; a card still pending when the next season begins is filed as skipped.
 15. **Fresh start**: Tinier = half the count, one fewer time, a rarer every, or daily → 5 a week (edits
     "this period"); Grow = one more step / time / weekday, from tomorrow, paying its stamp only while
-    "Ready to grow?" stands; Rest = paused through the day before the next season; Finish = archived as of
-    yesterday (today if already watered) with a ribbon.
+    "Ready to grow?" stands (the chip shows for any habit with a bigger rule: "(if eligible)" is read as
+    the stamp's condition, since the Habit Editor can grow any habit anyway); Rest = paused through the day
+    before the next season; Finish = archived as of yesterday (today if already watered) with a ribbon.
+    Restoring a habit archived before today, on a day whose perfect day was paid while it wasn't done,
+    pauses it through today (like Resume, §6), so Finish → collect → restore can't mint a bonus.
 16. **Just this season** retires on the first open after `endsOn`, archived as of `endsOn`; restoring it
     takes the ribbon off (and a past `endsOn`).
 17. **Sunday Note**: highlights in order stage-up · newcomer · every day (else the most watered) · new
@@ -219,7 +231,7 @@ stamps of §6 (unchanged, upward differences only).
     watered on the most days (at Potted or later), else a found thing; contents are frozen when written.
 18. **Herbarium page**: habits watered or rested that month; margin note priority bloom · came home ·
     planted; the first page is marked.
-19. **Birthday cards** come from the pets out on the Shelf. **Came-home days** use the arrival's app day.
+19. **Birthday cards** come from every pet, out or indoors (by who came home first; a view may cap them). **Came-home days** use the arrival's app day.
     The **anniversary note** is written on the first open within 7 days of the day, pays nothing, and is
     an inbox item of kind `'anniversary'`.
 20. **Show companions** off hides companions, stories and the offer from the screens; pairing, XP and
@@ -274,8 +286,8 @@ The logic team's readings after the adversarial audits are now short clarificati
 | Pity counts only while its tier is armed; the Moonlit slot weighs half an item | §7.1 |
 | Memories rule: from the first day she has the app while the season is on | §7.3 |
 | The free capsule and First Sprout are one gift; every first capsule is a pet | §9.6 |
-| Offer counters shared; XP once per occurrence; story thresholds 7 · 21 · 42; keepsakes need a companion at the stage | §14.1 |
-| Colour bands and the 60% rule; reads wait for 10 days; Paired over Petite; kept-together; the nudge | §14.2 |
+| Offer counters shared; XP once per occurrence (a flexible occurrence is a place in its period); story thresholds 7 · 21 · 42; keepsakes need a companion at the stage | §14.1 |
+| Colour bands and the 60% rule; bursts across the day start; reads wait for 10 days; Paired over Petite; kept-together; the nudge in Today's blocks | §14.2 |
 | Meteorological seasons; which season gets the card; Grow's stamp; archive as of the last day | §14.3 |
 | Only starred notes are quoted; the anniversary note's week of grace | §13 |
 

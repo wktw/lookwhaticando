@@ -13,6 +13,7 @@ import { MACHINES } from '@/catalog/machines';
 import { PLACES } from '@/catalog/places';
 import { PERSONALITIES } from '@/catalog/personalities';
 import { isDateKey } from '@/domain/dates';
+import { MAX_STAMPS_PER_DAY } from '@/domain/logging';
 import { validateHabitRules } from '@/domain/rules';
 import { SCHEMA_VERSION, type AppState } from './types';
 
@@ -142,6 +143,8 @@ function checkLog(r: Report, log: unknown, path: string): void {
   r.check(nonNeg(o.count), `${path}.count`, 'not a count');
   r.check(o.level === undefined || o.level === 'tiny', `${path}.level`, 'unknown level');
   r.check(o.at === undefined || (Array.isArray(o.at) && o.at.every(nonNeg)), `${path}.at`, 'not a list of timestamps');
+  // §5.1: `at` holds at most 24 live check-in times (logging.ts caps it; Blooms Like You reads them).
+  r.check(!Array.isArray(o.at) || o.at.length <= MAX_STAMPS_PER_DAY, `${path}.at`, `more than ${MAX_STAMPS_PER_DAY} stamps`);
 }
 
 function checkLetter(r: Report, l: unknown, path: string): void {
@@ -309,6 +312,7 @@ export function validateState(x: unknown): ValidationResult {
     r.check(l.lastShowUpDay === undefined || isDateKey(l.lastShowUpDay), 'lifetime.lastShowUpDay', 'not a date');
   }
 
+  const petIds = new Set(isObj(s.pets) ? Object.keys(s.pets) : []);
   if (r.check(isObj(s.ledger), 'ledger', 'not an object')) {
     const g = s.ledger as Obj;
     checkRecord(
@@ -322,7 +326,7 @@ export function validateState(x: unknown): ValidationResult {
           nonNeg(v.sunshine) &&
           (v.cap === undefined || nonNeg(v.cap)) &&
           (v.lvl === undefined || ['tiny', 'full', 'over'].includes(v.lvl as string)) &&
-          (v.co === undefined || (isObj(v.co) && isStr(v.co.pet) && nonNeg(v.co.sun) && v.co.sun <= (v.sunshine as number) + 1e-6 && (v.co.watered === undefined || v.co.watered === true))),
+          (v.co === undefined || (isObj(v.co) && isStr(v.co.pet) && petIds.has(v.co.pet) && nonNeg(v.co.sun) && v.co.sun <= (v.sunshine as number) + 1e-6 && (v.co.watered === undefined || v.co.watered === true))),
           path,
           'bad entry',
         ),
@@ -372,7 +376,6 @@ export function validateState(x: unknown): ValidationResult {
     );
   }
   // Stage B (all optional): Keeping Company, keepsakes, looks, stage days, seasons.
-  const petIds = new Set(isObj(s.pets) ? Object.keys(s.pets) : []);
   if (Array.isArray(s.habits)) {
     const companions = new Set<string>();
     (s.habits as unknown[]).forEach((h, i) => {

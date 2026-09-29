@@ -255,12 +255,19 @@ export function archiveHabit(tx: Tx, id: string): void {
  * Restores an archived habit; the archived stretch becomes a pause (v1 §13.2). A big habit comes back
  * as steady when 3 big habits are already active (v1 §13.5 "at most 3 big habits active"; archiving,
  * creating new big habits and restoring the old ones can't exceed it).
+ * Like Resume (§6): when the habit was already archived before today (Finish archives an unwatered
+ * habit as of yesterday) and today's perfect day was paid while it wasn't done, the pause covers
+ * today too and the habit is back tomorrow, so Finish → collect → restore can't mint a bonus.
  */
 export function restoreHabit(tx: Tx, id: string): void {
   const h = tx.s.habits.find((x) => x.id === id);
   if (!h || h.archivedOn === undefined) return;
   const w = tx.habit(id);
-  const stretch = archivedStretchPause(h.archivedOn, tx.env.today);
+  const today = tx.env.today;
+  const log = tx.s.logs[id]?.[today];
+  const doneToday = log?.kind === 'log' && showedUp(logStatus(log, ruleAt(h, today), false));
+  const keepToday = h.archivedOn < today && hasOnce(tx.s, `perfect|${today}`) && !doneToday;
+  const stretch = archivedStretchPause(h.archivedOn, keepToday ? addDays(today, 1) : today);
   if (stretch) w.pauses = addPause(h.pauses, stretch.start, stretch.end);
   delete w.archivedOn;
   // Back from the balcony shelf: the ribbon comes off, and a finished "just this season" runs on.

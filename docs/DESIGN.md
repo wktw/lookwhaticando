@@ -218,7 +218,7 @@ Four resources, each drawn as a real object, and each with one job (internal ids
   flexible check-ins count). Pays 2 × done, clamped 4–16, once per date. A "Take today off" day is neither perfect nor
   imperfect. A rest excuses a habit only within the weekly allowance, and a rest that completed a paid perfect day keeps
   using the allowance after an un-rest. Resuming a habit whose pause excused today's paid perfect day brings it back
-  tomorrow.
+  tomorrow, and so does restoring one whose archive (e.g. Finish) excused it.
 * **Welcome home**: the first check-in after ≥ 3 quiet calendar days gives 20 coins + 1 ticket (at most every 14 days). The copy
   never mentions the gap: "Everything kept. There's a ticket on the sill."
 * **Streak rungs** (per habit, coins only): at 3/7/14/21/30/45/60/90/120/180/365 (occurrence-equivalent) they pay
@@ -594,7 +594,7 @@ third-person lines, no line repeated within the last 5 in a context). A lint tes
   On the 1st, the stems are pressed into a **Herbarium page**: each habit's pressing is sized by how often it was watered and
   labelled in small type ("Walk · 24"). Rest days press as a small flower. There's no percentage on the page, and a quiet month's page is
   as beautiful as any other.
-* **Season Review** (§14.3). **Birthday** (optional): each pet leaves a one-line card and there's a tiny cake on the sill, plus 1 ticket. **Came-home
+* **Season Review** (§14.3). **Birthday** (optional): each pet (out or indoors) leaves a one-line card and there's a tiny cake on the sill, plus 1 ticket. **Came-home
   days** for each pet (a small bow and a line), and a yearly **moving-in anniversary** note (on the first open within a week of
   the day; it pays nothing).
 * **The Cutting** (lifetime gauge): a pothos cutting in a jar on the window frame, there from day one. It grows on lifetime
@@ -616,7 +616,9 @@ target-user panel (AUDITS.md). **Every pillar is driven by real habit data and m
   (the counters are shared by all three; pairing by hand always works). Archiving, retiring or deleting a habit frees its
   companion.
 * **Friendship grows through the habit**: each completing check-in gives its companion `min(30, round(5 × 7/expectedPerWeek))`
-  XP (≤ 30/day from habits), once per occurrence (tiny included), on the reward path only.
+  XP (≤ 30/day from habits), once per occurrence (tiny included, a count habit's day-end tiny too), on the reward path only.
+  A flexible rule's occurrence is a place among the period's `times`, not a date: moving a check-in to another day pays
+  nothing new, and an Undo and re-check of an occurrence brings neither XP nor a story.
 * **Routines, not performances.** From Potted on, the companion **relates to the habit's objects the way real animals do**, and never
   performs the human activity: it sleeps on the open book (Read), lies on the yoga mat (Stretch), sits in the laundry
   basket (Tidy), drinks from its bowl when you log water, waits by the door at your walk time (Walk), lies on the warm laptop
@@ -639,15 +641,15 @@ target-user panel (AUDITS.md). **Every pillar is driven by real habit data and m
 * When a plant first reaches **Blooming**, its look is computed from *how* she keeps the habit, and re-read at Evergreen. Looks are only
   ever added, and she chooses which to show (Classic is always available). **Color** from when she usually checks in: **Dawn ·
   Sunlit · Twilight · Wildflower** (anytime). The classifier uses live `at` stamps only, drops catch-up bursts (≥ 3 habits within
-  120 s) and 23:00–03:59, and needs ≥ 10 eligible days (a read waits for them rather than guess). Bands: Dawn before 9:00,
+  120 s, measured in time, across the day start) and 23:00–03:59, and needs ≥ 10 eligible days (a read waits for them rather than guess). Bands: Dawn before 9:00,
   Sunlit 9:00–17:59, Twilight from 18:00; "usually" is a band holding ≥ 60% of the eligible days of the kept stamps (120 days),
   else Wildflower. **Shape**: **Classic · Petite** (tiny on ≥ 25% of days, ≥ 5 days) **·
   Paired** (stacked on ≥ 14 kept-together days: petals take the partner's card color, the pots sit side by side, a bee visits;
   Paired wins over Petite). A kept-together day: both done, the follower at or after its anchor when both were live.
   **No performance-graded looks.** It pays nothing. The **plant tag** explains it in plain words ("Dawn · Paired: you usually
   water it before 9, and 18 days you did it right after Walk"). A mismatch offers "You set Walk for mornings but usually
-  water it after 6 pm. Move it to Evening?" (one tap; ≥ 60% of ≥ 10 eligible days in another Today block; offered once, either
-  answer closes it).
+  water it after 6 pm. Move it to Evening?" (one tap; ≥ 60% of ≥ 10 eligible days in another Today block, by Today's own rule: the hours before the day start are
+  the previous day's evening; offered once, either answer closes it).
 * **Garden Journal** (Habit Detail): up to 5 plain sentences that ink in from week 2 (usual time, steadiest weekday, tiny saves,
   kept-together count, why it looks like this), with pencil placeholders that say when they'll fill in. The forecast is in check-ins, never
   a deadline.
