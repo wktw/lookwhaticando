@@ -1,12 +1,14 @@
 /**
- * Plant & pot art (habits-as-plants, DESIGN §5.5 + §13.1): parametric plants for every
- * PlantSpeciesId at all 8 stages (with in-stage progress and post-Evergreen blooms), and every PotId.
+ * Plant art (DESIGN §5.5, §10.4): every habit is a real houseplant, drawn from life at eight stages, from a cutting in
+ * a glass of water to an Evergreen specimen, in any of the pots, lit by the one window (or the lamp at night).
  */
 import type { PlantSpeciesId, PotId } from '@/catalog/types';
 import { PLANT_SPECIES } from './species';
 import { POTS } from './pots';
 
-export { PlantArt, PotArt, PLANT_STAGE_NAMES, MAX_BLOOMS, type PlantArtProps } from './PlantArt';
+export { PlantArt, PotArt, PLANT_STAGE_NAMES, MAX_BLOOMS, type PlantArtProps, type PotArtProps } from './PlantArt';
+export { PlantTag, type PlantTagProps } from './PlantTag';
+export { POT_GEOMETRY, type PotGeometry } from './geometry';
 
 /** Registries used by the coverage test. */
 export const PLANT_SPECIES_WITH_ART: ReadonlySet<PlantSpeciesId> = new Set(Object.keys(PLANT_SPECIES) as PlantSpeciesId[]);

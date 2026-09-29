@@ -1,34 +1,38 @@
 import type { PlantSpeciesId } from '@/catalog/types';
-import type { PlantSpeciesArt } from '../types';
-import { tulip } from './tulip';
-import { daisy } from './daisy';
-import { sunflower } from './sunflower';
-import { succulent } from './succulent';
+import type { SpeciesArt } from '../types';
+import { pothos } from './pothos';
+import { pilea } from './pilea';
+import { begonia } from './begonia';
+import { snakeplant } from './snakeplant';
+import { catgrass } from './catgrass';
 import { monstera } from './monstera';
-import { sakura } from './sakura';
 import { strawberry } from './strawberry';
 import { lavender } from './lavender';
-import { cactus } from './cactus';
-import { lily } from './lily';
-import { mushroom } from './mushroom';
-import { lemon } from './lemon';
+import { catnip } from './catnip';
+import { hoya } from './hoya';
+import { orchid } from './orchid';
+import { calathea } from './calathea';
+import { violet } from './violet';
+import { tulip } from './tulip';
+import { xmascactus } from './xmascactus';
+import { sunflower } from './sunflower';
 
-/** Placeholder mapping onto the Mochi-era drawings until the catkin plant restyle lands (DESIGN §10). */
-export const PLANT_SPECIES: Record<PlantSpeciesId, PlantSpeciesArt> = {
-  pothos: lily,
-  pilea: succulent,
-  begonia: daisy,
-  snakeplant: cactus,
-  catgrass: tulip,
+/** Every species, drawn from life (DESIGN §5.5, §10.4). */
+export const PLANT_SPECIES: Record<PlantSpeciesId, SpeciesArt> = {
+  pothos,
+  pilea,
+  begonia,
+  snakeplant,
+  catgrass,
   monstera,
   strawberry,
   lavender,
-  catnip: lemon,
-  hoya: sakura,
-  orchid: lily,
-  calathea: mushroom,
-  violet: daisy,
+  catnip,
+  hoya,
+  orchid,
+  calathea,
+  violet,
   tulip,
-  xmascactus: cactus,
+  xmascactus,
   sunflower,
 };

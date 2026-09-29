@@ -1,0 +1,99 @@
+/* A paper nursery tag: matte card, a punched hole, a thin wooden stake. Paper stays paper at night, lamp-warmed. */
+.tag {
+  --paper: #fffdf9;
+  --paper-edge: #e6dcd0;
+  --tag-ink: #3b3236;
+  --tag-ink-2: #66585d;
+  --stake: #d9c7ad;
+  position: relative;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  max-width: 100%;
+  font-size: var(--tag-size, 14px);
+  line-height: 1.25;
+  vertical-align: bottom;
+}
+
+:root[data-theme='night'] .tag {
+  --paper: #efe4d6;
+  --paper-edge: #d9ccbc;
+  --stake: #b9a68c;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']):not([data-theme='night']) .tag {
+    --paper: #efe4d6;
+    --paper-edge: #d9ccbc;
+    --stake: #b9a68c;
+  }
+}
+
+.card {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.36em;
+  min-width: 0;
+  max-width: var(--tag-max, 9em);
+  padding: 0.22em 0.55em 0.26em 0.4em;
+  border-radius: 0.14em;
+  background: var(--paper);
+  /* A hairline edge so the paper holds against pale walls; it is the paper's edge, not an outline. */
+  box-shadow:
+    0 0 0 0.5px var(--paper-edge),
+    0.08em 0.1em 0 rgba(94, 76, 154, 0.12);
+  color: var(--tag-ink);
+  transform: rotate(-3deg);
+}
+
+.propped .card {
+  transform: rotate(6deg);
+  transform-origin: 20% 100%;
+}
+
+/* The punched hole: the card's own colour pushed back, with a darker lip. */
+.hole {
+  flex: none;
+  width: 0.3em;
+  height: 0.3em;
+  border-radius: 50%;
+  background: var(--paper-edge);
+}
+
+.lines {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.name,
+.note {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-family: var(--font-display);
+  font-weight: 400;
+}
+
+.name {
+  font-size: 1em;
+}
+
+.note {
+  margin-top: -0.05em;
+  font-size: 0.78em;
+  font-style: italic;
+  color: var(--tag-ink-2);
+}
+
+.stake {
+  width: 0.16em;
+  height: 1.3em;
+  margin-top: -0.2em;
+  border-radius: 0 0 0.08em 0.08em;
+  background: var(--stake);
+  transform: rotate(-3deg);
+  transform-origin: top center;
+}

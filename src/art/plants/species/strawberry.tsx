@@ -1,189 +1,208 @@
-import type { Growth, PlantSpeciesArt } from '../types';
-import { Blossom, FINE, GREEN, Merged, OUTLINE, Shine, Stems, leafD, stemD } from '../parts';
-import { f, lerp, mix, ramp } from '../math';
-import { seedling, sprout } from '../early';
+/**
+ * Strawberry (Fragaria): a low crown of trifoliate leaves with toothed leaflets on arching stalks. White five-petalled
+ * flowers come first, then small red berries that hang over the rim (the harvest), and at last a runner with a
+ * baby plant at its tip.
+ */
+import type { JSX } from 'preact';
+import { ell, mapPath, tidy, type Pt } from '../geom';
+import { inks, SHADE, type Kit } from '../kit';
+import { grown, place, Stems, toward } from '../leaves';
+import { f, lerp, ramp } from '../math';
+import type { Growth, Mouth, SpeciesArt } from '../types';
 
-const BERRY = '#FF7F93';
-const UNRIPE = '#D5EDB0';
+const GREENS = inks('#9DC486', '#76A266');
+const STALK = '#93B27E';
+const PETAL = '#F8F3EA';
+const HEART = '#F2CD5C';
+const BERRY = '#E2654F';
+const UNRIPE = '#EAD9A8';
+const SEEDS = '#F6DC8E';
+const CALYX = '#7FA66A';
 
-/** Three round leaflets at the end of a petiole, pointing along `rot`, merged into one soft silhouette. */
-function Trifoliate({ x, y, rot, s = 1, fill = GREEN.leaf }: { x: number; y: number; rot: number; s?: number; fill?: string }) {
-  const leaflet = (a: number, L: number, W: number) => ({ d: leafD('round', L, W), transform: `rotate(${a})` });
+/** One toothed leaflet, 9 long, base at the origin, tip up: an oval with a serrated upper edge. */
+const LEAFLET = (() => {
+  const pts: string[] = [];
+  const n = 22;
+  for (let i = 0; i <= n; i++) {
+    const th = (i / n) * Math.PI * 2;
+    const x = Math.sin(th) * 3.6;
+    const y = -4.6 + Math.cos(th) * -4.6;
+    // Teeth on the outer three quarters, a smooth taper into the stalk.
+    const toothed = Math.cos(th) < 0.55;
+    const k = toothed && i % 2 ? 1.1 : 1;
+    pts.push(`${f(x * k)} ${f(-4.6 + (y + 4.6) * k)}`);
+  }
+  return tidy(`M${pts.join('L')}Z`);
+})();
+/** Three leaflets on one stalk: the middle one straight on, the side ones turned out. */
+const TRIFOLIATE = [0, -52, 52]
+  .map((a, i) => {
+    const r = (a * Math.PI) / 180;
+    const s = i ? 0.9 : 1;
+    return mapPath(LEAFLET, (x, y) => [(x * Math.cos(r) - y * Math.sin(r)) * s, (x * Math.sin(r) + y * Math.cos(r)) * s - 0.4]);
+  })
+  .join('');
+const VEINS = [0, -52, 52]
+  .map((a, i) => {
+    const r = (a * Math.PI) / 180;
+    const L = i ? 7.2 : 8;
+    return `M${f(-Math.sin(-r) * 0.8)} ${f(-0.8 * Math.cos(r) - 0.4)}L${f(Math.sin(r) * L)} ${f(-Math.cos(r) * L - 0.4)}`;
+  })
+  .join('');
+
+function trifoliate(k: Kit, x: number, y: number, a: number, s: number, tone: number, key: string | number) {
   return (
-    <g transform={`translate(${f(x)} ${f(y)}) rotate(${f(rot)}) scale(${f(s)})`}>
-      <Merged shapes={[leaflet(-56, 9.6, 4.4), leaflet(56, 9.6, 4.4), leaflet(0, 11, 4.8)]} fill={fill} line={f(FINE / s)} />
-      <g fill="none" stroke={GREEN.vein} stroke-width={f(1.1 / s)} stroke-linecap="round">
-        <path d="M0 -1.4 L0 -8.6" />
-        <path d="M-1.2 -0.8 L-6.6 -4.4" />
-        <path d="M1.2 -0.8 L6.6 -4.4" />
-      </g>
+    <g key={key} transform={place(x, y, a, s)}>
+      <path d={TRIFOLIATE} fill={k.tone(GREENS, tone, x, y)} />
+      <path d={VEINS} fill="none" stroke={k.lit('#C5DDB0')} stroke-width={0.45} stroke-linecap="round" opacity={0.8} />
     </g>
   );
 }
 
-/** A strawberry hanging from (x, y); `ripe` blends it from white-green to berry pink-red. */
-function Berry({ x, y, s = 1, rot = 0, ripe = 1 }: { x: number; y: number; s?: number; rot?: number; ripe?: number }) {
-  const line = f(FINE / s);
+const FLOWER = [0, 72, 144, 216, 288]
+  .map((a) => {
+    const r = (a * Math.PI) / 180;
+    return ell(Math.sin(r) * 2.3, -Math.cos(r) * 2.3, 1.85);
+  })
+  .join('');
+/** The lower petals turned from the light: a flat shade so white reads on white. */
+const FLOWER_SHADE = { left: ell(1.9, 1.2, 1.5), right: ell(-1.9, 1.2, 1.5), top: ell(0, 2.2, 1.6) };
+
+function flower(k: Kit, x: number, y: number, s: number, key: string | number) {
   return (
-    <g transform={`translate(${f(x)} ${f(y)}) rotate(${f(rot)}) scale(${f(s)})`} stroke={OUTLINE} stroke-linejoin="round" stroke-linecap="round">
-      <path d="M-4.8 1.4 C-6 5.6 -2.6 10.4 0 10.8 C2.6 10.4 6 5.6 4.8 1.4 C3.2 -0.4 -3.2 -0.4 -4.8 1.4 Z" fill={mix(UNRIPE, BERRY, ripe)} stroke-width={line} />
-      {ripe > 0.5 && (
-        <g fill="#FFE9A8" stroke="none">
-          <ellipse cx={-2.2} cy={4} rx={0.45} ry={0.7} />
-          <ellipse cx={1.6} cy={3.6} rx={0.45} ry={0.7} />
-          <ellipse cx={-0.4} cy={6.8} rx={0.45} ry={0.7} />
-          <ellipse cx={2.6} cy={6.6} rx={0.45} ry={0.7} />
-          <ellipse cx={-2.8} cy={6.6} rx={0.45} ry={0.7} />
-        </g>
-      )}
-      <Shine d="M-3.6 3.2 Q-3.8 5.2 -2.8 6.6" w={1.1 / s} />
-      <path d="M0 1 L-4 -0.6 L-1.6 -1 L0 -2.8 L1.6 -1 L4 -0.6 Z" fill={GREEN.leaf} stroke-width={f(1.4 / s)} />
+    <g key={key} transform={`translate(${f(x)} ${f(y)}) scale(${f(s)})`}>
+      <path d={FLOWER} fill={k.lit(PETAL)} />
+      <path d={FLOWER_SHADE[k.light.from]} class={SHADE} />
+      <path d={ell(0, 0, 1.3)} fill={HEART} />
     </g>
   );
 }
 
-/** Small green bud with white petals peeking (k 0 → 1); a finer line keeps it from turning into a dark knot. */
-function FlowerBud({ x, y, k }: { x: number; y: number; k: number }) {
+/** A berry hanging from (x, y): a rounded cone, seed-flecked, under a green calyx. */
+const BERRY_D = 'M0 0C2.6 0 3.4 1.8 3.2 3.4C2.9 5.6 1.4 7.4 0 7.8C-1.4 7.4 -2.9 5.6 -3.2 3.4C-3.4 1.8 -2.6 0 0 0Z';
+const BERRY_SEEDS = [
+  [-1.4, 2.2],
+  [0.4, 1.8],
+  [1.8, 2.8],
+  [-1.8, 4.2],
+  [0, 4],
+  [1.4, 4.8],
+  [-0.6, 6],
+  [0.8, 6.4],
+]
+  .map(([x, y]) => ell(x!, y!, 0.28, 0.36))
+  .join('');
+const CALYX_D = 'M0 0.8L-3 -0.4L-1.2 0.6L-2.4 1.8L-0.4 1L0 2.4L0.4 1L2.4 1.8L1.2 0.6L3 -0.4Z';
+
+function berry(k: Kit, x: number, y: number, s: number, ripe: number, key: string | number) {
   return (
-    <g stroke={OUTLINE} stroke-width={1.3} stroke-linejoin="round">
-      <circle cx={x} cy={f(y - 2)} r={f(lerp(2.6, 3.6, k))} fill="#fff" />
-      <path d={`M${f(x - 3.8)} ${f(y - 0.6)} L${f(x - 1.7)} ${f(y - 2.3)} L${x} ${f(y - 0.8)} L${f(x + 1.7)} ${f(y - 2.3)} L${f(x + 3.8)} ${f(y - 0.6)} C${f(x + 2.5)} ${f(y + 2.5)} ${f(x - 2.5)} ${f(y + 2.5)} ${f(x - 3.8)} ${f(y - 0.6)} Z`} fill={GREEN.leaf} />
+    <g key={key} transform={`translate(${f(x)} ${f(y)}) scale(${f(s)})`}>
+      <path d={BERRY_D} fill={ripe > 0.5 ? k.lit(BERRY) : k.lit(UNRIPE)} />
+      <path d={BERRY_SEEDS} fill={k.lit(SEEDS)} opacity={0.9} />
+      <path d={CALYX_D} fill={CALYX} />
     </g>
   );
 }
 
-type Fruit = { x: number; y: number; s: number; rot: number; ripe: number; stem: string };
-
-interface Plant {
-  leaves: { x0: number; x: number; y: number; rot: number; s: number }[];
-  buds: { x0: number; x: number; y: number; k: number }[];
-  flowers: { x0: number; x: number; y: number; r: number }[];
-  /** Berries hanging among the leaves. */
-  berries: Fruit[];
-  /** At most three berries spilling over the rim, at alternating heights, so no pot face gets covered. */
-  spill: Fruit[];
-}
-
-/** Extra berries after Evergreen, hanging from the leaf edges (never over the pot). */
-const EXTRA_BERRIES: Fruit[] = [
-  { x: 19, y: 49, s: 0.78, rot: 16, ripe: 1, stem: 'M25 42 Q20 44 19 49' },
-  { x: 81, y: 47, s: 0.78, rot: -16, ripe: 1, stem: 'M75 40 Q80 42 81 47' },
-  { x: 37, y: 42, s: 0.74, rot: 10, ripe: 1, stem: 'M40 36 Q37 38 37 42' },
-  { x: 63, y: 41, s: 0.74, rot: -10, ripe: 1, stem: 'M60 35 Q63 37 63 41' },
-  { x: 27, y: 32, s: 0.7, rot: 12, ripe: 1, stem: 'M31 26 Q27 28 27 32' },
-  { x: 73, y: 30, s: 0.7, rot: -12, ripe: 1, stem: 'M69 24 Q73 26 73 30' },
+/** Leaves of the crown: [heading, stalk length, size, birth]. */
+const LEAVES: readonly [number, number, number, number][] = [
+  [-40, 11, 1, 1.8],
+  [36, 12, 1, 2.1],
+  [-4, 14.5, 1.05, 2.6],
+  [-66, 13, 1.05, 3.1],
+  [62, 14, 1.1, 3.5],
+  [18, 17.5, 1.1, 4.1],
+  [-22, 18.5, 1.15, 4.8],
+  [46, 17, 1.15, 5.6],
+  [-52, 17.5, 1.15, 6.3],
+  [4, 21, 1.1, 7],
 ];
 
-/** A dome of leaves: back-center first, lower sides last. */
-function leaves(g: Growth): Plant['leaves'] {
-  const k = lerp(0.9, 1, ramp(g.t, 3, 5)) + ramp(g.t, 5, 7) * 0.18;
-  return [
-    { x0: 50, x: 50.5, y: 37 - k * 3, rot: 2, s: 1.12 * k },
-    { x0: 49, x: 40, y: 41, rot: -34, s: 1.12 * k },
-    { x0: 51, x: 61, y: 40, rot: 36, s: 1.12 * k },
-    { x0: 48, x: 34, y: 51, rot: -66, s: 1.06 * k },
-    { x0: 52, x: 66, y: 50, rot: 64, s: 1.06 * k },
-    ...(g.t >= 3.5 ? [{ x0: 50, x: 50.5, y: 49, rot: -4, s: 0.92 * k }] : []),
-  ];
-}
+/** Where trusses of flowers and berries hang over the rim: [side, reach past the rim, drop below it]. */
+const TRUSSES: readonly [number, number, number][] = [
+  [1, 4, 5],
+  [-1, 3, 7],
+  [1, 7, 11],
+  [-1, 6, 3],
+  [1, 1.5, 12],
+  [-1, 1, 11],
+];
 
-function plant(g: Growth): Plant {
-  const p = g.progress;
-  const ls = leaves(g);
-  switch (g.stage) {
-    case 3:
-      return { leaves: ls, buds: [], flowers: [], berries: [], spill: [] };
-    case 4:
-      return {
-        leaves: ls,
-        buds: [
-          { x0: 48, x: 37, y: lerp(27, 23, p), k: 0.3 + p * 0.7 },
-          { x0: 52, x: 63, y: lerp(26, 22, p), k: 0.2 + p * 0.5 },
-          ...(p >= 0.5 ? [{ x0: 50, x: 50.5, y: 18, k: p - 0.5 }] : []),
-        ],
-        flowers: [],
-        berries: [],
-        spill: [],
-      };
-    case 5:
-      return {
-        leaves: ls,
-        buds: [{ x0: 50, x: 50.5, y: 18, k: 0.6 }],
-        flowers: [
-          { x0: 48, x: 36, y: 25, r: lerp(5.4, 6.4, p) },
-          { x0: 52, x: 64, y: 24, r: lerp(5.4, 6.4, p) },
-        ],
-        berries: [],
-        spill: p >= 0.5 ? [{ x: 73, y: 55, s: 0.72, rot: -14, ripe: 0, stem: 'M66 48 Q72 49 73 55' }] : [],
-      };
-    case 6:
-      return {
-        leaves: ls,
-        buds: [],
-        flowers: [
-          { x0: 48, x: 35, y: 26, r: 6.2 },
-          { x0: 52, x: 64, y: 24, r: 6.2 },
-          ...(p >= 0.5 ? [{ x0: 50, x: 50.5, y: 18, r: 5.4 }] : []),
-        ],
-        berries: [{ x: 58, y: 46, s: 0.8, rot: -6, ripe: lerp(0.4, 1, p), stem: 'M56 40 Q58 42 58 46' }],
-        spill: [
-          { x: 27, y: 58, s: 0.95, rot: 16, ripe: 1, stem: 'M35 49 Q28 51 27 58' },
-          { x: 73, y: 56, s: 0.95, rot: -16, ripe: 1, stem: 'M66 48 Q72 50 73 56' },
-        ],
-      };
-    default:
-      return {
-        leaves: ls,
-        buds: [],
-        flowers: [
-          { x0: 48, x: 33, y: 25, r: 6.4 },
-          { x0: 52, x: 67, y: 23, r: 6.4 },
-          { x0: 50, x: 50.5, y: 15, r: 6 },
-        ],
-        berries: [{ x: 58, y: 46, s: 0.85, rot: -6, ripe: 1, stem: 'M56 40 Q58 42 58 46' }, ...EXTRA_BERRIES.slice(0, g.blooms)],
-        spill: [
-          { x: 25, y: 58, s: 1, rot: 18, ripe: 1, stem: 'M33 48 Q26 50 25 58' },
-          { x: 75, y: 56, s: 1, rot: -18, ripe: 1, stem: 'M67 47 Q74 49 75 56' },
-          { x: 41, y: 55, s: 0.88, rot: 8, ripe: 1, stem: 'M44 48 Q41 50 41 55' },
-        ],
-      };
-  }
-}
-
-function Berries({ list }: { list: Fruit[] }) {
-  return (
+function potted(g: Growth, k: Kit, m: Mouth) {
+  const base: Pt = [50, m.y + 0.6];
+  const spread = Math.min(1, m.hw / 18);
+  let stalks = '';
+  const leaves = LEAVES.map(([a, len, s, birth], i) => {
+    const gr = grown(g.t, birth);
+    if (gr <= 0) return null;
+    const [tx, ty] = toward(base, a * lerp(0.6, 1, gr), len * lerp(0.45, 1, gr));
+    const x = 50 + (tx - 50) * spread;
+    stalks += `M${f(base[0])} ${f(base[1])}Q${f(lerp(base[0], x, 0.2))} ${f(lerp(base[1], ty, 0.7))} ${f(x)} ${f(ty)}`;
+    return trifoliate(k, x, ty, a * 0.7, s * lerp(0.45, 1, gr) * lerp(0.92, 1.05, ramp(g.t, 3, 7.5)), i % 2, i);
+  });
+  // Buds at Budding; from Blooming the flowers set fruit, ripening as the plant matures.
+  const budding = g.stage === 4 ? 1 + Math.round(g.progress) : 0;
+  const count = budding || g.blooms;
+  const fruit = g.stage >= 7 ? Math.max(0, count - 1) : g.stage === 6 ? Math.floor(count / 2) : 0;
+  let trussStalks = '';
+  const hanging: JSX.Element[] = [];
+  TRUSSES.slice(0, count).forEach(([side, reach, drop], j) => {
+    const berryNow = !budding && j < fruit;
+    // Flowers are held out at the edge of the leaves; the weight of fruit brings the stalk down over the rim.
+    const x = 50 + side * (m.hw + reach - (berryNow ? 2 : 7));
+    const y = berryNow ? m.y + drop : m.y - 4 - drop * 0.5;
+    trussStalks += `M${f(50 + side * 3)} ${f(m.y - 1)}Q${f(50 + side * (m.hw * 0.7))} ${f(m.y - 12)} ${f(x)} ${f(y)}`;
+    if (budding)
+      hanging.push(
+        <g key={j} transform={`translate(${f(x)} ${f(y)})`}>
+          <path d={ell(0, -0.6, 1.9, 2.1)} fill={k.lit('#F3F1E2')} />
+          <path d={CALYX_D} fill={CALYX} transform="translate(0 0.6)" />
+        </g>,
+      );
+    else if (j < fruit) hanging.push(berry(k, x, y, lerp(0.85, 1.1, j / 6), g.stage >= 7 || j % 2 === 0 ? 1 : 0, j));
+    else hanging.push(flower(k, x, y - 1, 1, j));
+  });
+  // A runner at Evergreen: a bare stalk over the rim with a baby plant at its tip.
+  const run = ramp(g.t, 7.2, 8);
+  const runner = run > 0 && (
     <g>
-      <Stems paths={list.map((b) => b.stem)} w={1.6} line={1.6} />
-      {list.map((b, i) => (
-        <Berry key={i} x={b.x} y={b.y} s={b.s} rot={b.rot} ripe={b.ripe} />
-      ))}
+      <path d={`M${f(50 - 4)} ${f(m.y)}Q${f(50 - m.hw - 8)} ${f(m.y - 10)} ${f(50 - m.hw - 9)} ${f(m.y + lerp(2, 20, run))}`} fill="none" stroke={STALK} stroke-width={0.8} stroke-linecap="round" />
+      {trifoliate(k, 50 - m.hw - 9, m.y + lerp(2, 20, run), 160, 0.55 * run, 0, 'runner')}
     </g>
   );
+  return {
+    back: (
+      <g>
+        <Stems d={stalks} color={STALK} w={1} />
+        {leaves}
+      </g>
+    ),
+    front: (
+      <g>
+        <Stems d={trussStalks} color={STALK} w={0.8} />
+        {hanging}
+        {runner}
+      </g>
+    ),
+  };
 }
 
-export const strawberry: PlantSpeciesArt = {
-  seed: '#F2C46B',
-  render: (g) => {
-    if (g.stage === 1) return sprout(g);
-    if (g.stage === 2) return seedling(g, { shape: 'round' });
-    const pl = plant(g);
-    return {
-      back: (
+export const strawberry: SpeciesArt = {
+  cutting: {
+    stem: { color: STALK, w: 1.3 },
+    draw: (g, k, [x, y]) => {
+      // A runner's baby plant: a little crown with two leaves, rooting in water.
+      const crown: Pt = [x, 57];
+      const third = g.stage > 0 ? grown(g.progress, 0.5, 0.5) : 0;
+      return (
         <g>
-          <Stems paths={[...pl.leaves.map((l) => stemD(l.x0, l.x, l.y)), ...pl.buds.map((b) => stemD(b.x0, b.x, b.y)), ...pl.flowers.map((fl) => stemD(fl.x0, fl.x, fl.y))]} w={2.2} />
-          {pl.leaves.map((l, i) => (
-            <Trifoliate key={i} x={l.x} y={l.y} rot={l.rot} s={l.s} fill={i < 3 ? GREEN.back : GREEN.leaf} />
-          ))}
-          {pl.buds.map((b, i) => (
-            <FlowerBud key={i} x={b.x} y={b.y} k={b.k} />
-          ))}
-          {pl.flowers.map((fl, i) => (
-            <Blossom key={i} x={fl.x} y={fl.y} r={fl.r} petal="#FFFFFF" rot={i * 20} line={1.6} />
-          ))}
-          {pl.berries.length > 0 && <Berries list={pl.berries} />}
+          <Stems d={`M${x} ${y}L${crown[0]} ${crown[1]}M${crown[0]} ${crown[1]}Q${crown[0] - 3} ${crown[1] - 5} ${crown[0] - 5} ${crown[1] - 9}M${crown[0]} ${crown[1]}Q${crown[0] + 3} ${crown[1] - 6} ${crown[0] + 5} ${crown[1] - 11}${third ? `M${crown[0]} ${crown[1]}L${crown[0] + 0.4} ${crown[1] - 10 * third}` : ''}`} color={STALK} w={1} />
+          {trifoliate(k, crown[0] - 5, crown[1] - 9, -30, lerp(0.8, 0.9, g.stage ? 1 : g.progress), 1, 'a')}
+          {trifoliate(k, crown[0] + 5, crown[1] - 11, 26, 0.9, 0, 'b')}
+          {third > 0 && trifoliate(k, crown[0] + 0.4, crown[1] - 10 * third, 2, 0.6 * third, 0, 'c')}
         </g>
-      ),
-      front: pl.spill.length ? <Berries list={pl.spill} /> : null,
-    };
+      );
+    },
   },
+  potted,
 };
