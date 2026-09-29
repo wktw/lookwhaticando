@@ -1,10 +1,10 @@
 import type { MachineDef } from '@/catalog/types';
-import { machineStatus } from '@/state/store';
-import { CoinIcon, StarIcon } from '@/art/icons';
-import { untilLabel } from '@/art/machines/CabinetArt';
+import { capsulesView, selectSeries } from '@/state/selectors';
+import { CoinIcon, StampIcon } from '@/art/icons';
 import { pillFace } from '@/art/machines/theme';
-import { PillButton, Pill } from './ui/CandyButton';
-import { collectedLabel, currencyWord, luckyLabel, pityLines } from './copy';
+import { Button } from '@/ui/Button';
+import { Pill } from '@/ui/Pill';
+import { collectedLabel, currencyWord, luckyLabel, monthDayOfKey, pityLines } from './copy';
 import s from './CapsulesScreen.module.css';
 
 export interface MachineInfoProps {
@@ -14,40 +14,51 @@ export interface MachineInfoProps {
   onOrder: () => void;
 }
 
-/** The series beside its cabinet: name, price, what's collected, pity, the lucky meter, and the sheets. */
+/**
+ * The series beside its cabinet: name, price, what's in the Field Guide, pity, the lucky meter,
+ * and the sheets. Everything it says comes from the cabinet's card in capsulesView (and the
+ * series view for the counts), the same numbers the rest of the counter reads.
+ */
 export function MachineInfo({ machine, onLineup, onOdds, onOrder }: MachineInfoProps) {
-  const status = machineStatus(machine.id);
-  const pct = status.total ? Math.round((status.owned / status.total) * 100) : 0;
-  const pity = pityLines(status.rareIn, status.ultraIn);
-  const until = untilLabel(machine);
-  const lucky = Math.max(0, Math.min(4, status.dupStreak));
+  const card = capsulesView.value.machines.find((m) => m.id === machine.id);
+  const series = selectSeries(machine.id).value;
+  const pct = series.total ? Math.round((series.owned / series.total) * 100) : 0;
+  const pity = card ? pityLines(card.rareIn, card.ultraIn) : [];
+  const until = card?.seasonal?.until ? `until ${monthDayOfKey(card.seasonal.until)}` : null;
+  const lucky = Math.max(0, Math.min(4, card?.luckyPips ?? 0));
 
   return (
     <section class={s.info} aria-labelledby={`info-${machine.id}`}>
-      <p class={s.infoKicker}>{machine.number ?? `Seasonal edition · ${until ?? ''}`}</p>
+      <p class={s.infoKicker}>{machine.number ?? (until ? `Seasonal edition · ${until}` : 'Seasonal edition')}</p>
       <h2 id={`info-${machine.id}`} class={s.infoTitle}>
         {machine.name}
       </h2>
       <p class={s.tagline}>{machine.tagline}</p>
 
       <div class={s.facts}>
-        <Pill tone="butter">
-          {machine.currency === 'stars' ? <StarIcon size={16} /> : <CoinIcon size={16} />}
-          <span class="num">{machine.price}</span> {currencyWord(machine)} a capsule
-        </Pill>
-        {status.complete && <Pill tone="sage">Every one collected</Pill>}
+        {card?.free ? (
+          <Pill tone="sage" icon={<CoinIcon size={16} />}>
+            Your first capsule is on the house
+          </Pill>
+        ) : (
+          <Pill tone="butter" icon={machine.currency === 'stars' ? <StampIcon size={16} /> : <CoinIcon size={16} />}>
+            <span class="num">{machine.price}</span> {currencyWord(machine)}
+          </Pill>
+        )}
+        {machine.id === 'night' && <Pill tone="lavender">Better odds, paid in stamps.</Pill>}
+        {series.complete && <Pill tone="sage">Every one collected</Pill>}
       </div>
 
       <div class={s.series}>
-        <p class={s.seriesHead}>{collectedLabel(status.owned, status.total)}</p>
+        <p class={s.seriesHead}>{collectedLabel(series.owned, series.total)}</p>
         <div
           class={s.bar}
           role="progressbar"
-          aria-label={`${machine.name} collected`}
+          aria-label={`${machine.name} in the Field Guide`}
           aria-valuemin={0}
-          aria-valuemax={status.total}
-          aria-valuenow={status.owned}
-          aria-valuetext={collectedLabel(status.owned, status.total)}
+          aria-valuemax={series.total}
+          aria-valuenow={series.owned}
+          aria-valuetext={collectedLabel(series.owned, series.total)}
         >
           <span style={{ width: `${pct}%`, background: pillFace(machine) }} />
         </div>
@@ -63,20 +74,20 @@ export function MachineInfo({ machine, onLineup, onOdds, onOrder }: MachineInfoP
               <span key={i} class={i < lucky ? s.dotOn : s.dotOff} />
             ))}
           </span>
-          {luckyLabel(status.dupStreak)}
+          {luckyLabel(lucky)}
         </li>
       </ul>
 
       <div class={s.infoActions}>
-        <PillButton variant="secondary" size="sm" onClick={onLineup}>
-          Lineup
-        </PillButton>
-        <PillButton variant="secondary" size="sm" onClick={onOdds}>
+        <Button variant="secondary" size="sm" onClick={onOdds}>
           Odds
-        </PillButton>
-        <PillButton variant="secondary" size="sm" onClick={onOrder}>
+        </Button>
+        <Button variant="secondary" size="sm" onClick={onLineup}>
+          The lineup
+        </Button>
+        <Button variant="secondary" size="sm" onClick={onOrder}>
           Special Order
-        </PillButton>
+        </Button>
       </div>
     </section>
   );

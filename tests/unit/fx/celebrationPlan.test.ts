@@ -5,8 +5,16 @@ import type { GameEvent } from '@/state/api';
 import { SPECIES_COLOURS } from '@/fx/petalColours';
 
 const ctx = (locallyCelebrated: string[] = []): CelebrationContext => ({
-  habit: (id) => ({ 'h-walk': { name: 'Walk', plant: 'pothos' as const, pot: 'terracotta' as const }, 'h-yoga': { name: 'Yoga', plant: 'lavender' as const, pot: 'blush' as const } })[id],
+  habit: (id) =>
+    ({
+      'h-walk': { name: 'Walk', plant: 'pothos' as const, pot: 'terracotta' as const, stage: 3 },
+      'h-yoga': { name: 'Yoga', plant: 'lavender' as const, pot: 'blush' as const, stage: 5 },
+      'h-grass': { name: 'Stretch', plant: 'catgrass' as const, pot: 'terracotta' as const, stage: 5 },
+      'h-snooze': { name: 'No snooze', plant: 'snakeplant' as const, pot: 'terracotta' as const, avoid: true },
+    })[id],
   petName: (id) => (id === 'pet-cat-orange' ? 'Pudding' : 'Juniper'),
+  petSpecies: (id) => (id === 'pet-cat-orange' ? 'cat' : 'cow'),
+  albumName: (id) => ({ dogs: 'Dogs', cats: 'Cats' })[id] ?? id,
   itemName: (id) => ({ 'wear-laurel-sprig': 'Laurel Sprig', 'decor-window-seat': 'The Window Seat', 'treat-strawberry': 'Strawberry' })[id] ?? 'Thing',
   itemFlavor: () => 'Tucked behind one ear.',
   badge: (id) => BADGE_BY_ID.get(id),
@@ -42,7 +50,9 @@ describe('planCelebration', () => {
       ],
       ctx(),
     );
-    expect(plan.banner).toMatchObject({ kind: 'perfectDay', epic: false, rewards: { coins: 10 }, title: 'Everything’s watered', text: 'The whole sill is in the sun.' });
+    expect(plan.banner).toMatchObject({ kind: 'perfectDay', epic: false, rewards: { coins: 10 }, eyebrow: 'Tuesday, September 29', title: 'Everything’s watered', text: 'The whole sill is in the sun.' });
+    // Under the lamp, the same note says so.
+    expect(planCelebration([{ type: 'perfectDay', date: '2026-09-29', coins: 10 }], { ...ctx(), lamplight: () => true }).banner?.text).toBe('The whole sill is in the lamplight.');
     expect(plan.banner!.art).toEqual({ type: 'pet', petId: 'pet-cat-orange', expression: 'sleep' });
     expect(plan.wallet).toEqual(EMPTY_TALLY);
   });
@@ -61,17 +71,20 @@ describe('planCelebration', () => {
     ];
     const plan = planCelebration(events, ctx());
     expect(plan.banner?.kind).toBe('milestone');
-    expect(plan.banner?.title).toBe('30 days of showing up');
-    expect(plan.banner?.text).toBe('2 stamps and a ticket, enclosed.');
+    expect(plan.banner?.eyebrow).toBe('Showing up');
+    expect(plan.banner?.title).toBe('30 days');
+    expect(plan.banner?.text).toBe('2 stamps and a ticket.');
     expect(plan.banner?.confetti).toBe('big');
-    expect(plan.banner?.also).toEqual(['Perfect day', 'Fifty waterings pin']);
+    // DESIGN §9.1: perfect day > streak rung > pin.
+    expect(plan.banner?.also).toEqual(['Everything watered', 'Walk: 30 days in a row']);
     expect(plan.banner?.rewards).toEqual({ coins: 72, stars: 2, tickets: 1, stardust: 0 });
     expect(plan.toasts).toEqual([]);
   });
 
   it('exclusive rewards become the calm epic moment, even when they arrive inside a milestone', () => {
     const plan = planCelebration([{ type: 'showUp', days: 365, stars: 12, tickets: 3, exclusive: 'decor-window-seat' }], ctx());
-    expect(plan.banner).toMatchObject({ kind: 'exclusive', epic: true, title: 'The Window Seat', eyebrow: 'For 365 days of showing up', sound: 'reveal-ultra' });
+    expect(plan.banner).toMatchObject({ kind: 'exclusive', epic: true, title: 'The Window Seat', eyebrow: 'Showing up: 365 days', sound: 'reveal-ultra' });
+    expect(plan.banner?.text).toBe('The Window Seat is yours: a cushioned seat built into the window, with the best light in the place.');
     // The eyebrow already says it: no repeated "365 days of showing up" line.
     expect(plan.banner?.also).toEqual([]);
   });
@@ -84,15 +97,16 @@ describe('planCelebration', () => {
       ],
       ctx(),
     );
-    expect(plan.banner).toMatchObject({ kind: 'exclusive', title: 'Laurel Sprig', eyebrow: 'For the first evergreen plant' });
-    expect(plan.banner?.also).toEqual(['Your walk plant is evergreen']);
+    expect(plan.banner).toMatchObject({ kind: 'exclusive', title: 'Laurel Sprig', eyebrow: 'The first Evergreen plant' });
+    expect(plan.banner?.text).toBe('A laurel sprig, from the first plant to reach Evergreen. It’s in the wardrobe now.');
+    expect(plan.banner?.also).toEqual(['The Walk plant is Evergreen']);
   });
 
   it('only Blooming and Evergreen plants get notes in the band; other stages are small notes', () => {
     expect(planCelebration([{ type: 'plantStage', habitId: 'h-yoga', stage: 5, stageName: 'Blooming' }], ctx()).banner?.kind).toBe('plant');
     const small = planCelebration([{ type: 'plantStage', habitId: 'h-yoga', stage: 2, stageName: 'Potted' }], ctx());
     expect(small.banner).toBeNull();
-    expect(small.toasts[0]?.message).toBe('Your yoga plant is potted up.');
+    expect(small.toasts[0]?.message).toBe('The Yoga plant is potted up.');
   });
 
   it('every growth stage reads as a plain sentence, using the stage names', () => {
@@ -100,20 +114,20 @@ describe('planCelebration', () => {
       const plan = planCelebration([{ type: 'plantStage', habitId: 'h-yoga', stage, stageName }], ctx());
       return plan.banner?.title ?? plan.toasts[0]?.message;
     };
-    expect(say(1, 'Rooting')).toBe('Your yoga plant is rooting.');
-    expect(say(2, 'Potted')).toBe('Your yoga plant is potted up.');
-    expect(say(3, 'Leafy')).toBe('Your yoga plant is leafy now.');
-    expect(say(4, 'Budding')).toBe('Your yoga plant is budding.');
-    expect(say(5, 'Blooming')).toBe('Your yoga plant is blooming');
-    expect(say(6, 'Flourishing')).toBe('Your yoga plant is flourishing.');
-    expect(say(7, 'Evergreen')).toBe('Your yoga plant is evergreen');
+    expect(say(1, 'Rooting')).toBe('White roots are showing in the glass. The Yoga plant is rooting.');
+    expect(say(2, 'Potted')).toBe('The Yoga plant is potted up.');
+    expect(say(3, 'Leafy')).toBe('The Yoga plant has put out new leaves.');
+    expect(say(4, 'Budding')).toBe('There’s a bud on the Yoga plant, still closed tight.');
+    expect(say(5, 'Blooming')).toBe('The Yoga plant is Blooming');
+    expect(say(6, 'Flourishing')).toBe('The Yoga plant is spilling over the rim of the pot.');
+    expect(say(7, 'Evergreen')).toBe('The Yoga plant is Evergreen');
   });
 
   it('a bloom is described the way that species blooms', () => {
     const bloom = (habitId: string) => planCelebration([{ type: 'plantStage', habitId, stage: 5, stageName: 'Blooming' }], ctx()).banner;
-    expect(bloom('h-yoga')).toMatchObject({ eyebrow: 'Blooming', text: 'The lavender is in flower.' });
-    expect(bloom('h-walk')?.text).toBe('The pothos is trailing past the edge of the sill.');
-    expect(planCelebration([{ type: 'plantStage', habitId: 'h-walk', stage: 7, stageName: 'Evergreen' }], ctx()).banner?.text).toBe('It has grown past the top of the window frame.');
+    expect(bloom('h-yoga')).toMatchObject({ eyebrow: 'Blooming', text: 'The Yoga plant has purple spikes, and the sill smells of lavender.' });
+    expect(bloom('h-walk')?.text).toBe('The Walk plant is trailing past the edge of the sill.');
+    expect(planCelebration([{ type: 'plantStage', habitId: 'h-walk', stage: 7, stageName: 'Evergreen' }], ctx()).banner?.text).toBe('There’s a small brass watering can on the pot now.');
   });
 
   it('a bloom lets fall its own flowers; a perfect day, the flowers and leaves on the sill', () => {
@@ -174,16 +188,44 @@ describe('planCelebration', () => {
   });
 
   it('friendship level 10 is a note in the band, lower levels are small notes; pets are named, never pronouned', () => {
-    expect(planCelebration([{ type: 'petLevel', petId: 'pet-cat-orange', level: 10 }], ctx()).banner).toMatchObject({ kind: 'bestFriends', title: 'Pudding and you' });
-    expect(planCelebration([{ type: 'petLevel', petId: 'pet-cat-orange', level: 3 }], ctx()).toasts[0]?.message).toBe('Pudding reached friendship level 3.');
-    expect(planCelebration([{ type: 'favoriteFound', petId: 'pet-cat-orange', treatId: 'treat-strawberry' }], ctx()).toasts[0]?.message).toBe('Strawberry is Pudding’s favourite.');
+    expect(planCelebration([{ type: 'petLevel', petId: 'pet-cat-orange', level: 10 }], ctx()).banner).toMatchObject({ kind: 'bestFriends', title: 'You and Pudding', text: 'There’s a small brass tag to show it.' });
+    // A level says what the pet does now, species-true, never a number.
+    expect(planCelebration([{ type: 'petLevel', petId: 'pet-cat-orange', level: 3 }], ctx()).toasts[0]?.message).toBe('Pudding slow-blinks back at you now.');
+    expect(planCelebration([{ type: 'petLevel', petId: 'pet-cow-holstein', level: 3 }], ctx()).toasts[0]?.message).toBe('Juniper does a nose-lick when you say hello now.');
+    // Bond levels after best friends are notes, not another best-friends banner.
+    const bond = planCelebration([{ type: 'petLevel', petId: 'pet-cat-orange', level: 12 }], ctx());
+    expect(bond.banner).toBeNull();
+    expect(bond.toasts[0]?.message).toBe('Pudding is part of the furniture now, with a cushion that has a dent in it.');
+    expect(planCelebration([{ type: 'favoriteFound', petId: 'pet-cat-orange', treatId: 'treat-strawberry' }], ctx()).toasts[0]?.message).toBe('Pudding’s favourite is the strawberry. It’s on the Pet Card now.');
   });
 
   it('notes on the sill, goals and rungs say it plainly', () => {
     expect(planCelebration([{ type: 'letter', letterId: 'w1' }], ctx()).toasts[0]?.message).toBe('There’s a note on the sill.');
-    expect(planCelebration([{ type: 'periodGoal', habitId: 'h-yoga', period: 'week', coins: 10 }], ctx()).toasts[0]?.message).toBe('Yoga, done for the week.');
-    expect(planCelebration([{ type: 'rung', habitId: 'h-walk', streak: 12, unit: 'days', tierDays: 14, coins: 30 }], ctx()).toasts[0]?.message).toBe('Walk, 12 days.');
-    expect(planCelebration([{ type: 'stars', amount: 1, reason: 'fusion' }], ctx()).toasts[0]?.message).toBe('10 swaps became 1 stamp.');
+    expect(planCelebration([{ type: 'periodGoal', habitId: 'h-yoga', period: 'week', coins: 10 }], ctx()).toasts[0]?.message).toBe('Yoga, watered for the week.');
+    expect(planCelebration([{ type: 'rung', habitId: 'h-walk', streak: 14, unit: 'days', tierDays: 14, coins: 30 }], ctx()).toasts[0]?.message).toBe('Walk: 14 days in a row.');
+    expect(planCelebration([{ type: 'rung', habitId: 'h-snooze', streak: 14, unit: 'days', tierDays: 14, coins: 30 }], ctx()).toasts[0]?.message).toBe('No snooze: held off 14 days.');
+    expect(planCelebration([{ type: 'stars', amount: 1, reason: 'fusion' }], ctx()).toasts[0]?.message).toBe('The swap shelf is full: 10 swaps, traded for 1 stamp.');
+  });
+
+  it('spending never shrinks or cancels a reward note (gift, exchange, spend)', () => {
+    const plan = planCelebration(
+      [
+        { type: 'coins', amount: -20, reason: 'gift' },
+        { type: 'stars', amount: 1, reason: 'badge' },
+      ],
+      ctx(),
+    );
+    expect(plan.wallet).toEqual({ coins: 0, stars: 1, tickets: 0, stardust: 0 });
+    const swapIn = planCelebration(
+      [
+        { type: 'coins', amount: -250, reason: 'exchange' },
+        { type: 'coins', amount: 25, reason: 'badge' },
+        { type: 'stardust', amount: 40, fused: 4 },
+      ],
+      ctx(),
+    );
+    expect(swapIn.wallet).toEqual({ coins: 25, stars: 0, tickets: 0, stardust: 40 });
+    expect(planCelebration([{ type: 'stars', amount: -3, reason: 'badge' }], ctx()).wallet).toEqual(EMPTY_TALLY);
   });
 
   it('copy never uses guilt words', () => {
@@ -196,6 +238,87 @@ describe('planCelebration', () => {
     const plan = planCelebration(everything, ctx());
     const text = JSON.stringify(plan).toLowerCase();
     for (const word of ['failed', 'lost', 'broken', 'missed', 'streak lost']) expect(text).not.toContain(word);
+  });
+});
+
+describe('every event the domain emits gets its moment (VOICE, DESIGN §9.1)', () => {
+  const one = (e: GameEvent) => planCelebration([e], ctx());
+
+  it('a new look and a keepsake are lines under the plant banner', () => {
+    const plan = planCelebration(
+      [
+        { type: 'plantStage', habitId: 'h-yoga', stage: 5, stageName: 'Blooming' },
+        { type: 'look', habitId: 'h-yoga', colour: 'twilight', shape: 'classic', read: 'bloom' },
+        { type: 'keepsake', keepsakeId: 'k-h-yoga-5', petId: 'pet-cat-orange', habitId: 'h-yoga', stage: 5, kind: 'mind' },
+      ],
+      ctx(),
+    );
+    expect(plan.banner?.kind).toBe('plant');
+    expect(plan.banner?.also).toEqual(['A new look for the Yoga plant: Twilight', 'Pudding left a smooth grey stone by the pot']);
+    expect(plan.toasts).toEqual([]);
+    // Alone (at Evergreen's re-read, or a keepsake at Rooting), each is its own note.
+    expect(one({ type: 'look', habitId: 'h-walk', colour: 'dawn', shape: 'paired', read: 'evergreen' }).toasts[0]).toMatchObject({
+      message: 'A new look for the Walk plant: Dawn · Paired.',
+      art: { type: 'plant', species: 'pothos', stage: 7 },
+    });
+    expect(one({ type: 'keepsake', keepsakeId: 'k', petId: 'pet-cat-orange', habitId: 'h-walk', stage: 1, kind: 'move' }).toasts[0]?.message).toBe('Pudding left a pebble from the path by the pot.');
+  });
+
+  it('a full Field Guide page is a banner with its stamps; a page with a keepsake is the epic moment', () => {
+    const page = planCelebration(
+      [
+        { type: 'album', albumId: 'dogs', stars: 5 },
+        { type: 'stars', amount: 5, reason: 'gift' },
+      ],
+      ctx(),
+    );
+    expect(page.banner).toMatchObject({ kind: 'album', eyebrow: 'Field Guide', title: 'The Dogs page is full', text: '5 stamps, onto the card.', rewards: { stars: 5 } });
+    const chair = one({ type: 'album', albumId: 'cats', stars: 0, exclusive: 'decor-reading-chair' });
+    expect(chair.banner).toMatchObject({ kind: 'exclusive', epic: true, eyebrow: 'A full Field Guide page', text: 'The Cats page is full. A reading chair, for the Shelf.' });
+  });
+
+  it('the first harvest is a note; later ones are the check-in note’s aside', () => {
+    expect(one({ type: 'harvest', habitId: 'h-grass', treatId: 'treat-catgrass', firstTime: true }).toasts[0]?.message).toBe('A pinch of cat grass, into the basket.');
+    expect(one({ type: 'harvest', habitId: 'h-grass', treatId: 'treat-catgrass', firstTime: false })).toEqual({ banner: null, toasts: [], wallet: EMPTY_TALLY });
+  });
+
+  it('a companion moving in, a story, a found thing and a season review each say where to look', () => {
+    expect(one({ type: 'companion', petId: 'pet-cat-orange', habitId: 'h-walk' }).toasts[0]?.message).toBe('Pudding moved into the Walk plant.');
+    expect(one({ type: 'story', petId: 'pet-cat-orange', habitId: 'h-walk', story: 'start' }).toasts[0]?.message).toBe('There’s a story on the plant tag for Walk.');
+    expect(one({ type: 'seasonReview', season: 'summer', key: '2026-09-22' }).toasts[0]?.message).toBe('Summer, on the sill. It’s on Today.');
+    // The found thing's swap rides on its own note, not a second "+1 swap" in the tally.
+    const found = planCelebration(
+      [
+        { type: 'foundThing', petId: 'pet-cat-orange', date: '2026-09-29', seed: 5, swaps: 1 },
+        { type: 'stardust', amount: 1, fused: 0 },
+      ],
+      ctx(),
+    );
+    expect(found.toasts).toHaveLength(1);
+    expect(found.toasts[0]).toMatchObject({ message: 'Pudding left a bottle top on the sill.', rewards: { stardust: 1 } });
+    expect(found.wallet).toEqual(EMPTY_TALLY);
+    // Beside a banner, notes that point somewhere keep their own toast.
+    const withBanner = planCelebration(
+      [
+        { type: 'badge', badgeId: 'first-checkin', stars: 1 },
+        { type: 'story', petId: 'pet-cat-orange', habitId: 'h-walk', story: 'start' },
+        { type: 'foundThing', petId: 'pet-cat-orange', date: '2026-09-29', seed: 1, swaps: 1 },
+      ],
+      ctx(),
+    );
+    expect(withBanner.toasts.map((t) => t.key)).toEqual(['story-h-walk', 'found-2026-09-29']);
+    expect(withBanner.banner?.also).toEqual([]);
+  });
+
+  it('companion friendship, a retired habit and a pantry restock are quiet here', () => {
+    for (const e of [
+      { type: 'companionXp', petId: 'pet-cat-orange', habitId: 'h-walk', date: '2026-09-29', xp: 3 },
+      { type: 'retired', habitId: 'h-walk', ribbon: true },
+      { type: 'restock', treats: 2 },
+    ] as GameEvent[]) {
+      expect(one(e)).toEqual({ banner: null, toasts: [], wallet: EMPTY_TALLY });
+      expect(eventWeight(e)).toBeNull();
+    }
   });
 });
 
@@ -214,6 +337,11 @@ describe('event helpers (used in the gesture, before planning)', () => {
     expect(eventWeight({ type: 'plantStage', habitId: 'h', stage: 3, stageName: 'Leafy' })).toBe('small');
     expect(eventWeight({ type: 'petLevel', petId: 'p', level: 10 })).toBe('big');
     expect(eventWeight({ type: 'letter', letterId: 'w' })).toBe('small');
+    expect(eventWeight({ type: 'album', albumId: 'dogs', stars: 5 })).toBe('big');
+    expect(eventWeight({ type: 'petLevel', petId: 'p', level: 12 })).toBe('small');
+    expect(eventWeight({ type: 'harvest', habitId: 'h', treatId: 't', firstTime: true })).toBe('small');
+    expect(eventWeight({ type: 'harvest', habitId: 'h', treatId: 't', firstTime: false })).toBeNull();
+    for (const type of ['keepsake', 'look', 'companion', 'foundThing', 'story', 'seasonReview'] as const) expect(eventWeight({ type } as GameEvent)).toBe('small');
     expect(eventWeight(checkin('h-walk'))).toBeNull();
   });
 });

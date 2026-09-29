@@ -33,6 +33,14 @@
   margin-top: 12px;
 }
 
+/* Four cabinets: a 2×2 grid on a phone, one row once there is room. */
+@media (min-width: 900px) {
+  .row {
+    grid-template-columns: repeat(4, 1fr);
+    width: min(100%, 880px);
+  }
+}
+
 .cabinet {
   display: flex;
   flex-direction: column;

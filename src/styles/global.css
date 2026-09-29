@@ -199,3 +199,23 @@ select {
 [data-theme='night'] .collectible-silhouette {
   opacity: 0.16;
 }
+
+/*
+ * Auto-lite (DESIGN §11.1; src/fx/frameMonitor.ts). On a device that can't keep up, the Shelf's
+ * small loops that matter least stop: ear and tail flicks, a frog's throat, the plants' sway.
+ * Breathing and blinking carry on. Everywhere, a pet off screen holds still, and only the few
+ * pets nearest the middle of the screen flick.
+ */
+:root[data-lite] .pet-art .pet-tailflick,
+:root[data-lite] .pet-art .pet-earflick,
+:root[data-lite] .pet-art .pet-throat,
+:root[data-lite] .plant-art .plant-sway,
+.pet-art[data-flick='off'] .pet-tailflick,
+.pet-art[data-flick='off'] .pet-earflick {
+  animation: none !important;
+}
+
+.pet-art[data-offscreen],
+.pet-art[data-offscreen] * {
+  animation-play-state: paused !important;
+}

@@ -1,8 +1,11 @@
 /**
- * Shared bookkeeping for stacked modal layers (sheets, dialogs, the epic celebration):
- * who is on top (owns Esc + focus), background `inert`, and a scroll lock that also holds on iOS.
+ * Shared bookkeeping for stacked modal layers (sheets, dialogs, the capsule reveal, the epic
+ * celebration): who is on top (owns Esc + focus), background `inert`, and a scroll lock that also
+ * holds on iOS. A full-screen *moment* (the reveal, the epic card) also asks celebration banners
+ * and toasts to wait until it closes, so nothing draws over it (see momentOpen).
  */
 const stack: string[] = [];
+const moments = new Set<string>();
 const listeners = new Set<() => void>();
 
 let lockedScrollY = 0;
@@ -38,8 +41,14 @@ function notify() {
   for (const fn of listeners) fn();
 }
 
-export function pushLayer(id: string): void {
+export interface LayerOptions {
+  /** A full-screen moment (the capsule reveal, the epic card): banners and toasts wait for it. */
+  moment?: boolean;
+}
+
+export function pushLayer(id: string, opts: LayerOptions = {}): void {
   if (stack.includes(id)) return;
+  if (opts.moment) moments.add(id);
   if (!stack.length) {
     lockScroll();
     setAppInert(true);
@@ -52,6 +61,7 @@ export function removeLayer(id: string): void {
   const i = stack.indexOf(id);
   if (i < 0) return;
   stack.splice(i, 1);
+  moments.delete(id);
   if (!stack.length) {
     setAppInert(false);
     unlockScroll();
@@ -75,6 +85,12 @@ export function layerIndex(id: string): number {
 
 export function anyLayerOpen(): boolean {
   return stack.length > 0;
+}
+
+/** A full-screen moment is open (the capsule reveal, the epic card), optionally ignoring one of them. */
+export function momentOpen(except?: string): boolean {
+  for (const id of moments) if (id !== except) return true;
+  return false;
 }
 
 export function onLayersChange(fn: () => void): () => void {

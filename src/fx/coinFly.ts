@@ -9,7 +9,7 @@
  * `walletKind`) roll once as the coin drops in.
  */
 import { h, render } from 'preact';
-import { CoinIcon, StarIcon } from '@/art/icons';
+import { CoinIcon, StampIcon } from '@/art/icons';
 import { fxLayer, toPoint, type Point } from './layer';
 import { arcControl, easeInOutCubic, quadAt } from './arc';
 import { prefersReducedMotion } from './motion';
@@ -69,7 +69,7 @@ const FRAMES = 14;
 function flySprite(kind: WalletKind, from: Point, to: Point): Promise<void> {
   const el = document.createElement('div');
   el.className = 'ck-fx-sprite';
-  render(h(kind === 'coins' ? CoinIcon : StarIcon, { size: '100%' }), el);
+  render(h(kind === 'coins' ? CoinIcon : StampIcon, { size: '100%' }), el);
   fxLayer().appendChild(el);
 
   const ctrl = arcControl(from, to, 110, (to.x < from.x ? 1 : -1) * 18);

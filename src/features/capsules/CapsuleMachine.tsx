@@ -7,11 +7,12 @@ import { WindowCapsules, capsuleTransforms } from '@/art/machines/WindowCapsules
 import { CAPSULE_R, CHUTE_CAPSULE_R, CHUTE_REST, SLOT } from '@/art/machines/geometry';
 import { lighting } from '@/art/machines/lighting';
 import { pillFace } from '@/art/machines/theme';
-import { CoinIcon, StarIcon, TicketIcon } from '@/art/icons';
-import { PillButton, cx } from './ui/CandyButton';
+import { CoinIcon, StampIcon, TicketIcon } from '@/art/icons';
+import { Button } from '@/ui/Button';
+import { cx } from '@/ui/cx';
 import { HandleControl, hitBox } from './HitAreas';
 import { usePull, type PullOptions } from './usePull';
-import { currencyWord, nudgeText } from './copy';
+import { insertLabel, nudgeText, paymentPhrase } from './copy';
 import { RevealOverlay, type PlaceHandlers } from './RevealOverlay';
 import { useSceneLight } from './sceneLight';
 import { Token } from './Token';
@@ -85,12 +86,12 @@ export function CapsuleMachine({
   );
 
   const hintId = `${uid}-handle-hint`;
-  const priceIcon = machine.currency === 'stars' ? <StarIcon size={20} /> : <CoinIcon size={20} />;
+  const priceIcon = machine.currency === 'stars' ? <StampIcon size={20} /> : <CoinIcon size={20} />;
   const hint =
     phase === 'inserting' || turnable
-      ? 'Drag the handle round, or tap it'
+      ? 'Turn the handle'
       : phase === 'waiting'
-        ? 'In the chute. Tap it to take it out'
+        ? 'In the tray. Tap it to take it out'
         : phase === 'dropping'
           ? 'Here it comes'
           : '';
@@ -108,6 +109,7 @@ export function CapsuleMachine({
           slotRef={refs.slot}
           flapRef={refs.flap}
           title={`${machine.number ? `${machine.number}, ` : ''}${machine.name} capsule cabinet`}
+          price={free ? null : undefined}
           chute={
             <g ref={refs.chute} style={{ opacity: 0 }}>
               <g transform={`scale(${(CHUTE_CAPSULE_R / CAPSULE_R).toFixed(3)})`}>{capsule(p.chuteTint)}</g>
@@ -125,7 +127,7 @@ export function CapsuleMachine({
             class={s.hit}
             style={hitBox(SLOT.cx, SLOT.cy, 26)}
             onClick={() => void p.insert(free ? 'free' : 'price')}
-            aria-label={free ? 'Insert the first coin' : `Insert ${machine.price} ${currencyWord(machine)}`}
+            aria-label={free ? `${insertLabel(machine, 'free')}, ${paymentPhrase('free', machine)}` : `${insertLabel(machine)}, ${paymentPhrase('price', machine)}`}
             tabIndex={-1}
           />
         )}
@@ -136,7 +138,7 @@ export function CapsuleMachine({
             class={s.hit}
             style={hitBox(CHUTE_REST.x, CHUTE_REST.y, 26)}
             onClick={p.openReveal}
-            aria-label="Take the capsule out of the chute"
+            aria-label="Take the capsule out of the tray"
           />
         )}
         {p.nudging && phase === 'idle' && (
@@ -149,29 +151,22 @@ export function CapsuleMachine({
       <div class={s.controls}>
         {phase === 'idle' ? (
           <div class={s.buttons}>
-            <PillButton
+            <Button
               buttonRef={refs.insertButton}
               size="lg"
-              colors={{ face: pillFace(machine), ink: '#3B3236' }}
+              class={s.insert}
+              face={{ fill: pillFace(machine), ink: '#3B3236' }}
+              icon={free ? <CoinIcon size={20} /> : priceIcon}
               onClick={() => void p.insert(free ? 'free' : 'price')}
               disabled={!active}
+              aria-label={free ? `${insertLabel(machine, 'free')}, ${paymentPhrase('free', machine)}` : `${insertLabel(machine)}, ${paymentPhrase('price', machine)}`}
             >
-              {free ? (
-                <>
-                  <CoinIcon size={20} /> Insert the first coin
-                </>
-              ) : (
-                <>
-                  Insert {priceIcon}
-                  <span class="num">{machine.price}</span>
-                  <span class="sr-only"> {currencyWord(machine)}</span>
-                </>
-              )}
-            </PillButton>
+              {insertLabel(machine, free ? 'free' : 'price')}
+            </Button>
             {!free && tickets > 0 && (
-              <PillButton variant="secondary" onClick={() => void p.insert('ticket')} disabled={!active}>
-                <TicketIcon size={20} /> Use a ticket
-              </PillButton>
+              <Button variant="secondary" icon={<TicketIcon size={20} />} onClick={() => void p.insert('ticket')} disabled={!active}>
+                {insertLabel(machine, 'ticket')}
+              </Button>
             )}
           </div>
         ) : (
@@ -181,7 +176,7 @@ export function CapsuleMachine({
         )}
         {phase === 'idle' && (
           <span id={hintId} class="sr-only">
-            Insert first, then turn the handle: drag it round, press it, or use the arrow keys.
+            {insertLabel(machine, free ? 'free' : 'price')} first, then turn the handle: drag it round, or Space or Enter turns it.
           </span>
         )}
         {p.notice && phase === 'idle' && (

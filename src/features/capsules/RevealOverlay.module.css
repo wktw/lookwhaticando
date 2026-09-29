@@ -339,17 +339,14 @@
   text-transform: none;
 }
 
-/* "The secret one!" on its own line under the kicker, in the display italic. */
-.secretOne {
-  display: block;
-  margin-top: 2px;
+/* The insert's printed line (lines.ts REVEAL_LINES, or the Secret's, with its exclamation mark). */
+.line {
+  position: relative;
+  margin-top: 8px;
   color: var(--ink);
   font-family: var(--font-display);
-  font-style: italic;
-  font-weight: 400;
-  font-size: var(--fs-body-lg);
-  letter-spacing: 0;
-  text-transform: none;
+  font-size: var(--fs-body);
+  line-height: 1.35;
 }
 
 /* Doubled class: outranks host-page heading styles (e.g. the dev gallery's). */
@@ -378,7 +375,7 @@
 
 .flavor {
   position: relative;
-  margin-top: 8px;
+  margin-top: 4px;
   color: var(--ink-2);
   font-family: var(--font-display);
   font-style: italic;

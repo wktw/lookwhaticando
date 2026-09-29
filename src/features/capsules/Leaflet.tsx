@@ -5,7 +5,7 @@ import { state } from '@/state/store';
 import { CollectibleArt } from '@/art/CollectibleArt';
 import { collectedLabel, tierLabel } from './copy';
 import { byTier, leafletEntries, type LeafletEntry } from './leaflet';
-import { cx } from './ui/CandyButton';
+import { cx } from '@/ui/cx';
 import s from './Leaflet.module.css';
 
 /** A printed tick box: empty, or ticked. */

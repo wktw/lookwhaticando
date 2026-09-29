@@ -6,7 +6,12 @@ import { contrast } from '@/art/machines/color';
 import { pillFace } from '@/art/machines/theme';
 import {
   collectedLabel,
+  duplicateLine,
   finishLabel,
+  insertLabel,
+  landedLine,
+  orderLine,
+  revealLine,
   kindLabel,
   luckyLabel,
   monthDay,
@@ -24,7 +29,7 @@ import { capsuleShell, isWhiteish } from './reveal';
 import { nameIdeas } from './names';
 
 /** DESIGN §12: never these (a Secret reveal may have one exclamation mark, and nothing else may). */
-const BANNED = /\b(yay|cozy|bestie|purrfect|moo-tivation|missed|failed|lost|broken|behind)\b|you got this/i;
+const BANNED = /\b(yay|cozy|bestie|purrfect|moo-tivation|missed|failed|lost|broken|behind|missing|pull|machine|crank|stardust|unlock|friendship)\b|you got this|'/i;
 const EMOJI = /\p{Extended_Pictographic}/u;
 
 function voiceOk(text: string) {
@@ -49,11 +54,12 @@ describe('capsules copy', () => {
 
   it('formats dates, counts, pity and the lucky meter plainly', () => {
     expect(monthDay({ month: 11, day: 10 })).toBe('Nov 10');
-    expect(collectedLabel(7, 19)).toBe('7 of 19 collected');
-    expect(pityLines(10, 40)).toEqual(['A Rare within 10', 'Super rare within 40']);
-    expect(pityLines(1, null)).toEqual(['The next one is a Rare']);
+    expect(collectedLabel(7, 19)).toBe('7 of 19 in the Field Guide');
+    expect(pityLines(10, 40)).toEqual(['A Rare within the next 10 capsules.', 'A Super rare within the next 40.']);
+    expect(pityLines(1, null)).toEqual(['The next capsule is a Rare or better.']);
     expect(pityLines(null, null)).toEqual([]);
-    expect(luckyLabel(4)).toBe('The next one is new');
+    expect(luckyLabel(3)).toBe('Lucky meter · 3 of 4');
+    expect(luckyLabel(4)).toBe('The next one is new.');
     for (const n of [0, 1, 2, 3, 4]) voiceOk(luckyLabel(n));
   });
 
@@ -62,11 +68,25 @@ describe('capsules copy', () => {
     expect(paymentPhrase('price', getMachine('night'))).toBe('for 3 stamps');
     expect(paymentPhrase('ticket', getMachine('night'))).toBe('with a ticket');
     expect(nudgeText(getMachine('night'))).toBe('A stamp goes in first.');
+    expect(insertLabel(getMachine('cats'))).toBe('Put a coin in');
+    expect(insertLabel(getMachine('night'))).toBe('Put 3 stamps in');
+    expect(insertLabel(getMachine('night'), 'ticket')).toBe('Use a ticket');
+    expect(landedLine('rare')).toBe('A capsule, Rare finish, in the tray.');
   });
 
   it('pull notices are kind and specific, and never scold', () => {
     const night = getMachine('night');
-    expect(pullErrorNotice('not-enough-stars', night, 1).text).toBe('No. 07 takes 3 stamps. You have 1. Stamps come from showing up, Sunday Notes and pins.');
+    const cats = getMachine('cats');
+    expect(pullErrorNotice('not-enough-stars', night, 1).text).toBe('No. 07 · Night is 3 stamps. There’s 1 on the card.');
+    expect(pullErrorNotice('not-enough-stars', night, 0).text).toBe('No. 07 · Night is 3 stamps. The card fills from showing up.');
+    expect(pullErrorNotice('not-enough-coins', cats, 18)).toEqual({ text: 'No. 01 · Cats is 25 coins a capsule. There are 18 in the jar.', link: { href: '#/today', label: 'Water something on Today' } });
+    // Never a count of 0: an empty jar says where coins come from instead.
+    expect(pullErrorNotice('not-enough-coins', cats, 0).text).toBe('No. 01 · Cats is 25 coins a capsule. Watering fills the jar.');
+    expect(pullErrorNotice('machine-unavailable', getMachine('winter')).text).toBe('The Winter Edition is here from Nov 11 to Jan 14.');
+    expect(pullErrorNotice('reveal-pending', cats).text).toBe('There’s a capsule in the tray. Open that one first.');
+    expect(orderErrorText('not-enough-stars', { rarity: 'rare', price: 8 }, 5)).toBe('A Rare is 8 stamps at the counter. There are 5 on the card.');
+    expect(orderErrorText('not-enough-stars', { rarity: 'rare', price: 8 }, 0)).toBe('A Rare is 8 stamps at the counter. The card fills from showing up.');
+    expect(orderErrorText('season-not-visited', { rarity: 'rare', price: 8, machine: getMachine('winter') }, 0)).toBe('The Winter Edition hasn’t visited yet. Its things can be ordered once it has.');
     for (const m of MACHINES) {
       for (const e of ['not-enough-coins', 'not-enough-stars', 'no-ticket', 'machine-unavailable', 'reveal-pending'] as const) {
         const n = pullErrorNotice(e, m, 3);
@@ -74,16 +94,23 @@ describe('capsules copy', () => {
         voiceOk(n.text);
       }
     }
-    for (const e of ['not-enough-stars', 'already-owned', 'not-wishable', 'season-not-visited'] as const) voiceOk(orderErrorText(e, 4, 2));
+    for (const e of ['not-enough-stars', 'already-owned', 'not-wishable', 'season-not-visited'] as const) voiceOk(orderErrorText(e, { rarity: 'uncommon', price: 4 }, 2));
   });
 
   it('announces a reveal as a sentence; only the Secret may exclaim', () => {
     const cows = getMachine('cows');
     const beltie = getCollectible('pet-cow-beltie')!;
-    expect(revealSentence(beltie, cows, 'uncommon', false, true, 0)).toBe('No. 02 · Cows. Belted Galloway, Special. New to your collection.');
+    expect(revealSentence(beltie, cows, 'uncommon', false, true, 0)).toBe('No. 02 · Cows. A Belted Galloway, one of the Specials. Two-colour print. New.');
+    expect(revealSentence(beltie, cows, 'uncommon', false, false, 4, 'Clover')).toBe('No. 02 · Cows. A Belted Galloway, one of the Specials. Two-colour print. A Belted Galloway, again. Onto the swap shelf · +4 swaps · Clover came over to look.');
     voiceOk(revealSentence(beltie, cows, 'uncommon', false, false, 4));
     const highland = getCollectible('pet-cow-highland')!;
-    expect(revealSentence(highland, cows, 'ultra', true, true, 0)).toMatch(/^No\. 02 · Cows, the secret one! Highland, Secret\./);
+    // The Secret reveal is built from lines.ts SECRET_REVEAL: the one exclamation mark catkin has.
+    expect(revealLine(highland, cows, 'ultra', true)).toBe('No. 02 · Cows, the secret one! A Highland, about the size of your thumb, who would like somewhere soft.');
+    expect(revealSentence(highland, cows, 'ultra', true, true, 0)).toBe('No. 02 · Cows, the secret one! A Highland, about the size of your thumb, who would like somewhere soft. Holographic. New.');
+    expect(duplicateLine(getCollectible('treat-blueberries') ?? beltie, 2)).toMatch(/, again\. Onto the swap shelf · \+2 swaps$/);
+    expect(orderLine(getCollectible('pet-cat-siamese')!)).toBe('Your order: a Siamese.');
+    // Every non-secret reveal line and repeat line keeps the voice.
+    for (const m of MACHINES) for (const r of RARITIES) voiceOk(revealLine(beltie, m, r, false));
   });
 
   it('pet subtitles never say the species twice', () => {

@@ -150,6 +150,14 @@
   text-wrap: pretty;
 }
 
+.aside {
+  display: flex;
+  align-items: center;
+  flex: none;
+  min-height: 44px;
+  padding-top: 6px;
+}
+
 .close {
   margin-left: auto;
 }

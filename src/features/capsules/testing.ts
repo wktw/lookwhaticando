@@ -19,6 +19,8 @@ export function installDom(): void {
     if (!(name in HTMLElement.prototype)) Object.defineProperty(HTMLElement.prototype, name, { value: null, writable: true, configurable: true });
   }
   document.documentElement.dataset.motion = 'reduced';
+  // The shared layer stack (src/ui/sheetStack) puts the page back where it was on close.
+  window.scrollTo = () => undefined;
 }
 
 export function mount(ui: ComponentChild): { root: HTMLElement; unmount: () => void } {

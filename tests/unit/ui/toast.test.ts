@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { MAX_VISIBLE, toastDuration, upsertToast, visibleToasts, type ToastItem } from '@/ui/toast';
+import { MAX_ACTIONS, MAX_VISIBLE, toastActions, toastDuration, upsertToast, visibleToasts, type ToastItem } from '@/ui/toast';
 
 describe('toast queue', () => {
   it('appends toasts without a key', () => {
@@ -34,5 +34,16 @@ describe('toast queue', () => {
   it('gives toasts with actions more time, and honors explicit durations', () => {
     expect(toastDuration({ message: 'x' })).toBeLessThan(toastDuration({ message: 'x', action: { label: 'Undo', onAction: () => undefined } }));
     expect(toastDuration({ message: 'x', duration: 0 })).toBe(0);
+  });
+
+  it('holds up to two buttons ("Undo" and "Add a note"); the single `action` still works', () => {
+    const noop = () => undefined;
+    const undo = { label: 'Undo', onAction: noop };
+    const note = { label: 'Add a note', onAction: noop };
+    expect(MAX_ACTIONS).toBe(2);
+    expect(toastActions({ action: undo }).map((a) => a.label)).toEqual(['Undo']);
+    expect(toastActions({ actions: [undo, note] }).map((a) => a.label)).toEqual(['Undo', 'Add a note']);
+    expect(toastActions({ action: undo, actions: [note, { label: 'Third', onAction: noop }] }).map((a) => a.label)).toEqual(['Undo', 'Add a note']);
+    expect(toastDuration({ message: 'x', actions: [undo, note] })).toBe(4000);
   });
 });

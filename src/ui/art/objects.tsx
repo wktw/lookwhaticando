@@ -1,13 +1,13 @@
 /**
  * The kit's own small drawings: ordinary things drawn simply and exactly (DESIGN §10.4), for
- * empty states, loading and error screens, and notes. Flat matte fills, no outlines; each
- * standing shape has a hard shade crescent in var(--shade) on the side away from the light and
+ * empty states, error screens and notes. The pot and the cutting are the sill's own PotArt and
+ * PlantArt (src/art/plants). Flat matte fills, no outlines; each standing shape has a hard shade crescent in var(--shade) on the side away from the light and
  * a flat contact shadow in var(--contact). At night the lamp is the light: shades flip and the
  * lit side warms toward var(--lamp). Crescents are precomputed (./objectPaths).
  */
 import type { ComponentChildren } from 'preact';
 import { DAY_LIGHT, NIGHT_LIGHT, type Light } from '@/art/light';
-import { CAN, CUTTING, DROP, NOTE, POT, type Crescents } from './objectPaths';
+import { DROP, NOTE, TIN_CAN, type Crescents } from './objectPaths';
 
 export interface ObjectArtProps {
   /** Rendered size in px (square). */
@@ -43,55 +43,24 @@ function Frame({ size = 48, title, class: cls, box = 48, children }: ObjectArtPr
   );
 }
 
-const Contact = ({ cx, cy, rx }: { cx: number; cy: number; rx: number }) => <ellipse cx={cx} cy={cy} rx={rx} ry={1.8} fill="var(--contact)" />;
 
-/** An empty terracotta pot, waiting. */
-export function EmptyPot({ light = DAY_LIGHT, ...rest }: ObjectArtProps) {
-  return (
-    <Frame {...rest}>
-      <Contact cx={24} cy={42.8} rx={13} />
-      <Solid d={POT.body} fill="#DFA286" shade={POT.bodyShade} light={light} />
-      <path d={POT.underRim} fill="var(--shade)" />
-      <Solid d={POT.rim} fill="#D1937A" shade={POT.rimShade} light={light} />
-      <path d="M12.4 17.8 Q24 19.5 35.6 17.8 Q24 16.6 12.4 17.8 Z" fill="#A36A55" />
-    </Frame>
-  );
-}
+/** The tin watering can: the Shelf's Tin Watering Can decor, drawn from the same shapes and palette. */
+const TIN = { body: '#BCC6CE', band: '#D3DADF', dark: '#8F9BA6', rose: '#A9B4BE' };
 
-/** A pothos cutting rooting in a glass of water: how every habit's plant begins. */
-export function CuttingGlass({ light = DAY_LIGHT, ...rest }: ObjectArtProps) {
-  return (
-    <Frame {...rest}>
-      <Contact cx={24} cy={43} rx={9} />
-      <path d={CUTTING.glass} fill="#E4EEF2" opacity={0.62} />
-      <path d={CUTTING.water} fill="#C9DCE7" opacity={0.92} />
-      <path d="M17 25 Q24 26.5 31.07 25 Q24 23.7 17 25 Z" fill="#E7F0F5" />
-      {/* Roots, then the stem rising out of the water. */}
-      <path d="M24.6 39.2C23.4 40.4 22.1 40.8 20.9 40.9M24.6 39.2C25.5 40.4 26.8 41 28.1 41.1M24.6 38.6C24.4 40 24.2 41.2 23.8 42.2" fill="none" stroke="#FFFDF9" stroke-width={0.8} stroke-linecap="round" />
-      <path d="M24.6 39.5C24 32 23.6 24 24.3 15C24.7 11 25.8 8.8 27.6 7.3" fill="none" stroke="#8DAA79" stroke-width={1.1} stroke-linecap="round" />
-      <path d={CUTTING.glassShade[light.from]} fill="var(--shade)" />
-      {/* The wall nearest the light catches it as a flat, paler facet; the rim is a thin line of glass. */}
-      {CUTTING.glassLit[light.from] && <path d={CUTTING.glassLit[light.from]} fill="var(--card)" opacity={0.4} />}
-      <ellipse cx={24} cy={15} rx={7.5} ry={0.9} fill="none" stroke="#C3D6E0" stroke-width={0.7} />
-      <Solid d={CUTTING.leafL} fill="#9CBC87" shade={CUTTING.leafLShade} light={light} />
-      <Solid d={CUTTING.leafR} fill="#BCD3A3" shade={CUTTING.leafRShade} light={light} />
-    </Frame>
-  );
-}
-
-/** A blue enamel watering can: a D-shaped rear handle, a spout from low on the front, a flat-faced rose. */
 export function WateringCan({ light = DAY_LIGHT, ...rest }: ObjectArtProps) {
   return (
-    <Frame {...rest}>
-      <Contact cx={24} cy={42.6} rx={14} />
-      <Solid d={CAN.handle} fill="#97B1CC" shade={CAN.handleShade} light={light} />
-      <Solid d={CAN.spout} fill="#A8C0D8" shade={CAN.spoutShade} light={light} />
-      <path d={CAN.rose} fill="#97B1CC" />
-      <path d={CAN.roseFace} fill="#8FA9C4" />
-      <path d={CAN.roseShade[light.from]} fill="var(--shade)" />
-      <Solid d={CAN.body} fill="#A8C0D8" shade={CAN.bodyShade} light={light} />
-      <path d={CAN.band} fill="#97B1CC" />
-      <path d={CAN.opening} fill="#6F88A3" />
+    <Frame {...rest} box={100}>
+      <ellipse cx={52} cy={92.4} rx={30} ry={2.4} fill="var(--contact)" />
+      <Solid d={TIN_CAN.handle} fill={TIN.body} shade={TIN_CAN.handleShade} light={light} />
+      <Solid d={TIN_CAN.spout} fill={TIN.body} shade={TIN_CAN.spoutShade} light={light} />
+      <Solid d={TIN_CAN.rose} fill={TIN.rose} shade={TIN_CAN.roseShade} light={light} />
+      <path d={TIN_CAN.body} fill={TIN.body} />
+      {light.night && <path d={TIN_CAN.body} fill="var(--lamp)" opacity={0.08} />}
+      <path d="M30 58.5H70L69.9 62H30.1Z" fill={TIN.band} />
+      <path d="M30.5 80H69.5L69.4 83.4H30.6Z" fill={TIN.band} />
+      {TIN_CAN.bodyShade[light.from] && <path d={TIN_CAN.bodyShade[light.from]} fill="var(--shade)" />}
+      <Solid d={TIN_CAN.lip} fill={TIN.band} shade={TIN_CAN.lipShade} light={light} />
+      <ellipse cx={50} cy={46.6} rx={17} ry={2.6} fill={TIN.dark} />
     </Frame>
   );
 }
@@ -119,7 +88,11 @@ export function WaterDrop({ size = 24, light = DAY_LIGHT, title, class: cls }: O
   );
 }
 
-export type ObjectName = 'watering-can' | 'note' | 'drop' | 'cutting' | 'pot';
+/**
+ * The kit's own drawings. The pot and the cutting are not here: they are the sill's own PotArt and
+ * PlantArt (src/art/plants), so a pot is the same pot everywhere.
+ */
+export type ObjectName = 'watering-can' | 'note' | 'drop';
 
 /** Any of the drawings above by name (celebration art, gallery). */
 export function ObjectArt({ name, ...props }: ObjectArtProps & { name: ObjectName }) {
@@ -130,9 +103,5 @@ export function ObjectArt({ name, ...props }: ObjectArtProps & { name: ObjectNam
       return <PaperNote {...props} />;
     case 'drop':
       return <WaterDrop {...props} />;
-    case 'cutting':
-      return <CuttingGlass {...props} />;
-    case 'pot':
-      return <EmptyPot {...props} />;
   }
 }

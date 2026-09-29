@@ -1,5 +1,5 @@
 import { createPortal } from 'preact/compat';
-import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
+import { useEffect, useId, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { getCollectible } from '@/catalog/collectibles';
 import { MACHINE_BY_ID, seriesLabel } from '@/catalog/machines';
 import { DAY_LIGHT, type Light } from '@/art/light';
@@ -8,9 +8,8 @@ import { CapsuleArt } from '@/art/machines/CapsuleArt';
 import { CapsuleFigure } from './CapsuleFigure';
 import { sfx } from '@/fx/sound';
 import { haptic } from '@/fx/haptics';
-import { cx } from './ui/CandyButton';
-import { useFocusTrap } from './ui/useFocusTrap';
-import { lockScroll } from './ui/scrollLock';
+import { cx } from '@/ui/cx';
+import { isTopLayer, layerDepth, onLayersChange, pushLayer, removeLayer, trapTab } from '@/ui/sheetStack';
 import { prefersReducedMotion } from './motion';
 import { angleDelta } from './ratchet';
 import { TwistTracker } from './twist';
@@ -21,11 +20,11 @@ import s from './RevealOverlay.module.css';
 
 export type RevealStage = 'anticipate' | 'open' | 'card';
 
-/** Where a revealed pet or decor goes next (DESIGN §7.2 step 7; the placement UI comes later). */
+/** Where a revealed pet or decor goes next (DESIGN §7.2 step 7, VOICE §10 and §13). */
 export interface PlaceHandlers {
-  /** "Find them a place": pick a spot for it. */
+  /** "Find {name} a plant" for a new pet (Keeping Company's offer), "Find it a place" for decor. */
   onPlace?: (itemId: string) => void;
-  /** "Let them choose": species preferences decide. */
+  /** "Let {name} choose": the pet picks a plant by its species' preferences. */
   onLetThemChoose?: (itemId: string) => void;
 }
 
@@ -97,11 +96,46 @@ export function RevealOverlay({
   const figure = data.secret ? undefined : <CapsuleFigure id={data.itemId} />;
   const figureInk = machine?.theme.ink;
 
-  // Esc during the anticipation opens it straight away (the item is already yours, so closing
-  // unseen would throw the moment away); once it's open, Esc closes.
-  useFocusTrap(root, true, { onEscape: () => (stage === 'anticipate' ? open() : onClose()), returnFocus });
+  // The reveal is a layer on the shared stack (src/ui/sheetStack): it owns Esc and focus while it's
+  // on top, the page behind it is inert and still, banners and notes wait until it closes, and a
+  // sheet opened from it (the Pet Card, a plant picker) stacks above it and makes it inert.
+  const layerId = useId();
+  const opener = useRef<HTMLElement | null>(typeof document === 'undefined' ? null : (document.activeElement as HTMLElement | null));
+  const latest = useRef({ stage, onClose, returnFocus });
+  latest.current = { stage, onClose, returnFocus };
 
-  useEffect(() => lockScroll(), []);
+  useLayoutEffect(() => {
+    pushLayer(layerId, { moment: true });
+    const sync = () => {
+      if (root.current) root.current.inert = layerDepth(layerId) > 0;
+    };
+    const off = onLayersChange(sync);
+    if (!root.current?.contains(document.activeElement)) root.current?.focus({ preventScroll: true });
+    return () => {
+      off();
+      removeLayer(layerId);
+      // Focus goes home: to whatever opened the reveal, or where the caller says when that's gone.
+      const now = document.activeElement;
+      if (now && now !== document.body && !root.current?.contains(now)) return;
+      const back = opener.current?.isConnected && opener.current !== document.body ? opener.current : latest.current.returnFocus?.();
+      back?.focus({ preventScroll: true });
+    };
+  }, []);
+
+  // Esc during the anticipation opens it straight away (the item is already yours, so closing
+  // unseen would throw the moment away); once it's open, Esc closes. Heard as it bubbles, so the
+  // name field can keep an Esc for itself (it only puts the field away).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape' || !isTopLayer(layerId) || e.defaultPrevented) return;
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      if (latest.current.stage === 'anticipate') open();
+      else latest.current.onClose();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, []);
 
   // The capsule comes up out of the chute to the middle of the room.
   useLayoutEffect(() => {
@@ -226,6 +260,7 @@ export function RevealOverlay({
       aria-modal="true"
       aria-label="Capsule reveal"
       tabIndex={-1}
+      onKeyDown={(e) => root.current && isTopLayer(layerId) && trapTab(e, root.current)}
     >
       <div class={s.pool} aria-hidden="true" />
       <div class={s.content}>

@@ -5,6 +5,7 @@ import { getMachine, itemsInMachine } from '@/catalog';
 import type { PullOutcome } from '@/state/api';
 import { finishReveal, pull, renamePet, state } from '@/state/store';
 import { CapsuleMachine } from './CapsuleMachine';
+import { Sheet } from '@/ui/Sheet';
 import { RevealOverlay } from './RevealOverlay';
 import type { RevealData } from './reveal';
 import { button, buttonWithText, click, installDom, key, mount, pause, revealDialog, type, until } from './testing';
@@ -50,12 +51,14 @@ function setWallet(coins: number, tickets: number) {
 }
 
 const handle = () => document.querySelector<HTMLElement>('[role="slider"][aria-label="Turn the handle"]')!;
-const insertButton = () => buttonWithText('Insert')!;
+const insertButton = () => buttonWithText('Put a coin in')!;
+/** The card's close: "Done", or "Not now" beside a new pet's "Find {name} a plant". */
+const closeCard = () => button('Done') ?? button('Not now');
 const handleReady = () => until(() => handle().getAttribute('aria-disabled') === 'false', 'the handle to be ready');
 
 /** Pay, turn the handle by tapping it, and wait for the capsule to drop and come up into the reveal. */
-async function pullOnce(pay: 'Insert' | 'Use a ticket' = 'Insert') {
-  await click(pay === 'Insert' ? insertButton() : button('Use a ticket'), pay);
+async function pullOnce(pay: 'Put a coin in' | 'Use a ticket' = 'Put a coin in') {
+  await click(pay === 'Put a coin in' ? insertButton() : buttonWithText('Use a ticket'), pay);
   await handleReady();
   await click(handle(), 'handle');
   await until(revealDialog, 'the reveal');
@@ -70,7 +73,7 @@ async function openToCard() {
 async function finishOpenReveal() {
   await until(revealDialog, 'the reveal');
   await openToCard();
-  await click(button('Done'), 'Done');
+  await click(closeCard(), 'Done');
   await until(() => !revealDialog(), 'the reveal to close');
 }
 
@@ -97,12 +100,12 @@ describe('the pull', () => {
 
     await openToCard();
     expect(document.activeElement?.textContent).toBe(common.name);
-    expect(button(/^Pull again/)?.getAttribute('aria-label')).toBe('Pull again for 25 coins');
+    expect(button(/^Another capsule/)?.getAttribute('aria-label')).toBe('Another capsule for 25 coins');
 
     await key(document.activeElement!, 'Escape');
     await until(() => !revealDialog(), 'the reveal to close');
     expect(finishReveal).toHaveBeenCalled();
-    await until(() => document.activeElement === insertButton(), 'focus back on Insert');
+    await until(() => document.activeElement === insertButton(), 'focus back on "Put a coin in"');
     expect(document.documentElement.style.overflow).toBe('');
   });
 
@@ -111,7 +114,7 @@ describe('the pull', () => {
     view = mount(<CapsuleMachine machine={cats} active />);
     await click(insertButton(), 'Insert');
     const note = await until(() => document.querySelector('[role="note"]'), 'a notice');
-    expect(note.textContent).toMatch(/No\. 01 takes 25 coins\. You have 10\./);
+    expect(note.textContent).toMatch(/No\. 01 · Cats is 25 coins a capsule\. There are 10 in the jar\./);
     expect(note.textContent).not.toMatch(/!/);
     expect(note.querySelector('a')?.getAttribute('href')).toBe('#/today');
     expect(handle().getAttribute('aria-disabled')).toBe('true');
@@ -125,7 +128,7 @@ describe('the pull', () => {
     await handleReady();
     await click(handle(), 'handle');
     const note = await until(() => document.querySelector('[role="note"]'), 'a notice');
-    expect(note.textContent).toMatch(/takes 25 coins/);
+    expect(note.textContent).toMatch(/is 25 coins a capsule/);
     expect(document.querySelector('[role="status"]')?.textContent).toMatch(/came back out/);
     expect(insertButton()).toBeTruthy();
     expect(revealDialog()).toBeNull();
@@ -202,15 +205,16 @@ describe('the pull', () => {
   it('the first capsule is on the house, and offers no second pull', async () => {
     const closed = vi.fn();
     view = mount(<CapsuleMachine machine={cats} active free onRevealClosed={closed} />);
-    await click(buttonWithText('Insert the first coin'), 'Insert the first coin');
+    await click(buttonWithText('Put a coin in'), 'Put a coin in');
+    expect(buttonWithText('Put a coin in')).toBeNull();
     await handleReady();
     await click(handle(), 'handle');
     await until(revealDialog, 'the reveal');
     expect(pull).toHaveBeenCalledWith('cats', { free: true });
     expect(state.value.wallet.coins).toBe(100);
     await openToCard();
-    expect(button(/^Pull again/)).toBeNull();
-    await click(button('Done'), 'Done');
+    expect(button(/^Another capsule/)).toBeNull();
+    await click(closeCard(), 'Done');
     expect(closed).toHaveBeenCalled();
   });
 });
@@ -222,7 +226,7 @@ describe('pull again says how it will be paid', () => {
     await pullOnce('Use a ticket');
     expect(pull).toHaveBeenLastCalledWith('cats', { useTicket: true });
     await openToCard();
-    await click(button('Pull again for 25 coins'), 'Pull again');
+    await click(button('Another capsule for 25 coins'), 'Another capsule');
     await handleReady();
     await click(handle(), 'handle');
     await until(() => vi.mocked(pull).mock.calls.length === 2, 'the second pull');
@@ -235,7 +239,7 @@ describe('pull again says how it will be paid', () => {
     view = mount(<CapsuleMachine machine={cats} active />);
     await pullOnce();
     await openToCard();
-    await click(button('Pull again with a ticket'), 'Pull again');
+    await click(button('Another capsule with a ticket'), 'Another capsule');
     await handleReady();
     await click(handle(), 'handle');
     await until(() => vi.mocked(pull).mock.calls.length === 2, 'the second pull');
@@ -248,8 +252,8 @@ describe('pull again says how it will be paid', () => {
     view = mount(<CapsuleMachine machine={cats} active />);
     await pullOnce();
     await openToCard();
-    expect(button(/^Pull again/)).toBeNull();
-    await click(button('Done'), 'Done');
+    expect(button(/^Another capsule/)).toBeNull();
+    await click(closeCard(), 'Done');
   });
 });
 
@@ -296,7 +300,7 @@ describe('twist to open', () => {
     expect(capsule().getAttribute('aria-label')).not.toMatch(/more times/);
     await click(capsule(), 'capsule');
     await until(() => document.activeElement?.tagName === 'H2', 'the card');
-    expect(document.body.textContent).toMatch(/The secret one!/);
+    expect(document.body.textContent).toMatch(/No\. 01 · Cats, the secret one! A Maine Coon, with a tail as long as the rest put together/);
   });
 
   it('shows the figure as a silhouette through the clear half, except a Secret, which keeps its secret', async () => {
@@ -333,14 +337,14 @@ describe('the reveal card', () => {
 
   it('gives a new pet a name tag with a came-home date, and renames from five ideas', async () => {
     view = mount(<RevealOverlay data={newPet} initialStage="card" onClose={() => {}} />);
-    expect(revealDialog()!.textContent).toMatch(/Pudding\s*came home/);
+    expect(revealDialog()!.textContent).toMatch(/Pudding\s*Came home: today/);
     await click(button('Rename'), 'Rename');
     const ideas = document.querySelectorAll('[aria-label="Name ideas"] button');
     expect(ideas).toHaveLength(6);
     await type(document.querySelector('input')!, 'Biscuit');
     await click(button('Save'), 'Save');
     expect(renamePet).toHaveBeenCalledWith('pet-cat-orange', 'Biscuit');
-    expect(revealDialog()!.textContent).toMatch(/Biscuit\s*came home/);
+    expect(revealDialog()!.textContent).toMatch(/Biscuit\s*Came home: today/);
   });
 
   it('Esc in the name field puts it away, not the whole reveal', async () => {
@@ -355,31 +359,52 @@ describe('the reveal card', () => {
     expect(onClose).toHaveBeenCalled();
   });
 
-  it('"Find them a place" hands the pet to onPlace; "Let them choose" to its own handler', async () => {
+  it('"Find {name} a plant" hands the pet to onPlace; "Let {name} choose" to its own handler (no pronouns)', async () => {
     const onPlace = vi.fn();
     const onLetThemChoose = vi.fn();
     const onClose = vi.fn();
     view = mount(<RevealOverlay data={newPet} initialStage="card" onClose={onClose} onPlace={onPlace} onLetThemChoose={onLetThemChoose} />);
-    await click(button('Find them a place'), 'Find them a place');
+    expect(revealDialog()!.textContent).not.toMatch(/\b(them|they|it)\b choose|Find them/);
+    expect(button('Not now')).toBeTruthy();
+    await click(button('Find Pudding a plant'), 'Find Pudding a plant');
     expect(onPlace).toHaveBeenCalledWith('pet-cat-orange');
     expect(onClose).toHaveBeenCalledTimes(1);
     view.unmount();
     view = mount(<RevealOverlay data={newPet} initialStage="card" onClose={onClose} onPlace={onPlace} onLetThemChoose={onLetThemChoose} />);
-    await click(button('Let them choose'), 'Let them choose');
+    await click(button('Let Pudding choose'), 'Let Pudding choose');
     expect(onLetThemChoose).toHaveBeenCalledWith('pet-cat-orange');
+  });
+
+  it('is a layer on the shared stack: a sheet opened over it takes Esc, and the reveal waits, inert', async () => {
+    const onClose = vi.fn();
+    const sheetClose = vi.fn();
+    view = mount(
+      <>
+        <RevealOverlay data={newPet} initialStage="card" onClose={onClose} />
+        <Sheet open title="Pudding’s card" onClose={sheetClose}>
+          <p>Likes</p>
+        </Sheet>
+      </>,
+    );
+    await pause(20);
+    expect(revealDialog()!.inert).toBe(true);
+    await key(document.activeElement ?? document.body, 'Escape');
+    expect(sheetClose).toHaveBeenCalledTimes(1);
+    expect(onClose).not.toHaveBeenCalled();
   });
 
   it('a repeat goes onto the swap shelf', async () => {
     view = mount(<RevealOverlay data={{ ...newPet, isNew: false, stardust: 2, friendshipXp: 20 }} initialStage="card" onClose={() => {}} />);
-    expect(revealDialog()!.textContent).toMatch(/Onto the swap shelf · \+2 swaps/);
-    expect(revealDialog()!.textContent).toMatch(/Pudding is already home\. \+20 friendship/);
+    expect(revealDialog()!.textContent).toMatch(/An Orange Tabby, again\. Onto the swap shelf · \+2 swaps · Pudding came over to look\./);
+    // The friendship it earns shows as dots on the Pet Card, never as a number.
+    expect(revealDialog()!.textContent).not.toMatch(/friendship/i);
   });
 
-  it('a repeat pet is already home: no "Find them a place", Done leads, and a quiet visit', async () => {
+  it('a repeat pet is already home: no "Find {name} a plant", Done leads, and a quiet visit', async () => {
     const onPlace = vi.fn();
     view = mount(<RevealOverlay data={{ ...newPet, isNew: false, stardust: 2, friendshipXp: 20 }} initialStage="card" onClose={() => {}} onPlace={onPlace} />);
-    expect(buttonWithText('Find them a place')).toBeFalsy();
-    expect(buttonWithText('Let them choose')).toBeFalsy();
+    expect(buttonWithText('Find Pudding a plant')).toBeFalsy();
+    expect(buttonWithText('Let Pudding choose')).toBeFalsy();
     expect(button('Done')).toBeTruthy();
     await click(button('Visit Pudding'), 'Visit Pudding');
     expect(onPlace).toHaveBeenCalledWith('pet-cat-orange');

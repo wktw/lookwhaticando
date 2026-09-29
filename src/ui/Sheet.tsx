@@ -19,6 +19,8 @@ export interface SheetProps {
   title: string;
   hideTitle?: boolean;
   description?: ComponentChildren;
+  /** Extra header content beside the title, before the close button (a balance, a count). */
+  aside?: ComponentChildren;
   /** Id of an element inside the sheet that describes it (when there is no `description`). */
   describedBy?: string;
   children?: ComponentChildren;
@@ -59,6 +61,7 @@ export function Sheet(props: SheetProps) {
     title,
     hideTitle,
     description,
+    aside,
     describedBy,
     children,
     footer,
@@ -349,6 +352,7 @@ export function Sheet(props: SheetProps) {
               </p>
             )}
           </div>
+          {aside && <div class={s.aside}>{aside}</div>}
           {showClose && dismissible && <IconButton class={s.close} icon="close" label="Close" variant="card" size="sm" onClick={onClose} />}
         </header>
         <div ref={bodyRef} class={s.body}>

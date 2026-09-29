@@ -1,11 +1,14 @@
 /**
- * Words and small formatters for the Capsules screen, in the plant-sitter's voice (DESIGN §12):
- * plain, kind, specific, sentence case. No emoji, no puns, no exclamation marks (the Secret
- * reveal may have one), and animals never get a pronoun.
+ * Words and small formatters for the Capsules screen, from the copy deck: templates from
+ * src/catalog/lines.ts (REVEAL_LINES, SECRET_REVEAL, DUPLICATE_LINES) and docs/VOICE.md §10
+ * verbatim where lines.ts has no constant yet. Plain, kind, specific, sentence case, curly
+ * apostrophes. No emoji, no puns, and one exclamation mark in the whole app: the Secret reveal's.
+ * Animals never get a pronoun. In the UI a pull is a "capsule" and a machine a "cabinet".
  */
 import type { Category, CollectibleDef, MachineDef, MachineId, Rarity, Species } from '@/catalog/types';
 import { RARITY_FINISH, RARITY_LABEL as TIER } from '@/catalog/types';
 import { seriesLabel } from '@/catalog/machines';
+import { DUPLICATE_LINES, REVEAL_LINES, SECRET_LINES, SECRET_REVEAL, capitalise, fillLine, withArticle } from '@/catalog/lines';
 import type { PullError } from '@/state/api';
 import type { Payment } from './payment';
 
@@ -22,8 +25,9 @@ export function finishLabel(rarity: Rarity, secret = false): string {
   return `${tierLabel(rarity, secret)} · ${RARITY_FINISH[rarity]}`;
 }
 
+/** Categories as filter chips (VOICE §3: pets, never "friends"). */
 export const CATEGORY_LABEL: Record<Category, string> = {
-  pet: 'Animals',
+  pet: 'Pets',
   wearable: 'Wearables',
   treat: 'Treats',
   decor: 'Decor',
@@ -85,19 +89,41 @@ export function monthDay(md: { month: number; day: number }): string {
   return `${MONTHS[md.month - 1] ?? ''} ${md.day}`;
 }
 
+/** "Sep 29" for a DateKey ('2026-09-29'). */
+export function monthDayOfKey(key: string): string {
+  const [, m, d] = key.split('-').map(Number) as [number, number, number];
+  return monthDay({ month: m, day: d });
+}
+
 /** "Sep 29" for an epoch time. */
 export function shortDate(epochMs: number): string {
   const d = new Date(epochMs);
   return `${MONTHS[d.getMonth()]} ${d.getDate()}`;
 }
 
+/** "Came home: today" · "Came home: Sep 29" (VOICE §10, on a new pet's insert). */
+export function cameHomeLabel(epochMs: number, now = Date.now()): string {
+  const a = new Date(epochMs);
+  const b = new Date(now);
+  const today = a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+  return `Came home: ${today ? 'today' : shortDate(epochMs)}`;
+}
+
 /** "coins" / "stamps" (singular for a price of 1). */
-export function currencyWord(m: MachineDef, n = m.price): string {
+export function currencyWord(m: Pick<MachineDef, 'currency' | 'price'>, n = m.price): string {
   return m.currency === 'coins' ? (n === 1 ? 'coin' : 'coins') : n === 1 ? 'stamp' : 'stamps';
 }
 
-export function priceLabel(m: MachineDef): string {
+/** "25 coins", "3 stamps" (VOICE §4 prices). */
+export function priceLabel(m: Pick<MachineDef, 'currency' | 'price'>): string {
   return `${m.price} ${currencyWord(m)}`;
+}
+
+/** The pay step (VOICE §10): "Put a coin in" · Night "Put 3 stamps in" · "Use a ticket". */
+export function insertLabel(m: Pick<MachineDef, 'currency' | 'price'>, pay: Payment = 'price'): string {
+  if (pay === 'ticket') return 'Use a ticket';
+  if (pay === 'free' || m.currency === 'coins') return 'Put a coin in';
+  return `Put ${priceLabel(m)} in`;
 }
 
 /** "for 25 coins", "for 3 stamps", "with a ticket", "on the house" */
@@ -105,31 +131,38 @@ export function paymentPhrase(pay: Payment, m: MachineDef): string {
   return pay === 'ticket' ? 'with a ticket' : pay === 'free' ? 'on the house' : `for ${priceLabel(m)}`;
 }
 
-/** "7 of 19 collected" */
+/** "7 of 19 in the Field Guide" (VOICE §10, the carousel card). */
 export function collectedLabel(owned: number, total: number): string {
-  return `${owned} of ${total} collected`;
+  return `${owned} of ${total} in the Field Guide`;
 }
 
 /**
- * The pity counters in plain words; a counter hides once its tier is fully owned (null). The
- * rare counter forces the Rare tier only (DESIGN §7.1), so it never promises "or better".
+ * The pity counters in plain words (VOICE §10); a counter hides once its tier is fully owned
+ * (null): "A Rare within the next 10 capsules." · "The next capsule is a Rare or better." ·
+ * "A Super rare within the next 40."
  */
 export function pityLines(rareIn: number | null, ultraIn: number | null): string[] {
   const lines: string[] = [];
-  if (rareIn !== null) lines.push(rareIn <= 1 ? 'The next one is a Rare' : `A Rare within ${rareIn}`);
-  if (ultraIn !== null) lines.push(ultraIn <= 1 ? 'The next one is Super rare' : `Super rare within ${ultraIn}`);
+  if (rareIn !== null) lines.push(rareIn <= 1 ? 'The next capsule is a Rare or better.' : `A Rare within the next ${rareIn} capsules.`);
+  if (ultraIn !== null) lines.push(ultraIn <= 1 ? 'The next capsule is a Super rare.' : `A Super rare within the next ${ultraIn}.`);
   return lines;
 }
 
-/** The lucky meter (§7.1): after four repeats in a row, the next capsule is new. */
+/** The lucky meter (VOICE §10): "Lucky meter · 3 of 4", and at 4, "The next one is new." */
 export function luckyLabel(dupStreak: number): string {
-  return dupStreak >= 4 ? 'The next one is new' : 'Four repeats, then a new one';
+  const n = Math.max(0, Math.min(4, dupStreak));
+  return n >= 4 ? 'The next one is new.' : `Lucky meter · ${n} of 4`;
 }
 
 /** Said when the handle is tried before anything is paid (and shown, shorter, in a bubble). */
-export function nudgeText(m: MachineDef, short = false): string {
+export function nudgeText(m: Pick<MachineDef, 'currency'>, short = false): string {
   const token = m.currency === 'stars' ? 'stamp' : 'coin';
   return short ? (token === 'stamp' ? 'A stamp first' : 'A coin first') : `A ${token} goes in first.`;
+}
+
+/** The capsule, landed (VOICE §10, for screen readers): "A capsule, Rare finish, in the tray." */
+export function landedLine(rarity: Rarity, secret = false): string {
+  return `A capsule, ${tierLabel(rarity, secret)} finish, in the tray.`;
 }
 
 export interface FriendlyNotice {
@@ -138,54 +171,90 @@ export interface FriendlyNotice {
   link?: { href: string; label: string };
 }
 
-/** Kind notices for a pull that can't happen yet. `have` is the balance in the machine's currency. */
-export function pullErrorNotice(error: PullError, m: MachineDef, have?: number): FriendlyNotice {
-  const series = m.number ?? m.name;
+/**
+ * Calm notices for a capsule that can't happen yet (VOICE §10), each with the way forward, and
+ * never a count of 0. `have` is the balance in the cabinet's currency; `visited` says whether a
+ * seasonal edition has been before (its lineup can be ordered at the counter).
+ */
+export function pullErrorNotice(error: PullError, m: MachineDef, have?: number, visited = false): FriendlyNotice {
+  const series = seriesLabel(m);
   switch (error) {
     case 'not-enough-coins':
       return {
-        text: `${series} takes ${m.price} coins.${have !== undefined ? ` You have ${have}.` : ''} Coins come from watering your plants.`,
-        link: { href: '#/today', label: 'Back to Today' },
+        text: `${series} is ${m.price} coins a capsule. ${have ? (have === 1 ? 'There’s 1 in the jar.' : `There are ${have} in the jar.`) : 'Watering fills the jar.'}`,
+        link: { href: '#/today', label: 'Water something on Today' },
       };
     case 'not-enough-stars':
       return {
-        text: `${series} takes ${m.price} stamps.${have !== undefined ? ` You have ${have}.` : ''} Stamps come from showing up, Sunday Notes and pins.`,
-        link: { href: '#/progress', label: 'See your stamps' },
+        text: `${series} is ${priceLabel(m)}. ${have ? (have === 1 ? 'There’s 1 on the card.' : `There are ${have} on the card.`) : 'The card fills from showing up.'}`,
+        link: { href: '#/progress', label: 'Where stamps come from' },
       };
     case 'no-ticket':
-      return { text: 'No tickets right now. Tickets come from the Showing-up ladder.' };
+      return { text: 'Tickets come from the Showing-up ladder, welcome-home days and your birthday.' };
     case 'machine-unavailable':
       return {
         text: m.seasonal
-          ? `${m.name} is away until ${monthDay(m.seasonal.start)}. Once its season has visited, its lineup can be ordered at the counter.`
-          : `${seriesLabel(m)} is resting for now.`,
+          ? `The ${m.name} is here from ${monthDay(m.seasonal.start)} to ${monthDay(m.seasonal.end)}.${visited ? ' Anything it has brought before can be ordered at the counter.' : ''}`
+          : `${series} is resting for now.`,
       };
     case 'reveal-pending':
-      return { text: 'One capsule is still waiting to be opened.' };
+      return { text: 'There’s a capsule in the tray. Open that one first.' };
     case 'storage-full':
       return { text: 'This capsule couldn’t be saved, so it wasn’t opened. Nothing was spent.' };
   }
 }
 
-/** Kind notices for a Special Order that can't be placed. */
-export function orderErrorText(error: 'not-enough-stars' | 'already-owned' | 'not-wishable' | 'season-not-visited', price: number, stamps: number): string {
+/** Calm notices for a Special Order that can't be placed (VOICE §10). */
+export function orderErrorText(
+  error: 'not-enough-stars' | 'already-owned' | 'not-wishable' | 'season-not-visited',
+  item: { rarity: Rarity; price: number; machine?: Pick<MachineDef, 'name'> },
+  stamps: number,
+): string {
   switch (error) {
     case 'not-enough-stars':
-      return `This one takes ${price} stamps. You have ${stamps}. Stamps come from showing up, Sunday Notes and pins.`;
+      return `${withArticle(TIER[item.rarity], true)} is ${item.price} stamps at the counter. ${stamps ? (stamps === 1 ? 'There’s 1 on the card.' : `There are ${stamps} on the card.`) : 'The card fills from showing up.'}`;
     case 'already-owned':
-      return 'This one is already in your collection.';
+      return 'Already in the Field Guide.';
     case 'season-not-visited':
-      return 'That season hasn’t visited yet. Its lineup can be ordered once it has.';
+      return item.machine ? `The ${item.machine.name} hasn’t visited yet. Its things can be ordered once it has.` : 'That season hasn’t visited yet. Its things can be ordered once it has.';
     case 'not-wishable':
-      return 'This one comes another way, so it can’t be ordered.';
+      return 'This one isn’t sold at the counter. It comes from showing up.';
   }
 }
 
-/** The sentence a screen reader hears when a capsule opens. */
-export function revealSentence(def: CollectibleDef, m: MachineDef | undefined, rarity: Rarity, secret: boolean, isNew: boolean, swaps: number): string {
+/**
+ * The line on the paper insert (lines.ts REVEAL_LINES, or SECRET_REVEAL for a series Secret, the
+ * one exclamation mark catkin has): "No. 02 · Cows. A Belted Galloway, one of the Specials." ·
+ * "No. 02 · Cows, the secret one! A Highland, about the size of your thumb, who would like somewhere soft."
+ */
+export function revealLine(def: Pick<CollectibleDef, 'id' | 'name'>, m: MachineDef | undefined, rarity: Rarity, secret: boolean): string {
   const series = m ? seriesLabel(m) : '';
-  const head = secret ? `${series}, the secret one!` : `${series}.`;
-  const what = `${def.name}, ${tierLabel(rarity, secret)}.`;
-  const after = isNew ? 'New to your collection.' : `Already yours, so onto the swap shelf: plus ${swaps} swaps.`;
-  return `${head} ${what} ${after}`.trim();
+  const A = withArticle(def.name, true);
+  const secretLine = SECRET_LINES[def.id];
+  if (secret && secretLine && series) return fillLine(SECRET_REVEAL, { series, A, secretLine });
+  const template = REVEAL_LINES[rarity][0]!;
+  return series ? fillLine(template, { series, A }) : fillLine(template.replace('{series}. ', ''), { A });
+}
+
+/** A Special Order arriving (VOICE §10): "Your order: a Siamese." */
+export const orderLine = (def: Pick<CollectibleDef, 'name'>) => `Your order: ${withArticle(def.name)}.`;
+
+/** A repeat (lines.ts DUPLICATE_LINES): "A Holstein, again. Onto the swap shelf · +2 swaps" (· "Pudding came over to look."). */
+export function duplicateLine(def: Pick<CollectibleDef, 'name'>, swaps: number, petName?: string): string {
+  const A = withArticle(def.name, true);
+  return petName ? fillLine(DUPLICATE_LINES.pet, { A, swaps, name: petName }) : fillLine(DUPLICATE_LINES.item, { A, swaps });
+}
+
+/** Swaps becoming stamps during a reveal (lines.ts DUPLICATE_LINES). */
+export const fusionLine = (stamps: number) => (stamps === 1 ? DUPLICATE_LINES.toStamp : fillLine(DUPLICATE_LINES.toStamps, { count: stamps }));
+
+/**
+ * The one sentence a screen reader hears when a capsule opens (VOICE §10): "No. 02 · Cows. A
+ * Belted Galloway, one of the Specials. Two-colour print. New." A repeat ends with its swap line.
+ */
+export function revealSentence(def: CollectibleDef, m: MachineDef | undefined, rarity: Rarity, secret: boolean, isNew: boolean, swaps: number, petName?: string): string {
+  const finish = `${capitalise(secret ? 'holographic' : RARITY_FINISH[rarity])}.`;
+  const dupe = duplicateLine(def, swaps, def.category === 'pet' ? petName : undefined);
+  const after = isNew ? 'New.' : dupe.endsWith('.') ? dupe : `${dupe}.`;
+  return `${revealLine(def, m, rarity, secret)} ${finish} ${after}`;
 }

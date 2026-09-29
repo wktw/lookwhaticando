@@ -1,5 +1,5 @@
 import { STARDUST_PER_STAR } from '@/catalog/machines';
-import { StarIcon } from '@/art/icons';
+import { StampIcon } from '@/art/icons';
 
 const f = (n: number) => n.toFixed(2);
 
@@ -34,7 +34,7 @@ export function SwapRing({ swaps, size = 40, class: cls }: SwapRingProps) {
           <path key={i} d={d} style={{ fill: i < n ? 'color-mix(in srgb, var(--lavender-500) 50%, var(--lavender-700))' : 'var(--line)' }} />
         ))}
       </svg>
-      <StarIcon size={Math.round(size * 0.5)} />
+      <StampIcon size={Math.round(size * 0.5)} />
     </span>
   );
 }

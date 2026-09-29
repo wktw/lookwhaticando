@@ -13,7 +13,7 @@ import { emitGameEvents } from '@/state/events';
 import type { GameEvent } from '@/state/api';
 import type { Habit } from '@/state/types';
 import { DAY_LIGHT, NIGHT_LIGHT, type Light } from '@/art/light';
-import { CoinIcon, StarIcon, TicketIcon } from '@/art/icons';
+import { CoinIcon, StampIcon, TicketIcon } from '@/art/icons';
 import {
   AnimatedNumber,
   Button,
@@ -45,7 +45,8 @@ import {
   type CheckRingMark,
 } from '@/ui';
 import { ToastNote } from '@/ui/Toaster';
-import { CuttingGlass, EmptyPot, ObjectArt, PaperNote, themeLight, WaterDrop, type ObjectName } from '@/ui/art/objects';
+import { ObjectArt, PaperNote, themeLight, WaterDrop, type ObjectArtProps, type ObjectName } from '@/ui/art/objects';
+import { PlantArt, PotArt } from '@/art/plants';
 import { PASTELS, RARITIES } from '@/catalog/types';
 import { COLLECTIBLES } from '@/catalog/collectibles';
 import { CollectibleArt } from '@/art/CollectibleArt';
@@ -60,11 +61,9 @@ import { glintAt, SparkleBurst } from '@/fx/SparkleBurst';
 import { CelebrationHost } from '@/fx/celebrations';
 import { CELEBRATION_ANCHOR, RewardInline } from '@/fx/CelebrationBanner';
 import { walletDelta } from '@/fx/celebrationPlan';
-import { celebrateCheckIn, showCheckInNote } from '@/fx/checkin';
+import { celebrateCheckIn, showCheckInNote, showUncheckNote } from '@/fx/checkin';
 import { restLine } from '@/fx/copy';
 import { InstallGate, InstallGuide, InstallSheet, type InstallGuideKey } from '@/app/InstallGuide';
-import { AppIconArt, type AppIconShape } from '@/app/AppIconArt';
-import { SplashArt } from '@/app/SplashArt';
 import { ScreenError, ScreenLoading } from '@/app/ScreenHost';
 import { ErrorFallback } from '@/app/ErrorBoundary';
 import { WalletSummary } from '@/app/WalletSummary';
@@ -198,7 +197,7 @@ function FxHosts() {
           <AnimatedNumber value={w.coins} walletKind="coins" />
         </span>
         <span data-wallet-target="stars">
-          <StarIcon size={20} />
+          <StampIcon size={20} />
           <AnimatedNumber value={w.stars} walletKind="stars" />
         </span>
       </div>
@@ -384,7 +383,7 @@ function RingStates({ theme }: { theme: Theme }) {
   const [tiny, setTiny] = useState(false);
   return (
     <div class="fxui-stack">
-      <Sub>The check-in, frame by frame (ms)</Sub>
+      <Sub>A watering, frame by frame (ms)</Sub>
       <div class="fxui-frames">
         {FRAMES.map((ms) => {
           const f = ringFrame(ms);
@@ -486,7 +485,7 @@ function ControlsPanel() {
     <div class="fxui-stack">
       <Sub>Toggle</Sub>
       <Card padding="none" style={{ padding: '4px 16px' }}>
-        <Toggle checked={on} onChange={setOn} label="Sounds" description="A drop of water when you check in" />
+        <Toggle checked={on} onChange={setOn} label="Sounds" description="A drop of water when you water a habit" />
         <Toggle checked={off} onChange={setOff} label="Quick open" />
         <Toggle checked disabled onChange={() => undefined} label="Disabled" />
       </Card>
@@ -645,7 +644,7 @@ function Status() {
             <Pill tone="butter" icon={<CoinIcon size={16} />}>
               25
             </Pill>
-            <Pill tone="lavender" icon={<StarIcon size={16} />} variant="solid">
+            <Pill tone="lavender" icon={<StampIcon size={16} />} variant="solid">
               3
             </Pill>
             <Pill tone="sage">Set complete</Pill>
@@ -680,8 +679,19 @@ function Status() {
 /* The kit's small drawings                                                                    */
 /* ------------------------------------------------------------------------------------------ */
 
-const OBJECTS: ObjectName[] = ['pot', 'cutting', 'watering-can', 'note', 'drop'];
-const ROW_OBJECTS: ObjectName[] = ['pot', 'cutting', 'watering-can', 'note', 'drop'];
+/** The sill's own pot and cutting (PotArt, PlantArt): the kit draws neither itself. */
+function EmptyPot({ size = 48, light }: ObjectArtProps) {
+  return <PotArt pot="terracotta" size={size} light={light ?? themeLight()} />;
+}
+function CuttingGlass({ size = 48, light }: ObjectArtProps) {
+  return <PlantArt species="pothos" stage={0} pot="terracotta" fit="icon" size={size} light={light ?? themeLight()} animated={false} />;
+}
+type GalleryObject = ObjectName | 'pot' | 'cutting';
+function GalleryObjectArt({ name, ...props }: ObjectArtProps & { name: GalleryObject }) {
+  return name === 'pot' ? <EmptyPot {...props} /> : name === 'cutting' ? <CuttingGlass {...props} /> : <ObjectArt name={name} {...props} />;
+}
+const OBJECTS: GalleryObject[] = ['pot', 'cutting', 'watering-can', 'note', 'drop'];
+const ROW_OBJECTS: GalleryObject[] = ['pot', 'cutting', 'watering-can', 'note', 'drop'];
 const LIGHTS: [string, Light][] = [
   ['window left', { from: 'left', night: false }],
   ['noon, top', { from: 'top', night: false }],
@@ -723,15 +733,15 @@ function Objects() {
               <div class="fxui-art">
                 {LIGHTS.map(([label, light]) => (
                   <div key={label}>
-                    <ObjectArt name={name} size={96} light={light} />
+                    <GalleryObjectArt name={name} size={96} light={light} />
                     <small>{label}</small>
                   </div>
                 ))}
                 <div>
                   <div class="fxui-row" style={{ gap: '8px', alignItems: 'flex-end', minHeight: '96px' }}>
-                    <ObjectArt name={name} size={48} light={lightFor(theme)} />
-                    <ObjectArt name={name} size={32} light={lightFor(theme)} />
-                    <ObjectArt name={name} size={20} light={lightFor(theme)} />
+                    <GalleryObjectArt name={name} size={48} light={lightFor(theme)} />
+                    <GalleryObjectArt name={name} size={32} light={lightFor(theme)} />
+                    <GalleryObjectArt name={name} size={20} light={lightFor(theme)} />
                   </div>
                   <small>48 · 32 · 20</small>
                 </div>
@@ -830,7 +840,7 @@ function Sheets({ params }: { params: URLSearchParams }) {
       <Sheet open={open === 'tall'} onClose={close} title="Field Guide" detents={['medium', 'large']}>
         <ListGroup>
           {Array.from({ length: 24 }, (_, i) => (
-            <ListRow key={i} leading={<ObjectArt name={ROW_OBJECTS[i % ROW_OBJECTS.length]!} size={32} light={themeLight()} />} title={`Page ${i + 1}`} subtitle="Drag the sheet up to see more" />
+            <ListRow key={i} leading={<GalleryObjectArt name={ROW_OBJECTS[i % ROW_OBJECTS.length]!} size={32} light={themeLight()} />} title={`Page ${i + 1}`} subtitle="Drag the sheet up to see more" />
           ))}
         </ListGroup>
       </Sheet>
@@ -906,14 +916,14 @@ function Notes({ params }: { params: URLSearchParams }) {
       <Panels>
         {(theme) => (
           <div class="fxui-stack" style={{ maxWidth: '420px' }}>
-            <Sub>Check-in (4 s, with Undo)</Sub>
+            <Sub>Watered (4 s, Undo and Add a note)</Sub>
             <ToastNote
-              item={{ message: <>Walk, watered.{coin(5)}</>, note: 'Pudding opened one eye.', art: <WaterDrop size={22} light={lightFor(theme)} />, action: { label: 'Undo', onAction: noop }, version: 0 }}
+              item={{ message: <>Walk, watered.{coin(5)}</>, note: 'Pudding opened one eye.', art: <WaterDrop size={22} light={lightFor(theme)} />, actions: [{ label: 'Undo', onAction: noop }, { label: 'Add a note', onAction: noop }], version: 0 }}
             />
             <ToastNote item={{ message: <>Drink water, tiny version.{coin(3)}</>, art: <WaterDrop size={22} light={lightFor(theme)} />, action: { label: 'Undo', onAction: noop }, version: 0 }} />
             <Sub>Small moments</Sub>
             <ToastNote item={{ message: <>Everything kept. There’s a ticket on the sill. <RewardInline rewards={{ coins: 20, stars: 0, tickets: 1, stardust: 0 }} /></>, art: <TicketIcon size={22} />, version: 0 }} />
-            <ToastNote item={{ message: 'Your yoga plant is potted up.', art: <CuttingGlass size={30} light={lightFor(theme)} />, version: 0 }} />
+            <ToastNote item={{ message: 'The Yoga plant is potted up.', art: <EmptyPot size={30} light={lightFor(theme)} />, version: 0 }} />
             <ToastNote item={{ message: 'There’s a note on the sill.', art: <PaperNote size={30} light={lightFor(theme)} />, version: 0 }} />
             <ToastNote item={{ message: '+18 coins', art: <CoinIcon size={22} />, version: 0 }} />
             <ToastNote item={{ message: 'A new version of catkin is ready.', action: { label: 'Refresh', onAction: noop }, version: 0 }} />
@@ -922,8 +932,8 @@ function Notes({ params }: { params: URLSearchParams }) {
       </Panels>
       <Sub>Live: the notes sit above the tab bar (?live=1)</Sub>
       <div class="fxui-row">
-        <Button variant="secondary" onClick={() => showCheckInNote({ habitId: 'h-walk', habitName: 'Walk', coins: 5, note: 'Pudding opened one eye.', onUndo: () => toast({ message: 'Walk is back to unwatered.' }) })}>
-          Check-in note
+        <Button variant="secondary" onClick={() => showCheckInNote({ habitId: 'h-walk', habitName: 'Walk', coins: 5, note: 'Pudding opened one eye.', onUndo: () => showUncheckNote({ habitId: 'h-walk', habitName: 'Walk', refunded: 5 }), onAddNote: () => toast({ message: 'Noted.' }) })}>
+          Watered note
         </Button>
         <Button variant="secondary" onClick={() => rapidCheckins()}>
           Rapid coins (one note)
@@ -988,7 +998,7 @@ function Fx({ params }: { params: URLSearchParams }) {
       </div>
       <div class="fxui-row" style={{ marginTop: '220px' }}>
         <Button data-fx-origin="" onClick={checkIn}>
-          Check in (+5)
+          Water Walk (+5)
         </Button>
         <Button variant="tint" tone="blush" onClick={(e) => burst({ ...center(rectOf(e)), intensity: 'medium' })}>
           Petals from here
@@ -999,7 +1009,7 @@ function Fx({ params }: { params: URLSearchParams }) {
         <Button variant="secondary" icon={<CoinIcon size={18} />} onClick={(e) => (addCoins(25), void flyCoins({ from: rectOf(e), amount: 25 }))}>
           One coin (+25)
         </Button>
-        <Button variant="secondary" icon={<StarIcon size={18} />} onClick={(e) => (addStars(1), void flyCoins({ from: rectOf(e), amount: 1, kind: 'stars' }))}>
+        <Button variant="secondary" icon={<StampIcon size={18} />} onClick={(e) => (addStars(1), void flyCoins({ from: rectOf(e), amount: 1, kind: 'stars' }))}>
           One stamp
         </Button>
         <Button variant="tint" tone="butter" onClick={(e) => floatText('+5', rectOf(e))}>
@@ -1062,7 +1072,7 @@ function center(r: DOMRect) {
 /* ------------------------------------------------------------------------------------------ */
 
 const SOUND_NOTE: Partial<Record<string, string>> = {
-  chime: 'check-in: a drop, then a rising glass chime',
+  chime: 'watered: a drop, then a rising glass chime',
   coin: 'a brass coin into the jar',
   whoosh: 'a sheet: paper rustle',
   ratchet: 'the capsule handle',
@@ -1146,10 +1156,36 @@ const CELEBRATIONS: Record<string, { label: string; events: GameEvent[] }> = {
       { type: 'periodGoal', habitId: 'h-yoga', period: 'week', coins: 10 },
     ],
   },
-  bestFriends: { label: 'Best friends', events: [{ type: 'petLevel', petId: 'pet-cat-orange', level: 10 }] },
+  bestFriends: { label: 'Best friends', events: [{ type: 'petLevel', petId: 'pet-cow-holstein', level: 10 }] },
+  bloomLook: {
+    label: 'Blooming, a new look and a keepsake',
+    events: [
+      { type: 'plantStage', habitId: 'h-read', stage: 5, stageName: 'Blooming' },
+      { type: 'look', habitId: 'h-read', colour: 'twilight', shape: 'classic', read: 'bloom' },
+      { type: 'keepsake', keepsakeId: 'k-h-read-5', petId: 'pet-dog-shiba', habitId: 'h-read', stage: 5, kind: 'read' },
+    ],
+  },
+  album: {
+    label: 'A full Field Guide page',
+    events: [
+      { type: 'album', albumId: 'dogs', stars: 5 },
+      { type: 'stars', amount: 5, reason: 'gift' },
+    ],
+  },
+  harvest: { label: 'First harvest (note)', events: [{ type: 'harvest', habitId: 'h-yoga', treatId: 'treat-lavender', firstTime: true }] },
+  companion: { label: 'Moved in (note)', events: [{ type: 'companion', petId: 'pet-bunny-lop', habitId: 'h-walk' }] },
+  found: {
+    label: 'A found thing (note)',
+    events: [
+      { type: 'foundThing', petId: 'pet-duck-yellow', date: '2026-09-29', seed: 5, swaps: 1 },
+      { type: 'stardust', amount: 1, fused: 0 },
+    ],
+  },
+  story: { label: 'A story on the tag (note)', events: [{ type: 'story', petId: 'pet-bunny-lop', habitId: 'h-walk', story: 'start' }] },
+  season: { label: 'Season review (note)', events: [{ type: 'seasonReview', season: 'summer', key: '2026-09-22' }] },
   potted: { label: 'Potted up (note)', events: [{ type: 'plantStage', habitId: 'h-read', stage: 2, stageName: 'Potted' }] },
   period: {
-    label: 'Done for the week (note)',
+    label: 'Watered for the week (note)',
     events: [
       { type: 'periodGoal', habitId: 'h-yoga', period: 'week', coins: 10 },
       { type: 'coins', amount: 10, reason: 'period' },
@@ -1196,7 +1232,7 @@ function Celebrations({ params }: { params: URLSearchParams }) {
           </Button>
         ))}
         <Button size="sm" variant="secondary" onClick={() => rapidCheckins()}>
-          Rapid check-ins
+          Rapid waterings
         </Button>
       </div>
     </div>
@@ -1297,56 +1333,6 @@ function AppShell({ params }: { params: URLSearchParams }) {
   );
 }
 
-const SHAPES: AppIconShape[] = ['square', 'squircle', 'maskable'];
-
-function AppIcon({ params }: { params: URLSearchParams }) {
-  const stage = params.get('stage') as AppIconShape | null;
-  if (stage) {
-    const size = Number(params.get('size') ?? 512);
-    return (
-      <div id="mm-icon-stage" style={{ width: `${size}px`, height: `${size}px` }}>
-        <AppIconArt size={size} shape={stage} />
-      </div>
-    );
-  }
-  return (
-    <div class="fxui-stack">
-      {SHAPES.map((shape) => (
-        <div key={shape} class="fxui-row" style={{ alignItems: 'flex-end', gap: '18px' }}>
-          <b style={{ width: '80px' }}>{shape}</b>
-          {[180, 96, 60, 32].map((s) => (
-            <div key={s} style={{ borderRadius: shape === 'squircle' ? 0 : `${s * 0.225}px`, overflow: 'hidden', lineHeight: 0 }}>
-              <AppIconArt size={s} shape={shape} title={`${shape} ${s}`} />
-            </div>
-          ))}
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function Splash({ params }: { params: URLSearchParams }) {
-  const theme = params.get('splash') as 'light' | 'night' | null;
-  if (theme) {
-    const w = Number(params.get('w') ?? 393);
-    const h = Number(params.get('h') ?? 852);
-    return (
-      <div id="mm-splash-stage" style={{ position: 'fixed', inset: 0, zIndex: 9999 } as JSX.CSSProperties}>
-        <SplashArt theme={theme} width={w} height={h} />
-      </div>
-    );
-  }
-  return (
-    <div class="fxui-row" style={{ alignItems: 'flex-start' }}>
-      {(['light', 'night'] as const).map((t) => (
-        <div key={t} style={{ borderRadius: '28px', overflow: 'hidden', boxShadow: 'var(--shadow-md)' }}>
-          <SplashArt theme={t} width={236} height={512} />
-        </div>
-      ))}
-    </div>
-  );
-}
-
 export const SECTIONS: GallerySection[] = [
   { id: 'fxui-buttons', title: 'UI kit · buttons and icon buttons', render: (p) => <Buttons params={p} /> },
   { id: 'fxui-checkring', title: 'UI kit · the water-fill check ring', render: () => <CheckRings /> },
@@ -1363,6 +1349,4 @@ export const SECTIONS: GallerySection[] = [
   { id: 'fxui-shell', title: 'App · loading, error and error-boundary states, wallet', render: () => <Shell /> },
   { id: 'fxui-app', title: 'App · the shell at 390 px and 1200 px', render: (p) => <AppShell params={p} /> },
   { id: 'fxui-install', title: 'App · install guide and the install-first gate', render: (p) => <Install params={p} /> },
-  { id: 'fxui-appicon', title: 'App · icon (square · squircle · maskable)', render: (p) => <AppIcon params={p} /> },
-  { id: 'fxui-splash', title: 'App · launch screen', render: (p) => <Splash params={p} /> },
 ];
