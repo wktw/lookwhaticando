@@ -450,6 +450,8 @@ describe('voice lint (DESIGN §12)', () => {
       // old words
       'Congratulations', 'Oops', 'Level up', 'Unlock', 'Achievement unlocked', 'Common', 'Turn the crank', 'Make a wish',
       'The Meadow', 'Your weekly letter', 'Check in', 'Fixes history, no rewards.',
+      // a pet by pronoun
+      'Find them a plant', 'Let them choose',
       // decoration, apostrophes, numbers
       'Night ☾', 'Rare ✩', 'Pins ⋆', 'Garden ❁', "Today's off", 'Pudding turned round four times.',
     ];

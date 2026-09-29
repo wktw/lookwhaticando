@@ -77,6 +77,7 @@ const RULES: readonly Rule[] = [
     pattern: /\b(congratulations|oops|uh oh|level(led|ed)? up|unlock(ed|s|ing)?|achievements?|crank(s|ed|ing)?|machines?|wish(es|ing)?|(weekly|monthly|sunday|your) letters?|check(ed|s)?[- ]in)\b/i,
   },
   { why: 'an old tier name (say Classic, Special, Super rare)', pattern: /\b(Common|Uncommon|Ultra rare)\b/ },
+  { why: 'a pet by pronoun (say the name: "Find {name} a plant", VOICE §1)', pattern: /\b(find|let|give|bring) (them|him|her) (a|an|the|choose|pick)\b/i },
 ];
 
 export const GENDERED = /\b(he|she|him|her|his|hers|himself|herself)\b/i;

@@ -344,7 +344,7 @@ function Buttons({ params }: { params: URLSearchParams }) {
             ))}
           </div>
           <Button size="lg" block>
-            Find them a plant
+            Find Pudding a plant
           </Button>
           <Sub>IconButton · plain · soft · filled · paper disc · pressed · disabled</Sub>
           <div class="fxui-row">

@@ -55,6 +55,7 @@ describe('capsules copy', () => {
   it('formats dates, counts, pity and the lucky meter plainly', () => {
     expect(monthDay({ month: 11, day: 10 })).toBe('Nov 10');
     expect(collectedLabel(7, 19)).toBe('7 of 19 in the Field Guide');
+    expect(collectedLabel(0, 21)).toBe('21 in the lineup');
     expect(pityLines(10, 40)).toEqual(['A Rare within the next 10 capsules.', 'A Super rare within the next 40.']);
     expect(pityLines(1, null)).toEqual(['The next capsule is a Rare or better.']);
     expect(pityLines(null, null)).toEqual([]);

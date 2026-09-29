@@ -124,9 +124,9 @@ export function paymentPhrase(pay: Payment, m: MachineDef): string {
   return pay === 'ticket' ? 'with a ticket' : pay === 'free' ? 'on the house' : `for ${priceLabel(m)}`;
 }
 
-/** "7 of 19 in the Field Guide" (VOICE §10, the carousel card). */
+/** "7 of 19 in the Field Guide" (VOICE §10, the carousel card); "19 in the lineup" before the first, never a 0. */
 export function collectedLabel(owned: number, total: number): string {
-  return `${owned} of ${total} in the Field Guide`;
+  return owned > 0 ? `${owned} of ${total} in the Field Guide` : `${total} in the lineup`;
 }
 
 /**

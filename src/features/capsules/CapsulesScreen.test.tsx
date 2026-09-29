@@ -59,7 +59,7 @@ describe('the counter', () => {
 
   it('each cabinet stands beside its lineup leaflet, which opens the full lineup', async () => {
     const leaflet = button(/^Lineup leaflet/)!;
-    expect(leaflet.getAttribute('aria-label')).toMatch(/0 of 21 in the Field Guide/);
+    expect(leaflet.getAttribute('aria-label')).toMatch(/21 in the lineup/);
     expect(leaflet.textContent).toMatch(/\?/);
     await click(leaflet, 'the leaflet');
     const sheet = await until(() => document.querySelector('[role="dialog"][aria-modal="true"]'), 'the Lineup sheet');

@@ -580,7 +580,7 @@ a button, a leaf, a bead, a blue thread, a seed, a bottle top, a feather.
 ### The cabinets
 
 - Carousel card: "No. 01 · Cats" · "25 coins" · a seasonal one "Autumn Edition · until Nov 10" · "7 of 19
-  in the Field Guide".
+  in the Field Guide", and before the first one is yours "19 in the lineup" (never a 0).
 - Night: "No. 07 · Night" · "3 stamps" · "Better odds, paid in stamps."
 - Pity, while it matters: "A Rare within the next 10 capsules." · "The next capsule is a Rare or better."
   · "A Super rare within the next 40." Hidden once every item in that tier is yours.
