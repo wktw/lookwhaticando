@@ -37,7 +37,7 @@ import { cx } from '@/ui/cx';
 import { SectionHeader } from '@/ui/SectionHeader';
 import { EMPTY } from '@/catalog/lines';
 import { DATA_COPY, YOU } from './copy';
-import { copyText, downloadText, saveFile } from './files';
+import { copyLater, saveFile } from './files';
 import { ImportSheet } from './ImportSheet';
 import { saveLocked } from './lock';
 import s from './You.module.css';
@@ -223,16 +223,21 @@ export function DataSection() {
     toast({ key: 'backup', message: outcome === 'downloaded-instead' ? ERRORS.share : DATA.saved, tone: 'sage' });
   };
 
-  const copyBackup = async () => {
-    const payload = await exportPayload();
-    if (await copyText(payload)) toast({ key: 'backup-copied', message: DATA.copied, tone: 'sage' });
-    else setByHand(payload);
+  // No await before the copy starts: iPhone Safari only copies from inside the tap.
+  const copyBackup = () => {
+    const payload = exportPayload();
+    void copyLater(payload).then(async (ok) => {
+      if (ok) toast({ key: 'backup-copied', message: DATA.copied, tone: 'sage' });
+      else setByHand(await payload);
+    });
   };
 
-  const csv = () => {
+  // The share sheet on a phone (a blob download goes nowhere in an installed iPhone app), else a download.
+  const csv = async () => {
     const file = exportCsv();
-    downloadText(file.name, file.text, 'text/csv');
-    toast({ key: 'csv', message: DATA_COPY.csvSaved, tone: 'sage' });
+    const outcome = await saveFile(file.name, file.text, 'text/csv');
+    if (outcome === 'cancelled') return;
+    toast({ key: 'csv', message: outcome === 'downloaded-instead' ? ERRORS.share : DATA_COPY.csvSaved, tone: 'sage' });
   };
 
   const undo = async () => {
@@ -253,11 +258,11 @@ export function DataSection() {
       <div class={s.card}>
         <StatusRow />
         <ListRow leading="download" leadingTone="sage" title={DATA.save} chevron={false} onClick={() => void saveBackup()} />
-        <ListRow leading="export" leadingTone="sage" title={DATA.copy} chevron={false} onClick={() => void copyBackup()} />
+        <ListRow leading="export" leadingTone="sage" title={DATA.copy} chevron={false} onClick={copyBackup} />
         <ListRow leading="import" leadingTone="sky" title={DATA.import} subtitle={inDemo ? DATA_COPY.inDemo : undefined} disabled={locked} onClick={() => setImporting(true)} />
         {undoable && <ListRow leading="undo" leadingTone="sky" title={DATA.undoImport} chevron={false} onClick={() => void undo()} />}
         <ListRow leading="calendar" leadingTone="lavender" title={DATA_COPY.snapshotsRow} onClick={() => setSnapshots(true)} />
-        <ListRow leading="note" leadingTone="butter" title={DATA.csv} chevron={false} onClick={csv} />
+        <ListRow leading="note" leadingTone="butter" title={DATA.csv} chevron={false} onClick={() => void csv()} />
         <ListRow
           leading="sparkle"
           leadingTone="blush"

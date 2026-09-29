@@ -32,6 +32,7 @@ import { layerDepth, onLayersChange, pushLayer, removeLayer } from '@/ui/sheetSt
 import { checkInKey, uncheckKey } from '@/fx/checkin';
 import { cx } from '@/ui/cx';
 import { ImportSheet } from '@/features/you/ImportSheet';
+import { readClipboard } from '@/features/you/files';
 import { ONBOARDING_COPY } from '@/features/you/copy';
 import { onboardingProgress, saveProgress } from './progress';
 import { STEPS, nextPhase, stepIndex, type Phase, type Picks } from './flow';
@@ -123,6 +124,12 @@ export function Onboarding() {
   const [name, setName] = useState(state.value.profile.name);
   const [picks, setPicks] = useState<Picks>({ templateIds: [], custom: [] });
   const [importing, setImporting] = useState<false | 'file' | 'paste'>(false);
+  /** "Paste my plants": the clipboard read starts inside the tap (iPhone Safari allows no other). */
+  const [clip, setClip] = useState<Promise<string | null> | null>(null);
+  const pasteNow = () => {
+    setClip(readClipboard());
+    setImporting('paste');
+  };
   const capsules = useCapsuleSteps();
   const light = useArtLight();
   const progress = onboardingProgress.value;
@@ -195,13 +202,13 @@ export function Onboarding() {
       <div class={s.gate}>
         <InstallGate
           onPeek={peek}
-          onPaste={() => setImporting('paste')}
+          onPaste={pasteNow}
           onStay={() => {
             markGateSeen();
             setPhase('sill');
           }}
         />
-        <ImportSheet open={!!importing} title={INSTALL.paste} pasteFirst onClose={() => setImporting(false)} onImported={finish} />
+        <ImportSheet open={!!importing} title={INSTALL.paste} clip={clip} onClose={() => setImporting(false)} onImported={finish} />
       </div>
     );
   }
@@ -233,7 +240,7 @@ export function Onboarding() {
             onName={setName}
             onNext={() => go('pick')}
             other={
-              <Button variant="quiet" size="md" icon="import" onClick={() => setImporting(standalone ? 'paste' : 'file')}>
+              <Button variant="quiet" size="md" icon="import" onClick={() => (standalone ? pasteNow() : setImporting('file'))}>
                 {standalone ? INSTALL.paste : DATA.import}
               </Button>
             }
@@ -249,7 +256,7 @@ export function Onboarding() {
       <ImportSheet
         open={!!importing}
         title={importing === 'paste' ? INSTALL.paste : DATA.import}
-        pasteFirst={importing === 'paste'}
+        clip={importing === 'paste' ? clip : null}
         onClose={() => setImporting(false)}
         onImported={() => {
           announce(DATA.imported);

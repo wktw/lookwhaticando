@@ -82,7 +82,34 @@ export async function copyText(text: string): Promise<boolean> {
   }
 }
 
-/** Reads the clipboard's text (null when the browser won't say). */
+/**
+ * Copies text that is still being made (a gzipped CK1 backup). Call it straight from the tap, with
+ * no await before it: iPhone Safari only lets a tap write to the clipboard if the write starts
+ * inside it, and it takes a ClipboardItem whose text arrives later. Elsewhere (or if that is
+ * refused) the text is copied once it is ready.
+ */
+export async function copyLater(text: Promise<string>): Promise<boolean> {
+  const Item = typeof ClipboardItem === 'undefined' ? undefined : ClipboardItem;
+  if (Item && navigator.clipboard?.write) {
+    try {
+      const blob = text.then((t) => new Blob([t], { type: 'text/plain' }));
+      await navigator.clipboard.write([new Item({ 'text/plain': blob })]);
+      return true;
+    } catch {
+      /* fall through to the text paths */
+    }
+  }
+  try {
+    return await copyText(await text);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Reads the clipboard's text (null when the browser won't say). Like copying, iPhone Safari only
+ * allows it from inside a tap, so a caller starts it in its click handler.
+ */
 export async function readClipboard(): Promise<string | null> {
   try {
     const text = await navigator.clipboard?.readText?.();

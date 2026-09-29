@@ -71,13 +71,17 @@ export interface ImportSheetProps {
   onClose: () => void;
   /** After a backup was imported (the sheet has closed). */
   onImported?: () => void;
-  /** Read the clipboard as soon as the sheet opens ("Paste my plants"). */
-  pasteFirst?: boolean;
+  /**
+   * "Paste my plants": the clipboard read that the tap opening the sheet started (iPhone Safari
+   * only reads it inside a tap). Its text is described as soon as it arrives; if it can't be
+   * read, the sheet's own "Paste my plants" button has the focus.
+   */
+  clip?: Promise<string | null> | null;
   /** The sheet's title (default "Import a backup"). */
   title?: string;
 }
 
-export function ImportSheet({ open, onClose, onImported, pasteFirst, title = DATA.import }: ImportSheetProps) {
+export function ImportSheet({ open, onClose, onImported, clip, title = DATA.import }: ImportSheetProps) {
   const [text, setText] = useState('');
   const [preview, setPreview] = useState<ImportPreview | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -92,7 +96,7 @@ export function ImportSheet({ open, onClose, onImported, pasteFirst, title = DAT
     setPreview(null);
     setError(null);
     setBusy(false);
-    if (pasteFirst) void paste();
+    if (clip) void clip.then(take);
   }, [open]);
 
   const describe = async (value: string) => {
@@ -111,14 +115,16 @@ export function ImportSheet({ open, onClose, onImported, pasteFirst, title = DAT
     }
   };
 
-  async function paste() {
-    const clip = await readClipboard();
-    if (clip && clip.trim()) {
+  function take(text: string | null) {
+    if (text && text.trim()) {
       pending.current = null;
-      setText(clip.trim());
-      void describe(clip);
+      setText(text.trim());
+      void describe(text);
     }
   }
+
+  /** Starts the read inside her tap. */
+  const paste = () => void readClipboard().then(take);
 
   /** A chosen file's text (kept out of the text box: a backup file is long). */
   const pending = useRef<string | null>(null);
@@ -188,7 +194,7 @@ export function ImportSheet({ open, onClose, onImported, pasteFirst, title = DAT
             <Button variant="secondary" icon="upload" onClick={() => fileInput.current?.click()} disabled={inDemo}>
               {DATA_COPY.chooseFile}
             </Button>
-            <Button variant="secondary" icon="import" onClick={() => void paste()} disabled={inDemo}>
+            <Button variant="secondary" icon="import" onClick={paste} disabled={inDemo} data-autofocus={clip ? '' : undefined}>
               {INSTALL.paste}
             </Button>
             <input ref={fileInput} class={s.hiddenInput} type="file" accept=".json,.txt,application/json,text/plain" tabIndex={-1} aria-hidden="true" onChange={(e) => void onFile(e)} />
