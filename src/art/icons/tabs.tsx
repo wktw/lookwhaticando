@@ -91,9 +91,9 @@ export const SHELF_PETS: Readonly<Record<Species, RimPet>> = {
     parts: [
       'M9.2 13.2c-.4-3.3 2-5 5.1-5 3.1 0 5.2 1.6 5.2 3.9v1.1z',
       `${circlePath(8.6, 9.3, 2.9)}`,
-      'M6 11.2c0-1.1 1.2-1.9 2.6-1.9s2.6.8 2.6 1.9-1.2 1.9-2.6 1.9S6 12.3 6 11.2z',
-      'M5.9 8.4l-2.5-.3c-.5 0-.6.6-.2.8l2.4 1.1zM11.3 8.4l2.5-.3c.5 0 .6.6.2.8l-2.4 1.1z',
-      'M7.1 6.8l-.8-1.9c-.2-.4.3-.7.6-.4l1.4 1.6zM10.1 6.8l.8-1.9c.2-.4-.3-.7-.6-.4l-1.4 1.6z',
+      'M5.4 11.5c0-1.2 1.4-2.1 3.2-2.1s3.2.9 3.2 2.1-1.4 1.8-3.2 1.8-3.2-.6-3.2-1.8z',
+      'M5.9 8.6l-2.6-.2c-.5 0-.6.6-.2.8l2.5 1.1zM11.3 8.6l2.6-.2c.5 0 .6.6.2.8l-2.5 1.1z',
+      'M7.6 7.2C5.8 7 4.6 5.8 4.5 3.9c1 1 2.2 1.5 3.7 1.7zM9.6 7.2c1.8-.2 3-1.4 3.1-3.3-1 1-2.2 1.5-3.7 1.7z',
     ],
     tail: 'M19.2 11.6c.6 1.3.6 2.9.2 4.6',
   },
@@ -105,16 +105,19 @@ export const SHELF_PETS: Readonly<Record<Species, RimPet>> = {
     parts: ['M8.9 13.2c-.3-3 1.8-4.6 4.6-4.6 2.8 0 4.8 1.6 4.8 3.6v1z', circlePath(8.8, 10.2, 3), 'M7 7.8l-1-4.6c-.2-1 1.1-1.4 1.5-.4l1.4 4.6zM9.4 7.5l.5-4.7c.1-1 1.5-.9 1.5.1l-.4 4.8z', circlePath(18.8, 11.7, 1.2)],
   },
   frog: {
-    parts: ['M5.2 13.2c0-3.3 3-5.4 6.8-5.4s6.8 2.1 6.8 5.4z', circlePath(8.9, 8.1, 1.9), circlePath(15.1, 8.1, 1.9)],
+    // Wide and flat, the eye domes standing up at either end, the toes splayed on the rim.
+    parts: ['M4.4 13.2c0-2.3 3.3-3.7 7.6-3.7s7.6 1.4 7.6 3.7z', circlePath(7.3, 9.3, 2.1), circlePath(16.7, 9.3, 2.1), 'M2.6 13.2c.3-.9 1.2-1.3 2.2-1l.4 1zM21.4 13.2c-.3-.9-1.2-1.3-2.2-1l-.4 1z'],
   },
   duck: {
     parts: ['M8.2 13.2c-.2-2.8 1.8-4.3 4.9-4.3 2.5 0 4.4 1 5.4 2.6l1.3-.9c.4 1.5-.3 2.6-1.3 2.6z', circlePath(8.7, 8.4, 2.7), 'M6.2 8.5l-2.6.4c-.5.1-.5.8 0 .9l2.8.4z'],
   },
   bear: {
-    parts: ['M8.6 13.2c-.5-3.3 1.9-5.4 5.5-5.4 3.3 0 5.4 1.8 5.4 4.2v1.2z', circlePath(8.9, 9.8, 3.3), circlePath(6.4, 6.9, 1.4), circlePath(11.4, 6.9, 1.4)],
+    // A big shoulder hump, a broad head with a short blunt muzzle, and round ears on top.
+    parts: ['M8.2 13.2c-.6-4 2.2-6.7 6.2-6.7 3.5 0 5.8 2.2 5.8 5.1v1.6z', circlePath(9.2, 9.7, 3.5), 'M4.6 11.2c0-1.1 1.2-1.8 2.6-1.8h2v3.4h-2c-1.4 0-2.6-.5-2.6-1.6z', circlePath(7.1, 6.6, 1.6), circlePath(11.5, 6.6, 1.6)],
   },
   hamster: {
-    parts: ['M7 13.2c-.5-3.2 1.9-5.3 5.3-5.3 3.3 0 5.6 2 5.3 5.3z', circlePath(9, 8.1, 1.1), circlePath(13.4, 7.8, 1.1)],
+    // A small ball, wider at the bottom with its cheek pouches full, and two dot ears.
+    parts: ['M9.2 13.2c-.3-3.5 1-5.6 2.8-5.6s3.1 2.1 2.8 5.6z', circlePath(9.3, 11.5, 1.9), circlePath(14.7, 11.5, 1.9), circlePath(10.3, 7.9, 0.9), circlePath(13.7, 7.9, 0.9)],
   },
 };
 
