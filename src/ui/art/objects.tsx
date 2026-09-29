@@ -21,7 +21,7 @@ export interface ObjectArtProps {
   class?: string;
 }
 
-/** The app's one light (DESIGN §10.4), for drawings outside a lit scene: the lamp in Lamplight, else the window now. */
+/** The app’s one light (DESIGN §10.4), for drawings outside a lit scene: the window now, the lamp after dark. */
 export function themeLight(): Light {
   return artLightNow();
 }

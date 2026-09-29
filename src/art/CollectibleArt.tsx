@@ -27,7 +27,7 @@ export interface CollectibleArtProps {
    * never read as the least important thing on the page. Off: pets keep their true size relative to one another.
    */
   fit?: boolean;
-  /** The light (DESIGN §10.4). Left out: the app's one light (`artLight`: the window at this hour, the lamp in Lamplight). */
+  /** The light (DESIGN §10.4). Left out: the app's one light (`artLight`: the window at this hour, the lamp after dark). */
   light?: Light;
   /** Accessible label; decorative when omitted. */
   title?: string;

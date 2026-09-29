@@ -11,15 +11,38 @@ afterEach(() => {
 });
 
 describe('the app’s one light', () => {
-  it('lights art outside a scene like the band: the window at this hour, the lamp in Lamplight', () => {
+  it('lights art outside a scene like the band: the window at this hour, the lamp after dark', () => {
     const morning = momentAt(new Date(2026, 5, 10, 8, 0));
-    expect(artLightFor(morning, false)).toEqual({ from: morning.light.from, night: false });
-    expect(artLightFor(morning, true)).toBe(NIGHT_LIGHT);
-    // A daylight page after dark keeps the morning window (art never goes dark on a light page).
-    expect(artLightFor(momentAt(new Date(2026, 5, 10, 23, 30)), false)).toBe(DAY_LIGHT);
+    expect(artLightFor(morning)).toEqual({ from: morning.light.from, night: false });
+    expect(artLightFor(momentAt(new Date(2026, 5, 10, 23, 30)))).toBe(NIGHT_LIGHT);
   });
 
-  it('keeps one moment per quarter hour, follows the hemisphere, and the theme', () => {
+  it('agrees with the band for every theme and every quarter hour (the clock sets the light, the theme the paper)', () => {
+    const release = retainWindowClock();
+    try {
+      for (const theme of ['light', 'night', undefined] as const) {
+        if (theme) document.documentElement.dataset.theme = theme;
+        else delete document.documentElement.dataset.theme;
+        for (const hemisphere of ['north', 'south'] as const) {
+          setWindowHemisphere(hemisphere);
+          for (const month of [0, 5]) {
+            for (let q = 0; q < 96; q++) {
+              windowClock.value = new Date(2026, month, 15, Math.floor(q / 4), (q % 4) * 15);
+              pageLamplight.value = theme === 'night';
+              const band = windowMoment.value.light;
+              const at = `${theme ?? 'auto'} ${hemisphere} m${month} ${q / 4}h`;
+              expect(artLight.value.from, at).toBe(band.from);
+              expect(artLight.value.night, at).toBe(band.night);
+            }
+          }
+        }
+      }
+    } finally {
+      release();
+    }
+  });
+
+  it('keeps one moment per quarter hour, follows the hemisphere, and ignores the theme', () => {
     windowClock.value = new Date(2026, 0, 15, 12, 1);
     const a = windowMoment.value;
     windowClock.value = new Date(2026, 0, 15, 12, 14);
@@ -31,7 +54,7 @@ describe('the app’s one light', () => {
     expect(windowHemisphere.value).toBe('south');
     expect(windowMoment.value.season).toBe('summer');
     pageLamplight.value = true;
-    expect(artLight.value).toBe(NIGHT_LIGHT);
+    expect(artLight.value.night).toBe(false);
     pageLamplight.value = false;
   });
 

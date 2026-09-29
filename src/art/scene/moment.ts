@@ -6,15 +6,17 @@
  * - `windowClock`: the clock, re-read at each quarter hour and when the page comes back into view.
  * - `windowHemisphere`: the hemisphere from settings (or todayVM.season.hemisphere); set it once at start-up.
  * - `windowMoment`: the moment at the window (the light, the sky, the season, the hour), for scenes.
- * - `pageLamplight`: whether the page is in Lamplight (the night theme, or the OS dark with no theme chosen).
- * - `artLight`: the light for art outside a scene: the lamp on a Lamplight page, otherwise the window at this hour (the
- *   same side as the band), and the morning window when a daylight page is open after dark.
+ * - `pageLamplight`: whether the page is in Lamplight (the night theme, or the OS dark with no theme chosen). It colours
+ *   the paper only; it never moves the light.
+ * - `artLight`: the light for art outside a scene. The rule (DESIGN §10.4): the clock sets the light and the theme sets
+ *   the paper, so art outside a scene is lit exactly like the scenes: the window at this hour by day, the lamp after
+ *   dark, whatever the theme.
  *
  * The clock runs only while something uses it (`retainWindowClock`, which the hooks call).
  */
 import { computed, signal, type ReadonlySignal } from '@preact/signals';
 import { useEffect } from 'preact/hooks';
-import { DAY_LIGHT, NIGHT_LIGHT, type Hemisphere, type Light } from '@/art/light';
+import { NIGHT_LIGHT, type Hemisphere, type Light } from '@/art/light';
 import { momentAt, type Moment } from './time';
 
 export const windowClock = signal<Date>(new Date());
@@ -42,13 +44,12 @@ export const windowMoment: ReadonlySignal<Moment> = computed(() => {
   return momentAt(windowClock.peek(), windowHemisphere.value);
 });
 
-/** The light for art outside a scene (see the module notes). Pure, for tests and the functions below. */
-export function artLightFor(moment: Moment, lamplight: boolean): Light {
-  if (lamplight) return NIGHT_LIGHT;
-  return moment.light.night ? DAY_LIGHT : { from: moment.light.from, night: false };
+/** The light for art outside a scene: the scene's own light at that moment (see the module notes). Pure, for tests. */
+export function artLightFor(moment: Moment): Light {
+  return moment.light.night ? NIGHT_LIGHT : { from: moment.light.from, night: false };
 }
 
-export const artLight: ReadonlySignal<Light> = computed(() => artLightFor(windowMoment.value, pageLamplight.value));
+export const artLight: ReadonlySignal<Light> = computed(() => artLightFor(windowMoment.value));
 
 /** Sets the hemisphere (settings, or the Today view's season). */
 export function setWindowHemisphere(h: Hemisphere): void {
@@ -116,5 +117,5 @@ export function useArtLight(): Light {
 
 /** The art light right now, for code outside components (`themeLight`, `sceneLight`). */
 export function artLightNow(): Light {
-  return artLightFor(momentAt(new Date(), windowHemisphere.peek()), readLamplight());
+  return artLightFor(momentAt(new Date(), windowHemisphere.peek()));
 }

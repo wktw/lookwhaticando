@@ -519,6 +519,10 @@ instead of heavy boxes · 44 px minimum targets.
   on the side away from the window, plus a flat contact shadow. The sunbeam is a pale cream parallelogram with the
   window-bar shadows inside it, and pets inside it cast floor shadows. At night the lamp becomes the source from the other side and
   every shade flips. Crescents are **precomputed** per pose × 2 facings × 3 light positions (no runtime clip math).
+  **The clock sets the light, the theme sets the paper**: the scenes and every drawing outside a scene (card plants, capsule
+  art, the kit's small objects) read the same window moment (`windowMoment` / `artLight` in `src/art/scene/moment.ts`), so
+  a Lamplight page at noon still shows the noon window, and a Paper page at night shows the lamp. A card never disagrees
+  with the band above it.
   **One lamp design**: every indoor place (the Sill, the Bookshelf, the Quilt…) uses the Sill's table lamp. The one exception
   is the Balcony Box, which is outdoors: its night light is the jam-jar lantern on the plant stand (`BALCONY_PLACE.lampAt`),
   and its pool is anchored to the lantern.
