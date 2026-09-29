@@ -87,8 +87,8 @@
   --holo: linear-gradient(115deg, #f5cdd6 0%, #f6e6b4 25%, #cde6da 50%, #d2e4f2 75%, #ddd4f1 100%);
 
   /* Type: Castoro (a voice: names, headings, notes) + Nunito (interface) */
-  --font-display: 'Castoro', 'Iowan Old Style', Georgia, serif;
-  --font-body: 'Nunito', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-display: 'Castoro', 'Castoro Fallback', 'Iowan Old Style', Georgia, serif;
+  --font-body: 'Nunito', 'Nunito Fallback', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --fs-display: min(2rem, 48px);
   --fs-title: min(1.65rem, 40px);
   --fs-headline: min(1.3rem, 32px);

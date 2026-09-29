@@ -9,6 +9,7 @@ import { artBounds } from '@/art/plants/svgBounds.testutil';
 import { DECOR_ENTRIES, decorFootprint } from './index';
 import { CRESCENT_OFFSET, LAMP, LIGHT_ORDER, SHAPES, contact, nightTone, paint, shapeHash, warmBandOf } from './kit';
 import { SHADE } from './shade.gen';
+import { SHADE_HASH } from './shade.hash.gen';
 import { ell, poly, rect, smooth, star } from './geo';
 import { SYMMETRIC_SHADE, artProblems, mount, pathDataError, pathsFilled, shadeCentreX } from './artCheck.testutil';
 
@@ -173,13 +174,13 @@ describe('decor art language', () => {
 
 describe('precomputed crescents', () => {
   it('are fresh for every registered shape (rebuild with tools/build-shade.mjs when this fails)', () => {
-    const stale = [...SHAPES.values()].filter((s) => SHADE[s.ref]?.h !== shapeHash(s)).map((s) => s.ref);
+    const stale = [...SHAPES.values()].filter((s) => SHADE_HASH[s.ref] !== shapeHash(s)).map((s) => s.ref);
     expect(stale).toEqual([]);
   });
 
   it('hold a crescent per light for every shaded shape, a rim for every dark one, and a trim for every clipped one', () => {
     for (const s of SHAPES.values()) {
-      const row = SHADE[s.ref]!;
+      const row = SHADE[s.ref] ?? {};
       if (s.k !== 0) expect(row.c?.length, s.ref).toBe(LIGHT_ORDER.length);
       else expect(row.c, s.ref).toBeUndefined();
       if (s.rim) expect(row.r?.length, s.ref).toBe(LIGHT_ORDER.length);
@@ -189,7 +190,8 @@ describe('precomputed crescents', () => {
   });
 
   it('carry no rows for shapes that no longer exist', () => {
-    expect(Object.keys(SHADE).filter((ref) => !SHAPES.has(ref))).toEqual([]);
+    expect([...Object.keys(SHADE), ...Object.keys(SHADE_HASH)].filter((ref) => !SHAPES.has(ref))).toEqual([]);
+    expect(Object.keys(SHADE).filter((ref) => !(ref in SHADE_HASH))).toEqual([]);
   });
 
   it('are nudged toward the light: from the left the offset points left, from the right it points right', () => {

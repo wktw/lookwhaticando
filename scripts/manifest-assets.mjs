@@ -2,7 +2,6 @@
 /**
  * The web app manifest's extra images, rendered from the real app and art with Playwright:
  *   npm run manifest-assets
- *  - public/icons/icon-maskable-192.png       the maskable app icon at 192 px (the 512 comes from npm run icons)
  *  - public/icons/shortcut-<tab>-96.png       home-screen shortcut icons (the tab glyphs, active, on paper)
  *  - public/screenshots/narrow-1170x2532.png  Chrome's install sheet, phone (390×844 @3)
  *  - public/screenshots/wide-2560x1600.png    Chrome's install sheet, computer (1280×800 @2)
@@ -53,12 +52,6 @@ try {
   if (!opt.only || opt.only === 'icons') {
     mkdirSync('public/icons', { recursive: true });
     const ctx = await browser.newContext({ viewport: { width: 320, height: 320 }, deviceScaleFactor: 1, reducedMotion: 'reduce' });
-    {
-      const page = await open(ctx, '/scripts/stage/manifest.html?maskable=192');
-      await page.locator('#stage-art').screenshot({ path: 'public/icons/icon-maskable-192.png' });
-      report('public/icons/icon-maskable-192.png');
-      await page.close();
-    }
     for (const s of SHORTCUTS) {
       const file = `public/icons/shortcut-${s.tab}-96.png`;
       const page = await open(ctx, `/scripts/stage/manifest.html?shortcut=${s.icon}&size=96`);

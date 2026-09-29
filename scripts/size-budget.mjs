@@ -20,11 +20,11 @@ import { gzipSync } from 'node:zlib';
 export const ENTRY_BUDGET_KB = 150;
 
 /**
- * TODO(m1-build → lead): delete once NOTES-m1-build.md request 1 lands (CelebrationArt loaded on
- * demand, NOTES-m1-build.lazy-celebration-art.patch); the entry then measures about 95 KB.
- * Set to null when there is no open allowance.
+ * An open allowance over the budget, as { reason, ceilingKB }, or null when there is none. The lazy
+ * CelebrationArt landed in M1 (the entry measured 119 KB gzip after the integration), so the gate is
+ * strict.
  */
-export const KNOWN_OVERAGE = { reason: 'CelebrationArt is still imported statically by src/fx (NOTES-m1-build.md request 1)', ceilingKB: 320 };
+export const KNOWN_OVERAGE = null;
 
 /** Relative chunk paths a minified ES module loads statically: imports and re-exports, not `import()`. */
 export function staticImports(code) {

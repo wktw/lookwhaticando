@@ -29,3 +29,26 @@
   src: url('../assets/fonts/nunito-latin-ext-wght-normal.woff2') format('woff2');
   unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
 }
+
+/*
+ * Metric-matched fallbacks: while the web fonts swap in, the text keeps its size and line boxes, so
+ * the layout doesn't move. Measured in Chromium against Liberation Serif and Liberation Sans (metric
+ * twins of Times New Roman and Arial) on a catkin copy sample. Castoro: UPM 1000, typo ascent 755,
+ * descent -245, line gap 330.
+ */
+@font-face {
+  font-family: 'Castoro Fallback';
+  src: local('Times New Roman'), local('Liberation Serif'), local('Times');
+  size-adjust: 110.05%;
+  ascent-override: 69.06%;
+  descent-override: 22.72%;
+  line-gap-override: 29.99%;
+}
+@font-face {
+  font-family: 'Nunito Fallback';
+  src: local('Arial'), local('Liberation Sans'), local('Helvetica');
+  size-adjust: 100.57%;
+  ascent-override: 100.43%;
+  descent-override: 34.8%;
+  line-gap-override: 0%;
+}

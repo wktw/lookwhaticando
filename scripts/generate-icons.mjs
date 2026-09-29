@@ -21,7 +21,8 @@ const ICONS = [
   { file: 'public/icons/apple-touch-icon.png', size: 180, shape: 'square' }, // iOS masks it itself
   { file: 'public/icons/icon-192.png', size: 192, shape: 'squircle' },
   { file: 'public/icons/icon-512.png', size: 512, shape: 'squircle' },
-  { file: 'public/icons/icon-maskable-512.png', size: 512, shape: 'maskable' }, // art inside the 80% safe zone
+  { file: 'public/icons/icon-maskable-192.png', size: 192, shape: 'maskable' }, // art inside the 80% safe zone
+  { file: 'public/icons/icon-maskable-512.png', size: 512, shape: 'maskable' },
 ];
 
 /** Portrait iPhone screens: CSS width × height @ pixel ratio (→ PNG pixels). */

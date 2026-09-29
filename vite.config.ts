@@ -22,8 +22,8 @@ export const STARTUP_END = '<!--/startup-images-->';
 /**
  * The web app manifest. Chrome's richer install sheet reads `screenshots`; a long press on the
  * home-screen icon offers `shortcuts`. There is no `orientation`: tablets and desktops use the
- * sidebar layout in landscape. The 192 px maskable icon, the shortcut icons and the screenshots
- * come from scripts/manifest-assets.mjs.
+ * sidebar layout in landscape. The app icons (both maskable sizes too) come from
+ * scripts/generate-icons.mjs; the shortcut icons and the screenshots from scripts/manifest-assets.mjs.
  */
 export const MANIFEST: Partial<ManifestOptions> = {
   id: './',
