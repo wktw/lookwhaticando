@@ -19,7 +19,7 @@ export function floatText(text: string, at: DOMRect | Point, { tone = 'coin', ic
   if (typeof document === 'undefined') return;
   const p = toPoint(at);
   const el = document.createElement('div');
-  el.className = 'mm-fx-float';
+  el.className = 'ck-fx-float';
   const withIcon = icon && (tone === 'coin' || tone === 'star');
   el.dataset.tone = withIcon ? tone : 'plain';
   if (withIcon) {

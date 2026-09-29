@@ -29,6 +29,8 @@ export interface ToastOptions {
   duration?: number;
   /** Coalescing key: a queued toast with the same key is replaced instead of stacking. */
   key?: string;
+  /** Not announced here: the caller announces it (check-ins wait for quiet, DESIGN §9.1). */
+  silent?: boolean;
 }
 
 export interface ToastItem extends ToastOptions {
@@ -84,12 +86,15 @@ export function toastDuration(t: ToastOptions): number {
   return t.duration ?? (t.action ? 4000 : 3200);
 }
 
-/** Show (or coalesce) a toast. Its text is announced through the shared aria-live="polite" region. */
+/**
+ * Show (or coalesce) a toast. Its text is announced through the shared aria-live="polite" region,
+ * unless it is `silent`.
+ */
 export function toast(opts: ToastOptions): string {
   const { list, id } = upsertToast(toasts.value, opts, `t${++seq}`);
   toasts.value = list;
   const text = opts.label ?? [opts.message, opts.note].filter((x): x is string => typeof x === 'string').join(' ');
-  if (text) announce(opts.action ? `${text}. ${opts.action.label} available.` : text);
+  if (text && !opts.silent) announce(opts.action ? `${text}. ${opts.action.label} available.` : text);
   return id;
 }
 

@@ -38,6 +38,10 @@
   pointer-events: auto;
   animation: rise 520ms var(--ease-pop) 80ms backwards;
 }
+/* Programmatic focus on open: the card is a container, not a control. */
+.card:focus {
+  outline: none;
+}
 
 .layer[data-leaving] .scrim {
   animation: fade 260ms ease reverse forwards;
@@ -75,13 +79,12 @@
   background: var(--contact);
 }
 
+/* The foil glint slides once across the whole tile, clipped to its corners. */
 .glint {
   position: absolute;
-  top: 34px;
-  right: 30%;
+  inset: 0;
   z-index: 2;
-  width: 0;
-  height: 0;
+  border-radius: inherit;
 }
 
 .eyebrow {

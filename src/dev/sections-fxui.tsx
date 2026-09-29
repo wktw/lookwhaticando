@@ -45,9 +45,11 @@ import {
   type CheckRingMark,
 } from '@/ui';
 import { ToastNote } from '@/ui/Toaster';
-import { CuttingGlass, EmptyPot, ObjectArt, PaperNote, WaterDrop, type ObjectName } from '@/ui/art/objects';
+import { CuttingGlass, EmptyPot, ObjectArt, PaperNote, themeLight, WaterDrop, type ObjectName } from '@/ui/art/objects';
 import { PASTELS, RARITIES } from '@/catalog/types';
-import { burst } from '@/fx/confetti';
+import { burst, PETAL_SHAPES } from '@/fx/confetti';
+import { petalAt, planPetals } from '@/fx/particles';
+import { petalMix, type PetalMix } from '@/fx/petalColours';
 import { flyCoins } from '@/fx/coinFly';
 import { floatText } from '@/fx/floatingText';
 import { haptic } from '@/fx/haptics';
@@ -95,6 +97,11 @@ const GALLERY_CSS = `
 .fxui-band::before { content: ''; position: absolute; left: 24px; top: 16px; width: 150px; height: 84px; border-radius: 6px; background: linear-gradient(#cfe3f1, #eaf2f8); box-shadow: inset 0 0 0 5px #fffdf9; }
 .fxui-iframe { border: 1px solid var(--line); border-radius: 14px; background: var(--bg); box-shadow: var(--kit-card-shadow); display: block; }
 .fxui-shots { display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start; }
+.fxui-focused { outline: 2px solid var(--focus); outline-offset: 3px; }
+.fxui-scaled { overflow: hidden; border-radius: 14px; max-width: 100%; }
+.fxui-scaled > iframe { transform-origin: 0 0; }
+.fxui-petals { position: relative; overflow: hidden; height: 200px; border-radius: 14px; background: var(--bg-2); border: 1px solid var(--line); }
+.fxui-petals svg { position: absolute; inset: 0; width: 100%; height: 100%; }
 `;
 
 let tokensInstalled = false;
@@ -260,7 +267,7 @@ const LABEL: Record<string, string> = { primary: 'Water it', secondary: 'Add a n
 
 function Buttons({ params }: { params: URLSearchParams }) {
   const [busy, setBusy] = useState(false);
-  // ?focus=1 shows the keyboard focus ring (programmatic focus on load counts as keyboard focus).
+  // ?focus=1 also moves real focus to the demo (programmatic focus on load counts as keyboard focus).
   useEffect(() => {
     if (params.get('focus')) document.querySelector<HTMLElement>('[data-demo-focus]')?.focus();
   }, []);
@@ -286,7 +293,8 @@ function Buttons({ params }: { params: URLSearchParams }) {
           </div>
           <Sub>Focus · loading · disabled</Sub>
           <div class="fxui-row">
-            <Button variant="secondary" {...(theme === 'light' ? { 'data-demo-focus': true } : {})}>
+            {/* Painted with the same ring :focus-visible draws, so it shows without a keyboard. */}
+            <Button variant="secondary" class="fxui-focused" {...(theme === 'light' ? { 'data-demo-focus': true } : {})}>
               Focused
             </Button>
             <Button loading>Saving</Button>
@@ -559,7 +567,7 @@ function Surfaces() {
             <ListRow leading="volume" leadingTone="peach" title="Sounds" trailing={<Toggle checked hideLabel label="Sounds" onChange={() => undefined} />} />
             <ListRow leading="moon" leadingTone="lavender" title="Theme" subtitle="Follows your device" trailing="Auto" onClick={() => undefined} />
             <ListRow leading="calendar" leadingTone="sky" title="Week starts on" trailing="Monday" onClick={() => undefined} />
-            <ListRow leading={<WaterDrop size={26} />} title="Watering times" subtitle="Morning, evening" onClick={() => undefined} />
+            <ListRow leading={<WaterDrop size={26} light={lightFor(theme)} />} title="Watering times" subtitle="Morning, evening" onClick={() => undefined} />
             <ListRow leading="trash" leadingTone="danger" title="Delete everything" destructive onClick={() => undefined} />
           </ListGroup>
           <Card padding="none">
@@ -572,7 +580,7 @@ function Surfaces() {
                 </Button>
               }
             >
-              Start small. You can add more anytime.
+              Plant one habit and it starts as a cutting.
             </EmptyState>
           </Card>
           <Card padding="none">
@@ -671,6 +679,7 @@ function Status() {
 /* ------------------------------------------------------------------------------------------ */
 
 const OBJECTS: ObjectName[] = ['pot', 'cutting', 'watering-can', 'note', 'drop'];
+const ROW_OBJECTS: ObjectName[] = ['pot', 'cutting', 'watering-can', 'note', 'drop'];
 const LIGHTS: [string, Light][] = [
   ['window left', { from: 'left', night: false }],
   ['noon, top', { from: 'top', night: false }],
@@ -721,9 +730,26 @@ function Sheets({ params }: { params: URLSearchParams }) {
   const [kind, setKind] = useState<'daily' | 'weekly' | 'monthly'>('daily');
   const [remind, setRemind] = useState(true);
   const close = () => setOpen(null);
+  // Framed (?open=…) the gallery shows one live sheet; otherwise two open sheets as phone frames.
+  const framed = params.has('open');
   return (
     <div class="fxui-stack">
       <FxHosts />
+      {!framed && (
+        <div class="fxui-shots">
+          {(
+            [
+              ['basic', 'A sheet with a form'],
+              ['confirm', 'The confirm dialog'],
+            ] as const
+          ).map(([key, label]) => (
+            <div key={key} class="fxui-stack" style={{ gap: '6px' }}>
+              <Sub>{label} · 390 px</Sub>
+              <ScaledFrame title={label} src={`/gallery.html?only=fxui-sheets&open=${key}`} width={390} height={720} max={0.62} />
+            </div>
+          ))}
+        </div>
+      )}
       <div class="fxui-row">
         <Button onClick={() => setOpen('basic')}>Habit editor</Button>
         <Button variant="secondary" onClick={() => setOpen('tall')}>
@@ -779,7 +805,7 @@ function Sheets({ params }: { params: URLSearchParams }) {
       <Sheet open={open === 'tall'} onClose={close} title="Field Guide" detents={['medium', 'large']}>
         <ListGroup>
           {Array.from({ length: 24 }, (_, i) => (
-            <ListRow key={i} leading="sparkle" leadingTone={PASTELS[i % PASTELS.length]} title={`Page ${i + 1}`} subtitle="Drag the sheet up to see more" />
+            <ListRow key={i} leading={<ObjectArt name={ROW_OBJECTS[i % ROW_OBJECTS.length]!} size={32} light={themeLight()} />} title={`Page ${i + 1}`} subtitle="Drag the sheet up to see more" />
           ))}
         </ListGroup>
       </Sheet>
@@ -857,9 +883,9 @@ function Notes({ params }: { params: URLSearchParams }) {
           <div class="fxui-stack" style={{ maxWidth: '420px' }}>
             <Sub>Check-in (4 s, with Undo)</Sub>
             <ToastNote
-              item={{ message: <>Walk, watered.{coin(5)}</>, note: 'Pudding opened one eye.', art: <WaterDrop size={22} />, action: { label: 'Undo', onAction: noop }, version: 0 }}
+              item={{ message: <>Walk, watered.{coin(5)}</>, note: 'Pudding opened one eye.', art: <WaterDrop size={22} light={lightFor(theme)} />, action: { label: 'Undo', onAction: noop }, version: 0 }}
             />
-            <ToastNote item={{ message: <>Drink water, tiny version.{coin(3)}</>, art: <WaterDrop size={22} />, action: { label: 'Undo', onAction: noop }, version: 0 }} />
+            <ToastNote item={{ message: <>Drink water, tiny version.{coin(3)}</>, art: <WaterDrop size={22} light={lightFor(theme)} />, action: { label: 'Undo', onAction: noop }, version: 0 }} />
             <Sub>Small moments</Sub>
             <ToastNote item={{ message: <>Everything kept. There’s a ticket on the sill. <RewardInline rewards={{ coins: 20, stars: 0, tickets: 1, stardust: 0 }} /></>, art: <TicketIcon size={22} />, version: 0 }} />
             <ToastNote item={{ message: 'Your yoga plant is potted up.', art: <CuttingGlass size={30} light={lightFor(theme)} />, version: 0 }} />
@@ -927,6 +953,14 @@ function Fx({ params }: { params: URLSearchParams }) {
     <div class="fxui-stack">
       <FxHosts />
       <p class="fxui-note">Petals: at most 12, in the plants’ own colours, drifting down with a gentle turn. One brass coin at a time. One foil glint for a rare reveal.</p>
+      <div class="fxui-shots">
+        {PETAL_DEMOS.map(([label, mix]) => (
+          <div key={label} class="fxui-stack" style={{ gap: '6px', flex: '1 1 260px' }}>
+            <Sub>{label}</Sub>
+            <PetalFrame mix={mix} />
+          </div>
+        ))}
+      </div>
       <div class="fxui-row" style={{ marginTop: '220px' }}>
         <Button data-fx-origin="" onClick={checkIn}>
           Check in (+5)
@@ -959,6 +993,37 @@ function Fx({ params }: { params: URLSearchParams }) {
           Haptic tick
         </Button>
       </div>
+    </div>
+  );
+}
+
+const PETAL_DEMOS: [string, PetalMix][] = [
+  ['Perfect day · begonia, pothos, lavender', petalMix(['begonia', 'pothos', 'lavender'])],
+  ['Bloom · sunflower', petalMix(['sunflower'])],
+  ['Nothing in flower · leaves only', petalMix(['pothos', 'monstera'])],
+];
+
+/** A still frame of a perfect day's petals, a third of the way down (the live ones are the buttons below). */
+function PetalFrame({ mix }: { mix: PetalMix }) {
+  let seed = 11;
+  const rng = () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646;
+  const petals = planPetals({ width: 300, height: 420, intensity: 'big', ...mix, rng });
+  return (
+    <div class="fxui-petals" aria-hidden="true">
+      <svg viewBox="0 0 300 200" preserveAspectRatio="xMidYMid slice">
+        {petals.map((p, i) => {
+          const a = petalAt(p, 0.3);
+          const shape = PETAL_SHAPES[p.kind];
+          return (
+            <g key={i} transform={`translate(${(p.x + a.dx).toFixed(1)} ${(p.y + 70 + a.dy).toFixed(1)}) rotate(${a.rot.toFixed(0)}) scale(${((p.size / 20) * 1.2).toFixed(2)} ${((p.size / 20) * 1.2).toFixed(2)})`}>
+              <g transform={`scale(${a.flutter.toFixed(2)} 1)`}>
+                <path d={shape.body} fill={p.color} />
+                <path d={shape.shade} fill={p.shade} />
+              </g>
+            </g>
+          );
+        })}
+      </svg>
     </div>
   );
 }
@@ -1169,6 +1234,25 @@ function Shell() {
   );
 }
 
+/** Room the gallery page leaves for a frame (its side padding). */
+const FRAME_GUTTER = 48;
+
+/** A fixed-size page in a frame, scaled down (never up) to fit the gallery's width. */
+function ScaledFrame({ src, title, width, height, max = 1 }: { src: string; title: string; width: number; height: number; max?: number }) {
+  const fit = () => Math.min(max, (innerWidth - FRAME_GUTTER) / width);
+  const [scale, setScale] = useState(fit);
+  useEffect(() => {
+    const onResize = () => setScale(fit());
+    addEventListener('resize', onResize);
+    return () => removeEventListener('resize', onResize);
+  }, []);
+  return (
+    <div class="fxui-scaled" style={{ width: `${Math.round(width * scale)}px`, height: `${Math.round(height * scale)}px` }}>
+      <iframe class="fxui-iframe" title={title} src={src} width={width} height={height} style={{ transform: `scale(${scale})` }} />
+    </div>
+  );
+}
+
 /** The real app in frames: the phone with its tab bar, the desktop with its sidebar. */
 function AppShell({ params }: { params: URLSearchParams }) {
   const route = params.get('route') ?? 'today';
@@ -1178,13 +1262,11 @@ function AppShell({ params }: { params: URLSearchParams }) {
     <div class="fxui-shots">
       <div class="fxui-stack" style={{ gap: '6px' }}>
         <Sub>Phone · 390 px</Sub>
-        <iframe class="fxui-iframe" title="catkin at 390 px" src={src(390)} width={390} height={760} />
+        <ScaledFrame title="catkin at 390 px" src={src(390)} width={390} height={760} />
       </div>
       <div class="fxui-stack" style={{ gap: '6px' }}>
-        <Sub>Mac · 1200 px (shown at 70%)</Sub>
-        <div style={{ width: '840px', height: '532px', overflow: 'hidden', borderRadius: '14px' }}>
-          <iframe class="fxui-iframe" title="catkin at 1200 px" src={src(1200)} width={1200} height={760} style={{ transform: 'scale(0.7)', transformOrigin: '0 0' }} />
-        </div>
+        <Sub>Mac · 1200 px (scaled to fit)</Sub>
+        <ScaledFrame title="catkin at 1200 px" src={src(1200)} width={1200} height={760} max={0.7} />
       </div>
     </div>
   );

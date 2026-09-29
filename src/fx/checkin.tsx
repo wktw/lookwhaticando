@@ -8,7 +8,8 @@
 import type { CheckInResult } from '@/state/api';
 import { CoinIcon } from '@/art/icons';
 import { CHECKIN_CHOREOGRAPHY } from '@/ui/checkRing';
-import { WaterDrop } from '@/ui/art/objects';
+import { themeLight, WaterDrop } from '@/ui/art/objects';
+import { announceSettled, cancelSettled } from '@/ui/announce';
 import { toast } from '@/ui/toast';
 import { flyCoins } from './coinFly';
 import { floatText } from './floatingText';
@@ -52,13 +53,43 @@ export interface CheckInNoteOptions {
   onUndo: () => void;
 }
 
+/** Check-ins waiting to be announced together, by habit (the burst rule, DESIGN §9.1). */
+const heard = new Map<string, { name: string; coins: number; tiny: boolean; note?: string }>();
+const SETTLE_GROUP = 'checkin';
+
+/** "Walk and Read watered. Plus 10 coins." — one sentence for every check-in since the last quiet. */
+export function settledCheckInLine(entries: readonly { name: string; coins: number; tiny: boolean; note?: string }[]): string {
+  if (entries.length === 0) return '';
+  const coins = entries.reduce((sum, e) => sum + e.coins, 0);
+  const plus = coins > 0 ? ` Plus ${coins} coins.` : '';
+  if (entries.length === 1) {
+    const e = entries[0]!;
+    return [`${checkInLine(e.name, { tiny: e.tiny })}${plus}`, e.note ?? '', `${FX_UI.undo} available.`].filter(Boolean).join(' ');
+  }
+  const names = entries.map((e) => e.name);
+  const list = `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
+  return `${list} watered.${plus} ${FX_UI.undo} available.`;
+}
+
+function announceCheckIns() {
+  announceSettled(SETTLE_GROUP, () => {
+    const line = settledCheckInLine([...heard.values()]);
+    heard.clear();
+    return line;
+  });
+}
+
 /**
  * The 4-second Undo note every completing check-in shows (DESIGN §5.2, §12):
  * "Walk, watered. +5 · Pudding opened one eye. · Undo". Rapid check-ins of the same habit
- * update one note instead of stacking.
+ * update one note instead of stacking, and screen readers hear every check-in of a burst in one
+ * sentence once the taps have stopped for 1.2 s.
  */
 export function showCheckInNote({ habitId, habitName, coins, tiny = false, note, onUndo }: CheckInNoteOptions): string {
   const line = checkInLine(habitName, { tiny });
+  heard.delete(habitId);
+  heard.set(habitId, { name: habitName, coins, tiny, note });
+  announceCheckIns();
   return toast({
     key: `checkin-${habitId}`,
     message: (
@@ -74,9 +105,17 @@ export function showCheckInNote({ habitId, habitName, coins, tiny = false, note,
     ),
     note,
     label: [line, coins > 0 ? `Plus ${coins} coins.` : '', note ?? ''].filter(Boolean).join(' '),
-    art: <WaterDrop size={22} />,
+    silent: true,
+    art: <WaterDrop size={22} light={themeLight()} />,
     tone: 'sky',
     duration: 4000,
-    action: { label: FX_UI.undo, onAction: onUndo },
+    action: {
+      label: FX_UI.undo,
+      onAction: () => {
+        // Undone before it was read out: it is not announced at all.
+        if (heard.delete(habitId)) heard.size ? announceCheckIns() : cancelSettled(SETTLE_GROUP);
+        onUndo();
+      },
+    },
   });
 }

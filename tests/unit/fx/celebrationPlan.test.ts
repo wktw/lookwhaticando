@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { addTally, EMPTY_TALLY, enqueueBanner, eventWeight, formatTally, planCelebration, walletDelta, type BannerSpec, type CelebrationContext } from '@/fx/celebrationPlan';
 import { BADGE_BY_ID } from '@/catalog/badges';
 import type { GameEvent } from '@/state/api';
+import { SPECIES_COLOURS } from '@/fx/petalColours';
 
 const ctx = (locallyCelebrated: string[] = []): CelebrationContext => ({
   habit: (id) => ({ 'h-walk': { name: 'Walk', plant: 'pothos' as const, pot: 'terracotta' as const }, 'h-yoga': { name: 'Yoga', plant: 'lavender' as const, pot: 'blush' as const } })[id],
@@ -112,7 +113,25 @@ describe('planCelebration', () => {
     const bloom = (habitId: string) => planCelebration([{ type: 'plantStage', habitId, stage: 5, stageName: 'Blooming' }], ctx()).banner;
     expect(bloom('h-yoga')).toMatchObject({ eyebrow: 'Blooming', text: 'The lavender is in flower.' });
     expect(bloom('h-walk')?.text).toBe('The pothos is trailing past the edge of the sill.');
-    expect(planCelebration([{ type: 'plantStage', habitId: 'h-walk', stage: 7, stageName: 'Evergreen' }], ctx()).banner?.text).toBe('It keeps a small brass watering can now.');
+    expect(planCelebration([{ type: 'plantStage', habitId: 'h-walk', stage: 7, stageName: 'Evergreen' }], ctx()).banner?.text).toBe('It has grown past the top of the window frame.');
+  });
+
+  it('a bloom lets fall its own flowers; a perfect day, the flowers and leaves on the sill', () => {
+    const bloom = planCelebration([{ type: 'plantStage', habitId: 'h-yoga', stage: 5, stageName: 'Blooming' }], ctx()).banner;
+    expect(bloom?.petals).toMatchObject({ colors: [...SPECIES_COLOURS.lavender.flowers], shapes: ['petal', 'leaf'] });
+    const sill = { ...ctx(), sill: () => ['pothos', 'sunflower'] as const };
+    const perfect = planCelebration([{ type: 'perfectDay', date: '2026-09-29', coins: 10 }], sill).banner;
+    expect(perfect?.petals?.colors).toEqual([...SPECIES_COLOURS.sunflower.flowers]);
+    expect(perfect?.petals?.leafColors).toEqual(expect.arrayContaining([...SPECIES_COLOURS.pothos.leaves]));
+    // Nothing on the sill flowers: leaves only, never a pastel confetti mix.
+    const green = planCelebration([{ type: 'perfectDay', date: '2026-09-29', coins: 10 }], { ...ctx(), sill: () => ['pothos'] as const }).banner;
+    expect(green?.petals?.shapes).toEqual(['leaf']);
+  });
+
+  it('a small growth step without a known habit shows the pot once it is potted up', () => {
+    const art = (stage: number) => planCelebration([{ type: 'plantStage', habitId: 'h-gone', stage, stageName: 'x' }], ctx()).toasts[0]?.art;
+    expect(art(1)).toEqual({ type: 'object', name: 'cutting' });
+    expect(art(2)).toEqual({ type: 'object', name: 'pot' });
   });
 
   it('one small moment carries its own rewards: one note, not a second "+3 coins" one', () => {

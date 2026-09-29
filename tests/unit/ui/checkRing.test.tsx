@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { readFileSync } from 'node:fs';
 import { render } from 'preact';
 import { act } from 'preact/test-utils';
 import { CheckRing } from '@/ui/CheckRing';
@@ -126,5 +127,37 @@ describe('<CheckRing>', () => {
     document.documentElement.dataset.motion = 'reduced';
     btn = mount(<CheckRing label="Walk" state="done" />);
     expect(btn.hasAttribute('data-instant')).toBe(true);
+  });
+});
+
+describe('rest state contrast (DESIGN §10.1: UI pairs ≥ 3:1)', () => {
+  const read = (p: string) => readFileSync(new URL(p, import.meta.url), 'utf8');
+  const tokens = read('../../../src/styles/tokens.css');
+  const ring = read('../../../src/ui/CheckRing.module.css');
+  const hexes = (block: string) => Object.fromEntries([...block.matchAll(/--([\w-]+):\s*(#[0-9a-fA-F]{6})\s*;/g)].map((m) => [m[1]!, m[2]!]));
+  const light = hexes(tokens.match(/:root\s*\{([\s\S]*?)\n\}/)![1]!);
+  const night = { ...light, ...hexes(tokens.match(/:root\[data-theme='night'\]\s*\{([\s\S]*?)\n\}/)![1]!) };
+  const lum = (hex: string) => {
+    const c = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255).map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4));
+    return 0.2126 * c[0]! + 0.7152 * c[1]! + 0.0722 * c[2]!;
+  };
+  const ratio = (a: string, b: string) => {
+    const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p);
+    return (x! + 0.05) / (y! + 0.05);
+  };
+  /** The token a rule paints with, e.g. `.moon { fill: var(--lavender-700) }` → lavender-700. */
+  const tokenOf = (selector: string, prop: string) => {
+    const rule = ring.match(new RegExp(`${selector.replace(/[.]/g, '\\.')}\\s*\\{([^}]*)\\}`))![1]!;
+    return rule.match(new RegExp(`${prop}:\\s*var\\(--([\\w-]+)\\)`))![1]!;
+  };
+
+  it.each([
+    ['light', light],
+    ['night', night],
+  ] as const)('the resting edge and the moon read on the card (%s)', (_name, t) => {
+    const edge = tokenOf('.quiet .edge', 'stroke');
+    const moon = tokenOf('.moon', 'fill');
+    expect(ratio(t[edge]!, t.card!), `edge ${edge}`).toBeGreaterThanOrEqual(3);
+    expect(ratio(t[moon]!, t.card!), `moon ${moon}`).toBeGreaterThanOrEqual(3);
   });
 });

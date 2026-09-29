@@ -113,8 +113,9 @@ export function CelebrationBanner({ spec, payouts = [], onDone }: { spec: Banner
     const card = cardRef.current?.getBoundingClientRect();
     if (card) {
       toastLaneTop.value = card.bottom;
-      if (spec.kind === 'perfectDay') burst({ intensity: spec.confetti });
-      else burst({ x: card.left + card.width / 2, y: card.bottom - 12, intensity: spec.confetti });
+      const petals = { intensity: spec.confetti, ...spec.petals };
+      if (spec.kind === 'perfectDay') burst(petals);
+      else burst({ x: card.left + card.width / 2, y: card.bottom - 12, ...petals });
     }
     return () => {
       toastLaneTop.value = 0;

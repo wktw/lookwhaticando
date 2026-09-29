@@ -70,25 +70,28 @@ export function CuttingGlass({ light = DAY_LIGHT, ...rest }: ObjectArtProps) {
       <path d="M24.6 39.2C23.4 40.4 22.1 40.8 20.9 40.9M24.6 39.2C25.5 40.4 26.8 41 28.1 41.1M24.6 38.6C24.4 40 24.2 41.2 23.8 42.2" fill="none" stroke="#FFFDF9" stroke-width={0.8} stroke-linecap="round" />
       <path d="M24.6 39.5C24 32 23.6 24 24.3 15C24.7 11 25.8 8.8 27.6 7.3" fill="none" stroke="#8DAA79" stroke-width={1.1} stroke-linecap="round" />
       <path d={CUTTING.glassShade[light.from]} fill="var(--shade)" />
-      <path d="M19.2 18.2L20.2 18.2L19.9 37.8L19 37.8Z" fill="#fff" opacity={0.7} />
-      <ellipse cx={24} cy={15} rx={7.5} ry={0.9} fill="none" stroke="#fff" stroke-opacity={0.85} stroke-width={0.7} />
+      {/* The wall nearest the light catches it as a flat, paler facet; the rim is a thin line of glass. */}
+      {CUTTING.glassLit[light.from] && <path d={CUTTING.glassLit[light.from]} fill="var(--card)" opacity={0.4} />}
+      <ellipse cx={24} cy={15} rx={7.5} ry={0.9} fill="none" stroke="#C3D6E0" stroke-width={0.7} />
       <Solid d={CUTTING.leafL} fill="#9CBC87" shade={CUTTING.leafLShade} light={light} />
       <Solid d={CUTTING.leafR} fill="#BCD3A3" shade={CUTTING.leafRShade} light={light} />
     </Frame>
   );
 }
 
-/** A blue enamel watering can. */
+/** A blue enamel watering can: a D-shaped rear handle, a spout from low on the front, a flat-faced rose. */
 export function WateringCan({ light = DAY_LIGHT, ...rest }: ObjectArtProps) {
   return (
     <Frame {...rest}>
-      <Contact cx={27} cy={42.6} rx={15} />
+      <Contact cx={24} cy={42.6} rx={14} />
       <Solid d={CAN.handle} fill="#97B1CC" shade={CAN.handleShade} light={light} />
       <Solid d={CAN.spout} fill="#A8C0D8" shade={CAN.spoutShade} light={light} />
-      <Solid d={CAN.rose} fill="#8FA9C4" shade={CAN.roseShade} light={light} />
+      <path d={CAN.rose} fill="#97B1CC" />
+      <path d={CAN.roseFace} fill="#8FA9C4" />
+      <path d={CAN.roseShade[light.from]} fill="var(--shade)" />
       <Solid d={CAN.body} fill="#A8C0D8" shade={CAN.bodyShade} light={light} />
       <path d={CAN.band} fill="#97B1CC" />
-      {light.night ? null : <path d="M16.2 26L17.4 26L17.4 39L16.2 39Z" fill="#fff" opacity={0.45} />}
+      <path d={CAN.opening} fill="#6F88A3" />
     </Frame>
   );
 }
@@ -106,13 +109,12 @@ export function PaperNote({ light = DAY_LIGHT, ...rest }: ObjectArtProps) {
   );
 }
 
-/** A single water drop (the check-in note's mark). */
-export function WaterDrop({ size = 24, title, class: cls }: Omit<ObjectArtProps, 'light'>) {
+/** A single water drop (the check-in note's mark), lit like everything else on the sill. */
+export function WaterDrop({ size = 24, light = DAY_LIGHT, title, class: cls }: ObjectArtProps) {
   return (
     <Frame size={size} title={title} class={cls} box={24}>
-      <path d={DROP.body} fill="#B3D1E8" />
-      <path d={DROP.shade.left} fill="rgba(94, 76, 154, 0.16)" />
-      <ellipse cx={9.4} cy={15.2} rx={1} ry={2.1} transform="rotate(18 9.4 15.2)" fill="#fff" opacity={0.8} />
+      <Solid d={DROP.body} fill="#B3D1E8" shade={DROP.shade} light={light} />
+      <path d={DROP.lit[light.from]} fill="#D3E5F2" />
     </Frame>
   );
 }

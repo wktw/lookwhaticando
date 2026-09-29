@@ -14,7 +14,6 @@ import {
   SPROUT_STEM,
   surfaceY,
   WATER_BODY,
-  WATER_GLINT,
   WATER_SURFACE,
   waterLevel,
   type CheckRingState,
@@ -73,7 +72,6 @@ export function CheckRingArt({ level, mark, markProgress = 1, countLabel, full =
         <g class={s.water} style={{ transform: `translateY(${y}px)` }}>
           <path class={s.body} d={WATER_BODY} />
           <path class={s.surface} d={WATER_SURFACE} />
-          <path class={s.glint} d={WATER_GLINT} />
         </g>
       </g>
       <circle class={s.edge} cx={RING.c} cy={RING.c} r={RING.r} stroke-width={RING.stroke} />

@@ -89,8 +89,6 @@ export function surfaceY(level: number): number {
  */
 export const WATER_BODY = 'M-3 -1.4 Q24 -5.2 51 -1.4 V64 H-3 Z';
 export const WATER_SURFACE = 'M-3 -1.4 Q24 -5.2 51 -1.4 Q24 2.6 -3 -1.4 Z';
-/** A short glint on the surface, near the lit (left) wall. */
-export const WATER_GLINT = 'M7.5 -0.4 Q10.5 0.5 13.5 0.5';
 
 /** The hairline check (drawn with pathLength 1). */
 export const CHECK_PATH = 'M15.6 24.4 L21.3 30 L32.6 18.4';

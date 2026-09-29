@@ -10,6 +10,7 @@ import type { BadgeDef } from '@/catalog/badges';
 import type { Expression } from '@/art/pets/types';
 import type { Tone } from '@/ui/tone';
 import type { Intensity } from './particles';
+import { petalMix, type PetalMix } from './petalColours';
 import type { SfxName } from './sound';
 import {
   BEST_FRIENDS,
@@ -74,6 +75,8 @@ export interface BannerSpec {
   epic: boolean;
   /** How many petals fall (the field keeps its older name). */
   confetti: Intensity;
+  /** What they are: the plants' own flowers and leaves (DESIGN §10.5). */
+  petals?: PetalMix;
   sound: SfxName;
 }
 
@@ -104,6 +107,8 @@ export interface CelebrationContext {
   buddy: string;
   /** Habits whose check-in coins the screen already celebrated with its own flourish. */
   locallyCelebrated: ReadonlySet<string>;
+  /** The plants on today's sill (a perfect day's petals are theirs). */
+  sill?(): readonly PlantSpeciesId[];
 }
 
 export const EMPTY_TALLY: Tally = { coins: 0, stars: 0, tickets: 0, stardust: 0 };
@@ -245,6 +250,7 @@ export function planCelebration(events: readonly GameEvent[], ctx: CelebrationCo
               tone: 'sage',
               epic: false,
               confetti: evergreen ? 'big' : 'medium',
+              petals: petalMix([h.plant]),
               sound: evergreen ? 'fanfare' : 'reveal-rare',
             },
           });
@@ -253,7 +259,7 @@ export function planCelebration(events: readonly GameEvent[], ctx: CelebrationCo
           moments.push({
             priority: PRIORITY.stage,
             line: line.slice(0, -1),
-            toast: { key: `plant-${e.habitId}`, message: line, tone: 'sage', art: h ? { type: 'plant', species: h.plant, stage: e.stage, pot: h.pot } : { type: 'object', name: 'cutting' }, sound: 'sparkle' },
+            toast: { key: `plant-${e.habitId}`, message: line, tone: 'sage', art: h ? { type: 'plant', species: h.plant, stage: e.stage, pot: h.pot } : { type: 'object', name: e.stage >= 2 ? 'pot' : 'cutting' }, sound: 'sparkle' },
           });
         }
         break;
@@ -271,6 +277,7 @@ export function planCelebration(events: readonly GameEvent[], ctx: CelebrationCo
             tone: 'butter',
             epic: false,
             confetti: 'big',
+            petals: petalMix(ctx.sill?.() ?? []),
             sound: 'fanfare',
           },
         });

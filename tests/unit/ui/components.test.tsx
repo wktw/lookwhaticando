@@ -199,7 +199,7 @@ describe('controls', () => {
     expect(tint!.className).toMatch(/tint/);
     expect(quiet!.className).toMatch(/quiet/);
     expect(danger!.className).toMatch(/primary/);
-    expect(danger!.className).toContain('mm-tone-danger');
+    expect(danger!.className).toContain('ck-tone-danger');
     for (const b of [tint, quiet, danger]) expect(b!.type).toBe('button');
   });
 

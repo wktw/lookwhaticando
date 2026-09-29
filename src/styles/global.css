@@ -144,14 +144,15 @@ select {
 }
 
 /*
- * Reduced motion (DESIGN §10.5): everything holds still. An element marked .mm-motion-safe keeps
+ * Reduced motion (DESIGN §10.5): everything holds still. An element marked .ck-motion-safe keeps
  * its own animation (not its children's): a blink, breathing under 1.5%, a crossfade. Mark only
  * motion that small, and give it its own reduced-motion version where it needs one.
+ * (.mm-motion-safe is the older name, still honoured.)
  */
 @media (prefers-reduced-motion: reduce) {
-  :root:not([data-motion='full']) *:not(.mm-motion-safe),
-  :root:not([data-motion='full']) *:not(.mm-motion-safe)::before,
-  :root:not([data-motion='full']) *:not(.mm-motion-safe)::after {
+  :root:not([data-motion='full']) *:not(.ck-motion-safe):not(.mm-motion-safe),
+  :root:not([data-motion='full']) *:not(.ck-motion-safe):not(.mm-motion-safe)::before,
+  :root:not([data-motion='full']) *:not(.ck-motion-safe):not(.mm-motion-safe)::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
@@ -159,21 +160,28 @@ select {
   }
 }
 
-:root[data-motion='reduced'] *:not(.mm-motion-safe),
-:root[data-motion='reduced'] *:not(.mm-motion-safe)::before,
-:root[data-motion='reduced'] *:not(.mm-motion-safe)::after {
+:root[data-motion='reduced'] *:not(.ck-motion-safe):not(.mm-motion-safe),
+:root[data-motion='reduced'] *:not(.ck-motion-safe):not(.mm-motion-safe)::before,
+:root[data-motion='reduced'] *:not(.ck-motion-safe):not(.mm-motion-safe)::after {
   animation-duration: 0.01ms !important;
   animation-iteration-count: 1 !important;
   transition-duration: 0.01ms !important;
   scroll-behavior: auto !important;
 }
 
-/* Unowned collectibles (non-pet) */
+/*
+ * Unowned collectibles (non-pet): a flat ink silhouette, drawn by repainting every shape in ink
+ * (no CSS filter on art, DESIGN §10.4). The wrapper's opacity flattens the overlaps into one shape.
+ */
 .collectible-silhouette {
-  filter: brightness(0);
   opacity: 0.13;
 }
+.collectible-silhouette svg *:not([fill='none']) {
+  fill: var(--ink) !important;
+}
+.collectible-silhouette svg [stroke]:not([stroke='none']) {
+  stroke: var(--ink) !important;
+}
 :root[data-theme='night'] .collectible-silhouette {
-  filter: brightness(0) invert(1);
   opacity: 0.16;
 }

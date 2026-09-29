@@ -28,8 +28,9 @@
     transform 120ms var(--ease-pop),
     background-color 120ms var(--ease-pop);
 }
+/* At night the press deepens toward plum-black, never pure black. */
 :global([data-theme='night']) .btn {
-  --press-ink: #000;
+  --press-ink: #1e1a22;
 }
 
 .label {
@@ -77,7 +78,7 @@
   --face: var(--t300);
 }
 /* Night butter-300 is too light under light text; a deeper gold keeps it AA. */
-:global([data-theme='night']) .tint:global(.mm-tone-butter) {
+:global([data-theme='night']) .tint:global(.ck-tone-butter) {
   --face: var(--butter-soft-night);
 }
 

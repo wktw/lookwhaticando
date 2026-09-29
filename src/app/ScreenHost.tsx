@@ -45,7 +45,7 @@ export function ScreenHost({ tab }: { tab: TabId }) {
   };
 
   return (
-    <div key={tab} class={`${s.screen} mm-motion-safe`} data-dir={tabDirection.value}>
+    <div key={tab} class={`${s.screen} ck-motion-safe`} data-dir={tabDirection.value}>
       {Screen ? (
         <ErrorBoundary key={tab}>
           <Screen />

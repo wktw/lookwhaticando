@@ -64,7 +64,7 @@ export function bloomLine(species: PlantSpeciesId | undefined): string {
   return (species && BLOOM_LINE[species]) ?? 'Its first flowers are open.';
 }
 
-export const EVERGREEN_LINE = 'It keeps a small brass watering can now.';
+export const EVERGREEN_LINE = 'It has grown past the top of the window frame.';
 
 /** The check-in note (DESIGN §12): "Walk, watered." (the "+5" follows as a currency token). */
 export function checkInLine(habitName: string, { tiny = false }: { tiny?: boolean } = {}): string {

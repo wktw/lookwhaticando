@@ -91,6 +91,7 @@ function context(): CelebrationContext {
     badge: (id) => BADGE_BY_ID.get(id),
     buddy: s.profile.buddy ?? '',
     locallyCelebrated: new Set(claims.keys()),
+    sill: () => s.habits.filter((h) => !h.archivedOn).map((h) => h.plant),
   };
 }
 

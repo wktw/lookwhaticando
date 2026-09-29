@@ -1,4 +1,60 @@
-.glint {
+/* ---------- the foil glint: a pale-gold sheen crossing once ---------- */
+.foil {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  overflow: hidden;
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+/* A parent-wide track that slides the band from just off the left edge to just off the right. */
+.sheen {
+  position: absolute;
+  inset: 0;
+  transform: translateX(-70%);
+  opacity: 0;
+  /* An even slide (not the interface's fast-out ease): the light is seen the whole way across. */
+  animation: sheen 600ms var(--ease-in-out) both;
+}
+/* Two flat bands, a broad one and a hairline beside it: foil catching the window. */
+.sheen::before,
+.sheen::after {
+  content: '';
+  position: absolute;
+  top: -20%;
+  bottom: -20%;
+  background: #f5e2a6;
+  transform: skewX(-20deg);
+}
+.sheen::before {
+  left: 40%;
+  width: 16%;
+  opacity: 0.5;
+}
+.sheen::after {
+  left: 60%;
+  width: 4%;
+  opacity: 0.4;
+}
+
+@keyframes sheen {
+  0% {
+    transform: translateX(-70%);
+    opacity: 0;
+  }
+  15%,
+  85% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(70%);
+    opacity: 0;
+  }
+}
+
+/* ---------- a Secret's one sparkle ---------- */
+.secret {
   position: absolute;
   top: 50%;
   left: 50%;
@@ -14,35 +70,28 @@
   left: calc(var(--size) / -2);
   width: var(--size);
   height: var(--size);
-  /* The glint box is 0×0; the global svg max-width would squash it. */
+  /* The box is 0×0; the global svg max-width would squash it. */
   max-width: none;
   opacity: 0;
-  animation: glint 720ms var(--ease-pop) both;
+  animation: sparkle 720ms var(--ease-pop) both;
 }
 
-/* Warm foil gold with a paper-white core: reads on cream and on the night card alike. */
-.outer {
+.star {
   fill: #e3be6a;
 }
-.inner {
-  fill: #fffbf0;
-}
 
-@keyframes glint {
+@keyframes sparkle {
   0% {
-    transform: scale(0.1) rotate(-12deg);
+    transform: scale(0.4);
     opacity: 0;
   }
-  30% {
-    transform: scale(1) rotate(0deg);
-    opacity: 1;
-  }
-  55% {
-    transform: scale(0.92) rotate(6deg);
+  35%,
+  60% {
+    transform: scale(1);
     opacity: 1;
   }
   100% {
-    transform: scale(0.2) rotate(18deg);
+    transform: scale(1);
     opacity: 0;
   }
 }

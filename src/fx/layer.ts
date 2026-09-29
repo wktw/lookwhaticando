@@ -9,7 +9,7 @@ let layer: HTMLDivElement | null = null;
 export function fxLayer(): HTMLDivElement {
   if (layer?.isConnected) return layer;
   layer = document.createElement('div');
-  layer.className = 'mm-fx-layer';
+  layer.className = 'ck-fx-layer';
   layer.setAttribute('aria-hidden', 'true');
   document.body.appendChild(layer);
   return layer;

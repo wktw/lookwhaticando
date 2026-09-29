@@ -99,3 +99,34 @@ describe('the coin flight', () => {
     expect([0, -3, 1, 3, 5, 8, 24, 500].map(spriteCount)).toEqual([0, 0, 1, 1, 1, 1, 1, 1]);
   });
 });
+
+describe('petals in the plants’ own colours', () => {
+  it('a flowering plant gives its flowers and leaves; foliage plants give leaves only', async () => {
+    const { petalMix, SPECIES_COLOURS } = await import('@/fx/petalColours');
+    const lavender = petalMix(['lavender']);
+    expect(lavender.colors).toEqual([...SPECIES_COLOURS.lavender.flowers]);
+    expect(lavender.shapes).toEqual(['petal', 'leaf']);
+    const foliage = petalMix(['pothos', 'monstera']);
+    expect(foliage.colors).toEqual([]);
+    expect(foliage.shapes).toEqual(['leaf']);
+    expect(foliage.leafColors.length).toBeGreaterThan(0);
+    expect(petalMix([]).shapes).toEqual(['leaf']);
+  });
+
+  it('planPetals paints with the given flowers and greens only', async () => {
+    const { petalMix } = await import('@/fx/petalColours');
+    const mix = petalMix(['sunflower']);
+    const petals = planPetals({ width: 390, height: 844, count: 12, ...mix, rng: rng() });
+    for (const p of petals) expect(p.kind === 'leaf' ? mix.leafColors : mix.colors).toContain(p.color);
+    const leaves = planPetals({ width: 390, height: 844, count: 12, ...petalMix(['pothos']), rng: rng() });
+    expect(leaves.every((p) => p.kind === 'leaf')).toBe(true);
+  });
+
+  it('overlapping bursts never put more than 12 in the air', async () => {
+    const { petalAllowance } = await import('@/fx/confetti');
+    expect(petalAllowance(11, 0)).toBe(11);
+    expect(petalAllowance(8, 6)).toBe(6);
+    expect(petalAllowance(8, 12)).toBe(0);
+    expect(petalAllowance(4, 20)).toBe(0);
+  });
+});

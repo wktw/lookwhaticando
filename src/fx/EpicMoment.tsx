@@ -42,7 +42,8 @@ export function EpicMoment({ spec, payouts = [], onDone }: { spec: BannerSpec; p
     pushLayer(id);
     // Notes that arrive meanwhile wait under the dimmed room instead of expiring unseen.
     const release = holdToasts();
-    cardRef.current?.querySelector<HTMLElement>('button')?.focus({ preventScroll: true });
+    // Focus lands on the card itself (named by its title), so no ring shows until she uses the keyboard.
+    cardRef.current?.focus({ preventScroll: true });
     const t = setTimeout(() => setGlint(1), GLINT_AFTER_MS);
     return () => {
       clearTimeout(t);
@@ -75,14 +76,14 @@ export function EpicMoment({ spec, payouts = [], onDone }: { spec: BannerSpec; p
     <div class={s.layer} data-leaving={leaving || undefined}>
       <div class={s.scrim} onClick={close} aria-hidden="true" />
       <div class={s.center}>
-        <div ref={cardRef} class={s.card} role="dialog" aria-modal="true" aria-labelledby={titleId} onKeyDown={(e) => cardRef.current && trapTab(e, cardRef.current)}>
+        <div ref={cardRef} class={s.card} role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1} onKeyDown={(e) => cardRef.current && trapTab(e, cardRef.current)}>
           <div class={s.stage} aria-hidden="true">
             <div class={s.art}>
               <CelebrationArt art={spec.art} size={132} />
             </div>
             <span class={s.contact} />
             <span class={s.glint}>
-              <SparkleBurst trigger={glint} size={30} />
+              <SparkleBurst trigger={glint} />
             </span>
           </div>
           <p class={s.eyebrow}>{spec.eyebrow}</p>

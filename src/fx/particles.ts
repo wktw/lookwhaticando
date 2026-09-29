@@ -82,26 +82,29 @@ export interface PlanOptions {
   /** Overrides the budget (still capped at 12). */
   count?: number;
   shapes?: readonly ParticleShape[];
-  /** Petal colours (near-white ones are dropped); leaves keep their greens. */
+  /** Petal colours (near-white ones are dropped). */
   colors?: readonly string[];
+  /** Leaf greens (default: the sill's greens). */
+  leafColors?: readonly string[];
   /** Hold still and crossfade (reduced motion). */
   still?: boolean;
   rng?: Rng;
 }
 
 /** Plan a celebration's petals: where each starts, how it drifts, turns and fades. */
-export function planPetals({ x, y, width, height, intensity = 'medium', count, shapes, colors, still = false, rng = Math.random }: PlanOptions): Petal[] {
+export function planPetals({ x, y, width, height, intensity = 'medium', count, shapes, colors, leafColors, still = false, rng = Math.random }: PlanOptions): Petal[] {
   const n = Math.max(0, Math.min(MAX_PETALS, Math.round(count ?? BUDGET[intensity])));
   const kinds = [...new Set((shapes?.length ? shapes : (['petal', 'petal', 'leaf'] as const)).map(kindOf))];
   // Two petals for every leaf when both are allowed.
   const kindAt = (i: number): PetalKind => (kinds.length === 1 ? kinds[0]! : i % 3 === 2 ? 'leaf' : 'petal');
   const petalColours = colors?.filter((c) => luminance(c) < 0.9) ?? [];
   const palette = petalColours.length ? petalColours : PETAL_COLOURS;
+  const greens = leafColors?.length ? leafColors : LEAF_COLOURS;
   const fromPoint = x !== undefined && y !== undefined;
   const out: Petal[] = [];
   for (let i = 0; i < n; i++) {
     const kind = kindAt(i);
-    const color = kind === 'leaf' ? pick(rng, LEAF_COLOURS) : pick(rng, palette);
+    const color = kind === 'leaf' ? pick(rng, greens) : pick(rng, palette);
     // Spread evenly across the width (or around the point), with a little jitter.
     const slot = n > 1 ? i / (n - 1) - 0.5 : 0;
     const startX = fromPoint ? x + slot * 90 + range(rng, -14, 14) : width * (0.08 + 0.84 * (i + range(rng, 0.2, 0.8)) / n);

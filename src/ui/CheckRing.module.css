@@ -41,9 +41,9 @@
 .full .edge {
   stroke: var(--t500);
 }
-/* Resting: a quieter edge around the moon. */
+/* Resting keeps the control's full hairline edge (≥ 3:1 on the card, like every control). */
 .quiet .edge {
-  stroke: var(--line);
+  stroke: var(--control-border);
 }
 
 /* ---------- water ---------- */
@@ -60,13 +60,6 @@
   .surface {
     fill: color-mix(in srgb, var(--t500) 48%, #fff);
   }
-}
-.glint {
-  fill: none;
-  stroke: #fff;
-  stroke-opacity: 0.75;
-  stroke-width: 1.1;
-  stroke-linecap: round;
 }
 
 /* Draining (uncheck, or a count going down): the mark lifts first, then the water falls. */
@@ -119,7 +112,7 @@
 }
 .stem {
   fill: none;
-  stroke: #3b3236;
+  stroke: #4f7545;
   stroke-width: 1.4;
   stroke-linecap: round;
 }
@@ -127,8 +120,9 @@
   fill: #4f7545;
 }
 
+/* The moon in lavender ink: ≥ 3:1 on the card in both themes (a pastel -500 moon is not). */
 .moon {
-  fill: var(--lavender-500);
+  fill: var(--lavender-700);
   transition: opacity 200ms var(--ease-pop);
 }
 

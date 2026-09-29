@@ -26,7 +26,7 @@ afterEach(() => {
   document.body.innerHTML = '';
 });
 
-const sprites = () => document.querySelectorAll('.mm-fx-sprite').length;
+const sprites = () => document.querySelectorAll('.ck-fx-sprite').length;
 
 describe('the brass coin (one in the air at a time)', () => {
   it('queues rapid rewards, and a coin still waiting carries the next reward along', async () => {

@@ -1,5 +1,5 @@
 /*
- * Pastel tone scopes for the UI kit. A `.mm-tone-<key>` class maps one pastel family onto
+ * Pastel tone scopes for the UI kit. A `.ck-tone-<key>` class (`.mm-tone-<key>` is the older name, still honoured) maps one pastel family onto
  * --t100/--t300/--t500/--t700. Components read only these variables, so every tone works in
  * light and night. Faces are flat paper and ink: no candy lips, no gloss (DESIGN §10.3).
  */
@@ -35,48 +35,56 @@
   }
 }
 
+.ck-tone-blush,
 .mm-tone-blush {
   --t100: var(--blush-100);
   --t300: var(--blush-300);
   --t500: var(--blush-500);
   --t700: var(--blush-700);
 }
+.ck-tone-peach,
 .mm-tone-peach {
   --t100: var(--peach-100);
   --t300: var(--peach-300);
   --t500: var(--peach-500);
   --t700: var(--peach-700);
 }
+.ck-tone-butter,
 .mm-tone-butter {
   --t100: var(--butter-100);
   --t300: var(--butter-300);
   --t500: var(--butter-500);
   --t700: var(--butter-700);
 }
+.ck-tone-sage,
 .mm-tone-sage {
   --t100: var(--sage-100);
   --t300: var(--sage-300);
   --t500: var(--sage-500);
   --t700: var(--sage-700);
 }
+.ck-tone-mint,
 .mm-tone-mint {
   --t100: var(--mint-100);
   --t300: var(--mint-300);
   --t500: var(--mint-500);
   --t700: var(--mint-700);
 }
+.ck-tone-sky,
 .mm-tone-sky {
   --t100: var(--sky-100);
   --t300: var(--sky-300);
   --t500: var(--sky-500);
   --t700: var(--sky-700);
 }
+.ck-tone-lavender,
 .mm-tone-lavender {
   --t100: var(--lavender-100);
   --t300: var(--lavender-300);
   --t500: var(--lavender-500);
   --t700: var(--lavender-700);
 }
+.ck-tone-lilac,
 .mm-tone-lilac {
   --t100: var(--lilac-100);
   --t300: var(--lilac-300);
@@ -84,6 +92,7 @@
   --t700: var(--lilac-700);
 }
 /* Destructive actions use terracotta, never alarm red (DESIGN §3: no red). */
+.ck-tone-danger,
 .mm-tone-danger {
   --t100: var(--peach-100);
   --t300: var(--peach-300);

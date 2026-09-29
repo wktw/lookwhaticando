@@ -30,7 +30,7 @@ export interface FlyCoinsOptions {
   reservation?: Reservation;
 }
 
-const BUMP = 'mm-wallet-bump';
+const BUMP = 'ck-wallet-bump';
 /** One coin's flight (ms). */
 export const COIN_FLIGHT_MS = 560;
 
@@ -68,7 +68,7 @@ const FRAMES = 14;
 
 function flySprite(kind: WalletKind, from: Point, to: Point): Promise<void> {
   const el = document.createElement('div');
-  el.className = 'mm-fx-sprite';
+  el.className = 'ck-fx-sprite';
   render(h(kind === 'coins' ? CoinIcon : StarIcon, { size: '100%' }), el);
   fxLayer().appendChild(el);
 

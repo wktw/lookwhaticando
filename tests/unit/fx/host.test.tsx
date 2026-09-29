@@ -103,3 +103,19 @@ describe('CelebrationHost', () => {
     expect(toasts.value.map((t) => t.label ?? t.message)).toEqual(['+3 coins']);
   });
 });
+
+describe('check-in announcements (burst rule)', () => {
+  it('reads a burst of check-ins as one sentence', async () => {
+    const { settledCheckInLine } = await import('@/fx/checkin');
+    expect(settledCheckInLine([{ name: 'Walk', coins: 5, tiny: false, note: 'Pudding opened one eye.' }])).toBe('Walk, watered. Plus 5 coins. Pudding opened one eye. Undo available.');
+    expect(settledCheckInLine([{ name: 'Walk', coins: 0, tiny: true }])).toBe('Walk, tiny version. Undo available.');
+    expect(
+      settledCheckInLine([
+        { name: 'Walk', coins: 5, tiny: false },
+        { name: 'Read', coins: 5, tiny: false },
+        { name: 'Stretch', coins: 0, tiny: true },
+      ]),
+    ).toBe('Walk, Read and Stretch watered. Plus 10 coins. Undo available.');
+    expect(settledCheckInLine([])).toBe('');
+  });
+});

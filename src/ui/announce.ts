@@ -26,3 +26,35 @@ export function announce(message: string, politeness: 'polite' | 'assertive' = '
   clearTimeout(timers[politeness]);
   timers[politeness] = window.setTimeout(() => (el.textContent = message), 60);
 }
+
+/** The burst rule's quiet time (DESIGN §9.1): rapid check-ins are announced once, after this. */
+export const SETTLE_MS = 1200;
+
+const settling = new Map<string, { timer: number; message: () => string }>();
+
+/**
+ * Announce once things have gone quiet (the burst rule, DESIGN §9.1). Each call restarts the
+ * group's timer and replaces what will be said, so four quick check-ins are read as one
+ * sentence 1.2 s after the last tap. Pass a function to build that sentence when it is spoken.
+ */
+export function announceSettled(group: string, message: string | (() => string), quietMs = SETTLE_MS): void {
+  if (typeof window === 'undefined') return;
+  const prev = settling.get(group);
+  if (prev) clearTimeout(prev.timer);
+  const entry = {
+    message: typeof message === 'function' ? message : () => message,
+    timer: window.setTimeout(() => {
+      settling.delete(group);
+      announce(entry.message());
+    }, quietMs),
+  };
+  settling.set(group, entry);
+}
+
+/** Drop a group's pending announcement (an undo before it was spoken). */
+export function cancelSettled(group: string): void {
+  const prev = settling.get(group);
+  if (!prev) return;
+  clearTimeout(prev.timer);
+  settling.delete(group);
+}

@@ -60,14 +60,36 @@ Useful params: `fxui-notes&live=1`, `fxui-fx&fx=petals|petals-point|coin|glint|c
   foil glint use `glintAt(rect)` or `<SparkleBurst trigger={n} />` from `@/fx/SparkleBurst`. Sound names are
   unchanged: `ratchet` is the handle tick, `pop` the soft opening pop, `coin` the brass clink, `crack` and
   `thunk` the capsule.
-- **Pets and everything animated**: reduced motion now exempts an element marked `mm-motion-safe` (only that
+- **Pets and everything animated**: reduced motion now exempts an element marked `ck-motion-safe` (`mm-motion-safe` still works; only that
   element, not its children) from the global kill switch. Mark only a blink, breathing ≤ 1.5% or a crossfade.
+- **Screen readers and rapid check-ins (burst rule, §9.1)**: `showCheckInNote` no longer announces each
+  note; every check-in of a burst is read as one sentence ("Walk and Read watered. Plus 10 coins. Undo
+  available.") after 1.2 s of quiet. Other bursty announcements can use `announceSettled(group, text)`
+  from `@/ui/announce` (and `toast({ …, silent: true })` to keep the toast itself quiet).
+- **Petals in the plants' own colours**: `burst({ colors, leafColors, shapes })`; `petalMix(species[])`
+  from `@/fx/petalColours` builds them (leaves only when nothing flowers). Banners carry `spec.petals`
+  (bloom: that species; perfect day: `CelebrationContext.sill()`, the sill's plants). At most 12 petals
+  are ever in the air, across overlapping bursts.
+- **Foil glint**: `<SparkleBurst trigger={n} />` is now a pale-gold sheen that slides once across its
+  (position: relative, rounded) parent; `glintAt(rect)` does the same over a screen rect. A Secret's single
+  sparkle is `<SparkleBurst trigger={n} variant="secret" />`.
+- **Class names**: tone scopes are `ck-tone-*` and the reduced-motion escape hatch is `ck-motion-safe`;
+  the older `mm-` names still work as aliases.
 - **Kit art for your empty states**: `EmptyPot`, `CuttingGlass`, `WateringCan`, `PaperNote`, `WaterDrop` from
   `@/ui/art/objects` (each takes `light`; `themeLight()` gives day or lamplight to match the page).
 - **Sheets over notes**: notes (toasts) sit at the bottom above the tab bar; while any sheet is open they move
   to the top so they never cover a sheet's buttons.
 
 ## Known gaps
+
+- **Gate merging the shell and the epic moment on the icons, pets and shelf modules.** In this branch the
+  install gate and guide still render the Mochi app icon and "mochi meadow" labels (icons), toasts and the
+  wallet show the smiley/paw coin (icons), the perfect-day note shows the Mochi cat head (pets), and the
+  Window Seat and Laurel Sprig both render the same outlined gift box (shelf/CollectibleArt). Please confirm
+  CollectibleArt has real art for `decor-window-seat` and the Laurel Sprig id before shipping the epic moment.
+- `.collectible-silhouette` (global.css) now repaints shapes in `--ink` instead of a CSS filter; shapes whose
+  fill comes only from a CSS class with `fill: none` would be filled. If CollectibleArt draws any such
+  shape, mark it `fill="none"` as an attribute.
 
 - Tab icons, currency tokens, the app icon, splash and install illustrations are the icons module's and
   still show the Mochi look in this branch. `PetArt`, `PlantArt`, `CollectibleArt` and `BadgeMedal` in
