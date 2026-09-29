@@ -50,11 +50,13 @@ const PUPS: readonly [number, number][] = [
 ];
 
 function pup(k: Kit, x: number, y: number, g: number, key: number) {
-  const s = lerp(0.4, 1, g);
+  // A pup grows from a pair of coins to a small plant of its own, taller and fuller with every bloom.
+  const s = lerp(0.55, 1.4, g);
   const leaves: [number, number, number][] = [
     [-34, 6.5, 2.6],
     [30, 7, 2.8],
     [-2, 8.5, 2.4],
+    ...(g > 0.6 ? ([[-58, 5.4, 2.3], [52, 6, 2.4]] as [number, number, number][]) : []),
   ];
   let stems = '';
   const discs = leaves.map(([a, len, r], i) => {

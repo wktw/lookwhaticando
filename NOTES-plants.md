@@ -25,6 +25,13 @@ Gallery: `/gallery.html?only=garden` (sections `garden-matrix`, `garden-night`, 
   leaves up.
 - `damp` darkens the soil (watered today). `pulse`: pass a monotonic check-in counter; each increase after mount plays
   a leaf lift and a glint on the soil and dampens it. Reduced motion keeps the glint (a crossfade) and the soil change.
+- `fit`: `'scene'` (default) keeps every stage on the same 100-unit canvas so pots match in scale on the sill;
+  `'icon'` crops to the plant at its stage (a committed square frame per species × stage, `iconFrames.ts`), so a
+  cutting in its glass fills a 40 px Today card. **Today cards, the collection book and any small tile should pass
+  `fit="icon"`.** Frames are generated from the painted bounds of every pot, light, progress and bloom count
+  (`GEN_ICON_FRAMES=1 npx vitest run src/art/plants/iconFrames.gen.test.tsx`); a test fails if any plant is cropped.
+- `withPot`: stages 0–1 (and the tulip) stand the habit's chosen pot, empty, behind the glass on the shade side
+  ("a cutting in a water glass beside its empty pot", DESIGN §5.5). For scenes and detail views; ignored by `icon`.
 - `animated`: gentle sway (±1°), paused off screen; held still under reduced motion.
 - Decorative by default; `title` gives `role="img"` + `aria-label`.
 
@@ -36,7 +43,9 @@ and in `title`.
 
 Every drawing is on a 100 × 100 canvas: the vessel's foot stands on y = 95, centred on x = 50; classic pots have their
 rim top at y ≈ 62. `POT_GEOMETRY[pot]` (exported from `@/art/plants`) gives each pot's `rim {y, x0, x1}` (where a cat
-can loaf), `mouth {y, hw}` and `foot`. The water glass spans x 38–62, rim at y 59.4.
+can loaf), `mouth {y, hw}` and `foot`. `tagAnchor(pot)` gives the soil point where a `PlantTag`'s stake goes in (place
+the tag so its stake's foot lands there; the gallery's `garden-tags` shows how). The water glass spans x 38–62, rim
+at y 59.4.
 
 ## Contract-change requests
 
@@ -54,18 +63,23 @@ can loaf), `mouth {y, hw}` and `foot`. The water glass spans x 38–62, rim at y
    Lamplight while the UI theme is light, set the night value on the scene container
    (`--shade: rgba(10, 8, 22, 0.3); --contact: rgba(0, 0, 0, 0.22)`) so crescents deepen with the lamp. No token change
    is needed; a shared `--shade-lamp` token would make this tidier if the lead prefers.
-5. **Stage 0 "beside its empty pot"** (DESIGN §5.5): `PlantArt` draws the glass alone, so a card stays one object. The
-   sill scene can stand the habit's `PotArt` beside the glass using `POT_GEOMETRY`.
+5. **Stage 0 "beside its empty pot"** (DESIGN §5.5): resolved here. Pass `withPot` in the sill scene and the plant
+   detail view; leave it off (or use `fit="icon"`) on cards.
 6. **Tulip pots**: the tulip grows in a forcing glass for its whole life; its `pot` only tints the glass (terracotta
    and gourd give amber glass, blush/rosy/teacup rose, ticking/mug blue, midnight cobalt, tin green, the rest clear).
    The Habit Editor's pot picker could say "Grows in a forcing glass; the pot sets the glass colour" for tulips.
 7. **Gallery title** (`src/dev/gallery.tsx`) still reads "Mochi Meadow · Art Gallery".
+8. **Today card framing**: the Today card (and any 40–64 px plant tile) should pass `fit="icon"` to `PlantArt`.
 
 ## Known gaps
 
-- At 40 px a young plant (a cutting in its glass) is small in its square, as in the Today style frames; the canvas
-  keeps one scale at every stage so pots match from card to card. Cards that want bigger young plants can use 48–56 px.
+- `fit="icon"` frames are per stage, so a card's plant is re-framed when it moves up a stage (it steps from a close
+  crop of the glass to a wider crop of the pot). Tall plants (a flowering tulip or sunflower) are already full height
+  and gain little from the crop.
 - Per-leaf crescents are not drawn; the shade side is carried by darker leaf inks (DESIGN §10.4: two inks and a
   pre-mixed third). Pots, the glasses, the tulip bulb and cup, and strawberry flowers do have hard crescents.
-- DOM weight at Evergreen is 50–190 elements per plant (catnip and hoya are the heaviest); repeated shapes are
-  memoised constants with one-decimal path data, and there are no filters or clip paths.
+- DOM weight at Evergreen (terracotta): catnip 46 elements / 21 KB (was 138 / 35 KB), snake plant 74 / 28 KB,
+  Christmas cactus 92 / 18 KB, hoya 140 / 27 KB, begonia 145 / 19 KB, pothos 136 / 14 KB; the rest 33–103 elements
+  and 6–17 KB. `geom.bake` + `ink.InkRuns` merge repeated shapes into one path per run of one ink (catnip's leaves and
+  flower spikes, the snake plant's flowers); hoya, begonia and pothos leaves still render one group per leaf and are
+  the next to convert. No filters or clip paths.

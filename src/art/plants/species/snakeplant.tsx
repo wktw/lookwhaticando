@@ -1,8 +1,8 @@
 /**
  * Snake plant (Dracaena trifasciata 'Laurentii'): stiff upright sword leaves, dark green crossed with grey-green
- * bands and edged in yellow. Given time it sends up a slim spike of cream, star-shaped flowers.
+ * bands and edged in yellow. Given time it sends up a slim spike of cream, tubular flowers with curled-back tips, clustered at nodes up the stalk.
  */
-import { smooth, tidy, type Pt } from '../geom';
+import { bake, ell, placeMatrix, smooth, tidy, type Pt } from '../geom';
 import { inks, type Kit } from '../kit';
 import { grown, place } from '../leaves';
 import { f, lerp, mix, ramp, rng } from '../math';
@@ -13,7 +13,10 @@ const GREENS = inks('#6E9A66', '#557F52');
 const EDGE = '#E4D489';
 const BAND = '#A7C29A';
 const SPIKE = '#C7C9A0';
-const STAR = '#FBF3DC';
+const STAR = '#F6EBCF';
+/** The same cream, one step toward the lavender shade, for the away side of each tube. */
+const STAR_SHADE = '#E3D6C2';
+const BUD_GREEN = '#DCE0B4';
 
 /** A unit sword leaf, 40 tall and 2.4 half-wide, drawn by its half-width profile; scaled per leaf. */
 const H = 40;
@@ -76,22 +79,62 @@ const LEAVES: readonly [number, number, number, number, number][] = [
   [0.6, -1, 48, 1.1, 7.1],
 ];
 
-/** A slim flower spike: a bare stalk, then little cream stars clustered along the top half. */
+/**
+ * One Sansevieria flower, drawn at the origin hanging off the stalk to the right: a slim cream tube (its base at the
+ * stalk) whose tip splits into narrow tepals curling back. About 2.6 long.
+ */
+const FLOWER = tidy('M0 0.25C0.7 0.1 1.5 -0.2 2.1 -0.35C2.4 -0.7 2.7 -1.05 3 -0.95C2.8 -0.7 2.55 -0.5 2.35 -0.3C2.75 -0.25 3.15 -0.05 3.2 0.3C2.85 0.15 2.5 0.1 2.2 0.1C2.45 0.35 2.6 0.7 2.45 0.95C2.25 0.65 2 0.45 1.8 0.35C1.2 0.4 0.6 0.5 0 0.4Z');
+/** The shaded underside of the tube, on the side away from the light. */
+const FLOWER_SHADE = tidy('M0 0.4C0.6 0.5 1.2 0.4 1.8 0.35C1.2 0.3 0.6 0.3 0 0.3Z');
+
+/**
+ * A slim flower spike: a bare stalk, then clusters of three to five tubular cream flowers at nodes up its top 60%,
+ * angled 30–50° up and out from the stalk and opening from the bottom, with small green-cream buds above.
+ */
 function spike(k: Kit, x: number, y: number, h: number, lean: number, open: number, key: number) {
   const top: Pt = [x + lean, y - h];
-  const stars: string[] = [];
-  const n = Math.round(lerp(4, 11, open));
-  for (let i = 0; i < n; i++) {
-    const kk = 0.42 + (i / Math.max(1, n - 1)) * 0.56;
-    const px = x + lean * kk + (i % 2 ? 1.4 : -1.4);
-    const py = y - h * kk;
-    const r = lerp(0.7, 1.4, open) * (1 - kk * 0.3);
-    stars.push(`M${f(px)} ${f(py - r)}L${f(px + r * 0.3)} ${f(py - r * 0.3)}L${f(px + r)} ${f(py)}L${f(px + r * 0.3)} ${f(py + r * 0.3)}L${f(px)} ${f(py + r)}L${f(px - r * 0.3)} ${f(py + r * 0.3)}L${f(px - r)} ${f(py)}L${f(px - r * 0.3)} ${f(py - r * 0.3)}Z`);
+  const nodes = open > 0 ? Math.round(lerp(3, 5, open)) : 0;
+  // Every flower on the spike is baked into three paths: lit tubes, shaded tubes, and the undersides.
+  let lit = '';
+  let shade = '';
+  let under = '';
+  let buds = '';
+  const at = (kk: number): Pt => [x + lean * kk * kk, y - h * kk];
+  // Buds crowd the tip: pairs of little lenses pressed to the stalk, smaller toward the top.
+  for (let i = 0; i < 4; i++) {
+    const [px, py] = at(lerp(nodes ? 0.84 : 0.6, 0.97, i / 3));
+    const r = lerp(0.8, 0.45, i / 3);
+    buds += `${ell(px - 0.75, py, r * 1.1, r * 0.55)}${ell(px + 0.75, py - 0.6, r * 1.1, r * 0.55)}`;
+  }
+  // Open flowers: a cluster at each node, fanning out from one point on both sides of the stalk.
+  const FAN: readonly [side: number, angle: number, len: number][] = [
+    [1, 34, 1],
+    [-1, 40, 0.95],
+    [1, 58, 0.85],
+    [-1, 62, 0.9],
+    [1, 16, 0.8],
+  ];
+  for (let i = 0; i < nodes; i++) {
+    const kk = lerp(0.44, 0.8, nodes > 1 ? i / (nodes - 1) : 0);
+    const [px, py] = at(kk);
+    const count = 3 + ((i + key) % 3);
+    const s = lerp(1.35, 1.1, kk) * lerp(0.8, 1, open);
+    FAN.slice(0, count).forEach(([side, a, len], j) => {
+      const shaded = k.away !== 0 && side === k.away;
+      const m = placeMatrix(px, py, -side * a, s * len, side * s * len);
+      if (shaded) shade += bake(FLOWER, m);
+      else {
+        lit += bake(FLOWER, m);
+        under += bake(FLOWER_SHADE, m);
+      }
+    });
   }
   return (
     <g key={key}>
       <path d={`M${f(x)} ${f(y)}Q${f(x + lean * 0.3)} ${f(y - h * 0.6)} ${f(top[0])} ${f(top[1])}`} fill="none" stroke={SPIKE} stroke-width={0.9} stroke-linecap="round" />
-      <path d={stars.join('')} fill={k.lit(STAR)} />
+      {lit && <path d={lit} fill={k.lit(STAR)} />}
+      {(shade || under) && <path d={`${shade}${under}`} fill={STAR_SHADE} />}
+      {buds && <path d={buds} fill={k.lit(BUD_GREEN)} />}
     </g>
   );
 }

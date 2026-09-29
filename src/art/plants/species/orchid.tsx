@@ -6,7 +6,7 @@
 import type { JSX } from 'preact';
 import { ell, smooth, tidy, type Pt } from '../geom';
 import { inks, type Kit } from '../kit';
-import { grown, along, partial } from '../leaves';
+import { alongLength, grown, partial } from '../leaves';
 import { f, lerp, ramp } from '../math';
 import type { Growth, Mouth, SpeciesArt } from '../types';
 
@@ -74,6 +74,7 @@ const LEAVES: readonly [number, boolean, number, number][] = [
   [-72, true, 0.84, 2.3],
   [58, false, 0.96, 3.4],
   [-60, true, 1, 5.6],
+  [40, false, 0.8, 6.8],
 ];
 
 /** Aerial roots: [side, reach, birth]: silver cords that curl out over the rim. */
@@ -82,6 +83,57 @@ const ROOTS: readonly [number, number, number][] = [
   [1, 0.8, 4.6],
   [-1, 0.7, 6.4],
 ];
+
+/** The flower spike, relative to the soil line: up beside the stake, then a long arch down and out to the right. */
+const ARCH: readonly Pt[] = [
+  [51.4, -1],
+  [52, -14],
+  [53, -26],
+  [56, -35],
+  [61, -40],
+  [67, -41.4],
+  [73, -40],
+  [78, -36.4],
+  [82, -31.4],
+  [84.6, -26],
+  [86, -21],
+];
+/** Where flowers sit, by fraction of the spike's length: evenly along the arch after the bend, buds at the tip. */
+const FLOWER_SLOTS = [0.44, 0.53, 0.62, 0.71, 0.8, 0.89];
+const BUD_SLOTS = [0.94, 0.985];
+
+/**
+ * One spike grown to `rise` (0..1) with `open` flowers. Each flower hangs a little below the stalk on its own short
+ * stem, facing out, and they get a touch smaller toward the tip; the outer ones are painted first so each
+ * nearer-the-base flower overlaps the next only slightly, as on the plant.
+ */
+function spikeOf(k: Kit, arch: readonly Pt[], rise: number, open: number, scale: number, key: string) {
+  const grownTo = rise * (arch.length - 1);
+  const vis = partial(arch, grownTo);
+  const heads: JSX.Element[] = [];
+  let pedicels = '';
+  FLOWER_SLOTS.forEach((kk, j) => {
+    const { at: [x, y], u } = alongLength(arch, kk);
+    if (u > grownTo + 0.001) return;
+    const hang = 3.6 * scale;
+    if (j < open) {
+      pedicels += `M${f(x)} ${f(y)}Q${f(x + 0.6)} ${f(y + hang * 0.5)} ${f(x + 0.3)} ${f(y + hang - 1)}`;
+      heads.push(flower(k, x + 0.3, y + hang, lerp(0.9, 0.75, j / 5) * scale, j));
+    } else heads.push(<path key={j} d={ell(x + 0.4, y + 1.9 * scale, 1.5 * scale, 1.9 * scale)} fill={k.lit(open > 0 ? '#EAD4DA' : '#BFD1A6')} />);
+  });
+  BUD_SLOTS.forEach((kk, j) => {
+    const { at: [x, y], u } = alongLength(arch, kk);
+    if (u > grownTo + 0.001) return;
+    heads.push(<path key={`b${j}`} d={ell(x + 0.3, y + 1.4 * scale, (1.2 - j * 0.3) * scale, (1.5 - j * 0.3) * scale)} fill={k.lit(open > 0 ? '#EAD4DA' : '#BFD1A6')} />);
+  });
+  heads.reverse();
+  return (
+    <g key={key}>
+      <path d={`${smooth(vis, false)}${pedicels}`} fill="none" stroke={SPIKE} stroke-width={0.9} stroke-linecap="round" />
+      {heads}
+    </g>
+  );
+}
 
 function potted(g: Growth, k: Kit, m: Mouth) {
   const base: Pt = [50, m.y - 0.6];
@@ -113,43 +165,22 @@ function potted(g: Growth, k: Kit, m: Mouth) {
       </g>
     );
   });
-  // The spike: up beside the stake, then an arch; flowers open from the base of the arch outward.
+  // The spike: up beside the stake, then a long arch down and out; flowers open from the base of the arch outward.
   const rise = ramp(g.t, 3.9, 5);
-  let spike: JSX.Element | null = null;
+  const spikes: JSX.Element[] = [];
   if (rise > 0) {
-    const arch: Pt[] = [
-      [51.4, m.y - 1],
-      [52, m.y - 15],
-      [52.6, m.y - 29],
-      [55, m.y - 39],
-      [60.6, m.y - 44.6],
-      [67.4, m.y - 44.4],
-      [73.4, m.y - 40.6],
-      [78, m.y - 34.4],
-      [80.6, m.y - 28],
-    ];
-    const vis = partial(arch, rise * (arch.length - 1));
-    const open = g.stage >= 5 ? g.blooms : 0;
-    const heads: JSX.Element[] = [];
-    // Flowers open from the base of the arch toward the tip; the last slot is always a bud.
-    const slots = [0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1];
-    slots.forEach((kk, j) => {
-      if (kk > rise + 0.001) return;
-      const [x, y] = along(arch, kk);
-      if (j < open && j < 6) heads.push(flower(k, x, y + 4.2, lerp(1.2, 0.96, j / 5), j));
-      else heads.push(<path key={j} d={ell(x, y + 1.8, 1.3 + (kk < 1 ? 0.3 : 0), 1.7 + (kk < 1 ? 0.3 : 0))} fill={k.lit(g.stage >= 5 ? '#EAD4DA' : '#BFD1A6')} />);
-    });
-    // Paint the outer flowers first so each nearer-the-base flower overlaps the next, as they grow on the spike.
-    heads.reverse();
-    spike = (
-      <g>
-        <path d={`M53.4 ${f(m.y)}V${f(m.y - 30)}`} stroke={k.lit(STAKE)} stroke-width={0.8} stroke-linecap="round" />
-        <path d={smooth(vis, false)} fill="none" stroke={SPIKE} stroke-width={0.9} stroke-linecap="round" />
-        {rise > 0.4 && <path d={`M51.4 ${f(m.y - 24.6)}h2.8v1.6h-2.8Z`} fill={k.lit('#E7B8C4')} />}
-        {heads}
-      </g>
-    );
+    const open = g.stage >= 5 ? Math.min(6, g.blooms) : 0;
+    spikes.push(<path key="stake" d={`M53.4 ${f(m.y)}V${f(m.y - 30)}`} stroke={k.lit(STAKE)} stroke-width={0.8} stroke-linecap="round" />);
+    spikes.push(spikeOf(k, ARCH.map(([x, y]) => [x, m.y + y] as Pt), rise, open, 1, 'a'));
+    if (rise > 0.4) spikes.push(<path key="clip" d={`M51.4 ${f(m.y - 24.6)}h2.8v1.6h-2.8Z`} fill={k.lit('#E7B8C4')} />);
+    // An Evergreen orchid sends up a second, shorter spike, arching the other way.
+    const second = ramp(g.t, 6.9, 7.6);
+    if (second > 0) {
+      const arch = ARCH.map(([x, y]) => [50 - (x - 50) * 0.72 - 1.6, m.y + y * 0.74] as Pt);
+      spikes.unshift(spikeOf(k, arch, second, g.stage >= 7 ? Math.min(4, Math.ceil(g.blooms * 0.6)) : 0, 0.9, 'b'));
+    }
   }
+  const spike = spikes.length ? <g>{spikes}</g> : null;
   return {
     back: spike,
     front: (

@@ -127,3 +127,104 @@ export function bandCrescents(x: number, y: number, w: number, h: number, r: num
     top: `M${f(x)} ${f(b - d - q)}V${f(b - q)}Q${f(x)} ${f(b)} ${f(x + q)} ${f(b)}H${f(x + w - q)}Q${f(x + w)} ${f(b)} ${f(x + w)} ${f(b - q)}V${f(b - d - q)}Q${f(x + w)} ${f(b - d)} ${f(x + w - q)} ${f(b - d)}H${f(x + q)}Q${f(x)} ${f(b - d)} ${f(x)} ${f(b - d - q)}Z`,
   };
 }
+
+/** A 2D affine transform [a, b, c, d, e, f], as in SVG's matrix(). */
+export type Affine = readonly [number, number, number, number, number, number];
+
+/** The matrix of `place(x, y, a, s, sx)`: translate, rotate `a` degrees clockwise, scale (sx, s). */
+export function placeMatrix(x: number, y: number, a: number, s: number, sx = s): Affine {
+  const r = (a * Math.PI) / 180;
+  const cos = Math.cos(r);
+  const sin = Math.sin(r);
+  return [cos * sx, sin * sx, -sin * s, cos * s, x, y];
+}
+
+/**
+ * Bakes a transform into path data, so many placed copies of one shape can share a single <path> (one DOM node per
+ * ink instead of one group per leaf). Handles absolute and relative M L H V C S Q T A Z; arcs keep their shape under
+ * uniform scales, rotations and mirrors, which is all the plant art uses.
+ */
+export function bake(d: string, m: Affine): string {
+  const [a, b, c, dd, e, ff] = m;
+  // One decimal: a tenth of a unit is under half a pixel even at 400 px, and it halves the markup.
+  const r1 = (n: number) => Math.round(n * 10) / 10;
+  const P = (x: number, y: number) => `${r1(a * x + c * y + e)} ${r1(b * x + dd * y + ff)}`;
+  const det = a * dd - b * c;
+  const scale = Math.sqrt(Math.abs(det));
+  const tokens = d.match(/[a-zA-Z]|-?\d*\.?\d+(?:e[-+]?\d+)?/g) ?? [];
+  let i = 0;
+  let cmd = '';
+  let x = 0;
+  let y = 0;
+  let sx = 0;
+  let sy = 0;
+  let out = '';
+  const num = () => Number(tokens[i++]);
+  while (i < tokens.length) {
+    if (/[a-zA-Z]/.test(tokens[i]!)) cmd = tokens[i++]!;
+    const rel = cmd === cmd.toLowerCase();
+    const ox = rel ? x : 0;
+    const oy = rel ? y : 0;
+    switch (cmd.toUpperCase()) {
+      case 'M':
+        x = ox + num();
+        y = oy + num();
+        sx = x;
+        sy = y;
+        out += `M${P(x, y)}`;
+        cmd = rel ? 'l' : 'L';
+        break;
+      case 'L':
+      case 'T':
+        x = ox + num();
+        y = oy + num();
+        out += `${cmd.toUpperCase()}${P(x, y)}`;
+        break;
+      case 'H':
+        x = ox + num();
+        out += `L${P(x, y)}`;
+        break;
+      case 'V':
+        y = oy + num();
+        out += `L${P(x, y)}`;
+        break;
+      case 'C':
+      case 'S':
+      case 'Q': {
+        const n = cmd.toUpperCase() === 'C' ? 3 : 2;
+        const pts: string[] = [];
+        for (let j = 0; j < n; j++) {
+          const px = ox + num();
+          const py = oy + num();
+          pts.push(P(px, py));
+          if (j === n - 1) [x, y] = [px, py];
+        }
+        out += `${cmd.toUpperCase()}${pts.join(' ')}`;
+        break;
+      }
+      case 'A': {
+        const [rx, ry, xr, large, sweep] = [num(), num(), num(), num(), num()];
+        x = ox + num();
+        y = oy + num();
+        // The ellipse's own x axis, carried through the transform (an ellipse turned 180° is the same ellipse).
+        const r = (xr * Math.PI) / 180;
+        const turned = (Math.atan2(b * Math.cos(r) + dd * Math.sin(r), a * Math.cos(r) + c * Math.sin(r)) * 180) / Math.PI;
+        out += `A${f(rx * scale)} ${f(ry * scale)} ${f(((turned % 180) + 180) % 180)} ${large} ${det < 0 ? 1 - sweep : sweep} ${P(x, y)}`;
+        break;
+      }
+      case 'Z':
+        x = sx;
+        y = sy;
+        out += 'Z';
+        break;
+      default:
+        i++;
+    }
+  }
+  return out;
+}
+
+/** m then n: the transform of a shape placed by `n` inside a group placed by `m`. */
+export function compose(m: Affine, n: Affine): Affine {
+  return [m[0] * n[0] + m[2] * n[1], m[1] * n[0] + m[3] * n[1], m[0] * n[2] + m[2] * n[3], m[1] * n[2] + m[3] * n[3], m[0] * n[4] + m[2] * n[5] + m[4], m[1] * n[4] + m[3] * n[5] + m[5]];
+}

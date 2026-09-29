@@ -19,33 +19,41 @@ const UNRIPE = '#EAD9A8';
 const SEEDS = '#F6DC8E';
 const CALYX = '#7FA66A';
 
-/** One toothed leaflet, 9 long, base at the origin, tip up: an oval with a serrated upper edge. */
+/**
+ * One leaflet, 9 long, base at the origin, tip up: obovate (narrow at the base, broadest two thirds up, a rounded
+ * tip), with sharp teeth all round its outer two thirds.
+ */
 const LEAFLET = (() => {
-  const pts: string[] = [];
-  const n = 22;
+  const L = 9;
+  const n = 14;
+  const right: Pt[] = [];
   for (let i = 0; i <= n; i++) {
-    const th = (i / n) * Math.PI * 2;
-    const x = Math.sin(th) * 3.6;
-    const y = -4.6 + Math.cos(th) * -4.6;
-    // Teeth on the outer three quarters, a smooth taper into the stalk.
-    const toothed = Math.cos(th) < 0.55;
-    const k = toothed && i % 2 ? 1.1 : 1;
-    pts.push(`${f(x * k)} ${f(-4.6 + (y + 4.6) * k)}`);
+    const u = i / n;
+    const hw = 3.5 * Math.sin(Math.PI * Math.min(0.999, u * 0.88 + 0.06)) ** 0.7 * (0.5 + 0.5 * u);
+    const tooth = u > 0.32 && i % 2 === 1 ? 0.5 : 0;
+    right.push([hw + tooth, -u * L]);
   }
-  return tidy(`M${pts.join('L')}Z`);
+  const left = right
+    .slice(0, -1)
+    .reverse()
+    .map(([x, y]) => [-x, y] as Pt);
+  return tidy(`M0 0${[...right.slice(1), ...left].map(([x, y]) => `L${f(x)} ${f(y)}`).join('')}Z`);
 })();
-/** Three leaflets on one stalk: the middle one straight on, the side ones turned out. */
-const TRIFOLIATE = [0, -52, 52]
+/** Three leaflets on one stalk, each on its own short stalk so they stand apart: the middle one straight on. */
+const LEAFLET_ANGLES = [0, -58, 58];
+const TRIFOLIATE = LEAFLET_ANGLES.map((a, i) => {
+  const r = (a * Math.PI) / 180;
+  const s = i ? 0.88 : 1;
+  const gap = 1.3;
+  return mapPath(LEAFLET, (x, y) => {
+    const yy = (y - gap) * s;
+    return [x * s * Math.cos(r) - yy * Math.sin(r), x * s * Math.sin(r) + yy * Math.cos(r) - 0.4];
+  });
+}).join('');
+const VEINS = LEAFLET_ANGLES
   .map((a, i) => {
     const r = (a * Math.PI) / 180;
-    const s = i ? 0.9 : 1;
-    return mapPath(LEAFLET, (x, y) => [(x * Math.cos(r) - y * Math.sin(r)) * s, (x * Math.sin(r) + y * Math.cos(r)) * s - 0.4]);
-  })
-  .join('');
-const VEINS = [0, -52, 52]
-  .map((a, i) => {
-    const r = (a * Math.PI) / 180;
-    const L = i ? 7.2 : 8;
+    const L = i ? 8.2 : 9;
     return `M${f(-Math.sin(-r) * 0.8)} ${f(-0.8 * Math.cos(r) - 0.4)}L${f(Math.sin(r) * L)} ${f(-Math.cos(r) * L - 0.4)}`;
   })
   .join('');

@@ -18,6 +18,8 @@ const TUNIC = '#CE9F77';
 const RIDGE = '#B7875F';
 const PETAL = ['#F3A8B8', '#E58CA1'];
 const STEM = '#8FAE7E';
+/** The dark heart of an opened tulip, seen between the parted petals. */
+const CENTRE = '#A5627B';
 
 /** Forcing glasses come in colours; each pot choice maps to a glass tint. */
 const GLASS_TINT: Record<PotId, string> = {
@@ -36,7 +38,7 @@ const GLASS_TINT: Record<PotId, string> = {
 };
 
 /** The hourglass, right half from the foot up to the rim: [half-width, y]. */
-const SIDE: Pt[] = [
+const SIDE_DRAWN: Pt[] = [
   [9.6, 95],
   [12.6, 92.4],
   [13.4, 86.4],
@@ -48,16 +50,18 @@ const SIDE: Pt[] = [
   [10, 64.2],
   [10.8, 61.6],
 ];
+/** Widened so the glass stands about as broad as a classic pot (half-width 15 at the belly). */
+const SIDE = SIDE_DRAWN.map(([x, y]) => [x * 1.12, y] as Pt);
 const RIGHT = SIDE.map(([x, y]) => [50 + x, y] as Pt);
 const LEFT = SIDE.map(([x, y]) => [50 - x, y] as Pt).reverse();
 const curve = (pts: Pt[]) => smooth(pts, false).replace(/^M[^C]*/, '');
-const VASE = `M${50 - 9.6} 95H${50 + 9.6}${curve(RIGHT)}L${50 - 10.8} 61.6${curve(LEFT)}Z`;
+const VASE = `M${f(50 - SIDE[0]![0])} 95H${f(50 + SIDE[0]![0])}${curve(RIGHT)}L${f(50 - SIDE[9]![0])} 61.6${curve(LEFT)}Z`;
 /** The water fills the lower bulb, up to just under the waist where the bulb's base sits. */
 const WATER = (() => {
   const low = SIDE.slice(0, 5);
   const r = low.map(([x, y]) => [50 + x - 1, y] as Pt);
   const l = low.map(([x, y]) => [50 - x + 1, y] as Pt).reverse();
-  return `M${50 - 8.6} 93.8H${50 + 8.6}${curve(r)}L${50 - 7.2} 76.4${curve(l)}Z`;
+  return `M${f(50 - SIDE[0]![0] + 1)} 93.8H${f(50 + SIDE[0]![0] - 1)}${curve(r)}L${f(50 - SIDE[4]![0] + 1)} 76.4${curve(l)}Z`;
 })();
 /** A glass wall: a thin band just inside the outline on one side. */
 const WALL = (s: 1 | -1, w: number) => {
@@ -91,11 +95,15 @@ function bloom(k: Kit, top: Pt, open: number, bud: number) {
   const pink = ramp(bud, 0.4, 1);
   const front = open > 0 ? k.lit(PETAL[0]!) : mix('#B9CF9F', PETAL[0]!, pink);
   const side = open > 0 ? (k.away === 0 ? PETAL[1]! : k.lit(PETAL[1]!)) : mix('#A3BE8E', PETAL[1]!, pink);
+  // A mature flower parts its petals: the side petals lean out and the front one drops, showing the dark centre.
+  const part = ramp(open, 0.6, 0.95);
   return (
     <g transform={`translate(${f(x)} ${f(y)}) scale(${f(s * lerp(0.82, 1.08, open))} ${f(s)})`}>
-      <path d={SIDE_PETALS} fill={side} />
-      <path d={FRONT_PETAL} fill={front} />
-      {open > 0 && <path d={k.away >= 0 ? 'M1.2 0.8C3 0.4 4 -2 3.9 -5C3.8 -7.6 2.6 -9.6 1.2 -10.8C2.4 -8 2.8 -4.4 1.2 0.8Z' : 'M-1.2 0.8C-3 0.4 -4 -2 -3.9 -5C-3.8 -7.6 -2.6 -9.6 -1.2 -10.8C-2.4 -8 -2.8 -4.4 -1.2 0.8Z'} class={SHADE} />}
+      {part > 0 && <path d={FRONT_PETAL} transform={`translate(0 ${f(-1.6 * part)}) scale(${f(lerp(1, 0.92, part))})`} fill={side} />}
+      <path d={SIDE_PETALS} transform={part > 0 ? `scale(${f(1 + 0.22 * part)} 1)` : undefined} fill={side} />
+      {part > 0.5 && <path d={ell(0, -8.8, 3.1 * part, 1.3 * (part - 0.3))} fill={CENTRE} />}
+      <path d={FRONT_PETAL} transform={part > 0 ? `scale(${f(1 - 0.22 * part)} ${f(1 - 0.3 * part)})` : undefined} fill={front} />
+      {open > 0 && <path d={k.away >= 0 ? 'M1.2 0.8C3 0.4 4 -2 3.9 -5C3.8 -7.6 2.6 -9.6 1.2 -10.8C2.4 -8 2.8 -4.4 1.2 0.8Z' : 'M-1.2 0.8C-3 0.4 -4 -2 -3.9 -5C-3.8 -7.6 -2.6 -9.6 -1.2 -10.8C-2.4 -8 -2.8 -4.4 -1.2 0.8Z'} transform={part > 0 ? `scale(${f(1 - 0.22 * part)} ${f(1 - 0.3 * part)})` : undefined} class={SHADE} />}
     </g>
   );
 }
@@ -106,7 +114,7 @@ function own(g: Growth, k: Kit, pot: PotId): Composed {
   const tip: Pt = [50.6, 56.8];
   // Roots: nubs late in stage 0, then down through the water, filling the bulb of the glass by Leafy.
   const reach = ramp(t, 0.6, 3.2);
-  const box = { x0: 40, x1: 60, y1: 92.4 };
+  const box = { x0: 38.6, x1: 61.4, y1: 92.4 };
   const roots = `${rootsD([50, 72.6], reach, box, 1.55)}${rootsD([50.8, 72.4], reach * 0.85, box, 1.3)}`;
   // Shoot and flower stalk.
   const stemH = lerp(0, 38, ramp(t, 1.4, 6.2)) + lerp(0, 4, ramp(t, 6.2, 7.6));
@@ -116,7 +124,7 @@ function own(g: Growth, k: Kit, pot: PotId): Composed {
   const leafDefs: [number, number, number, number][] = [
     [-22, 0.9, 1, 2.2],
     [26, 0.95, 0, 2.7],
-    [-6, 0.7, 1, 6.6],
+    [50, 0.78, 1, 5.7],
   ];
   leafDefs.forEach(([a, s, tone, birth], i) => {
     const gr = grown(t, birth, 1.2);
@@ -126,15 +134,28 @@ function own(g: Growth, k: Kit, pot: PotId): Composed {
   const budding = ramp(t, 3.8, 5);
   // One bulb, one flower: it opens once blooms are showing, and opens wider as the plant matures.
   const open = g.stage >= 5 && g.blooms > 0 ? lerp(0.5, 1, ramp(t, 5, 7.5)) * lerp(0.85, 1, Math.min(1, g.blooms / 4)) : 0;
+  // Evergreen: the bulb pushes a daughter shoot, a smaller stalk with its own leaf and a green bud.
+  const daughterG = grown(t, 6.8, 0.8);
+  const dBase: Pt = [tip[0] - 1.6, tip[1] + 1.4];
+  const dTop: Pt = [dBase[0] - 4 * daughterG, dBase[1] - 20 * daughterG];
+  const daughter =
+    daughterG > 0 ? (
+      <g>
+        <path d={`M${f(dBase[0])} ${f(dBase[1])}Q${f(dBase[0] - 0.4)} ${f(dBase[1] - 10 * daughterG)} ${f(dTop[0])} ${f(dTop[1])}`} fill="none" stroke={STEM} stroke-width={1.4} stroke-linecap="round" />
+        <path d={LEAF} transform={place(dBase[0] - 0.4, dBase[1], -40, 0.62 * daughterG)} fill={k.tone(GREENS, 0, 40, 50)} />
+        {bloom(k, dTop, 0, 0.35 * daughterG)}
+      </g>
+    ) : null;
   const back = (
     <g>
       {shoot > 0 && t < 2.6 && <path d={`M${f(tip[0])} ${f(tip[1] + 1)}Q${f(tip[0] - 1.2)} ${f(tip[1] - 4 * shoot)} ${f(tip[0] + 0.2)} ${f(tip[1] - 9 * shoot)}Q${f(tip[0] + 1.6)} ${f(tip[1] - 4 * shoot)} ${f(tip[0] + 1.2)} ${f(tip[1] + 1)}Z`} fill={k.lit('#B7CF9A')} />}
       {stemH > 6 && <path d={`M${f(tip[0])} ${f(tip[1] + 1)}Q${f(tip[0] - 1)} ${f(tip[1] - stemH * 0.5)} ${f(flowerAt[0])} ${f(flowerAt[1] + 2)}`} fill="none" stroke={STEM} stroke-width={1.8} stroke-linecap="round" />}
+      {daughter}
       {leaves}
       {budding > 0 && bloom(k, flowerAt, open, budding)}
     </g>
   );
-  const litX = k.away < 0 ? 58.4 : 41.6;
+  const litX = 50 + (k.away < 0 ? 1 : -1) * (SIDE[2]![0] - 5);
   const highlight = k.night ? '#FFF3E2' : '#FFFFFF';
   const shadeWall = k.away < 0 ? WALLS.left : WALLS.right;
   const vessel = (
@@ -142,24 +163,24 @@ function own(g: Growth, k: Kit, pot: PotId): Composed {
       <path d={VASE} fill={k.lit(tint)} opacity={0.45} />
       <path d={WATER} fill={k.lit('#BCD6E8')} opacity={0.85} />
       <path d={roots} fill="none" stroke={GLASS.root} stroke-width={0.8} stroke-linecap="round" />
-      <path d="M43.4 76.2H56.6V77.2H43.4Z" fill={k.lit(GLASS.meniscus)} opacity={0.85} />
+      <path d={`M${f(50 - SIDE[4]![0] + 1)} 76.2H${f(50 + SIDE[4]![0] - 1)}V77.2H${f(50 - SIDE[4]![0] + 1)}Z`} fill={k.lit(GLASS.meniscus)} opacity={0.85} />
       <path d={BULB} fill={k.lit(TUNIC)} />
       <path d={BULB_RIDGES} fill="none" stroke={RIDGE} stroke-width={0.45} stroke-linecap="round" opacity={0.8} />
       <path d={BULB_SHADE[k.light.from]} class={SHADE} />
       {/* The glass in front: a pale wall on the lit side, a deeper one opposite, the rim and a highlight. */}
       <path d={shadeWall} fill={mix(tint, '#7E78A8', 0.3)} opacity={0.5} />
-      <path d={`${ell(50, 61.6, 10.8, 1.4)}${ell(50, 61.8, 9.8, 0.9)}`} fill-rule="evenodd" fill={k.lit(mix(tint, GLASS.wall, 0.6))} />
+      <path d={`${ell(50, 61.6, SIDE[9]![0], 1.4)}${ell(50, 61.8, SIDE[9]![0] - 1, 0.9)}`} fill-rule="evenodd" fill={k.lit(mix(tint, GLASS.wall, 0.6))} />
       {k.away !== 0 ? (
         <>
           <path d={`M${f(litX)} 81Q${f(litX - k.away * 0.8)} 86 ${f(litX + k.away * 0.4)} 90.6`} fill="none" stroke={highlight} stroke-width={1.3} stroke-linecap="round" opacity={0.85} />
           <path d={`M${f(litX + k.away * 2.2)} 64.4L${f(litX + k.away * 3.8)} 68.2`} fill="none" stroke={highlight} stroke-width={1} stroke-linecap="round" opacity={0.8} />
         </>
       ) : (
-        <path d="M44 60.6Q50 59.6 56 60.6" fill="none" stroke={highlight} stroke-width={0.9} stroke-linecap="round" opacity={0.9} />
+        <path d="M43.4 60.6Q50 59.6 56.6 60.6" fill="none" stroke={highlight} stroke-width={0.9} stroke-linecap="round" opacity={0.9} />
       )}
     </g>
   );
-  return { back, vessel, foot: 11, pivot: [50.6, 60], surface: 6, kind: 'forcing' };
+  return { back, vessel, foot: 12.2, pivot: [50.6, 60], surface: 6, kind: 'forcing' };
 }
 
 export const tulip: SpeciesArt = { own };

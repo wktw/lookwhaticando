@@ -100,17 +100,27 @@ function potted(g: Growth, k: Kit, m: Mouth) {
       <path transform={place(51.6, base[1] - lerp(10, 20, roll), 4, lerp(0.6, 1, roll))} d="M0 1C-1.6 -2 -1.8 -7 0 -11C1.8 -7 1.6 -2 0 1Z" fill={k.lit('#C9DCA6')} />
     </g>
   );
+  // Small white flowers, marked with purple, on slim stalks that rise above the leaves: one more for each bloom.
   const flowers: JSX.Element[] = [];
-  for (let j = 0; j < Math.min(4, g.blooms); j++) {
-    const x = 50 + [-5, 6, -1.5, 9][j]! * spread;
-    const y = m.y - [7, 5.6, 9.4, 8][j]!;
-    flowers.push(
-      <g key={j}>
-        <path d={`M${f(50 + (x - 50) * 0.3)} ${f(m.y)}L${f(x)} ${f(y + 1)}`} stroke={STALK} stroke-width={0.6} stroke-linecap="round" />
-        <path d={`${ell(x - 0.9, y, 1.1, 1.3)}${ell(x + 0.9, y - 0.3, 1.1, 1.3)}${ell(x, y - 1.3, 1, 1.2)}`} fill={k.lit('#FBF7EE')} />
-      </g>,
-    );
-  }
+  let flowerStalks = '';
+  let heads = '';
+  let marks = '';
+  const SPOTS: readonly [number, number][] = [
+    [-5, 40],
+    [7, 37],
+    [-12, 33],
+    [1.5, 45],
+    [13, 32],
+    [-1.5, 36],
+  ];
+  SPOTS.slice(0, g.blooms).forEach(([dx, h]) => {
+    const x = 50 + dx * spread;
+    const y = m.y - h * lerp(0.9, 1, ramp(g.t, 5, 7.5));
+    flowerStalks += `M${f(50 + dx * 0.25)} ${f(m.y)}Q${f(50 + dx * 0.6)} ${f(m.y - h * 0.5)} ${f(x)} ${f(y + 1)}`;
+    heads += `${ell(x - 1.1, y, 1.4, 1.6)}${ell(x + 1.1, y - 0.3, 1.4, 1.6)}${ell(x, y - 1.6, 1.25, 1.5)}`;
+    marks += ell(x, y - 0.3, 0.55, 0.5);
+  });
+  if (heads) flowers.push(<Stems key="s" d={flowerStalks} color={STALK} w={0.6} />, <path key="h" d={heads} fill={k.lit('#FBF7EE')} />, <path key="m" d={marks} fill="#9C7BB8" />);
   return {
     back: (
       <g data-folded={k.night ? 'true' : undefined}>

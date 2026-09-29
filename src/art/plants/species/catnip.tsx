@@ -1,115 +1,158 @@
 /**
  * Catnip (Nepeta cataria): square upright stems with soft grey-green, heart-shaped leaves in opposite pairs, their
- * edges scalloped. From Blooming each stem ends in a spike of small white flowers dotted with lilac (the harvest).
+ * edges scalloped and tips pointed. From Blooming each stem ends in a dense spike of small white flowers spotted
+ * lilac, in whorls (the harvest).
  */
 import type { JSX } from 'preact';
-import { ell, smooth, tidy, type Pt } from '../geom';
+import { bake, compose, ell, placeMatrix, smooth, tidy, type Pt } from '../geom';
+import { InkRuns } from '../ink';
 import { inks, type Kit } from '../kit';
-import { caneAt, headingAt, place, type Cane } from '../leaves';
-import { lerp, ramp } from '../math';
+import { caneAt, headingAt, type Cane } from '../leaves';
+import { f, lerp, ramp } from '../math';
 import type { Growth, Mouth, SpeciesArt } from '../types';
 
-const GREENS = inks('#AFC49B', '#8AA67C');
-const STEM = '#98AE88';
-const WHITE = '#FBF8F4';
-const LILAC = '#C7AEE0';
+const GREENS = inks('#B4C3A2', '#93A884');
+const STEM = '#9DB08A';
+const CALYX = '#A7B893';
+/** A spike in bud, before the flowers open: paler, tighter. */
+const BUD = '#C3CFAE';
+const WHITE = '#F1E8F4';
+const LILAC = '#B99BD6';
 
-/** A soft heart leaf, 11.4 long, base at the origin, its edge cut into round teeth (crenate). */
+/**
+ * An ovate-cordate leaf, 11 long, its notched heart base at the origin and a pointed tip; the edge is cut into round
+ * teeth (crenate). One memoised path, placed by transforms everywhere.
+ */
 const LEAF = (() => {
   const half: Pt[] = [
-    [0, 0],
-    [2.2, 0.8],
-    [4.6, -0.6],
-    [5.4, -3.6],
-    [4.8, -6.8],
-    [3.1, -9.2],
-    [0, -11.4],
+    [0, -0.9],
+    [1.9, 0.5],
+    [3.9, -0.4],
+    [4.5, -2.8],
+    [4, -5.4],
+    [2.9, -7.8],
+    [1.5, -9.8],
+    [0, -11],
   ];
-  // Between the outline points, a rounded tooth pushed a little outward from the leaf's centre.
-  const toothed: Pt[] = [half[0]!, half[1]!];
-  for (let i = 1; i < half.length - 1; i++) {
-    const [ax, ay] = half[i]!;
-    const [bx, by] = half[i + 1]!;
+  // Each stretch of edge is one round tooth: a quadratic bulging out from the leaf's centre.
+  const tooth = ([ax, ay]: Pt, [bx, by]: Pt, i: number) => {
     const mx = (ax + bx) / 2;
     const my = (ay + by) / 2;
-    const len = Math.hypot(mx, my + 5.2) || 1;
-    toothed.push([mx + (mx / len) * 0.5, my + ((my + 5.2) / len) * 0.5], [bx, by]);
-  }
-  const left = toothed.slice(1, -1).reverse().map(([x, y]) => [-x, y] as Pt);
-  return tidy(smooth([...toothed, ...left], true, 0.8));
+    const len = Math.hypot(mx, my + 4.6) || 1;
+    const out = i === 0 ? 0.3 : 0.95;
+    return `Q${f(mx + (mx / len) * out)} ${f(my + ((my + 4.6) / len) * out)} ${bx} ${by}`;
+  };
+  let d = 'M0 -0.9';
+  for (let i = 0; i < half.length - 1; i++) d += tooth(half[i]!, half[i + 1]!, i);
+  const left = half.map(([x, y]) => [-x, y] as Pt).reverse();
+  for (let i = 0; i < left.length - 1; i++) d += tooth(left[i]!, left[i + 1]!, left.length - 2 - i);
+  return `${d}Z`;
 })();
+const PETIOLE = 1.6;
 
-function leaf(k: Kit, x: number, y: number, a: number, s: number, tone: number, key: string) {
-  return (
-    <g key={key} transform={place(x, y, a, s)}>
-      {/* A short leaf stalk, then the blade. */}
-      <path d="M0 0.2V-1.8" stroke={STEM} stroke-width={0.9} stroke-linecap="round" />
-      <path d={LEAF} transform="translate(0 -1.6)" fill={k.tone(GREENS, tone, x + Math.sin((a * Math.PI) / 180) * 5 * s, y)} />
-    </g>
-  );
+/** A leaf on its short stalk: its ink, its outline baked in place, and the stalk (which joins the stems path). */
+function leaf(k: Kit, x: number, y: number, a: number, s: number, tone: number) {
+  const r = (a * Math.PI) / 180;
+  const bx = x + Math.sin(r) * PETIOLE * s;
+  const by = y - Math.cos(r) * PETIOLE * s;
+  return { fill: k.tone(GREENS, tone, x + Math.sin(r) * 6 * s, y), d: bake(LEAF, placeMatrix(bx, by, a, s)), stalk: `M${f(x)} ${f(y)}L${f(bx)} ${f(by)}` };
 }
 
-/** Upright square stems, spreading into a loose vase; a leaf pair at every node. */
-const STEMS: readonly Cane[] = [
-  { pts: [[0, 0], [0.2, -8], [0.3, -16], [0, -24], [-0.6, -32], [-1.2, -39]], born: 1, rate: 1.05 },
-  { pts: [[1.4, 0], [3.6, -7.6], [6.6, -14.8], [9.8, -21.6], [12.8, -27.8]], born: 2.4, rate: 1.05 },
-  { pts: [[-1.4, 0], [-3.6, -7.4], [-6.6, -14.4], [-9.8, -21], [-12.6, -27]], born: 3.1, rate: 1.05 },
-  { pts: [[0.8, 0], [2, -8.4], [3.2, -16.8], [4.2, -25.2], [4.8, -33.4], [4.8, -41]], born: 4.9, rate: 1.25 },
-  { pts: [[-0.8, 0], [-2.6, -8], [-4.6, -16], [-6.4, -23.8], [-8, -31.4]], born: 5.7, rate: 1.25 },
+/**
+ * Upright square stems branching into a loose bush: three from the base, and two side shoots that branch from the
+ * main stems' lower nodes. A leaf pair at every node, set wide so the stems show between them.
+ */
+const STEMS: readonly (Cane & { from?: [stem: number, node: number] })[] = [
+  { pts: [[0, 0], [0.2, -8.4], [0.4, -16.6], [0.2, -24.6], [-0.4, -32.4], [-0.8, -39.6]], born: 1, rate: 1.3 },
+  { pts: [[1.2, 0], [3.4, -8], [6, -15.8], [8.6, -23.2], [10.8, -30.2]], born: 2.2, rate: 1.2 },
+  { pts: [[-1.2, 0], [-3.4, -7.8], [-6, -15.4], [-8.6, -22.6], [-10.6, -29.4]], born: 3.1, rate: 1.05 },
+  { pts: [[0, 0], [4.4, -5.6], [7.6, -12], [9.8, -18.8]], born: 4.9, rate: 1.25, from: [0, 2] },
+  { pts: [[0, 0], [-4.4, -5.4], [-7.4, -11.6], [-9.2, -18.2]], born: 5.7, rate: 1.25, from: [0, 1] },
 ];
 
-/** A flower spike on a stem tip: small white flowers, lilac-spotted, in whorls tapering upward. */
-function flowerSpike(k: Kit, tip: Pt, a: number, open: number, key: number) {
-  const r = (a * Math.PI) / 180;
+/** Whorled flowers: at each tier, short two-lipped tubes pointing out to either side and one facing us, its lip spotted lilac. */
+const TIER: readonly [x: number, a: number][] = [
+  [-1, -70],
+  [1, 70],
+  [-0.4, -30],
+  [0.5, 34],
+];
+const TUBE = tidy('M0 0.5C0.9 0.4 1.8 0.2 2.3 -0.1C2.7 -0.5 2.9 -0.1 2.7 0.4C2.9 0.8 2.6 1.2 2.2 1C1.6 0.8 0.8 0.8 0 0.9Z');
+/** A flower facing us at the front of the whorl: a round lip with its lilac spot. */
+const FACE = `${ell(0, 0, 1.15, 0.95)}`;
+const FACE_SPOT = ell(0, 0.3, 0.4, 0.32);
+
+/**
+ * A dense terminal spike: a tapering grey-green column of calyces, set with four tiers of small white tubular flowers
+ * spotted lilac on the lip, opening from the bottom tier up. Returned as path data (column, flowers, spots), so all
+ * the spikes on a plant share three paths.
+ */
+function flowerSpike(tip: Pt, a: number, open: number) {
+  const L = 8;
+  const at = placeMatrix(tip[0], tip[1], a, 1);
+  const col = bake(`M-1.3 0.6C-1.5 -2.6 -1.2 -5.6 -0.6 -${L}C-0.3 -${L + 0.8} 0.3 -${L + 0.8} 0.6 -${L}C1.2 -5.6 1.5 -2.6 1.3 0.6Z`, at);
   let white = '';
-  let dots = '';
-  for (let i = 0; i < 6; i++) {
-    const kk = i / 5;
-    const cx = tip[0] + Math.sin(r) * kk * 7.4;
-    const cy = tip[1] - Math.cos(r) * kk * 7.4;
-    const w = lerp(2.4, 1.1, kk);
-    for (const s of [-1, 1]) {
-      white += ell(cx + s * w * 0.55, cy, lerp(0.8, 1.15, open), lerp(0.7, 0.95, open));
-      if (open > 0.5) dots += ell(cx + s * w * 0.55 + 0.2, cy + 0.2, 0.35);
+  let spots = '';
+  for (let i = 0; i < (open > 0 ? 4 : 0); i++) {
+    const y = -0.4 - i * 1.9;
+    const w = lerp(1.2, 0.6, i / 3);
+    const s = lerp(1.45, 0.95, i / 3);
+    for (const [sx, ta] of TIER) {
+      const side = sx < 0 ? -1 : 1;
+      const m = compose(at, placeMatrix(sx * w, y - Math.abs(sx) * 0.3, -side * (90 - Math.abs(ta)), s, side * s));
+      white += bake(TUBE, m);
     }
+    const face = compose(at, placeMatrix(0, y - 0.2, 0, s * 0.9));
+    white += bake(FACE, face);
+    spots += bake(FACE_SPOT, face);
   }
-  return (
-    <g key={key}>
-      <path d={white} fill={open > 0 ? k.lit(WHITE) : k.lit('#D6E2C8')} />
-      {dots && <path d={dots} fill={LILAC} />}
-    </g>
-  );
+  return { col, white, spots };
 }
 
 function potted(g: Growth, k: Kit, m: Mouth) {
   const base: Pt = [50, m.y + 0.8];
   const spread = Math.min(1, m.hw / 18);
-  const size = lerp(0.9, 1.1, ramp(g.t, 2.5, 7.5));
+  const size = lerp(0.9, 1.08, ramp(g.t, 2.5, 7.5));
   let stems = '';
-  const leaves: JSX.Element[] = [];
+  let stalks = '';
+  const leaves = new InkRuns();
   const tips: { tip: Pt; a: number }[] = [];
+  const nodesOf: Pt[][] = [];
   STEMS.forEach((c, ci) => {
-    const at = caneAt(c, g.t, base, spread * size, size);
+    const from = c.from ? nodesOf[c.from[0]]?.[c.from[1]] : base;
+    const at = from && caneAt(c, g.t, from, spread * size, size);
+    nodesOf.push(at ? c.pts.map(([x, y]) => [from![0] + x * spread * size, from![1] + y * size] as Pt) : []);
     if (!at) return;
     stems += at.d;
     if (at.grown >= c.pts.length - 1.2) tips.push({ tip: at.tip, a: headingAt(c.pts, c.pts.length - 1) });
+    const n = c.pts.length;
     for (const { i, at: [x, y], g: lg } of at.nodes) {
       const h = headingAt(c.pts, i);
-      // Opposite pairs, the lower ones broad and level, the upper ones smaller and lifted.
-      const spreadA = lerp(80, 52, i / c.pts.length);
-      const s = lerp(0.35, 1, lg) * lerp(0.86, 0.56, i / c.pts.length) * size;
-      leaves.push(leaf(k, x, y, h - spreadA, s, (i + ci) % 2, `${ci}-${i}-l`), leaf(k, x, y, h + spreadA, s, (i + ci + 1) % 2, `${ci}-${i}-r`));
+      // Opposite pairs set wide, the lower ones broad and level, the upper ones smaller and lifted.
+      const spreadA = lerp(78, 50, i / n);
+      const s = lerp(0.35, 1, lg) * lerp(0.8, 0.46, i / n) * size * (c.from ? 0.85 : 1);
+      for (const [side, tone] of [
+        [-1, (i + ci) % 2],
+        [1, (i + ci + 1) % 2],
+      ] as const) {
+        const l = leaf(k, x, y, h + side * spreadA, s, tone);
+        leaves.add(l.fill, l.d);
+        stalks += l.stalk;
+      }
     }
   });
   const budding = g.stage === 4 ? 1 + Math.round(g.progress) : 0;
   const n = budding || Math.min(tips.length, Math.ceil(g.blooms * 0.8));
-  const spikes = tips.slice(0, n).map((t, j) => flowerSpike(k, t.tip, t.a, budding ? 0 : 1, j));
+  const spikes = tips.slice(0, n).map((t) => flowerSpike(t.tip, t.a, budding ? 0 : 1));
+  const join = (key: 'col' | 'white' | 'spots') => spikes.map((sp) => sp[key]).join('');
   return {
     back: (
       <g>
-        <path d={stems} fill="none" stroke={STEM} stroke-width={1.35} stroke-linecap="round" />
-        {leaves}
-        {spikes}
+        <path d={`${stems}${stalks}`} fill="none" stroke={STEM} stroke-width={1.1} stroke-linecap="round" />
+        {leaves.paths()}
+        {spikes.length > 0 && <path d={join('col')} fill={k.lit(budding ? BUD : CALYX)} />}
+        {!budding && spikes.length > 0 && <path d={join('white')} fill={k.lit(WHITE)} />}
+        {!budding && spikes.length > 0 && <path d={join('spots')} fill={LILAC} />}
       </g>
     ),
   };
@@ -122,13 +165,13 @@ export const catnip: SpeciesArt = {
       const n1: Pt = [x, 56];
       const n2: Pt = [x + 0.2, 48.6];
       const top = g.stage ? 1 : lerp(0.7, 1, g.progress);
+      const pairs = [leaf(k, n1[0], n1[1], -76, 0.9, 1), leaf(k, n1[0], n1[1], 76, 0.9, 0), leaf(k, n2[0], n2[1], -48, 0.66 * top, 0), leaf(k, n2[0], n2[1], 48, 0.66 * top, 1)];
       return (
         <g>
-          <path d={`M${x} ${y}L${n1[0]} ${n1[1]}L${n2[0]} ${n2[1]}L${n2[0]} ${n2[1] - 4}`} fill="none" stroke={STEM} stroke-width={1.3} stroke-linecap="round" />
-          {leaf(k, n1[0], n1[1], -76, 0.95, 1, 'a')}
-          {leaf(k, n1[0], n1[1], 76, 0.95, 0, 'b')}
-          {leaf(k, n2[0], n2[1], -48, 0.7 * top, 0, 'c')}
-          {leaf(k, n2[0], n2[1], 48, 0.7 * top, 1, 'd')}
+          <path d={`M${x} ${y}L${n1[0]} ${n1[1]}L${n2[0]} ${n2[1]}L${n2[0]} ${n2[1] - 4}${pairs.map((l) => l.stalk).join('')}`} fill="none" stroke={STEM} stroke-width={1.2} stroke-linecap="round" />
+          {pairs.map((l, i) => (
+            <path key={i} d={l.d} fill={l.fill} />
+          ))}
         </g>
       );
     },

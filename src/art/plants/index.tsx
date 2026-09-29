@@ -8,7 +8,7 @@ import { POTS } from './pots';
 
 export { PlantArt, PotArt, PLANT_STAGE_NAMES, MAX_BLOOMS, type PlantArtProps, type PotArtProps } from './PlantArt';
 export { PlantTag, type PlantTagProps } from './PlantTag';
-export { POT_GEOMETRY, type PotGeometry } from './geometry';
+export { POT_GEOMETRY, tagAnchor, type PotGeometry } from './geometry';
 
 /** Registries used by the coverage test. */
 export const PLANT_SPECIES_WITH_ART: ReadonlySet<PlantSpeciesId> = new Set(Object.keys(PLANT_SPECIES) as PlantSpeciesId[]);

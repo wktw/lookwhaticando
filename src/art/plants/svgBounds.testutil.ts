@@ -66,8 +66,11 @@ function arcPoints(x1: number, y1: number, rx: number, ry: number, phiDeg: numbe
   });
 }
 
-/** Every endpoint and control point of a path (absolute and relative commands). */
-export function pathPoints(d: string): [number, number][] {
+/**
+ * Every endpoint and control point of a path (absolute and relative commands). With `sampled`, Bézier curves give
+ * points on the curve instead of their control points, for a tight box (icon framing) rather than a safe one.
+ */
+export function pathPoints(d: string, sampled = false): [number, number][] {
   const tokens = d.match(/[a-zA-Z]|-?\d*\.?\d+(?:e[-+]?\d+)?/g) ?? [];
   const out: [number, number][] = [];
   let i = 0;
@@ -108,8 +111,18 @@ export function pathPoints(d: string): [number, number][] {
       case 'S':
       case 'Q': {
         const n = cmd.toUpperCase() === 'C' ? 3 : 2;
-        for (let j = 0; j < n; j++) out.push([ox + num(), oy + num()]);
-        [x, y] = out.at(-1)!;
+        const pts: [number, number][] = [];
+        for (let j = 0; j < n; j++) pts.push([ox + num(), oy + num()]);
+        if (sampled && cmd.toUpperCase() !== 'S') {
+          const p = [[x, y] as [number, number], ...pts];
+          for (let s = 1; s <= 12; s++) {
+            const t = s / 12;
+            const u = 1 - t;
+            const w = n === 3 ? [u * u * u, 3 * u * u * t, 3 * u * t * t, t * t * t] : [u * u, 2 * u * t, t * t];
+            out.push([w.reduce((a, k, j) => a + k * p[j]![0], 0), w.reduce((a, k, j) => a + k * p[j]![1], 0)]);
+          }
+        } else out.push(...pts);
+        [x, y] = pts.at(-1)!;
         break;
       }
       case 'A': {
@@ -132,11 +145,11 @@ export function pathPoints(d: string): [number, number][] {
   return out;
 }
 
-function shapePoints(el: Element): [number, number][] {
+function shapePoints(el: Element, sampled = false): [number, number][] {
   const n = (name: string) => Number(el.getAttribute(name) ?? 0);
   switch (el.tagName.toLowerCase()) {
     case 'path':
-      return pathPoints(el.getAttribute('d') ?? '');
+      return pathPoints(el.getAttribute('d') ?? '', sampled);
     case 'circle':
       return [
         [n('cx') - n('r'), n('cy') - n('r')],
@@ -160,7 +173,7 @@ function shapePoints(el: Element): [number, number][] {
 }
 
 /** The box of every drawn shape inside `root`, in canvas units; `stroked` adds half of each outline. */
-export function shapeBoxes(root: Element, { stroked = false } = {}): Box[] {
+export function shapeBoxes(root: Element, { stroked = false, sampled = false } = {}): Box[] {
   const boxes: Box[] = [];
   const walk = (el: Element, m: Matrix, stroke: string | null, width: number) => {
     const tag = el.tagName.toLowerCase();
@@ -170,7 +183,7 @@ export function shapeBoxes(root: Element, { stroked = false } = {}): Box[] {
     const s = el.getAttribute('stroke') ?? stroke;
     const w = Number(el.getAttribute('stroke-width') ?? width);
     const pad = stroked && s && s !== 'none' ? (w / 2) * Math.sqrt(Math.abs(own[0] * own[3] - own[1] * own[2])) : 0;
-    const points = shapePoints(el);
+    const points = shapePoints(el, sampled);
     if (points.length) {
       const box: Box = { x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity };
       for (const [px, py] of points) {
@@ -190,7 +203,7 @@ export function shapeBoxes(root: Element, { stroked = false } = {}): Box[] {
 }
 
 /** Bounding box of everything drawn inside `root`. */
-export function artBounds(root: Element, options: { stroked?: boolean } = {}): Box {
+export function artBounds(root: Element, options: { stroked?: boolean; sampled?: boolean } = {}): Box {
   return shapeBoxes(root, options).reduce((a, b) => ({ x0: Math.min(a.x0, b.x0), y0: Math.min(a.y0, b.y0), x1: Math.max(a.x1, b.x1), y1: Math.max(a.y1, b.y1) }), {
     x0: Infinity,
     y0: Infinity,

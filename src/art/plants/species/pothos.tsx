@@ -10,7 +10,7 @@ import { clamp01, lerp, ramp } from '../math';
 import type { Growth, Mouth, SpeciesArt } from '../types';
 
 const GREENS = inks('#AECB92', '#86AE77');
-const GOLD = '#EEE6B0';
+const GOLD = '#EFD886';
 const STEM = '#7FA46B';
 const NEW_LEAF = '#C8DC9F';
 
@@ -42,26 +42,30 @@ const CROWN: readonly Cane[] = [
   { pts: [[1, 0], [3, -8.6], [5.6, -17], [8, -25.4], [10.4, -33]], born: 6.2, rate: 1.2 },
 ];
 
-/** A vine hanging from the rim on side `s`: the path it follows when fully grown. */
-function vinePath(m: Mouth, s: 1 | -1, drop: number): Pt[] {
+/** Segments of a fully grown trailing vine below the rim. */
+const VINE_SEGS = 9;
+
+/** A vine hanging from the rim on side `s`, falling to `end` (y): the path it follows when fully grown. */
+function vinePath(m: Mouth, s: 1 | -1, end: number): Pt[] {
+  const y0 = m.y + 3.4;
+  const drop = Math.max(2, Math.min(5.5, (end - y0) / VINE_SEGS));
   const pts: Pt[] = [
     [50 + s * (m.hw - 5), m.y - 0.6],
     [50 + s * (m.hw + 1.4), m.y - 2.2],
-    [50 + s * (m.hw + 3.6), m.y + 3.4],
+    [50 + s * (m.hw + 3.6), y0],
   ];
-  for (let i = 1; i <= 7; i++) pts.push([50 + s * (m.hw + 3.6 + i * 1.1 + Math.sin(i * 1.3) * 1.2), m.y + 3.4 + i * drop]);
+  // Down the side of the pot and past its foot, swaying a little as it goes: trailing past the sill.
+  for (let i = 1; i <= VINE_SEGS; i++) pts.push([50 + s * (m.hw + 3.6 + i * 0.55 + Math.sin(i * 1.3) * 1.3), y0 + i * drop]);
   return pts;
 }
 
-function trailingVine(k: Kit, m: Mouth, s: 1 | -1, segs: number, seed: number) {
+function trailingVine(k: Kit, m: Mouth, s: 1 | -1, segs: number, end: number, seed: number) {
   if (segs <= 0) return null;
-  // Hang toward the sill, never off the canvas: the step shortens on low-slung pots.
-  const drop = Math.min(4.4, (88 - (m.y + 3.4)) / 7);
-  const pts = partial(vinePath(m, s, drop), segs);
+  const pts = partial(vinePath(m, s, end), segs);
   const leaves = pts.slice(2).map(([x, y], i) => {
     const side = (i + seed) % 2 ? 1 : -1;
     const g = clamp01(segs - (i + 2) + 0.6);
-    return pothosLeaf(k, x + side * 0.6, y, s * (150 - i * 5) + side * s * 34, lerp(4, 9 - i * 0.3, g), (i + seed) % 2, (i + seed) % 3 === 1 ? -1 : i % 2, `v${s}${i}`);
+    return pothosLeaf(k, x + side * 0.6, y, s * (150 - i * 4) + side * s * 34, lerp(4, 9 - i * 0.2, g), (i + seed) % 2, (i + seed) % 3 === 1 ? -1 : i % 2, `v${s}${i}`);
   });
   return (
     <g>
@@ -102,7 +106,8 @@ function potted(g: Growth, k: Kit, m: Mouth) {
       return pothosLeaf(k, x, y, a, len, (i + ci) % 2, (i + ci) % 3 === 2 ? -1 : (i + ci) % 2, `${ci}-${i}`);
     });
   });
-  const bonus = g.blooms * 0.45;
+  // Blooms lengthen the vines by whole segments: the peak of a pothos is how far it trails.
+  const bonus = g.blooms * 1.2;
   return {
     back: (
       <g>
@@ -113,8 +118,9 @@ function potted(g: Growth, k: Kit, m: Mouth) {
     ),
     front: (
       <g>
-        {trailingVine(k, m, -1, (g.t - 3.8) * 1.5 + bonus, 0)}
-        {trailingVine(k, m, 1, (g.t - 4.4) * 1.4 + bonus * 0.8, 1)}
+        {/* The long vine ends just below the foot line (its last leaves hang past the sill); the other stops short. */}
+        {trailingVine(k, m, -1, (g.t - 3.8) * 1.5 + bonus, 91.6, 0)}
+        {trailingVine(k, m, 1, (g.t - 4.4) * 1.4 + bonus * 0.8, 84, 1)}
       </g>
     ),
   };

@@ -302,10 +302,33 @@ const midnight: PotDef = {
 /* ------------------------------------------------------------------ */
 
 const MUG = body({ top: 63.6, bottom: FOOT_Y, a: 17.8, b: 17, r: 3.2 }, 4.8);
+/** The chip: a bite out of the front rim, left of centre, as a run of points along its broken edge. */
+const CHIP: readonly Pt[] = [
+  [38.2, 63.6],
+  [39.6, 66.3],
+  [41.8, 65.7],
+  [43.6, 67],
+  [45.4, 65.9],
+  [47.4, 63.6],
+];
+const CHIP_EDGE = CHIP.map(([x, y]) => `L${x} ${y}`).join('');
+/** Through the bite you see the soil the mug is full of. */
+const CHIP_HOLE = `M${CHIP[0]![0]} 63.2${CHIP_EDGE}L${CHIP.at(-1)![0]} 63.2Z`;
+/** The bare stoneware bevel along the broken edge: the glaze is gone where it broke. */
+const CHIP_BEVEL = `M${CHIP.map(([x, y]) => `${x} ${y}`).join('L')}${CHIP.slice()
+  .reverse()
+  .map(([x, y], i, all) => `L${f(x + (i === 0 ? -0.5 : i === all.length - 1 ? 0.5 : 0))} ${f(y + (i === 0 || i === all.length - 1 ? 0.2 : 1.1))}`)
+  .join('')}Z`;
+/** The wall of the bite that faces away from the light, keyed by where the light comes from. */
+const CHIP_SHADE: Partial<Record<LightFrom, string>> = {
+  left: 'M38.2 63.6L39.6 66.3L40.5 66.1L39.3 63.6Z',
+  right: 'M47.4 63.6L45.4 65.9L44.6 65.6L46.3 63.6Z',
+};
+
 /** The mug's silhouette with the chip bitten out of the rim, front left. */
 const MUG_D = (() => {
   const { a, b, r } = MUG.t;
-  return `M${f(50 - a)} 63.6H39.4L40.8 66.2L42.6 65.4L44 66.4L45.6 63.6H${f(50 + a)}L${f(50 + b)} ${f(FOOT_Y - r)}Q${f(50 + b)} ${FOOT_Y} ${f(50 + b - r)} ${FOOT_Y}H${f(50 - b + r)}Q${f(50 - b)} ${FOOT_Y} ${f(50 - b)} ${f(FOOT_Y - r)}Z`;
+  return `M${f(50 - a)} 63.6H${CHIP[0]![0]}${CHIP_EDGE}H${f(50 + a)}L${f(50 + b)} ${f(FOOT_Y - r)}Q${f(50 + b)} ${FOOT_Y} ${f(50 + b - r)} ${FOOT_Y}H${f(50 - b + r)}Q${f(50 - b)} ${FOOT_Y} ${f(50 - b)} ${f(FOOT_Y - r)}Z`;
 })();
 const MUG_HANDLE = 'M66.8 69.2C74.6 68.2 78.8 71.6 78.6 77.4C78.4 83.6 73.8 86.4 66.6 86.2L66.6 82.4C71.4 82.6 74.4 80.8 74.4 77.4C74.4 73.8 71.6 72.4 66.8 73Z';
 /** The handle's inner half, shaded when the light comes from the handle's side. */
@@ -325,10 +348,12 @@ const mug: PotDef = {
         <path d={MUG_HANDLE} fill={handleShaded ? mix(glaze, '#6A5C99', 0.2) : k.lit(glaze)} />
         {!handleShaded && <path d={MUG_HANDLE_SHADE} class={SHADE} data-part="handle" />}
         <Soil m={MUG_MOUTH} damp={damp} />
+        <path d={CHIP_HOLE} fill={damp ? SOIL_DAMP : SOIL} />
         <path d={MUG_D} fill={k.lit(glaze)} />
-        {/* A cream band near the top, and the bare stoneware where the chip is. */}
-        <path d="M32.2 66.4H67.8V68.2H32.2Z" fill={k.lit('#F6F0E6')} />
-        <path d="M39.4 63.6L40.8 66.2L42.6 65.4L44 66.4L45.6 63.6L46.4 64.8L45.2 67.6L43.4 68.6L41.2 68.4L39.6 66.4Z" fill={k.lit('#EADFCB')} />
+        {/* A cream band near the top, broken where the chip is; bare stoneware along the broken edge. */}
+        <path d="M32.2 67.6H67.8V69.4H32.2Z" fill={k.lit('#F6F0E6')} />
+        <path d={CHIP_BEVEL} fill={k.lit('#EADFCB')} />
+        {CHIP_SHADE[k.light.from] && <path d={CHIP_SHADE[k.light.from]} class={SHADE} />}
         <Shade k={k} c={MUG.cres} />
       </g>
     );

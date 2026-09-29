@@ -5,11 +5,13 @@ import { act } from 'preact/test-utils';
 import type { JSX } from 'preact';
 import type { PlantSpeciesId, PotId } from '@/catalog/types';
 import { DAY_LIGHT, NIGHT_LIGHT, type Light } from '@/art/light';
-import { MAX_BLOOMS, PLANT_STAGE_NAMES, POT_GEOMETRY, PlantArt, PlantTag, PotArt, PLANT_SPECIES_WITH_ART, POTS_WITH_ART, type PlantArtProps } from '@/art/plants';
+import { MAX_BLOOMS, PLANT_STAGE_NAMES, POT_GEOMETRY, PlantArt, PlantTag, PotArt, PLANT_SPECIES_WITH_ART, POTS_WITH_ART, tagAnchor, type PlantArtProps } from '@/art/plants';
 import { artBounds, drawnMass, pathPoints, type Box } from './svgBounds.testutil';
 import { bloomCount, growthOf } from './PlantArt';
 import { kitFor, inks } from './kit';
-import { bandCrescents, taperCrescents } from './geom';
+import { bake, bandCrescents, placeMatrix, taperCrescents } from './geom';
+import { ICON_FRAMES } from './iconFrames';
+import { channels, toHsl } from './math';
 
 const SPECIES = [...PLANT_SPECIES_WITH_ART] as PlantSpeciesId[];
 const POTS = [...POTS_WITH_ART] as PotId[];
@@ -211,6 +213,22 @@ describe('PlantArt: the catkin art language', () => {
     expect(markup(<PotArt pot="terracotta" light={NIGHT_LIGHT} />)).not.toContain('fill="#DDA088"');
   });
 
+  it('keeps colour under the lamp: the blue mug stays blue, the midnight glaze stays deep blue', () => {
+    const fillOf = (pot: PotId, light: Light, pick: (fills: string[]) => string) =>
+      inspect(<PotArt pot={pot} light={light} />, (host) => pick([...host.querySelectorAll('[fill^="#"]')].map((el) => el.getAttribute('fill')!)));
+    const saturation = (hex: string) => toHsl(channels(hex))[1];
+    const hue = (hex: string) => toHsl(channels(hex))[0];
+    const mugDay = fillOf('mug', DAY_LIGHT, (f) => f.find((c) => c === '#AECBE4')!);
+    expect(mugDay).toBe('#AECBE4');
+    const mugNight = kitFor(NIGHT_LIGHT).lit('#AECBE4');
+    expect(saturation(mugNight)).toBeGreaterThanOrEqual(0.25);
+    expect(Math.abs(hue(mugNight) - hue('#AECBE4'))).toBeLessThan(12);
+    const midnight = kitFor(NIGHT_LIGHT).lit('#34406E');
+    expect(saturation(midnight)).toBeGreaterThanOrEqual(0.3);
+    expect(hue(midnight)).toBeGreaterThan(215);
+    expect(hue(midnight)).toBeLessThan(245);
+  });
+
   it('folds the prayer plant’s leaves upward at night', () => {
     for (const stage of [1, 3, 5, 7]) {
       const day = markup(plant({ species: 'calathea', stage, light: DAY_LIGHT }));
@@ -248,6 +266,74 @@ describe('PlantArt: the catkin art language', () => {
     expect(top.tone(p, 0, 30, 70)).toBe('#777777');
     expect(kitFor(NIGHT_LIGHT).tone(p, 0, 70)).not.toBe('#AAAAAA');
     expect(kitFor(DAY_LIGHT)).toBe(kitFor({ from: 'left', night: false }));
+  });
+});
+
+describe('PlantArt: icon framing for cards', () => {
+  const viewBox = (props: Partial<PlantArtProps>) => inspect(plant(props), (host) => host.querySelector('svg')!.getAttribute('viewBox')!.split(' ').map(Number));
+  const painted = (props: Partial<PlantArtProps>) => inspect(plant(props), (host) => artBounds(host.querySelector('svg')!, { stroked: true, sampled: true }));
+
+  it('has a frame for every species and stage, and keeps the scene canvas by default', () => {
+    for (const species of SPECIES) expect(ICON_FRAMES[species], species).toHaveLength(8);
+    expect(viewBox({ species: 'begonia', stage: 0 })).toEqual([0, 0, 100, 100]);
+    expect(viewBox({ species: 'begonia', stage: 0, fit: 'icon' })).not.toEqual([0, 0, 100, 100]);
+  });
+
+  it('fills the card: every stage spans most of its box, and young plants are no longer specks', () => {
+    const thin: string[] = [];
+    let total = 0;
+    let n = 0;
+    for (const species of SPECIES) {
+      for (let stage = 0; stage <= 7; stage++) {
+        const [, , side] = viewBox({ species, stage, fit: 'icon' });
+        const b = painted({ species, stage, progress: 0.5, fit: 'icon' });
+        const w = b.x1 - b.x0;
+        const h = b.y1 - b.y0;
+        const area = (w * h) / (side! * side!);
+        total += area;
+        n++;
+        if (Math.max(w, h) / side! < 0.65 || area < 0.3) thin.push(`${species} ${stage}: ${Math.round(area * 100)}%`);
+      }
+    }
+    expect(thin).toEqual([]);
+    // On average the painted bounds cover well over half the box (a cutting on the scene canvas covers about a fifth).
+    expect(total / n).toBeGreaterThan(0.55);
+    const scene = painted({ species: 'pothos', stage: 0, progress: 0.5 });
+    const icon = painted({ species: 'pothos', stage: 0, progress: 0.5, fit: 'icon' });
+    const [, , side] = viewBox({ species: 'pothos', stage: 0, fit: 'icon' });
+    expect((icon.y1 - icon.y0) / side!).toBeGreaterThan(1.4 * ((scene.y1 - scene.y0) / 100));
+  }, 30_000);
+
+  it('never crops the plant, in any pot, light, progress or bloom count', () => {
+    const cropped: string[] = [];
+    for (const species of SPECIES) {
+      for (let stage = 0; stage <= 7; stage++) {
+        const [x, y, side] = viewBox({ species, stage, fit: 'icon' });
+        for (const pot of ['terracotta', 'teacup', 'mug', 'eggshell'] as PotId[]) {
+          for (const light of [DAY_LIGHT, RIGHT, NIGHT_LIGHT]) {
+            const b = painted({ species, stage, pot, light, progress: 0.99, blooms: MAX_BLOOMS, fit: 'icon' });
+            if (b.x0 < x! - 0.3 || b.y0 < y! - 0.3 || b.x1 > x! + side! + 0.3 || b.y1 > y! + side! + 0.3) cropped.push(`${species} ${stage} ${pot} ${light.from}`);
+          }
+        }
+      }
+    }
+    expect(cropped).toEqual([]);
+  }, 60_000);
+
+  it('stands the empty pot beside a cutting only when asked, and never in a card', () => {
+    const emptyPot = (props: Partial<PlantArtProps>) => markup(plant(props)).includes('data-empty-pot="blush"');
+    expect(emptyPot({ stage: 0, pot: 'blush' })).toBe(false);
+    expect(emptyPot({ stage: 0, pot: 'blush', withPot: true })).toBe(true);
+    expect(emptyPot({ stage: 1, pot: 'blush', withPot: true })).toBe(true);
+    expect(emptyPot({ stage: 3, pot: 'blush', withPot: true })).toBe(false);
+    expect(emptyPot({ stage: 0, pot: 'blush', withPot: true, fit: 'icon' })).toBe(false);
+    // It stands on the shade side, behind the glass.
+    const potX = (light: Light) => inspect(plant({ stage: 0, pot: 'blush', withPot: true, light }), (host) => {
+      const b = artBounds(host.querySelector('[data-empty-pot]')!);
+      return (b.x0 + b.x1) / 2;
+    });
+    expect(potX(DAY_LIGHT)).toBeGreaterThan(55);
+    expect(potX(RIGHT)).toBeLessThan(45);
   });
 });
 
@@ -351,6 +437,16 @@ describe('PotArt and pot geometry', () => {
     }
   });
 
+  it('says where a tag’s stake meets the soil, beside the stem on the soil line', () => {
+    for (const pot of POTS) {
+      const at = tagAnchor(pot);
+      const g = POT_GEOMETRY[pot];
+      expect(at.y, pot).toBe(g.mouth.y);
+      expect(at.x, pot).toBeGreaterThan(52);
+      expect(at.x, pot).toBeLessThan(50 + g.mouth.hw);
+    }
+  });
+
   it('publishes where every pot’s rim and soil are, inside the canvas', () => {
     for (const pot of POTS) {
       const g = POT_GEOMETRY[pot];
@@ -360,6 +456,22 @@ describe('PotArt and pot geometry', () => {
       expect(g.mouth.y, pot).toBeLessThan(72);
       expect(g.foot.y, pot).toBe(95);
     }
+  });
+});
+
+describe('baked shapes (one path per ink)', () => {
+  it('puts a baked copy exactly where the transform would', () => {
+    const d = 'M0 0L10 0L10 -20Z';
+    const m = placeMatrix(30, 60, 90, 0.5);
+    const b = pathBounds(bake(d, m));
+    // Turned a quarter clockwise and halved: the 20-unit rise now points right, 10 long.
+    expect(b.x0).toBeCloseTo(30, 1);
+    expect(b.x1).toBeCloseTo(40, 1);
+    expect(b.y0).toBeCloseTo(60, 1);
+    expect(b.y1).toBeCloseTo(65, 1);
+    // Arcs keep their size under a uniform scale and flip their sweep in a mirror.
+    expect(bake('M0 0a2 2 0 1 0 4 0Z', placeMatrix(0, 0, 0, 2))).toBe('M0 0A4 4 0 1 0 8 0Z');
+    expect(bake('M0 0a2 2 0 1 0 4 0Z', placeMatrix(0, 0, 0, 1, -1))).toContain('A2 2 0 1 1 -4 0');
   });
 });
 

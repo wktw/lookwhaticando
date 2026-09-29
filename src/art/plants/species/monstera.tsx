@@ -100,6 +100,13 @@ const LEAVES: readonly [number, number, number, number][] = [
   [2, 28, 21, 7.2],
 ];
 
+/** Extra split leaves for a well-bloomed plant: one more for every two blooms. [heading, petiole, leaf length]. */
+const BLOOM_LEAVES: readonly [number, number, number][] = [
+  [-84, 15, 17],
+  [80, 16, 17.5],
+  [-38, 27, 18.5],
+];
+
 const formFor = (birth: number): Form => (birth >= 4.6 ? 'split' : birth >= 3.3 ? 'holed' : 'heart');
 
 function potted(g: Growth, k: Kit, m: Mouth) {
@@ -116,6 +123,15 @@ function potted(g: Growth, k: Kit, m: Mouth) {
     // The blade is held out along its petiole, tipped a little further outward.
     const tilt = a + Math.sign(a || 1) * 18;
     return monsteraLeaf(k, x, ty, tilt, leafLen * lerp(0.35, 1, gr), i % 2, formFor(birth), i);
+  });
+  const extra = BLOOM_LEAVES.map(([a, len, leafLen], j) => {
+    const gr = g.stage >= 5 ? ramp(g.blooms, j * 2 + 1, j * 2 + 2) : 0;
+    if (gr <= 0) return null;
+    const from: Pt = [50 + (j % 2 ? 1 : -1), m.y + 0.8];
+    const [tx, ty] = toward(from, a * lerp(0.7, 1, gr), len * lerp(0.6, 1, gr));
+    const x = 50 + (tx - 50) * spread;
+    stems += `M${f(from[0])} ${f(from[1])}Q${f(lerp(from[0], x, 0.15))} ${f(lerp(from[1], ty, 0.65))} ${f(x)} ${f(ty)}`;
+    return monsteraLeaf(k, x, ty, a + Math.sign(a) * 18, leafLen * lerp(0.6, 1, gr), (j + 1) % 2, 'split', `x${j}`);
   });
   // A new leaf, still rolled, at Budding: pale and upright in the middle.
   const roll = g.stage === 4 ? grown(g.progress, 0, 0.9) : 0;
@@ -141,6 +157,7 @@ function potted(g: Growth, k: Kit, m: Mouth) {
         <Stems d={stems} color={STEM} w={1.5} />
         {roots}
         {rolled}
+        {extra}
         {leaves}
       </g>
     ),

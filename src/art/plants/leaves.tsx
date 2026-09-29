@@ -114,3 +114,24 @@ export function headingAt(pts: readonly Pt[], i: number): number {
   const b = pts[Math.min(pts.length - 1, i + 1)]!;
   return (Math.atan2(b[0] - a[0], a[1] - b[1]) * 180) / Math.PI;
 }
+
+/**
+ * Where a fraction `k` of a polyline's length falls: the point, and the same place as a vertex index (0..n), so it can
+ * be compared with how far a `partial` stem has grown. Spacing things by length keeps them evenly apart however
+ * unevenly the vertices are placed.
+ */
+export function alongLength(pts: readonly Pt[], k: number): { at: Pt; u: number } {
+  const lens = pts.slice(1).map((p, i) => Math.hypot(p[0] - pts[i]![0], p[1] - pts[i]![1]));
+  const total = lens.reduce((a, b) => a + b, 0);
+  let left = Math.max(0, Math.min(1, k)) * total;
+  for (let i = 0; i < lens.length; i++) {
+    if (left <= lens[i]! || i === lens.length - 1) {
+      const r = lens[i]! ? Math.min(1, left / lens[i]!) : 0;
+      const a = pts[i]!;
+      const b = pts[i + 1]!;
+      return { at: [lerp(a[0], b[0], r), lerp(a[1], b[1], r)], u: i + r };
+    }
+    left -= lens[i]!;
+  }
+  return { at: pts[0]!, u: 0 };
+}

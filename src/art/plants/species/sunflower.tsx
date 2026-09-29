@@ -134,23 +134,20 @@ function potted(g: Growth, k: Kit, m: Mouth) {
   );
   const bud = ramp(g.t, 3.8, 5);
   const open = g.stage >= 5 ? lerp(0.6, 1, ramp(g.t, 5, 7)) : 0;
-  const size = lerp(0.72, 1.12, ramp(g.t, 4.5, 7.5));
+  // One head, facing the window: blooms make it bigger and more fully open.
+  const b = g.stage >= 5 ? Math.min(1, g.blooms / 6) : 0;
+  const size = lerp(0.72, 1.12, ramp(g.t, 4.5, 7.5)) * lerp(0.9, 1.1, b);
   const heads: JSX.Element[] = [];
-  if (bud > 0) heads.push(head(k, top[0] + turn * 1.6, top[1] - 1, size, bud, open, 'main'));
-  // Side shoots with smaller heads, for a well-bloomed plant.
-  const sides: [number, number][] = [
-    [0.62, 1],
-    [0.5, -1],
-  ];
+  if (bud > 0) heads.push(head(k, top[0] + turn * 1.6, top[1] - 1, size, bud, open * lerp(0.85, 1, b), 'main'));
+  // A well-bloomed plant carries one small side bud, still closed, on a shoot from a leaf axil.
   let sideStems = '';
-  sides.forEach(([h, side], j) => {
-    if (g.blooms < 3 + j * 2) return;
-    const [x, y] = at(h);
-    const hx = x + side * 11;
-    const hy = y - 9;
-    sideStems += `M${f(x)} ${f(y)}Q${f(x + side * 8)} ${f(y - 2)} ${f(hx)} ${f(hy + 3)}`;
-    heads.push(head(k, hx + turn * 0.8, hy, size * 0.55, 1, open, `side${j}`));
-  });
+  if (g.blooms >= 4) {
+    const [x, y] = at(0.6);
+    const hx = x + 9;
+    const hy = y - 7;
+    sideStems += `M${f(x)} ${f(y)}Q${f(x + 6)} ${f(y - 1.6)} ${f(hx)} ${f(hy + 2)}`;
+    heads.push(head(k, hx, hy, size * 0.42, 0.55, 0, 'side'));
+  }
   return {
     back: (
       <g>

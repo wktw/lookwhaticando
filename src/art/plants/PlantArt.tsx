@@ -9,6 +9,7 @@ import { useInView, useUid, useWaterings } from './hooks';
 import { FOOT_Y, POTS } from './pots';
 import { PLANT_SPECIES } from './species';
 import { waterGlass } from './vessels';
+import { iconFrame, SCENE_FRAME } from './iconFrames';
 import { WateringCanCharm } from './charm';
 import type { Composed, Growth } from './types';
 import './plant.css';
@@ -34,10 +35,23 @@ export interface PlantArtProps {
   animated?: boolean;
   /** Plays a one-shot watering (a leaf lift and a glint on the soil) each time this number goes up. */
   pulse?: number;
+  /**
+   * How the drawing is framed. `scene` (the default) keeps every stage on the same 100-unit canvas, pot foot on one
+   * line, so plants standing side by side on the sill match in scale. `icon` crops to the plant at this stage, so a
+   * cutting in its glass fills a 40 px Today card as fully as an Evergreen does.
+   */
+  fit?: PlantFit;
+  /**
+   * Stages 0–1 (and the tulip): stand the habit's chosen pot, still empty, behind the glass on the shade side
+   * (DESIGN §5.5, "a cutting in a water glass beside its empty pot"). For scenes and detail views; ignored by `icon`.
+   */
+  withPot?: boolean;
   title?: string;
   class?: string;
   style?: JSX.CSSProperties;
 }
+
+export type PlantFit = 'scene' | 'icon';
 
 export const PLANT_STAGE_NAMES = ['Cutting', 'Rooting', 'Potted', 'Leafy', 'Budding', 'Blooming', 'Flourishing', 'Evergreen'] as const;
 
@@ -89,9 +103,9 @@ export function composePlant(species: PlantSpeciesId, g: Growth, pot: PotId, k: 
   };
 }
 
-/** The flat contact shadow, nudged away from the light. */
-function contactD(foot: number, k: Kit): string {
-  return ell(50 + k.away * 2.2, FOOT_Y + 0.4, foot + 5.5, 2.3);
+/** The flat contact shadow, nudged away from the light; tucked in close under the foot when framed as an icon. */
+function contactD(foot: number, k: Kit, tight = false): string {
+  return tight ? ell(50 + k.away * 1.2, FOOT_Y + 0.3, foot + 2.2, 1.9) : ell(50 + k.away * 2.2, FOOT_Y + 0.4, foot + 5.5, 2.3);
 }
 
 /** A habit's plant at any moment of its life (DESIGN §5.5, §10.4). */
@@ -107,6 +121,10 @@ export function PlantArt(props: PlantArtProps) {
   const damp = !!props.damp || waterings > 0;
 
   const c = useMemo(() => composePlant(species, g, pot, k, damp), [species, g.stage, g.progress, g.blooms, pot, k, damp]);
+
+  const icon = props.fit === 'icon';
+  const box = icon ? iconFrame(species, g.stage) : SCENE_FRAME;
+  const emptyPot = !icon && props.withPot && c.kind !== 'pot' ? <EmptyPot pot={pot} k={k} /> : null;
 
   const r = hash01(uid);
   const origin = `${f(c.pivot[0])}px ${f(c.pivot[1])}px`;
@@ -131,7 +149,7 @@ export function PlantArt(props: PlantArtProps) {
     <svg
       ref={svg}
       class={classes}
-      viewBox="0 0 100 100"
+      viewBox={box}
       width={sizePx(size)}
       height={sizePx(size)}
       style={{ ...timing, ...props.style }}
@@ -140,12 +158,32 @@ export function PlantArt(props: PlantArtProps) {
       aria-hidden={title ? undefined : true}
       focusable="false"
     >
-      <path d={contactD(c.foot, k)} class={CONTACT} />
+      <path d={contactD(c.foot, k, icon)} class={CONTACT} />
+      {emptyPot}
       {sway(c.back)}
       {c.vessel}
       {sway(c.front)}
       {waterings > 0 && <path key={waterings} class="plant-glint" d={ell(c.pivot[0] - c.surface * 0.34, c.pivot[1] + 0.2, Math.max(2.4, c.surface * 0.3), 0.8)} fill="#FFFFFF" />}
     </svg>
+  );
+}
+
+/**
+ * The habit's pot, empty, standing behind a cutting's glass: smaller (it is further back) and to the shade side, so
+ * the glass stays the subject. Its own contact shadow sits under it.
+ */
+const EMPTY_POT = { scale: 0.62, dx: 17, back: 1.6 };
+
+function EmptyPot({ pot, k }: { pot: PotId; k: Kit }) {
+  const def = POTS[pot] ?? POTS.terracotta;
+  // Behind the glass on the side away from the light; lit from above, to the right.
+  const x = 50 + (k.away || 1) * EMPTY_POT.dx;
+  const s = EMPTY_POT.scale;
+  return (
+    <g data-empty-pot={pot} transform={`translate(${f(x - 50 * s)} ${f(FOOT_Y - EMPTY_POT.back - FOOT_Y * s)}) scale(${s})`}>
+      <path d={contactD(def.foot, k)} class={CONTACT} />
+      <g data-vessel="empty-pot">{def.render(k, false)}</g>
+    </g>
   );
 }
 

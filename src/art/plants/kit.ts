@@ -3,7 +3,7 @@
  * handed to every pot, vessel and species renderer, so they pick inks without knowing where the window is.
  */
 import { DAY_LIGHT, type Light } from '../light';
-import { mix } from './math';
+import { channels, fromHsl, mix, toHsl, type Rgb } from './math';
 
 /** The lamp, for warming lit sides at night (matches `--lamp`). */
 const LAMP = '#FFC98A';
@@ -34,17 +34,20 @@ export interface Kit {
 }
 
 /**
- * Lamplight on a colour: multiplied by the lamp's warm white (so blues drop, reds hold, nothing turns grey) and
- * then eased a touch toward the lamp itself.
+ * Lamplight on a colour: it takes the lightness a lamp's warm white would give it (multiplied by the lamp), keeps its
+ * own hue and saturation, and then eases a touch toward the lamp itself (less for dark colours). Multiplying the channels outright would
+ * pull blues toward grey; keeping the chroma means a blue glaze stays blue under the lamp and nothing turns cold.
  */
 const LAMP_WHITE = [255, 239, 218] as const;
 const warmCache = new Map<string, string>();
 const warm = (c: string) => {
   let w = warmCache.get(c);
   if (!w) {
-    const n = parseInt(c.slice(1), 16);
-    const lit = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((v, i) => Math.round((v * LAMP_WHITE[i]!) / 255));
-    w = mix(`#${lit.map((v) => v.toString(16).padStart(2, '0')).join('')}`, LAMP, 0.06);
+    const rgb = channels(c);
+    const [h, s] = toHsl(rgb);
+    const [, , l] = toHsl(rgb.map((v, i) => (v * LAMP_WHITE[i]!) / 255) as Rgb);
+    // Light colours take a little of the lamp's colour; dark glazes barely any (they get a rim of lamplight instead).
+    w = mix(fromHsl(h, s, l), LAMP, 0.1 * l);
     warmCache.set(c, w);
   }
   return w;
