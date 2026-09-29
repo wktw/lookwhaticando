@@ -1,0 +1,709 @@
+.screen {
+  padding: calc(var(--safe-top) + 16px) var(--gutter) calc(var(--s-10) + var(--safe-bottom));
+}
+
+.header {
+  margin-bottom: var(--s-4);
+}
+
+/* Doubled class: outranks host-page heading styles (the dev gallery's). */
+.header .title {
+  margin: 0;
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: var(--fs-title);
+}
+
+/* ---------- the hero ---------- */
+.hero {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+  padding: var(--s-5) var(--s-5) var(--s-4);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--card);
+  box-shadow: var(--kit-card-shadow);
+  overflow: hidden;
+}
+
+/* The window's light across the paper, top left: a pale cream wash, no gradient on the ink. */
+.hero::before {
+  content: '';
+  position: absolute;
+  inset: 0 45% 55% 0;
+  background: radial-gradient(ellipse at 0% 0%, var(--sun), transparent 70%);
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.hero > * {
+  position: relative;
+}
+
+.heroTop {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--s-3);
+}
+
+.jar {
+  flex: none;
+  margin: -8px -6px -6px 0;
+}
+
+.heroEmpty {
+  padding: var(--s-6) var(--s-5);
+}
+
+.heroLine {
+  margin: 0;
+  min-width: 0;
+  font-family: var(--font-display);
+  font-size: min(var(--fs-display), max(1.55rem, 7vw));
+  line-height: 1.15;
+  color: var(--ink);
+  text-wrap: balance;
+}
+
+.heroLineQuiet,
+.heroEmpty .heroLine {
+  max-width: none;
+  font-size: var(--fs-headline);
+}
+
+.heroMonth {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+  padding-top: var(--s-4);
+  border-top: 1px solid var(--line);
+}
+
+.ringFigure {
+  flex: none;
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  width: 92px;
+  margin: 0;
+}
+
+.ring {
+  flex: none;
+}
+
+.ringCaption {
+  font-size: var(--fs-micro);
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--ink-2);
+  text-align: center;
+}
+
+.ringValue {
+  display: inline-flex;
+  align-items: baseline;
+  font-family: var(--font-display);
+  font-size: 1.45rem;
+  line-height: 1;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.ringPct {
+  margin-left: 1px;
+  font-family: var(--font-body);
+  font-size: var(--fs-micro);
+  font-weight: 800;
+  color: var(--ink-2);
+}
+
+.heroMonthText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.soFar {
+  margin: 0;
+  font-size: var(--fs-body);
+  font-weight: 800;
+  color: var(--ink);
+}
+
+.trend {
+  margin: 0;
+  font-size: var(--fs-caption);
+  color: var(--sage-700);
+  font-weight: 700;
+}
+
+/* A quieter month's best fact: in ink, never red. */
+.fact {
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 4px 12px;
+  border-radius: var(--r-pill);
+  background: var(--bg);
+  box-shadow: inset 0 0 0 1px var(--line);
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.quiet {
+  margin: 0;
+  font-size: var(--fs-caption);
+  color: var(--ink-2);
+}
+
+/* ---------- sections ---------- */
+.section {
+  margin-top: var(--s-8);
+}
+
+/* Room for what follows a frame later (below the fold), so the page doesn't jump. */
+.pending {
+  min-height: 1800px;
+}
+
+/* Below the fold (rendered a frame after the rest). */
+.later {
+  animation: later-in var(--t-std) var(--ease-out);
+}
+@keyframes later-in {
+  from {
+    opacity: 0;
+  }
+}
+:global(html[data-motion='reduced']) .later {
+  animation: none;
+}
+
+.sectionHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-3);
+  margin-bottom: var(--s-3);
+  padding: 0 2px 6px;
+  border-bottom: 1px solid var(--line);
+}
+
+.sectionHead .sectionTitle {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: var(--fs-micro);
+  font-weight: 800;
+  line-height: 1.2;
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+
+.sectionMeta {
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.subTitle {
+  margin: var(--s-6) 0 var(--s-3);
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: var(--fs-body);
+  font-style: italic;
+  color: var(--ink-2);
+}
+
+.card {
+  padding: var(--s-3);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--card);
+  box-shadow: var(--kit-card-shadow);
+}
+
+@media (min-width: 360px) {
+  .card {
+    padding: var(--s-3) var(--s-4) var(--s-4);
+  }
+}
+
+/* ---------- recent months ---------- */
+/* One grid for every row (subgrid), so all the bars start on the same line whatever the label. */
+.months {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: var(--s-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.monthRow {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+  align-items: center;
+}
+
+.monthLabel {
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.soFarMark {
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
+.bar {
+  position: relative;
+  display: block;
+  height: 10px;
+  border-radius: var(--r-pill);
+  background: var(--bg-2);
+  overflow: hidden;
+}
+
+/* This month: the days still to come are a dotted track, not a shortfall. */
+.current .bar {
+  background: radial-gradient(circle, var(--line) 1.2px, transparent 1.6px) 0 50% / 7px 7px repeat-x;
+}
+
+.barFill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--sage-500);
+  transition: width var(--t-slow) var(--ease-out);
+}
+
+.current .barFill {
+  background: var(--blush-500);
+}
+
+/* ---------- calendar filter ---------- */
+.filter {
+  display: flex;
+  gap: var(--s-2);
+  margin: 0 calc(-1 * var(--gutter)) var(--s-3);
+  padding: 2px var(--gutter) 4px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  overscroll-behavior-x: contain;
+}
+
+.filter::-webkit-scrollbar {
+  display: none;
+}
+
+.filterChip {
+  flex: none;
+  max-width: 14rem;
+  min-height: 44px;
+  padding: 6px 16px;
+  overflow: hidden;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: var(--card);
+  box-shadow: inset 0 0 0 1px var(--line);
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.filterChip:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.filterOn {
+  background: var(--sage-300);
+  box-shadow: inset 0 0 0 1.5px var(--sage-700);
+}
+
+/* ---------- records and insights ---------- */
+.pair {
+  display: grid;
+  gap: 0 var(--s-6);
+}
+
+@media (min-width: 640px) {
+  .pair {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.records {
+  display: grid;
+  gap: 0;
+  margin: 0;
+}
+
+.record {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--s-3);
+  padding: 9px 2px;
+  border-bottom: 1px dashed var(--line);
+}
+
+.record:last-child {
+  border-bottom: 0;
+}
+
+.record dt {
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  color: var(--ink-2);
+}
+
+.record dd {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--fs-body);
+  color: var(--ink);
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}
+
+.insights {
+  display: grid;
+  gap: var(--s-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.insights li {
+  position: relative;
+  padding: 6px 2px 6px 20px;
+  font-family: var(--font-display);
+  font-size: var(--fs-body);
+  line-height: 1.35;
+  color: var(--ink);
+}
+
+/* A small pressed leaf before each insight. */
+.insights li::before {
+  content: '';
+  position: absolute;
+  left: 2px;
+  top: 0.8em;
+  width: 9px;
+  height: 6px;
+  border-radius: 9px 0;
+  background: var(--sage-500);
+  transform: rotate(-24deg);
+}
+
+/* ---------- pins ---------- */
+.pins {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(76px, 1fr));
+  gap: var(--s-2) 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pin {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  min-height: 44px;
+  padding: 6px 2px;
+  border: 0;
+  border-radius: var(--r-md);
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.pin:hover {
+  background: var(--card-2);
+}
+
+.pin:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
+.pinName {
+  display: -webkit-box;
+  max-width: 100%;
+  overflow: hidden;
+  font-size: var(--fs-micro);
+  font-weight: 700;
+  line-height: 1.25;
+  text-align: center;
+  overflow-wrap: anywhere;
+  hyphens: auto;
+  /* An engraved name is read whole (the longest, "Two hundred and fifty waterings", takes four lines). */
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+}
+
+.pinNotYet .pinName {
+  color: var(--ink-2);
+  font-weight: 600;
+}
+
+.pinsLead {
+  margin-bottom: var(--s-3);
+}
+
+/* The rest of the "not yet" pins, asked for rather than laid out as a wall. */
+.morePins {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  margin-top: var(--s-2);
+  padding: 0 var(--s-4);
+  border: 0;
+  border-radius: var(--r-pill);
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--line);
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.morePins:hover {
+  background: var(--card-2);
+}
+.morePins:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* Retired plants live on the balcony tier (Plants); the memory shelf points there. */
+.balconyLink {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 2px;
+  font-family: var(--font-display);
+  font-size: var(--fs-body);
+  font-style: italic;
+  color: var(--ink);
+  text-decoration: underline;
+  text-decoration-color: var(--line);
+  text-underline-offset: 4px;
+}
+.balconyLink:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.subTitle:focus {
+  outline: none;
+}
+.subTitle:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.pinDetail {
+  display: grid;
+  gap: var(--s-2);
+  padding-bottom: var(--s-2);
+}
+
+.pinDescription {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--fs-body-lg);
+  line-height: 1.4;
+  color: var(--ink);
+}
+
+.pinMeta {
+  margin: 0;
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  color: var(--ink-2);
+}
+
+.pinStamps {
+  margin: 0;
+  justify-self: start;
+  padding: 4px 12px;
+  border-radius: var(--r-pill);
+  background: var(--butter-100);
+  box-shadow: inset 0 0 0 1px var(--butter-300);
+  font-size: var(--fs-caption);
+  font-weight: 800;
+  color: var(--butter-700);
+}
+
+/* ---------- the memory shelf ---------- */
+.memory {
+  display: grid;
+  gap: var(--s-4);
+}
+
+.memoryRow {
+  --plank-top: #ecdcc4;
+  --plank-front: #dcc5a4;
+  display: flex;
+  gap: var(--s-2);
+  margin: 0 calc(-1 * var(--gutter));
+  padding: 0 var(--gutter) 4px;
+  overflow-x: auto;
+  list-style: none;
+  scrollbar-width: none;
+  overscroll-behavior-x: contain;
+}
+
+.memoryRow::-webkit-scrollbar {
+  display: none;
+}
+
+:global(html[data-theme='night']) .memoryRow {
+  --plank-top: #54463f;
+  --plank-front: #45393a;
+}
+
+.memoryRow li {
+  position: relative;
+  flex: none;
+  width: 108px;
+}
+
+/* One plank under the whole row: each item draws its stretch of it. */
+.memoryRow li::before {
+  content: '';
+  position: absolute;
+  left: -4px;
+  right: -4px;
+  top: 70px;
+  height: 5px;
+  background: var(--plank-top);
+  box-shadow: 0 5px 0 0 var(--plank-front);
+  pointer-events: none;
+}
+
+.memoryItem {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  padding: 0 2px 4px;
+  border: 0;
+  border-radius: var(--r-md);
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.memoryItem:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.memoryPlant {
+  display: block;
+  width: 76px;
+  height: 76px;
+}
+
+.memoryLabel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  font-family: var(--font-display);
+  font-size: var(--fs-caption);
+  line-height: 1.25;
+  text-align: center;
+  color: var(--ink);
+}
+
+.newMark {
+  padding: 1px 8px;
+  border-radius: var(--r-pill);
+  background: var(--blush-100);
+  box-shadow: inset 0 0 0 1px var(--blush-300);
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--blush-700);
+}
+
+@media (min-width: 900px) {
+  /*
+   * The DESIGN §4 column: 720 px beside the sidebar. Centred on the shell's own column whatever its
+   * padding (see NOTES-w2-progress.md: the shell's column is narrower than --content-max today).
+   */
+  .screen {
+    --col: min(var(--content-max), calc(100vw - var(--sidebar-w) - 64px));
+    width: var(--col);
+    margin-inline: calc((100% - var(--col)) / 2);
+    padding-top: calc(var(--safe-top) + 32px);
+    padding-inline: 0;
+  }
+  .hero {
+    padding: var(--s-6) var(--s-6) var(--s-5);
+  }
+  .jar {
+    width: 112px;
+    height: 112px;
+  }
+  /* In the desktop column the scrollers stay inside it (no phone-style bleed past the cards). */
+  .filter,
+  .memoryRow {
+    margin-inline: 0;
+    padding-inline: 0;
+  }
+}
+
+.emptyTitle {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 400;
+}
