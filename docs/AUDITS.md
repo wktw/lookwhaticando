@@ -35,3 +35,12 @@ already fixed them. Headline changes:
 
 The mascot direction that came out of this audit was later rejected by the client ("done many times"). See the
 creative re-direction entry below.
+
+## Cozy-game pillars (client directive: Animal Crossing × Stardew × Pokémon)
+
+**Method.** 4 researchers (with web sources) → 3 designers (habit-first, creativity-first, restraint) → 3 judges
+(gimmick detector, habit-centrality, target-user panel). **Result:** unanimous top three. Keeping Company (all three
+designers proposed it independently), Blooms Like You with the Garden Journal and habit stacking, and Season Review. Ten
+proposals were refuted as gimmicks or off-center (see DESIGN §14.4). Key evidence cited: Pocket Camp > 75% women (Nintendo
+IR, Feb 2018); Quantic Foundry: women over-index on Design, Fantasy, Story and Completion; New Horizons satisfied
+autonomy/competence/relatedness (Yee & Sng 2022).

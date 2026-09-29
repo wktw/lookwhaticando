@@ -1010,3 +1010,111 @@ reinstalling.
 
 **Quilt.** Under 600 px it is a horizontally scrolling strip (14 px patches, month initials, opening at the current week). At 600 px and up
 it shows the full 53×7 grid. Days before `startedOn` aren't drawn. Month bands open the calendar. The grid is aria-hidden with a text summary.
+
+---
+
+## 14. The three cozy-game pillars (client directive: Animal Crossing × Stardew Valley × Pokémon)
+
+**Method.** Four researchers (one per game plus cross-game motivation data) → three designers with different angles
+(habit-first, creativity-first, restraint) → a jury (a gimmick detector, a habit-centrality judge, and a target-user
+panel of an Animal Crossing regular, a Stardew devotee and a Pokémon GO/Sleep player). All three designers arrived
+independently at pillar 1, and all three judges ranked the same three pillars highest. The evidence is in the research digest
+(`AUDITS.md`). The one rule: **every pillar is driven by real habit data and makes the tracker itself more meaningful
+or more useful.** None of them references a game for its own sake, and each draws on more than one game.
+
+### 14.1 Keeping Company (AC's neighbors who know you · Pokémon's buddy · Stardew's heart events)
+
+*The need: to be noticed and remembered by someone who shares your routine.* Pocket Camp (> 75% women) and
+Finch (~75% women, 25–35) run on exactly this. Here, relatedness is attached to **one specific habit**, not to "the app".
+
+* **Pairing.** Any pet may keep **one** habit company, and each habit has at most one companion. It is optional. Habits without one
+  use the buddy, so with no companions set the app behaves exactly as before. Pairing is offered in three places: after naming at a capsule reveal,
+  worded as the pet's wish ("Which habit can I help with?"), at most once per app day and never again after 3 declines;
+  in the Habit Editor ("Who keeps you company?"); and on the Pet Sheet.
+* **On the tracker.** The companion appears on the windowsill only to water *its* pot, then goes back. A face of 20 px or less
+  peeks from the card's pot, hidden in Compact Today and by a *Show companions* preference. There are no persistent peeks behind
+  every sill pot and no trinkets on the sill: the header stays the tracker's.
+* **Friendship through the habit.** Each completing check-in of its habit gives the companion
+  `min(30, round(5 × 7 / expectedPerWeek))` XP, so monthly habits progress too. This replaces the old "buddy +1 per
+  check-in" rule, with a cap of 30 XP per pet per day from habits.
+* **Three stories**, unlocked only by **companion sunshine** (sunshine the habit grew while this pet kept it company).
+  Petting and treats can never unlock a habit's story. The stories: **The start** (~1 week), **Why it matters** (~3 weeks;
+  it asks *once* and stores the answer in `Habit.why`, ≤ 140 chars, which is also editable in the Habit Editor from day 0, so a
+  why never depends on owning a pet; if it's already filled, the story reflects it back instead of asking), and **Look at us** (at
+  Blooming; it quotes one or two of her Moments and creates a Memory polaroid). The why appears at the top of Habit Detail, and
+  a Letter P.S. quotes it on a rotation, never triggered by a lower week.
+* **Keepsakes.** When the habit's plant reaches Seedling, Budding, Blooming and Evergreen, the companion brings a dated
+  keepsake from one of **12 activity families** (move, read, hydrate, rest, mind, create, tidy, cook, care, garden,
+  connect, plan; mapped from the habit icon), 3 designs each, plus one universal Evergreen golden seed (37 small SVGs). The
+  caption is prefilled from her latest Moment and editable. Keepsakes are placeable in the meadow and never a currency. **The same
+  activity-family art** draws the Letter doodles and the meadow hobby props, so it's one art set used three ways.
+* **Hobbies.** On days the habit was done, the companion visibly *does* it in the meadow (reads under the tree, does laps,
+  waters flowers…), and from Blooming on the hobby becomes permanent. The meadow shows presence only. **A missed day looks exactly
+  like an ordinary day** (acceptance test).
+* **Copy.** Companion lines fire only on positive events. A lint test on the line matrix fails the build on absence, gap,
+  missed-day or percentage wording. Positioning versus Finch: a witness *for each habit*, not a generic pet that grows from goals.
+
+### 14.2 Blooms Like You (Pokémon's branching evolution · AC's hybrid flowers) + Garden Journal + habit stacking
+
+*The need: to see yourself in what you tend.* Plants are the product's core metaphor, so the tracker's richest quiet data
+(when she checks in, how often the tiny version carried her, which habits she keeps together) becomes the art she already looks at every day.
+
+* **The look**, computed when a plant first reaches Blooming and re-read at Evergreen. Looks are only ever *added*, and she
+  chooses which one shows (Classic is always available). There are two axes only:
+  * **Colour** from when she usually checks in: **Dawn · Sunlit · Twilight · Wildflower** (fits it in anytime). The classifier
+    uses live `at` stamps only, drops catch-up bursts (≥ 3 habits within 120 s) and 23:00–03:59, and needs ≥ 10 eligible
+    days (otherwise Wildflower).
+  * **Shape**: **Classic · Petite** (tiny version on ≥ 25% of days and ≥ 5 tiny days) **· Paired** (stacked with an anchor habit
+    on ≥ 14 kept-together days). Paired petals pick up the partner habit's card colour, paired pots sit side by side on the
+    shelf, and a bee visits them (static under reduced motion).
+  * **No performance-graded looks** (no "Steady" for high consistency), no title words, no collection counter. It pays nothing.
+  * A **plant tag** in Habit Detail explains the look in plain words ("Dawn · Paired: you usually check it in before 9,
+    and 18 days you did it right after Walk").
+  * A mismatch becomes useful: "You set Walk for mornings but usually check it in after 6 pm. Move it to Evening?" (one
+    tap, never automatic).
+* **Garden Journal** (Habit Detail): at most 5 plain sentences that ink in from week 2: usual time, steadiest weekday, tiny
+  saves, kept-together count, and why it looks like this. Up to 2 pencil placeholders say when they'll fill in, and there is no
+  completeness count. A forecast in check-ins, never a deadline: "3 more walks to Blooming, around Oct 14" (only with ≥ 4
+  check-ins in the last 28 days). These are pure, unit-tested domain functions (`domain/journal.ts`, `domain/signature.ts`).
+* **Habit stacking** is a plain tracker feature from day 1. `Habit.anchorHabitId` makes the follower sort right after its anchor on
+  Today, with the line "After Walk" and a kept-together count.
+* **Damp soil.** Pots show dark, dewy soil when done today (windowsill + cards), giving a glanceable checklist with no numbers.
+  There is **no dry or negative state**.
+
+### 14.3 Season Review (Stardew's seasons as chapters · AC's real calendar)
+
+*The need: a gentle fresh start at a real landmark.* Habit lists that go stale, bloat or quietly die are the biggest reason
+trackers get abandoned. This is the only pillar that changes *which* habits she keeps and *how big* they are.
+
+* **Hemisphere-correct seasons.** "Where's your summer?" is inferred from the time zone and editable. Meadow skins follow her 4
+  seasons. Capsule series keep their fixed calendar dates.
+* On the **first open of each new season**, a Today card (never modal, waits indefinitely, skippable, ≤ 15 s): a
+  time-lapse of up to 8 plants through the season just ended, with companions beside their plants and captions in counts
+  only (before and after stills under reduced motion). A quieter season shows only its best facts.
+* **Fresh-start chips** for every active habit: **Keep going** (preselected) · **Tinier** · **Grow** (only if eligible; +1★
+  as graduation) · **Rest till next season** (a pause that ends on the next season's first day) · **Finish** (moves to the
+  Greenhouse with a ribbon). There's a one-tap **Keep everything**. Habits with zero check-ins that season stay out of the time-lapse
+  but are in the chips, with neutral copy.
+* **"Just this season"** habits (`Habit.endsOn`) auto-archive to the Greenhouse with a chapter ribbon and are never shown as
+  incomplete.
+* The same review is reachable at any time: **Tune my habits** (Progress and Habit Detail).
+* It pays nothing beyond Grow's +1★. Seasons that passed without an open are filed silently. It queues after the Monthly
+  Bouquet so two rituals never stack.
+* **Progress gets simpler.** Letterbox, Bouquet shelf, Greenhouse and Seasons merge into one **Memory shelf**.
+* The demo meadow includes a pending review so it can be tested on day 1.
+
+### 14.4 Refuted by the jury (not shipping)
+
+Freeform habit pots in the meadow with a second check-in surface (a fourth home for plants, and an ambient to-do list), zone
+bundles unlocked with keepsakes (Stardew's Community Center in costume, gating nothing), title words, the consistency-graded
+"Steady" bloom, escalating shared-petal tiers, a notes-for-cosmetics "Storybook" look, friendship-gated stories (farmable
+by petting), one pet keeping several habits, and a daily forecast bubble (it repeats the tracker). v1.1 candidates: a season
+wreath and calendar markers.
+
+### 14.5 Data additions
+
+`Habit.why?` (≤ 140, replaces `notes`) · `Habit.anchorHabitId?` · `Habit.endsOn?` · `Habit.companionId?` ·
+`ledger.companionSun[habitId|petId]` · `keepsakes[]` ({id, habitId, petId, family, design, stage, date, caption, placed?}) ·
+`plantLooks[habitId]` ({earned: {color, shape, pairColor?}[], chosen}) · `settings.hemisphere` ('north' | 'south') ·
+`settings.showCompanions` · once-keys `story|<habitId>|<n>`, `keepsake|<habitId>|<stage>`, `season|<YYYY>-<season>` ·
+PlantArt props `bloomColor`, `bloomShape`, `pairColor`, `damp`.
