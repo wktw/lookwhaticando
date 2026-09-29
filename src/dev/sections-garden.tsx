@@ -1,96 +1,245 @@
 /**
- * Garden module gallery: plants at every stage, progress & blooms, pots, habit-card sizes, treats.
+ * Plants module gallery: every species at every stage, the night row, window light from each side, every pot in
+ * every light, card-size plants, the water glass close up, blooms, watering and plant tags.
  * View all with /gallery.html?only=garden, or one section with ?only=garden-<name>.
- * `&species=<id>[,<id>…]` narrows the plant sections; `&pot=<id>` changes their pot;
- * the matrix also takes `&size=<px>`, `&progress=<0..1>` and `&stages=4,5,6`;
- * treats take `&size=<px>` and `&treats=cookie,donut`.
+ * The plant sections take `&species=<id>[,<id>…]`, `&pot=<id>`, `&size=<px>`, `&progress=<0..1>` and `&stages=4,5,6`.
  */
-import { Fragment, type JSX } from 'preact';
+import { Fragment, type ComponentChildren, type JSX } from 'preact';
 import { useState } from 'preact/hooks';
 import type { PlantSpeciesId, PotId } from '@/catalog/types';
-import { PLANTS, POTS, TREATS } from '@/catalog/collectibles';
-import { PlantArt, PotArt, PLANT_STAGE_NAMES } from '@/art/plants';
-import { TREAT_ART } from '@/art/items';
+import { PLANTS, POTS } from '@/catalog/collectibles';
+import { PlantArt, PlantTag, PotArt, PLANT_STAGE_NAMES, tagAnchor } from '@/art/plants';
+import { DAY_LIGHT, NIGHT_LIGHT, type Light } from '@/art/light';
 import type { GallerySection } from './sections';
 
 const SPECIES: PlantSpeciesId[] = ['pothos', 'pilea', 'begonia', 'snakeplant', 'catgrass', 'monstera', 'strawberry', 'lavender', 'catnip', 'hoya', 'orchid', 'calathea', 'violet', 'tulip', 'xmascactus', 'sunflower'];
 const POT_IDS = POTS.map((p) => p.pot);
 const STAGES = [0, 1, 2, 3, 4, 5, 6, 7];
 
+const LIGHTS: { label: string; light: Light }[] = [
+  { label: 'Window left', light: DAY_LIGHT },
+  { label: 'Overhead', light: { from: 'top', night: false } },
+  { label: 'Window right', light: { from: 'right', night: false } },
+  { label: 'Lamplight', light: NIGHT_LIGHT },
+];
+
+/** Most plants start in the pot a new habit gets; a few favourites go in something prettier. */
+const HOME_POT: Partial<Record<PlantSpeciesId, PotId>> = { begonia: 'cream', pilea: 'ticking', violet: 'blush', hoya: 'speckled', orchid: 'cream', calathea: 'midnight', strawberry: 'terracotta', catnip: 'tincan', lavender: 'speckled', xmascactus: 'rosy', sunflower: 'terracotta', snakeplant: 'cream', monstera: 'terracotta', catgrass: 'mug' };
+
 function speciesFrom(params: URLSearchParams): PlantSpeciesId[] {
   const picked = (params.get('species')?.split(',') ?? []).filter((s): s is PlantSpeciesId => SPECIES.includes(s as PlantSpeciesId));
   return picked.length ? picked : SPECIES;
 }
 
-function potFrom(params: URLSearchParams, fallback: PotId = 'terracotta'): PotId {
+function potFor(params: URLSearchParams, sp: PlantSpeciesId): PotId {
   const p = params.get('pot') as PotId | null;
-  return p && POT_IDS.includes(p) ? p : fallback;
+  return p && POT_IDS.includes(p) ? p : (HOME_POT[sp] ?? 'terracotta');
 }
 
 const speciesName = (s: PlantSpeciesId) => PLANTS.find((p) => p.plant === s)?.name ?? s;
+const potName = (p: PotId) => POTS.find((x) => x.pot === p)?.name ?? p;
 
-const matrixStyle = (cols: number, cell: number): JSX.CSSProperties => ({
+const label: JSX.CSSProperties = { fontSize: '12px', fontWeight: 700, color: 'var(--ink-2)' };
+const tile: JSX.CSSProperties = { background: 'var(--card)', borderRadius: '14px', boxShadow: 'var(--shadow-sm)', display: 'grid', placeItems: 'center' };
+/** A lamplit panel, so the night art is seen against the night it was drawn for. */
+const nightTile: JSX.CSSProperties = { ...tile, background: '#2D2733' };
+
+const grid = (cols: number, cell: number, head = 104): JSX.CSSProperties => ({
   display: 'grid',
-  gridTemplateColumns: `96px repeat(${cols}, ${cell}px)`,
+  gridTemplateColumns: `${head}px repeat(${cols}, ${cell}px)`,
   gap: '6px',
   alignItems: 'center',
 });
 
-const label: JSX.CSSProperties = { fontSize: '12px', fontWeight: 700, color: 'var(--ink-2)' };
-const tile: JSX.CSSProperties = { background: 'var(--card)', borderRadius: '14px', boxShadow: 'var(--shadow-sm)', display: 'grid', placeItems: 'center' };
-
 function Matrix({ params }: { params: URLSearchParams }) {
-  const pot = potFrom(params);
-  const size = Number(params.get('size')) || 88;
-  const progress = Number(params.get('progress') ?? 0.35);
+  const size = Number(params.get('size')) || 120;
+  const progress = Number(params.get('progress') ?? 0.5);
   const stages = params.get('stages')?.split(',').map(Number) ?? STAGES;
-  // Narrow columns only fit the stage number; the full names go in a legend underneath.
-  const compact = size < 80;
   return (
-    <div>
-      <div style={matrixStyle(stages.length, size + 8)}>
-        <span />
-        {stages.map((s) => (
-          <small key={s} style={{ ...label, textAlign: 'center' }} title={PLANT_STAGE_NAMES[s]}>
-            {compact ? s : `${s} · ${PLANT_STAGE_NAMES[s]}`}
-          </small>
-        ))}
-        {speciesFrom(params).map((sp) => (
-          <Fragment key={sp}>
-            <b style={label}>{speciesName(sp)}</b>
-            {stages.map((s) => (
-              <div key={`${sp}${s}`} style={{ ...tile, padding: '4px' }}>
-                <PlantArt species={sp} stage={s} progress={progress} pot={pot} size={size} title={`${speciesName(sp)}, ${PLANT_STAGE_NAMES[s]}`} />
-              </div>
-            ))}
-          </Fragment>
-        ))}
-      </div>
-      {compact && <p style={{ ...label, marginTop: '8px' }}>{stages.map((s) => `${s} ${PLANT_STAGE_NAMES[s]}`).join(' · ')}</p>}
-    </div>
-  );
-}
-
-const PROGRESS = [0, 0.5, 0.95];
-
-function ProgressDemo({ params }: { params: URLSearchParams }) {
-  const pot = potFrom(params);
-  return (
-    <div style={matrixStyle(7, 156)}>
+    <div style={grid(stages.length, size + 8)}>
       <span />
-      {STAGES.slice(0, 7).map((s) => (
+      {stages.map((s) => (
         <small key={s} style={{ ...label, textAlign: 'center' }}>
-          {PLANT_STAGE_NAMES[s]}
+          {s} · {PLANT_STAGE_NAMES[s]}
         </small>
       ))}
       {speciesFrom(params).map((sp) => (
         <Fragment key={sp}>
           <b style={label}>{speciesName(sp)}</b>
-          {STAGES.slice(0, 7).map((s) => (
-            <div key={`${sp}${s}`} style={{ ...tile, display: 'flex', justifyContent: 'center', padding: '2px' }}>
-              {PROGRESS.map((p) => (
-                <PlantArt key={p} species={sp} stage={s} progress={p} pot={pot} size={50} title={`${PLANT_STAGE_NAMES[s]} at ${p * 100}%`} />
-              ))}
+          {stages.map((s) => (
+            <div key={`${sp}${s}`} style={{ ...tile, padding: '4px' }}>
+              <PlantArt species={sp} stage={s} progress={progress} pot={potFor(params, sp)} size={size} title={`${speciesName(sp)}, ${PLANT_STAGE_NAMES[s]}`} />
+            </div>
+          ))}
+        </Fragment>
+      ))}
+    </div>
+  );
+}
+
+/** Lamplight: each species at the stages that change most, on a lamplit panel. */
+function NightRow({ params }: { params: URLSearchParams }) {
+  const size = Number(params.get('size')) || 120;
+  const stages = params.get('stages')?.split(',').map(Number) ?? [1, 3, 5, 7];
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: `repeat(auto-fill, minmax(${(size + 8) * stages.length + 16}px, 1fr))`, gap: '10px' }}>
+      {speciesFrom(params).map((sp) => (
+        <div key={sp} style={{ ...nightTile, padding: '8px', gap: '4px' }}>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            {stages.map((s) => (
+              <PlantArt key={s} species={sp} stage={s} progress={0.5} pot={potFor(params, sp)} size={size} light={NIGHT_LIGHT} title={`${speciesName(sp)}, ${PLANT_STAGE_NAMES[s]}, lamplight`} />
+            ))}
+          </div>
+          <small style={{ ...label, color: '#CFC5C9' }}>{speciesName(sp)}</small>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function LightDemo({ params }: { params: URLSearchParams }) {
+  const size = Number(params.get('size')) || 150;
+  const picked = params.get('species') ? speciesFrom(params) : (['pothos', 'begonia', 'calathea', 'sunflower'] as PlantSpeciesId[]);
+  const stage = Number(params.get('stage') ?? 6);
+  return (
+    <div style={grid(LIGHTS.length, size + 8, 120)}>
+      <span />
+      {LIGHTS.map((l) => (
+        <small key={l.label} style={{ ...label, textAlign: 'center' }}>
+          {l.label}
+        </small>
+      ))}
+      {picked.map((sp) => (
+        <Fragment key={sp}>
+          <b style={label}>{speciesName(sp)}</b>
+          {LIGHTS.map((l) => (
+            <div key={l.label} style={{ ...(l.light.night ? nightTile : tile), padding: '4px' }}>
+              <PlantArt species={sp} stage={stage} progress={0.6} pot={potFor(params, sp)} size={size} light={l.light} title={`${speciesName(sp)}, ${l.label.toLowerCase()}`} />
+            </div>
+          ))}
+        </Fragment>
+      ))}
+    </div>
+  );
+}
+
+function PotsDemo({ params }: { params: URLSearchParams }) {
+  const size = Number(params.get('size')) || 104;
+  return (
+    <div style={grid(LIGHTS.length + 1, size + 8, 132)}>
+      <span />
+      {LIGHTS.map((l) => (
+        <small key={l.label} style={{ ...label, textAlign: 'center' }}>
+          {l.label}
+        </small>
+      ))}
+      <small style={{ ...label, textAlign: 'center' }}>Damp · 40 px</small>
+      {POT_IDS.map((pot) => (
+        <Fragment key={pot}>
+          <b style={label}>{potName(pot)}</b>
+          {LIGHTS.map((l) => (
+            <div key={l.label} style={{ ...(l.light.night ? nightTile : tile), padding: '4px' }}>
+              <PotArt pot={pot} size={size} light={l.light} title={`${potName(pot)}, ${l.label.toLowerCase()}`} />
+            </div>
+          ))}
+          <div style={{ ...tile, padding: '4px', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', gap: '6px', height: `${size + 8}px` }}>
+            <PotArt pot={pot} size={Math.round(size * 0.6)} damp />
+            <PotArt pot={pot} size={40} />
+          </div>
+        </Fragment>
+      ))}
+    </div>
+  );
+}
+
+/** Demo habits at card size (DESIGN §9.1): the plant at 40 px beside the name and the anchor. */
+const CARD_DEMO: { name: string; note: string; line: string; species: PlantSpeciesId; stage: number; pot: PotId; done?: boolean }[] = [
+  { name: 'Drink water', note: 'after coffee', line: '5 of 8 glasses', species: 'pilea', stage: 5, pot: 'ticking' },
+  { name: 'Walk', note: 'after lunch', line: '26 of the last 30 days', species: 'monstera', stage: 6, pot: 'terracotta', done: true },
+  { name: 'Read', note: 'before bed', line: '12 days', species: 'begonia', stage: 5, pot: 'cream' },
+  { name: 'Stretch', note: 'after the alarm', line: 'Resting today', species: 'snakeplant', stage: 4, pot: 'cream' },
+  { name: 'Yoga', note: 'Tuesdays', line: 'Rooting', species: 'pothos', stage: 1, pot: 'blush' },
+  { name: 'Journal', note: 'with tea', line: 'Just planted', species: 'violet', stage: 0, pot: 'blush' },
+  { name: 'Take vitamins', note: 'with breakfast', line: '2 of 3 this week', species: 'catgrass', stage: 3, pot: 'mug', done: true },
+  { name: 'Meditate', note: 'first thing', line: '41 days', species: 'orchid', stage: 7, pot: 'speckled' },
+  { name: 'Call family', note: 'Sundays', line: '3 of the last 4 weeks', species: 'hoya', stage: 6, pot: 'teacup' },
+  { name: 'Practice a hobby', note: 'evenings', line: '9 of the last 10 days', species: 'strawberry', stage: 6, pot: 'terracotta' },
+  { name: 'In bed by 11', note: 'lights out', line: '14 days', species: 'calathea', stage: 5, pot: 'midnight' },
+  { name: 'Skincare', note: 'before bed', line: 'First bud showing', species: 'tulip', stage: 4, pot: 'rosy' },
+  { name: 'Water the plants', note: 'Saturdays', line: '5 of the last 6 weeks', species: 'lavender', stage: 5, pot: 'speckled' },
+  { name: 'Tidy for 10 min', note: 'after dinner', line: '12 in a row', species: 'catnip', stage: 5, pot: 'tincan' },
+  { name: 'No-spend day', note: 'weekdays', line: 'Kept it up 8 days', species: 'xmascactus', stage: 5, pot: 'gourd' },
+  { name: 'Go outside', note: 'at noon', line: '20 of the last 30 days', species: 'sunflower', stage: 5, pot: 'eggshell' },
+];
+
+/**
+ * Today cards frame the plant as an icon (`fit="icon"`): cropped to the stage, so a cutting in its glass fills the
+ * 40 px tile as fully as an Evergreen. `&fit=scene` shows the old full-canvas framing for comparison.
+ */
+function HabitCards({ params }: { params: URLSearchParams }) {
+  const size = Number(params.get('size')) || 40;
+  const fit = params.get('fit') === 'scene' ? 'scene' : 'icon';
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '10px' }}>
+      {CARD_DEMO.map((c) => (
+        <div key={c.name} style={{ ...tile, display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 14px', border: '1px solid var(--line)' }}>
+          <PlantArt species={c.species} stage={c.stage} progress={0.5} pot={c.pot} size={size} damp={c.done} fit={fit} title={`${speciesName(c.species)}, ${PLANT_STAGE_NAMES[c.stage]}`} />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontFamily: 'var(--font-display)', fontSize: '19px', lineHeight: 1.15 }}>{c.name}</div>
+            <div style={{ fontFamily: 'var(--font-display)', fontStyle: 'italic', fontSize: '14px', color: 'var(--ink-2)' }}>{c.note}</div>
+            <div style={{ fontSize: '13px', color: 'var(--ink-2)', fontWeight: 600 }}>{c.line}</div>
+          </div>
+          <span aria-hidden style={{ width: '40px', height: '40px', flex: 'none', borderRadius: '50%', background: c.done ? 'var(--sky-500)' : 'transparent', border: c.done ? 'none' : '2px solid var(--control-border)' }} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** Small-size tests: the same plants at 64, 32 and 20 px, framed as icons (`&fit=scene` for the full canvas). */
+function SmallSizes({ params }: { params: URLSearchParams }) {
+  const stage = Number(params.get('stage') ?? 5);
+  const fit = params.get('fit') === 'scene' ? 'scene' : 'icon';
+  return (
+    <div class="gal-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))' }}>
+      {speciesFrom(params).map((sp) => (
+        <div class="gal-cell" key={sp}>
+          <div class="gal-row" style={{ gap: '6px', alignItems: 'flex-end' }}>
+            {[64, 32, 20].map((s) => (
+              <PlantArt key={s} species={sp} stage={stage} progress={0.5} pot={potFor(params, sp)} size={s} fit={fit} />
+            ))}
+          </div>
+          <small>{speciesName(sp)}</small>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** The water glass close up: stage 0 and 1 at the start, middle and end of each stage, beside the empty pot it will go in (`&pot=none` hides it). */
+function GlassDemo({ params }: { params: URLSearchParams }) {
+  const size = Number(params.get('size')) || 180;
+  const steps: [number, number][] = [
+    [0, 0],
+    [0, 0.9],
+    [1, 0],
+    [1, 0.5],
+    [1, 0.95],
+  ];
+  return (
+    <div style={grid(steps.length, size + 8, 120)}>
+      <span />
+      {steps.map(([s, p]) => (
+        <small key={`${s}${p}`} style={{ ...label, textAlign: 'center' }}>
+          {PLANT_STAGE_NAMES[s]} · {Math.round(p * 100)}%
+        </small>
+      ))}
+      {speciesFrom(params).map((sp) => (
+        <Fragment key={sp}>
+          <b style={label}>{speciesName(sp)}</b>
+          {steps.map(([s, p]) => (
+            <div key={`${s}${p}`} style={{ ...tile, padding: '4px' }}>
+              <PlantArt species={sp} stage={s} progress={p} pot={potFor(params, sp)} withPot={params.get('pot') !== 'none'} size={size} title={`${speciesName(sp)}, ${PLANT_STAGE_NAMES[s]}`} />
             </div>
           ))}
         </Fragment>
@@ -100,40 +249,19 @@ function ProgressDemo({ params }: { params: URLSearchParams }) {
 }
 
 function BloomsDemo({ params }: { params: URLSearchParams }) {
-  const pot = potFrom(params, 'cream');
-  const size = Number(params.get('size')) || 104;
+  const size = Number(params.get('size')) || 110;
+  const stage = Number(params.get('stage') ?? 6);
   return (
-    <div class="gal-grid" style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${size * 3 + 28}px, 1fr))` }}>
+    <div class="gal-grid" style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${size * 4 + 40}px, 1fr))` }}>
       {speciesFrom(params).map((sp) => (
         <div class="gal-cell" key={sp}>
           <div class="gal-row" style={{ gap: '4px' }}>
-            {[0, 3, 6].map((b) => (
-              <PlantArt key={b} species={sp} stage={7} blooms={b} pot={pot} size={size} animated />
+            {[0, 2, 4, 6].map((b) => (
+              <PlantArt key={b} species={sp} stage={stage} blooms={b} pot={potFor(params, sp)} size={size} />
             ))}
           </div>
-          <b>{speciesName(sp)}</b>
-          <small>Evergreen · blooms 0 / 3 / 6</small>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function PotsDemo({ params }: { params: URLSearchParams }) {
-  const size = Number(params.get('size')) || 96;
-  return (
-    <div class="gal-grid" style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${size * 3 + 72}px, 1fr))` }}>
-      {POTS.map((p) => (
-        <div class="gal-cell" key={p.id}>
-          <div class="gal-row" style={{ gap: '6px', flexWrap: 'nowrap' }}>
-            <PotArt pot={p.pot} size={size} title={p.name} />
-            <PlantArt species="tulip" stage={5} progress={0.5} pot={p.pot} size={size} />
-            <PlantArt species="begonia" stage={7} pot={p.pot} size={size} title={`Evergreen daisy in the ${p.name}`} />
-            <PotArt pot={p.pot} size={40} />
-          </div>
-          <b>{p.name}</b>
           <small>
-            {p.pot} · {p.rarity}
+            {speciesName(sp)} · {PLANT_STAGE_NAMES[stage]} · blooms 0, 2, 4, 6
           </small>
         </div>
       ))}
@@ -141,112 +269,86 @@ function PotsDemo({ params }: { params: URLSearchParams }) {
   );
 }
 
-/** Demo habits whose subtitles match their growth stage (DESIGN §5.5 thresholds for a daily habit). */
-const CARD_DEMO: { name: string; sub: string; species: PlantSpeciesId; stage: number; pot: PotId; blooms?: number; done?: boolean }[] = [
-  { name: 'Drink water', sub: '2 weeks', species: 'monstera', stage: 3, pot: 'cream' },
-  { name: 'Take vitamins', sub: '7 weeks', species: 'pilea', stage: 5, pot: 'blush', done: true },
-  { name: 'Go for a walk', sub: '3 months', species: 'sunflower', stage: 6, pot: 'terracotta', done: true },
-  { name: 'Stretch', sub: 'Day 2', species: 'tulip', stage: 1, pot: 'mug' },
-  { name: 'Yoga', sub: '1 of 2 this week', species: 'lavender', stage: 4, pot: 'speckled' },
-  { name: 'In bed by 11', sub: '8 weeks', species: 'pothos', stage: 5, pot: 'midnight' },
-  { name: 'Read', sub: '7 months', species: 'begonia', stage: 7, blooms: 2, pot: 'ticking', done: true },
-  { name: 'Strength training', sub: '2 of 3 this week', species: 'snakeplant', stage: 2, pot: 'tincan' },
-  { name: 'Practice a hobby', sub: 'Just planted', species: 'strawberry', stage: 0, pot: 'rosy' },
-  { name: 'Meal prep', sub: '4 months', species: 'catnip', stage: 6, pot: 'gourd' },
-  { name: 'Journal', sub: '9 weeks', species: 'hoya', stage: 5, pot: 'eggshell' },
-  { name: 'Water the plants', sub: '6 months', species: 'calathea', stage: 7, pot: 'mug' },
-];
-
-function HabitCards() {
-  return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '10px' }}>
-      {CARD_DEMO.map((c) => (
-        <div key={c.name} style={{ ...tile, display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', borderRadius: '22px' }}>
-          <PlantArt species={c.species} stage={c.stage} progress={0.4} blooms={c.blooms} pot={c.pot} size={40} animated />
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontWeight: 700 }}>{c.name}</div>
-            <div style={{ fontSize: '13px', color: 'var(--ink-2)' }}>
-              {PLANT_STAGE_NAMES[c.stage]} · {c.sub}
-            </div>
-          </div>
-          <span
-            aria-hidden
-            style={{
-              width: '40px',
-              height: '40px',
-              borderRadius: '50%',
-              background: c.done ? 'var(--sage-500)' : 'var(--bg-2)',
-              border: c.done ? 'none' : '2px solid var(--line)',
-            }}
-          />
-        </div>
-      ))}
-    </div>
-  );
-}
-
-/** Interactive: water plants to replay the wiggle + droplets (needs motion; shoot with --motion). */
+/** Interactive: water the plants to replay the leaf lift and the glint (shoot with --motion). */
 function WaterDemo() {
   const [pulse, setPulse] = useState(0);
+  const row: [PlantSpeciesId, number, PotId][] = [
+    ['pothos', 1, 'terracotta'],
+    ['pilea', 3, 'ticking'],
+    ['begonia', 5, 'cream'],
+    ['monstera', 6, 'terracotta'],
+    ['tulip', 5, 'rosy'],
+    ['catgrass', 0, 'mug'],
+  ];
   return (
     <div class="gal-cell" style={{ alignItems: 'flex-start' }}>
-      <button
-        type="button"
-        onClick={() => setPulse((p) => p + 1)}
-        style={{ padding: '8px 16px', borderRadius: '99px', background: 'var(--sky-300)', fontWeight: 700 }}
-      >
+      <button type="button" onClick={() => setPulse((p) => p + 1)} style={{ padding: '8px 16px', borderRadius: '99px', background: 'var(--sky-300)', fontWeight: 700 }}>
         Water them ({pulse})
       </button>
-      <div class="gal-row" style={{ width: '100%' }}>
-        {(['tulip', 'sunflower', 'succulent', 'lemon', 'mushroom'] as PlantSpeciesId[]).map((sp, i) => (
-          <PlantArt key={sp} species={sp} stage={i + 3} pot={POT_IDS[i]!} size={140} pulse={pulse} animated />
+      <div class="gal-row">
+        {row.map(([sp, s, pot]) => (
+          <PlantArt key={sp} species={sp} stage={s} progress={0.5} pot={pot} size={140} pulse={pulse} animated />
         ))}
-        <PlantArt species="begonia" stage={0} progress={0.8} pot="mug" size={140} pulse={pulse} animated />
       </div>
-      <div class="gal-row" style={{ width: '100%' }}>
-        {(['tulip', 'sunflower', 'succulent', 'lemon', 'mushroom', 'daisy'] as PlantSpeciesId[]).map((sp, i) => (
-          <PlantArt key={sp} species={sp} stage={i + 2} pot={POT_IDS[i + 4]!} size={40} pulse={pulse} animated />
+      <div class="gal-row">
+        {row.map(([sp, s, pot]) => (
+          <PlantArt key={sp} species={sp} stage={s} progress={0.5} pot={pot} size={40} pulse={pulse} animated fit="icon" />
         ))}
       </div>
     </div>
   );
 }
 
-function TreatsDemo({ params }: { params: URLSearchParams }) {
-  const size = Number(params.get('size')) || 96;
-  const picked = params.get('treats')?.split(',');
-  const treats = picked ? TREATS.filter((t) => picked.some((p) => t.id === `treat-${p}`)) : TREATS;
+function Panel({ children, dark }: { children: ComponentChildren; dark?: boolean }) {
+  return <div style={{ ...(dark ? nightTile : tile), padding: '16px 20px', display: 'flex', flexWrap: 'wrap', alignItems: 'flex-end', gap: '18px' }}>{children}</div>;
+}
+
+/** Size of the plants the demo tags stand in. */
+const TAG_PLANT = 160;
+
+function TagsDemo() {
   return (
-    <div class="gal-grid" style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${size + 64}px, 1fr))` }}>
-      {treats.map((t) => {
-        const Art = TREAT_ART[t.id];
-        return (
-          <div class="gal-cell" key={t.id}>
-            <div class="gal-row" style={{ gap: '6px' }}>
-              <svg viewBox="0 0 100 100" width={size} height={size} role="img" aria-label={t.name}>
-                {Art ? <Art /> : null}
-              </svg>
-              <svg viewBox="0 0 100 100" width={40} height={40} aria-hidden>
-                {Art ? <Art /> : null}
-              </svg>
+    <div style={{ display: 'grid', gap: '12px' }}>
+      <Panel>
+        <PlantTag name="Read" size={11} />
+        <PlantTag name="Drink water" note="after coffee" size={14} />
+        <PlantTag name="Walk" note="after lunch" size={18} />
+        <PlantTag name="Journal" note="with tea" size={24} />
+        <PlantTag name="Stretch" note="after the alarm" size={14} stand="propped" />
+        <PlantTag name="Water the fern on the landing, and the one by the door" note="every other Saturday morning, before the market" size={14} />
+      </Panel>
+      <Panel>
+        {(['begonia', 'pilea', 'pothos'] as PlantSpeciesId[]).map((sp, i) => {
+          // The stake's foot lands on the soil line (tagAnchor), so the tag stands in the pot, not in mid-air.
+          const pot = HOME_POT[sp] ?? 'terracotta';
+          const at = tagAnchor(pot);
+          const px = TAG_PLANT / 100;
+          return (
+            <div key={sp} style={{ position: 'relative', width: `${TAG_PLANT}px`, height: `${TAG_PLANT}px` }}>
+              <PlantArt species={sp} stage={i + 3} progress={0.5} pot={pot} size={TAG_PLANT} />
+              <PlantTag name={['Read', 'Drink water', 'Walk'][i]!} size={10} style={{ position: 'absolute', left: `${at.x * px}px`, bottom: `${TAG_PLANT - at.y * px}px`, transform: 'translateX(-50%)' }} />
             </div>
-            <b>{t.name}</b>
-            <small>
-              {t.rarity} · {t.source}
-            </small>
-          </div>
-        );
-      })}
+          );
+        })}
+      </Panel>
+      <Panel dark>
+        <PlantTag name="In bed by 11" note="lights out" size={14} />
+        <PlantTag name="Read" size={18} />
+        <PlantArt species="calathea" stage={5} pot="midnight" size={120} light={NIGHT_LIGHT} />
+      </Panel>
     </div>
   );
 }
 
 export const SECTIONS: GallerySection[] = [
-  { id: 'garden-matrix', title: 'Garden: every species × every stage', render: (params) => <Matrix params={params} /> },
-  { id: 'garden-progress', title: 'Garden: progress within a stage (0 / .5 / .95)', render: (params) => <ProgressDemo params={params} /> },
-  { id: 'garden-blooms', title: 'Garden: Evergreen blooms (0 / 3 / 6)', render: (params) => <BloomsDemo params={params} /> },
-  { id: 'garden-pots', title: 'Garden: pots alone, with a Blooming tulip, with an Evergreen daisy (ribbon + charm), and at 40px', render: (params) => <PotsDemo params={params} /> },
-  { id: 'garden-cards', title: 'Garden: 40px habit-card row', render: () => <HabitCards /> },
-  { id: 'garden-water', title: 'Garden: watering (tap to replay)', render: () => <WaterDemo /> },
-  { id: 'garden-treats', title: 'Garden: treats at 96px and 40px', render: (params) => <TreatsDemo params={params} /> },
+  { id: 'garden-matrix', title: 'Plants: every species × every stage, window light (120 px)', render: (params) => <Matrix params={params} /> },
+  { id: 'garden-night', title: 'Plants: lamplight (Rooting, Leafy, Blooming, Evergreen)', render: (params) => <NightRow params={params} /> },
+  { id: 'garden-light', title: 'Plants: the window on the left, overhead, on the right, and the lamp', render: (params) => <LightDemo params={params} /> },
+  { id: 'garden-pots', title: 'Pots: every pot in every light, damp soil, and at 40 px', render: (params) => <PotsDemo params={params} /> },
+  { id: 'garden-cards', title: 'Plants at card size (40 px)', render: (params) => <HabitCards params={params} /> },
+  { id: 'garden-small', title: 'Plants at 64, 32 and 20 px', render: (params) => <SmallSizes params={params} /> },
+  { id: 'garden-glass', title: 'The water glass: Cutting and Rooting, close up, beside the empty pot', render: (params) => <GlassDemo params={params} /> },
+  { id: 'garden-blooms', title: 'Blooms: 0, 2, 4 and 6 showing', render: (params) => <BloomsDemo params={params} /> },
+  { id: 'garden-water', title: 'Watering: a leaf lift and a glint on damp soil (tap to replay)', render: () => <WaterDemo /> },
+  { id: 'garden-tags', title: 'Plant tags', render: () => <TagsDemo /> },
 ];
