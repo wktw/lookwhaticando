@@ -1,0 +1,187 @@
+/* Capsule machine art. Transforms are in the machine's 240×350 view-box units. */
+.machine {
+  display: block;
+  overflow: visible;
+  flex: none;
+}
+
+.machine-price {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- crank ---- */
+.machine-crank-glow {
+  opacity: 0;
+  transition: opacity var(--t-std, 280ms) ease;
+}
+
+.machine.is-ready .machine-crank-glow {
+  opacity: 0.85;
+  animation: machine-glow-pulse 1.3s ease-in-out infinite;
+}
+
+.machine.is-ready .machine-crank-wobble {
+  animation: machine-crank-wobble 1.6s var(--ease-in-out, ease-in-out) infinite;
+}
+
+.machine-flap {
+  transform-box: fill-box;
+  transform-origin: 50% 0;
+}
+
+/* ---- idle life ---- */
+.machine-tail {
+  transform-box: view-box;
+  transform-origin: 188px 292px;
+  animation: machine-tail 2.8s ease-in-out infinite alternate;
+}
+
+.machine-eye {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: machine-blink 5.2s linear infinite;
+}
+
+.machine-glow {
+  animation: machine-glow-pulse 3.6s ease-in-out infinite;
+}
+
+.machine-twinkle {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: machine-twinkle 2.4s ease-in-out infinite;
+}
+
+:nth-child(2n) > .machine-twinkle {
+  animation-delay: -0.8s;
+}
+
+:nth-child(3n) > .machine-twinkle {
+  animation-delay: -1.6s;
+}
+
+.machine-float {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: machine-float 3s ease-in-out infinite alternate;
+}
+
+:nth-child(2) > .machine-float {
+  animation-delay: -1.2s;
+}
+
+.machine-drop {
+  animation: machine-drop 1.4s ease-in infinite;
+}
+
+.machine-rain > :nth-child(2) .machine-drop {
+  animation-delay: -0.5s;
+}
+
+.machine-rain > :nth-child(3) .machine-drop {
+  animation-delay: -0.9s;
+}
+
+.machine-rain > :nth-child(4) .machine-drop {
+  animation-delay: -0.25s;
+}
+
+.machine-petal {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: machine-petal 4.6s ease-in-out infinite alternate;
+}
+
+@keyframes machine-glow-pulse {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes machine-crank-wobble {
+  0%,
+  55%,
+  100% {
+    transform: rotate(0deg);
+  }
+  65% {
+    transform: rotate(-14deg);
+  }
+  78% {
+    transform: rotate(10deg);
+  }
+  90% {
+    transform: rotate(-4deg);
+  }
+}
+
+@keyframes machine-tail {
+  from {
+    transform: rotate(-4deg);
+  }
+  to {
+    transform: rotate(6deg);
+  }
+}
+
+@keyframes machine-blink {
+  0%,
+  94%,
+  100% {
+    transform: scaleY(1);
+  }
+  97% {
+    transform: scaleY(0.12);
+  }
+}
+
+@keyframes machine-twinkle {
+  0%,
+  100% {
+    transform: scale(0.75);
+    opacity: 0.7;
+  }
+  50% {
+    transform: scale(1.1);
+    opacity: 1;
+  }
+}
+
+@keyframes machine-float {
+  from {
+    transform: translateY(0) rotate(-6deg);
+  }
+  to {
+    transform: translateY(-5px) rotate(6deg);
+  }
+}
+
+@keyframes machine-drop {
+  0% {
+    transform: translateY(-4px);
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(16px);
+    opacity: 0;
+  }
+}
+
+@keyframes machine-petal {
+  from {
+    transform: translate(0, 0) rotate(-12deg);
+  }
+  to {
+    transform: translate(4px, 7px) rotate(24deg);
+  }
+}

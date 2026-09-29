@@ -1,0 +1,369 @@
+.lead {
+  margin-bottom: 16px;
+  color: var(--ink-2);
+  font-weight: 600;
+}
+
+/* ---------- series lineup poster ---------- */
+.poster {
+  position: relative;
+  margin-bottom: 18px;
+  padding: 18px 20px 20px;
+  border-radius: var(--r-lg);
+  background:
+    radial-gradient(circle at 12px 12px, rgba(255, 255, 255, 0.55) 2px, transparent 2.5px) 0 0 / 22px 22px,
+    var(--poster);
+  box-shadow: inset 0 0 0 2px var(--poster-edge);
+  color: var(--poster-ink);
+  text-align: center;
+}
+
+.posterKicker {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: var(--fs-micro);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.posterTitle {
+  margin-top: 2px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: var(--fs-title);
+  line-height: 1.1;
+}
+
+.posterCount {
+  display: inline-block;
+  margin-top: 8px;
+  padding: 3px 12px;
+  border-radius: var(--r-pill);
+  background: rgba(255, 255, 255, 0.75);
+  font-weight: 700;
+  font-size: var(--fs-caption);
+}
+
+.group + .group {
+  margin-top: 18px;
+}
+
+.groupHead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+  font-size: var(--fs-body);
+}
+
+.groupOdds {
+  color: var(--ink-2);
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-size: var(--fs-caption);
+}
+
+.lineup {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 6px 10px;
+  border-radius: var(--r-md);
+  text-align: center;
+}
+
+.owned {
+  background: var(--card);
+  box-shadow: var(--shadow-sm);
+}
+
+.missing {
+  background: var(--bg-2);
+}
+
+.tileArt {
+  display: grid;
+  place-items: center;
+  width: 68px;
+  height: 68px;
+}
+
+.tileName {
+  font-size: var(--fs-micro);
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.missing .tileName {
+  color: var(--ink-2);
+}
+
+.count {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  padding: 1px 7px;
+  border-radius: var(--r-pill);
+  background: var(--blush-100);
+  color: var(--blush-700);
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: var(--fs-micro);
+}
+
+.secretTile {
+  grid-column: span 2;
+  background:
+    linear-gradient(var(--card), var(--card)) padding-box,
+    var(--holo) border-box;
+  border: 3px solid transparent;
+}
+
+.secretMark {
+  display: grid;
+  place-items: center;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: var(--holo);
+  color: #4a3540;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 2rem;
+  box-shadow: inset 0 -4px 0 rgba(74, 53, 64, 0.12);
+}
+
+/* ---------- odds ---------- */
+.odds {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  border-radius: var(--r-md);
+  background: var(--card);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+  font-size: var(--fs-caption);
+}
+
+.odds th,
+.odds td {
+  padding: 10px 14px;
+  text-align: left;
+  font-weight: 700;
+}
+
+.odds thead th {
+  color: var(--ink-2);
+  font-size: var(--fs-micro);
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  background: var(--bg-2);
+}
+
+.odds tbody tr + tr > * {
+  border-top: 1px solid var(--line);
+}
+
+.odds td:nth-child(2) {
+  font-size: var(--fs-body-lg);
+}
+
+.promises {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 18px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.promises li {
+  display: flex;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: var(--r-md);
+  background: var(--card);
+  color: var(--ink-2);
+  font-size: var(--fs-caption);
+}
+
+.promises li > span {
+  font-size: 1.25rem;
+  line-height: 1.2;
+}
+
+.promises b {
+  color: var(--ink);
+}
+
+/* ---------- wishing well ---------- */
+.filters {
+  display: flex;
+  gap: 8px;
+  margin: 0 calc(-1 * var(--gutter)) 10px;
+  padding: 2px var(--gutter);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.filters::-webkit-scrollbar {
+  display: none;
+}
+
+.chip {
+  flex: none;
+  min-height: 44px;
+  padding: 8px 14px;
+  border-radius: var(--r-pill);
+  background: var(--card);
+  color: var(--ink-2);
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: var(--fs-caption);
+  box-shadow: inset 0 0 0 1.5px var(--line);
+  transition:
+    background var(--t-micro) ease,
+    color var(--t-micro) ease;
+}
+
+.chipOn {
+  background: var(--lavender-300);
+  color: var(--ink);
+  box-shadow: inset 0 0 0 1.5px var(--lavender-500);
+}
+
+.empty {
+  padding: 32px 12px;
+  color: var(--ink-2);
+  font-weight: 700;
+  text-align: center;
+}
+
+.wishGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 10px;
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.wishTile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  height: 100%;
+  padding: 10px 6px;
+  border-radius: var(--r-md);
+  background: var(--card);
+  box-shadow: var(--shadow-sm);
+  text-align: center;
+  transition: transform var(--t-micro) var(--ease-out);
+}
+
+.wishTile:active {
+  transform: scale(0.96);
+}
+
+.wishPicked {
+  box-shadow:
+    0 0 0 3px var(--lavender-500),
+    var(--shadow-sm);
+}
+
+.wishArt {
+  width: 64px;
+  height: 64px;
+}
+
+.wishPrice {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-top: auto;
+  padding: 1px 8px 1px 4px;
+  border-radius: var(--r-pill);
+  background: var(--butter-100);
+  color: var(--butter-700);
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: var(--fs-caption);
+}
+
+.confirm {
+  position: sticky;
+  /* The sticky edge sits inside the sheet body's bottom padding; reach past it. */
+  bottom: calc(-1 * var(--s-6));
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 8px 12px;
+  margin: 16px calc(-1 * var(--gutter)) calc(-1 * var(--s-6));
+  padding: 14px var(--gutter) calc(14px + var(--safe-bottom));
+  border-radius: var(--r-lg) var(--r-lg) 0 0;
+  background: var(--card);
+  box-shadow: 0 -10px 30px -12px rgba(74, 53, 64, 0.35);
+  animation: confirm-in var(--t-std) var(--ease-out);
+}
+
+.confirmArt {
+  width: 64px;
+  height: 64px;
+}
+
+.confirmTitle {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: var(--fs-body-lg);
+}
+
+.confirmMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  margin-top: 4px;
+  color: var(--ink-2);
+  font-size: var(--fs-caption);
+  font-weight: 700;
+}
+
+.confirmMeta > span:last-child {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.confirmError {
+  margin-top: 6px;
+  color: var(--ink-2);
+  font-size: var(--fs-caption);
+  font-weight: 600;
+}
+
+.confirmActions {
+  display: flex;
+  grid-column: 1 / -1;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+@keyframes confirm-in {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+}

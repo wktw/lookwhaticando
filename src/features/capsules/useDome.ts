@@ -1,0 +1,100 @@
+import { useEffect, useRef, useState } from 'preact/hooks';
+import type { MachineDef, MachineId } from '@/catalog/types';
+import type { DomeBody, DomeSim } from '@/fx/physics';
+import { createMachineSim } from '@/art/machines/pile';
+import { capsuleTransforms, type CapsuleNodes } from '@/art/machines/DomeCapsules';
+
+/** One sim per machine for the whole session, so a machine keeps its pile across swipes and tabs. */
+const sims = new Map<MachineId, DomeSim>();
+
+export function machineSim(machine: MachineDef): DomeSim {
+  let sim = sims.get(machine.id);
+  if (!sim) {
+    sim = createMachineSim(machine);
+    sims.set(machine.id, sim);
+  }
+  return sim;
+}
+
+export interface DomeController {
+  sim: DomeSim;
+  /** Capsules to render (changes only when one leaves or arrives). */
+  bodies: readonly DomeBody[];
+  register: (id: number, nodes: CapsuleNodes | null) => void;
+  stir: (strength: number, swirl?: number) => void;
+  /** Take the capsule over the exit; returns it for the drop animation. */
+  release: () => DomeBody | null;
+  refill: () => void;
+}
+
+/**
+ * Runs the dome physics while it is awake and the page is visible, writing each capsule's
+ * transform straight to its SVG nodes (never through Preact state), then goes idle.
+ */
+export function useDome(machine: MachineDef, active: boolean): DomeController {
+  const sim = machineSim(machine);
+  const [bodies, setBodies] = useState<readonly DomeBody[]>(() => [...sim.bodies]);
+  const nodes = useRef(new Map<number, CapsuleNodes>()).current;
+  const loop = useRef({ raf: 0, last: 0 }).current;
+
+  const write = () => {
+    for (const b of sim.bodies) {
+      const n = nodes.get(b.id);
+      if (!n) continue;
+      const t = capsuleTransforms(b);
+      n.root.setAttribute('transform', t.root);
+      n.shell.setAttribute('transform', t.shell);
+    }
+  };
+
+  const frame = (now: number) => {
+    const dt = (now - loop.last) / 1000;
+    loop.last = now;
+    const awake = sim.step(dt);
+    write();
+    loop.raf = awake ? requestAnimationFrame(frame) : 0;
+  };
+
+  const kick = () => {
+    if (loop.raf || !active || document.hidden || !sim.awake) return;
+    loop.last = performance.now();
+    loop.raf = requestAnimationFrame(frame);
+  };
+
+  const stop = () => {
+    if (loop.raf) cancelAnimationFrame(loop.raf);
+    loop.raf = 0;
+  };
+
+  useEffect(() => {
+    if (!active) return;
+    const onVisibility = () => (document.hidden ? stop() : kick());
+    document.addEventListener('visibilitychange', onVisibility);
+    kick();
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility);
+      stop();
+    };
+  }, [active]);
+
+  return {
+    sim,
+    bodies,
+    register: (id, n) => (n ? nodes.set(id, n) : nodes.delete(id)),
+    stir: (strength, swirl = 0) => {
+      sim.agitate(strength, swirl);
+      kick();
+    },
+    release: () => {
+      const b = sim.removeOne();
+      setBodies([...sim.bodies]);
+      kick();
+      return b;
+    },
+    refill: () => {
+      sim.addOne();
+      setBodies([...sim.bodies]);
+      kick();
+    },
+  };
+}

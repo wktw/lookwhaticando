@@ -1,0 +1,278 @@
+/* Local UI primitives for the capsules module (the shared kit lands at merge). */
+
+/* ---------- Candy button: pastel face over a 4px lip ---------- */
+.candy {
+  --face: var(--blush-300);
+  --lip: var(--blush-500);
+  --ink: var(--ink);
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 10px 20px;
+  border-radius: var(--r-pill);
+  background: var(--face);
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: var(--fs-body-lg);
+  line-height: 1.1;
+  letter-spacing: 0.01em;
+  box-shadow:
+    0 4px 0 var(--lip),
+    0 10px 18px -10px rgba(74, 53, 64, 0.45);
+  transform: translateY(0);
+  transition:
+    transform var(--t-micro) var(--ease-out),
+    box-shadow var(--t-micro) var(--ease-out),
+    opacity var(--t-micro) ease;
+  white-space: nowrap;
+}
+
+.candy:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow:
+    0 5px 0 var(--lip),
+    0 12px 20px -10px rgba(74, 53, 64, 0.45);
+}
+
+.candy:active:not(:disabled) {
+  transform: translateY(3px);
+  box-shadow:
+    0 1px 0 var(--lip),
+    0 4px 8px -6px rgba(74, 53, 64, 0.4);
+}
+
+.candy:disabled {
+  opacity: 0.55;
+}
+
+.candy:focus-visible {
+  border-radius: var(--r-pill);
+}
+
+.lg {
+  min-height: 56px;
+  padding: 12px 26px;
+  font-size: 1.25rem;
+}
+
+.sm {
+  min-height: 44px;
+  padding: 8px 16px;
+  font-size: var(--fs-body);
+}
+
+.soft {
+  --face: var(--card);
+  --lip: var(--line);
+  --ink: var(--ink);
+}
+
+.plain {
+  --face: transparent;
+  --lip: transparent;
+  box-shadow: none;
+  color: var(--ink-2);
+}
+
+.plain:hover:not(:disabled),
+.plain:active:not(:disabled) {
+  box-shadow: none;
+  background: var(--bg-2);
+}
+
+/* ---------- Pills ---------- */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 28px;
+  padding: 3px 11px;
+  border-radius: var(--r-pill);
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: var(--fs-caption);
+  line-height: 1.1;
+  background: var(--bg-2);
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+
+.pill svg {
+  flex: none;
+}
+
+.common {
+  background: var(--sage-100);
+  color: var(--sage-700);
+}
+
+.uncommon {
+  background: var(--sky-100);
+  color: var(--sky-700);
+}
+
+.rare {
+  background: var(--lavender-100);
+  color: var(--lavender-700);
+}
+
+.ultra {
+  background: var(--holo);
+  color: #4a3540;
+}
+
+.butter {
+  background: var(--butter-100);
+  color: var(--butter-700);
+}
+
+.blush {
+  background: var(--blush-100);
+  color: var(--blush-700);
+}
+
+/* ---------- Sheet ---------- */
+.scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: var(--scrim);
+  animation: fade-in var(--t-std) ease both;
+}
+
+.sheet {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 640px;
+  max-height: min(88dvh, 880px);
+  border-radius: var(--r-xl) var(--r-xl) 0 0;
+  background: var(--bg);
+  box-shadow: var(--shadow-lg);
+  padding-bottom: var(--safe-bottom);
+  animation: sheet-in var(--t-slow) var(--ease-out) both;
+  outline: none;
+}
+
+.closing {
+  animation: fade-out var(--t-std) ease both;
+}
+
+.closing .sheet {
+  animation: sheet-out var(--t-std) var(--ease-in-out) both;
+}
+
+.grabber {
+  width: 40px;
+  height: 5px;
+  margin: 8px auto 0;
+  border-radius: 99px;
+  background: var(--line);
+}
+
+.sheetHead {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px var(--gutter) 12px;
+}
+
+.sheetTitle {
+  flex: 1;
+  font-size: var(--fs-headline);
+}
+
+.sheetBody {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0 var(--gutter) var(--s-6);
+  -webkit-overflow-scrolling: touch;
+}
+
+.iconButton {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--card);
+  color: var(--ink-2);
+  box-shadow: var(--shadow-sm);
+  transition: transform var(--t-micro) var(--ease-out);
+}
+
+.iconButton:active {
+  transform: scale(0.92);
+}
+
+@media (min-width: 700px) {
+  .scrim {
+    align-items: center;
+    padding: 24px;
+  }
+
+  .sheet {
+    border-radius: var(--r-xl);
+    max-height: min(84dvh, 820px);
+    animation-name: dialog-in;
+  }
+
+  .closing .sheet {
+    animation-name: dialog-out;
+  }
+
+  .grabber {
+    display: none;
+  }
+
+  .sheetHead {
+    padding-top: 18px;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes fade-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes sheet-in {
+  from {
+    transform: translateY(100%);
+  }
+}
+
+@keyframes sheet-out {
+  to {
+    transform: translateY(100%);
+  }
+}
+
+@keyframes dialog-in {
+  from {
+    transform: translateY(24px) scale(0.97);
+    opacity: 0;
+  }
+}
+
+@keyframes dialog-out {
+  to {
+    transform: translateY(16px) scale(0.98);
+    opacity: 0;
+  }
+}
