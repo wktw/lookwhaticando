@@ -346,7 +346,8 @@ function phraseHasSome(p: HabitPhrase): boolean {
 /**
  * Card status line (DESIGN §9.1.1, first match wins), as data; `statusLine()` words it:
  * resting "Resting today" · count in progress "5/8 glasses" · tiny logged "Tiny version ✓" ·
- * flexible "2 of 3 this week" (from the first watering of the period; nothing after it) /
+ * flexible "3 this week" before the period's first watering (once the plant is potted), then "2 of 3
+ * this week" (nothing after it) /
  * "Watered for the week ✓" · 3 or more in a row "12 days" ("12 in a row", "4 weeks in a row",
  * "Held off 12 days") · ≥ 10 expected "26 of the last 30 days" · a new plant "Rooting · 2 more to
  * pot up" while it roots, or "Just planted" while it is a cutting · otherwise the rolling phrase
@@ -354,13 +355,17 @@ function phraseHasSome(p: HabitPhrase): boolean {
  */
 export function cardSubtitle(i: SubtitleInput): StatusLine {
   if (i.rested) return { kind: 'rested' };
+  let plantMemo: PlantVM | undefined;
+  const plantOf = () => (plantMemo ??= i.plant ?? plantVM(i.s, i.habit, i.env.today, i.env.local));
   if (!i.flexible && i.target > 1 && i.count > 0 && i.count < i.target && i.status !== 'tiny') {
     return { kind: 'count', count: i.count, target: i.target, unit: i.habit.unit ?? null };
   }
   if (i.status === 'tiny') return { kind: 'tiny' };
   if (i.flexible && i.pace) {
     if (i.pace.met) return { kind: 'period-done', period: i.pace.period };
-    if (i.pace.checkins > 0) return { kind: 'period', count: Math.min(i.pace.checkins, i.pace.target), target: i.pace.target, period: i.pace.period, current: i.pace.current };
+    // An established plant says its rhythm from the period's first day, so the line keeps its kind
+    // when the first watering lands ("2 this week" → "1 of 2 this week"). A new plant says so first.
+    if (i.pace.checkins > 0 || (i.pace.current && plantOf().displayStage >= POTTED)) return { kind: 'period', count: Math.min(i.pace.checkins, i.pace.target), target: i.pace.target, period: i.pace.period, current: i.pace.current };
   }
   if (i.streak && i.streak.length >= 3) return { kind: 'streak', length: i.streak.length, unit: i.streak.unit, polarity: i.habit.polarity };
   const ctx = trackingCtx(i.s, i.env.today);
@@ -374,7 +379,7 @@ export function cardSubtitle(i: SubtitleInput): StatusLine {
     phrase = phraseOf();
     if (phrase && phraseHasSome(phrase)) return { kind: 'consistency', phrase };
   }
-  const plant = i.plant ?? plantVM(i.s, i.habit, i.env.today, i.env.local);
+  const plant = plantOf();
   if (plant.displayStage >= ROOTING && plant.displayStage < POTTED && plant.checkinsToNext !== null) return { kind: 'rooting', count: plant.checkinsToNext };
   if (plant.displayStage < ROOTING) return { kind: 'new' };
   if (phrase === undefined) phrase = phraseOf();

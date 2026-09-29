@@ -179,6 +179,8 @@ export const STATUS_LINE = {
   countBare: '{count}/{target}',
   tiny: 'Tiny version ✓',
   period: '{count} of {target} this {period}',
+  /** A flexible habit before the period's first watering (the same line's shape, never a 0). */
+  periodGoal: '{target} this {period}',
   /** A selected past day in a closed period. */
   periodThen: '{count} of {target} that {period}',
   periodDone: 'Watered for the {period} ✓',

@@ -362,6 +362,17 @@ button.nameTag:focus-visible {
   cursor: pointer;
 }
 
+/* A small thing (a note, a found button) still takes a 44 px tap: an invisible area around the drawing. */
+.sillButton::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: max(100%, 44px);
+  height: max(100%, 44px);
+  transform: translate(-50%, -50%);
+}
+
 .sillButton:focus-visible {
   outline: 3px solid var(--focus, #6f5bb5);
   outline-offset: 2px;

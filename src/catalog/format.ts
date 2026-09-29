@@ -99,7 +99,8 @@ export function statusLine(line: StatusLine, weekStart: WeekStart = 1): string |
     case 'tiny':
       return STATUS_LINE.tiny;
     case 'period':
-      if (line.count < 1) return null;
+      // Before the period's first watering: the rhythm, never "0 of 3".
+      if (line.count < 1) return line.current ? fillLine(STATUS_LINE.periodGoal, { target: num(line.target), period: periodWord(line.period) }) : null;
       return fillLine(line.current ? STATUS_LINE.period : STATUS_LINE.periodThen, { count: num(Math.min(line.count, line.target)), target: num(line.target), period: periodWord(line.period) });
     case 'period-done':
       return fillLine(STATUS_LINE.periodDone, { period: periodWord(line.period) });

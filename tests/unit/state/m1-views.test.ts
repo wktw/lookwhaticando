@@ -327,7 +327,9 @@ describe('every line the formatters make from view-model data keeps the voice', 
 
   it('a phrase that would say 0 has no words at all', () => {
     expect(consistencyText({ kind: 'days', achieved: 0, spanDays: 30, tiny: 0 } as never, 1)).toBeNull();
-    expect(statusLine({ kind: 'period', count: 0, target: 3, period: { kind: 'weekly', every: 1 }, current: true })).toBeNull();
+    expect(statusLine({ kind: 'period', count: 0, target: 3, period: { kind: 'weekly', every: 1 }, current: false })).toBeNull();
+    // This period, before its first watering: the rhythm, never "0 of 3".
+    expect(statusLine({ kind: 'period', count: 0, target: 3, period: { kind: 'weekly', every: 1 }, current: true })).toBe('3 this week');
     expect(statusLine({ kind: 'rooting', count: 0 })).toBeNull();
     expect(statusLine({ kind: 'none' })).toBeNull();
     expect(goalsLine({ onTrack: 0 })).toBeNull();

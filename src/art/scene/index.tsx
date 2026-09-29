@@ -14,6 +14,7 @@ export { PET_UNITS } from './room';
 export { decorFootprint } from './decor';
 export { WindowsillBand, bandResidents, type WindowsillBandHandle, type WindowsillBandProps } from './WindowsillBand';
 export { bandCollapse, BAND_OPEN_PX, BAND_CLOSED_PX, type BandCollapse } from './band';
+export { BAND_MAX_POTS } from './sill/layout';
 export { ShelfScene, type ShelfSceneProps } from './ShelfScene';
 export { PlaceArt, type PlaceArtProps } from './PlaceArt';
 export { PLACE_SCENES, type RoomPlaceId } from './places';

@@ -183,7 +183,7 @@ One line under the habit name, first match wins (DESIGN §9.1.1). It never shows
 |---|---|
 | Count in progress | "5/8 glasses" |
 | Tiny version logged | "Tiny version ✓" |
-| Flexible, in progress | "2 of 3 this week" (nothing after it; before the first watering of the period, no line at all) |
+| Flexible, in progress | "2 of 3 this week" (nothing after it); before the first watering of the period, "3 this week" (the same shape, never a 0) |
 | Flexible, met | "Watered for the week ✓" (monthly: "Watered for the month ✓"; every 2 weeks "Watered for the fortnight ✓"; quarterly "Watered for the quarter ✓") |
 | 3 or more in a row, daily | "12 days" |
 | 3 or more in a row, certain days | "12 in a row" |

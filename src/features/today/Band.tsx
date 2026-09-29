@@ -13,7 +13,7 @@ import type { Ref } from 'preact';
 import { useEffect, useImperativeHandle, useMemo, useRef, useState } from 'preact/hooks';
 import { WindowsillBand, type WindowsillBandHandle } from '@/art/scene';
 import type { SillPot, ShelfPet } from '@/art/scene';
-import { BAND_CLOSED_PX, BAND_OPEN_PX } from '@/art/scene';
+import { BAND_CLOSED_PX, BAND_MAX_POTS, BAND_OPEN_PX } from '@/art/scene';
 import { CoinIcon } from '@/art/icons';
 import { COUNTS, GREETINGS, TODAY_LINES, fillLine } from '@/catalog/lines';
 import { dayProgressAria, vineChip } from '@/catalog/format';
@@ -77,6 +77,14 @@ export function bandPots(vm: Pick<TodayVM, 'sill' | 'blocks' | 'doneForPeriod' |
     if (card && card.plant.flourishes > 0) pot.flourishes = card.plant.flourishes;
     return pot;
   });
+}
+
+/** The band's pots with `guest` in the last of its places (when it isn't on the band already). */
+export function withGuest(pots: SillPot[], guest: string | null): SillPot[] {
+  if (!guest || pots.slice(0, BAND_MAX_POTS).some((p) => p.habitId === guest)) return pots;
+  const g = pots.find((p) => p.habitId === guest);
+  if (!g) return pots;
+  return [...pots.slice(0, BAND_MAX_POTS - 1), g, ...pots.slice(BAND_MAX_POTS - 1).filter((p) => p !== g)];
 }
 
 /** The band's residents: each pot's pet that is out, once, sitting in that pot. */
@@ -148,37 +156,62 @@ export const Band = forwardRef(function Band({ vm, state, coins, onOpenNote, onW
   // Kept by value: the view model is rebuilt on every commit, the band's world only when a pot changed.
   const potsNow = bandPots(vm, state.habits);
   const potsKey = JSON.stringify(potsNow);
-  const pots = useSettled(potsNow, potsKey);
+  const settled = useSettled(potsNow, potsKey);
+  // A habit beyond the band's six, watered: its pot comes onto the sill as a guest in the sixth
+  // place (DESIGN §9.1: every watering pours onto its own pot), and stays until another does.
+  const [guest, setGuest] = useState<string | null>(null);
+  const pots = useMemo(() => withGuest(settled, guest), [settled, guest]);
   const petsNow = bandPets(vm, state.pets);
   const petsKey = JSON.stringify(petsNow);
   const pets = useSettled(petsNow, petsKey);
-  const onBand = useMemo(() => new Set(pots.slice(0, 6).map((p) => p.habitId)), [pots]);
+  const onBand = useMemo(() => new Set(pots.slice(0, BAND_MAX_POTS).map((p) => p.habitId)), [pots]);
   const residentOf = useMemo(() => new Map(vm.sill.map((p) => [p.habitId, p.resident?.petId ?? null])), [vm.sill]);
+  /** A pour waiting for its guest pot to be drawn. */
+  const pendingPour = useRef<string | null>(null);
+
+  // The pour onto a pot that is on the band (scrolled into view first, so it is seen).
+  const pourOnBand = (habitId: string) => {
+    const go = () => {
+      band.current?.pour(habitId);
+      setTagFor(habitId);
+      clearTimeout(tagTimer.current);
+      tagTimer.current = setTimeout(() => setTagFor(undefined), 2600);
+    };
+    const wait = wrap.current ? revealPot(wrap.current, habitId) : 0;
+    if (wait > 0) setTimeout(go, wait);
+    else go();
+  };
 
   useImperativeHandle<BandHandle, BandHandle>(
     ref,
     () => ({
       pour(habitId) {
-        if (!onBand.has(habitId)) return;
-        const go = () => {
-          band.current?.pour(habitId);
-          setTagFor(habitId);
-          clearTimeout(tagTimer.current);
-          tagTimer.current = setTimeout(() => setTagFor(undefined), 2600);
-        };
-        // A pot scrolled out of the band's view comes into it first, so the pour is seen.
-        const wait = wrap.current ? revealPot(wrap.current, habitId) : 0;
-        if (wait > 0) setTimeout(go, wait);
-        else go();
+        if (onBand.has(habitId)) return pourOnBand(habitId);
+        if (!settled.some((p) => p.habitId === habitId)) return;
+        pendingPour.current = habitId;
+        setGuest(habitId);
       },
       react(habitId) {
         const pet = residentOf.get(habitId);
         if (pet && onBand.has(habitId) && pets.some((p) => p.key === pet)) band.current?.react(pet);
       },
     }),
-    [onBand, residentOf, pets],
+    [onBand, residentOf, pets, settled],
   );
   useEffect(() => () => clearTimeout(tagTimer.current), []);
+
+  // The guest pot is drawn: pour onto it once that frame is on screen.
+  useEffect(() => {
+    const id = pendingPour.current;
+    if (!id || !onBand.has(id)) return;
+    pendingPour.current = null;
+    let t: ReturnType<typeof setTimeout> | undefined;
+    const raf = requestAnimationFrame(() => (t = setTimeout(() => pourOnBand(id), 0)));
+    return () => {
+      cancelAnimationFrame(raf);
+      clearTimeout(t);
+    };
+  }, [onBand]);
 
   // Scroll drives the collapse without a render: inline styles on the few elements that move (never an
   // inherited custom property, which would restyle the whole drawing), and the band's own signal.

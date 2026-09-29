@@ -215,7 +215,25 @@ describe('Today: a selected past day shows its own period', () => {
     expect(c.pace).toMatchObject({ met: true, current: false, checkins: 2, target: 2, to: '2026-03-01' });
     expect(statusLine(c.subtitle)).toBe('Watered for the week ✓');
     expect(card(g, y).pace).toMatchObject({ met: false, current: true, checkins: 0 });
-    expect(line(g, y).kind).not.toBe('period'); // nothing watered this week yet: no period line at all
+    expect(line(g, y)).toEqual({ kind: 'period', text: '2 this week' }); // nothing watered this week yet: the rhythm, never "0 of 2"
+  });
+});
+
+describe('Today: a flexible habit keeps its line’s kind', () => {
+  it('an established plant says its rhythm before the week’s first watering, then the count', () => {
+    const g = new Game({ start: '2026-01-05' }); // Monday
+    const y = g.addHabit({ name: 'Yoga', schedule: { kind: 'weekly', times: 2, every: 1 } });
+    for (let week = 0; week < 8; week++) {
+      g.goTo(addDays('2026-01-05', week * 7));
+      g.checkIn(y);
+      g.goTo(addDays('2026-01-05', week * 7 + 2));
+      g.checkIn(y);
+    }
+    g.goTo('2026-03-02'); // the Monday after
+    expect(card(g, y).plant.displayStage).toBeGreaterThanOrEqual(2);
+    expect(line(g, y)).toEqual({ kind: 'period', text: '2 this week' });
+    g.checkIn(y);
+    expect(line(g, y)).toEqual({ kind: 'period', text: '1 of 2 this week' });
   });
 });
 
