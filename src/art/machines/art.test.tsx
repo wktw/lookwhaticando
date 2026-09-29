@@ -201,3 +201,14 @@ describe('the capsule art', () => {
     expect(h[1]).toBeLessThan(h[2]!);
   });
 });
+
+describe('the price chip', () => {
+  it('steps aside when it would print under 11 px, leaving the price to MachineInfo’s pill', () => {
+    const cats = MACHINES[0]!;
+    // 350 units tall is 240 wide: 11-unit type at 11 px.
+    expect(draw(<CabinetArt machine={cats} height={350} />).querySelector('.cabinet-price')).not.toBeNull();
+    expect(draw(<CabinetArt machine={cats} height={300} detail="full" />).querySelector('.cabinet-price')).toBeNull();
+    // A size the cabinet can't know yet (jsdom has no layout) keeps the chip.
+    expect(draw(<CabinetArt machine={cats} />).querySelector('.cabinet-price')).not.toBeNull();
+  });
+});

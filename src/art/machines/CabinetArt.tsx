@@ -1,5 +1,5 @@
 import type { ComponentChildren, JSX, Ref } from 'preact';
-import { useId } from 'preact/hooks';
+import { useCallback, useEffect, useId, useRef, useState } from 'preact/hooks';
 import type { MachineDef } from '@/catalog/types';
 import { DAY_LIGHT, type Light } from '@/art/light';
 import {
@@ -21,6 +21,8 @@ import {
   SLOT,
   TAG_PIN,
   VIEWBOX,
+  VIEW_H,
+  VIEW_W,
   inset,
   rectPath,
 } from './geometry';
@@ -159,8 +161,39 @@ function palette(machine: MachineDef, L: Lighting): Palette {
  * lit by one light with hard shade crescents. Parts that move (the grip, the flap, the slot)
  * are exposed through refs so the pull can animate them without re-rendering.
  */
+/**
+ * The price chip's number is 11 view-box units: below this rendered width it would print under 11 px, so the chip steps
+ * aside and the price is left to MachineInfo's pill (AA, 16 px).
+ */
+export const PRICE_CHIP_MIN_WIDTH = VIEW_W;
+
+/** Whether the cabinet is drawn too small for its price chip to be read (unknown sizes count as large enough). */
+function usePriceFits(height: CabinetArtProps['height'], outer: CabinetArtProps['svgRef']) {
+  const known = typeof height === 'number' ? (height * VIEW_W) / VIEW_H : null;
+  const [measured, setMeasured] = useState<number | null>(null);
+  const node = useRef<SVGSVGElement | null>(null);
+  const ref = useCallback(
+    (el: SVGSVGElement | null) => {
+      node.current = el;
+      if (typeof outer === 'function') outer(el);
+      else if (outer) (outer as { current: SVGSVGElement | null }).current = el;
+    },
+    [outer],
+  );
+  useEffect(() => {
+    const el = node.current;
+    if (known !== null || !el || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(() => setMeasured(el.getBoundingClientRect().width || null));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [known]);
+  const width = known ?? measured;
+  return { fits: width === null || width >= PRICE_CHIP_MIN_WIDTH, ref };
+}
+
 export function CabinetArt(props: CabinetArtProps) {
   const { machine, title, height } = props;
+  const priceFit = usePriceFits(height, props.svgRef);
   const uid = `cab${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`;
   const L = lighting(props.light ?? DAY_LIGHT);
   const p = palette(machine, L);
@@ -176,7 +209,7 @@ export function CabinetArt(props: CabinetArtProps) {
 
   return (
     <svg
-      ref={props.svgRef}
+      ref={priceFit.ref}
       class={['cabinet', `cabinet-${machine.id}`, L.light.night ? 'is-night' : '', low ? 'is-low' : '', props.class ?? ''].filter(Boolean).join(' ')}
       viewBox={VIEWBOX}
       width={px ? undefined : '100%'}
@@ -260,7 +293,7 @@ export function CabinetArt(props: CabinetArtProps) {
           <rect x={SLOT.cx - 1.8} y={SLOT.cy - 9} width={3.6} height={18} rx={1.8} fill={p.slit} />
         )}
       </g>
-      {!low && price !== null && (
+      {!low && price !== null && priceFit.fits && (
         <g class="cabinet-price">
           <path d={rectPath(PRICE)} fill={p.chip} />
           {machine.currency === 'stars' ? (
