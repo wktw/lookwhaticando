@@ -2,8 +2,8 @@
  * Store API contract: result & event types shared by the domain layer (which implements
  * them) and every UI feature (which consumes them). Changing these is a cross-team change.
  */
-import type { MachineId, Rarity, WearableSlot, PastelKey, PlantSpeciesId, PotId } from '@/catalog/types';
-import type { DateKey, Effort, Schedule, PetState, TimeOfDay, MeadowZoneId } from './types';
+import type { MachineId, PlaceId, Rarity, WearableSlot, PastelKey, PlantSpeciesId, PotId } from '@/catalog/types';
+import type { BloomColour, BloomShape, DateKey, Effort, KeepsakeKind, Schedule, PetState, SeasonName, StoryId, TimeOfDay } from './types';
 
 /* ------------------------------------------------------------------ */
 /* Game events: emitted by actions, consumed by FX/celebration layers  */
@@ -11,7 +11,15 @@ import type { DateKey, Effort, Schedule, PetState, TimeOfDay, MeadowZoneId } fro
 
 export type CoinReason = 'checkin' | 'perfect' | 'period' | 'home' | 'rung' | 'letter' | 'badge' | 'gift' | 'refund' | 'exchange';
 
+/**
+ * Internal names (DESIGN §6): `stars` are stamps, `stardust` are swaps. The screens word every event
+ * from its data (src/catalog/lines.ts); no event carries display text.
+ */
 export type GameEvent =
+  /**
+   * `amount` < 0 when coins leave the wallet by a refund (un-check), the swap-in ('exchange'), or
+   * the onboarding capsule spending First Sprout's top-up ('gift').
+   */
   | { type: 'coins'; amount: number; reason: CoinReason; habitId?: string }
   | { type: 'stars'; amount: number; reason: 'showup' | 'letter' | 'bloom' | 'badge' | 'fusion' | 'gift' }
   | { type: 'tickets'; amount: number }
@@ -32,7 +40,30 @@ export type GameEvent =
   | { type: 'petLevel'; petId: string; level: number }
   | { type: 'favoriteFound'; petId: string; treatId: string }
   | { type: 'letter'; letterId: string }
-  | { type: 'restock'; treats: number };
+  | { type: 'restock'; treats: number }
+  /** A check-in on a Blooming+ edible plant dropped a harvest treat into the basket (DESIGN §8.2). */
+  | { type: 'harvest'; habitId: string; treatId: string; firstTime: boolean }
+  /** A Field Guide page was completed. `stars` = paid by the page itself (the first page's come via its pin). */
+  | { type: 'album'; albumId: string; stars: number; exclusive?: string }
+  /**
+   * An L6+ pet left a found thing on the sill (DESIGN §8.2): once a day on a day with a check-in,
+   * worth `swaps` (a `stardust` event follows). `seed` picks the thing (a button, a leaf, a bead…).
+   */
+  | { type: 'foundThing'; petId: string; date: DateKey; seed: number; swaps: number }
+  /** Keeping Company (§14.1): a pet moved into a habit's plant ("{name} moved into {plant}."). */
+  | { type: 'companion'; petId: string; habitId: string }
+  /** A companion's friendship grew through its habit's check-in (a `petLevel` may follow). */
+  | { type: 'companionXp'; petId: string; habitId: string; date: DateKey; xp: number }
+  /** A story unlocked on the plant tag ("There's a story on the plant tag for {habit}."). */
+  | { type: 'story'; petId: string; habitId: string; story: StoryId }
+  /** A companion left a keepsake by the pot (Rooting, Budding, Blooming, Evergreen). */
+  | { type: 'keepsake'; keepsakeId: string; petId: string; habitId: string; stage: number; kind: KeepsakeKind }
+  /** Blooms Like You (§14.2): the plant earned a new look ("A new look for {plant}: Twilight."). */
+  | { type: 'look'; habitId: string; colour: BloomColour; shape: BloomShape; read: 'bloom' | 'evergreen' }
+  /** A new season began and the one just ended waits as a Season Review card on Today (§14.3). */
+  | { type: 'seasonReview'; season: SeasonName; key: DateKey }
+  /** A habit retired to the balcony shelf with a ribbon (Finish, or a "just this season" habit ended). */
+  | { type: 'retired'; habitId: string; ribbon: boolean };
 
 /* ------------------------------------------------------------------ */
 /* Action inputs & results                                              */
@@ -55,6 +86,12 @@ export interface HabitInput {
   polarity: 'build' | 'avoid';
   dueDay?: number | 'last';
   notes?: string;
+  /** "Why it matters" (≤ 140 characters, §14.1). */
+  why?: string;
+  /** Habit stacking (§14.2): the habit this one follows ("After Walk"). */
+  anchorHabitId?: string;
+  /** "Just this season" (§14.3): its last day (normally the season's end, seasonReview.justThisSeasonEnd). */
+  endsOn?: DateKey;
 }
 
 export interface ActionResult {
@@ -72,7 +109,8 @@ export interface CheckInResult extends ActionResult {
   rewarded: boolean;
 }
 
-export type PullError = 'not-enough-coins' | 'not-enough-stars' | 'machine-unavailable' | 'no-ticket' | 'reveal-pending';
+/** 'storage-full' (stage 3, additive): the pull couldn't be saved, so it was rolled back rather than shown (v1 §13.6). */
+export type PullError = 'not-enough-coins' | 'not-enough-stars' | 'machine-unavailable' | 'no-ticket' | 'reveal-pending' | 'storage-full';
 
 export interface PullResult extends ActionResult {
   ok: true;
@@ -103,13 +141,16 @@ export type WishOutcome =
   | ({ ok: true; itemId: string; stars: number; pet?: PetState } & ActionResult)
   | { ok: false; error: 'not-enough-stars' | 'already-owned' | 'not-wishable' | 'season-not-visited' };
 
+/**
+ * What a gesture or a treat did. The caption is the screen's to pick (lines.ts, by the pet's
+ * personality and species): the domain returns no words.
+ */
 export interface PetInteractionResult extends ActionResult {
   xpGained: number;
   level: number;
   leveledUp: boolean;
   /** 'full' = treat cap reached; 'love' = favorite treat; 'capped' = petting XP capped (reaction still plays); 'none' = no servings left. */
   reaction: 'happy' | 'love' | 'full' | 'capped' | 'none';
-  line?: string;
 }
 
 export interface MachineStatus {
@@ -144,4 +185,4 @@ export interface ImportPreview {
   device?: string;
 }
 
-export type ZonePurchase = { ok: true; zone: MeadowZoneId } | { ok: false; error: 'not-enough-coins' | 'owned' };
+export type PlacePurchase = { ok: true; place: PlaceId } | { ok: false; error: 'not-enough-coins' | 'owned' };

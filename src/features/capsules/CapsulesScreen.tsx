@@ -2,7 +2,8 @@ import type { ComponentChildren } from 'preact';
 import { signal } from '@preact/signals';
 import { useRef, useState } from 'preact/hooks';
 import { MACHINES } from '@/catalog/machines';
-import { machineStatus, today } from '@/state/store';
+import { today } from '@/state/store';
+import { machineAvailability } from '@/domain/seasons';
 import { MachineCarousel } from './MachineCarousel';
 import { MachineInfo } from './MachineInfo';
 import { WalletStrip } from './WalletStrip';
@@ -22,7 +23,7 @@ type SheetName = 'lineup' | 'odds' | 'order' | null;
 
 /** Cabinets on the counter today: every numbered series, and the seasonal edition in season. */
 export function availableCabinets(dateKey: string = today.value) {
-  return MACHINES.filter((m) => machineStatus(m.id).available && inSeason(m, dateKey));
+  return MACHINES.filter((m) => machineAvailability(m.id, dateKey).available && inSeason(m, dateKey));
 }
 
 /**

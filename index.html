@@ -18,21 +18,22 @@
     <!--/favicon-->
     <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png" />
     <script>
-      /* Resolve theme + motion from the saved settings before first paint (no flash). Mirrors src/app/theme.ts. */
+      /* Theme + motion before first paint (no flash), from the small mirror the store keeps in catkin:theme. Mirrors src/app/theme.ts. */
       (function () {
         try {
           var d = document.documentElement;
-          var raw = localStorage.getItem('mochi-meadow:v1');
-          var s = raw ? (JSON.parse(raw).state || {}).settings || {} : {};
+          var raw = localStorage.getItem('catkin:theme');
+          var s = raw ? JSON.parse(raw) || {} : {};
           var t = s.theme === 'light' || s.theme === 'night' ? s.theme : matchMedia('(prefers-color-scheme: dark)').matches ? 'night' : 'light';
           d.setAttribute('data-theme', t);
+          d.style.colorScheme = t === 'night' ? 'dark' : 'light';
           if (s.reduceMotion === 'on') d.setAttribute('data-motion', 'reduced');
           if (s.reduceMotion === 'off') d.setAttribute('data-motion', 'full');
           var metas = document.querySelectorAll('meta[name="theme-color"]');
           for (var i = 0; i < metas.length; i++) metas[i].parentNode.removeChild(metas[i]);
           var m = document.createElement('meta');
           m.name = 'theme-color';
-          m.content = t === 'night' ? '#221C30' : '#FFF9F2';
+          m.content = t === 'night' ? '#1E1A22' : '#FAF6EF';
           document.head.appendChild(m);
         } catch (e) {}
       })();

@@ -143,7 +143,7 @@ function demo(itemId: string, o: { dupe?: boolean; fused?: number; shell?: [stri
     isNew: !o.dupe,
     stardust: o.dupe ? { common: 2, uncommon: 4, rare: 8, ultra: 15 }[rarity] : 0,
     fusedStars: o.fused ?? 0,
-    friendshipXp: o.dupe && def.category === 'pet' ? 20 : undefined,
+    friendshipXp: o.dupe && def?.category === 'pet' ? 20 : undefined,
     shell: { color: o.shell?.[0] ?? '#F5CDD6', color2: o.shell?.[1] ?? '#D2E4F2' },
     via: 'pull',
   };

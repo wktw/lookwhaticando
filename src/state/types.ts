@@ -1,9 +1,13 @@
 /**
  * Persisted application state. Everything the user owns lives here, is serializable
  * as JSON, and is versioned (see SCHEMA_VERSION + state/migrate.ts).
- * Semantics: docs/DESIGN.md §5–§7 as amended by §13 (§13 wins on conflict).
+ * Semantics: docs/DESIGN.md (catkin, v2) §5–§8 and §13; the logic team's readings are in NOTES-domain.md.
+ *
+ * Internal names that differ from what the screens say (DESIGN §6): `stars` are **stamps**,
+ * `stardust` are **swaps**, a `wish` is a **Special Order**, and a pet with `inMeadow` is **out on
+ * the Shelf** (the rest are resting indoors, off the Shelf).
  */
-import type { MachineId, PastelKey, Personality, PlantSpeciesId, PotId, WearableSlot } from '@/catalog/types';
+import type { MachineId, PastelKey, Personality, PlaceId, PlantSpeciesId, PotId, WearableSlot } from '@/catalog/types';
 
 export const SCHEMA_VERSION = 1;
 
@@ -27,7 +31,7 @@ export type Schedule =
 /**
  * A versioned rule. Editing a habit's schedule/target/step/tiny appends a new rule with
  * `from` = the day it starts applying; every day is evaluated with the rule in effect then,
- * so edits never rewrite history (DESIGN §13.2).
+ * so edits never rewrite history (DESIGN v1 §13.2).
  */
 export interface HabitRule {
   from: DateKey;
@@ -67,12 +71,36 @@ export interface Habit {
   dueDay?: number | 'last';
   /** Immutable creation time (epoch ms). Rewards are never paid for app days before its date. */
   createdAt: number;
+  /**
+   * Stage 3 (additive): the app day of creation, fixed when the habit is created, so a later
+   * `dayStartsAt` change can't move it. Rewards never pay for earlier days. Older saves without it
+   * derive it from `createdAt`.
+   */
+  createdOn?: DateKey;
   /** First day that counts for stats (editable earlier via "Start tracking from…", without rewards). */
   startedOn: DateKey;
   archivedOn?: DateKey;
   pauses: Pause[];
   order: number;
   notes?: string;
+  /**
+   * Keeping Company (DESIGN §14.1): the pet who keeps this habit company and lives in its plant.
+   * At most one habit per pet and one pet per habit (company.ts keeps both sides in step).
+   */
+  companionId?: string;
+  /** "Why it matters" (≤ 140 characters, §14.1): editable from day 0, asked once by the story. */
+  why?: string;
+  /** Habit stacking (§14.2): this habit follows that one ("After Walk") and sorts right after it. */
+  anchorHabitId?: string;
+  /** "Just this season" (§14.3): the last day it runs; after it the habit retires with a ribbon. */
+  endsOn?: DateKey;
+  /** Retired with a ribbon ("Finish" in the Season Review, or a "just this season" habit ended): its last day. */
+  ribbon?: DateKey;
+  /**
+   * The "Move it to Evening?" nudge (§14.2) was answered: 'moved' (accepted) or 'left' ("Leave it
+   * in Morning"). Offered once, so either answer closes it for good.
+   */
+  timeNudge?: 'moved' | 'left';
 }
 
 /** A day's record for one habit. A day is either logged or rested, never both. */
@@ -87,10 +115,13 @@ export type DayLog =
       at?: number[];
       /** A short reflection, max 280 chars. */
       note?: string;
+      /** The note is starred: only starred notes are quoted in a Sunday Note (a note is private by default). */
+      starred?: true;
     }
   | {
       kind: 'rest';
       note?: string;
+      starred?: true;
     };
 
 export interface Wallet {
@@ -130,11 +161,17 @@ export interface PetState {
   /** Friendship XP; levels 1–10 then cosmetic bond levels 11–15. Never decays. */
   xp: number;
   outfit: Outfit;
+  /** Out on the Shelf (at most `petsOutCapacity` pets are out; the rest rest indoors). */
   inMeadow: boolean;
+  /** Marked as a favourite pet (sorted first; the featured pet when a view needs one). */
   favorite: boolean;
   obtainedAt: number;
-  /** Per-day XP caps; reset when `date` changes. */
-  daily: { date: DateKey; pets: number; treats: number; buddy: number };
+  /**
+   * Per-day XP caps; reset when `date` changes. `favorites` counts favorite treats fed that day:
+   * only the first pays the +12 (DESIGN §8.2). `company` is the XP its habit's check-ins paid that
+   * day (at most 30, §14.1).
+   */
+  daily: { date: DateKey; pets: number; treats: number; favorites?: number; company?: number };
 }
 
 export interface OwnedItem {
@@ -152,18 +189,28 @@ export interface PityCounter {
   pulls: number;
 }
 
-/** A decor item placed freely in the meadow (ground coordinates 0..1 within a zone). */
+/** A decor item placed freely in a place on the Shelf (coordinates 0..1 within the place). */
 export interface PlacedDecor {
   /** Unique placement id (the same item may be placed once per owned copy). */
   id: string;
   itemId: string;
-  zone: MeadowZoneId;
+  place: PlaceId;
   x: number;
   y: number;
   flip?: boolean;
 }
 
-export type MeadowZoneId = 'meadow' | 'pond' | 'orchard' | 'porch' | 'greenhouse' | 'starhill';
+export type { PlaceId };
+
+/**
+ * A small found thing an L6+ pet left on the sill (DESIGN §8.2): one a day on days with a
+ * check-in, worth 1 swap. `seed` picks which thing (a button, a leaf, a bead…) in the voice layer.
+ */
+export interface FoundThing {
+  date: DateKey;
+  petId: string;
+  seed: number;
+}
 
 export interface Settings {
   /** 0 = Sunday, 1 = Monday. Changes apply from the next week. */
@@ -181,15 +228,26 @@ export interface Settings {
   quietRewards: boolean;
   /** Optional time-block reminders ('HH:MM', 15-minute slots) exported as calendar events. */
   reminders: Partial<Record<Exclude<TimeOfDay, 'anytime'>, string>>;
+  /** "Show companions" (§9.5): who keeps each habit company, on its card. Absent = on. */
+  showCompanions?: boolean;
+  /**
+   * "Where's your summer?" (§14.3): the hemisphere the Season Review follows. Absent = inferred
+   * from the device time zone (seasons.ts `inferHemisphere`); onboarding stores the inference.
+   */
+  hemisphere?: Hemisphere;
+  /** "Compact Today" (§9.5): smaller cards. Absent = off. */
+  compactToday?: boolean;
+  /** "Quote my notes in the Sunday Note" (only starred notes are ever quoted). Absent = on. */
+  quoteNotes?: boolean;
 }
+
+export type Hemisphere = 'north' | 'south';
 
 export interface Profile {
   name: string;
-  /** Pet collectible id shown on Today. */
-  buddy: string | null;
   onboarded: boolean;
   createdAt: number;
-  /** Optional 'MM-DD' for a birthday surprise. */
+  /** Optional 'MM-DD' for the birthday ritual (DESIGN §13). */
   birthday?: string;
 }
 
@@ -216,19 +274,38 @@ export interface AppState {
   wallet: Wallet;
   lifetime: Lifetime;
   /**
-   * Reward ledger (DESIGN §13.3 "Reward integrity").
+   * Reward ledger (DESIGN v1 §13.3 "Reward integrity").
    * - recent: per (habitId|date) grant for the refundable window only (today−7 … today);
    *   older entries are folded into totals by compaction.
-   * - sunshine: per-habit lifetime sunshine total (monotone except refunds inside the window).
+   * - sunshine: per-habit lifetime sunshine total (monotone except refunds inside the window). A
+   *   deleted habit's total stays (minus its in-window refunds): The Cutting is a lifetime gauge.
+   *   Keys are habit ids, including deleted habits' ids (never reused).
    * - bestStage: per-habit highest plant stage ever reached (plants never shrink).
-   * - once: once-only grant keys → value (true, or the tier paid for upgradable grants). Key formats:
-   *   'perfect|<date>' · 'period|<habitId>|<periodStart>' · 'rung|<habitId>|<tierDays>' ·
-   *   'showup|<n>' · 'weekly|<weekStart>' (tier) · 'bloom|<YYYY-MM>' (tier) · 'badge|<id>' ·
-   *   'home|<gapStart>' · 'stage|<habitId>|<stage>' · 'exclusive|<collectibleId>' · 'birthday|<YYYY>'
+   * - once: once-only grant keys → value (true, or a number noted below). Key formats:
+   *   'perfect|<date>' (coins paid) · 'period|<habitId>|<periodStart>' (day number of its last day) · 'rung|<habitId>|<tierDays>' ·
+   *   'showup|<n>' · 'weekly|<weekStart>' (stars paid) · 'bloom|<YYYY-MM>' (stars paid) ·
+   *   'home|<gapStart>' (day number of the grant, for the 14-day cooldown) · 'exclusive|<collectibleId>' ·
+   *   'birthday|<YYYY>' · 'album|<albumId>' · 'harvest|<habitId>|<date>' · 'gift|first-sprout' (coins) ·
+   *   'gift|first-capsule' (the onboarding capsule was pulled) · 'found|<date>' (an L6 found thing) ·
+   *   'cutting' (The Cutting's best stage: it never shrinks) ·
+   *   'company|<habitId>|<date>' (the companion's XP was paid for that occurrence, §14.1) ·
+   *   'anniversary|<YYYY>' (that year's moving-in anniversary note was written, §13) ·
+   *   'grow|<habitId>|<date>' (the accept day; the offer stays closed 28 days) ·
+   *   'rest|<habitId>|<date>' (stage 3: an allowed rest that completed a paid perfect day; it keeps
+   *   using the week's rest allowance for perfect days) · 'flourish|<habitId>' (stage 3: the most
+   *   Flourishes the plant has had; they are permanent visitors). Badges live in `badges`; plant
+   *   stages in `bestStage`.
+   *   Keys that can no longer be earned are pruned by compaction (domain/economy.ts).
    * - daily: coins paid by check-ins per WALL-CLOCK action day (the 40-coin full-rate budget).
    */
   ledger: {
-    recent: Record<string, { coins: number; sunshine: number }>;
+    /**
+     * `coins`/`sunshine`: currently held for the occurrence. `cap` (stage 2): the full-rate value of
+     * the first in-target grant, so a re-check never pays more than the original. `lvl` (stage 2):
+     * the level currently granted ('over' = a flexible check-in beyond `times`); absent = none.
+     * `co` (Keeping Company): the companion's share of the occurrence (LedgerEntry).
+     */
+    recent: Record<string, LedgerEntry>;
     sunshine: Record<string, number>;
     bestStage: Record<string, number>;
     once: Record<string, number | true>;
@@ -238,22 +315,214 @@ export interface AppState {
   collection: Record<string, OwnedItem>;
   pity: Partial<Record<MachineId, PityCounter>>;
   pets: Record<string, PetState>;
-  /** Treat servings. Each owned recipe restocks 1 free serving per morning (max 3 banked). */
+  /** Treat servings. Each owned recipe restocks 2 free servings per morning (bank up to 5; DESIGN §8.2). */
   pantry: Record<string, { servings: number; restockedOn: DateKey }>;
-  meadow: {
-    zones: MeadowZoneId[];
+  /** The home (DESIGN §8.4): the places opened (the Sill is always first) and the decor placed in them. */
+  shelf: {
+    places: PlaceId[];
     decor: PlacedDecor[];
   };
   /** badges[badgeId] = epoch ms when earned */
   badges: Record<string, number>;
-  /** Letters (weekly/monthly recaps) waiting to be shown. */
+  /** Rituals (Sunday Notes, Herbarium pages), kept forever on the memory shelf; unread until `readAt`. */
   inbox: Letter[];
+  /** Found things left on the sill by L6+ pets, the last 14 app days (oldest first; DESIGN §8.2). */
+  found?: FoundThing[];
+  /** Keeping Company (§14.1): every pet × habit pairing there has been, and the offer's counters. */
+  company?: Company;
+  /** Keepsakes companions left by the pots (§14.1), oldest first. Placeable on the Shelf, never spent. */
+  keepsakes?: Keepsake[];
+  /** Blooms Like You (§14.2): the looks each plant has earned (only ever added) and the one shown. */
+  plantLooks?: Record<string, PlantLooks>;
+  /** The app day each plant first reached each stage (habitId → stage → day), for rituals. */
+  stageDates?: Record<string, Partial<Record<number, DateKey>>>;
+  /** Season Review (§14.3): the pending card, and every season filed on the memory shelf. */
+  seasons?: SeasonShelf;
   pendingReveal?: PendingReveal;
   /** Clock guard: the latest app day / time ever observed (device clock rollback protection). */
   clock: { maxDateKey: DateKey; maxEpochMs: number; lastCheckinAt: number };
   /** Epoch ms of the last export/backup (for gentle backup nudges). */
   lastBackupAt?: number;
 }
+
+/** A per-occurrence ledger entry (see AppState.ledger.recent). */
+export interface LedgerEntry {
+  coins: number;
+  sunshine: number;
+  cap?: number;
+  lvl?: 'tiny' | 'full' | 'over';
+  /**
+   * Keeping Company (§14.1): the companion's share of this occurrence. `sun` is the part of its
+   * sunshine grown while `pet` kept the habit company (it follows the day, like the sunshine);
+   * `watered` marks the occurrence as one of the pair's waterings.
+   */
+  co?: { pet: string; sun: number; watered?: true };
+}
+
+/* ------------------------------------------------------------------ */
+/* Keeping Company (§14.1)                                             */
+/* ------------------------------------------------------------------ */
+
+export type StoryId = 'start' | 'why' | 'lookAtUs';
+
+/** One pet × habit pairing, kept after they part (the history of who kept what company). */
+export interface CompanyPair {
+  petId: string;
+  habitId: string;
+  /** The first day they kept company. */
+  since: DateKey;
+  /**
+   * Companion sunshine: the habit's sunshine grown while this pet kept it company. A ledger like
+   * sunshine: an un-check inside the refund window takes its share back.
+   */
+  sunshine: number;
+  /** Completing check-ins while paired ("{Count} waterings later"), a ledger like `sunshine`. */
+  waterings: number;
+  /** Stories unlocked (only ever added): the day, and when the story was opened. */
+  stories?: Partial<Record<StoryId, { on: DateKey; readAt?: number }>>;
+  /** "Why it matters" asked its question (answered or not): it is asked once. */
+  whyAsked?: true;
+}
+
+export interface Company {
+  /** '<petId>|<habitId>' → pairing. */
+  pairs: Record<string, CompanyPair>;
+  /** The offer ("Find {name} a plant"): at most once a day, never again after 3 declines. */
+  offer: { shownOn?: DateKey; declines: number };
+}
+
+export type KeepsakeFamily = 'move' | 'read' | 'hydrate' | 'rest' | 'mind' | 'create' | 'tidy' | 'cook' | 'care' | 'garden' | 'connect' | 'plan';
+export type KeepsakeKind = KeepsakeFamily | 'brass-seed';
+
+/** A small dated keepsake a companion left by the pot at Rooting, Budding, Blooming or Evergreen. */
+export interface Keepsake {
+  /** 'k-<habitId>-<stage>': one per plant per stage, by construction. */
+  id: string;
+  habitId: string;
+  petId: string;
+  stage: number;
+  kind: KeepsakeKind;
+  date: DateKey;
+  /** The caption, prefilled from her latest Moment (editable; absent = the family's caption). */
+  note?: { date: DateKey; text: string };
+}
+
+/* ------------------------------------------------------------------ */
+/* Blooms Like You (§14.2)                                             */
+/* ------------------------------------------------------------------ */
+
+export type BloomColour = 'dawn' | 'sunlit' | 'twilight' | 'wildflower';
+export type BloomShape = 'classic' | 'petite' | 'paired';
+/** When she usually waters it: before 9, the middle of the day, after 6 pm, or all sorts of times. */
+export type TimeBand = 'dawn' | 'sunlit' | 'twilight' | 'all-sorts';
+
+/** One look, with the facts it was read from (the plant tag says them in plain words). */
+export interface PlantLook {
+  colour: BloomColour;
+  shape: BloomShape;
+  /** Read at the first Blooming or re-read at Evergreen. */
+  read: 'bloom' | 'evergreen';
+  on: DateKey;
+  evidence: {
+    band: TimeBand;
+    /** Eligible live check-in days the colour was read from, and how many fell in `band`. */
+    eligibleDays: number;
+    bandDays: number;
+    /** Median check-in time, minutes after midnight (rounded to 15). */
+    usualMinute: number;
+    tinyDays: number;
+    doneDays: number;
+    /** Kept-together days with the anchor habit (Paired), when stacked. */
+    keptTogether?: { habitId: string; days: number };
+  };
+}
+
+export interface PlantLooks {
+  looks: PlantLook[];
+  /** Index into `looks` of the look shown; null = Classic (always available). */
+  shown: number | null;
+  /** She picked `shown` herself: a later look is added without switching to it. */
+  chosen?: true;
+  /**
+   * The reads made (the day of each). A read that is due but not made yet (fewer than 10 eligible
+   * live check-in days) is retried on each later check-in.
+   */
+  reads: { bloom?: DateKey; evergreen?: DateKey };
+}
+
+/* ------------------------------------------------------------------ */
+/* Season Review (§14.3)                                               */
+/* ------------------------------------------------------------------ */
+
+export type SeasonName = 'spring' | 'summer' | 'autumn' | 'winter';
+
+/** One plant in a season's time-lapse (counts only). */
+export interface SeasonPlant {
+  habitId: string;
+  plant: PlantSpeciesId;
+  fromStage: number;
+  toStage: number;
+  waterings: number;
+  /** Its companion at the end of the season, if any. */
+  petId?: string;
+}
+
+/** A season filed on the memory shelf ("Summer, on the sill"). */
+export interface SeasonRecord {
+  /** The season's first day. */
+  key: DateKey;
+  name: SeasonName;
+  start: DateKey;
+  end: DateKey;
+  hemisphere: Hemisphere;
+  /** Up to 8 plants, most watered first. */
+  plants: SeasonPlant[];
+  waterings: number;
+  /** How it was filed: reviewed (choices made or "Keep everything"), skipped ("Later"), or silently (it passed unopened). */
+  filed?: 'reviewed' | 'skipped' | 'silent';
+}
+
+export interface SeasonShelf {
+  /** The Season Review card waiting on Today (the season just ended), if any. */
+  pending?: SeasonRecord;
+  /** Filed seasons, oldest first. */
+  filed: SeasonRecord[];
+}
+
+/* ------------------------------------------------------------------ */
+/* Rituals (§13)                                                       */
+/* ------------------------------------------------------------------ */
+
+/** A Sunday Note highlight (data; the voice layer words it). */
+export type SundayHighlight =
+  | { kind: 'stageUp'; habitId: string; stage: number; date: DateKey; petId?: string }
+  | { kind: 'newcomer'; petId: string; date: DateKey; habitId?: string }
+  | { kind: 'everyDay'; habitId: string }
+  | { kind: 'topHabit'; habitId: string; days: number }
+  | { kind: 'newHabit'; habitId: string; date: DateKey }
+  | { kind: 'tiny'; habitId: string; days: number }
+  | { kind: 'kept'; habitId: string; anchorHabitId: string; days: number };
+
+/** The Sunday Note's P.S.: a companion's routine, or a found thing. */
+export type SundayPS =
+  | { kind: 'companion'; petId: string; habitId: string; days: number; timeOfDay: TimeOfDay }
+  | { kind: 'found'; petId: string; date: DateKey; seed: number };
+
+/** One habit's pressing on a Herbarium page: sized by waterings; rest days press as small flowers. */
+export interface HerbariumPressing {
+  habitId: string;
+  plant: PlantSpeciesId;
+  waterings: number;
+  rests: number;
+  /** 0–7: clamp(round(waterings / 4), 1, 7), or 0 with only rest days. */
+  size: number;
+}
+
+/** A Herbarium page's margin note (one, if true). */
+export type HerbariumMargin =
+  | { kind: 'bloomed'; habitId: string; date: DateKey }
+  | { kind: 'cameHome'; petId: string; date: DateKey }
+  | { kind: 'planted'; habitId: string; date: DateKey };
 
 export type Letter =
   | {
@@ -270,6 +539,13 @@ export type Letter =
       quote?: { habitId: string; date: DateKey; text: string };
       newFriends: string[];
       plantsGrown: string[];
+      /** Check-ins that week, across habits ("Nineteen waterings."). */
+      waterings?: number;
+      /** Up to two highlights, most specific first. */
+      highlights?: SundayHighlight[];
+      ps?: SundayPS;
+      /** Epoch ms when opened: rituals stay on the memory shelf forever (DESIGN §9.2). */
+      readAt?: number;
     }
   | {
       kind: 'monthly';
@@ -281,4 +557,33 @@ export type Letter =
       stars: number;
       previousPct?: number;
       growingBonus: boolean;
+      /** The Monthly Bouquet (stage 2): stems per habit with ≥ 1 check-in (DESIGN v1 §13.10). */
+      stems?: BouquetStem[];
+      /** The Herbarium page (§13): every habit watered or rested that month, pressed. */
+      pressings?: HerbariumPressing[];
+      margin?: HerbariumMargin;
+      /** The very first page. */
+      firstPage?: boolean;
+      readAt?: number;
+    }
+  | {
+      /** The moving-in anniversary note (§13): a year (or more) on this sill. */
+      kind: 'anniversary';
+      id: string;
+      /** The anniversary day. */
+      date: DateKey;
+      years: number;
+      /** The first habit planted (the first cutting), if it is still here. */
+      firstHabitId?: string;
+      /** Check-ins since the first one. */
+      waterings: number;
+      stars: number;
+      readAt?: number;
     };
+
+/** One habit's stems in a Monthly Bouquet: clamp(round(checkIns / 4), 1, 7) of its plant species. */
+export interface BouquetStem {
+  habitId: string;
+  plant: PlantSpeciesId;
+  count: number;
+}

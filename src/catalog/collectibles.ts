@@ -199,6 +199,7 @@ const DOGS: CollectibleDef[] = [
   decor('dog-bed', 'ground-left', 'Round Dog Bed', 'uncommon', 'dogs', 'A doughnut-shaped bed with a raised edge for chins.'),
   wear('dog-raincoat', 'body', 'Yellow Raincoat', 'rare', 'dogs', 'Waxed cotton, with a hood that stays up by itself.'),
   decor('enamel-bowl', 'ground-right', 'Enamel Bowl', 'rare', 'dogs', 'White enamel with a blue rim.'),
+  wear('duffle-coat', 'body', 'Duffle Coat', 'ultra', 'dogs', 'A tiny camel duffle coat with wooden toggles.'),
 ];
 
 /* ------------------------------------------------------------------------ */
@@ -223,6 +224,7 @@ const POND: CollectibleDef[] = [
   decor('watering-can', 'ground-right', 'Tin Watering Can', 'uncommon', 'pond', 'Holds exactly enough for one leaf.'),
   wear('clear-raincoat', 'body', 'Clear Raincoat', 'rare', 'pond', 'A see-through raincoat with a pink trim.'),
   decor('rubber-duck', 'ground-left', 'Rubber Duck', 'rare', 'pond', 'The ducks find it very confusing.'),
+  decor('glass-float', 'ground-right', 'Glass Float', 'ultra', 'pond', 'A green glass fishing float in its net. Catches the light.'),
 ];
 
 /* ------------------------------------------------------------------------ */

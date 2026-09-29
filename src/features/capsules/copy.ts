@@ -162,6 +162,8 @@ export function pullErrorNotice(error: PullError, m: MachineDef, have?: number):
       };
     case 'reveal-pending':
       return { text: 'One capsule is still waiting to be opened.' };
+    case 'storage-full':
+      return { text: 'This capsule couldn’t be saved, so it wasn’t opened. Nothing was spent.' };
   }
 }
 
