@@ -1,9 +1,10 @@
 /**
- * Wallet movements and once-only grants (DESIGN §6 "The economy", §13.5 "Economy v2").
+ * Wallet movements and once-only grants (DESIGN §6 "The economy").
  *
+ * Internal names (§6): `stars` are stamps, `stardust` are swaps.
  * Rules enforced here, for every caller:
  * - Balances never go negative: spends and refunds are all-or-nothing and report failure.
- * - Stardust auto-fuses: every 10 stardust becomes 1 star, so `wallet.stardust` stays in 0..9.
+ * - Swaps auto-fuse: every 10 swaps become 1 stamp, so `wallet.stardust` stays in 0..9.
  * - `lifetime.coinsEarned` / `starsEarned` track net earnings (a refund gives coins back).
  * - Every grant emits the GameEvent the FX layer animates.
  * - Once-only grants are keyed in `ledger.once` (see the key list on AppState.ledger).
@@ -32,7 +33,7 @@ export function spendCoins(tx: Tx, amount: number): boolean {
 
 /**
  * Gives back coins earned by a check-in that was undone, only if the balance allows (all or
- * nothing, DESIGN §6.1 "Reward integrity"). Emits a negative `coins` event on success.
+ * nothing, DESIGN §6 "Unchecking refunds it if the balance allows"). Emits a negative `coins` event on success.
  */
 export function refundCoins(tx: Tx, amount: number, habitId?: string): boolean {
   if (!(amount > 0)) return true;
@@ -69,7 +70,7 @@ export function spendTicket(tx: Tx): boolean {
   return true;
 }
 
-/** Adds stardust and fuses every 10 into a star (DESIGN §6). Returns the stars fused. */
+/** Adds swaps (stardust) and fuses every 10 into a stamp (DESIGN §6). Returns the stamps fused. */
 export function grantStardust(tx: Tx, amount: number): number {
   if (!(amount > 0)) return 0;
   const wallet = tx.section('wallet');
@@ -85,7 +86,7 @@ export function grantStardust(tx: Tx, amount: number): number {
 /* Once-only keys                                                      */
 /* ------------------------------------------------------------------ */
 
-export function hasOnce(s: AppState, key: string): boolean {
+export function hasOnce(s: Pick<AppState, 'ledger'>, key: string): boolean {
   return s.ledger.once[key] !== undefined;
 }
 
@@ -104,7 +105,7 @@ export function addToCollection(tx: Tx, id: string): boolean {
   return !prev;
 }
 
-/** Grants an exclusive collectible once ever (Evergreen Crown, Blossom Sprout, album decor…). */
+/** Grants an exclusive collectible once ever (the Laurel Sprig, the Window Seat, Field Guide decor…). */
 export function grantExclusive(tx: Tx, collectibleId: string): boolean {
   const key = `exclusive|${collectibleId}`;
   if (hasOnce(tx.s, key)) return false;
@@ -120,7 +121,7 @@ export function grantExclusive(tx: Tx, collectibleId: string): boolean {
 
 /**
  * True while the device clock is more than 36 h behind the latest time ever observed
- * (DESIGN §13.2): logging still works, but no rewards are paid until the clock catches up.
+ * (DESIGN v1 §13.2): logging still works, but no rewards are paid until the clock catches up.
  */
 export function rewardsPaused(s: AppState, now: number): boolean {
   return isClockRolledBack(now, s.clock.maxEpochMs);

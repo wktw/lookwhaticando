@@ -1,5 +1,5 @@
 /**
- * Streaks (DESIGN §5.4 as amended by §13.2, §13.3 and §13.5).
+ * Streaks (DESIGN §5.4 as amended by v1 §13.2, v1 §13.3 and v1 §13.5).
  *
  * - Day-based: consecutive done scheduled days. Allowed rests, off days, pauses and unscheduled days
  *   are transparent; an over-allowance rest or an unfinished past day ends the run; today pending
@@ -15,7 +15,7 @@
  *   is kept as the best, and the UI labels the new one "New rhythm" (never "0").
  * - Rungs: tier = the largest rung ≤ the occurrence-equivalent (day-based: the streak count;
  *   flexible: the occurrences achieved in the streak's periods, Σ min(times, check-in days)), paid
- *   once per (habit, tier) (§13.5). §13.5's "streak periods × times" is the same number for every
+ *   once per (habit, tier) (v1 §13.5). v1 §13.5's "streak periods × times" is the same number for every
  *   full period; a period whose goal was scaled down (created mid-week, paused, cut by an edit)
  *   counts what it actually asked for and got, so a 7×/week habit paused six days a week can't
  *   claim 7 occurrences per check-in (stage-3 decision).
@@ -135,7 +135,7 @@ function calendarUnits(unit: 'week' | 'month', from: DateKey, to: DateKey, weekS
 }
 
 /* ------------------------------------------------------------------ */
-/* Rung ladder (DESIGN §13.5)                                          */
+/* Rung ladder (DESIGN v1 §13.5)                                          */
 /* ------------------------------------------------------------------ */
 
 export interface Rung {

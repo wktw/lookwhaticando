@@ -1,5 +1,5 @@
 /**
- * Save migrations (DESIGN §11 "Persistence": migrations run on load; §13.8: a save stamped with a
+ * Save migrations (DESIGN §11 "Persistence": migrations run on load; v1 §13.8: a save stamped with a
  * newer schema opens read-only).
  *
  * - `MIGRATIONS[v]` upgrades a state from schema v to v+1. They run in order, each on the output of
@@ -32,7 +32,7 @@ export function fillDefaults(state: Obj, now = 0): Obj {
   for (const [k, v] of Object.entries(fresh)) {
     if (out[k] === undefined) out[k] = structuredClone(v);
     else if (isObj(v) && isObj(out[k]) && k !== 'collection' && k !== 'pets' && k !== 'logs' && k !== 'badges' && k !== 'pantry' && k !== 'offDays' && k !== 'pity') {
-      // Section objects with fixed fields (profile, settings, wallet, lifetime, ledger, meadow, clock).
+      // Section objects with fixed fields (profile, settings, wallet, lifetime, ledger, shelf, clock).
       const section = { ...(out[k] as Obj) };
       for (const [fk, fv] of Object.entries(v)) if (section[fk] === undefined) section[fk] = structuredClone(fv);
       out[k] = section;

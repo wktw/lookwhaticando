@@ -101,7 +101,7 @@ function demo(itemId: string, rarity: Rarity, o: { pet?: boolean; dupe?: boolean
           inMeadow: true,
           favorite: false,
           obtainedAt: 0,
-          daily: { date: '2026-09-29', pets: 0, treats: 0, buddy: 0 },
+          daily: { date: '2026-09-29', pets: 0, treats: 0 },
         }
       : undefined,
     shell: { color: '#FFC4D3', color2: '#BBDCF6' },

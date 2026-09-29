@@ -1,5 +1,5 @@
 /**
- * Badges (DESIGN §6.5 as amended by §13.10: Night owl → Wind-Down, plus Album Complete and First
+ * Badges (DESIGN §6.5 as amended by v1 §13.10: Night owl → Wind-Down, plus Album Complete and First
  * Harvest). Every badge in `catalog/badges.ts` has exactly one rule below (a test enforces it).
  *
  * - A badge is awarded once (`state.badges[id]` = when), pays its catalog stars and emits a
@@ -9,8 +9,8 @@
  *   rest, a pull's rarity, a live check-in's wall-clock time…), passed as a `BadgeTrigger`.
  * - Counters only move through reward paths (never through history edits), so badges cannot be
  *   farmed by editing the calendar or by un-checking and re-checking.
- * - Early bird and Wind-Down read wall-clock time from live `at` stamps only (§13.2).
- * - Nothing is awarded while the clock guard pauses rewards (§13.2).
+ * - Early bird and Wind-Down read wall-clock time from live `at` stamps only (v1 §13.2).
+ * - Nothing is awarded while the clock guard pauses rewards (v1 §13.2).
  */
 import { ALBUMS } from '@/catalog/collectibles';
 import { BADGES, BADGE_BY_ID } from '@/catalog/badges';
@@ -57,7 +57,7 @@ type Rule = (c: RuleContext) => boolean;
 
 /** Early bird: a live check-in from the start of the app day (never before 4:00) until 7:00 am. */
 export const EARLY_BIRD = { fromMin: 4 * 60, untilMin: 7 * 60 } as const;
-/** Wind-Down: three evening check-ins between 19:00 and 22:00 (§13.10). */
+/** Wind-Down: three evening check-ins between 19:00 and 22:00 (v1 §13.10). */
 export const WIND_DOWN = { fromMin: 19 * 60, untilMin: 22 * 60, count: 3 } as const;
 
 const minutesOf = (ms: number, local: LocalTimeReader): number => {
@@ -142,7 +142,7 @@ export function awardBadge(tx: Tx, badgeId: string): boolean {
   return true;
 }
 
-/** Album rewards: 5★ and the album's exclusive decor, once per album (DESIGN §13.7). */
+/** Field Guide page rewards: 5 stamps and the page's `ALBUMS[].reward` (if any), once per page (DESIGN §8.5). */
 export const ALBUM_STARS = 5;
 
 function checkAlbums(tx: Tx): void {
@@ -150,7 +150,7 @@ function checkAlbums(tx: Tx): void {
     const key = `album|${album.id}`;
     if (hasOnce(tx.s, key) || !albumProgress(tx.s.collection, album).complete) continue;
     setOnce(tx, key);
-    // The first completed album's 5★ are the Album Complete badge's; later albums pay their own.
+    // The first completed page's 5 stamps are the Album Complete pin's; later pages pay their own.
     const firstAlbum = tx.s.badges['album-complete'] === undefined;
     const stars = firstAlbum ? 0 : ALBUM_STARS;
     const exclusive = album.reward ?? undefined;

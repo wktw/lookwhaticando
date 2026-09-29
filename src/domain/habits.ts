@@ -1,5 +1,5 @@
 /**
- * Habit management and onboarding (DESIGN §5.1, §13.2, §13.5 effort, §13.10 onboarding).
+ * Habit management and onboarding (DESIGN §5.1–§5.3, §6 effort, §9.6 onboarding).
  *
  * - Create: validated input; `createdAt` = now and `createdOn` = today's app day (both immutable;
  *   no rewards before that day, however the day boundary moves later), and `startedOn` = the first
@@ -17,35 +17,33 @@
  * - Archive keeps history; restore adds a pause over the archived stretch (as a steady habit when 3
  *   big habits are already active). Delete removes the habit and its logs and *un-checks* its
  *   rewardable days (refunds where affordable, like un-checking); the sunshine it grew before stays
- *   in the meadow's lifetime total (Mochi's sprout never shrinks, §13.10). "Keep the plant in the
- *   greenhouse?" (§13.10, default yes in the UI) keeps the habit archived instead.
+ *   in the lifetime total (The Cutting never shrinks, §13). "Keep the plant on the balcony shelf?"
+ *   (§9.2, default yes in the UI) keeps the habit archived instead.
  * - Pauses start today or later; resume ends the covering pause yesterday (today too, when today's
  *   perfect day was already paid with this habit excused); overlaps merge.
  * - "Start tracking from…" moves `startedOn` earlier (stats only; no rewards before `createdOn`).
  */
 import { HABIT_ICON_IDS } from '@/catalog/habitIcons';
 import { TEMPLATES } from '@/catalog/templates';
-import type { HabitTemplate, PastelKey, PlantSpeciesId, PotId } from '@/catalog/types';
+import type { HabitTemplate, PastelKey, PotId } from '@/catalog/types';
 import { PASTELS } from '@/catalog/types';
-import { MOCHI_ID } from '@/catalog/collectibles';
 import type { HabitInput } from '@/state/api';
 import type { AppState, DateKey, Effort, Habit, HabitRule, TimeOfDay } from '@/state/types';
 import { graduationOffer, trackingOf, logsFor, evalContext } from './consistency';
 import { logStatus, showedUp } from './activity';
 import { owns, ownedTreats } from './collection';
 import { addDays, clampDayStartsAt, isDateKey } from './dates';
-import { mochiPetState } from './friendship';
 import { addPause, archivedStretchPause, isPausedOn, resumePauses } from './pauses';
 import { ensureRecipe } from './pantry';
 import { ruleAt, withRuleEdit, withStartedOn, type RuleEditTiming } from './rules';
 import { isBiggerRule, isDayBased, normalizeRuleContent, sameRuleContent, validateRuleContent, type RuleContent } from './schedule';
 import { GROW_COOLDOWN_DAYS, forfeitLoweredGoal, ledgerKey, resettleHabit } from './economy';
 import type { Tx } from './tx';
-import { addToCollection, grantStars, hasOnce, refundCoins, setOnce } from './wallet';
+import { grantStars, hasOnce, refundCoins, setOnce } from './wallet';
 
 export const MAX_BIG_HABITS = 3;
 export const LIMITS = { name: 60, anchor: 80, unit: 20, notes: 500 } as const;
-/** Onboarding suggests starting small (DESIGN §13.11: max 3 starter habits). */
+/** Onboarding suggests starting small (DESIGN §9.6: pick up to 3 habits). */
 export const ONBOARDING_MAX_HABITS = 3;
 export const DEFAULT_POT: PotId = 'terracotta';
 
@@ -138,7 +136,7 @@ function newHabitId(tx: Tx): string {
   const taken = new Set(tx.s.habits.map((h) => h.id));
   for (;;) {
     const id = `h-${Math.floor(tx.env.rng() * 36 ** 8).toString(36).padStart(8, '0')}`;
-    // A deleted habit's sunshine stays in the ledger (Mochi's lifetime gauge): never reuse its id.
+    // A deleted habit's sunshine stays in the ledger (The Cutting's lifetime gauge): never reuse its id.
     if (!taken.has(id) && !tx.s.logs[id] && tx.s.ledger.sunshine[id] === undefined) return id;
   }
 }
@@ -228,8 +226,8 @@ export function archiveHabit(tx: Tx, id: string): void {
 }
 
 /**
- * Restores an archived habit; the archived stretch becomes a pause (§13.2). A big habit comes back
- * as steady when 3 big habits are already active (§13.5 "at most 3 big habits active"; archiving,
+ * Restores an archived habit; the archived stretch becomes a pause (v1 §13.2). A big habit comes back
+ * as steady when 3 big habits are already active (v1 §13.5 "at most 3 big habits active"; archiving,
  * creating new big habits and restoring the old ones can't exceed it).
  */
 export function restoreHabit(tx: Tx, id: string): void {
@@ -244,8 +242,8 @@ export function restoreHabit(tx: Tx, id: string): void {
 
 export interface DeleteOptions {
   /**
-   * "Keep the plant in the greenhouse?" (§13.10; the UI defaults to yes): the habit is archived
-   * instead, so its plant stays on the Greenhouse shelf with its history.
+   * "Keep the plant on the balcony shelf?" (§9.2; the UI defaults to yes): the habit is archived
+   * instead, so its plant stays on the balcony shelf with its history.
    */
   keepPlant?: boolean;
 }
@@ -253,8 +251,8 @@ export interface DeleteOptions {
 /**
  * Deletes a habit with its logs. Its rewardable grants are un-checked first: coins refunded where
  * the balance allows (all or nothing per day), their sunshine and check-in counts removed. The
- * sunshine it grew before the window stays in `ledger.sunshine` (Mochi's sprout is a lifetime gauge
- * of the whole meadow, §13.10; growth is monotonic, §3.1). Bonuses stay.
+ * sunshine it grew before the window stays in `ledger.sunshine` (The Cutting is a lifetime gauge
+ * across all habits, deleted ones included, §13; growth only adds, §3.1). Bonuses stay.
  */
 export function deleteHabit(tx: Tx, id: string, opts: DeleteOptions = {}): void {
   if (!tx.s.habits.some((h) => h.id === id)) return;
@@ -326,7 +324,7 @@ export function pauseHabit(tx: Tx, id: string, start: DateKey, end?: DateKey): b
 }
 
 /**
- * Resume: the covering pause ends yesterday (§13.2). Stage-3 decision: when today's perfect day was
+ * Resume: the covering pause ends yesterday (v1 §13.2). Stage-3 decision: when today's perfect day was
  * already paid while this habit was paused and not done, today stays paused (the pause ends today)
  * and the habit is back tomorrow, so the bonus never outlives the pause it relied on (bonuses are
  * never clawed back, so pausing the undone habits, collecting and resuming can't mint one).
@@ -349,7 +347,7 @@ export function setStartedOn(tx: Tx, id: string, date: DateKey): boolean {
   return true;
 }
 
-/** Accepting "Ready to grow?" pays +1★ (§13.2 graduation). */
+/** Accepting "Ready to grow?" pays +1 stamp (§5.2 graduation). */
 export const GROW_STARS = 1;
 
 /** A rule edit already scheduled to start after today (e.g. an accepted offer, or a next-period edit). */
@@ -372,7 +370,7 @@ function recentGrowAccept(s: AppState, habitId: string, today: DateKey): DateKey
 
 /**
  * The graduation offer to show today: none while an edit is already pending, and no "Ready to
- * grow?" for 28 days after one was accepted, even if the new rule was then withdrawn (§13.2; one
+ * grow?" for 28 days after one was accepted, even if the new rule was then withdrawn (v1 §13.2; one
  * star per real graduation).
  */
 export function currentOffer(s: AppState, habit: Habit, today: DateKey): 'grow' | 'tinier' | null {
@@ -383,8 +381,8 @@ export function currentOffer(s: AppState, habit: Habit, today: DateKey): 'grow' 
 }
 
 /**
- * Accepting "Ready to grow?" (§13.2): applies a *bigger* rule (more occurrences a week or a bigger
- * target, nothing smaller) from tomorrow and pays +1★, only while the offer stands. False, with
+ * Accepting "Ready to grow?" (v1 §13.2): applies a *bigger* rule (more occurrences a week or a bigger
+ * target, nothing smaller) from tomorrow and pays +1 stamp, only while the offer stands. False, with
  * nothing changed, when no offer stands or the patch is not a bigger rule (use `updateHabit` for
  * other edits). The accept day is recorded (`grow|<id>|<day>`), which keeps the offer closed for 28
  * days whatever happens to the pending rule.
@@ -405,29 +403,16 @@ export function acceptGrowOffer(tx: Tx, id: string, patch: Partial<HabitInput>):
 /* Templates & onboarding                                              */
 /* ------------------------------------------------------------------ */
 
-/** Fallback plants when a template's species is still in a capsule (in preference order). */
-const PLANT_FALLBACK: readonly PlantSpeciesId[] = ['tulip', 'daisy', 'sunflower', 'succulent', 'monstera'];
-const PLANT_SUBSTITUTE: Partial<Record<PlantSpeciesId, PlantSpeciesId>> = {
-  cactus: 'succulent',
-  lavender: 'tulip',
-  lily: 'daisy',
-  strawberry: 'tulip',
-  sakura: 'tulip',
-  lemon: 'sunflower',
-  mushroom: 'monstera',
-};
-
-/** The HabitInput for a template, using an owned plant (a starter substitute when needed). */
-export function habitInputFromTemplate(template: HabitTemplate, collection: AppState['collection']): HabitInput {
-  const has = (p: PlantSpeciesId) => owns(collection, `plant-${p}`);
-  const plant = has(template.plant)
-    ? template.plant
-    : [PLANT_SUBSTITUTE[template.plant], ...PLANT_FALLBACK].find((p): p is PlantSpeciesId => p !== undefined && has(p)) ?? template.plant;
+/**
+ * The HabitInput for a template. Every template grows a free starter plant (pothos, pilea, begonia,
+ * snake plant or cat grass, §5.5) in the free terracotta pot, so the preview is what gets planted.
+ */
+export function habitInputFromTemplate(template: HabitTemplate): HabitInput {
   return {
     name: template.name,
     icon: template.icon,
     color: template.color as PastelKey,
-    plant,
+    plant: template.plant,
     pot: DEFAULT_POT,
     schedule: template.schedule,
     target: template.target,
@@ -448,9 +433,10 @@ export interface OnboardingInput {
 }
 
 /**
- * Finishes onboarding (§13.10): the name, Mochi (fixed character, buddy, always out), the starter
- * recipes in the pantry, and up to 3 habits from templates. There is no coin gift: the first
- * check-in earns the first capsule (First Sprout, economy.ts). Idempotent once onboarded.
+ * Finishes onboarding (§9.6): the name, the day start and birthday when given, the starter recipes
+ * in the pantry, and up to 3 habits from templates. There is no pet and no coin gift here: the first
+ * pet comes from the "Cats or Cows?" capsule (`pull(…, { free: true })`, gacha.ts), and the first
+ * check-in tops the jar up to one capsule (First Sprout, economy.ts). Idempotent once onboarded.
  */
 export function completeOnboarding(tx: Tx, opts: OnboardingInput): string[] {
   if (tx.s.profile.onboarded) return [];
@@ -459,17 +445,12 @@ export function completeOnboarding(tx: Tx, opts: OnboardingInput): string[] {
   profile.onboarded = true;
   if (opts.birthday && /^\d{2}-\d{2}$/.test(opts.birthday)) profile.birthday = opts.birthday;
   if (opts.dayStartsAt !== undefined) tx.section('settings').dayStartsAt = clampDayStartsAt(opts.dayStartsAt);
-  if (!tx.s.pets[MOCHI_ID]) {
-    addToCollection(tx, MOCHI_ID);
-    tx.section('pets')[MOCHI_ID] = mochiPetState(tx.env.now, tx.env.today);
-  }
-  profile.buddy = MOCHI_ID;
   for (const t of ownedTreats(tx.s.collection)) ensureRecipe(tx, t.id);
   const ids: string[] = [];
   for (const templateId of opts.templateIds.slice(0, ONBOARDING_MAX_HABITS)) {
     const template = TEMPLATES.find((t) => t.id === templateId);
     if (!template) continue;
-    const input = habitInputFromTemplate(template, tx.s.collection);
+    const input = habitInputFromTemplate(template);
     if (validateHabitInput(tx.s, input).length > 0) continue;
     ids.push(createHabit(tx, input));
   }

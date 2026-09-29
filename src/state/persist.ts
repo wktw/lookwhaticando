@@ -1,8 +1,8 @@
 /**
- * localStorage persistence (DESIGN §11 "Persistence", §13.8 "Storage").
+ * localStorage persistence (DESIGN §11 "Persistence", v1 §13.8 "Storage").
  *
- * - Envelope `{ v, appVersion, rev, savedAt, state }` under `mochi-meadow:v1` (the demo meadow lives
- *   under `mochi-meadow:demo:v1`). `rev` increases with every write, so a window can tell a newer
+ * - Envelope `{ v, appVersion, rev, savedAt, state }` under `catkin:v1` (the demo save lives
+ *   under `catkin:demo:v1`). `rev` increases with every write, so a window can tell a newer
  *   save written by another window (`storage` events) from its own.
  * - Every storage access is in try/catch; nothing here throws. A QuotaExceeded write retries after
  *   dropping the `:corrupt` copy, then after dropping `:backup` and compacting the state's stale
@@ -15,8 +15,8 @@
  *   actions, commit-before-animate), and `flush()` writes any pending save (pagehide / hidden).
  * - A save stamped with a newer schema is reported as 'newer' (the app opens it read-only), with the
  *   state when it still reads as a current-schema state (a newer version that only added fields),
- *   so the meadow can be shown rather than an empty one.
- * - Reset removes only `mochi-meadow:*` keys (never `clear()`).
+ *   so the save can be shown rather than an empty one.
+ * - Reset removes only `catkin:*` keys (never `clear()`).
  * - The theme is mirrored to its own tiny key for the pre-paint script in index.html.
  * Storage and timers are injected, so all of this runs under node in tests.
  */
@@ -32,11 +32,11 @@ export interface KeyValueStorage {
   readonly length: number;
 }
 
-export const NAMESPACE = 'mochi-meadow:';
-export const SAVE_KEY = 'mochi-meadow:v1';
-export const DEMO_KEY = 'mochi-meadow:demo:v1';
-export const THEME_KEY = 'mochi-meadow:theme';
-export const UNDO_IMPORT_KEY = 'mochi-meadow:undo-import';
+export const NAMESPACE = 'catkin:';
+export const SAVE_KEY = 'catkin:v1';
+export const DEMO_KEY = 'catkin:demo:v1';
+export const THEME_KEY = 'catkin:theme';
+export const UNDO_IMPORT_KEY = 'catkin:undo-import';
 export const backupKeyOf = (key: string): string => `${key}:backup`;
 export const corruptKeyOf = (key: string): string => `${key}:corrupt`;
 export const DEBOUNCE_MS = 250;
@@ -324,7 +324,7 @@ export class SaveQueue {
 /* Reset & theme mirror                                                */
 /* ------------------------------------------------------------------ */
 
-/** Removes every `mochi-meadow:*` key (and nothing else). Returns how many were removed. */
+/** Removes every `catkin:*` key (and nothing else). Returns how many were removed. */
 export function removeNamespace(storage: KeyValueStorage, prefix = NAMESPACE): number {
   const keys: string[] = [];
   try {

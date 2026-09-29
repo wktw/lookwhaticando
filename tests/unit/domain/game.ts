@@ -36,7 +36,7 @@ export const baseInput = (over: Partial<HabitInput> = {}): HabitInput => ({
   name: 'Walk',
   icon: 'walk',
   color: 'sage',
-  plant: 'tulip',
+  plant: 'pothos',
   pot: 'terracotta',
   schedule: { kind: 'daily' },
   target: 1,

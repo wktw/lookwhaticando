@@ -1,5 +1,5 @@
 /**
- * Flexible periods (DESIGN §13.3 "Consistency & streak math (exact)").
+ * Flexible periods (DESIGN v1 §13.3 "Consistency & streak math (exact)").
  *
  * For a flexible period p (a week or month, `every`-aware, cut on the rule's grid):
  *   activeFrac_p = active days in p ÷ total days in p
@@ -7,16 +7,16 @@
  *   achieved_p   = min(times, checkinDays_p)
  *   expected_p   = achieved_p + max(0, target_p − achieved_p − open_p)
  * where open_p counts the days that can still take a check-in (0 once the period closed, which
- * gives §13.3's closed form max(target_p, achieved_p)). A period is skipped only when target_p and
+ * gives v1 §13.3's closed form max(target_p, achieved_p)). A period is skipped only when target_p and
  * achieved_p are both 0. Only a shortfall that can no longer be made up counts, so the current
  * period can only ever help.
  *
- * Open days (the §13.3 remainingActiveDays(T…end), made exact; stage-3 decisions):
+ * Open days (the v1 §13.3 remainingActiveDays(T…end), made exact; stage-3 decisions):
  * - today counts only while it can still take a check-in: once today is checked in it is used up
  *   (one check-in per day), so "3 of 3 by Sunday" can't read as reachable on a Sunday already
  *   ticked;
  * - future paused and off days count too. Take today off and pauses are "transparent for every
- *   habit" (§13.2): they lower target_p when the period closes (round over active days), but they
+ *   habit" (v1 §13.2): they lower target_p when the period closes (round over active days), but they
  *   must never make the current period look worse than not taking them. Counting them as open
  *   keeps expected_p monotone: a day off or a pause can only lower it (the spec's letter,
  *   round(times × activeFrac) against active days only, could raise it: 3×/week with Friday off
@@ -204,7 +204,7 @@ export function periodEvaluations(habit: HabitDays, logs: HabitLogs, start: Date
     .filter((e) => e.state !== 'future');
 }
 
-/** The month a period is attributed to: the month of its last day (DESIGN §13.3). */
+/** The month a period is attributed to: the month of its last day (DESIGN v1 §13.3). */
 export function attributionMonth(p: Pick<FlexPeriod, 'to'>): MonthKey {
   return monthKey(p.to);
 }

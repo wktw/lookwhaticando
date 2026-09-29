@@ -12,7 +12,7 @@ import { mulberry32 } from '@/domain/rng';
 import { UTC, at } from '../domain/game';
 import { fiveYearSave } from './bigsave';
 
-// Builds whole meadows (the 120-day demo, months of play): generous time for a busy CI machine.
+// Builds whole saves (the 120-day demo, months of play): generous time for a busy CI machine.
 vi.setConfig({ testTimeout: 30_000 });
 
 const TODAY = '2026-09-29';

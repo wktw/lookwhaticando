@@ -1,5 +1,5 @@
 /**
- * `validateState`: a hand-written schema guard for AppState (DESIGN §13.8: snapshots are taken only
+ * `validateState`: a hand-written schema guard for AppState (DESIGN v1 §13.8: snapshots are taken only
  * when it passes; imports and loads are checked with it). No dependencies.
  *
  * It checks structure and invariants the reducers rely on — types, ranges, DateKey formats, the
@@ -10,7 +10,7 @@
  */
 import { PASTELS } from '@/catalog/types';
 import { MACHINES } from '@/catalog/machines';
-import { ZONES } from '@/catalog/zones';
+import { PLACES } from '@/catalog/places';
 import { PERSONALITIES } from '@/catalog/personalities';
 import { isDateKey } from '@/domain/dates';
 import { validateHabitRules } from '@/domain/rules';
@@ -34,7 +34,7 @@ const oneOf =
     values.includes(v as T);
 
 const MACHINE_IDS = MACHINES.map((m) => m.id);
-const ZONE_IDS = ZONES.map((z) => z.id);
+const PLACE_IDS = PLACES.map((p) => p.id);
 const PERSONALITY_IDS = PERSONALITIES.map((p) => p.id);
 const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
 
@@ -160,7 +160,11 @@ function checkPet(r: Report, p: unknown, id: string, path: string): void {
   r.check(nonNeg(o.obtainedAt), `${path}.obtainedAt`, 'not a timestamp');
   r.check(isObj(o.outfit) && Object.values(o.outfit).every((v) => v === undefined || isStr(v)), `${path}.outfit`, 'bad outfit');
   const d = o.daily;
-  r.check(isObj(d) && isStr(d.date) && nonNegInt(d.pets) && nonNegInt(d.treats) && nonNegInt(d.buddy), `${path}.daily`, 'bad daily counters');
+  r.check(
+    isObj(d) && isStr(d.date) && nonNegInt(d.pets) && nonNegInt(d.treats) && (d.favorites === undefined || nonNegInt(d.favorites)),
+    `${path}.daily`,
+    'bad daily counters',
+  );
 }
 
 /** Validates an unknown value as a current-schema AppState. */
@@ -173,11 +177,9 @@ export function validateState(x: unknown): ValidationResult {
   if (r.check(isObj(s.profile), 'profile', 'not an object')) {
     const p = s.profile as Obj;
     r.check(isStr(p.name), 'profile.name', 'not a string');
-    r.check(p.buddy === null || isStr(p.buddy), 'profile.buddy', 'not an id');
     r.check(isBool(p.onboarded), 'profile.onboarded', 'not a boolean');
     r.check(nonNeg(p.createdAt), 'profile.createdAt', 'not a timestamp');
     r.check(p.birthday === undefined || (isStr(p.birthday) && /^\d{2}-\d{2}$/.test(p.birthday)), 'profile.birthday', 'not MM-DD');
-    if (isStr(p.buddy)) r.check(isObj(s.pets) && isObj((s.pets as Obj)[p.buddy]), 'profile.buddy', 'not an owned pet');
   }
 
   if (r.check(isObj(s.settings), 'settings', 'not an object')) {
@@ -249,22 +251,32 @@ export function validateState(x: unknown): ValidationResult {
   checkRecord(r, s.pets, 'pets', (v, k, path) => checkPet(r, v, k, path));
   checkRecord(r, s.pantry, 'pantry', (v, _k, path) => r.check(isObj(v) && nonNegInt(v.servings) && isDateKey(v.restockedOn), path, 'bad entry'));
 
-  if (r.check(isObj(s.meadow), 'meadow', 'not an object')) {
-    const m = s.meadow as Obj;
-    r.check(Array.isArray(m.zones) && m.zones.includes('meadow') && m.zones.every(oneOf(ZONE_IDS)), 'meadow.zones', 'bad zones');
-    if (r.check(Array.isArray(m.decor), 'meadow.decor', 'not a list')) {
+  if (r.check(isObj(s.shelf), 'shelf', 'not an object')) {
+    const m = s.shelf as Obj;
+    const places = m.places;
+    r.check(
+      Array.isArray(places) && places.includes('sill') && places.every(oneOf(PLACE_IDS)) && new Set(places).size === places.length,
+      'shelf.places',
+      'bad places',
+    );
+    if (r.check(Array.isArray(m.decor), 'shelf.decor', 'not a list')) {
       const ids = new Set<string>();
       (m.decor as unknown[]).forEach((d, i) => {
         const ok =
-          isObj(d) && isStr(d.id) && !ids.has(d.id) && isStr(d.itemId) && oneOf(ZONE_IDS)(d.zone) && isNum(d.x) && d.x >= 0 && d.x <= 1 && isNum(d.y) && d.y >= 0 && d.y <= 1;
+          isObj(d) && isStr(d.id) && !ids.has(d.id) && isStr(d.itemId) && oneOf(PLACE_IDS)(d.place) && isNum(d.x) && d.x >= 0 && d.x <= 1 && isNum(d.y) && d.y >= 0 && d.y <= 1;
         if (isObj(d) && isStr(d.id)) ids.add(d.id);
-        r.check(ok, `meadow.decor[${i}]`, 'bad placement');
+        r.check(ok, `shelf.decor[${i}]`, 'bad placement');
       });
     }
   }
 
   checkRecord(r, s.badges, 'badges', (v, _k, path) => r.check(nonNeg(v), path, 'not a timestamp'));
   if (r.check(Array.isArray(s.inbox), 'inbox', 'not a list')) (s.inbox as unknown[]).forEach((l, i) => checkLetter(r, l, `inbox[${i}]`));
+  if (s.found !== undefined && r.check(Array.isArray(s.found), 'found', 'not a list')) {
+    (s.found as unknown[]).forEach((f, i) =>
+      r.check(isObj(f) && isDateKey(f.date) && isStr(f.petId) && nonNegInt(f.seed), `found[${i}]`, 'bad found thing'),
+    );
+  }
   if (s.pendingReveal !== undefined) {
     const p = s.pendingReveal;
     r.check(isObj(p) && oneOf(MACHINE_IDS)(p.machineId) && isStr(p.itemId) && isBool(p.isNew) && nonNeg(p.stardust) && nonNeg(p.fusedStars) && nonNeg(p.at), 'pendingReveal', 'bad reveal');

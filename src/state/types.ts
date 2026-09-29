@@ -1,9 +1,13 @@
 /**
  * Persisted application state. Everything the user owns lives here, is serializable
  * as JSON, and is versioned (see SCHEMA_VERSION + state/migrate.ts).
- * Semantics: docs/DESIGN.md §5–§7 as amended by §13 (§13 wins on conflict).
+ * Semantics: docs/DESIGN.md (catkin, v2) §5–§8 and §13; the logic team's readings are in NOTES-domain.md.
+ *
+ * Internal names that differ from what the screens say (DESIGN §6): `stars` are **stamps**,
+ * `stardust` are **swaps**, a `wish` is a **Special Order**, and a pet with `inMeadow` is **out on
+ * the Shelf** (the rest are resting indoors, off the Shelf).
  */
-import type { MachineId, PastelKey, Personality, PlantSpeciesId, PotId, WearableSlot } from '@/catalog/types';
+import type { MachineId, PastelKey, Personality, PlaceId, PlantSpeciesId, PotId, WearableSlot } from '@/catalog/types';
 
 export const SCHEMA_VERSION = 1;
 
@@ -27,7 +31,7 @@ export type Schedule =
 /**
  * A versioned rule. Editing a habit's schedule/target/step/tiny appends a new rule with
  * `from` = the day it starts applying; every day is evaluated with the rule in effect then,
- * so edits never rewrite history (DESIGN §13.2).
+ * so edits never rewrite history (DESIGN v1 §13.2).
  */
 export interface HabitRule {
   from: DateKey;
@@ -136,14 +140,16 @@ export interface PetState {
   /** Friendship XP; levels 1–10 then cosmetic bond levels 11–15. Never decays. */
   xp: number;
   outfit: Outfit;
+  /** Out on the Shelf (at most `petsOutCapacity` pets are out; the rest rest indoors). */
   inMeadow: boolean;
+  /** Marked as a favourite pet (sorted first; the featured pet when a view needs one). */
   favorite: boolean;
   obtainedAt: number;
   /**
-   * Per-day XP caps; reset when `date` changes. `favorites` (added in stage 2, optional for older
-   * saves) counts favorite treats fed that day: only the first pays the +12 (DESIGN §13.10).
+   * Per-day XP caps; reset when `date` changes. `favorites` counts favorite treats fed that day:
+   * only the first pays the +12 (DESIGN §8.2).
    */
-  daily: { date: DateKey; pets: number; treats: number; buddy: number; favorites?: number };
+  daily: { date: DateKey; pets: number; treats: number; favorites?: number };
 }
 
 export interface OwnedItem {
@@ -161,18 +167,28 @@ export interface PityCounter {
   pulls: number;
 }
 
-/** A decor item placed freely in the meadow (ground coordinates 0..1 within a zone). */
+/** A decor item placed freely in a place on the Shelf (coordinates 0..1 within the place). */
 export interface PlacedDecor {
   /** Unique placement id (the same item may be placed once per owned copy). */
   id: string;
   itemId: string;
-  zone: MeadowZoneId;
+  place: PlaceId;
   x: number;
   y: number;
   flip?: boolean;
 }
 
-export type MeadowZoneId = 'meadow' | 'pond' | 'orchard' | 'porch' | 'greenhouse' | 'starhill';
+export type { PlaceId };
+
+/**
+ * A small found thing an L6+ pet left on the sill (DESIGN §8.2): one a day on days with a
+ * check-in, worth 1 swap. `seed` picks which thing (a button, a leaf, a bead…) in the voice layer.
+ */
+export interface FoundThing {
+  date: DateKey;
+  petId: string;
+  seed: number;
+}
 
 export interface Settings {
   /** 0 = Sunday, 1 = Monday. Changes apply from the next week. */
@@ -194,11 +210,9 @@ export interface Settings {
 
 export interface Profile {
   name: string;
-  /** Pet collectible id shown on Today. */
-  buddy: string | null;
   onboarded: boolean;
   createdAt: number;
-  /** Optional 'MM-DD' for a birthday surprise. */
+  /** Optional 'MM-DD' for the birthday ritual (DESIGN §13). */
   birthday?: string;
 }
 
@@ -225,17 +239,20 @@ export interface AppState {
   wallet: Wallet;
   lifetime: Lifetime;
   /**
-   * Reward ledger (DESIGN §13.3 "Reward integrity").
+   * Reward ledger (DESIGN v1 §13.3 "Reward integrity").
    * - recent: per (habitId|date) grant for the refundable window only (today−7 … today);
    *   older entries are folded into totals by compaction.
    * - sunshine: per-habit lifetime sunshine total (monotone except refunds inside the window). A
-   *   deleted habit's total stays (minus its in-window refunds): Mochi's sprout is a lifetime gauge.
+   *   deleted habit's total stays (minus its in-window refunds): The Cutting is a lifetime gauge.
+   *   Keys are habit ids, including deleted habits' ids (never reused).
    * - bestStage: per-habit highest plant stage ever reached (plants never shrink).
    * - once: once-only grant keys → value (true, or a number noted below). Key formats:
    *   'perfect|<date>' (coins paid) · 'period|<habitId>|<periodStart>' (day number of its last day) · 'rung|<habitId>|<tierDays>' ·
    *   'showup|<n>' · 'weekly|<weekStart>' (stars paid) · 'bloom|<YYYY-MM>' (stars paid) ·
    *   'home|<gapStart>' (day number of the grant, for the 14-day cooldown) · 'exclusive|<collectibleId>' ·
    *   'birthday|<YYYY>' · 'album|<albumId>' · 'harvest|<habitId>|<date>' · 'gift|first-sprout' (coins) ·
+   *   'gift|first-capsule' (the onboarding capsule was pulled) · 'found|<date>' (an L6 found thing) ·
+   *   'cutting' (The Cutting's best stage: it never shrinks) ·
    *   'grow|<habitId>|<date>' (the accept day; the offer stays closed 28 days) ·
    *   'rest|<habitId>|<date>' (stage 3: an allowed rest that completed a paid perfect day; it keeps
    *   using the week's rest allowance for perfect days) · 'flourish|<habitId>' (stage 3: the most
@@ -260,16 +277,19 @@ export interface AppState {
   collection: Record<string, OwnedItem>;
   pity: Partial<Record<MachineId, PityCounter>>;
   pets: Record<string, PetState>;
-  /** Treat servings. Each owned recipe restocks 2 free servings per morning (bank up to 5; DESIGN §13.10). */
+  /** Treat servings. Each owned recipe restocks 2 free servings per morning (bank up to 5; DESIGN §8.2). */
   pantry: Record<string, { servings: number; restockedOn: DateKey }>;
-  meadow: {
-    zones: MeadowZoneId[];
+  /** The home (DESIGN §8.4): the places opened (the Sill is always first) and the decor placed in them. */
+  shelf: {
+    places: PlaceId[];
     decor: PlacedDecor[];
   };
   /** badges[badgeId] = epoch ms when earned */
   badges: Record<string, number>;
-  /** Letters (weekly letters, monthly bouquets), kept forever in the Letterbox; unread until `readAt`. */
+  /** Rituals (Sunday Notes, Herbarium pages), kept forever on the memory shelf; unread until `readAt`. */
   inbox: Letter[];
+  /** Found things left on the sill by L6+ pets, the last 14 app days (oldest first; DESIGN §8.2). */
+  found?: FoundThing[];
   pendingReveal?: PendingReveal;
   /** Clock guard: the latest app day / time ever observed (device clock rollback protection). */
   clock: { maxDateKey: DateKey; maxEpochMs: number; lastCheckinAt: number };
@@ -292,7 +312,7 @@ export type Letter =
       quote?: { habitId: string; date: DateKey; text: string };
       newFriends: string[];
       plantsGrown: string[];
-      /** Epoch ms when opened (stage 2): letters stay in the Letterbox forever (DESIGN §13.10). */
+      /** Epoch ms when opened: rituals stay on the memory shelf forever (DESIGN §9.2). */
       readAt?: number;
     }
   | {
@@ -305,7 +325,7 @@ export type Letter =
       stars: number;
       previousPct?: number;
       growingBonus: boolean;
-      /** The Monthly Bouquet (stage 2): stems per habit with ≥ 1 check-in (DESIGN §13.10). */
+      /** The Monthly Bouquet (stage 2): stems per habit with ≥ 1 check-in (DESIGN v1 §13.10). */
       stems?: BouquetStem[];
       readAt?: number;
     };

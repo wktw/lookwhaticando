@@ -1,5 +1,5 @@
 /**
- * What a schedule *means*, independent of any habit's version history (DESIGN §13.2 "Schedules",
+ * What a schedule *means*, independent of any habit's version history (DESIGN v1 §13.2 "Schedules",
  * "Targets and taps", "Tiny version").
  *
  * - `daily` and `days` are **day-based**: each scheduled day is one occurrence with a count target.
@@ -26,7 +26,7 @@ export type FlexibleSchedule = Extract<Schedule, { kind: 'weekly' | 'monthly' }>
 export type RuleContent = Omit<HabitRule, 'from'>;
 /**
  * Streak-compatible schedule families. Streaks continue across edits within a rhythm and restart
- * ("New rhythm") across rhythms (DESIGN §13.2).
+ * ("New rhythm") across rhythms (DESIGN v1 §13.2).
  */
 export type Rhythm = 'day' | 'week' | 'month';
 
@@ -36,7 +36,7 @@ const scheduleOf = (x: ScheduleLike): Schedule => ('kind' in x ? x : x.schedule)
 export const WEEKLY_EVERY = [1, 2, 3, 4] as const;
 export const MONTHLY_EVERY = [1, 2, 3, 6, 12] as const;
 
-/** Input limits (DESIGN §5.1 caps per week/month, scaled by `every`; §13.2 target/step ranges). */
+/** Input limits (DESIGN §5.1 caps per week/month, scaled by `every`; v1 §13.2 target/step ranges). */
 export const RULE_LIMITS = {
   targetMin: 1,
   targetMax: 100_000,
@@ -98,7 +98,7 @@ export function scheduledDaysPerWeek(x: ScheduleLike): number {
 }
 
 /**
- * Occurrences expected in an average week (DESIGN §13.2): 7 · |days| · times/every ·
+ * Occurrences expected in an average week (DESIGN v1 §13.2): 7 · |days| · times/every ·
  * times×12/52/every. Drives sunshine per occurrence (7 / expectedPerWeek) so every rhythm grows at
  * the same pace when kept faithfully.
  */
@@ -117,7 +117,7 @@ export function expectedPerWeek(x: ScheduleLike): number {
 }
 
 /**
- * Weekly rest allowance (DESIGN §13.2): max(1, floor(scheduledDaysPerWeek / 3)) for day-based
+ * Weekly rest allowance (DESIGN v1 §13.2): max(1, floor(scheduledDaysPerWeek / 3)) for day-based
  * habits (daily = 2, Mon/Wed/Fri = 1); flexible habits have no rest days.
  */
 export function restAllowancePerWeek(x: ScheduleLike): number {
@@ -152,7 +152,7 @@ export interface PeriodSlot {
 }
 
 /**
- * The grid for a flexible schedule whose rule starts on `from` (DESIGN §13.2: "A period with
+ * The grid for a flexible schedule whose rule starts on `from` (DESIGN v1 §13.2: "A period with
  * every > 1 starts at the start of the rule's from period").
  */
 export function periodGrid(x: ScheduleLike, from: DateKey, weekStart: WeekStart): PeriodGrid {
@@ -210,7 +210,7 @@ export interface RuleIssue {
 
 const isInt = (n: unknown): n is number => typeof n === 'number' && Number.isInteger(n);
 
-/** Every problem with a rule's content; an empty list means it is valid (DESIGN §13.2). */
+/** Every problem with a rule's content; an empty list means it is valid (DESIGN v1 §13.2). */
 export function validateRuleContent(rule: RuleContent): RuleIssue[] {
   const issues: RuleIssue[] = [];
   const s = rule.schedule;
@@ -294,7 +294,7 @@ export function samePeriodGeometry(a: ScheduleLike, b: ScheduleLike): boolean {
 /**
  * `next` asks for more than `prev`: at least as many occurrences per week and at least as big a
  * daily target, and strictly more of one of them. Accepting "Ready to grow?" needs such a rule
- * (DESIGN §13.2 graduation); a cosmetic or smaller edit is not a graduation.
+ * (DESIGN v1 §13.2 graduation); a cosmetic or smaller edit is not a graduation.
  */
 export function isBiggerRule(prev: Pick<HabitRule, 'schedule' | 'target'>, next: Pick<HabitRule, 'schedule' | 'target'>): boolean {
   const eps = 1e-9;

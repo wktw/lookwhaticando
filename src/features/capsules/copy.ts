@@ -142,6 +142,8 @@ export function pullErrorNotice(error: PullError, m: MachineDef): FriendlyNotice
       return { text: `${m.name} is resting until its season comes back. Its friends are in the Wishing Well anytime 💫` };
     case 'reveal-pending':
       return { text: 'One capsule is still waiting to be opened.' };
+    case 'storage-full':
+      return { text: 'This capsule couldn’t be saved, so it wasn’t opened. Nothing was spent.' };
   }
 }
 

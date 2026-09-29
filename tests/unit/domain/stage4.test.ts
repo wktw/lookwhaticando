@@ -45,7 +45,7 @@ describe('Flourishes are permanent visitors (DESIGN §13.10 "one of 8 permanent 
 describe('pity counts only while its tier is armed (DESIGN §13.6 "a counter is hidden once its tier is fully owned")', () => {
   it('a fully owned tier keeps its counter at 0, so it can never fire the moment a new item joins', () => {
     const g = new Game({ start: '2026-03-02' });
-    const rares = machinePool('kitty', {}).filter((p) => p.rarity === 'rare');
+    const rares = machinePool('cats', {}).filter((p) => p.rarity === 'rare');
     expect(rares.length).toBeGreaterThan(0);
     patch(g, (s) => ({
       ...s,
@@ -56,16 +56,16 @@ describe('pity counts only while its tier is armed (DESIGN §13.6 "a counter is 
     let sinceUltra = 0;
     for (let i = 0; i < 12; i++) {
       const out = g.run((tx) => {
-        const o = pull(tx, 'kitty');
+        const o = pull(tx, 'cats');
         tx.set('pendingReveal', undefined);
         return o;
       });
       if (!out.ok) throw new Error('pull failed');
-      expect(pityOf(g.state, 'kitty').sinceRare).toBe(0);
+      expect(pityOf(g.state, 'cats').sinceRare).toBe(0);
       expect(out.pity.rareIn).toBeNull();
       // The ultra tier still has something unowned: its counter runs as usual.
       sinceUltra = out.rarity === 'ultra' ? 0 : sinceUltra + 1;
-      expect(pityOf(g.state, 'kitty').sinceUltra).toBe(sinceUltra);
+      expect(pityOf(g.state, 'cats').sinceUltra).toBe(sinceUltra);
     }
   });
 
@@ -75,13 +75,13 @@ describe('pity counts only while its tier is armed (DESIGN §13.6 "a counter is 
     let expected = 0;
     for (let i = 0; i < 5; i++) {
       const out = g.run((tx) => {
-        const o = pull(tx, 'kitty');
+        const o = pull(tx, 'cats');
         tx.set('pendingReveal', undefined);
         return o;
       });
       if (!out.ok) throw new Error('pull failed');
       expected = out.rarity === 'rare' || out.rarity === 'ultra' ? 0 : expected + 1;
-      expect(pityOf(g.state, 'kitty').sinceRare).toBe(expected);
+      expect(pityOf(g.state, 'cats').sinceRare).toBe(expected);
     }
   });
 });

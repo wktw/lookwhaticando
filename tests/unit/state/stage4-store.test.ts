@@ -14,7 +14,7 @@ const input = {
   name: 'Walk',
   icon: 'walk',
   color: 'sage' as const,
-  plant: 'tulip' as const,
+  plant: 'pothos' as const,
   pot: 'terracotta' as const,
   schedule: { kind: 'daily' as const },
   target: 1,

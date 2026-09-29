@@ -85,7 +85,7 @@ describe('letters on the first open of a new week / month', () => {
   it('the Monthly Bouquet: stems per habit, stars, Growing, Steady Month', () => {
     const g = new Game({ start: '2026-02-01' });
     const a = g.addHabit({ name: 'Walk' });
-    const b = g.addHabit({ name: 'Read', plant: 'daisy' });
+    const b = g.addHabit({ name: 'Read', plant: 'begonia' });
     for (let d = '2026-02-01'; d < '2026-03-01'; d = addDays(d, 1)) {
       g.goTo(d);
       g.checkIn(a);
@@ -99,7 +99,7 @@ describe('letters on the first open of a new week / month', () => {
     g.goTo('2026-04-01');
     const feb = g.state.inbox.find((l) => l.id === 'bouquet-2026-02')!;
     const mar = g.state.inbox.find((l) => l.id === 'bouquet-2026-03')!;
-    expect(feb).toMatchObject({ kind: 'monthly', stems: [{ habitId: a, plant: 'tulip', count: 7 }, { habitId: b, plant: 'daisy', count: 1 }] });
+    expect(feb).toMatchObject({ kind: 'monthly', stems: [{ habitId: a, plant: 'pothos', count: 7 }, { habitId: b, plant: 'begonia', count: 1 }] });
     expect(mar).toMatchObject({ kind: 'monthly', stars: 4, growingBonus: true, achieved: 62, expected: 62, stems: [{ habitId: a, count: 7 }, { habitId: b, count: 7 }] });
     expect(g.state.badges['steady-month']).toBeDefined();
   });

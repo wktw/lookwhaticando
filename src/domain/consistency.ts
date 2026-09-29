@@ -1,11 +1,11 @@
 /**
  * Consistency = achieved occurrences ÷ expected occurrences over a window, where nothing that has
- * not had a chance to happen yet counts against you (DESIGN §5.3 as amended by §13.3).
+ * not had a chance to happen yet counts against you (DESIGN §5.4, from v1 §5.3 and §13.3).
  *
  * - Day-based: every scheduled day ≤ today counts (see activity.ts); today only once done.
  * - Flexible: whole periods count (see periods.ts), attributed to the window containing their
  *   **last day**, even while current (a week spanning Sep/Oct belongs to October).
- *   `trailing` windows (rolling "last 30 days") also include the current period (§5.3).
+ *   `trailing` windows (rolling "last 30 days") also include the current period (§5.4).
  * - Percentages are shown only once a window has ≥ 10 expected occurrences ("4 of 4 so far").
  * - Month-to-date is compared with the same elapsed span of last month, evaluated as of that day.
  *
@@ -51,7 +51,7 @@ export function addTally(a: Tally, b: Tally): Tally {
   return { achieved: a.achieved + b.achieved, expected: a.expected + b.expected, tiny: a.tiny + b.tiny };
 }
 
-/** Percentages stay hidden below this many expected occurrences (DESIGN §13.3). */
+/** Percentages stay hidden below this many expected occurrences (DESIGN v1 §13.3). */
 export const MIN_EXPECTED_FOR_PCT = 10;
 
 /** achieved ÷ expected, or null when nothing was expected (show "—", never "0%"). */
@@ -191,7 +191,7 @@ export interface MonthComparison {
 }
 
 /**
- * Month-to-date compared with the same elapsed span of last month (DESIGN §13.3). Last month is
+ * Month-to-date compared with the same elapsed span of last month (DESIGN v1 §13.3). Last month is
  * evaluated *as of* its matching day (clamped to its length: Mar 31 → Feb 28/29), so both sides
  * see the same rules for today-pending days and current periods.
  */
@@ -242,7 +242,7 @@ export function monthlySeries(
 }
 
 /* ------------------------------------------------------------------ */
-/* Per-habit headline phrases (DESIGN §13.3)                           */
+/* Per-habit headline phrases (DESIGN v1 §13.3)                           */
 /* ------------------------------------------------------------------ */
 
 /** Days looked back by the day-based phrases. */
@@ -264,7 +264,7 @@ export type HabitPhrase =
  * the current rhythm (a kind change starts a "New rhythm"). Day-based phrases look at the last 30
  * days ending today once today counts (done or tiny), otherwise ending yesterday: a pending today
  * never costs a day of the span ("30 of the last 30 days" every morning for someone who never
- * misses; §5.3 "Today is never held against you"; upstream §13.11 "Rolling windows end today if
+ * misses; §5.4 "today counts only if done"; v1 §13.11 "Rolling windows end today if
  * today already counts, else yesterday"). Flexible phrases look at the latest periods that count:
  * transparent periods (nothing expected) are skipped, and the current period is included only once
  * met.
@@ -329,7 +329,7 @@ export function formatHabitPhrase(p: HabitPhrase, weekStart: WeekStart): string 
 }
 
 /* ------------------------------------------------------------------ */
-/* Graduation offers (DESIGN §13.2 "Tiny version")                     */
+/* Graduation offers (DESIGN v1 §13.2 "Tiny version")                     */
 /* ------------------------------------------------------------------ */
 
 export const GRADUATION = {

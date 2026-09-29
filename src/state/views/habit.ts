@@ -1,6 +1,6 @@
 /**
- * Habit Detail sheet (DESIGN §9.2 "Habit Detail", §13.2 tiny/graduation/notes, §13.5 rungs,
- * §13.11 "Legible economy").
+ * Habit Detail sheet (DESIGN §9.2 "Habit Detail", v1 §13.2 tiny/graduation/notes, v1 §13.5 rungs,
+ * v1 §13.11 "Legible economy").
  */
 import type { AppState, DateKey, Habit, HabitRule } from '../types';
 import { logStatus, showedUp } from '@/domain/activity';

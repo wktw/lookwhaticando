@@ -7,14 +7,14 @@ import * as store from '@/state/store';
 import { at } from '../domain/game';
 import { fakeBrowser, fakeLocks } from './fixtures';
 
-// Builds whole meadows (the 120-day demo, months of play): generous time for a busy CI machine.
+// Builds whole saves (the 120-day demo, months of play): generous time for a busy CI machine.
 vi.setConfig({ testTimeout: 30_000 });
 
 const input = (name = 'Walk') => ({
   name,
   icon: 'walk',
   color: 'sage' as const,
-  plant: 'tulip' as const,
+  plant: 'pothos' as const,
   pot: 'terracotta' as const,
   schedule: { kind: 'daily' as const },
   target: 1,
@@ -104,22 +104,37 @@ describe('actions', () => {
 
   it('machine status and availability are real', () => {
     boot({ start: '2026-09-29' });
-    expect(store.availableMachines()).toContain('pumpkin');
-    expect(store.availableMachines()).not.toContain('snow');
-    expect(store.machineStatus('snow')).toMatchObject({ available: false, nextStart: '2026-11-11' });
-    expect(store.machineStatus('pumpkin')).toMatchObject({ available: true, activeUntil: '2026-11-10', rareIn: 10, ultraIn: 40, dupStreak: 0, owned: 0, canAfford: false, price: 25, currency: 'coins', secretId: 'pet-cow-ghost' });
+    expect(store.availableMachines()).toContain('autumn');
+    expect(store.availableMachines()).not.toContain('winter');
+    expect(store.machineStatus('winter')).toMatchObject({ available: false, nextStart: '2026-11-11' });
+    expect(store.machineStatus('autumn')).toMatchObject({ available: true, activeUntil: '2026-11-10', rareIn: 10, ultraIn: 40, dupStreak: 0, owned: 0, canAfford: false, price: 25, currency: 'coins', secretId: 'pet-cow-spice' });
   });
 
   it('a pull is committed (pendingReveal) and saved before it is returned', () => {
     const { b } = boot();
     store.completeOnboarding({ name: 'Sam', templateIds: [] });
     store.checkIn(store.createHabit(input()));
-    const r = store.pull('kitty');
+    const r = store.pull('cats');
     expect(r.ok).toBe(true);
-    expect(saved(b).state.pendingReveal).toMatchObject({ machineId: 'kitty' });
-    expect(store.pull('kitty')).toEqual({ ok: false, error: 'reveal-pending' });
+    expect(saved(b).state.pendingReveal).toMatchObject({ machineId: 'cats' });
+    expect(store.pull('cats')).toEqual({ ok: false, error: 'reveal-pending' });
     store.finishReveal();
     expect(store.state.value.pendingReveal).toBeUndefined();
+  });
+
+  it('the Shelf: places with coins, pets in and out', () => {
+    boot();
+    store.completeOnboarding({ name: 'Sam', templateIds: [] });
+    const r = store.pull('cows', { free: true });
+    store.finishReveal();
+    if (!r.ok) throw new Error('the free capsule failed');
+    expect(store.buyPlace('pond')).toEqual({ ok: false, error: 'not-enough-coins' });
+    store.togglePetOut(r.itemId);
+    expect(store.state.value.pets[r.itemId]!.inMeadow).toBe(false);
+    store.togglePetOut(r.itemId);
+    expect(store.state.value.pets[r.itemId]!.inMeadow).toBe(true);
+    const placed = store.placeDecor('decor-hay-bale', 'sill', 0.5, 0.5);
+    expect(placed).toBeNull(); // not owned
   });
 });
 
@@ -158,7 +173,7 @@ describe('the clock', () => {
   });
 });
 
-describe('demo meadow (DESIGN §13.8)', () => {
+describe('the demo (DESIGN §9.5, §11.1)', () => {
   it('lives in its own namespace and never touches the real save', () => {
     const { b } = boot();
     store.completeOnboarding({ name: 'Sam', templateIds: ['water'] });
@@ -184,10 +199,12 @@ describe('data', () => {
   it('export → preview → import (replace) → undo within 24 h', async () => {
     const { b } = boot();
     store.completeOnboarding({ name: 'Sam', templateIds: ['water', 'walk'] });
+    expect(store.pull('cats', { free: true })).toMatchObject({ ok: true, paidWith: 'free' }); // "Cats or Cows?"
+    store.finishReveal();
     const backup = store.exportData();
     expect(store.state.value.lastBackupAt).toBe(b.clock.now);
     const payload = await store.exportPayload();
-    expect(payload.startsWith('MM1:')).toBe(true);
+    expect(payload.startsWith('CK1:')).toBe(true);
     store.resetAll();
     store.completeOnboarding({ name: 'Other', templateIds: ['read'] });
     const preview = await store.previewImport(payload);
@@ -211,13 +228,13 @@ describe('data', () => {
     expect(await store.undoImport()).toBe(false);
   });
 
-  it('resetAll removes only mochi-meadow:* keys', () => {
+  it('resetAll removes only catkin:* keys', () => {
     const { b } = boot();
     b.storage.setItem('someone-else', 'keep me');
     store.completeOnboarding({ name: 'Sam', templateIds: [] });
     store.updateSettings({ theme: 'night' });
     store.flushSaves();
-    expect(b.storage.getItem('mochi-meadow:theme')).toContain('night');
+    expect(b.storage.getItem('catkin:theme')).toContain('night');
     store.resetAll();
     expect([...b.storage.data.keys()]).toEqual(['someone-else']);
     expect(store.state.value.profile.onboarded).toBe(false);

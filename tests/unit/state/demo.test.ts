@@ -1,23 +1,36 @@
 import { describe, expect, it, vi } from 'vitest';
-import { MOCHI_ID } from '@/catalog/collectibles';
+import { STARTER_IDS, getCollectible } from '@/catalog/collectibles';
 import { buildDemo, epochAtLocal } from '@/state/demo';
 import { validateState } from '@/state/validate';
 import { addDays, appDayKey, zonedLocalTime } from '@/domain/dates';
 import { UTC, at } from '../domain/game';
 
-// Builds whole meadows (the 120-day demo, months of play): generous time for a busy CI machine.
+// Builds whole saves (the 120-day demo, months of play): generous time for a busy CI machine.
 vi.setConfig({ testTimeout: 30_000 });
 
 const TODAY = '2026-09-29';
 const NOW = at(TODAY, 21, 45);
 const demo = buildDemo({ today: TODAY, now: NOW, local: UTC });
 
-describe('the demo meadow (DESIGN §9.5, §13.8)', () => {
+describe('the demo (DESIGN §9.5, §11.1)', () => {
   it('is a valid save, built deterministically', () => {
     expect(validateState(demo)).toMatchObject({ ok: true });
     expect(JSON.stringify(buildDemo({ today: TODAY, now: NOW, local: UTC }))).toBe(JSON.stringify(demo));
     expect(demo.clock.maxDateKey).toBe(TODAY);
-    expect(demo.profile).toMatchObject({ onboarded: true, buddy: MOCHI_ID });
+    expect(demo.profile).toMatchObject({ onboarded: true, name: 'Sam' });
+    expect('buddy' in demo.profile).toBe(false);
+  });
+
+  it('is catkin through and through: starter plants, the Cats or Cows capsule first, catkin places', () => {
+    const starters = new Set(STARTER_IDS);
+    for (const h of demo.habits) expect(starters.has(`plant-${h.plant}`), h.name).toBe(true);
+    const first = Object.values(demo.pets).sort((a, b) => a.obtainedAt - b.obtainedAt)[0]!;
+    const def = getCollectible(first.id)!;
+    expect(def).toMatchObject({ category: 'pet', source: 'cats' });
+    expect(demo.ledger.once['gift|first-capsule']).toBe(true);
+    expect(demo.shelf.places[0]).toBe('sill');
+    for (const d of demo.shelf.decor) expect(demo.shelf.places).toContain(d.place);
+    for (const l of Object.values(demo.logs).flatMap((x) => Object.values(x))) if (l.note) expect(l.note).not.toMatch(/!|\p{Extended_Pictographic}/u);
   });
 
   it('tells the whole story: every schedule kind, dips and recoveries, an edit, a late starter, notes', () => {
@@ -38,15 +51,15 @@ describe('the demo meadow (DESIGN §9.5, §13.8)', () => {
     expect(logs.filter((l) => l.kind === 'rest').length).toBeGreaterThan(0);
   });
 
-  it('has a lived-in meadow: ~14 friends, outfits, favorites, decor, a zone, badges and a waiting letter', () => {
+  it('has a lived-in Shelf: ~14 pets, outfits, favourites, decor, a place, pins and a waiting Sunday Note', () => {
     const pets = Object.values(demo.pets);
     expect(pets.length).toBeGreaterThanOrEqual(12);
     expect(pets.length).toBeLessThanOrEqual(20);
     expect(pets.some((p) => Object.keys(p.outfit).length > 0)).toBe(true);
-    expect(pets.some((p) => p.id !== MOCHI_ID && p.favoriteKnown)).toBe(true);
+    expect(pets.some((p) => p.favoriteKnown)).toBe(true);
     expect(pets.some((p) => p.xp > 100)).toBe(true);
-    expect(demo.meadow.decor.length).toBeGreaterThan(0);
-    expect(demo.meadow.zones).toContain('pond');
+    expect(demo.shelf.decor.length).toBeGreaterThan(0);
+    expect(demo.shelf.places).toContain('pond');
     expect(Object.keys(demo.badges).length).toBeGreaterThanOrEqual(10);
     expect(demo.wallet.coins).toBeGreaterThan(25);
     const unread = demo.inbox.filter((l) => l.readAt === undefined);

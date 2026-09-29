@@ -1,5 +1,5 @@
 /**
- * Versioned habit rules (DESIGN §13.2 "Versioned rules").
+ * Versioned habit rules (DESIGN v1 §13.2 "Versioned rules").
  *
  * A habit's schedule/target/step/tiny live in `rules[]`, each starting on its `from` date. Every
  * day and period is evaluated with the rule in effect then, so edits never rewrite history:
@@ -40,7 +40,7 @@ export function ruleIndexAt(rules: readonly HabitRule[], date: DateKey): number 
   return 0;
 }
 
-/** The rule in effect on `date` (DESIGN §13.2). Throws for a habit without rules (corrupt state). */
+/** The rule in effect on `date` (DESIGN v1 §13.2). Throws for a habit without rules (corrupt state). */
 export function ruleAt(habit: WithRules, date: DateKey): HabitRule {
   const rule = habit.rules[ruleIndexAt(habit.rules, date)];
   if (!rule) throw new Error('Habit has no rules');
@@ -160,7 +160,7 @@ export function validateHabitRules(habit: WithRulesAndStart): RuleIssue[] {
 /**
  * When an edit applies (store contract `updateHabit(…, applyFrom)`):
  * - 'today': day-based habits change from today. For a flexible habit this is "this period"
- *   (DESIGN §13.2): when the new rule cuts time into the same periods (same unit and `every`; only
+ *   (DESIGN v1 §13.2): when the new rule cuts time into the same periods (same unit and `every`; only
  *   `times` changes) it takes over the whole current period, which is re-evaluated under it. When
  *   the geometry changes (weekly ↔ monthly, another `every`, or flexible → day-based) there is no
  *   shared period to take over, so the new rule starts today: the old rule's period is cut short
@@ -169,8 +169,8 @@ export function validateHabitRules(habit: WithRulesAndStart): RuleIssue[] {
  *   today. Either way no day before today changes hands, so no past day or closed period can
  *   become a new shortfall ("edits never rewrite history").
  * - 'next-period': flexible habits change from the day after the current period ends. Day-based
- *   habits ignore it and change from today (DESIGN §13.2).
- * - 'tomorrow': any habit changes from tomorrow (accepting "Ready to grow?", §13.2 graduation).
+ *   habits ignore it and change from today (DESIGN v1 §13.2).
+ * - 'tomorrow': any habit changes from tomorrow (accepting "Ready to grow?", v1 §13.2 graduation).
  *   A flexible habit's current period is then cut short tonight (see above).
  */
 export type RuleEditTiming = 'today' | 'next-period' | 'tomorrow';
@@ -239,7 +239,7 @@ export function withRuleEdit<H extends WithRulesAndStart>(
 }
 
 /**
- * "Start tracking Walk from Mon, Sep 22?" (DESIGN §13.2): moves `startedOn` (and the first rule's
+ * "Start tracking Walk from Mon, Sep 22?" (DESIGN v1 §13.2): moves `startedOn` (and the first rule's
  * `from`) earlier. Later dates are ignored: history is never trimmed this way.
  */
 export function withStartedOn<H extends WithRulesAndStart>(habit: H, date: DateKey): H {

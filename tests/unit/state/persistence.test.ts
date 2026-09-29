@@ -120,17 +120,31 @@ describe('save envelope (DESIGN §13.8)', () => {
     expect(loadSave(bad, SAVE_KEY).kind).toBe('ok');
   });
 
-  it('reset removes only mochi-meadow:* keys', () => {
-    const storage = memoryStorage({ 'mochi-meadow:v1': '1', 'mochi-meadow:demo:v1': '2', 'mochi-meadow:theme': '3', 'other-app': 'keep', mochi: 'keep' });
+  it('the catkin namespace (DESIGN §1): catkin:* keys, the catkin-backup format, the CK1: handoff, a pre-paint theme mirror', async () => {
+    const persist = await import('@/state/persist');
+    const handoff = await import('@/state/handoff');
+    expect([persist.NAMESPACE, persist.SAVE_KEY, persist.DEMO_KEY, persist.THEME_KEY, persist.UNDO_IMPORT_KEY]).toEqual(['catkin:', 'catkin:v1', 'catkin:demo:v1', 'catkin:theme', 'catkin:undo-import']);
+    expect([handoff.BACKUP_FORMAT, handoff.PAYLOAD_GZIP, handoff.PAYLOAD_PLAIN]).toEqual(['catkin-backup', 'CK1:', 'CK0:']);
+    const { readFileSync } = await import('node:fs');
+    const html = readFileSync(new URL('../../../index.html', import.meta.url), 'utf8');
+    const prePaint = html.slice(html.indexOf('<script>'), html.indexOf('</script>'));
+    expect(prePaint).toContain("localStorage.getItem('catkin:theme')");
+    expect(prePaint).not.toMatch(/mochi/i);
+    const shoot = readFileSync(new URL('../../../scripts/shoot.mjs', import.meta.url), 'utf8');
+    expect(shoot).toContain("localStorage.setItem('catkin:v1'");
+  });
+
+  it('reset removes only catkin:* keys', () => {
+    const storage = memoryStorage({ 'catkin:v1': '1', 'catkin:demo:v1': '2', 'catkin:theme': '3', 'other-app': 'keep', catkin: 'keep' });
     expect(removeNamespace(storage)).toBe(3);
-    expect([...storage.data.keys()].sort()).toEqual(['mochi', 'other-app']);
+    expect([...storage.data.keys()].sort()).toEqual(['catkin', 'other-app']);
   });
 
   it('mirrors the theme to its own key for the pre-paint script', () => {
     const storage = memoryStorage();
     expect(readThemeMirror(storage)).toBeNull();
     mirrorTheme(storage, { theme: 'night', reduceMotion: 'on' });
-    expect(storage.getItem('mochi-meadow:theme')).toBe('{"theme":"night","reduceMotion":"on"}');
+    expect(storage.getItem('catkin:theme')).toBe('{"theme":"night","reduceMotion":"on"}');
     expect(readThemeMirror(storage)).toEqual({ theme: 'night', reduceMotion: 'on' });
   });
 

@@ -199,7 +199,7 @@ function seedDemoState() {
     pauses: [],
     order,
   }));
-  state.value = { ...s, habits, profile: { ...s.profile, name: 'Sam', buddy: 'pet-mochi' }, wallet: { coins: 120, stars: 6, tickets: 1, stardust: 4 } };
+  state.value = { ...s, habits, profile: { ...s.profile, name: 'Sam' }, wallet: { coins: 120, stars: 6, tickets: 1, stardust: 4 } };
 }
 
 function addCoins(n: number) {

@@ -1,33 +1,37 @@
 /**
- * Capsule pulls, the Wishing Well and the sparkle exchange (DESIGN §6.2–§6.4 as amended by §13.6,
- * §13.10 "Onboarding earns the first capsule" and §13.11 "Secrets & visibility").
+ * Capsule pulls, Special Order (internally the "wish") and the swap-in (DESIGN §7).
  *
  * A pull, in order:
- * 1. Availability & payment: seasonal machines only inside their window; coins or stars at the
- *    machine price, or a ticket (any available machine, Dreamy included), or `free` (only the very
- *    first pull ever, on Kitty Capsule or Moo Moo Milk Bar, and only while First Sprout has not
- *    been paid: §13.10 onboarding earns the first capsule, which supersedes §9.6's free pull, so
- *    the two can never add up to two first capsules). A pending reveal blocks new pulls.
- * 2. The first pull ever on Kitty / Moo is a guaranteed Classic or Special **pet** from that series
- *    (tier rolled 60:25, then new-first).
- * 3. Otherwise the tier is rolled from the machine odds, except:
- *    - ultra pity: the 40th pull without an ultra is an ultra;
- *    - rare pity: the 10th pull without a rare-or-better is a **rare** (rare tier only; ultra pity
- *      stays independent and wins when both are due);
+ * 1. Availability & payment: seasonal editions only inside their window; coins or stamps
+ *    (internally stars) at the series price, or a ticket (any available series, Night included).
+ *    A pending reveal blocks new pulls.
+ *    `free` is the onboarding capsule ("Cats or Cows?", §9.6): only No. 01 Cats or No. 02 Cows, only
+ *    as the very first pull, exactly once. It and First Sprout (the first check-in topping the jar up
+ *    to 25 coins, economy.ts) are one gift of one capsule, never two: taken before any check-in it
+ *    costs nothing and First Sprout never pays; taken after First Sprout, it spends exactly the coins
+ *    First Sprout added (the coin she inserts), so the coins her check-ins earned stay hers.
+ * 2. The first capsule (the first pull ever, free or paid, on any series) is a guaranteed Classic or
+ *    Special **pet** from that series (tier rolled 60:25, then new-first), and it doesn't advance
+ *    pity: a new save owns no pets, and every save's first capsule brings one home.
+ * 3. Otherwise the tier is rolled from the series odds, except:
+ *    - Super rare pity: the 40th pull without a Super rare is a Super rare;
+ *    - Rare pity: the 10th pull without a Rare-or-better is a **Rare** (Rare tier only; the Super
+ *      rare pity stays independent and wins when both are due);
  *    - a pity whose tier is fully owned is off (its counter is hidden: `null`) and stays at 0: it
  *      counts only pulls made while its tier still had something unowned;
- *    - lucky meter: after 4 consecutive duplicates the next pull is guaranteed new (tiers without
+ *    - lucky meter: after 4 duplicates in a row the next pull is guaranteed new (tiers without
  *      anything unowned are left out of the roll) when anything is unowned.
  *    An empty tier falls to the nearest non-empty tier below, then above.
  * 4. Inside the tier, unowned items weigh 3, owned 1 (new-first); pity and lucky picks take an
- *    unowned item when one exists. Dreamy Night's Moonlit variants (one per owned base pet, rare)
- *    share **one** slot in the rare tier (§13.11), so owning more pets never dilutes the printed
- *    rares. The slot weighs half a printed item: with Dreamy's 5 rares at 20% and 3 Super rares at
- *    10%, a full-weight slot would make each printed rare exactly as likely as a Super rare
- *    (20/6 = 10/3), breaking §13.6's "every rarer item is less likely than every commoner one".
- * 5. Duplicates turn into stardust (2/4/8/15, auto-fusing 10 → 1★); a duplicate pet also gets +20
- *    friendship. A new pet gets its PetState (personality + favorite treat rolled, default name)
- *    and goes to the meadow if there is room. A new treat becomes a pantry recipe.
+ *    unowned item when one exists. No. 07 Night's Moonlit variants (one per owned series pet, Rare)
+ *    share **one** slot in the Rare tier, so owning more pets never dilutes the printed Rares. The
+ *    slot weighs half a printed item: with Night's 5 Rares at 20% and 3 Super rares at 10%, a
+ *    full-weight slot would make each printed Rare exactly as likely as a Super rare (20/6 = 10/3),
+ *    breaking §7.1's "every rarer item is less likely than every commoner one".
+ * 5. Duplicates go onto the swap shelf (2/4/8/15 swaps, internally stardust, every 10 → 1 stamp); a
+ *    duplicate pet also gets +20 friendship. A new pet gets its PetState (personality and favourite
+ *    treat rolled, default name) and goes out on the Shelf if there is room. A new treat becomes a
+ *    pantry recipe.
  * 6. Commit before animate: the result is stored as `pendingReveal` before the UI plays it.
  */
 import { SECRET_IDS, getCollectible, moonlitBase } from '@/catalog/collectibles';
@@ -40,18 +44,22 @@ import { evaluateBadges } from './badges';
 import { eligibleMoonlitIds, isMachineComplete, isMachineSource, isMoonlitAvailable, machineLineup, owns } from './collection';
 import { appDayKey } from './dates';
 import { PET_XP, addXp, newPetState } from './friendship';
-import { hasMeadowRoom } from './meadow';
+import { hasRoomOut } from './shelf';
 import { ensureRecipe } from './pantry';
 import type { Rng } from './rng';
 import { machineAvailability, seasonVisited } from './seasons';
 import type { Tx } from './tx';
-import { addToCollection, grantStardust, spendCoins, spendStars, spendTicket } from './wallet';
+import { addToCollection, grantStardust, hasOnce, setOnce, spendCoins, spendStars, spendTicket } from './wallet';
 
-/** Machines whose first-ever pull is the onboarding capsule (§13.10). */
-export const FIRST_CAPSULE_MACHINES: readonly MachineId[] = ['kitty', 'moo'];
-/** Sparkle exchange on a completed machine: 250 coins → 40 stardust (§13.6). */
+/** The two cabinets of onboarding's "Cats or Cows?" (§9.6): the only series the free capsule works on. */
+export const FIRST_CAPSULE_MACHINES: readonly MachineId[] = ['cats', 'cows'];
+/** Once-key: the onboarding capsule was taken (the free pull happens exactly once). */
+export const FIRST_CAPSULE_KEY = 'gift|first-capsule';
+/** Once-key holding the coins First Sprout added (economy.ts). */
+export const FIRST_SPROUT_KEY = 'gift|first-sprout';
+/** Swap-in on a completed series: 250 coins → 40 swaps (§7.3). */
 export const SPARKLE_EXCHANGE = { coins: 250, stardust: 40 } as const;
-/** Wishing Well price of a Moonlit variant (§13.6). */
+/** Special Order price of a Moonlit variant, in stamps (§7.3). */
 export const MOONLIT_WISH_PRICE = 8;
 /** The Moonlit slot's weight as a fraction of one printed item's (see module doc, step 4). */
 export const MOONLIT_SLOT_SHARE = 0.5;
@@ -69,14 +77,14 @@ function moonlitSlotWeight(moonlit: readonly PoolItem[], collection: AppState['c
 export interface PoolItem {
   id: string;
   rarity: Rarity;
-  /** A Moonlit variant (Dreamy Night only; all of them share one rare slot). */
+  /** A Moonlit variant (No. 07 Night only; all of them share one Rare slot). */
   moonlit: boolean;
 }
 
-/** Everything a machine can drop right now: its lineup, plus Moonlit variants on Dreamy Night. */
+/** Everything a series can drop right now: its lineup, plus Moonlit variants on No. 07 Night. */
 export function machinePool(machineId: MachineId, collection: AppState['collection']): PoolItem[] {
   const pool: PoolItem[] = machineLineup(machineId).map((c) => ({ id: c.id, rarity: c.rarity, moonlit: false }));
-  if (machineId === 'dreamy') for (const id of eligibleMoonlitIds(collection)) pool.push({ id, rarity: 'rare', moonlit: true });
+  if (machineId === 'night') for (const id of eligibleMoonlitIds(collection)) pool.push({ id, rarity: 'rare', moonlit: true });
   return pool;
 }
 
@@ -196,7 +204,7 @@ export function decidePull(s: AppState, machineId: MachineId, rng: Rng): PullDec
   if (pool.length === 0) throw new Error(`Machine ${machineId} is empty`);
   const pity = pityOf(s, machineId);
 
-  if (s.lifetime.pulls === 0 && FIRST_CAPSULE_MACHINES.includes(machineId)) {
+  if (isFirstCapsule(s)) {
     const pets = pool.filter((p) => getCollectible(p.id)?.category === 'pet' && (p.rarity === 'common' || p.rarity === 'uncommon'));
     if (pets.length > 0) {
       const tiers: Rarity[] = (['common', 'uncommon'] as const).filter((r) => pets.some((p) => p.rarity === r));
@@ -239,7 +247,7 @@ function acquire(tx: Tx, def: CollectibleDef, viaPull: boolean): Acquired {
   const isNew = addToCollection(tx, def.id);
   if (isNew) {
     if (def.category === 'pet') {
-      const pet = newPetState(def.id, tx.env.rng, tx.env.now, tx.env.today, hasMeadowRoom(tx.s));
+      const pet = newPetState(def.id, tx.env.rng, tx.env.now, tx.env.today, hasRoomOut(tx.s));
       tx.section('pets')[def.id] = pet;
       return { isNew, stardust: 0, fusedStars: 0, pet };
     }
@@ -260,9 +268,19 @@ function acquire(tx: Tx, def: CollectibleDef, viaPull: boolean): Acquired {
 /* Pull                                                                */
 /* ------------------------------------------------------------------ */
 
+/** The next pull is the first capsule (no pull yet): a guaranteed Classic or Special pet, no pity. */
+export function isFirstCapsule(s: Pick<AppState, 'lifetime'>): boolean {
+  return s.lifetime.pulls === 0;
+}
+
+/** Whether onboarding's free capsule can be pulled on this series now ("Cats or Cows?", exactly once). */
+export function canPullFree(s: Pick<AppState, 'lifetime' | 'ledger'>, machineId: MachineId): boolean {
+  return isFirstCapsule(s) && FIRST_CAPSULE_MACHINES.includes(machineId) && !hasOnce(s, FIRST_CAPSULE_KEY);
+}
+
 export interface PullOptions {
   useTicket?: boolean;
-  /** Legacy onboarding capsule: only for the very first pull ever, on Kitty or Moo, before First Sprout. */
+  /** Onboarding's free capsule (see module doc, step 1). */
   free?: boolean;
 }
 
@@ -274,9 +292,15 @@ export function pull(tx: Tx, machineId: MachineId, opts: PullOptions = {}): Pull
 
   let paidWith: PullResult['paidWith'];
   if (opts.free) {
-    if (s.lifetime.pulls > 0 || !FIRST_CAPSULE_MACHINES.includes(machineId) || s.ledger.once['gift|first-sprout'] !== undefined) {
-      return { ok: false, error: 'machine-unavailable' };
+    if (!canPullFree(s, machineId)) return { ok: false, error: 'machine-unavailable' };
+    // The gift is one capsule: after First Sprout topped the jar up, the free capsule spends that top-up.
+    const sprout = s.ledger.once[FIRST_SPROUT_KEY];
+    const giftCoins = Math.min(typeof sprout === 'number' ? sprout : 0, s.wallet.coins);
+    if (giftCoins > 0) {
+      spendCoins(tx, giftCoins);
+      tx.emit({ type: 'coins', amount: -giftCoins, reason: 'gift' });
     }
+    setOnce(tx, FIRST_CAPSULE_KEY);
     paidWith = 'free';
   } else if (opts.useTicket) {
     if (!spendTicket(tx)) return { ok: false, error: 'no-ticket' };
@@ -291,22 +315,26 @@ export function pull(tx: Tx, machineId: MachineId, opts: PullOptions = {}): Pull
 
   const decision = decidePull(tx.s, machineId, tx.env.rng);
   const def = getCollectible(decision.item.id)!;
-  // Pity only counts pulls while its tier still has something to give (§13.6 "a counter is hidden
-  // once its tier is fully owned"): otherwise it would bank pulls and fire the moment a new item
-  // joins the tier (a Moonlit variant), turning an 8★ wish into a guaranteed pull.
+  // Pity only counts pulls while its tier still has something to give (§7.1 "counters hide once
+  // their tier is fully owned"): otherwise it would bank pulls and fire the moment a new item joins
+  // the tier (a Moonlit variant), turning an 8-stamp Special Order into a guaranteed pull.
   const poolBefore = machinePool(machineId, tx.s.collection);
   const armed = (r: Rarity) => tierOf(poolBefore, r).length > 0 && !tierFullyOwned(poolBefore, r, tx.s.collection);
   const got = acquire(tx, def, true);
 
+  // The first capsule doesn't advance pity (§9.6): its counters stay as they were.
   const prev = pityOf(tx.s, machineId);
   const rareOrBetter = def.rarity === 'rare' || def.rarity === 'ultra';
-  const pity: PityCounter = {
-    pulls: prev.pulls + 1,
-    sinceRare: rareOrBetter || !armed('rare') ? 0 : prev.sinceRare + 1,
-    sinceUltra: def.rarity === 'ultra' || !armed('ultra') ? 0 : prev.sinceUltra + 1,
-    dupStreak: got.isNew ? 0 : Math.min(4, prev.dupStreak + 1),
-  };
-  tx.section('pity')[machineId] = pity;
+  const pity: PityCounter =
+    decision.reason === 'first-capsule'
+      ? prev
+      : {
+          pulls: prev.pulls + 1,
+          sinceRare: rareOrBetter || !armed('rare') ? 0 : prev.sinceRare + 1,
+          sinceUltra: def.rarity === 'ultra' || !armed('ultra') ? 0 : prev.sinceUltra + 1,
+          dupStreak: got.isNew ? 0 : Math.min(4, prev.dupStreak + 1),
+        };
+  if (decision.reason !== 'first-capsule') tx.section('pity')[machineId] = pity;
   tx.section('lifetime').pulls += 1;
 
   const countdown = pityCountdown(machinePool(machineId, tx.s.collection), pity, tx.s.collection);
@@ -344,12 +372,12 @@ export function finishReveal(tx: Tx): void {
 }
 
 /* ------------------------------------------------------------------ */
-/* Wishing Well                                                        */
+/* Special Order (internally the wish)                                 */
 /* ------------------------------------------------------------------ */
 
 export type WishError = Extract<WishOutcome, { ok: false }>['error'];
 
-/** Star price of an item in the Wishing Well, or null when it can never be wished for. */
+/** Stamp price of an item in Special Order, or null when it can never be ordered. */
 export function wishPrice(itemId: string): number | null {
   if (moonlitBase(itemId) !== null) return getCollectible(itemId) ? MOONLIT_WISH_PRICE : null;
   const def = getCollectible(itemId);
@@ -362,7 +390,7 @@ export function profileCreatedOn(s: AppState, local: Tx['env']['local']): DateKe
   return appDayKey(s.profile.createdAt, s.settings.dayStartsAt, local);
 }
 
-/** Whether an item can be wished for right now (ignores the star balance), or why not. */
+/** Whether an item can be ordered right now (ignores the stamp balance), or why not. */
 export function wishStatus(s: AppState, itemId: string, today: DateKey, createdOn: DateKey): { ok: true; price: number } | { ok: false; error: WishError } {
   const price = wishPrice(itemId);
   if (price === null) return { ok: false, error: 'not-wishable' };
@@ -383,10 +411,10 @@ export function wish(tx: Tx, itemId: string): WishOutcome {
 }
 
 /* ------------------------------------------------------------------ */
-/* Sparkle exchange                                                    */
+/* Swap-in                                                             */
 /* ------------------------------------------------------------------ */
 
-/** On a completed machine: 250 coins → 40 stardust (→ 4★ by fusion). */
+/** On a completed series: 250 coins → 40 swaps (→ 4 stamps). */
 export function sparkleExchange(tx: Tx, machineId: MachineId): { ok: boolean } {
   if (!isMachineComplete(tx.s.collection, machineId)) return { ok: false };
   if (!spendCoins(tx, SPARKLE_EXCHANGE.coins)) return { ok: false };

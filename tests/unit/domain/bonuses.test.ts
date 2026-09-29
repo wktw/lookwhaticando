@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { addDays } from '@/domain/dates';
-import { ledgerKey } from '@/domain/economy';
+import { CUTTING_KEY, cuttingOf, ledgerKey } from '@/domain/economy';
+import * as gacha from '@/domain/gacha';
 import * as habits from '@/domain/habits';
 import * as logging from '@/domain/logging';
-import { HARVEST_BY_PLANT, EVERGREEN_CROWN_ID, MOCHI_ID } from '@/catalog/collectibles';
+import { HARVEST_BY_PLANT, LAUREL_SPRIG_ID } from '@/catalog/collectibles';
 import { Game, at } from './game';
 
 describe('Welcome home (≥ 3 quiet days, 20 coins + 1 ticket, once per 14 days)', () => {
@@ -156,26 +157,48 @@ describe('streak rungs (coins only, once per habit and tier)', () => {
   });
 });
 
-describe('plants: one stage per check-in, stage events, Evergreen Crown, harvest', () => {
-  it('a faithful monthly habit climbs one stage per check-in to Evergreen and gets the crown', () => {
+describe('plants: one stage per check-in, stage events, the Laurel Sprig, harvest', () => {
+  it('a faithful monthly habit climbs one stage per check-in to Evergreen; the first Evergreen grants the Laurel Sprig', () => {
     const g = new Game({ start: '2026-01-01' });
-    const m = g.addHabit({ name: 'Deep clean', plant: 'tulip', schedule: { kind: 'monthly', times: 1, every: 1 } });
+    const m = g.addHabit({ name: 'Deep clean', plant: 'catgrass', schedule: { kind: 'monthly', times: 1, every: 1 } });
+    const n = g.addHabit({ name: 'Filters', plant: 'pothos', schedule: { kind: 'monthly', times: 1, every: 1 } });
     const stages: number[] = [];
     for (let i = 0; i < 7; i++) {
       g.goTo(`2026-0${i + 1}-15`);
       g.checkIn(m);
-      stages.push(...g.lastOf('plantStage').map((e) => e.stage));
+      stages.push(...g.lastOf('plantStage').filter((e) => e.habitId === m).map((e) => e.stage));
+      g.checkIn(n);
     }
     expect(stages).toEqual([1, 2, 3, 4, 5, 6, 7]);
+    expect(g.allOf('plantStage').filter((e) => e.habitId === m).map((e) => e.stageName)).toEqual(['Rooting', 'Potted', 'Leafy', 'Budding', 'Blooming', 'Flourishing', 'Evergreen']);
     expect(g.state.ledger.bestStage[m]).toBe(7);
-    expect(g.allOf('exclusive').map((e) => e.collectibleId)).toContain(EVERGREEN_CROWN_ID);
-    expect(g.state.collection[EVERGREEN_CROWN_ID]?.count).toBe(1);
+    expect(g.state.ledger.bestStage[n]).toBe(7); // a second Evergreen plant…
+    expect(g.allOf('exclusive').filter((e) => e.collectibleId === LAUREL_SPRIG_ID)).toHaveLength(1); // …grants nothing more
+    expect(g.state.collection[LAUREL_SPRIG_ID]?.count).toBe(1);
     expect(g.state.badges['first-bloom']).toBeDefined();
     expect(g.state.badges['first-evergreen']).toBeDefined();
     const harvests = g.allOf('harvest');
-    expect(harvests[0]).toMatchObject({ habitId: m, treatId: HARVEST_BY_PLANT.tulip, firstTime: true });
-    expect(harvests).toHaveLength(3); // Blooming, Flourishing, Evergreen check-ins
+    expect(harvests[0]).toMatchObject({ habitId: m, treatId: HARVEST_BY_PLANT.catgrass, firstTime: true });
+    expect(harvests).toHaveLength(3); // Blooming, Flourishing, Evergreen check-ins; the pothos is not edible
+    expect(harvests.every((h) => h.habitId === m)).toBe(true);
     expect(g.state.badges['first-harvest']).toBeDefined();
+  });
+
+  it('harvest: only edible plants, only from Blooming, at most one per plant per day', () => {
+    expect(Object.keys(HARVEST_BY_PLANT).sort()).toEqual(['catgrass', 'catnip', 'lavender', 'strawberry']);
+    const g = new Game({ start: '2026-03-02' });
+    const grass = g.addHabit({ name: 'Water', plant: 'catgrass', target: 3 });
+    // Grow it to Blooming the honest way (42 daily check-ins).
+    for (let i = 0; i < 42; i++) {
+      for (let k = 0; k < 3; k++) g.checkIn(grass);
+      g.advance(1);
+    }
+    const before = g.allOf('harvest').length;
+    expect(g.state.ledger.bestStage[grass]).toBeGreaterThanOrEqual(5);
+    for (let k = 0; k < 3; k++) g.checkIn(grass);
+    g.undo(grass);
+    g.checkIn(grass);
+    expect(g.allOf('harvest').length - before).toBe(1); // one a day, however often the day completes
   });
 
   it('plants never shrink: un-checking keeps the best stage on display', () => {
@@ -187,17 +210,29 @@ describe('plants: one stage per check-in, stage events, Evergreen Crown, harvest
     expect(g.state.ledger.sunshine[a]).toBe(0);
     expect(g.state.ledger.bestStage[a]).toBe(1);
   });
+
+  it('The Cutting never shrinks either: an un-check keeps the stage it reached', () => {
+    const g = new Game({ start: '2026-03-02' });
+    const a = g.addHabit();
+    for (let i = 0; i < 5; i++) {
+      g.checkIn(a);
+      if (i < 4) g.advance(1);
+    }
+    expect(cuttingOf(g.state)).toMatchObject({ stage: 1, toNext: 15 }); // 5 lifetime sunshine: roots
+    g.undo(a);
+    expect(cuttingOf(g.state)).toMatchObject({ stage: 1, progress: 0, toNext: 16 }); // 4 sunshine, still rooted
+    expect(g.state.ledger.once[CUTTING_KEY]).toBe(1);
+  });
 });
 
-describe('buddy XP (+1 per completing check-in, max 10 a day)', () => {
-  it('caps at 10 a day and resets on a new app day', () => {
+describe('no buddy: check-ins give no pet XP until Keeping Company pairs a pet with a habit (§8.2, §14.1)', () => {
+  it('a day of check-ins leaves every pet’s XP where it was', () => {
     const g = new Game();
+    g.run((tx) => (gacha.pull(tx, 'cats', { free: true }), gacha.finishReveal(tx)));
     const ids = Array.from({ length: 12 }, (_, i) => g.addHabit({ name: `H${i}` }));
     for (const id of ids) g.checkIn(id);
-    expect(g.state.pets[MOCHI_ID]!.xp).toBe(10);
-    g.advance(1);
-    g.checkIn(ids[0]!);
-    expect(g.state.pets[MOCHI_ID]!.xp).toBe(11);
+    expect(Object.values(g.state.pets).map((p) => p.xp)).toEqual([0]);
+    expect(g.allOf('petLevel')).toEqual([]);
   });
 });
 

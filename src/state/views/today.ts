@@ -1,19 +1,22 @@
 /**
- * The Today screen view-model (DESIGN §9.1 as amended by §13.2 time blocks, §13.10 windowsill and
- * §13.11 layout/backdating/card rules).
+ * The Today screen view-model (DESIGN §9.1: the windowsill band, the week strip, the habit list by
+ * time block, the card status line, backdating).
+ *
+ * Structured data only: the greeting is `{ timeOfDay, hour, name, birthday }` and the screens pick
+ * its words (and every caption) from src/catalog/lines.ts. The few labels built here are plain
+ * formatting of numbers and dates.
  */
-import { BUDDY_LINES } from '@/catalog/personalities';
-import { getCollectible } from '@/catalog/collectibles';
-import type { Species } from '@/catalog/types';
 import type { AppState, DateKey, Habit, TimeOfDay } from '../types';
 import { OFF_DAYS_PER_MONTH, canLogOn, isInBackfillWindow, offDaysRemaining } from '@/domain/activity';
 import { dayCompletion, trackingOf } from '@/domain/consistency';
-import { WEEKDAY_LETTERS, addDays, dayNumber, parseDateKey, shortDateLabel, startOfWeek, weekday } from '@/domain/dates';
+import { WEEKDAY_LETTERS, addDays, parseDateKey, shortDateLabel, startOfWeek, weekday } from '@/domain/dates';
 import { isFlexible } from '@/domain/schedule';
 import { isPausedOn, pauseReturnDay } from '@/domain/pauses';
 import { ruleAt, scheduleStatusOn } from '@/domain/rules';
-import { levelForXp } from '@/domain/levels';
+import type { CuttingVM } from '@/domain/growth';
+import { cuttingOf } from '@/domain/economy';
 import { rewardsPaused } from '@/domain/wallet';
+import { birthdayOn } from '@/domain/rollover';
 import { habitCard, liveHabits, longDateLabel, monthDayLabel, type HabitCardVM, type ViewEnv } from './common';
 import { aggregateDayState, type DayState } from './calendar';
 import { firstTrackedDay } from '@/domain/insights';
@@ -35,11 +38,11 @@ export interface WeekStripDay {
   /** A global day off (lavender moon). */
   offDay: boolean;
   /**
-   * The shared day-state glyph (the calendar's, upstream §13.11): a day whose only check-ins were
+   * The shared day-state glyph (the calendar's, upstream v1 §13.11): a day whose only check-ins were
    * flexible reads 'done' rather than "nothing due".
    */
   state: DayState;
-  /** First day of a calendar week: the strip draws a hairline gap before it (§13.11). */
+  /** First day of a calendar week: the strip draws a hairline gap before it (v1 §13.11). */
   weekStart: boolean;
   /** "Saturday, September 27, 3 of 5 done" */
   ariaLabel: string;
@@ -61,7 +64,7 @@ export interface TimeBlockVM {
 }
 
 export interface DayProgressVM {
-  /** Day-based occurrences achieved on the day (§13.3: done counts; today pending never counts against). */
+  /** Day-based occurrences achieved on the day (v1 §13.3: done counts; today pending never counts against). */
   done: number;
   /** Day-based occurrences due that day (scheduled, active; allowed rests, pauses and off days excluded). */
   total: number;
@@ -87,15 +90,6 @@ export interface PausedSummaryVM {
   text: string;
 }
 
-export interface BuddyVM {
-  petId: string;
-  name: string;
-  species: Species | null;
-  level: number;
-  /** A daily line for the buddy corner (rotates by day and time of day). */
-  line: string;
-}
-
 export interface SillPotVM {
   habitId: string;
   icon: string;
@@ -104,7 +98,25 @@ export interface SillPotVM {
   stage: number;
   progress: number;
   blooms: number;
+  /** Watered on the selected day: the pot shows damp soil (§9.1; there is no dry state). */
   done: boolean;
+  /**
+   * Who sits in this pot in the band. Until Keeping Company (§14.1) pairs pets with habits, the pets
+   * out on the Shelf take the pots in order (favourites first, then the closest friends), so each
+   * habit is watered by whoever is nearest; `companion` is then false.
+   */
+  resident: { petId: string; companion: boolean } | null;
+}
+
+/** The greeting chip's data (§9.1 "Good afternoon, Sam"); the words come from lines.ts. */
+export interface GreetingVM {
+  timeOfDay: DayPart;
+  /** The wall-clock hour (0–23), for finer greeting periods (an early start, a late lamp). */
+  hour: number;
+  /** The profile name, trimmed ('' when none: the line drops ", {name}"). */
+  name: string;
+  /** Today is her birthday (the birthday greeting and the cake on the sill, §13). */
+  birthday: boolean;
 }
 
 export interface TodayVM {
@@ -114,7 +126,7 @@ export interface TodayVM {
   dateLabel: string;
   /** A past day is selected: the sticky banner "Logging for Sat, Sep 27" (and whether it still earns). */
   backdating: { label: string; rewards: boolean } | null;
-  greeting: { part: DayPart; name: string; text: string };
+  greeting: GreetingVM;
   /** The last 7 app days (6 back + today). */
   weekStrip: WeekStripDay[];
   progress: DayProgressVM;
@@ -123,29 +135,32 @@ export interface TodayVM {
   /**
    * Time blocks: the current block first, then the later ones, Anytime, then earlier blocks (folded
    * when complete). For a past day: natural order. Each holds day-based habits scheduled that day
-   * and weekly habits not yet met. Grouping reflects the state now; per §13.11 the screen snapshots
+   * and weekly habits not yet met. Grouping reflects the state now; per v1 §13.11 the screen snapshots
    * group membership on load / day change so the list never jumps on tap.
    */
   blocks: TimeBlockVM[];
   /** Flexible habits already met this period ("Done for the week/month" fold; still tappable). */
   doneForPeriod: HabitCardVM[];
-  /** Monthly-kind habits not yet met: one collapsible "This month" row at the end (§13.11). */
+  /** Monthly-kind habits not yet met: one collapsible "This month" row at the end (v1 §13.11). */
   thisMonth: HabitCardVM[];
   /** Day-based habits with no occurrence that day ("Not today", collapsed). */
   notToday: HabitCardVM[];
   paused: PausedSummaryVM | null;
   offDay: { isOff: boolean; remaining: number; perMonth: number; canToggle: boolean };
-  /** No habits yet: the empty state ("Let's plant your first habit!"). */
+  /** No habits yet: the empty sill. */
   empty: boolean;
-  /** No capsule pulled yet: the pinned "Your first capsule: check in anything ✨" card (§13.10). */
+  /** No capsule pulled yet: the pinned "Your first capsule: water anything." card (§9.6). */
   firstCapsule: boolean;
   /** Rewards are paused by the clock guard (calm banner). */
   clockBehind: boolean;
   quietRewards: boolean;
-  buddy: BuddyVM | null;
   /** Windowsill pots for the day's habits, in card order (the band shows up to 6). */
   sill: SillPotVM[];
-  /** An unread letter waiting on the windowsill. */
+  /** The Cutting on the window frame (§13), drawn in the band. */
+  cutting: CuttingVM;
+  /** Today's found thing on the sill, if an L6+ pet left one (§8.2). */
+  found: { petId: string; seed: number } | null;
+  /** An unread Sunday Note or Herbarium page waiting on the sill ("There's a note on the sill"). */
   letterWaiting: string | null;
   /** A capsule reveal was interrupted: resume it. */
   pendingReveal: boolean;
@@ -158,7 +173,7 @@ const BLOCK_LABEL: Record<TimeOfDay, string> = { morning: 'Morning', midday: 'Mi
  * Which time block of the app day the wall clock is in: morning from the day start until 11:00,
  * midday until 17:00, then evening. Hours before `dayStartsAt` (minutes after midnight) still
  * belong to the previous app day's evening; from the day start on it is the new day's morning, so
- * at 4 am with a 3 am day start Morning comes first rather than being folded as "earlier" (§13.2
+ * at 4 am with a 3 am day start Morning comes first rather than being folded as "earlier" (v1 §13.2
  * day boundary + "the current block comes first").
  */
 export function currentBlock(hour: number, dayStartsAt = 0, minute = 0): Exclude<TimeOfDay, 'anytime'> {
@@ -175,22 +190,12 @@ export function dayPart(hour: number): DayPart {
   return 'night';
 }
 
-const GREETING: Record<DayPart, [string, string]> = {
-  morning: ['Good morning', '☀️'],
-  afternoon: ['Good afternoon', '🌼'],
-  evening: ['Good evening', '🌙'],
-  night: ['Hi', '✨'],
-};
-
-export function greetingText(part: DayPart, name: string): string {
-  const [hello, emoji] = GREETING[part];
-  return name ? `${hello}, ${name} ${emoji}` : `${hello} ${emoji}`;
-}
-
-function buddyLine(s: AppState, date: DateKey, part: DayPart, allDone: boolean): string {
-  const pool = allDone ? BUDDY_LINES.allDone : part === 'afternoon' ? BUDDY_LINES.afternoon : BUDDY_LINES[part];
-  const line = pool[dayNumber(date) % pool.length]!;
-  return line.replaceAll('{you}', s.profile.name.trim() || 'friend');
+/** Pets out on the Shelf in band order: favourites first, then the closest friends, then who came home first. */
+export function sillResidents(s: Pick<AppState, 'pets'>): string[] {
+  return Object.values(s.pets)
+    .filter((p) => p.inMeadow)
+    .sort((a, b) => Number(b.favorite) - Number(a.favorite) || b.xp - a.xp || a.obtainedAt - b.obtainedAt || (a.id < b.id ? -1 : 1))
+    .map((p) => p.id);
 }
 
 export function todayVM(s: AppState, env: ViewEnv, date: DateKey = env.today): TodayVM {
@@ -293,32 +298,35 @@ export function todayVM(s: AppState, env: ViewEnv, date: DateKey = env.today): T
     };
   }
 
-  // Buddy, sill, letters.
-  const buddyId = s.profile.buddy;
-  const buddyPet = buddyId ? s.pets[buddyId] : undefined;
-  const buddyDef = buddyId ? getCollectible(buddyId) : undefined;
-  const buddy: BuddyVM | null = buddyPet
-    ? {
-        petId: buddyPet.id,
-        name: buddyPet.name,
-        species: buddyDef?.category === 'pet' ? buddyDef.species : null,
-        level: levelForXp(buddyPet.xp),
-        line: buddyLine(s, day, part, progress.total > 0 && progress.done === progress.total),
-      }
-    : null;
+  // The band: pots with whoever is nearest, the Cutting, today's found thing.
+  const residents = sillResidents(s);
+  const cards = new Map([...blocks.flatMap((b) => b.cards), ...doneForPeriod, ...thisMonth, ...notToday].map((c) => [c.id, c]));
   const sill: SillPotVM[] = live
     .filter((h) => !isPausedOn(h.pauses, day))
-    .map((h) => {
-      const card = [...blocks.flatMap((b) => b.cards), ...doneForPeriod, ...thisMonth, ...notToday].find((x) => x.id === h.id)!;
-      return { habitId: h.id, icon: h.icon, plant: h.plant, pot: h.pot, stage: card.plant.displayStage, progress: card.plant.progress, blooms: card.plant.blooms, done: card.done };
+    .map((h, i) => {
+      const card = cards.get(h.id)!;
+      const petId = residents[i];
+      return {
+        habitId: h.id,
+        icon: h.icon,
+        plant: h.plant,
+        pot: h.pot,
+        stage: card.plant.displayStage,
+        progress: card.plant.progress,
+        blooms: card.plant.blooms,
+        done: card.done,
+        resident: petId ? { petId, companion: false } : null,
+      };
     });
+  const found = s.found?.find((f) => f.date === day);
+  const birthday = s.profile.birthday ? birthdayOn(s.profile.birthday, parseDateKey(today).year) === today : false;
 
   return {
     date: day,
     isToday,
     dateLabel: longDateLabel(day),
     backdating: isToday ? null : { label: `Logging for ${shortDateLabel(day)}`, rewards: isInBackfillWindow(day, today) && canLogOn(day, today) },
-    greeting: { part, name: s.profile.name, text: greetingText(part, s.profile.name.trim()) },
+    greeting: { timeOfDay: part, hour, name: s.profile.name.trim(), birthday },
     weekStrip,
     progress,
     coinsToday: s.ledger.daily[today] ?? 0,
@@ -337,8 +345,9 @@ export function todayVM(s: AppState, env: ViewEnv, date: DateKey = env.today): T
     firstCapsule: s.profile.onboarded && s.lifetime.pulls === 0,
     clockBehind: rewardsPaused(s, env.now),
     quietRewards: s.settings.quietRewards,
-    buddy,
     sill,
+    cutting: cuttingOf(s),
+    found: found ? { petId: found.petId, seed: found.seed } : null,
     letterWaiting: s.inbox.find((l) => l.readAt === undefined)?.id ?? null,
     pendingReveal: s.pendingReveal !== undefined,
   };

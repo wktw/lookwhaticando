@@ -1,5 +1,5 @@
 /**
- * Profile and preferences (DESIGN §9.5 "You", §13.2 "Day boundary", §13.8 reminders).
+ * Profile and preferences (DESIGN §9.5 "You", v1 §13.2 "Day boundary", v1 §13.8 reminders).
  * Settings are clamped to their valid ranges on the way in, so the rest of the domain can trust them.
  */
 import type { Settings } from '@/state/types';

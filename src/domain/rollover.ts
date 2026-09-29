@@ -1,6 +1,6 @@
 /**
- * The clock and the start of a new app day (DESIGN §13.2 "Day boundary", §13.7/§13.10 pantry,
- * §13.10 rituals and birthday, §13.8 ledger compaction).
+ * The clock and the start of a new app day (DESIGN v1 §13.2 "Day boundary", v1 §13.7/v1 §13.10 pantry,
+ * v1 §13.10 rituals and birthday, v1 §13.8 ledger compaction).
  *
  * `observeClock` keeps the clock guard's high-water marks (the latest app day and epoch ever seen)
  * — never while the clock is rolled back, so a device set back in time can't move them.
@@ -9,9 +9,10 @@
  * 1. day-end tiny: a count habit that reached `tiny.count` but not its target on a day that just
  *    closed is now recorded as tiny, and paid as tiny if the day is still rewardable;
  * 2. the morning pantry restock;
- * 3. last week's letter and last month's bouquet (first open of a new week/month);
- * 4. the birthday surprise (1 ticket every year, Party Hat + Birthday Cake once);
- * 5. compaction (ledger to the refund window, stamps to 120 days).
+ * 3. last week's Sunday Note and last month's Herbarium page (first open of a new week/month);
+ * 4. the birthday (1 ticket every year; the Paper Party Hat and the Tiny Cake once);
+ * 5. compaction (ledger to the refund window, live stamps to 120 days, found things to 14).
+ * Growth only adds (§3.1): nothing here ever takes a plant, a pet or a stage away.
  */
 import { BIRTHDAY_CAKE_ID, PARTY_HAT_ID } from '@/catalog/collectibles';
 import type { DateKey } from '@/state/types';
@@ -20,6 +21,7 @@ import { addDays, isLeapYear, maxDateKey, parseDateKey } from './dates';
 import { bestStreakOccurrences, compactLedger, ledgerKey } from './economy';
 import { ensureLetters } from './letters';
 import { pruneOldStamps, rewardPass } from './logging';
+import { pruneFoundThings } from './friendship';
 import { restockPantry } from './pantry';
 import { ruleAt } from './rules';
 import { isDayBased } from './schedule';
@@ -41,7 +43,7 @@ export function observeClock(tx: Tx): void {
 }
 
 /**
- * Day-end tiny (§13.2): for each day in [from, today−1] still inside the rewarding window, count
+ * Day-end tiny (v1 §13.2): for each day in [from, today−1] still inside the rewarding window, count
  * habits that reached their tiny count but not the target get their tiny grant.
  */
 export function closeDays(tx: Tx, from: DateKey): void {
@@ -78,7 +80,7 @@ export function birthdayOn(mmdd: string, year: number): DateKey | null {
   }
 }
 
-/** Birthday surprise (§13.10): 1 ticket on the day each year; the Party Hat and Birthday Cake once. */
+/** Birthday (§13): 1 ticket on the day each year; the Paper Party Hat and the Tiny Cake once. */
 export function birthdaySurprise(tx: Tx): boolean {
   const { birthday, onboarded } = tx.s.profile;
   if (!birthday || !onboarded || rewardsPaused(tx.s, tx.env.now)) return false;
@@ -111,8 +113,9 @@ export function openDay(tx: Tx): boolean {
   return true;
 }
 
-/** Keeps the save bounded: the ledger folded to its window and old live stamps dropped. */
+/** Keeps the save bounded: the ledger folded to its window, old live stamps and found things dropped. */
 export function compactSave(tx: Tx): void {
   compactLedger(tx);
   pruneOldStamps(tx);
+  pruneFoundThings(tx);
 }

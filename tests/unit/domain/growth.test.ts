@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
-  MEADOW_SPROUT_THRESHOLDS,
+  CUTTING_THRESHOLDS,
   STAGE_NAMES,
   STAGE_THRESHOLDS,
   bloomsFor,
   displayStage,
   flourishesFor,
   growthInfo,
-  meadowSprout,
+  lifetimeSunshine,
   plantStage,
   stageFromSunshine,
   stageName,
@@ -16,6 +16,7 @@ import {
   sunshineFromHistory,
   sunshinePerOccurrence,
   sunshineToNextStage,
+  theCutting,
 } from '@/domain/growth';
 import { addDays } from '@/domain/dates';
 import { DAILY, ctx, habit, logs, monthly, on, onDays, range, tiny, weekly } from './helpers';
@@ -55,7 +56,7 @@ describe('sunshine per occurrence = 7 / expectedPerWeek (DESIGN §13.4)', () => 
 describe('stages', () => {
   it('thresholds and names match the table', () => {
     expect(STAGE_THRESHOLDS).toEqual([0, 1, 4, 10, 21, 42, 90, 180]);
-    expect(STAGE_NAMES).toEqual(['Seed', 'Sprout', 'Seedling', 'Leafy', 'Budding', 'Blooming', 'Flourishing', 'Evergreen']);
+    expect(STAGE_NAMES).toEqual(['Cutting', 'Rooting', 'Potted', 'Leafy', 'Budding', 'Blooming', 'Flourishing', 'Evergreen']);
     expect(stageName(9)).toBe('Evergreen');
   });
 
@@ -104,7 +105,7 @@ describe('stages', () => {
 
 describe('progress, next stage and blooms', () => {
   it('progress within a stage', () => {
-    expect(stageProgress(7, 2)).toBeCloseTo(0.5, 12); // Seedling 4 → 10
+    expect(stageProgress(7, 2)).toBeCloseTo(0.5, 12); // Potted 4 → 10
     expect(stageProgress(4, 2)).toBe(0);
     expect(stageProgress(30.3, 1)).toBe(1); // held back by the one-stage rule: full
     expect(sunshineToNextStage(33, 4)).toBe(9); // "9 ☀ to Blooming"
@@ -154,30 +155,57 @@ describe('progress, next stage and blooms', () => {
       paced: false,
     });
     const monthlyFirst = growthInfo({ sunshine: sunshinePerOccurrence({ schedule: monthly(1) }), completedOccurrences: 1 });
-    expect(monthlyFirst).toMatchObject({ stage: 1, name: 'Sprout', heldBack: true, sunshineToNext: 0, progress: 1 });
+    expect(monthlyFirst).toMatchObject({ stage: 1, name: 'Rooting', heldBack: true, sunshineToNext: 0, progress: 1 });
     expect(growthInfo({ sunshine: 5, completedOccurrences: 5, bestStage: 6 })).toMatchObject({ stage: 2, displayStage: 6, name: 'Flourishing' });
   });
 });
 
-describe("Mochi's sprout: a whole-meadow gauge (DESIGN §13.10)", () => {
+describe('The Cutting: the lifetime gauge (DESIGN §13)', () => {
   it.each([
-    [0, 0, 'Seed', false],
-    [4.9, 0, 'Seed', false],
-    [5, 1, 'Sprout', false],
-    [20, 2, 'Seedling', false],
-    [104, 3, 'Leafy', false],
-    [105, 4, 'Budding', false],
-    [210, 5, 'Blooming', true],
-    [450, 6, 'Flourishing', true],
-    [900, 7, 'Evergreen', true],
-  ] as const)('%d lifetime sunshine → stage %i %s', (s, stage, name, blooming) => {
-    expect(meadowSprout(s)).toMatchObject({ stage, name, blooming });
+    [0, 0, 5],
+    [4.9, 0, 0.1],
+    [5, 1, 15],
+    [20, 2, 30],
+    [104, 3, 1],
+    [105, 4, 105],
+    [210, 5, 240],
+    [450, 6, 450],
+    [900, 7, null],
+    [5000, 7, null],
+  ] as const)('%d lifetime sunshine → stage %i, %s to the next', (s, stage, toNext) => {
+    const c = theCutting(s);
+    expect(c.stage).toBe(stage);
+    if (toNext === null) expect(c.toNext).toBeNull();
+    else expect(c.toNext).toBeCloseTo(toNext, 9);
+    expect(c.framed).toBe(stage === 7);
   });
 
-  it('progress runs within each sprout stage', () => {
-    expect(MEADOW_SPROUT_THRESHOLDS).toEqual([0, 5, 20, 50, 105, 210, 450, 900]);
-    expect(meadowSprout(35).progress).toBeCloseTo(0.5, 12);
-    expect(meadowSprout(2000).progress).toBe(1);
+  it('progress runs within each stage, and `overall` along the whole frame', () => {
+    expect(CUTTING_THRESHOLDS).toEqual([0, 5, 20, 50, 105, 210, 450, 900]);
+    expect(theCutting(35).progress).toBeCloseTo(0.5, 12);
+    expect(theCutting(35).overall).toBeCloseTo(2.5 / 7, 12);
+    expect(theCutting(0)).toMatchObject({ progress: 0, overall: 0 });
+    expect(theCutting(2000)).toMatchObject({ progress: 1, overall: 1 });
+  });
+
+  it('never goes below its best stage (after an un-check)', () => {
+    expect(theCutting(19, 2)).toMatchObject({ stage: 2, progress: 0, toNext: 31 });
+    expect(theCutting(60, 2)).toMatchObject({ stage: 3 }); // the actual stage wins when higher
+    expect(theCutting(0, 9).stage).toBe(7);
+  });
+
+  it('overall only rises with lifetime sunshine', () => {
+    let prev = -1;
+    for (let s = 0; s <= 1000; s += 0.5) {
+      const o = theCutting(s).overall;
+      expect(o).toBeGreaterThanOrEqual(prev);
+      prev = o;
+    }
+  });
+
+  it('sums every habit’s ledger total, deleted habits included', () => {
+    expect(lifetimeSunshine({})).toBe(0);
+    expect(lifetimeSunshine({ 'h-live': 12.5, 'h-deleted': 30 })).toBe(42.5);
   });
 });
 

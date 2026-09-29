@@ -1,10 +1,10 @@
 /**
- * Backups and the Safari → app handoff (DESIGN §13.8 "Handoff", "Export/import").
+ * Backups and the Safari → app handoff (DESIGN v1 §13.8 "Handoff", "Export/import").
  *
- * - Backup file: `{ format: 'mochi-meadow-backup', v, appVersion, exportedAt, device, state }`.
- * - Clipboard payload: `'MM1:' + base64url(gzip(json))` using CompressionStream, or, where
- *   CompressionStream is unavailable, the graceful fallback `'MM0:' + base64url(utf8(json))`.
- * - Import accepts a backup file, an MM1/MM0 payload, or a raw save envelope; it migrates and
+ * - Backup file: `{ format: 'catkin-backup', v, appVersion, exportedAt, device, state }`.
+ * - Clipboard payload: `'CK1:' + base64url(gzip(json))` using CompressionStream, or, where
+ *   CompressionStream is unavailable, the graceful fallback `'CK0:' + base64url(utf8(json))`.
+ * - Import accepts a backup file, a CK1/CK0 payload, or a raw save envelope; it migrates and
  *   validates before anything is applied, and describes the result for the preview
  *   ("12 habits, 1,284 check-ins, 23 friends, saved Sep 27"). Applying (snapshot first, replace
  *   never merge, undo for 24 h) is the store's job.
@@ -15,9 +15,9 @@ import { migrate } from './migrate';
 import { countCheckins } from './snapshots';
 import { validateState } from './validate';
 
-export const BACKUP_FORMAT = 'mochi-meadow-backup';
-export const PAYLOAD_GZIP = 'MM1:';
-export const PAYLOAD_PLAIN = 'MM0:';
+export const BACKUP_FORMAT = 'catkin-backup';
+export const PAYLOAD_GZIP = 'CK1:';
+export const PAYLOAD_PLAIN = 'CK0:';
 
 export interface BackupEnvelope {
   format: typeof BACKUP_FORMAT;
@@ -103,7 +103,7 @@ async function through(bytes: Uint8Array, ctor: StreamCtor): Promise<Uint8Array>
   return new Uint8Array(await new Response(stream).arrayBuffer());
 }
 
-/** 'MM1:' + base64url(gzip(json)), or 'MM0:' + base64url(json) without CompressionStream. */
+/** 'CK1:' + base64url(gzip(json)), or 'CK0:' + base64url(json) without CompressionStream. */
 export async function encodePayload(json: string, opts: { compress?: boolean } = {}): Promise<string> {
   const bytes = new TextEncoder().encode(json);
   const ctor = opts.compress === false ? null : streamCtor('CompressionStream');
@@ -117,7 +117,7 @@ export async function encodePayload(json: string, opts: { compress?: boolean } =
   return PAYLOAD_PLAIN + base64UrlEncode(bytes);
 }
 
-/** The JSON inside an MM1/MM0 payload. */
+/** The JSON inside a CK1/CK0 payload. */
 export async function decodePayload(text: string): Promise<{ ok: true; json: string } | { ok: false; error: string }> {
   const t = text.trim();
   const prefix = t.slice(0, 4);
@@ -152,7 +152,7 @@ export type ParsedBackup =
   | { ok: true; state: AppState; savedAt: number; device?: string; appVersion?: string }
   | { ok: false; error: string; details?: string[] };
 
-/** Accepts a backup file, an MM1/MM0 payload or a raw save envelope; migrates and validates. */
+/** Accepts a backup file, a CK1/CK0 payload or a raw save envelope; migrates and validates. */
 export async function parseBackupText(text: string): Promise<ParsedBackup> {
   let json = text.trim();
   if (json.startsWith(PAYLOAD_GZIP) || json.startsWith(PAYLOAD_PLAIN)) {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { MOCHI_ID } from '@/catalog/collectibles';
+import { STARTER_IDS } from '@/catalog/collectibles';
 import { TEMPLATES } from '@/catalog/templates';
 import { addDays } from '@/domain/dates';
 import { ledgerKey } from '@/domain/economy';
@@ -12,7 +12,7 @@ describe('editor pickers', () => {
   it('offer only owned plant species and pots (capsule unlocks join them)', async () => {
     const { ownedPlantSpecies, ownedPots } = await import('@/domain/collection');
     const g = new Game();
-    expect(ownedPlantSpecies(g.state.collection)).toEqual(['tulip', 'daisy', 'sunflower', 'succulent', 'monstera']);
+    expect(ownedPlantSpecies(g.state.collection)).toEqual(['pothos', 'pilea', 'begonia', 'snakeplant', 'catgrass']);
     expect(ownedPots(g.state.collection)).toEqual(['terracotta', 'cream', 'blush']);
     g.state = { ...g.state, collection: { ...g.state.collection, 'plant-lavender': { count: 1, firstAt: 0 } } };
     expect(ownedPlantSpecies(g.state.collection)).toContain('lavender');
@@ -27,7 +27,7 @@ describe('creating habits', () => {
     expect(issues(g, { name: '   ' })).toEqual(['name:name']);
     expect(issues(g, { icon: 'nope' })).toEqual(['icon:icon']);
     expect(issues(g, { plant: 'lavender' })).toEqual(['plant:plant-locked']);
-    expect(issues(g, { pot: 'frog' })).toEqual(['pot:pot-locked']);
+    expect(issues(g, { pot: 'teacup' })).toEqual(['pot:pot-locked']);
     expect(issues(g, { schedule: { kind: 'days', days: [] } })).toEqual(['schedule:days-empty']);
     expect(issues(g, { schedule: { kind: 'weekly', times: 9, every: 1 } })).toEqual(['schedule:times-range']);
     expect(issues(g, { target: 0 })).toEqual(['target:target-range']);
@@ -159,27 +159,40 @@ describe('pauses and start dates', () => {
   });
 });
 
-describe('onboarding (DESIGN §13.10)', () => {
-  it('gives Mochi, the starter recipes, up to 3 template habits (substituting capsule plants), and no coins', () => {
+describe('onboarding (DESIGN §9.6)', () => {
+  it('sets the name, day start and birthday, the starter recipes and up to 3 template habits; no pet, no coins', () => {
     const g = new Game({ onboard: false });
-    const ids = g.run((tx) => habits.completeOnboarding(tx, { name: '  Sam  ', templateIds: ['yoga', 'water', 'strength', 'read'], dayStartsAt: 240 }));
+    const ids = g.run((tx) => habits.completeOnboarding(tx, { name: '  Sam  ', templateIds: ['yoga', 'water', 'strength', 'read'], dayStartsAt: 240, birthday: '09-30' }));
     expect(ids).toHaveLength(3);
-    expect(g.state.profile).toMatchObject({ name: 'Sam', onboarded: true, buddy: MOCHI_ID });
+    expect(g.state.profile).toMatchObject({ name: 'Sam', onboarded: true, birthday: '09-30' });
+    expect('buddy' in g.state.profile).toBe(false);
     expect(g.state.settings.dayStartsAt).toBe(240);
-    expect(g.state.pets[MOCHI_ID]).toBeDefined();
-    expect(g.state.collection[MOCHI_ID]?.count).toBe(1);
-    expect(Object.keys(g.state.pantry).sort()).toEqual(['treat-biscuit', 'treat-strawberry']);
-    const yoga = g.state.habits.find((h) => h.name === 'Yoga')!;
-    expect(TEMPLATES.find((t) => t.id === 'yoga')!.plant).toBe('lavender');
-    expect(yoga.plant).toBe('tulip'); // lavender is still in a capsule
-    expect(g.state.habits.find((h) => h.name === 'Strength training')!.plant).toBe('succulent');
+    expect(g.state.pets).toEqual({}); // the first pet comes from the "Cats or Cows?" capsule
+    expect(Object.keys(g.state.pantry).sort()).toEqual(['treat-oat-biscuit', 'treat-strawberry']);
+    expect(g.state.habits.map((h) => [h.name, h.plant, h.pot])).toEqual([
+      ['Yoga', 'pilea', 'terracotta'],
+      ['Drink water', 'pothos', 'terracotta'],
+      ['Strength training', 'snakeplant', 'terracotta'],
+    ]);
     expect(g.state.wallet.coins).toBe(0);
     expect(g.run((tx) => habits.completeOnboarding(tx, { name: 'Again', templateIds: ['water'] }))).toEqual([]);
   });
+
+  it('every template grows a free starter plant in a free pot, so the preview is what gets planted', () => {
+    const starters = new Set(STARTER_IDS);
+    for (const t of TEMPLATES) {
+      const input = habits.habitInputFromTemplate(t);
+      expect(starters.has(`plant-${input.plant}`), t.id).toBe(true);
+      expect(starters.has(`pot-${input.pot}`), t.id).toBe(true);
+      expect(input.plant).toBe(t.plant);
+    }
+    const g = new Game();
+    for (const t of TEMPLATES) expect(habits.validateHabitInput(g.state, habits.habitInputFromTemplate(t)), t.id).toEqual([]);
+  });
 });
 
-describe('"Ready to grow?" (DESIGN §13.2)', () => {
-  it('pays +1★ and applies the bigger rule from tomorrow, only while the offer stands', () => {
+describe('"Ready to grow?" (DESIGN §5.2)', () => {
+  it('pays +1 stamp and applies the bigger rule from tomorrow, only while the offer stands', () => {
     const g = new Game({ start: '2026-03-01' });
     const id = g.addHabit({ name: 'Read', target: 1 });
     expect(g.run((tx) => habits.acceptGrowOffer(tx, id, { target: 2 }))).toBe(false);

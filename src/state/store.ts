@@ -8,7 +8,7 @@
  *
  * How an action runs (`act`):
  * 1. Read the clock once; today = the app day of now (settings.dayStartsAt) but never earlier than
- *    clock.maxDateKey (DESIGN §13.2).
+ *    clock.maxDateKey (DESIGN v1 §13.2).
  * 2. In one copy-on-write transaction: open the day (rollover work if the app day advanced), then
  *    the reducer. The input state is never mutated.
  * 3. Commit: `state` and `today` update together; the save is written at once when the wallet,
@@ -17,13 +17,13 @@
  * While another window owns the save, or it was written by a newer app version, actions are no-ops.
  * A window writes nothing until the single-writer lock is granted (its saves are held, then
  * discarded if the lock is refused), and adopting another window's newer save drops any pending
- * save of its own, so a second window can never roll the owner's save back (§13.8).
+ * save of its own, so a second window can never roll the owner's save back (v1 §13.8).
  *
  * Everything browser-specific (localStorage, IndexedDB, Web Locks, DOM events, timers, crypto) is
  * reached through `StoreRuntime`, which tests replace with `configureStore`.
  */
 import { batch, computed, signal } from '@preact/signals';
-import type { AppState, DateKey, MeadowZoneId, PlacedDecor, Settings } from './types';
+import type { AppState, DateKey, PlacedDecor, Settings } from './types';
 import type {
   ActionResult,
   CheckInResult,
@@ -33,10 +33,10 @@ import type {
   MachineStatus,
   PetInteractionResult,
   PullOutcome,
+  PlacePurchase,
   WishOutcome,
-  ZonePurchase,
 } from './api';
-import type { MachineId, WearableSlot } from '@/catalog/types';
+import type { MachineId, PlaceId, WearableSlot } from '@/catalog/types';
 import { getMachine } from '@/catalog/machines';
 import { SECRET_IDS } from '@/catalog/collectibles';
 import { createInitialState } from './defaults';
@@ -77,7 +77,7 @@ import * as habitsDomain from '@/domain/habits';
 import * as logging from '@/domain/logging';
 import * as friendship from '@/domain/friendship';
 import * as pantry from '@/domain/pantry';
-import * as meadowDomain from '@/domain/meadow';
+import * as shelfDomain from '@/domain/shelf';
 import * as profileDomain from '@/domain/profile';
 import { readLetter } from '@/domain/letters';
 import type { RuleEditTiming } from '@/domain/rules';
@@ -185,7 +185,7 @@ export const today = signal<DateKey>(appDayKey(Date.now(), 180));
 /** The wall clock, refreshed by startClock() every 30 s (greetings, time blocks). */
 export const now = signal<number>(Date.now());
 
-/** True while running the isolated demo meadow (separate storage namespace). */
+/** True while running the isolated demo (separate storage key). */
 export const demoMode = signal(false);
 
 /** True when this window lost the single-writer lock (another window owns the save). */
@@ -193,7 +193,7 @@ export const readOnly = signal<false | 'other-window' | 'newer-version' | 'stora
 
 export const wallet = computed(() => state.value.wallet);
 
-/** The device clock is > 36 h behind the latest time seen: show the calm banner; rewards pause (§13.2). */
+/** The device clock is > 36 h behind the latest time seen: show the calm banner; rewards pause (v1 §13.2). */
 export const clockBehind = computed(() => rewardsPaused(state.value, now.value));
 
 /** Last save outcome (You › Data storage status, diagnostics). */
@@ -319,7 +319,7 @@ function replaceState(next: AppState): void {
 
 /* ---------------- Boot ---------------- */
 
-const LOCK_NAME = 'mochi-meadow:writer';
+const LOCK_NAME = 'catkin:writer';
 let releaseLock: (() => void) | null = null;
 let unlisteners: Unlisten[] = [];
 let lastSnapshotDay: DateKey | null = null;
@@ -406,7 +406,7 @@ export function hydrate(): void {
       else writeBackup(store, SAVE_KEY, res.raw);
       break;
     case 'newer':
-      // Opened read-only (§13.8): the newer meadow is shown when it still reads as this schema.
+      // Opened read-only (§11): the newer save is shown when it still reads as this schema.
       initial = res.state ?? createInitialState(rt.now());
       readOnly.value = 'newer-version';
       loadIssue.value = { kind: 'newer-version' };
@@ -496,7 +496,7 @@ export function startClock(): () => void {
 /* ---------------- Habits ---------------- */
 /** Creates a habit; throws HabitInputError (with `issues`) when the input is invalid (see validateHabitInput). */
 export function createHabit(input: HabitInput): string {
-  if (!writable()) throw new Error('Mochi Meadow is read-only in this window');
+  if (!writable()) throw new Error('catkin is read-only in this window');
   return actValue((tx) => habitsDomain.createHabit(tx, input), '');
 }
 /** Cosmetic fields apply immediately; rule fields (schedule/target/step/tiny) append a new rule from `applyFrom`. */
@@ -510,8 +510,8 @@ export function restoreHabit(id: string): void {
   actVoid((tx) => habitsDomain.restoreHabit(tx, id));
 }
 /**
- * Deletes a habit. `keepPlant` ("Keep the plant in the greenhouse?", §13.10, default yes in the
- * UI) archives it instead, so its plant stays on the Greenhouse shelf.
+ * Deletes a habit. `keepPlant` ("Keep the plant on the balcony shelf?", §9.2, default yes in the
+ * UI) archives it instead, so its plant stays on the balcony shelf.
  */
 export function deleteHabit(id: string, opts: { keepPlant?: boolean } = {}): void {
   actVoid((tx) => habitsDomain.deleteHabit(tx, id, opts));
@@ -530,7 +530,7 @@ export function resumeHabit(id: string): void {
 export function setStartedOn(id: string, date: DateKey): void {
   actVoid((tx) => habitsDomain.setStartedOn(tx, id, date));
 }
-/** Accept "Ready to grow?" (+1★; the bigger rule applies from tomorrow). False when no offer stands. */
+/** Accept "Ready to grow?" (+1 stamp; the bigger rule applies from tomorrow). False when no offer stands. */
 export function acceptGrowOffer(id: string, patch: Partial<HabitInput>): boolean {
   return actValue((tx) => habitsDomain.acceptGrowOffer(tx, id, patch), false);
 }
@@ -613,8 +613,9 @@ export function availableMachines(): MachineId[] {
 }
 /**
  * Decides the pull, commits it and writes it at once (pendingReveal), then returns it for the
- * reveal. Commit before animate (§13.6): when the save can't be written (storage full), the pull is
+ * reveal. Commit before animate (§7.1): when the save can't be written (storage full), the pull is
  * rolled back and refused ('storage-full'), so a reload can never re-roll a pull already shown.
+ * `free` is onboarding's "Cats or Cows?" capsule (gacha.ts; `canPullFree` says when it is offered).
  */
 export function pull(machineId: MachineId, opts: { useTicket?: boolean; free?: boolean } = {}): PullOutcome {
   if (!writable()) return { ok: false, error: 'machine-unavailable' };
@@ -638,11 +639,12 @@ export function pull(machineId: MachineId, opts: { useTicket?: boolean; free?: b
 export function finishReveal(): void {
   actVoid((tx) => gacha.finishReveal(tx));
 }
+/** Special Order (internally the wish): an unowned item for stamps. */
 export function wish(itemId: string): WishOutcome {
   const out = act((tx) => ({ o: gacha.wish(tx, itemId) }), { o: { ok: false, error: 'not-wishable' } as WishOutcome });
   return out.o.ok ? { ...out.o, events: out.events } : out.o;
 }
-/** On a completed machine: 250 coins → 40 stardust. */
+/** Swap-in on a completed series: 250 coins → 40 swaps. */
 export function sparkleExchange(machineId: MachineId): ActionResult & { ok: boolean } {
   return act((tx) => gacha.sparkleExchange(tx, machineId), { ok: false });
 }
@@ -668,29 +670,28 @@ export function renamePet(petId: string, name: string): void {
 export function toggleFavoritePet(petId: string): void {
   actVoid((tx) => friendship.toggleFavoritePet(tx, petId));
 }
-export function setBuddy(petId: string): void {
-  actVoid((tx) => friendship.setBuddy(tx, petId));
-}
-export function toggleInMeadow(petId: string): void {
-  actVoid((tx) => meadowDomain.toggleInMeadow(tx, petId));
+/** Brings a pet in, or out onto the Shelf when there is room (8 + 2 per extra place). */
+export function togglePetOut(petId: string): void {
+  actVoid((tx) => shelfDomain.togglePetOut(tx, petId));
 }
 
-/* ---------------- Meadow ---------------- */
-export function buyZone(zone: MeadowZoneId): ZonePurchase {
-  return actValue((tx) => meadowDomain.buyZone(tx, zone), { ok: false, error: 'not-enough-coins' } as ZonePurchase);
+/* ---------------- Shelf ---------------- */
+/** Opens a place with coins (DESIGN §8.4). */
+export function buyPlace(place: PlaceId): PlacePurchase {
+  return actValue((tx) => shelfDomain.buyPlace(tx, place), { ok: false, error: 'not-enough-coins' } as PlacePurchase);
 }
-export function placeDecor(itemId: string, zone: MeadowZoneId, x: number, y: number): string | null {
-  return actValue((tx) => meadowDomain.placeDecor(tx, itemId, zone, x, y), null);
+export function placeDecor(itemId: string, place: PlaceId, x: number, y: number, flip = false): string | null {
+  return actValue((tx) => shelfDomain.placeDecor(tx, itemId, place, x, y, flip), null);
 }
-export function moveDecor(placementId: string, patch: Partial<Pick<PlacedDecor, 'x' | 'y' | 'zone' | 'flip'>>): void {
-  actVoid((tx) => meadowDomain.moveDecor(tx, placementId, patch));
+export function moveDecor(placementId: string, patch: Partial<Pick<PlacedDecor, 'x' | 'y' | 'place' | 'flip'>>): void {
+  actVoid((tx) => shelfDomain.moveDecor(tx, placementId, patch));
 }
 export function removeDecor(placementId: string): void {
-  actVoid((tx) => meadowDomain.removeDecor(tx, placementId));
+  actVoid((tx) => shelfDomain.removeDecor(tx, placementId));
 }
 
 /* ---------------- Letters, profile, settings ---------------- */
-/** Marks a letter read; it stays in the Letterbox forever (DESIGN §13.10). */
+/** Marks a Sunday Note or Herbarium page read; it stays on the memory shelf forever (DESIGN §9.2). */
 export function dismissLetter(id: string): void {
   actVoid((tx) => readLetter(tx, id));
 }
@@ -706,42 +707,42 @@ export function updateSettings(patch: Partial<AppState['settings']>): void {
 }
 export function completeOnboarding(opts: { name: string; templateIds: string[]; dayStartsAt?: number; birthday?: string }): void {
   actVoid((tx) => habitsDomain.completeOnboarding(tx, opts));
-  // §13.8: ask the browser to keep storage only once onboarded, and only in the installed app.
+  // §11.1: ask the browser to keep storage only once onboarded, and only in the installed app.
   if (!demoMode.value && rt.standalone()) rt.persistStorage();
   snapshotToday();
 }
 
 /* ---------------- Data ---------------- */
 /**
- * The meadow a backup or handoff carries: always the user's own. While peeking at the demo it is the
- * real save (the demo's made-up history must never become a real meadow, §13.8).
+ * The save a backup or handoff carries: always the user's own. While peeking at the demo it is the
+ * real save (the demo's made-up history must never become a real one).
  */
-function ownMeadow(): AppState {
+function ownSave(): AppState {
   if (!demoMode.value) return state.value;
   const res = loadSave(storage(), SAVE_KEY);
   return res.kind === 'ok' ? res.state : (realState ?? createInitialState(rt.now()));
 }
 
 function backupJson(): string {
-  return JSON.stringify(makeBackup(ownMeadow(), { now: rt.now(), appVersion: rt.appVersion, device: rt.device }));
+  return JSON.stringify(makeBackup(ownSave(), { now: rt.now(), appVersion: rt.appVersion, device: rt.device }));
 }
 
-/** Backup file contents (JSON envelope) of the user's own meadow (the real one inside the demo). Marks lastBackupAt. */
+/** Backup file contents (`catkin-backup` JSON) of the user's own save (the real one inside the demo). Marks lastBackupAt. */
 export function exportData(): string {
   const json = backupJson();
   if (!demoMode.value) actVoid((tx) => profileDomain.markBackup(tx));
   return json;
 }
 /**
- * Compact clipboard payload 'MM1:' + base64url(gzip(json)) for Safari→app handoff and device moves.
- * Always the user's own meadow ("Move my meadow into the app" from the demo moves the real one).
+ * Compact clipboard payload 'CK1:' + base64url(gzip(json)) for Safari→app handoff and device moves.
+ * Always the user's own save ("Move my plants into the app" from the demo moves the real one).
  */
 export async function exportPayload(): Promise<string> {
   const payload = await encodePayload(backupJson());
   if (!demoMode.value) actVoid((tx) => profileDomain.markBackup(tx));
   return payload;
 }
-/** Validate a backup (file text or MM1 payload) and describe it without applying. */
+/** Validate a backup (file text or CK1 payload) and describe it without applying. */
 export async function previewImport(text: string): Promise<ImportPreview | { ok: false; error: string }> {
   const parsed = await parseBackupText(text);
   return parsed.ok ? describeBackup(parsed) : { ok: false, error: parsed.error };
@@ -765,9 +766,9 @@ export async function applyImport(text: string, opts: { withoutUndo?: boolean } 
   const parsed = await parseBackupText(text);
   if (!parsed.ok) return { ok: false, error: parsed.error };
   const snapshotId = await snapshotCurrent().catch(() => null);
-  // Import snapshots first (§13.8). When no undo copy could be kept, the current meadow would be
-  // replaced for good: refuse ('no-undo') unless the user confirmed importing anyway (or there is
-  // no meadow yet to lose).
+  // Import snapshots first (§9.5 "Import with preview + Undo 24 h"). When no undo copy could be
+  // kept, the current save would be replaced for good: refuse ('no-undo') unless the user confirmed
+  // importing anyway (or there is nothing yet to lose).
   if (!snapshotId && !opts.withoutUndo && state.value.profile.onboarded) return { ok: false, error: 'no-undo' };
   if (snapshotId) writeJson(storage(), UNDO_IMPORT_KEY, { id: snapshotId, until: rt.now() + UNDO_IMPORT_MS });
   replaceState(parsed.state);
@@ -806,10 +807,9 @@ export async function restoreSnapshot(id: string): Promise<boolean> {
 }
 
 /**
- * Reset removes only mochi-meadow:* keys, never clear(). IndexedDB snapshots are kept as a safety
- * net. Inside the demo it resets only the demo meadow (its own namespace; "your real meadow is
- * safe", §13.8). Refused while this window doesn't own the save (another window, or a newer
- * version's save shown read-only).
+ * Reset removes only catkin:* keys, never clear(). IndexedDB snapshots are kept as a safety net.
+ * Inside the demo it resets only the demo (its own key; the real save is safe). Refused while this
+ * window doesn't own the save (another window, or a newer version's save shown read-only).
  */
 export function resetAll(): void {
   if (!writable()) return;
@@ -836,7 +836,7 @@ export function resetAll(): void {
 
 let realState: AppState | null = null;
 
-/** Opens the demo meadow in its own namespace; the real save is flushed and left untouched. */
+/** Opens the demo under its own key; the real save is flushed and left untouched. */
 export function enterDemo(): void {
   if (demoMode.value) return;
   queue?.flush();
@@ -868,7 +868,7 @@ export function exitDemo(): void {
 
 /**
  * Diagnostics › clock: re-reads the device clock and reports the guard. It never lowers the
- * guard's high-water marks (DESIGN §13.2: `today` never moves backwards, and while the device clock
+ * guard's high-water marks (DESIGN v1 §13.2: `today` never moves backwards, and while the device clock
  * is > 36 h behind the latest time seen, no rewards are paid until it catches up), so a forward
  * date can't be "repaired" into a free second pass over the same days. `resumesAt` is when rewards
  * come back (null when they aren't paused).

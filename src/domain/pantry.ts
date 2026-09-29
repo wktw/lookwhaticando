@@ -1,5 +1,5 @@
 /**
- * The pantry (DESIGN §13.7 "Treats are recipes", refined by §13.10 "Pantry & harvest").
+ * The pantry (DESIGN v1 §13.7 "Treats are recipes", refined by v1 §13.10 "Pantry & harvest").
  *
  * - Every owned treat is a *recipe*: each morning (app day) it restocks 2 free servings, banking up
  *   to 5, so feeding never costs anything and nothing piles up as a chore. A recipe acquired today

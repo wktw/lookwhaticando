@@ -1,19 +1,19 @@
 /**
- * Rituals: the Weekly Letter and the Monthly Bouquet (DESIGN §13.10 "Rituals", overriding the
- * §13.5 letter/bloom stars; top-up mechanics from §13.5).
+ * Rituals: the Sunday Note (weekly; internally the "weekly letter") and the monthly page
+ * (internally the "bouquet"; the Herbarium page in catkin), DESIGN §6 and §13.
  *
- * - On the first open of a new week, last week's letter is written (if that week had any check-in):
- *   1★ for showing up, +1★ at ≥ 60%, +1★ at ≥ 85% (the bonus tiers need ≥ 5 expected).
- *   Contents: top habit by check-ins, plant stage-ups, new friends, a quoted note, show-up days.
- * - On the first open of a new month, last month's bouquet is always given (once the meadow existed
+ * - On the first open of a new week, last week's note is written (if that week had any check-in):
+ *   1 stamp for showing up, +1 at ≥ 60%, +1 at ≥ 85% (the bonus tiers need ≥ 5 expected).
+ *   Contents: top habit by check-ins, plant stage-ups, newcomers, a quoted note, show-up days.
+ * - On the first open of a new month, last month's page is always given (once the profile existed
  *   that month): every habit with ≥ 1 check-in adds clamp(round(checkIns/4), 1, 7) stems.
- *   Stars: 1★ for showing up, +1★ ≥ 70%, +1★ ≥ 85%, +1★ "Growing" (≥ 5 pts above the month before);
- *   the bonus tiers need ≥ 10 expected (both months, for Growing).
+ *   Stamps: 1 for showing up, +1 ≥ 70%, +1 ≥ 85%, +1 when ≥ 5 pts above the month before; the bonus
+ *   tiers need ≥ 10 expected (both months, for the last one).
  * - Both store the stars paid (`once['weekly|<weekStart>']`, `once['bloom|<YYYY-MM>']`) and pay
  *   only **upward differences** when a backfill inside the 6-day window raises the tier; never down.
  *   A top-up applies exactly the change that reward-path action made to the letter's tally (the
  *   habit's tally with the new log minus with the old one) to the tally the letter already holds,
- *   so nothing else moves a letter after it is written: not history edits of older days (§13.2
+ *   so nothing else moves a letter after it is written: not history edits of older days (v1 §13.2
  *   "never touch the wallet"), not deleting a poorly kept habit, and not an un-check followed by
  *   the same re-check.
  * - Only the most recent closed week/month is ever written (no backlog after a long break), and
@@ -34,7 +34,7 @@ import { grantStars, hasOnce, rewardsPaused, setOnce } from './wallet';
 
 export const WEEKLY_LETTER = { showUpStars: 1, minExpected: 5, tiers: [60, 85] } as const;
 export const MONTHLY_BOUQUET = { showUpStars: 1, minExpected: 10, tiers: [70, 85], growingPts: 5, perStem: 4, maxStems: 7 } as const;
-/** Steady Month badge: ≥ 80% in a closed month with ≥ 10 expected (§6.5). */
+/** Steady Month badge: ≥ 80% in a closed month with ≥ 10 expected (the Steady Month pin, §9.2). */
 export const STEADY_MONTH_PCT = 80;
 
 type Weekly = Extract<Letter, { kind: 'weekly' }>;
@@ -187,7 +187,7 @@ function upsertLetter(tx: Tx, letter: Letter): void {
 
 /**
  * A letter already covers some of these days: changing the week-start setting regroups weeks, and a
- * week overlapping an earlier letter's week gets no second letter (§13.10 letters are once per week).
+ * week overlapping an earlier letter's week gets no second letter (v1 §13.10 letters are once per week).
  */
 function overlapsLetteredWeek(s: AppState, weekStart: DateKey): boolean {
   for (let d = -6; d <= 6; d++) if (d !== 0 && s.ledger.once[`weekly|${addDays(weekStart, d)}`] !== undefined) return true;
@@ -338,7 +338,7 @@ function showedUpOn(s: AppState, date: DateKey, today: DateKey): boolean {
   return showUpDaysIn(s, date, date, today) > 0;
 }
 
-/** Marks a letter as read (it stays in the Letterbox forever). */
+/** Marks a Sunday Note or Herbarium page as read (it stays on the memory shelf forever). */
 export function readLetter(tx: Tx, id: string): boolean {
   const i = tx.s.inbox.findIndex((l) => l.id === id);
   if (i < 0 || tx.s.inbox[i]!.readAt !== undefined) return false;

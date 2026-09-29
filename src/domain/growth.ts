@@ -1,26 +1,28 @@
 /**
- * Plant growth (DESIGN §5.5 as amended by §13.4).
+ * Plant growth (DESIGN §5.5) and The Cutting (§13).
  *
  * - Sunshine is frequency-normalised: each rewarded occurrence yields 7 / expectedPerWeek(rule), so
  *   a monthly habit kept faithfully grows as fast as a daily one. The tiny version yields 50%, and
  *   flexible check-ins beyond `times` in a period yield none. Sunshine is a ledger (economy layer);
  *   this module supplies the amounts and the pure stage math.
  * - Stage = min(stageFromSunshine, completedOccurrences): each check-in advances at most one stage,
- *   so a monthly habit cannot jump from Seed to Budding on its first check-in. Completed
+ *   so a monthly habit cannot jump from Cutting to Budding on its first check-in. Completed
  *   occurrences count from the habit's creation day (economy.ts): history filled in before the
- *   habit existed earned nothing, so it can't unlock stages either (§13.2 "no rewards before
+ *   habit existed earned nothing, so it can't unlock stages either (§5.3 "no rewards before
  *   createdAt").
- * - Calendar pace (stage-3 decision, from §5.5 "Evergreen at ~6 months of faithful practice"): a
+ * - Calendar pace (a logic-team reading, NOTES-domain.md; Evergreen is 180 faithful days): a
  *   plant is also capped at the stage a perfectly faithful habit would have reached by now,
  *   stageFromSunshine(days since creation + 6). Honest play never meets this cap (a faithful daily
  *   habit earns 1 sunshine a day, and rarer rhythms are held back by completed occurrences first);
  *   it stops rule flips (a daily habit switched to once-a-year for one check-in banks 364 sunshine)
  *   from growing a plant faster than real time.
  * - Display stage = max(stage, bestStage): plants never shrink.
- * - After Evergreen: blooms = min(6, floor((sunshine − 180) / 30)), and Flourishes (permanent
- *   visitors) arrive every +60 sunshine, 8 at most (§13.10 "Plants keep living").
- * - Mochi's sprout is a whole-meadow gauge over lifetime sunshine across all habits, with its own
- *   thresholds 0/5/20/50/105/210/450/900 (§13.10).
+ * - After Evergreen: Flourishes (permanent visitors: a ladybird, a bee, a snail…) arrive every +60
+ *   sunshine, 8 at most, and blooms = min(6, floor((sunshine − 180) / 30)) add continuous detail.
+ * - The Cutting (§13) is the lifetime gauge: a pothos cutting in a jar on the window frame that
+ *   grows on lifetime sunshine across all habits, deleted habits' sunshine included, with its own
+ *   thresholds 0/5/20/50/105/210/450/900: roots, then a pot, then a vine trailing along the frame
+ *   until it frames the whole window.
  */
 import type { Habit, HabitRule } from '@/state/types';
 import { dayEvaluations, type EvalContext, type HabitLogs } from './activity';
@@ -31,18 +33,21 @@ export type PlantStage = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7;
 
 /** Sunshine needed for each stage (index = stage). */
 export const STAGE_THRESHOLDS = [0, 1, 4, 10, 21, 42, 90, 180] as const;
-export const STAGE_NAMES = ['Seed', 'Sprout', 'Seedling', 'Leafy', 'Budding', 'Blooming', 'Flourishing', 'Evergreen'] as const;
+export const STAGE_NAMES = ['Cutting', 'Rooting', 'Potted', 'Leafy', 'Budding', 'Blooming', 'Flourishing', 'Evergreen'] as const;
 export type StageName = (typeof STAGE_NAMES)[number];
 
-export const EVERGREEN: PlantStage = 7;
+export const ROOTING: PlantStage = 1;
+export const POTTED: PlantStage = 2;
+export const BUDDING: PlantStage = 4;
 export const BLOOMING: PlantStage = 5;
+export const EVERGREEN: PlantStage = 7;
 export const SUNSHINE_PER_BLOOM = 30;
 export const MAX_BLOOMS = 6;
 export const SUNSHINE_PER_FLOURISH = 60;
 export const MAX_FLOURISHES = 8;
 export const TINY_SUNSHINE_FACTOR = 0.5;
-/** Mochi's sprout: the same 8 stage names, driven by lifetime sunshine across all habits (§13.10). */
-export const MEADOW_SPROUT_THRESHOLDS = [0, 5, 20, 50, 105, 210, 450, 900] as const;
+/** The Cutting's stages (§13): lifetime sunshine across all habits needed for each (index = stage). */
+export const CUTTING_THRESHOLDS = [0, 5, 20, 50, 105, 210, 450, 900] as const;
 
 /**
  * Sunshine sums are floats (7/3 per Mon/Wed/Fri occurrence); comparisons allow this much rounding
@@ -78,7 +83,7 @@ export function stageFromSunshine(sunshine: number): PlantStage {
 export const PACE_SLACK_DAYS = 6;
 
 /**
- * Stage = min(stageFromSunshine, completedOccurrences) (DESIGN §13.4), and, when `elapsedDays`
+ * Stage = min(stageFromSunshine, completedOccurrences) (DESIGN v1 §13.4), and, when `elapsedDays`
  * (days since the habit was created, counting that day) is given, at most the calendar-pace stage
  * stageFromSunshine(elapsedDays + 6) (see module doc).
  */
@@ -103,7 +108,7 @@ export function bloomsFor(sunshine: number, stage: number): number {
 }
 
 /**
- * Progress within the shown stage, 0..1 (continuous plant detail, §13.1): toward the next stage's
+ * Progress within the shown stage, 0..1 (continuous plant detail, v1 §13.1): toward the next stage's
  * threshold, or toward the next bloom at Evergreen (1 once blooms are capped). A stage held back by
  * the one-stage-per-check-in rule reads as full: the next check-in grows it.
  */
@@ -121,7 +126,7 @@ export function stageProgress(sunshine: number, stage: number): number {
 const clamp01 = (x: number): number => (x <= 0 ? 0 : x >= 1 ? 1 : x);
 
 /**
- * Flourishes after Evergreen: one permanent visitor per 60 sunshine beyond 180, at most 8 (§13.10).
+ * Flourishes after Evergreen: one permanent visitor per 60 sunshine beyond 180, at most 8 (v1 §13.10).
  * This is what the sunshine held now supports; the economy layer keeps the high-water mark, so a
  * visitor that arrived stays even if an un-check inside the refund window takes sunshine back.
  */
@@ -130,7 +135,7 @@ export function flourishesFor(sunshine: number, stage: number): number {
   return Math.max(0, Math.min(MAX_FLOURISHES, Math.floor((sunshine - STAGE_THRESHOLDS[EVERGREEN] + EPS) / SUNSHINE_PER_FLOURISH)));
 }
 
-/** Sunshine still needed to reach the next stage ("12 ☀ to Blooming"); null at Evergreen. */
+/** Sunshine still needed to reach the next stage; null at Evergreen (the screens show check-ins, never sunshine). */
 export function sunshineToNextStage(sunshine: number, stage: number): number | null {
   const s = clampStage(stage);
   if (s === EVERGREEN) return null;
@@ -163,7 +168,7 @@ export interface GrowthInfo {
   paced: boolean;
 }
 
-/** Everything the plant art and the "12 ☀ to Blooming" line need. */
+/** Everything the plant art and the "4 more check-ins to Blooming" line need. */
 export function growthInfo(input: {
   sunshine: number;
   completedOccurrences: number;
@@ -189,19 +194,45 @@ export function growthInfo(input: {
   };
 }
 
-export interface MeadowSprout {
+/** The Cutting (§13): the lifetime gauge on the window frame. */
+export interface CuttingVM {
+  /**
+   * 0–7: 0 a cutting in a jar · 1 roots · 2 potted · 3+ a vine trailing further along the frame · 7 it
+   * frames the window. Never lower than the best stage reached (it never shrinks, like the plants).
+   */
   stage: PlantStage;
-  name: StageName;
-  /** Progress toward the next sprout stage, 0..1 (1 at the top). */
+  /** Progress toward the next stage, 0..1 (1 at the top). */
   progress: number;
-  /** From stage 5 the sprout blooms, in the colour of the most-checked habit (insights.mostCheckedHabit). */
-  blooming: boolean;
+  /** How far along the whole gauge, 0..1: stages and progress combined (the vine's length for the art). */
+  overall: number;
+  /** Lifetime sunshine still needed for the next stage; null once the vine frames the window. */
+  toNext: number | null;
+  /** The vine frames the whole window (the last stage). */
+  framed: boolean;
 }
 
-/** Mochi's sprout, a gauge of the whole meadow: lifetime sunshine summed over every habit (§13.10). */
-export function meadowSprout(lifetimeSunshine: number): MeadowSprout {
-  const stage = stageOn(MEADOW_SPROUT_THRESHOLDS, lifetimeSunshine);
-  return { stage, name: stageName(stage), progress: progressOn(MEADOW_SPROUT_THRESHOLDS, lifetimeSunshine, stage), blooming: stage >= BLOOMING };
+/** Lifetime sunshine across every habit, deleted habits included (their totals stay in the ledger). */
+export function lifetimeSunshine(ledgerSunshine: Readonly<Record<string, number>>): number {
+  let total = 0;
+  for (const v of Object.values(ledgerSunshine)) total += v;
+  return total;
+}
+
+/**
+ * The Cutting for a lifetime sunshine total (§13): thresholds 0/5/20/50/105/210/450/900. `bestStage`
+ * (the high-water mark, economy.ts) keeps the stage from going back after an un-check.
+ */
+export function theCutting(lifetime: number, bestStage = 0): CuttingVM {
+  const stage = clampStage(Math.max(stageOn(CUTTING_THRESHOLDS, lifetime), bestStage));
+  const progress = progressOn(CUTTING_THRESHOLDS, lifetime, stage);
+  const top = CUTTING_THRESHOLDS.length - 1;
+  return {
+    stage,
+    progress,
+    overall: stage >= top ? 1 : (stage + progress) / top,
+    toNext: stage >= top ? null : Math.max(0, CUTTING_THRESHOLDS[stage + 1]! - lifetime),
+    framed: stage >= top,
+  };
 }
 
 /**

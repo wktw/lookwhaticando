@@ -1,18 +1,20 @@
 /**
- * Pets, the meadow, letters and badges (DESIGN §7 as amended by §13.7/§13.10, §9.4, §6.5,
- * §13.10 rituals).
+ * Pets, the Shelf, rituals and pins (DESIGN §8 pets, places and items, §9.4 the Shelf, §13 rituals).
+ * Structured data: perks, hints and captions are ids and fields the screens word (lines.ts).
  */
 import { BADGES } from '@/catalog/badges';
-import { HARVEST_BY_PLANT, MOCHI_ID, PLANTS, TOY_IDS, getCollectible, moonlitBase } from '@/catalog/collectibles';
-import { PERSONALITY_BY_ID, TREAT_TAG_HINTS } from '@/catalog/personalities';
-import { ZONES } from '@/catalog/zones';
-import { WEARABLE_SLOTS, type Personality, type Species, type WearableSlot } from '@/catalog/types';
-import type { AppState, BouquetStem, DateKey, Letter, MeadowZoneId, PetState, PlacedDecor } from '../types';
+import { HARVEST_BY_PLANT, TOY_IDS, getCollectible, moonlitBase } from '@/catalog/collectibles';
+import { PERSONALITY_BY_ID } from '@/catalog/personalities';
+import { PLACES } from '@/catalog/places';
+import { WEARABLE_SLOTS, type PlaceId, type PlantSpeciesId, type Personality, type Species, type TreatTag, type WearableSlot } from '@/catalog/types';
+import type { AppState, BouquetStem, DateKey, Letter, PetState, PlacedDecor } from '../types';
 import { machineCollectiblesOwned, ownedTreats, ownedWearables } from '@/domain/collection';
 import { appDayKey, monthDayLabel, monthYearLabel } from '@/domain/dates';
-import { PET_XP, dailyFor, isNameLocked } from '@/domain/friendship';
-import { LEVEL_PERKS, MAX_FRIEND_LEVEL, levelProgress, memoriesFor, type LevelProgress } from '@/domain/levels';
-import { petsOutCapacity, petsOutCount, unplacedCopies } from '@/domain/meadow';
+import { PET_XP, dailyFor, featuredPetId } from '@/domain/friendship';
+import type { CuttingVM } from '@/domain/growth';
+import { cuttingOf } from '@/domain/economy';
+import { LEVEL_PERKS, MAX_FRIEND_LEVEL, levelProgress, memoriesFor, type LevelPerk, type LevelProgress } from '@/domain/levels';
+import { petsOutCapacity, petsOutCount, unplacedCopies } from '@/domain/shelf';
 import type { ViewEnv } from './common';
 
 /* ------------------------------------------------------------------ */
@@ -28,21 +30,22 @@ export interface PetSummaryVM {
   personality: Personality;
   personalityLabel: string;
   level: number;
-  /** Levels 11–15 are cosmetic bond levels. */
+  /** Levels 11–15 are bond levels. */
   bond: boolean;
-  /** Hearts filled (1–10). */
+  /** Friendship dots filled (1–10). */
   hearts: number;
   /** 0..1 toward the next level. */
   fraction: number;
-  inMeadow: boolean;
-  buddy: boolean;
+  /** Out on the Shelf (the rest are indoors). */
+  out: boolean;
   favorite: boolean;
+  /** The pet a view features when it needs one (friendship.featuredPetId). */
+  featured: boolean;
   moonlit: boolean;
-  mochi: boolean;
   obtainedAt: number;
 }
 
-export function petSummary(s: AppState, pet: PetState): PetSummaryVM {
+export function petSummary(s: AppState, pet: PetState, featured: string | null = featuredPetId(s)): PetSummaryVM {
   const def = getCollectible(pet.id);
   const lp = levelProgress(pet.xp);
   const pers = PERSONALITY_BY_ID.get(pet.personality);
@@ -57,40 +60,43 @@ export function petSummary(s: AppState, pet: PetState): PetSummaryVM {
     bond: lp.bond,
     hearts: Math.min(MAX_FRIEND_LEVEL, lp.level),
     fraction: lp.fraction,
-    inMeadow: pet.inMeadow,
-    buddy: s.profile.buddy === pet.id,
+    out: pet.inMeadow,
     favorite: pet.favorite,
+    featured: pet.id === featured,
     moonlit: moonlitBase(pet.id) !== null,
-    mochi: pet.id === MOCHI_ID,
     obtainedAt: pet.obtainedAt,
   };
 }
 
 export interface PetsVM {
-  /** Favorites first, then the buddy, then oldest friends first (Mochi leads her group). */
+  /** Favourites first, then oldest friends first. */
   pets: PetSummaryVM[];
   out: number;
   capacity: number;
+  /** The featured pet (null before the first pet). */
+  featured: string | null;
 }
 
 export function petsVM(s: AppState): PetsVM {
+  const featured = featuredPetId(s);
   const pets = Object.values(s.pets)
-    .map((p) => petSummary(s, p))
-    .sort((a, b) => Number(b.favorite) - Number(a.favorite) || Number(b.buddy) - Number(a.buddy) || Number(b.mochi) - Number(a.mochi) || a.obtainedAt - b.obtainedAt);
-  return { pets, out: petsOutCount(s), capacity: petsOutCapacity(s) };
+    .map((p) => petSummary(s, p, featured))
+    .sort((a, b) => Number(b.favorite) - Number(a.favorite) || a.obtainedAt - b.obtainedAt || (a.id < b.id ? -1 : 1));
+  return { pets, out: petsOutCount(s), capacity: petsOutCapacity(s), featured };
 }
 
+/** The favourite-treat hint before it is found: by the treat's first tag, or the plant it is harvested from. */
+export type FavoriteHint = { kind: 'tag'; tag: TreatTag } | { kind: 'plant'; plant: PlantSpeciesId } | { kind: 'unknown' };
+
 export interface PetVM extends PetSummaryVM {
-  nameLocked: boolean;
-  personalityEmoji: string;
   personalityBlurb: string;
   progress: LevelProgress;
-  /** Perks unlocked so far and the next one ("L6: leaves little gifts under the tree"). */
-  perks: { level: number; text: string; unlocked: boolean }[];
-  /** Memory polaroids earned after level 10 (one per 150 XP). */
+  /** What each level changes (§8.2), and whether it is unlocked. */
+  perks: { level: number; perk: LevelPerk; unlocked: boolean }[];
+  /** Memories earned after level 10 (one per 150 XP). */
   memories: number;
-  /** The favorite treat once discovered; otherwise a hint by tag or by the plant it grows on. */
-  favoriteTreat: { known: boolean; treatId: string | null; name: string | null; hint: string };
+  /** The favourite treat once discovered; otherwise a hint. */
+  favoriteTreat: { known: boolean; treatId: string | null; name: string | null; hint: FavoriteHint };
   outfit: Record<WearableSlot, string | null>;
   /** Owned wearables per slot (any pet may wear any owned item). */
   wardrobe: Record<WearableSlot, { id: string; name: string }[]>;
@@ -98,24 +104,20 @@ export interface PetVM extends PetSummaryVM {
   treats: { id: string; name: string; servings: number; favorite: boolean }[];
   /** Today's remaining XP allowances (reactions are never capped). */
   today: { petsLeft: number; treatsLeft: number; favoriteBonusLeft: boolean };
-  /** "Gotcha day": the app day they arrived. */
+  /** The "came home" day (§7.2, §13 came-home days). */
   arrivedOn: DateKey;
   arrivedLabel: string;
 }
 
-function favoriteHint(treatId: string): string {
+export function favoriteHint(treatId: string): FavoriteHint {
   const def = getCollectible(treatId);
-  if (def?.category === 'treat' && def.source === 'garden') {
-    const plants = Object.entries(HARVEST_BY_PLANT)
-      .filter(([, t]) => t === treatId)
-      .map(([p]) => p);
-    if (plants.length === 1) {
-      const name = PLANTS.find((p) => p.plant === plants[0])?.name ?? plants[0]!;
-      return `Loves something from a ${name.toLowerCase()} 🌱`;
-    }
+  if (def?.category !== 'treat') return { kind: 'unknown' };
+  if (def.source === 'harvest') {
+    const plants = (Object.entries(HARVEST_BY_PLANT) as [PlantSpeciesId, string][]).filter(([, t]) => t === treatId).map(([p]) => p);
+    if (plants.length === 1) return { kind: 'plant', plant: plants[0]! };
   }
-  const tag = def?.category === 'treat' ? def.tags[0] : undefined;
-  return tag ? TREAT_TAG_HINTS[tag] : 'Loves a mystery snack';
+  const tag = def.tags[0];
+  return tag ? { kind: 'tag', tag } : { kind: 'unknown' };
 }
 
 export function petVM(s: AppState, env: ViewEnv, id: string): PetVM | null {
@@ -131,16 +133,14 @@ export function petVM(s: AppState, env: ViewEnv, id: string): PetVM | null {
   const arrivedOn = appDayKey(pet.obtainedAt, s.settings.dayStartsAt, env.local);
   return {
     ...base,
-    nameLocked: isNameLocked(id),
-    personalityEmoji: pers?.emoji ?? '',
     personalityBlurb: pers?.blurb ?? '',
     progress: lp,
-    perks: Object.entries(LEVEL_PERKS).map(([lvl, text]) => ({ level: Number(lvl), text, unlocked: lp.level >= Number(lvl) })),
+    perks: Object.entries(LEVEL_PERKS).map(([lvl, perk]) => ({ level: Number(lvl), perk, unlocked: lp.level >= Number(lvl) })),
     memories: memoriesFor(pet.xp),
     favoriteTreat: {
       known: pet.favoriteKnown,
       treatId: pet.favoriteKnown ? pet.favoriteTreat : null,
-      name: pet.favoriteKnown ? favDef?.name ?? null : null,
+      name: pet.favoriteKnown ? (favDef?.name ?? null) : null,
       hint: favoriteHint(pet.favoriteTreat),
     },
     outfit,
@@ -157,34 +157,64 @@ export function petVM(s: AppState, env: ViewEnv, id: string): PetVM | null {
 }
 
 /* ------------------------------------------------------------------ */
-/* Meadow                                                              */
+/* The Shelf                                                           */
 /* ------------------------------------------------------------------ */
 
-export interface MeadowVM {
-  zones: { id: MeadowZoneId; name: string; price: number; owned: boolean; canAfford: boolean; blurb: string; petsOut: number }[];
+export interface PlaceVM {
+  id: PlaceId;
+  name: string;
+  price: number;
+  owned: boolean;
+  canAfford: boolean;
+  blurb: string;
+  /** Room for this many more pets out. */
+  petsOut: number;
+  /** Species drawn to it (empty: everyone). */
+  loves: readonly Species[];
+}
+
+export interface ShelfVM {
+  /** Every place in Shelf order (the Sill first), owned or not: the places map. */
+  places: PlaceVM[];
+  /** Pets allowed out: 8 + 2 per extra place. */
   capacity: number;
-  /** Pets out in the meadow (Mochi always among them). */
+  /** Pets out on the Shelf. */
   out: PetSummaryVM[];
-  /** Pets napping in the cottage. */
-  napping: PetSummaryVM[];
+  /** Pets indoors (over capacity, or brought in). */
+  indoors: PetSummaryVM[];
   /** Placed decor, with its catalog name and whether pets play with it. */
   decor: (PlacedDecor & { name: string; toy: boolean })[];
   /** Owned decor copies not yet placed. */
   inventory: { itemId: string; name: string; unplaced: number }[];
+  /** The Cutting on the window frame (§13): the lifetime gauge. */
+  cutting: CuttingVM;
 }
 
-export function meadowVM(s: AppState): MeadowVM {
-  const all = Object.values(s.pets).map((p) => petSummary(s, p));
+export function shelfVM(s: AppState): ShelfVM {
+  const featured = featuredPetId(s);
+  const all = Object.values(s.pets)
+    .map((p) => petSummary(s, p, featured))
+    .sort((a, b) => Number(b.favorite) - Number(a.favorite) || a.obtainedAt - b.obtainedAt || (a.id < b.id ? -1 : 1));
   return {
-    zones: ZONES.map((z) => ({ id: z.id, name: z.name, price: z.price, owned: s.meadow.zones.includes(z.id), canAfford: s.wallet.coins >= z.price, blurb: z.blurb, petsOut: z.petsOut })),
+    places: PLACES.map((p) => ({
+      id: p.id,
+      name: p.name,
+      price: p.price,
+      owned: s.shelf.places.includes(p.id),
+      canAfford: s.wallet.coins >= p.price,
+      blurb: p.blurb,
+      petsOut: p.petsOut,
+      loves: p.loves,
+    })),
     capacity: petsOutCapacity(s),
-    out: all.filter((p) => p.inMeadow),
-    napping: all.filter((p) => !p.inMeadow),
-    decor: s.meadow.decor.map((d) => ({ ...d, name: getCollectible(d.itemId)?.name ?? d.itemId, toy: TOY_IDS.has(d.itemId) })),
+    out: all.filter((p) => p.out),
+    indoors: all.filter((p) => !p.out),
+    decor: s.shelf.decor.map((d) => ({ ...d, name: getCollectible(d.itemId)?.name ?? d.itemId, toy: TOY_IDS.has(d.itemId) })),
     inventory: Object.keys(s.collection)
       .filter((id) => getCollectible(id)?.category === 'decor')
       .map((id) => ({ itemId: id, name: getCollectible(id)!.name, unplaced: unplacedCopies(s, id) }))
       .filter((i) => i.unplaced > 0),
+    cutting: cuttingOf(s),
   };
 }
 
@@ -208,7 +238,7 @@ export interface LettersVM {
   unread: number;
   /** The unread letter to show on the windowsill first (oldest unread). */
   next: string | null;
-  /** The Letterbox: every letter, newest first. */
+  /** The memory shelf: every Sunday Note and page, newest first. */
   letters: LetterVM[];
   /** The Bouquet Shelf: monthly bouquets grouped by year (12 per year), newest year first. */
   shelf: { year: number; bouquets: LetterVM[] }[];
@@ -238,15 +268,15 @@ export function lettersVM(s: AppState): LettersVM {
 }
 
 /* ------------------------------------------------------------------ */
-/* Badges                                                              */
+/* Pins (badges)                                                       */
 /* ------------------------------------------------------------------ */
 
 export interface BadgeVM {
   id: string;
   name: string;
   description: string;
+  /** Stamps it pays. */
   stars: number;
-  emoji: string;
   color: (typeof BADGES)[number]['color'];
   earned: boolean;
   earnedAt: number | null;
@@ -277,7 +307,6 @@ export function badgesVM(s: AppState): { earned: number; total: number; badges: 
       name: b.name,
       description: b.description,
       stars: b.stars,
-      emoji: b.emoji,
       color: b.color,
       earned: at !== undefined,
       earnedAt: at ?? null,

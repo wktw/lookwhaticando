@@ -1,132 +1,144 @@
 # Domain notes for other teams
 
-These are requests and integration notes from the domain/state module (`src/domain`, `src/state`).
-They cover the catalog, the UI and the shell.
+Requests, readings and integration notes from the logic layer (`src/domain`, `src/state`) for the catalog, the
+screens and the shell. The bible is `docs/DESIGN.md` (catkin, v2). Code comments cite its sections; "v1 §13.x" cites
+the audit amendments of the archived first bible (`docs/archive/DESIGN-v1-mochi.md` §13), now folded into the catkin
+sections listed at the end.
 
-## Catalog change requests
+## catkin adaptation (stage A): what the screens use
 
-1. **Puppy Park's lineup breaks the §13.6 ordering.** It has 8 Classic, 5 Special, 4 Rare and 2 Super rare items.
-   At 10% ÷ 4 and 5% ÷ 2, each Rare item and each Super rare item has the same 2.5% chance. §13.6 says every
-   rarer item must be less likely than every commoner one, and asks for 8/5/5/3 in a big series. Adding one
-   Super rare (or one Rare and one Super rare) fixes it.
-   `tests/unit/domain/gacha.test.ts` holds Puppy Park to ≥ for now; remove it from `TIED_BY_CATALOG` once
-   the catalog is fixed.
-   Sakura Garden and Sweet Treats are 8/5/4/3, and Rainy Day is 8/4/3/2. Those still keep the ordering
-   strict, so no change is needed.
-2. **Some templates use plant species that only come from capsules.** Strength training uses cactus. Yoga and
-   Meditate use lavender. In bed by 11, Clean the bathroom and Phone-free bedtime use lily. Meal prep uses
-   strawberry. A new save owns none of these. `habitInputFromTemplate` swaps in an owned starter plant:
-   cactus → succulent, lavender → tulip, lily → daisy, strawberry → tulip. `createHabit` refuses plants and
-   pots that aren't owned. Consider giving the templates starter plants so the preview matches what gets
-   planted.
+There is no mascot, no buddy and no meadow any more. Every change below is in the logic layer's contract.
+
+### State (`src/state/types.ts`)
+
+- `profile.buddy` is gone. A new save owns **no pets**; the first comes from the "Cats or Cows?" capsule.
+- `meadow: { zones, decor }` → `shelf: { places: PlaceId[]; decor: PlacedDecor[] }`. `places` always starts with
+  `'sill'` and stays in Shelf order. `PlacedDecor.zone` → `PlacedDecor.place` (`PlaceId` from `@/catalog/types`).
+  `MeadowZoneId` is gone.
+- `PetState.daily.buddy` is gone (no buddy XP). `PetState.inMeadow` keeps its name, like `stars` and `stardust`: it
+  means **out on the Shelf**.
+- New, optional: `found?: FoundThing[]` (`{ date, petId, seed }`), the found things of the last 14 app days.
+- New once-keys: `'gift|first-capsule'` (the onboarding capsule was pulled) and `'found|<date>'`.
+- Storage: `catkin:v1`, `catkin:demo:v1`, `catkin:theme`, `catkin:undo-import`; the writer lock `catkin:writer`;
+  IndexedDB `catkin`. Backups are `{ format: 'catkin-backup', … }`; the clipboard handoff is `CK1:` (gzip) or `CK0:`
+  (plain fallback). There were no users, so there is no migration from the Mochi keys.
+
+### Store (`src/state/store.ts`)
+
+- `pull(machineId, { free: true })` is onboarding's "Cats or Cows?" capsule (see the reading below). The domain's
+  `canPullFree(state, machineId)` says when to offer it; `capsulesVM().machines[i].free` carries it.
+- `buyZone` → `buyPlace(place: PlaceId): PlacePurchase` (`{ ok: true; place } | { ok: false; error }`). Nothing
+  outside the logic layer called `buyZone`, so there is no alias.
+- `toggleInMeadow` → `togglePetOut(petId)`. `setBuddy` is gone.
+- `placeDecor(itemId, place, x, y, flip?)` and `moveDecor(id, { x, y, place, flip })` take a place.
+- Series ids are catkin's: `cats cows dogs pond garden pantry night` and `autumn winter valentine spring summer`.
+
+### Events (`src/state/api.ts`)
+
+- New: `{ type: 'foundThing'; petId; date; seed; swaps }` (a `stardust` event follows).
+- `coins` with a negative amount and `reason: 'gift'`: the free capsule spending First Sprout's top-up.
+- `PetInteractionResult.line` is gone: the screen picks the caption (`lines.ts`) from the pet's personality and
+  species. `ZonePurchase` → `PlacePurchase`.
+
+### Views (`src/state/views/*`, `src/state/selectors.ts`)
+
+View models carry data, not catalog prose or emoji; the screens word them from `src/catalog/lines.ts`.
+
+- `todayVM`: `greeting` is `{ timeOfDay, hour, name, birthday }` (no `text`). `buddy` is gone. `sill[i].resident` is
+  `{ petId, companion } | null`: until Keeping Company, the pets out take the pots in order (favourites first, then the
+  closest friends), so each habit is "watered by whoever is nearest" and `companion` is false. `sill[i].done` is damp
+  soil. New: `cutting` (The Cutting) and `found` (today's found thing). `firstCapsule` is unchanged.
+- The card status line follows §9.1.1 to the end: a new plant reads `{ kind: 'rooting', text: 'Rooting · 2 more to
+  pot up' }`, or `'Just planted'` (no emoji).
+- `progressVM`: `sprout` → `cutting: CuttingVM` (`{ stage, progress, overall, toNext, framed }`); `garden[i].greenhouse`
+  → `retired`; the best fact and rests lines lost their emoji.
+- `meadowView`/`meadowVM` → `shelfView`/`shelfVM`: `{ places, capacity, out, indoors, decor, inventory, cutting }`.
+- `petsVM`: `{ pets, out, capacity, featured }`. `PetSummaryVM`: `inMeadow` → `out`, new `featured`; `buddy`, `mochi`
+  gone. `PetVM`: `nameLocked` and `personalityEmoji` gone; `perks` are `{ level, perk: LevelPerk, unlocked }` ids;
+  `favoriteTreat.hint` is `{ kind: 'tag', tag } | { kind: 'plant', plant } | { kind: 'unknown' }`.
+- `walletVM`: the "What can I get?" `lines` became numbers: `coinsFacts { capsules, toNext, price }` and
+  `stampsFacts { nightPulls, nightPrice, canOrderClassic, classicPrice }`; `dust` is `{ have, of }`.
+- `MachineCardVM`: new `label` ("No. 02 · Cows") and `free`; `seasonal` is `{ until }`; `pityHint` → `pity: { tier,
+  within } | null`; `luckyText` gone. `CapsulesVM.away[i]` is `{ id, name, back }`.
+- `WishItemVM.note` → `arrives: DateKey | null`. `BookItemVM.from` is the series label ("No. 01 · Cats") or
+  Starter / Exclusive / Harvest, and `visits` is month/day bounds. `BadgeVM.emoji` is gone.
+- Unchanged for now (stage B renames them at the view layer): `lettersVM` (Sunday Notes, Herbarium pages).
+
+### Domain helpers the screens may call
+
+`featuredPetId(state)` (a favourite out, else any favourite, else the closest friend out, else the closest friend),
+`theCutting(lifetimeSunshine(ledger.sunshine))`, `canPullFree`, `isFirstCapsule`, `LEVEL_PERKS`, `FOUND_THING_LEVEL`,
+`sillResidents(state)`, `favoriteHint(treatId)`.
+
+## Spec readings (stage A)
+
+1. **The onboarding capsule and First Sprout are one gift.** §9.6 has both: step 3 tops the jar up to 25 coins and step
+   4 pulls a free capsule. Taken before any check-in, the free capsule costs nothing and First Sprout never pays
+   (it only pays before the first pull). Taken after First Sprout, it spends exactly the coins First Sprout added
+   (capped by the jar), so the coins her check-ins earned stay hers and the gift is never two capsules. It is offered
+   once, on Cats or Cows only, as the first pull; it doesn't touch pity.
+2. **Every first capsule is a pet.** A new save owns none, and "animals are on Today at all times" (§10.1): the first
+   pull ever, free or paid, on any series, is a guaranteed Classic or Special pet from that series and doesn't
+   advance pity. This replaces the old rule (first pull on Kitty or Moo).
+3. **Found things: one a day for the whole Shelf.** §8.2 says an L6 pet "leaves a small found thing on the sill on
+   days you check in (1 swap, never a chore)". The logic leaves one a day: on the first reward-path check-in of an
+   app day, one pet out on the Shelf at level ≥ 6 (chosen at random) leaves it, and the swap is collected at once. With
+   one per L6 pet, ten old friends would mint a stamp a day. Rests, history edits and closing days leave nothing, and
+   it is never taken back.
+4. **The Cutting** sums `ledger.sunshine` over every key, deleted habits included (their ids are never reused), so it
+   only grows. Its stages have no names in the bible, so the view gives numbers and `overall` (0–1) for the vine.
+5. **Memories rule**: a seasonal edition has "visited" once it was on for at least one day since the profile was
+   created. A profile created mid-season can order that season's items at once (the old reading, "a window that
+   *started* after creation", made her wait a year for the season she met on day one).
+6. **Levels**: L9 changes nothing new and bond levels 11–15 are cosmetic, as in §8.2.
+7. **No XP from check-ins until Keeping Company.** §8.2 lists petting, treats, a companion's check-ins and duplicate
+   pulls. The buddy bonus is gone; companion XP arrives with `Habit.companionId` (stage B).
+
+## Catalog
+
+- Done: the Duffle Coat (No. 03 Dogs) and the Glass Float (No. 04 Pond), one Super rare each, so every series keeps
+  §7.1's strict ordering (`tests/unit/domain/gacha.test.ts` checks every series, no exceptions).
+- Every template grows a free starter plant in a free pot (tested), so the old starter-swap map is gone.
+- `catalog/badges.ts` still carries an `emoji` per pin; the views no longer pass it on.
 
 ## UI / shell integration
 
-- **Pre-paint theme script.** The store mirrors `{ "theme": "night", "reduceMotion": "auto" }` to the key
-  `mochi-meadow:theme` on every change and at boot. It skips this in the demo. `index.html` can read that
-  small key instead of parsing the whole save.
-- **Grouping never jumps (§13.11).** `todayVM` reports the current grouping: folded blocks, "Done for the
-  week" and "This month". Take a snapshot of which group each card is in on load and on day change, so a tap
-  never moves a card.
-- **Store API additions** (all additive):
-  - `acceptGrowOffer(id, patch)`
-  - `useHere()`
-  - `flushSaves()`
-  - `canUndoImport()`
-  - `repairClock()`: a diagnostics escape hatch after a far-future device date
-  - `configureStore()`: for tests
-  - `machineStatusOf(state, day, id)`
-  - `storeLocal()`
-  - signals `now`, `clockBehind`, `saveStatus`, `loadIssue`
-  - `updateHabit`'s timing also accepts `'tomorrow'`
-  - `listSnapshots()` rows also carry `kind` and `day`
-  - stage 4: `deleteHabit(id, { keepPlant })` · `editHistory` returns `false` when refused (days
-    inside the 6-day window, or un-ticking a flexible check-in whose period still reaches into the
-    window: point the user to the week strip) · `applyImport(text, { withoutUndo })` returns
-    `{ ok: false, error: 'no-undo' }` when the pre-import snapshot couldn't be taken: ask "We
-    couldn't keep an undo copy. Import anyway?" and retry with `withoutUndo: true` · `pull` can
-    return `error: 'storage-full'` (the pull was rolled back, nothing to reveal) · `repairClock()`
-    now only re-reads the clock and returns `{ behind, resumesAt }`; it never lowers the guard
-  - stage 4 view fields: `WeekStripDay.state` (the shared day-state glyph), `DayProgressVM.nothingDue`
-    (the vine is empty rather than fully bloomed when nothing day-based is due), `HabitDetailVM.upcoming`
-    ("From Oct 1: Mon/Wed/Fri" for a rule edit waiting to start), `GrowthInfo.paced`
-- **Selectors** live in `src/state/selectors.ts`. Every one is a pure function in `src/state/views/*`, plus a
-  memoised signal. The parameterised signals are `selectToday(date)`, `selectHabitDetail(id)`,
-  `selectCalendarMonth(habitId, month)`, `selectYearQuilt(year)`, `selectSeries(id)` and `selectPet(id)`.
-- **New GameEvents.** `harvest` fires when a treat drops in the basket. `album` fires when a species album is
-  complete. A `coins` event with a negative `amount` means a refund or the sparkle exchange.
-- **Delete vs the Greenhouse.** "Keep the plant in the greenhouse?" (§13.10, default yes) maps to
-  `store.deleteHabit(id, { keepPlant: true })`, which archives the habit so its plant stays on the
-  Greenhouse shelf (`progressVM().garden`). A plain delete removes the habit and its logs, but the
-  sunshine it grew stays in Mochi's lifetime sprout gauge.
-- **Not modelled yet.** These have no state in the v1 contract: the L6 "gifts under the tree", Memory
-  polaroids (`memoriesFor(xp)` gives the count; the dated events still need storage) and the
-  "Meadow-versary" letter.
-- **Upstream §13.11** (on the main branch, newer than this worktree's DESIGN.md) is followed where it touches
-  the domain:
-  - the card status line priority
-  - the "This month" row
-  - rests in numbers
-  - the quilt not drawn before tracking starts
-  - the Moonlit variants sharing one slot. That slot weighs half an item, so Dreamy's printed Rares stay
-    strictly more likely than its Super rares: 20% ÷ 6 would otherwise equal 10% ÷ 3.
+- **Pre-paint theme.** The store mirrors `{ "theme": …, "reduceMotion": … }` to `catkin:theme` at boot and on every
+  change (not in the demo). The pre-paint script in `index.html` reads only that key and sets `data-theme`,
+  `data-motion`, `color-scheme` and one `theme-color` (#FAF6EF / #1E1A22, as `src/app/theme.ts` on `catkin/ui`).
+- **Grouping never jumps.** `todayVM` reports the current grouping; snapshot which group each card is in on load and
+  on day change, so a tap never moves a card.
+- **Delete vs the balcony shelf.** "Keep the plant on the balcony shelf?" (default yes) maps to
+  `deleteHabit(id, { keepPlant: true })`: the habit is archived and its plant stays (`progressVM().garden[i].retired`).
+  A plain delete removes the habit and its logs; its sunshine stays in The Cutting.
+- Earlier store additions still stand: `acceptGrowOffer`, `useHere`, `flushSaves`, `canUndoImport`, `repairClock`,
+  `configureStore`, `machineStatusOf`, `storeLocal`, the signals `now`, `clockBehind`, `saveStatus`, `loadIssue`,
+  `updateHabit(…, 'tomorrow')`, `deleteHabit(id, { keepPlant })`, `editHistory` returning `false` when refused,
+  `applyImport(text, { withoutUndo })` and `'no-undo'`, and `pull`'s `'storage-full'`.
 
-## Spec amendment requests (stage 4, after the adversarial audits)
+## Spec amendments (folded into DESIGN.md)
 
-The domain follows these readings. Please fold them into DESIGN.md §13 so the spec and the code agree.
+The logic team's readings after the adversarial audits are now short clarifications in the catkin bible:
 
-1. **§13.2 "this period" edits.** When a flexible edit keeps the period geometry (same unit and
-   `every`; only `times` changes), the new rule takes over the whole current period. When the
-   geometry changes (weekly ↔ monthly, another `every`, flexible → day-based), the new rule starts
-   today, and the old period is *cut*: it is judged as it stood that day, with its full goal, and the
-   days it lost count as still open. No edit can turn a past day or a closed period into a new
-   shortfall.
-2. **§13.2 day-based edits after today's check-in was rewarded** apply from tomorrow, so a changed
-   target can't turn the next +1 into a refund or an un-check into a payment. The detail view shows the
-   pending rule.
-3. **§13.3 current period.** `remainingActiveDays(T…end)` becomes *open days*: today counts only while
-   it can still take a check-in, and future off days and paused days still count as open. With the
-   literal formula, a day off or a pause could *raise* the expected count, because round(times ×
-   activeFrac) often keeps the goal while one fewer day remains. That broke "transparent for every
-   habit".
-4. **§13.3 rolling windows** end today if today already counts, otherwise yesterday (as in upstream
-   §13.11). This applies to both the per-habit and the aggregate phrases.
-5. **§13.4 stage cap.** `completedOccurrences` counts only days from the habit's creation day.
-   History filled in before the habit existed never earned sunshine. The stage is also capped at the
-   calendar pace, stageFromSunshine(days since creation + 6), so switching to a rarer rule for one
-   check-in can't grow a plant faster than real time. Honest play never meets this cap.
-6. **§13.5 rung measure.** The flexible occurrence-equivalent is Σ achieved per met period, not
-   periods × times. The two agree for every full period. A scaled-down period (created mid-week,
-   paused, cut by an edit) counts only what it asked for and got. Streak *length* is the calendar
-   weeks or months the run covers. Rungs pay only on the streak since the creation day.
-7. **§13.5 perfect day.** A "Take today off" day is neither perfect nor imperfect. Only *in-target*
-   flexible check-ins count toward done. A rest excuses a habit only within the weekly allowance, and
-   rests that already completed a paid perfect day keep using it after an un-rest. Resuming a habit
-   whose pause excused today's paid perfect day brings it back tomorrow.
-8. **§13.5 graduation.** "Ready to grow?" pays +1★ only for a genuinely bigger rule, and the offer then
-   stays closed for 28 days, even if the pending rule is withdrawn.
-9. **§13.5 / §13.10 letters and bouquets.** Once written, they change only by the delta of a
-   reward-path change inside the window. History edits and habit deletions never move them.
-10. **§13.2 calendar edits** are refused for days inside the 6-day window, and for un-ticking a
-    flexible check-in whose period still reaches into it.
-11. **§13.2 tiny version** is a level only. Logging it never changes the count, so Undo restores the day
-    exactly. It is refused on rules without a tiny version.
-12. **§13.10 Flourishes** are a high-water mark (`once['flourish|<habitId>']`): they are permanent
-    visitors. Blooms still follow the sunshine held.
-13. **§13.6 pity** counts only pulls made while its tier still has something unowned. A fully owned
-    tier's counter is 0, so it can't fire the moment a Moonlit variant joins the tier.
-14. **§13.10 vs §9.6.** The free first pull is refused once First Sprout has paid. Onboarding earns the
-    first capsule.
-15. **Open, not changed:**
-    - §13.6's Memories rule ("wishable after its first visit") is read as *from the first day* of that
-      visit. Say "after it ends" if that is the intent.
-    - Restoring a snapshot, or importing a backup from before some pulls, gives back the coins spent on
-      them. Stopping this needs an append-only pull journal outside snapshots, which is design work
-      for M2.
-    - An old habit's rung can still be reached by many history-ticked days plus one real check-in.
-      §13.2 says rungs *reached through history edits* go unpaid, and here the last step is a real
-      check-in. Capping the measure at rewarded occurrences would also make legitimate streaks that
-      began before a reinstall unpayable.
-    - If a refund can't be afforded when a habit is deleted, deleting it and creating it again can
-      pay today's check-in a second time. The daily 40-coin full-rate budget bounds this, and it
-      earns no more than creating a new habit would.
+| Reading | catkin section |
+|---|---|
+| "This period" edits keep or cut the period; day-based edits after today's reward apply tomorrow | §5.1 |
+| Tiny is a level only; graduation pays once per genuinely bigger rule, then 28 days closed | §5.2 |
+| Calendar edits refused inside the 6-day window and for flexible un-ticks reaching into it | §5.3 |
+| The current period's remaining days are *open* days; rolling windows end today only if it counts | §5.4 |
+| Completed occurrences from the creation day; the calendar-pace cap; Flourishes are a high-water mark | §5.5 |
+| Perfect day: off days, in-target flexible check-ins, rest allowance, resume after a paid day | §6 |
+| Rung measure: Σ achieved per met period, calendar length, since the creation day | §6 |
+| Sunday Note and Herbarium page move only by the delta of a reward-path change | §6 |
+| Pity counts only while its tier is armed; the Moonlit slot weighs half an item | §7.1 |
+| Memories rule: from the first day she has the app while the season is on | §7.3 |
+| The free capsule and First Sprout are one gift; every first capsule is a pet | §9.6 |
+
+## Open (not changed)
+
+- Restoring a snapshot, or importing a backup from before some pulls, gives back the coins spent on them. Stopping this
+  needs an append-only pull journal outside snapshots.
+- An old habit's rung can still be reached by many history-ticked days plus one real check-in. Capping the measure at
+  rewarded occurrences would also make legitimate streaks that began before a reinstall unpayable.
+- If a refund can't be afforded when a habit is deleted, deleting it and creating it again can pay today's check-in a
+  second time. The daily 40-coin full-rate budget bounds this, and it earns no more than creating a new habit would.

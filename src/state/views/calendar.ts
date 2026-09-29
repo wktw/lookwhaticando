@@ -1,5 +1,5 @@
 /**
- * Calendar month grid and year quilt (DESIGN §9.2 "Calendar", "Quilt"; §13.11 day-state glyphs and
+ * Calendar month grid and year quilt (DESIGN §9.2 "Calendar", "Quilt"; v1 §13.11 day-state glyphs and
  * "Quilt"). One habit or all habits.
  */
 import type { AppState, DateKey, Habit } from '../types';
@@ -30,7 +30,7 @@ import { isDayBased, isScheduledDate } from '@/domain/schedule';
 import type { ViewEnv } from './common';
 
 /**
- * The shared day-state glyphs (§13.11): done = sage disk + check · tiny = sage-300 disk + check ·
+ * The shared day-state glyphs (v1 §13.11): done = sage disk + check · tiny = sage-300 disk + check ·
  * partial = arc · none = dashed ring (never red) · rest/off = lavender moon · paused = leaf ·
  * unscheduled = numeral only · future = faint numeral · before-start / archived = not drawn.
  */

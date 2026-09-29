@@ -1,5 +1,5 @@
 /**
- * Daily snapshots in IndexedDB (DESIGN §13.8): 7 daily + 4 weekly copies of the save, taken only
+ * Daily snapshots in IndexedDB (DESIGN v1 §13.8): 7 daily + 4 weekly copies of the save, taken only
  * when `validateState` passes, listed and restorable from You › Data. Imports also snapshot first
  * ('pre-import') so they can be undone for 24 h.
  *
@@ -95,7 +95,7 @@ export function memorySnapshotStore(): SnapshotStore & { records: Map<string, Sn
 /* IndexedDB                                                           */
 /* ------------------------------------------------------------------ */
 
-const DB_NAME = 'mochi-meadow';
+const DB_NAME = 'catkin';
 const STORE = 'snapshots';
 
 function req<T>(r: IDBRequest<T>): Promise<T> {

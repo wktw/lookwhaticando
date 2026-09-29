@@ -36,14 +36,14 @@ describe('base64url', () => {
   });
 });
 
-describe('MM1 handoff payload (DESIGN §13.8)', () => {
+describe('CK1 handoff payload (DESIGN §13.8)', () => {
   const json = JSON.stringify(makeBackup(demo, { now, appVersion: 'test', device: 'iPhone · Safari' }));
 
-  it("'MM1:' + base64url(gzip(json)) round-trips and is much smaller than the plain fallback", async () => {
+  it("'CK1:' + base64url(gzip(json)) round-trips and is much smaller than the plain fallback", async () => {
     const mm1 = await encodePayload(json);
     const mm0 = await encodePayload(json, { compress: false });
-    expect(mm1.startsWith('MM1:')).toBe(true);
-    expect(mm0.startsWith('MM0:')).toBe(true);
+    expect(mm1.startsWith('CK1:')).toBe(true);
+    expect(mm0.startsWith('CK0:')).toBe(true);
     expect(mm1.length).toBeLessThan(mm0.length / 3);
     expect(await decodePayload(mm1)).toEqual({ ok: true, json });
     expect(await decodePayload(mm0)).toEqual({ ok: true, json });
@@ -57,12 +57,12 @@ describe('MM1 handoff payload (DESIGN §13.8)', () => {
       globalThis.DecompressionStream = saved.d;
     });
 
-    it("falls back to 'MM0:' gracefully, and explains an MM1 it cannot open", async () => {
+    it("falls back to 'CK0:' gracefully, and explains an CK1 it cannot open", async () => {
       const mm1 = await encodePayload(json);
       (globalThis as Record<string, unknown>).CompressionStream = undefined;
       (globalThis as Record<string, unknown>).DecompressionStream = undefined;
       const mm0 = await encodePayload(json);
-      expect(mm0.startsWith('MM0:')).toBe(true);
+      expect(mm0.startsWith('CK0:')).toBe(true);
       expect(await decodePayload(mm0)).toEqual({ ok: true, json });
       expect(await decodePayload(mm1)).toEqual({ ok: false, error: 'cannot-decompress-here' });
     });
@@ -71,13 +71,13 @@ describe('MM1 handoff payload (DESIGN §13.8)', () => {
   it('reports damaged payloads', async () => {
     const mm1 = await encodePayload(json);
     expect(await decodePayload(mm1.slice(0, 200))).toEqual({ ok: false, error: 'damaged-payload' });
-    expect(await decodePayload('MM0:!!!')).toEqual({ ok: false, error: 'damaged-payload' });
+    expect(await decodePayload('CK0:!!!')).toEqual({ ok: false, error: 'damaged-payload' });
     expect(await decodePayload('hello')).toEqual({ ok: false, error: 'not-a-payload' });
   });
 });
 
 describe('parsing an import', () => {
-  it('accepts a backup file, an MM1/MM0 payload, a raw save envelope or a bare state', async () => {
+  it('accepts a backup file, an CK1/CK0 payload, a raw save envelope or a bare state', async () => {
     const backup = JSON.stringify(makeBackup(demo, { now, appVersion: 'test', device: 'Mac · Safari' }));
     const inputs = [backup, await encodePayload(backup), await encodePayload(backup, { compress: false }), encodeEnvelope(demo, 3, now, 'test'), JSON.stringify(demo)];
     for (const text of inputs) {

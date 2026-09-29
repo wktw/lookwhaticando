@@ -18,7 +18,7 @@ import {
 import { canSetRest, logStatus, restStanding, showedUp, type LogStatus } from '@/domain/activity';
 import { formatHabitPhrase, habitPhrase, habitTally, trailingWindow, isPctReady } from '@/domain/consistency';
 import { bestFlourishes, completedOccurrences, daysSinceCreation, habitCreatedOn, logsOf, streakOf, trackingCtx } from '@/domain/economy';
-import { growthInfo, sunshinePerOccurrence, type GrowthInfo } from '@/domain/growth';
+import { POTTED, ROOTING, growthInfo, sunshinePerOccurrence, type GrowthInfo } from '@/domain/growth';
 import { evaluatePeriod, flexPeriodAt } from '@/domain/periods';
 import { isPausedOn, pauseReturnDay } from '@/domain/pauses';
 import { ruleAt, scheduleStatusOn } from '@/domain/rules';
@@ -96,7 +96,7 @@ export interface PlantVM extends GrowthInfo {
   pot: Habit['pot'];
   /** Full check-ins still needed for the next stage (1 when only a check-in is missing); null at Evergreen. */
   checkinsToNext: number | null;
-  /** "4 more check-ins to Blooming" (sunshine is never shown as a number, §13.11); null at Evergreen. */
+  /** "4 more check-ins to Blooming" (sunshine is never shown as a number, §9.2); null at Evergreen. */
   nextLine: string | null;
 }
 
@@ -130,7 +130,7 @@ export function plantVM(s: AppState, habit: Habit, today: DateKey, local: LocalT
 /* Habit cards                                                         */
 /* ------------------------------------------------------------------ */
 
-export type SubtitleKind = 'count' | 'tiny' | 'period' | 'period-done' | 'streak' | 'consistency' | 'new';
+export type SubtitleKind = 'count' | 'tiny' | 'period' | 'period-done' | 'streak' | 'consistency' | 'rooting' | 'new';
 
 export interface PaceVM {
   checkins: number;
@@ -193,7 +193,7 @@ export interface HabitCardVM {
   canTiny: boolean;
   /** That day's note. */
   note: string | null;
-  /** The status line under the name (§13.11 card status line, first match wins). */
+  /** The status line under the name (§9.1.1, first match wins). */
   subtitle: { kind: SubtitleKind; text: string };
   /** Flexible habits: where the period stands ("2 of 3 this week · 1 more by Sun"). */
   pace: PaceVM | null;
@@ -265,7 +265,8 @@ export function habitCard(s: AppState, habit: Habit, date: DateKey, env: ViewEnv
   }
 
   const streak = streakVM(streakOf(habit, logs, ctx).current, habit.polarity);
-  const subtitle = cardSubtitle({ habit, rule, count, target, status, flexible, pace, streak, s, env });
+  const plant = plantVM(s, habit, today, env.local);
+  const subtitle = cardSubtitle({ habit, rule, count, target, status, flexible, pace, streak, s, env, plant });
   const unitWord = habit.unit ?? '';
   const aria =
     target > 1 && !flexible ? `${habit.name}, ${count} of ${target}${unitWord ? ` ${unitWord}` : ''}` : `${habit.name}${done ? (habit.polarity === 'avoid' ? ', kept it up' : ', done') : ''}`;
@@ -302,7 +303,7 @@ export function habitCard(s: AppState, habit: Habit, date: DateKey, env: ViewEnv
     subtitle,
     pace,
     streak,
-    plant: plantVM(s, habit, today, env.local),
+    plant,
     met,
     ariaLabel: aria,
   };
@@ -319,13 +320,15 @@ interface SubtitleInput {
   streak: StreakVM | null;
   s: AppState;
   env: ViewEnv;
+  /** The habit's plant as of today (computed when absent). */
+  plant?: PlantVM;
 }
 
 /**
- * Card status line (DESIGN §13.11, first match wins): count in progress "5/8 glasses" · tiny
+ * Card status line (DESIGN §9.1.1, first match wins): count in progress "5/8 glasses" · tiny
  * logged "Tiny version ✓" · flexible "2 of 3 this week · 1 more by Sun" / "Done for the week ✓" ·
  * streak ≥ 3 "12 days" ("12 in a row", "Kept it up 12 days") · ≥ 10 expected "26 of the last 30
- * days" · otherwise "Just planted 🌱".
+ * days" · otherwise a new plant: "Rooting · 2 more to pot up" while it roots, or "Just planted".
  */
 export function cardSubtitle(i: SubtitleInput): { kind: SubtitleKind; text: string } {
   if (!i.flexible && i.target > 1 && i.count > 0 && i.count < i.target && i.status !== 'tiny') {
@@ -344,7 +347,11 @@ export function cardSubtitle(i: SubtitleInput): { kind: SubtitleKind; text: stri
     const phrase = habitPhrase(i.habit, logs, ctx);
     if (phrase) return { kind: 'consistency', text: formatHabitPhrase(phrase, i.s.settings.weekStart) };
   }
-  return { kind: 'new', text: 'Just planted 🌱' };
+  const plant = i.plant ?? plantVM(i.s, i.habit, i.env.today, i.env.local);
+  if (plant.displayStage >= ROOTING && plant.displayStage < POTTED && plant.checkinsToNext !== null) {
+    return { kind: 'rooting', text: `Rooting · ${plant.checkinsToNext} more to pot up` };
+  }
+  return { kind: 'new', text: 'Just planted' };
 }
 
 /* ------------------------------------------------------------------ */

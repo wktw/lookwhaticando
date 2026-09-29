@@ -2,7 +2,8 @@ import { describe, expect, it, vi } from 'vitest';
 import * as habitsDomain from '@/domain/habits';
 import * as logging from '@/domain/logging';
 import { addDays } from '@/domain/dates';
-import { MOCHI_ID } from '@/catalog/collectibles';
+import * as gacha from '@/domain/gacha';
+import { CUTTING_THRESHOLDS } from '@/domain/growth';
 import {
   badgesVM,
   calendarMonthVM,
@@ -11,11 +12,11 @@ import {
   currentBlock,
   habitDetailVM,
   lettersVM,
-  meadowVM,
   petVM,
   petsVM,
   progressVM,
   seriesVM,
+  shelfVM,
   todayVM,
   walletVM,
   wishListVM,
@@ -25,7 +26,7 @@ import {
 import { machineStatusOf } from '@/state/store';
 import { Game, UTC, at } from '../domain/game';
 
-// Builds whole meadows (the 120-day demo, months of play): generous time for a busy CI machine.
+// Builds whole saves (the 120-day demo, months of play): generous time for a busy CI machine.
 vi.setConfig({ testTimeout: 30_000 });
 
 const envOf = (g: Game): ViewEnv => ({ today: g.today, now: g.now, local: UTC });
@@ -34,15 +35,15 @@ const card = (g: Game, id: string, date?: string) => {
   return [...vm.blocks.flatMap((b) => b.cards), ...vm.doneForPeriod, ...vm.thisMonth, ...vm.notToday].find((c) => c.id === id)!;
 };
 
-describe('Today: habit card status line (DESIGN §13.11, first match wins)', () => {
-  it('count in progress → tiny → flexible pace / done → streak ≥ 3 → consistency → just planted', () => {
+describe('Today: habit card status line (DESIGN §9.1.1, first match wins)', () => {
+  it('count in progress → tiny → flexible pace / done → streak ≥ 3 → consistency → rooting / just planted', () => {
     const g = new Game({ start: '2026-03-02' }); // Monday
     const water = g.addHabit({ name: 'Water', target: 8, unit: 'glasses', tiny: { label: '4', count: 4 } });
     const walk = g.addHabit({ name: 'Walk', tiny: { label: 'Shoes on' } });
     const yoga = g.addHabit({ name: 'Yoga', schedule: { kind: 'weekly', times: 2, every: 1 } });
     const phone = g.addHabit({ name: 'Phone-free', polarity: 'avoid' });
     const read = g.addHabit({ name: 'Read', schedule: { kind: 'days', days: [1, 3, 5] } });
-    expect(card(g, walk).subtitle).toEqual({ kind: 'new', text: 'Just planted 🌱' });
+    expect(card(g, walk).subtitle).toEqual({ kind: 'new', text: 'Just planted' });
     g.checkIn(water);
     g.checkIn(water);
     expect(card(g, water).subtitle).toEqual({ kind: 'count', text: '2/8 glasses' });
@@ -64,6 +65,17 @@ describe('Today: habit card status line (DESIGN §13.11, first match wins)', () 
     g.goTo('2026-03-11');
     g.checkIn(read);
     expect(card(g, read).subtitle).toEqual({ kind: 'streak', text: '3 in a row' });
+  });
+
+  it('a new plant says how far it is from being potted up: "Rooting · 3 more to pot up"', () => {
+    const g = new Game({ start: '2026-03-02' });
+    const a = g.addHabit();
+    g.checkIn(a); // 1 sunshine: Rooting; Potted is at 4
+    expect(card(g, a).plant).toMatchObject({ displayStage: 1, name: 'Rooting', nextName: 'Potted', checkinsToNext: 3 });
+    expect(card(g, a).subtitle).toEqual({ kind: 'rooting', text: 'Rooting · 3 more to pot up' });
+    g.advance(1);
+    g.checkIn(a);
+    expect(card(g, a).subtitle).toEqual({ kind: 'rooting', text: 'Rooting · 2 more to pot up' });
   });
 
   it('shows "26 of the last 30 days" once there are ≥ 10 expected and no streak ≥ 3', () => {
@@ -98,7 +110,8 @@ describe('Today: layout', () => {
       ['midday', false, false, 'Midday 0/1'],
     ]);
     expect(vm.progress).toMatchObject({ done: 1, total: 4, label: '1 of 4' });
-    expect(vm.greeting.text).toBe('Good evening, Sam 🌙');
+    // Data, not words: the screen picks the line from lines.ts.
+    expect(vm.greeting).toEqual({ timeOfDay: 'evening', hour: 18, name: 'Sam', birthday: false });
   });
 
   it('sorts habits into met-this-period, this month, not today and paused', () => {
@@ -115,6 +128,42 @@ describe('Today: layout', () => {
     expect(vm.notToday.map((c) => c.id)).toEqual([days]);
     expect(vm.paused).toMatchObject({ count: 1, text: 'Resting: 1 habit · back Mar 11' });
     expect(vm.sill.map((p) => p.habitId)).toEqual([weekly, monthly, days]);
+    expect(vm.sill.map((p) => p.resident)).toEqual([null, null, null]); // no pets yet
+  });
+
+  it('the band: whoever is nearest sits in the pots, damp soil where watered, the Cutting, the found thing', () => {
+    const g = new Game({ start: '2026-03-02' });
+    const a = g.addHabit({ name: 'Walk' });
+    const b = g.addHabit({ name: 'Read' });
+    const c = g.addHabit({ name: 'Stretch' });
+    g.run((tx) => (gacha.pull(tx, 'cats', { free: true }), gacha.finishReveal(tx)));
+    const first = Object.keys(g.state.pets)[0]!;
+    g.state = {
+      ...g.state,
+      pets: {
+        ...g.state.pets,
+        'pet-cow-holstein': { ...g.state.pets[first]!, id: 'pet-cow-holstein', xp: 400, obtainedAt: g.now + 1 },
+        'pet-dog-corgi': { ...g.state.pets[first]!, id: 'pet-dog-corgi', xp: 999, inMeadow: false },
+      },
+    };
+    g.checkIn(b);
+    const vm = todayVM(g.state, envOf(g));
+    // Out on the Shelf, closest friends first (the L6 cow before the new cat); the corgi is indoors.
+    expect(vm.sill.map((p) => [p.habitId, p.resident, p.done])).toEqual([
+      [a, { petId: 'pet-cow-holstein', companion: false }, false],
+      [b, { petId: first, companion: false }, true],
+      [c, null, false],
+    ]);
+    expect(vm.found).toEqual({ petId: 'pet-cow-holstein', seed: expect.any(Number) });
+    expect(vm.cutting).toMatchObject({ stage: 0, toNext: CUTTING_THRESHOLDS[1]! - 1, framed: false });
+  });
+
+  it('the greeting knows her birthday', () => {
+    const g = new Game({ start: '2026-03-02', hour: 8 });
+    g.state = { ...g.state, profile: { ...g.state.profile, name: '  Sam ', birthday: '03-02' } };
+    expect(todayVM(g.state, envOf(g)).greeting).toEqual({ timeOfDay: 'morning', hour: 8, name: 'Sam', birthday: true });
+    g.advance(1);
+    expect(todayVM(g.state, envOf(g)).greeting.birthday).toBe(false);
   });
 
   it('week strip, backdating banner, off day, first capsule card, coins today', () => {
@@ -160,7 +209,7 @@ describe('Habit detail', () => {
     }
     g.run((tx) => habitsDomain.updateHabit(tx, a, { schedule: { kind: 'days', days: [1, 3, 5] } }));
     const vm = habitDetailVM(g.state, envOf(g), a)!;
-    // 7 sunshine (Seedling); Leafy needs 10, and each Mon/Wed/Fri check-in (from tomorrow) brings 7/3.
+    // 7 sunshine (Potted); Leafy needs 10, and each Mon/Wed/Fri check-in (from tomorrow) brings 7/3.
     expect(vm.plant.nextLine).toBe('2 more check-ins to Leafy');
     // Today (Sat) was already checked in and rewarded, so the edit applies from tomorrow: today's
     // check-in keeps the rule it was rewarded under (stage-3 decision, habits.updateHabit).
@@ -180,7 +229,7 @@ describe('Habit detail', () => {
 });
 
 describe('Progress', () => {
-  it('month hero, week chip, showed-up line, garden and Mochi’s sprout', () => {
+  it('month hero, week chip, showed-up line, garden and The Cutting', () => {
     const g = new Game({ start: '2026-03-01' });
     const a = g.addHabit();
     for (let d = '2026-03-01'; d <= '2026-03-12'; d = addDays(d, 1)) {
@@ -192,7 +241,9 @@ describe('Progress', () => {
     expect(vm.showedUp.text).toBe('You showed up 12 of the last 12 days');
     expect(vm.recentMonths.map((m) => m.label)).toEqual(['Mar']);
     expect(vm.garden.map((p) => [p.habitName, p.plant.name])).toEqual([['Walk', 'Leafy']]);
-    expect(vm.sprout).toMatchObject({ stage: 1, name: 'Sprout', color: 'sage' });
+    // 12 lifetime sunshine: past 5 (roots), 8 short of 20 (a pot).
+    expect(vm.cutting).toEqual({ stage: 1, progress: 7 / 15, overall: (1 + 7 / 15) / 7, toNext: 8, framed: false });
+    expect(vm.garden[0]).toMatchObject({ retired: false });
     expect(vm.trend.kind).toBe('none');
   });
 
@@ -205,7 +256,7 @@ describe('Progress', () => {
     }
     const vm = progressVM(g.state, envOf(g));
     expect(vm.trend.kind).toBe('fact');
-    expect(vm.trend.text).toBe('4 check-ins so far in March. Walk is your steadiest 🌿');
+    expect(vm.trend.text).toBe('4 check-ins so far in March. Walk is your steadiest.');
     expect(vm.trend.text).not.toMatch(/100|down|↓/);
   });
 });
@@ -246,75 +297,114 @@ describe('Calendar & quilt', () => {
   });
 });
 
-describe('Capsules, wallet, Well, collection', () => {
-  it('wallet lines speak in capsules and stars', () => {
+describe('Capsules, wallet, Special Order, Field Guide', () => {
+  it('the wallet’s "What can I get?" facts, as numbers (coins, stamps, swaps, tickets)', () => {
     const g = new Game();
     g.setWallet({ coins: 75, stars: 5, stardust: 7, tickets: 1 });
-    expect(walletVM(g.state).lines.map((l) => l.text)).toEqual([
-      '75 coins → 3 capsules',
-      '5 stars → 1 Dreamy Night pull, or wish for any Classic',
-      '1 ticket → a free pull on any machine',
-      '7/10 stardust → your next star',
-    ]);
-    expect(walletVM(g.state).dust.text).toBe('7/10 to your next star');
+    expect(walletVM(g.state)).toMatchObject({
+      coins: 75,
+      stars: 5,
+      stardust: 7,
+      tickets: 1,
+      dust: { have: 7, of: 10 },
+      coinsFacts: { capsules: 3, toNext: 0, price: 25 },
+      stampsFacts: { nightPulls: 1, nightPrice: 3, canOrderClassic: true, classicPrice: 2 },
+    });
+    g.setWallet({ coins: 18, stars: 1 });
+    expect(walletVM(g.state)).toMatchObject({ coinsFacts: { capsules: 0, toNext: 7 }, stampsFacts: { nightPulls: 0, canOrderClassic: false } });
   });
 
   it('machine cards, the series lineup (chances sum to 1, hidden Secret) and the Well', () => {
     const g = new Game({ start: '2026-09-29' });
     const env = envOf(g);
     const vm = capsulesVM(g.state, env, (id) => machineStatusOf(g.state, env.today, id));
-    expect(vm.machines.map((m) => m.id)).toEqual(['kitty', 'moo', 'puppy', 'sakura', 'sweets', 'dreamy', 'pumpkin']);
-    expect(vm.machines.find((m) => m.id === 'pumpkin')!.seasonal).toEqual({ emoji: '🎃', label: 'Until Nov 10' });
-    expect(vm.machines[0]!.pityHint).toBe('Rare+ within 10 pulls ✨');
-    expect(vm.away.map((a) => a.label)).toEqual(['Back Nov 11', 'Back Jan 15', 'Back Mar 1', 'Back Jun 1']);
-    const series = seriesVM(g.state, env, 'kitty');
+    expect(vm.machines.map((m) => m.id)).toEqual(['cats', 'cows', 'dogs', 'pond', 'garden', 'pantry', 'night', 'autumn']);
+    expect(vm.machines.map((m) => m.label)).toEqual(['No. 01 · Cats', 'No. 02 · Cows', 'No. 03 · Dogs', 'No. 04 · Pond', 'No. 05 · Garden', 'No. 06 · Pantry', 'No. 07 · Night', 'Autumn Edition']);
+    expect(vm.machines.find((m) => m.id === 'autumn')!.seasonal).toEqual({ until: '2026-11-10' });
+    expect(vm.machines[0]).toMatchObject({ pity: { tier: 'rare', within: 10 }, luckyPips: 0, free: true });
+    expect(vm.machines.filter((m) => m.free).map((m) => m.id)).toEqual(['cats', 'cows']);
+    expect(vm.firstCapsule).toBe(true);
+    expect(vm.away.map((a) => [a.id, a.back])).toEqual([
+      ['winter', '2026-11-11'],
+      ['valentine', '2027-01-15'],
+      ['spring', '2027-03-01'],
+      ['summer', '2027-06-01'],
+    ]);
+    const series = seriesVM(g.state, env, 'cats');
     const all = [...series.tiers.flatMap((t) => t.items), ...series.moonlit];
     expect(all.reduce((a, i) => a + i.chance, 0)).toBeCloseTo(1, 10);
-    expect(all.find((i) => i.secret)).toMatchObject({ id: 'pet-cat-lucky', hidden: true, rarityLabel: 'Secret' });
+    expect(all.find((i) => i.secret)).toMatchObject({ id: 'pet-cat-mainecoon', hidden: true, rarityLabel: 'Secret' });
     expect(series.tiers.map((t) => [t.label, t.eachPct])).toEqual([
       ['Classic', 7.5],
       ['Special', 5],
       ['Rare', 2],
       ['Super rare', 1.7],
     ]);
-    expect(seriesVM(g.state, env, 'snow').coverOnly).toBe(true);
+    expect(seriesVM(g.state, env, 'winter').coverOnly).toBe(true);
+    expect(seriesVM(g.state, env, 'autumn').coverOnly).toBe(false); // on the day she arrived: it has visited
     const well = wishListVM(g.state, env);
-    const snow = well.groups.find((x) => x.machineId === 'snow')!;
-    expect(snow.items[0]).toMatchObject({ status: 'season-not-visited', note: 'Arrives Nov 11 · wishable after its first visit' });
-    expect(well.groups.find((x) => x.machineId === 'kitty')!.items[0]).toMatchObject({ status: 'not-enough-stars', price: 2 });
+    const winter = well.groups.find((x) => x.machineId === 'winter')!;
+    expect(winter.items[0]).toMatchObject({ status: 'season-not-visited', arrives: '2026-11-11' });
+    expect(well.groups.find((x) => x.machineId === 'autumn')!.items[0]).toMatchObject({ status: 'not-enough-stars', arrives: null });
+    expect(well.groups.find((x) => x.machineId === 'cats')!.items[0]).toMatchObject({ status: 'not-enough-stars', price: 2 });
   });
 
-  it('collection book by category and species albums', () => {
+  it('the Field Guide by category and by species page', () => {
     const g = new Game();
     const vm = collectionVM(g.state);
     expect(vm.categories.map((c) => c.category)).toEqual(['pet', 'wearable', 'treat', 'decor', 'plant', 'pot']);
     expect(vm.categories.find((c) => c.category === 'plant')!.owned).toBe(5);
-    expect(vm.albums.map((a) => a.name)).toEqual(['Cat Café', 'The Whole Herd', 'Puppy Pack', 'Bunny Burrow', 'Pond Club', 'Teddy Den', 'Hamster Hideout']);
+    expect(vm.albums.map((a) => a.name)).toEqual(['Cats', 'Cows', 'Dogs', 'Rabbits', 'Pond Club', 'Bears', 'Hamsters']);
+    expect(vm.albums.map((a) => a.reward)).toEqual(['decor-reading-chair', 'decor-pasture-fence', null, null, 'decor-stepping-stones', null, null]);
     expect(vm.albums[0]!.pets.every((p) => p.owned === 0)).toBe(true);
+    expect(vm.albums[0]!.pets[0]).toMatchObject({ from: 'No. 01 · Cats', visits: null });
+    const plants = vm.categories.find((c) => c.category === 'plant')!.items;
+    expect(plants.find((p) => p.id === 'plant-pothos')).toMatchObject({ from: 'Starter', owned: 1 });
+    expect(plants.find((p) => p.id === 'plant-tulip')).toMatchObject({ from: 'Spring Edition', visits: { start: { month: 3, day: 1 }, end: { month: 5, day: 31 } } });
+    const treats = vm.categories.find((c) => c.category === 'treat')!.items;
+    expect(treats.find((t) => t.id === 'treat-catnip')).toMatchObject({ from: 'Harvest' });
     expect(vm.moonlit.items).toEqual([]);
   });
 });
 
-describe('Pets, meadow, letters, badges', () => {
-  it('pets list, pet sheet, meadow', () => {
+describe('Pets, the Shelf, rituals, pins', () => {
+  it('pets list, pet card, the Shelf', () => {
     const g = new Game();
+    expect(petsVM(g.state)).toEqual({ pets: [], out: 0, capacity: 8, featured: null });
+    const r = g.run((tx) => (gacha.pull(tx, 'cows', { free: true }) as { ok: true; itemId: string }));
+    const id = r.itemId;
     const list = petsVM(g.state);
-    expect(list).toMatchObject({ out: 1, capacity: 8 });
-    expect(list.pets[0]).toMatchObject({ id: MOCHI_ID, mochi: true, buddy: true, level: 1, hearts: 1 });
-    const mochi = petVM(g.state, envOf(g), MOCHI_ID)!;
-    expect(mochi).toMatchObject({ nameLocked: true, personalityLabel: 'Sunny', favoriteTreat: { known: true, name: 'Strawberry Milk' }, today: { petsLeft: 5, treatsLeft: 3, favoriteBonusLeft: true } });
-    expect(mochi.perks.filter((p) => p.unlocked)).toEqual([]);
-    expect(mochi.wardrobe.head).toEqual([]);
-    expect(mochi.treats.map((t) => t.name)).toEqual(['Strawberry', 'Paw Biscuit']);
-    const meadow = meadowVM(g.state);
-    expect(meadow.zones.map((z) => [z.id, z.owned, z.price])).toEqual([
-      ['meadow', true, 0],
-      ['pond', false, 400],
-      ['orchard', false, 700],
-      ['porch', false, 1000],
-      ['greenhouse', false, 1500],
-      ['starhill', false, 2500],
+    expect(list).toMatchObject({ out: 1, capacity: 8, featured: id });
+    expect(list.pets[0]).toMatchObject({ id, out: true, featured: true, favorite: false, level: 1, hearts: 1, moonlit: false, species: 'cow' });
+    const pet = petVM(g.state, envOf(g), id)!;
+    expect(pet).toMatchObject({ favoriteTreat: { known: false, treatId: null, name: null }, today: { petsLeft: 5, treatsLeft: 3, favoriteBonusLeft: true } });
+    expect(['tag', 'plant']).toContain(pet.favoriteTreat.hint.kind);
+    expect(pet.perks.map((p) => [p.level, p.perk, p.unlocked])).toEqual([
+      [2, 'looks-up', false],
+      [3, 'slow-blink', false],
+      [4, 'favourite-spot', false],
+      [5, 'follows-sunbeam', false],
+      [6, 'found-things', false],
+      [7, 'naps-touching', false],
+      [8, 'best-friend-nap', false],
+      [10, 'best-friends', false],
     ]);
+    expect(pet.wardrobe.head).toEqual([]);
+    expect(pet.treats.map((t) => t.name)).toEqual(['Strawberry', 'Oat Biscuit']);
+    expect(pet.arrivedOn).toBe(g.today);
+    expect(JSON.stringify(pet)).not.toMatch(/\p{Extended_Pictographic}/u);
+    const vm = shelfVM(g.state);
+    expect(vm.places.map((p) => [p.id, p.owned, p.price, p.petsOut])).toEqual([
+      ['sill', true, 0, 8],
+      ['pond', false, 400, 2],
+      ['grass', false, 700, 2],
+      ['bookshelf', false, 1000, 2],
+      ['balcony', false, 1500, 2],
+      ['quilt', false, 2500, 2],
+    ]);
+    expect(vm.out.map((p) => p.id)).toEqual([id]);
+    expect(vm.indoors).toEqual([]);
+    expect(vm.cutting).toMatchObject({ stage: 0, framed: false });
   });
 
   it('letters and badge progress', () => {

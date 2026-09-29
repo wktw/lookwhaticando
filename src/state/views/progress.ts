@@ -1,17 +1,16 @@
 /**
- * The Progress screen view-model (DESIGN §9.2 as amended by §13.3 phrases/comparisons, §13.10
- * best fact and Mochi's sprout, §13.11 "Rests in numbers"). Lower numbers are never phrased as a
- * loss: a lower month shows its best fact instead of the comparison.
+ * The Progress screen view-model (DESIGN §9.2, with the phrases and comparisons of §5.4 and The
+ * Cutting of §13). Lower numbers are never phrased as a loss: a quieter month shows its best fact
+ * instead of the comparison, never in red and never the higher previous number.
  */
-import type { PastelKey } from '@/catalog/types';
 import { BADGES } from '@/catalog/badges';
 import type { AppState, DateKey, Habit } from '../types';
 import { EMPTY_TALLY, addTally, aggregateTally, habitTally, isPctReady, monthToDateComparison, monthWindow, percent, trackingOf, weekWindow, trailingWindow, type Tally } from '@/domain/consistency';
 import { WEEKDAY_NAMES, eachDay, endOfMonth, monthFromIndex, monthIndex, monthLabel, spanLabel, type MonthKey } from '@/domain/dates';
-import { meadowSprout, type MeadowSprout } from '@/domain/growth';
+import type { CuttingVM } from '@/domain/growth';
 import { busiestTimeOfDay, checkinCounts, firstTrackedDay, goalsOnTrack, mostConsistentHabit, showedUpDays, strongestWeekday, type TimeBlock } from '@/domain/insights';
 import { inLifetime, logStatus, showedUp } from '@/domain/activity';
-import { logsOf, memoByHabit, streakOf, trackingCtx } from '@/domain/economy';
+import { cuttingOf, logsOf, memoByHabit, streakOf, trackingCtx } from '@/domain/economy';
 import { ruleAt } from '@/domain/rules';
 import type { StreakRun } from '@/domain/streaks';
 import { tallyVM, type TallyVM } from './calendar';
@@ -21,8 +20,8 @@ export interface GardenPlantVM {
   habitId: string;
   habitName: string;
   icon: string;
-  /** Archived habits live on the Greenhouse shelf as permanent trophies (§13.10). */
-  greenhouse: boolean;
+  /** An archived habit: its plant lives on the balcony shelf for good (§8.4, §9.2). */
+  retired: boolean;
   plant: PlantVM;
 }
 
@@ -49,7 +48,7 @@ export interface ProgressVM {
   showedUp: { days: number; span: number; text: string };
   /** "Weekly & monthly goals: 3 of 5 on track" (null text when there are none). */
   goals: { onTrack: number; total: number; text: string | null };
-  /** Rests in numbers (§13.11), last 30 days: "2 rests · 1 day off". */
+  /** Rests in numbers, last 30 days: "2 rests · 1 day off" (§5.4 "26 of 28 days · 2 rests"). */
   rests: { rests: number; offDays: number; text: string | null };
   records: {
     totalCheckins: number;
@@ -64,16 +63,17 @@ export interface ProgressVM {
     mostConsistent: { habitId: string; name: string; percent: number } | null;
     busiestTime: { block: TimeBlock; label: string; peakHour: number } | null;
   };
-  /** Every habit's plant: the shelf (live habits in order), then the greenhouse (archived). */
+  /** Every habit's plant: live habits in order, then the retired ones on the balcony shelf. */
   garden: GardenPlantVM[];
-  /** Mochi's whole-meadow sprout, blooming in the colour of the most-checked habit (§13.10). */
-  sprout: MeadowSprout & { color: PastelKey | null };
+  /** The Cutting (§13): the lifetime gauge on total sunshine across all habits, deleted ones included. */
+  cutting: CuttingVM;
+  /** Pins earned (§9.2). */
   badges: { earned: number; total: number };
 }
 
 const BLOCK_LABEL: Record<TimeBlock, string> = { morning: 'Mornings', midday: 'Middays', evening: 'Evenings', night: 'Late nights' };
 
-/** A month's best fact: "62 check-ins in September. Walks were your steadiest 🌿" (§13.10). */
+/** A month's best fact: "62 check-ins in September. Walk was your steadiest." (§5.4). */
 export function bestFact(s: AppState, month: MonthKey, today: DateKey, current: boolean): string {
   const t = trackingOf(s);
   const start = `${month}-01`;
@@ -83,7 +83,7 @@ export function bestFact(s: AppState, month: MonthKey, today: DateKey, current: 
   const name = monthLabel(month);
   const head = current ? `${n} check-ins so far in ${name}.` : `${n} check-ins in ${name}.`;
   const steadyName = steady ? habitName(s, steady.habitId) : null;
-  return steadyName ? `${head} ${steadyName} ${current ? 'is' : 'was'} your steadiest 🌿` : head;
+  return steadyName ? `${head} ${steadyName} ${current ? 'is' : 'was'} your steadiest.` : head;
 }
 
 /** One habit's record material, memoised per (habit, logs, day): check-ins, best streak, closed-month tallies. */
@@ -172,7 +172,7 @@ export function progressVM(s: AppState, env: ViewEnv): ProgressVM {
   let rests = 0;
   for (const h of s.habits) for (const [d, log] of Object.entries(s.logs[h.id] ?? {})) if (log.kind === 'rest' && d >= window30.start && d <= today) rests++;
   const offDays = eachDay(window30.start, today).filter((d) => s.offDays[d]).length;
-  const restBits = [rests > 0 ? `${rests} rest${rests === 1 ? '' : 's'} 🌙` : null, offDays > 0 ? `${offDays} day${offDays === 1 ? '' : 's'} off` : null].filter(Boolean);
+  const restBits = [rests > 0 ? `${rests} rest${rests === 1 ? '' : 's'}` : null, offDays > 0 ? `${offDays} day${offDays === 1 ? '' : 's'} off` : null].filter(Boolean);
 
   const strongest = strongestWeekday(t, today);
   const steady = mostConsistentHabit(t, today);
@@ -182,16 +182,7 @@ export function progressVM(s: AppState, env: ViewEnv): ProgressVM {
   const garden: GardenPlantVM[] = [
     ...byOrder.filter((h) => h.archivedOn === undefined),
     ...byOrder.filter((h) => h.archivedOn !== undefined),
-  ].map((h) => ({ habitId: h.id, habitName: h.name, icon: h.icon, greenhouse: h.archivedOn !== undefined, plant: plantVM(s, h, today, env.local) }));
-
-  const totalSunshine = Object.values(s.ledger.sunshine).reduce((a, b) => a + b, 0);
-  // Mochi's bloom colour: the most-checked habit (ties → listed first), from the memoised bundles.
-  let mostColor: PastelKey | null = null;
-  let mostChecks = 0;
-  for (const h of [...s.habits].sort((a, b) => a.order - b.order)) {
-    const n = habitRecords(s, h, today).checkins;
-    if (n > mostChecks) [mostColor, mostChecks] = [h.color, n];
-  }
+  ].map((h) => ({ habitId: h.id, habitName: h.name, icon: h.icon, retired: h.archivedOn !== undefined, plant: plantVM(s, h, today, env.local) }));
 
   return {
     hero: {
@@ -220,7 +211,7 @@ export function progressVM(s: AppState, env: ViewEnv): ProgressVM {
       busiestTime: busiest ? { block: busiest.block, label: BLOCK_LABEL[busiest.block], peakHour: busiest.peakHour } : null,
     },
     garden,
-    sprout: { ...meadowSprout(totalSunshine), color: mostColor },
+    cutting: cuttingOf(s),
     badges: { earned: BADGES.filter((b) => s.badges[b.id] !== undefined).length, total: BADGES.length },
   };
 }

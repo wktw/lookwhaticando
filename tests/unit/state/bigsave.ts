@@ -34,7 +34,7 @@ export function fiveYearSave(): AppState {
       name: `Habit number ${i}`,
       icon: 'sparkle',
       color: 'sage',
-      plant: 'tulip',
+      plant: 'pothos',
       pot: 'terracotta',
       rules: [{ from: start, schedule, target, step: 1, ...(kind === 3 ? { tiny: { label: 'Four glasses', count: 4 } } : { tiny: { label: 'The tiny version' } }) }],
       effort: 'steady',
@@ -72,16 +72,17 @@ export function fiveYearSave(): AppState {
   for (const d of days) if (chance(rng, 0.5)) s.ledger.once[`perfect|${d}`] = 12;
   for (let n = 7; n <= 1800; n += 7) s.ledger.once[`showup|${n}`] = true;
   s.lifetime = { coinsEarned: 60000, starsEarned: 3000, checkins: 18000, pulls: 2000, perfectDays: 900, showUpDays: 1800, lastShowUpDay: TODAY };
-  // Everything collected, 60 friends, a full meadow, every badge, five years of letters.
+  // Everything collected, 60 pets, every place, every pin, five years of Sunday Notes and pages, two weeks of found things.
   for (const c of COLLECTIBLES) s.collection[c.id] = { count: 3, firstAt: at(start, 9) };
   for (const p of PETS.slice(0, 60)) {
     s.collection[`moonlit:${p.id}`] = { count: 1, firstAt: 0 };
-    s.pets[p.id] = { id: p.id, name: p.defaultName, personality: 'sunny', favoriteTreat: pick(rng, TREATS).id, favoriteKnown: true, xp: 2400, outfit: { head: 'wear-pink-bow', neck: 'wear-bell-collar' }, inMeadow: false, favorite: chance(rng, 0.2), obtainedAt: at(start, 9), daily: { date: TODAY, pets: 5, treats: 3, buddy: 0 } };
+    s.pets[p.id] = { id: p.id, name: p.defaultName, personality: 'sunny', favoriteTreat: pick(rng, TREATS).id, favoriteKnown: true, xp: 2400, outfit: { head: 'wear-ribbon-bow', neck: 'wear-bell-collar' }, inMeadow: false, favorite: chance(rng, 0.2), obtainedAt: at(start, 9), daily: { date: TODAY, pets: 5, treats: 3, favorites: 1 } };
   }
   for (const t of TREATS) s.pantry[t.id] = { servings: 5, restockedOn: TODAY };
   for (const m of MACHINES) s.pity[m.id] = { sinceRare: 3, sinceUltra: 20, dupStreak: 1, pulls: 180 };
-  s.meadow.zones = ['meadow', 'pond', 'orchard', 'porch', 'greenhouse', 'starhill'];
-  s.meadow.decor = Array.from({ length: 100 }, (_, i) => ({ id: `d-${String(i).padStart(6, '0')}`, itemId: 'decor-cardboard-box', zone: 'meadow' as const, x: 0.123456, y: 0.654321, flip: true }));
+  s.shelf.places = ['sill', 'pond', 'grass', 'bookshelf', 'balcony', 'quilt'];
+  s.shelf.decor = Array.from({ length: 100 }, (_, i) => ({ id: `d-${String(i).padStart(6, '0')}`, itemId: 'decor-cardboard-box', place: 'sill' as const, x: 0.123456, y: 0.654321, flip: true }));
+  s.found = Array.from({ length: 14 }, (_, i) => ({ date: addDays(TODAY, i - 13), petId: PETS[i]!.id, seed: 1234 }));
   for (const b of BADGES) s.badges[b.id] = at(start, 9);
   const letters: Letter[] = [];
   for (let w = 0; w < 5 * 52; w++) {

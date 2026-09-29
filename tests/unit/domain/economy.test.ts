@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { addDays } from '@/domain/dates';
-import { DAILY_BUDGET, PAY, fullRateCoins, ledgerKey, perfectDayCoins, showUpRung, nextShowUpRung } from '@/domain/economy';
+import { DAILY_BUDGET, PAY, SHOW_UP_LADDER, fullRateCoins, ledgerKey, perfectDayCoins, showUpRung, nextShowUpRung } from '@/domain/economy';
+import { WINDOW_SEAT_ID } from '@/catalog/collectibles';
 import * as habits from '@/domain/habits';
 import { Game } from './game';
 
@@ -251,10 +252,25 @@ describe('perfect day', () => {
 });
 
 describe('Showing-up ladder', () => {
-  it('has the §13.5 rungs, Blossom Sprout at 365, then 6★+1🎟 every +100', () => {
+  it('has exactly the §6 rungs, the Window Seat at 365, then 6 stamps + 1 ticket every +100', () => {
+    // DESIGN §6: 7:1 · 14:2 · 21:2+🎟 · 30:3+🎟 · 45:3 · 60:4+🎟 · 90:5+🎟 · 120:5+🎟 · 180:6+2🎟 · 250:8+2🎟 · 365: 12 + 3🎟 + the Window Seat.
+    expect(SHOW_UP_LADDER.map((r) => [r.days, r.stars, r.tickets])).toEqual([
+      [7, 1, 0],
+      [14, 2, 0],
+      [21, 2, 1],
+      [30, 3, 1],
+      [45, 3, 0],
+      [60, 4, 1],
+      [90, 5, 1],
+      [120, 5, 1],
+      [180, 6, 2],
+      [250, 8, 2],
+      [365, 12, 3],
+    ]);
+    expect(SHOW_UP_LADDER.filter((r) => r.exclusive).map((r) => [r.days, r.exclusive])).toEqual([[365, WINDOW_SEAT_ID]]);
     expect(showUpRung(7)).toEqual({ days: 7, stars: 1, tickets: 0 });
     expect(showUpRung(21)).toEqual({ days: 21, stars: 2, tickets: 1 });
-    expect(showUpRung(365)).toMatchObject({ stars: 12, tickets: 3, exclusive: 'wear-blossom-sprout' });
+    expect(showUpRung(365)).toMatchObject({ stars: 12, tickets: 3, exclusive: 'decor-window-seat' });
     expect(showUpRung(465)).toEqual({ days: 465, stars: 6, tickets: 1 });
     expect(showUpRung(500)).toBeNull();
     expect(nextShowUpRung(365).days).toBe(465);

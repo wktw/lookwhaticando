@@ -8,7 +8,8 @@ import type { GameEvent } from '@/state/api';
 import type { Schedule } from '@/state/types';
 import { validateState } from '@/state/validate';
 import { addDays } from '@/domain/dates';
-import { DAILY_BUDGET, PAY, ledgerKeyDate } from '@/domain/economy';
+import { DAILY_BUDGET, PAY, cuttingOf, ledgerKeyDate } from '@/domain/economy';
+import { LEVEL_XP } from '@/domain/levels';
 import * as gacha from '@/domain/gacha';
 import * as habits from '@/domain/habits';
 import * as logging from '@/domain/logging';
@@ -78,7 +79,7 @@ function step(g: Game, rng: Rng): void {
   else if (r < 0.8) {
     if (g.state.wallet.coins >= 25) {
       g.run((tx) => {
-        gacha.pull(tx, pick(rng, ['kitty', 'moo', 'sakura'] as const));
+        gacha.pull(tx, pick(rng, ['cats', 'cows', 'garden'] as const));
         gacha.finishReveal(tx);
       });
     }
@@ -96,9 +97,15 @@ describe('economy invariants under random play', () => {
   it.each(SEEDS)('seed %i', (seed) => {
     const rng = mulberry32(seed);
     const g = new Game({ seed, start: '2026-02-02' });
+    // "Cats or Cows?", then an old friend at level 6 so found things are in play.
+    g.run((tx) => (gacha.pull(tx, 'cats', { free: true }), gacha.finishReveal(tx)));
+    const friend = Object.keys(g.state.pets)[0]!;
+    g.state = { ...g.state, pets: { ...g.state.pets, [friend]: { ...g.state.pets[friend]!, xp: LEVEL_XP[5]! } } };
     const actionDays = new Set<string>([g.today]);
     const onesByDay = new Map<string, number>();
+    const foundByDay = new Map<string, number>();
     let lastBest = new Map<string, number>();
+    let lastCutting = 0;
     for (let i = 0; i < 160; i++) {
       const eventsBefore = g.events.length;
       step(g, rng);
@@ -106,6 +113,7 @@ describe('economy invariants under random play', () => {
       actionDays.add(day);
       const fresh: GameEvent[] = g.events.slice(eventsBefore);
       for (const e of fresh) if (e.type === 'coins' && e.reason === 'checkin' && e.amount === 1) onesByDay.set(day, (onesByDay.get(day) ?? 0) + 1);
+      for (const e of fresh) if (e.type === 'foundThing') foundByDay.set(e.date, (foundByDay.get(e.date) ?? 0) + 1);
       const s = g.state;
 
       // The save stays valid (and every committed state was deep-frozen by the harness).
@@ -135,6 +143,16 @@ describe('economy invariants under random play', () => {
       expect(s.lifetime.checkins).toBeGreaterThanOrEqual(Object.values(s.ledger.recent).filter((e) => e.lvl).length);
       for (const [hid, st] of Object.entries(s.ledger.bestStage)) expect(st).toBeGreaterThanOrEqual(lastBest.get(hid) ?? 0);
       lastBest = new Map(Object.entries(s.ledger.bestStage));
+
+      // Found things: at most one a day, only on action days; The Cutting's stage never goes back.
+      for (const [d, n] of foundByDay) {
+        expect(n, `found things on ${d}`).toBe(1);
+        expect(actionDays.has(d)).toBe(true);
+      }
+      expect(new Set((s.found ?? []).map((f) => f.date)).size).toBe((s.found ?? []).length);
+      const cutting = cuttingOf(s).stage;
+      expect(cutting).toBeGreaterThanOrEqual(lastCutting);
+      lastCutting = cutting;
     }
   });
 });

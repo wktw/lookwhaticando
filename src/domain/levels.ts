@@ -1,9 +1,8 @@
 /**
- * Friendship levels (DESIGN §13.10 "Friendship", which overrides the §7.1/§13.7 thresholds).
+ * Friendship levels (DESIGN §8.2).
  *
- * Levels 1–10 at 0, 20, 50, 100, 170, 260, 380, 540, 750, 1000 XP, then cosmetic bond levels
- * 11–15 at 1300, 1650, 2050, 2500, 3000. XP never decays. After level 10, every 150 XP adds a
- * dated Memory polaroid (the UI derives them from `memoriesFor`).
+ * Levels 1–10 at 0, 20, 50, 100, 170, 260, 380, 540, 750, 1000 XP, then bond levels 11–15 at
+ * 1300, 1650, 2050, 2500, 3000. XP never decays. After level 10, every 150 XP adds a dated Memory.
  */
 
 /** Cumulative XP needed for each level; index 0 = level 1. */
@@ -11,20 +10,26 @@ export const LEVEL_XP = [0, 20, 50, 100, 170, 260, 380, 540, 750, 1000, 1300, 16
 export const MAX_FRIEND_LEVEL = 10;
 export const MAX_BOND_LEVEL = 15;
 export const XP_PER_MEMORY = 150;
+/** From this level a pet out on the Shelf leaves found things on the sill (friendship.ts). */
+export const FOUND_THING_LEVEL = 6;
 
-/** What each level unlocks (DESIGN §13.10). */
-export const LEVEL_PERKS: Readonly<Record<number, string>> = {
-  2: 'waves hello',
-  3: 'uses your name',
-  4: 'claims a favorite spot',
-  5: 'twirls',
-  6: 'leaves little gifts under the tree',
-  7: 'heart-eyes',
-  8: 'naps next to your buddy',
-  10: 'Best Friends crown',
-  11: 'heart emote',
-  12: 'name sparkle',
-  13: 'shared nap with the buddy',
+/**
+ * What changes at each level (§8.2: levels change behaviour, not just badges). Ids, not words: the
+ * screens word them (src/catalog/lines.ts) and the art plays them.
+ * L2 looks up when you water · L3 slow-blinks back (cats) / nose-licks (cows) · L4 claims a
+ * favourite spot · L5 follows the sunbeam · L6 leaves found things · L7 naps touching you (the
+ * edge of the screen) · L8 naps next to its best friend · L10 best friends (a tiny brass tag).
+ */
+export type LevelPerk = 'looks-up' | 'slow-blink' | 'favourite-spot' | 'follows-sunbeam' | 'found-things' | 'naps-touching' | 'best-friend-nap' | 'best-friends';
+export const LEVEL_PERKS: Readonly<Record<number, LevelPerk>> = {
+  2: 'looks-up',
+  3: 'slow-blink',
+  4: 'favourite-spot',
+  5: 'follows-sunbeam',
+  [FOUND_THING_LEVEL]: 'found-things',
+  7: 'naps-touching',
+  8: 'best-friend-nap',
+  10: 'best-friends',
 };
 
 /** Level 1..15 for an XP total. */
@@ -64,7 +69,7 @@ export function levelsCrossed(before: number, after: number): number[] {
   return out;
 }
 
-/** Memory polaroids earned: one per 150 XP beyond level 10 (DESIGN §13.10). */
+/** Memories earned: one per 150 XP beyond level 10 (DESIGN §8.2). */
 export function memoriesFor(xp: number): number {
   return Math.max(0, Math.floor((xp - LEVEL_XP[MAX_FRIEND_LEVEL - 1]!) / XP_PER_MEMORY));
 }

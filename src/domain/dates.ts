@@ -256,7 +256,7 @@ export function addMonths(key: DateKey, n: number): DateKey {
 }
 
 /* ------------------------------------------------------------------ */
-/* App day & clock guard (DESIGN §13.2 "Day boundary")                 */
+/* App day & clock guard (DESIGN v1 §13.2 "Day boundary")                 */
 /* ------------------------------------------------------------------ */
 
 /** A wall-clock reading in some time zone. */
@@ -307,7 +307,7 @@ export function clampDayStartsAt(minutes: number): number {
 }
 
 /**
- * The *app day* for an instant (DESIGN §13.2): the local calendar date, minus one day while the
+ * The *app day* for an instant (DESIGN v1 §13.2): the local calendar date, minus one day while the
  * local wall clock is still before `dayStartsAt` (minutes after midnight). So with the default
  * 180, 2:59 am on Tuesday still logs to Monday and 3:00 am starts Tuesday.
  *
@@ -322,7 +322,7 @@ export function appDayKey(epochMs: number, dayStartsAt: number, local: LocalTime
   return t.hour * 60 + t.minute < clampDayStartsAt(dayStartsAt) ? addDays(key, -1) : key;
 }
 
-/** `today` never moves backwards (DESIGN §13.2): the later of the candidate and clock.maxDateKey. */
+/** `today` never moves backwards (DESIGN v1 §13.2): the later of the candidate and clock.maxDateKey. */
 export function monotonicDayKey(candidate: DateKey, maxDateKey: DateKey | '' | undefined): DateKey {
   return maxDateKey && maxDateKey > candidate ? maxDateKey : candidate;
 }
@@ -331,7 +331,7 @@ export function monotonicDayKey(candidate: DateKey, maxDateKey: DateKey | '' | u
 export const CLOCK_ROLLBACK_TOLERANCE_MS = 36 * 3_600_000;
 
 /**
- * True when the device clock is more than 36 h behind `clock.maxEpochMs` (DESIGN §13.2): the app
+ * True when the device clock is more than 36 h behind `clock.maxEpochMs` (DESIGN v1 §13.2): the app
  * shows a calm banner and pays no rewards until the clock catches up.
  */
 export function isClockRolledBack(epochMs: number, maxEpochMs: number): boolean {

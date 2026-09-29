@@ -64,14 +64,14 @@ describe('check-in badges (live wall-clock stamps only)', () => {
   });
 });
 
-describe('collection badges and albums', () => {
-  it('collect-N counts machine collectibles (moonlit included, starters not)', () => {
+describe('collection pins and Field Guide pages', () => {
+  it('collect-N counts series collectibles (Moonlit included, starters and exclusives not)', () => {
     const g = new Game();
-    g.state = own(g.state, ['plant-tulip', 'pot-cream']);
+    g.state = own(g.state, ['plant-pothos', 'pot-cream', 'wear-laurel-sprig', 'decor-window-seat']);
     g.run((tx) => evaluateBadges(tx));
     expect(g.state.badges['collect-10']).toBeUndefined();
-    g.state = own(g.state, PETS.filter((p) => p.source === 'moo').map((p) => p.id)); // 8 cows
-    g.state = own(g.state, ['moonlit:pet-cow-brown']);
+    g.state = own(g.state, PETS.filter((p) => p.source === 'cows').slice(0, 8).map((p) => p.id)); // 8 cows
+    g.state = own(g.state, ['moonlit:pet-cow-holstein']);
     g.run((tx) => evaluateBadges(tx));
     expect(g.state.badges['collect-10']).toBeUndefined(); // 9
     g.state = own(g.state, ['wear-cowbell']);
@@ -79,19 +79,20 @@ describe('collection badges and albums', () => {
     expect(g.state.badges['collect-10']).toBeDefined();
   });
 
-  it('completing an album grants its decor; the first pays through the badge, later ones 5★ each', () => {
+  it('completing a page grants its reward from ALBUMS[].reward; the first pays through the pin, later ones 5 stamps each', () => {
     const g = new Game();
     const cats = ALBUMS.find((a) => a.id === 'cats')!;
     const cows = ALBUMS.find((a) => a.id === 'cows')!;
+    expect([cats.reward, cows.reward]).toEqual(['decor-reading-chair', 'decor-pasture-fence']);
     g.state = own(g.state, albumMembers(cats).map((p) => p.id));
     g.run((tx) => evaluateBadges(tx));
-    expect(g.lastOf('album')).toEqual([{ type: 'album', albumId: 'cats', stars: 0, exclusive: 'decor-cat-cafe' }]);
+    expect(g.lastOf('album')).toEqual([{ type: 'album', albumId: 'cats', stars: 0, exclusive: cats.reward }]);
     expect(g.state.badges['album-complete']).toBeDefined();
-    expect(g.state.collection['decor-cat-cafe']?.count).toBe(1);
+    expect(g.state.collection[cats.reward]?.count).toBe(1);
     const stars = g.state.wallet.stars;
     g.state = own(g.state, albumMembers(cows).map((p) => p.id));
     g.run((tx) => evaluateBadges(tx));
-    expect(g.lastOf('album')).toEqual([{ type: 'album', albumId: 'cows', stars: 5, exclusive: 'decor-cowprint-fence' }]);
+    expect(g.lastOf('album')).toEqual([{ type: 'album', albumId: 'cows', stars: 5, exclusive: cows.reward }]);
     expect(g.state.wallet.stars).toBeGreaterThanOrEqual(stars + 5);
     g.run((tx) => evaluateBadges(tx));
     expect(g.allOf('album')).toHaveLength(2);
@@ -100,9 +101,9 @@ describe('collection badges and albums', () => {
   it('first rare / first ultra come from pulls', () => {
     const g = new Game();
     g.setWallet({ coins: 100 });
-    g.state = { ...g.state, lifetime: { ...g.state.lifetime, pulls: 1 }, pity: { kitty: { sinceRare: 0, sinceUltra: 39, dupStreak: 0, pulls: 39 } } };
+    g.state = { ...g.state, lifetime: { ...g.state.lifetime, pulls: 1 }, pity: { cats: { sinceRare: 0, sinceUltra: 39, dupStreak: 0, pulls: 39 } } };
     g.run((tx) => {
-      gacha.pull(tx, 'kitty');
+      gacha.pull(tx, 'cats');
       gacha.finishReveal(tx);
     });
     expect(g.state.badges['first-rare']).toBeDefined();

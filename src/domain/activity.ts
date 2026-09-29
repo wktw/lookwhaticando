@@ -1,6 +1,6 @@
 /**
- * Which days count, and how a day's log reads (DESIGN §5.3 "Active days", §13.2 "Rest, off days,
- * pauses" and "Tiny version", §13.3 day-based math).
+ * Which days count, and how a day's log reads (DESIGN §5.3 "Active days", v1 §13.2 "Rest, off days,
+ * pauses" and "Tiny version", v1 §13.3 day-based math).
  *
  * A day is **active** for a habit when it is inside the habit's lifetime (startedOn ≤ d ≤
  * archivedOn), not paused, not a global off day, and not an *allowed* rest. Inactive days are
@@ -72,7 +72,7 @@ function restCounts(habit: HabitDays, logs: HabitLogs, date: DateKey, ctx: Track
 }
 
 /**
- * How a rest day stands against the weekly allowance (DESIGN §13.2): max(1, floor(scheduled days
+ * How a rest day stands against the weekly allowance (DESIGN v1 §13.2): max(1, floor(scheduled days
  * per week / 3)), counted per calendar week of the rest (user's week start), in date order, using
  * the rule in effect on the rest day. 'allowed' rests are fully transparent; 'over' rests count as
  * not done. null when `date` has no rest that matters.
@@ -97,7 +97,7 @@ export function inactiveReason(habit: HabitDays, logs: HabitLogs, date: DateKey,
   return null;
 }
 
-/** Active day predicate (DESIGN §5.3 as amended by §13.2). */
+/** Active day predicate (DESIGN §5.3 as amended by v1 §13.2). */
 export function isActiveDay(habit: HabitDays, logs: HabitLogs, date: DateKey, ctx: TrackingContext): boolean {
   return inactiveReason(habit, logs, date, ctx) === null;
 }
@@ -111,7 +111,7 @@ export function isFlexActiveDay(habit: Pick<Habit, 'startedOn' | 'archivedOn' | 
 }
 
 /* ------------------------------------------------------------------ */
-/* Date windows for logging (DESIGN §5.2, §13.2)                       */
+/* Date windows for logging (DESIGN §5.2, v1 §13.2)                       */
 /* ------------------------------------------------------------------ */
 
 /** Days back from today that the Today week strip can log, with rewards (today−6 … today). */
@@ -161,7 +161,7 @@ export function offDaysRemaining(offDays: Readonly<Record<DateKey, true>>, date:
 /**
  * - done: count ≥ target (flexible: count ≥ 1)
  * - tiny: logged as the tiny version, or (once the day is over) a count habit that reached
- *   `tiny.count` but not the target (DESIGN §13.2). Counts as done for streaks and consistency.
+ *   `tiny.count` but not the target (DESIGN v1 §13.2). Counts as done for streaks and consistency.
  * - partial: some progress, not complete
  * - none: nothing logged
  * - rest: a rest day

@@ -2,8 +2,8 @@
  * Store API contract: result & event types shared by the domain layer (which implements
  * them) and every UI feature (which consumes them). Changing these is a cross-team change.
  */
-import type { MachineId, Rarity, WearableSlot, PastelKey, PlantSpeciesId, PotId } from '@/catalog/types';
-import type { DateKey, Effort, Schedule, PetState, TimeOfDay, MeadowZoneId } from './types';
+import type { MachineId, PlaceId, Rarity, WearableSlot, PastelKey, PlantSpeciesId, PotId } from '@/catalog/types';
+import type { DateKey, Effort, Schedule, PetState, TimeOfDay } from './types';
 
 /* ------------------------------------------------------------------ */
 /* Game events: emitted by actions, consumed by FX/celebration layers  */
@@ -11,8 +11,15 @@ import type { DateKey, Effort, Schedule, PetState, TimeOfDay, MeadowZoneId } fro
 
 export type CoinReason = 'checkin' | 'perfect' | 'period' | 'home' | 'rung' | 'letter' | 'badge' | 'gift' | 'refund' | 'exchange';
 
+/**
+ * Internal names (DESIGN §6): `stars` are stamps, `stardust` are swaps. The screens word every event
+ * from its data (src/catalog/lines.ts); no event carries display text.
+ */
 export type GameEvent =
-  /** `amount` < 0 when coins leave the wallet by a refund (un-check) or the sparkle exchange. */
+  /**
+   * `amount` < 0 when coins leave the wallet by a refund (un-check), the swap-in ('exchange'), or
+   * the onboarding capsule spending First Sprout's top-up ('gift').
+   */
   | { type: 'coins'; amount: number; reason: CoinReason; habitId?: string }
   | { type: 'stars'; amount: number; reason: 'showup' | 'letter' | 'bloom' | 'badge' | 'fusion' | 'gift' }
   | { type: 'tickets'; amount: number }
@@ -34,10 +41,15 @@ export type GameEvent =
   | { type: 'favoriteFound'; petId: string; treatId: string }
   | { type: 'letter'; letterId: string }
   | { type: 'restock'; treats: number }
-  /** Stage 2: a check-in on a Blooming+ plant dropped a harvest treat into the basket (DESIGN §13.10). */
+  /** A check-in on a Blooming+ edible plant dropped a harvest treat into the basket (DESIGN §8.2). */
   | { type: 'harvest'; habitId: string; treatId: string; firstTime: boolean }
-  /** Stage 2: a species album was completed. `stars` = paid by the album itself (the first album's come via its badge). */
-  | { type: 'album'; albumId: string; stars: number; exclusive?: string };
+  /** A Field Guide page was completed. `stars` = paid by the page itself (the first page's come via its pin). */
+  | { type: 'album'; albumId: string; stars: number; exclusive?: string }
+  /**
+   * An L6+ pet left a found thing on the sill (DESIGN §8.2): once a day on a day with a check-in,
+   * worth `swaps` (a `stardust` event follows). `seed` picks the thing (a button, a leaf, a bead…).
+   */
+  | { type: 'foundThing'; petId: string; date: DateKey; seed: number; swaps: number };
 
 /* ------------------------------------------------------------------ */
 /* Action inputs & results                                              */
@@ -77,7 +89,7 @@ export interface CheckInResult extends ActionResult {
   rewarded: boolean;
 }
 
-/** 'storage-full' (stage 3, additive): the pull couldn't be saved, so it was rolled back rather than shown (§13.6). */
+/** 'storage-full' (stage 3, additive): the pull couldn't be saved, so it was rolled back rather than shown (v1 §13.6). */
 export type PullError = 'not-enough-coins' | 'not-enough-stars' | 'machine-unavailable' | 'no-ticket' | 'reveal-pending' | 'storage-full';
 
 export interface PullResult extends ActionResult {
@@ -109,13 +121,16 @@ export type WishOutcome =
   | ({ ok: true; itemId: string; stars: number; pet?: PetState } & ActionResult)
   | { ok: false; error: 'not-enough-stars' | 'already-owned' | 'not-wishable' | 'season-not-visited' };
 
+/**
+ * What a gesture or a treat did. The caption is the screen's to pick (lines.ts, by the pet's
+ * personality and species): the domain returns no words.
+ */
 export interface PetInteractionResult extends ActionResult {
   xpGained: number;
   level: number;
   leveledUp: boolean;
   /** 'full' = treat cap reached; 'love' = favorite treat; 'capped' = petting XP capped (reaction still plays); 'none' = no servings left. */
   reaction: 'happy' | 'love' | 'full' | 'capped' | 'none';
-  line?: string;
 }
 
 export interface MachineStatus {
@@ -150,4 +165,4 @@ export interface ImportPreview {
   device?: string;
 }
 
-export type ZonePurchase = { ok: true; zone: MeadowZoneId } | { ok: false; error: 'not-enough-coins' | 'owned' };
+export type PlacePurchase = { ok: true; place: PlaceId } | { ok: false; error: 'not-enough-coins' | 'owned' };

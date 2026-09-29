@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import type { AppState } from '@/state/types';
 import { validateState } from '@/state/validate';
+import * as gacha from '@/domain/gacha';
 import { Game } from '../domain/game';
 
 function sample(): AppState {
   const g = new Game({ start: '2026-03-02' });
+  g.run((tx) => (gacha.pull(tx, 'cats', { free: true }), gacha.finishReveal(tx)));
   const a = g.addHabit();
   g.addHabit({ name: 'Yoga', schedule: { kind: 'weekly', times: 2, every: 1 } });
   g.checkIn(a);
@@ -13,6 +15,8 @@ function sample(): AppState {
 }
 
 type Mutator = (s: AppState & Record<string, unknown>) => void;
+/** The sample's one pet (from the "Cats or Cows?" capsule). */
+const pet = (s: AppState) => Object.values(s.pets)[0]!;
 
 const CORRUPTIONS: [string, string, Mutator][] = [
   ['wrong version', 'version', (s) => (s.version = 7)],
@@ -38,17 +42,22 @@ const CORRUPTIONS: [string, string, Mutator][] = [
   ['ledger entry with a bad level', 'ledger.recent', (s) => (Object.values(s.ledger.recent)[0]!.lvl = 'huge' as never)],
   ['stage out of range', 'ledger.bestStage', (s) => (s.ledger.bestStage['x'] = 9)],
   ['once value not a number', 'ledger.once', (s) => (s.ledger.once['x'] = 'yes' as never)],
-  ['pet key mismatch', 'pets.pet-mochi.id', (s) => (s.pets['pet-mochi']!.id = 'pet-cat-orange')],
-  ['unknown personality', 'pets.pet-mochi.personality', (s) => (s.pets['pet-mochi']!.personality = 'grumpy' as never)],
-  ['buddy not owned', 'profile.buddy', (s) => (s.profile.buddy = 'pet-cat-orange')],
-  ['meadow without its first zone', 'meadow.zones', (s) => (s.meadow.zones = ['pond'])],
-  ['decor off the map', 'meadow.decor[0]', (s) => (s.meadow.decor = [{ id: 'd1', itemId: 'decor-x', zone: 'meadow', x: 2, y: 0 }])],
+  ['pet key mismatch', '.id', (s) => (pet(s).id = 'pet-somebody-else')],
+  ['unknown personality', '.personality', (s) => (pet(s).personality = 'grumpy' as never)],
+  ['bad daily counters', '.daily', (s) => (pet(s).daily = { date: '2026-03-02', pets: 1, treats: -1 })],
+  ['a shelf without the Sill', 'shelf.places', (s) => (s.shelf.places = ['pond'])],
+  ['an unknown place', 'shelf.places', (s) => (s.shelf.places = ['sill', 'meadow' as never])],
+  ['a place twice', 'shelf.places', (s) => (s.shelf.places = ['sill', 'pond', 'pond'])],
+  ['decor off the map', 'shelf.decor[0]', (s) => (s.shelf.decor = [{ id: 'd1', itemId: 'decor-x', place: 'sill', x: 2, y: 0 }])],
+  ['decor in an unknown place', 'shelf.decor[0]', (s) => (s.shelf.decor = [{ id: 'd1', itemId: 'decor-x', place: 'meadow' as never, x: 0, y: 0 }])],
+  ['the Mochi-era meadow instead of the shelf', 'shelf', (s) => ((s as Record<string, unknown>).shelf = undefined)],
+  ['a bad found thing', 'found[0]', (s) => (s.found = [{ date: 'today', petId: 'pet-cat-orange', seed: 1 }])],
   ['pity for an unknown machine', 'pity', (s) => ((s.pity as Record<string, unknown>)['arcade'] = { sinceRare: 0, sinceUltra: 0, dupStreak: 0, pulls: 0 })],
   ['day start out of range', 'settings.dayStartsAt', (s) => (s.settings.dayStartsAt = 999)],
   ['reminder not HH:MM', 'settings.reminders', (s) => (s.settings.reminders = { morning: '7am' })],
   ['bad clock', 'clock.maxDateKey', (s) => (s.clock.maxDateKey = 'soon')],
   ['bad letter', 'inbox[0]', (s) => s.inbox.push({ kind: 'weekly', id: 'w', weekStart: 'x' } as never)],
-  ['bad pending reveal', 'pendingReveal', (s) => (s.pendingReveal = { machineId: 'kitty' } as never)],
+  ['bad pending reveal', 'pendingReveal', (s) => (s.pendingReveal = { machineId: 'cats' } as never)],
   ['missing section', 'ledger', (s) => delete (s as Record<string, unknown>).ledger],
 ];
 

@@ -1,6 +1,6 @@
 /**
  * Logging actions: check-in, tiny, undo, exact count, rest, day off, notes, history edits
- * (DESIGN §5.2, §13.2 "Targets and taps", "Tiny version", "Rest, off days, pauses", "Backfill &
+ * (DESIGN §5.2, v1 §13.2 "Targets and taps", "Tiny version", "Rest, off days, pauses", "Backfill &
  * history", "Notes & moments").
  *
  * Every action writes the log first, then — only for rewardable days (see economy.ts) — runs one
@@ -16,7 +16,7 @@
  * bird / Wind-Down and the busiest-time insight read. Future days can't be logged. Taps are
  * monotone for the ledger: a tap that adds never refunds, an un-check never pays.
  *
- * The tiny version (§13.2) is a *level* ("stored as level:'tiny'"): logging it never changes the
+ * The tiny version (v1 §13.2) is a *level* ("stored as level:'tiny'"): logging it never changes the
  * count, so Undo restores the day exactly (a count habit's tiny tap used to add `tiny.count`, which
  * Undo kept, and the day-end rule then re-recorded the day as tiny and paid it again).
  */
@@ -42,7 +42,7 @@ import {
   updatePlantStage,
   type Settlement,
 } from './economy';
-import { buddyBonus } from './friendship';
+import { leaveFoundThing } from './friendship';
 import { BLOOMING } from './growth';
 import { topUpLetters } from './letters';
 import { harvest } from './pantry';
@@ -117,7 +117,7 @@ export interface RewardPass {
 }
 
 export interface PassOptions {
-  /** A user action (enables the per-action gifts: Welcome home, First Sprout, show-up, buddy XP, harvest). */
+  /** A user action (enables the per-action gifts: Welcome home, First Sprout, show-up, found things, harvest). */
   user: boolean;
   /** The habit's best streak before the change (rung measure). */
   bestBefore: number;
@@ -133,9 +133,9 @@ const coinsIn = (tx: Tx, from: number): number =>
 
 /**
  * Settles one rewardable (habit, date) after its log changed and pays what the change unlocked:
- * - up: per-action gifts (user only; buddy XP only for a first completion of the occurrence, so
- *   un-checking and re-checking can't farm it), period goal (in-target flexible), plant stages,
- *   harvest on a Blooming+ plant, perfect day, streak rungs;
+ * - up: per-action gifts (user only: Welcome home, First Sprout, the show-up day, the day's found
+ *   thing), period goal (in-target flexible), plant stages, harvest on a Blooming+ edible plant,
+ *   perfect day, streak rungs;
  * - down: refund (economy.ts) and promotion of over-target flexible days.
  * Then last week's letter / last month's bouquet take the change's delta (letters.ts) and badges
  * are evaluated.
@@ -154,7 +154,7 @@ export function rewardPass(tx: Tx, habitId: string, date: DateKey, opts: PassOpt
     if (payWelcomeHome(tx)) trigger = { ...trigger, welcomeHome: true };
     payFirstSprout(tx);
     countShowUpDay(tx);
-    if (st.fresh) buddyBonus(tx);
+    leaveFoundThing(tx);
   }
   if (up && flexible && st.next !== 'over') payPeriodGoal(tx, habitId, date);
   const stage = updatePlantStage(tx, habitId);
@@ -339,7 +339,7 @@ export function setNote(tx: Tx, habitId: string, date: DateKey, note: string): v
 
 /**
  * Calendar history edit: marks a day done / not done without any reward effect in either
- * direction (§13.2 "The Progress calendar edits older days as history only"). Days before
+ * direction (v1 §13.2 "The Progress calendar edits older days as history only"). Days before
  * `startedOn` need `setStartedOn` first. Refused (returns false, nothing changes):
  * - days inside the 6-day window: they go through the check-in path (checkIn / undoCheckIn /
  *   setCount), which pays and refunds; a history edit there would hide a paid check-in and free
@@ -370,7 +370,7 @@ export function editHistory(tx: Tx, habitId: string, date: DateKey, done: boolea
 /**
  * Live `at` stamps are kept for 120 days: they feed the 90-day "busiest time of day" insight and the
  * live Early bird / Wind-Down checks, and nothing else. Older days keep their count, level and note.
- * This keeps a years-old save small (DESIGN §13.8).
+ * This keeps a years-old save small (DESIGN v1 §13.8).
  */
 export const STAMP_DAYS = 120;
 

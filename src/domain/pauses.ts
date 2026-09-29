@@ -1,5 +1,5 @@
 /**
- * Pauses ("vacation mode", DESIGN §5.2 + §13.2 "Rest, off days, pauses"): inclusive date ranges,
+ * Pauses ("vacation mode", DESIGN §5.2 + v1 §13.2 "Rest, off days, pauses"): inclusive date ranges,
  * open-ended while `end` is undefined. Paused days are transparent to consistency and streaks, and
  * for flexible habits they shrink the period's goal.
  *
@@ -51,7 +51,7 @@ export function addPause(pauses: readonly Pause[], start: DateKey, end?: DateKey
 }
 
 /**
- * Resume on `today` (DESIGN §13.2): the pause covering today now ends yesterday, and one that only
+ * Resume on `today` (DESIGN v1 §13.2): the pause covering today now ends yesterday, and one that only
  * started today is removed. Past and future pauses are kept.
  */
 export function resumePauses(pauses: readonly Pause[], today: DateKey): Pause[] {
@@ -75,7 +75,7 @@ export function pauseReturnDay(pauses: readonly Pause[], today: DateKey): DateKe
 }
 
 /**
- * The pause that covers the stretch a habit spent archived, restored on `restoreDay` (DESIGN §13.2).
+ * The pause that covers the stretch a habit spent archived, restored on `restoreDay` (DESIGN v1 §13.2).
  * `archivedOn` itself was still an active day, so the stretch is (archivedOn, restoreDay); null when empty.
  */
 export function archivedStretchPause(archivedOn: DateKey, restoreDay: DateKey): Pause | null {

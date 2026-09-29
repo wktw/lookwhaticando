@@ -21,7 +21,7 @@ import type { Rng } from './rng';
 export interface Env {
   /** Epoch ms of the action, as read from the device clock. */
   readonly now: number;
-  /** The app day of the action (DESIGN §13.2): `settings.dayStartsAt`-aware and never earlier than `clock.maxDateKey`. */
+  /** The app day of the action (DESIGN v1 §13.2): `settings.dayStartsAt`-aware and never earlier than `clock.maxDateKey`. */
   readonly today: DateKey;
   /** Local wall-clock reader (early-bird / wind-down hours, `createdAt` → app day). */
   readonly local: LocalTimeReader;

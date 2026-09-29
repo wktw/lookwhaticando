@@ -32,7 +32,7 @@ export function habit(spec: HabitSpec): Habit {
     name: 'Test habit',
     icon: 'sparkle',
     color: 'sage',
-    plant: 'tulip',
+    plant: 'pothos',
     pot: 'terracotta',
     rules,
     effort: 'steady',

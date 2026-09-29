@@ -1,8 +1,8 @@
 /**
- * Read-only questions about the collection (DESIGN §8, §13.6 "Capsules v2", §13.7 "Species
- * albums"). Pure functions of `AppState.collection` and the static catalog.
+ * Read-only questions about the collection (DESIGN §7, §8.5 the Field Guide). Pure functions of
+ * `AppState.collection` and the static catalog.
  */
-import { ALBUMS, COLLECTIBLES, MOCHI_ID, MOONLIT_PREFIX, PETS, getCollectible, itemsInMachine, moonlitBase } from '@/catalog/collectibles';
+import { ALBUMS, COLLECTIBLES, MOONLIT_PREFIX, PETS, getCollectible, itemsInMachine, moonlitBase } from '@/catalog/collectibles';
 import { MACHINES } from '@/catalog/machines';
 import type { CollectibleDef, MachineId, PetDef, Source, TreatDef, WearableDef, WearableSlot } from '@/catalog/types';
 import type { AppState } from '@/state/types';
@@ -11,7 +11,7 @@ type Collection = AppState['collection'];
 
 const MACHINE_IDS: ReadonlySet<string> = new Set(MACHINES.map((m) => m.id));
 
-/** Items that come out of a machine (not starter, exclusive or garden items). */
+/** Items that come out of a series (not starter, exclusive or harvest items). */
 export function isMachineSource(source: Source): source is MachineId {
   return MACHINE_IDS.has(source);
 }
@@ -20,7 +20,7 @@ export function owns(collection: Collection, id: string): boolean {
   return (collection[id]?.count ?? 0) > 0;
 }
 
-/** A machine's printed lineup (its catalog items; Dreamy's moonlit variants are a bonus pool, not lineup). */
+/** A series' printed lineup (its catalog items; Night's Moonlit variants are a bonus pool, not lineup). */
 export function machineLineup(machineId: MachineId): CollectibleDef[] {
   return itemsInMachine(machineId);
 }
@@ -47,11 +47,11 @@ export function machineCollectiblesOwned(collection: Collection): number {
 }
 
 /**
- * Pets that can have a Moonlit variant (DESIGN §13.6): every owned base pet except Mochi (she is
- * unique, never duplicated, §13.10) and except variants themselves.
+ * Pets that can have a Moonlit variant (DESIGN §7.1: "Moonlit variants of pets you own"): every
+ * series pet, but not the variants themselves.
  */
 export function moonlitEligibleBase(petId: string): boolean {
-  if (petId === MOCHI_ID || petId.startsWith(MOONLIT_PREFIX)) return false;
+  if (petId.startsWith(MOONLIT_PREFIX)) return false;
   const def = getCollectible(petId);
   return def?.category === 'pet' && isMachineSource(def.source);
 }
@@ -68,12 +68,12 @@ export function isMoonlitAvailable(collection: Collection, id: string): boolean 
 }
 
 /* ------------------------------------------------------------------ */
-/* Species albums                                                      */
+/* Field Guide pages (species albums)                                  */
 /* ------------------------------------------------------------------ */
 
 export type AlbumDef = (typeof ALBUMS)[number];
 
-/** The pets on an album page: every machine pet of the album's species (Mochi and variants excluded). */
+/** The pets on a Field Guide page: every series pet of the page's species (Moonlit variants excluded). */
 export function albumMembers(album: AlbumDef): PetDef[] {
   const species: readonly string[] = album.species;
   return PETS.filter((p) => species.includes(p.species) && isMachineSource(p.source));

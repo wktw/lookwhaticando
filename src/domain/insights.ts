@@ -1,17 +1,17 @@
 /**
- * Progress-screen insights and records (DESIGN §9.2 "Records" / "Insights", §13.3 aggregate lines).
+ * Progress-screen insights and records (DESIGN §9.2 "Records" / "Insights", v1 §13.3 aggregate lines).
  * All results are structured data; none of them is ever phrased negatively by the domain.
  *
  * - "You showed up N of the last 30 days": days with ≥ 1 check-in (done or tiny) on any habit, over
  *   the 30 days ending today once today has a check-in, otherwise ending yesterday (a pending today
- *   never costs a day of the span; upstream §13.11 "Rolling windows end today if today already
+ *   never costs a day of the span; upstream v1 §13.11 "Rolling windows end today if today already
  *   counts, else yesterday").
  * - "Weekly & monthly goals: 3 of 5 on track": current flexible periods that are met or at pace.
  * - Strongest weekday, most consistent habit, busiest time of day (from live `at` stamps only).
  * - Records: total check-ins, best streak ever (+ habit), best closed month. (Perfect days are an
  *   economy counter: Lifetime.perfectDays.)
- * - Check-in counts per habit: the most-checked habit colours Mochi's blooming sprout, and monthly
- *   counts feed the Monthly Bouquet and a lower month's "best fact" (§13.10).
+ * - Check-in counts per habit: monthly counts feed the Herbarium page (pressings sized by waterings)
+ *   and a quieter month's "best fact" (§5.4).
  */
 import type { DateKey, Habit, Weekday } from '@/state/types';
 import {
@@ -67,11 +67,11 @@ const liveOn = (h: Habit, today: DateKey): boolean => h.startedOn <= today && (h
 export interface ShowUpSummary {
   /** Days in the span with at least one check-in. */
   days: number;
-  /** Days looked at: `days` requested, fewer while the meadow is younger. */
+  /** Days looked at: `days` requested, fewer while the profile is younger. */
   span: number;
 }
 
-/** "You showed up N of the last 30 days" (DESIGN §13.3; see module doc for the window). */
+/** "You showed up N of the last 30 days" (DESIGN v1 §13.3; see module doc for the window). */
 export function showedUpDays(t: Tracking, today: DateKey, days = 30): ShowUpSummary {
   const first = firstTrackedDay(t);
   if (first === null || first > today) return { days: 0, span: 0 };
@@ -277,7 +277,7 @@ export interface TimeOfDayInsight {
 }
 
 /**
- * When check-ins happen, from live `at` stamps only (backfills carry none, DESIGN §13.2). Each
+ * When check-ins happen, from live `at` stamps only (backfills carry none, DESIGN v1 §13.2). Each
  * habit-day weighs 1, split across its taps, so an 8-glass water habit does not drown out a walk.
  * Null with fewer than `minCheckins` habit-days.
  */

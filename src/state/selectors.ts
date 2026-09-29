@@ -4,7 +4,7 @@
  * Every view-model is a pure function of (state, view env) in ./views/* — unit-testable without a
  * store — and is exposed here as a memoised `computed` signal bound to the store:
  * - singletons: `todayView`, `progressView`, `walletView`, `capsulesView`, `wishListView`,
- *   `collectionView`, `petsView`, `meadowView`, `lettersView`, `badgesView`;
+ *   `collectionView`, `petsView`, `shelfView`, `lettersView`, `badgesView`;
  * - parameterised: `selectToday(date)`, `selectHabitDetail(id)`, `selectCalendarMonth(habitId, month)`,
  *   `selectYearQuilt(year, habitId?)`, `selectSeries(machineId)`, `selectPet(id)`: each returns the
  *   same signal for the same arguments (a small LRU), so components can call them on every render.
@@ -22,7 +22,7 @@ import { habitDetailVM, type HabitDetailVM } from './views/habit';
 import { calendarMonthVM, yearQuiltVM, type CalendarMonthVM, type YearQuiltVM } from './views/calendar';
 import { progressVM, type ProgressVM } from './views/progress';
 import { capsulesVM, collectionVM, seriesVM, walletVM, wishListVM, type CapsulesVM, type CollectionVM, type SeriesVM, type WalletVM, type WishListVM } from './views/capsules';
-import { badgesVM, lettersVM, meadowVM, petVM, petsVM, type LettersVM, type MeadowVM, type PetVM, type PetsVM } from './views/pets';
+import { badgesVM, lettersVM, petVM, petsVM, shelfVM, type LettersVM, type PetVM, type PetsVM, type ShelfVM } from './views/pets';
 
 export * from './views/common';
 export * from './views/today';
@@ -51,7 +51,7 @@ export const capsulesView: ReadonlySignal<CapsulesVM> = computed(() => {
 export const wishListView: ReadonlySignal<WishListVM> = computed(() => wishListVM(state.value, dayEnv.value));
 export const collectionView: ReadonlySignal<CollectionVM> = computed(() => collectionVM(state.value));
 export const petsView: ReadonlySignal<PetsVM> = computed(() => petsVM(state.value));
-export const meadowView: ReadonlySignal<MeadowVM> = computed(() => meadowVM(state.value));
+export const shelfView: ReadonlySignal<ShelfVM> = computed(() => shelfVM(state.value));
 export const lettersView: ReadonlySignal<LettersVM> = computed(() => lettersVM(state.value));
 export const badgesView = computed(() => badgesVM(state.value));
 

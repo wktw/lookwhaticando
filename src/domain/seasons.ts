@@ -1,12 +1,13 @@
 /**
- * Seasonal machines (DESIGN §6.2 "Seasons", §13.6 "Memories rule").
+ * Seasonal editions (DESIGN §7.1 "Seasonal editions", §7.3 "Memories rule").
  *
- * - A season is an inclusive month/day window that recurs every year. A window whose start is after
- *   its end wraps the new year (Snow Globe: Nov 11 – Jan 14). A Feb 29 bound means the last day of
- *   February, so Love Letters runs Jan 15 – Feb 28 in non-leap years.
+ * - A season is an inclusive month/day window from `machines.ts` that recurs every year. A window
+ *   whose start is after its end wraps the new year (Winter: Nov 11 – Jan 14). A Feb 29 bound means
+ *   the last day of February, so Valentine runs Jan 15 – Feb 28 in non-leap years.
  * - Availability is judged on the app day, like everything else.
- * - Memories rule: a seasonal item becomes wishable only once its season has *started* on or after
- *   the day the profile was created ("wishable after its first visit"). Standard machines are
+ * - Memories rule: a seasonal edition's items become orderable in Special Order once that season
+ *   has visited since the profile was created, that is, from the first day she has the app while
+ *   the season is on (a profile created mid-season has seen that visit). The numbered series are
  *   always visited.
  */
 import { MACHINES, getMachine } from '@/catalog/machines';
@@ -85,10 +86,13 @@ export function availableMachineIds(today: DateKey): MachineId[] {
   return MACHINES.filter((m) => machineAvailability(m.id, today).available).map((m) => m.id);
 }
 
-/** Memories rule: has this machine's season started at least once since `createdOn`? */
+/**
+ * Memories rule: has this edition's season been on for at least one day in [createdOn, today]?
+ * The latest window that started by today is the only candidate: an earlier one ended before it.
+ */
 export function seasonVisited(id: MachineId, createdOn: DateKey, today: DateKey): boolean {
   const m = getMachine(id);
   if (!m.seasonal) return true;
   const w = lastStartedWindow(m, today);
-  return w !== null && w.start >= createdOn;
+  return w !== null && w.end >= createdOn;
 }

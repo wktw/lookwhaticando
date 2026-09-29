@@ -41,7 +41,7 @@ try {
   page.on('pageerror', (e) => errors.push(String(e)));
   page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
   if (opt.seed) {
-    await page.addInitScript((seed) => localStorage.setItem('mochi-meadow:v1', seed), String(opt.seed));
+    await page.addInitScript((seed) => localStorage.setItem('catkin:v1', seed), String(opt.seed));
   }
   await page.goto(base + path, { waitUntil: 'networkidle' });
   await page.waitForTimeout(wait);

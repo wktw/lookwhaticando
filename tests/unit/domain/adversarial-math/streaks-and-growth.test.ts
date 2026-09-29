@@ -9,11 +9,11 @@ import type { EvalContext } from '@/domain/activity';
 import { addDays, diffDays, eachDay, startOfWeek } from '@/domain/dates';
 import { logsOf, trackingCtx } from '@/domain/economy';
 import {
-  MEADOW_SPROUT_THRESHOLDS,
+  CUTTING_THRESHOLDS,
   STAGE_THRESHOLDS,
   bloomsFor,
   flourishesFor,
-  meadowSprout,
+  theCutting,
   plantStage,
   sunshinePerOccurrence,
 } from '@/domain/growth';
@@ -97,7 +97,7 @@ describe('weekly streaks count weeks (DESIGN §5.4 "Weekly: consecutive weeks wh
 /* ------------------------------------------------------------------ */
 
 describe('plant stages (DESIGN §13.4)', () => {
-  it('[FAILS] "a monthly habit can\'t jump from Seed to Budding": history filled in via the calendar, then one check-in', () => {
+  it('[FAILS] "a monthly habit can\'t jump from Cutting to Budding": history filled in via the calendar, then one check-in', () => {
     const g = new Game({ start: '2026-09-29' });
     const id = g.addHabit({ name: 'Deep clean', schedule: { kind: 'monthly', times: 1, every: 1 } });
     // "Start tracking from Mar 1?" then the Progress calendar fills in six past months: history only,
@@ -109,7 +109,7 @@ describe('plant stages (DESIGN §13.4)', () => {
 
     g.checkIn(id); // the first rewarded check-in: 7 / (12/52) ≈ 30.3 sunshine
 
-    // Observed: stage = min(stageFromSunshine(30.3) = 4, completed = 7) = 4 → Seed → Budding in one
+    // Observed: stage = min(stageFromSunshine(30.3) = 4, completed = 7) = 4 → Cutting → Budding in one
     // check-in, with plantStage events for 1, 2, 3 and 4.
     expect(g.lastOf('plantStage').length).toBeLessThanOrEqual(1);
     expect(g.state.ledger.bestStage[id] ?? 0).toBeLessThanOrEqual(1);
@@ -121,7 +121,7 @@ describe('plant stages (DESIGN §13.4)', () => {
     expect(stages).toEqual([0, 1, 2, 3, 4, 5, 6, 7]);
   });
 
-  it('blooms, flourishes and Mochi\'s sprout switch exactly at their thresholds (passes)', () => {
+  it('blooms, flourishes and The Cutting switch exactly at their thresholds (passes)', () => {
     // §13.4 blooms = min(6, floor((sunshine − 180) / 30)); §13.10 a Flourish every +60 after Evergreen (8 visitors).
     const table: [number, number, number][] = [
       [180, 0, 0],
@@ -139,16 +139,16 @@ describe('plant stages (DESIGN §13.4)', () => {
     }
     // 9 × 7/3 (a Mon/Wed/Fri habit) reaches Budding's 21 despite floating-point error.
     expect(plantStage(9 * sunshinePerOccurrence({ schedule: { kind: 'days', days: [1, 3, 5] } }), 9)).toBe(4);
-    MEADOW_SPROUT_THRESHOLDS.forEach((t, stage) => {
-      expect(meadowSprout(t).stage).toBe(stage);
-      if (stage > 0) expect(meadowSprout(t - 1e-6).stage).toBe(stage - 1);
+    CUTTING_THRESHOLDS.forEach((t, stage) => {
+      expect(theCutting(t).stage).toBe(stage);
+      if (stage > 0) expect(theCutting(t - 1e-6).stage).toBe(stage - 1);
     });
     expect(STAGE_THRESHOLDS).toEqual([0, 1, 4, 10, 21, 42, 90, 180]);
   });
 });
 
-describe('Mochi\'s sprout is a lifetime gauge (DESIGN §13.10 "lifetime sunshine across all habits"; §3.1 growth is monotonic)', () => {
-  it('[FAILS] deleting a habit (whose check-ins are all outside the refund window) never shrinks Mochi\'s sprout', () => {
+describe('The Cutting is a lifetime gauge (DESIGN §13 "lifetime sunshine across all habits, including deleted habits\' sunshine"; §3.1 growth only adds)', () => {
+  it('[FAILS] deleting a habit (whose check-ins are all outside the refund window) never shrinks The Cutting', () => {
     const g = new Game({ start: '2026-08-03' });
     const walk = g.addHabit({ name: 'Walk' });
     g.addHabit({ name: 'Read' });
@@ -157,12 +157,13 @@ describe('Mochi\'s sprout is a lifetime gauge (DESIGN §13.10 "lifetime sunshine
       g.advance(1);
     }
     g.advance(10); // every Walk grant is now older than the 7-day refund window
-    const before = progressVM(g.state, envOf(g)).sprout;
-    expect(before.stage).toBe(2); // 30 sunshine ≥ 20 (Seedling)
-    g.run((tx) => habitsDomain.deleteHabit(tx, walk)); // "Keep the plant in the greenhouse?" defaults to yes (§13.10)
-    const after = progressVM(g.state, envOf(g)).sprout;
-    // Observed: 0 (Seed): the sprout sums ledger.sunshine over *existing* habits only.
+    const before = progressVM(g.state, envOf(g)).cutting;
+    expect(before.stage).toBe(2); // 30 sunshine ≥ 20 (a pot)
+    g.run((tx) => habitsDomain.deleteHabit(tx, walk)); // a plain delete (not "Keep the plant on the balcony shelf?")
+    const after = progressVM(g.state, envOf(g)).cutting;
+    // Observed (Mochi era): 0: the sprout summed ledger.sunshine over *existing* habits only.
     expect(after.stage).toBeGreaterThanOrEqual(before.stage);
+    expect(after.overall).toBe(before.overall);
   });
 });
 

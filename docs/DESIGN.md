@@ -103,6 +103,13 @@ copy only), optional `dueDay` (monthly, display only), `why` (≤ 140 chars, §1
 {times, every 1|2|3|6|12}` (every 3 = quarterly). Periods with `every > 1` start at the start of the rule's `from`
 period. `expectedPerWeek` = 7, |days|, times/every, or times×12/52/every.
 
+**Edits "this period"**: when a flexible edit keeps the period geometry (same unit and `every`; only `times` changes),
+the new rule takes over the whole current period. When the geometry changes (weekly ↔ monthly, another `every`,
+flexible → day-based), the new rule starts today and the old period is *cut*: it is judged as it stood that day, with
+its full goal, and the days it lost count as still open. A day-based edit made after today's check-in was rewarded
+applies from tomorrow (the detail view shows the pending rule). No edit can turn a past day or a closed period into a
+new shortfall.
+
 **DayLog** is either `{kind:'log', count, level?:'tiny', at?:number[], note?}` or `{kind:'rest'}`, never both. `at`
 records the times of **live** check-ins only (≤ 24). Backfill and history edits never write it.
 
@@ -115,8 +122,10 @@ records the times of **live** check-ins only (≤ 24). Backfill and history edit
   4-second **Undo** toast, which offers "Add a note".
 * **Tiny version** (optional per rule, e.g. "Shoes on, step outside"): logged by long-press or from the ⋯ menu. It
   counts as **done** for streaks and consistency, and earns ⌈pay/2⌉ and 50% sunshine. The split is shown openly ("26 of 30
-  days · 8 tiny"). **Graduation** is *offered*, never automatic: at ≥ 85% over 28 days with ≤ 25% tiny, "Ready to grow?"
-  (+1 stamp on accept). Below 40%, "Make it tinier?".
+  days · 8 tiny"). Tiny is a *level* on the day: logging it never changes the count (so Undo restores the day exactly),
+  and it is refused on rules without a tiny version. **Graduation** is *offered*, never automatic: at ≥ 85% over 28
+  days with ≤ 25% tiny, "Ready to grow?" (+1 stamp on accept, only for a genuinely bigger rule; the offer then stays
+  closed for 28 days, even if the pending rule is withdrawn). Below 40%, "Make it tinier?".
 
 ### 5.3 Day boundary, rest, pause, backfill
 
@@ -130,7 +139,8 @@ records the times of **live** check-ins only (≤ 24). Backfill and history edit
   pause over the archived stretch. Today shows one collapsed row: "Resting: 2 habits · back Oct 6".
 * **Backfill**: rewards come only from the 6-day window, for days ≥ the habit's `createdAt` day, through the
   check-in path. Logging before `startedOn` asks "Start tracking Walk from Mon, Sep 22?". The calendar edits older days as
-  **history only**: those edits never touch the wallet, sunshine or once-keys.
+  **history only**: those edits never touch the wallet, sunshine or once-keys. It refuses days inside the 6-day window,
+  and un-ticking a flexible check-in whose period still reaches into the window (both go through the week strip).
 * **Selected past day is never silent**: a sticky "Logging for Sat, Sep 27 · Back to today" banner, a shifted
   background, and button names ending "for Saturday". The selection resets on rollover, after ≥ 60 s hidden, and on leaving Today.
 
@@ -139,11 +149,13 @@ records the times of **live** check-ins only (≤ 24). Backfill and history edit
 For a flexible period *p*: `target_p = round(times × activeFrac_p)`, `achieved_p = min(times, checkinDays_p)`,
 `expected_p = max(target_p, achieved_p)`. Skip the period if both are 0. For the **current** period:
 `expected_p = achieved_p + max(0, target_p − achieved_p − remainingActiveDays)`, so only a shortfall that can no longer be made
-up counts. Day-based: past scheduled active days count, and today counts only if done. A period spanning two months
-belongs to the month of its **last** day.
+up counts. `remainingActiveDays` counts *open* days: today only while it can still take a check-in, and future off days
+and paused days still count as open (so a day off or a pause can never raise what is expected). Day-based: past
+scheduled active days count, and today counts only if done. A period spanning two months belongs to the month of its
+**last** day.
 
 * Percentages are hidden below 10 expected occurrences ("4 of 4 so far"). Rolling windows end today if today already
-  counts, otherwise yesterday.
+  counts, otherwise yesterday, for the per-habit and the aggregate phrases alike.
 * Phrases per kind: "26 of the last 30 days" · "11 of your last 13 Mon/Wed/Fri" · "3 of the last 4 weeks" · "5 of the
   last 6 months". Aggregate: **"You showed up 26 of the last 30 days"** (days with ≥ 1 check-in), plus the weighted %
   and "Weekly & monthly goals: 3 of 5 on track". Rests: "26 of 28 days · 2 rests".
@@ -165,10 +177,14 @@ removes it.
 | Sunshine ≥ | 0 | 1 | 4 | 10 | 21 | 42 | 90 | 180 |
 | Looks like | cutting in a water glass beside its empty pot | white roots through the glass | potted up (~the 4th watering) | fuller foliage | buds / a new unfurl | first flowers / peak leaf | abundant | lush + a tiny brass watering-can charm |
 
-* Stage = `min(stageFromSunshine, completedOccurrences)`: each check-in advances at most one stage. **Display stage =
+* Stage = `min(stageFromSunshine, completedOccurrences)`: each check-in advances at most one stage. Completed
+  occurrences count only days from the habit's creation day (history filled in before it existed earned nothing), and
+  the stage is also capped at the calendar pace, `stageFromSunshine(days since creation + 6)`, so switching to a rarer
+  rule for one check-in can't grow a plant faster than real time (honest play never meets this cap). **Display stage =
   max(stage, bestStage)**, so plants never shrink. Multi-stage jumps play as a quick time-lapse (150 ms per stage).
 * `progress` (0–1 within a stage) adds continuous detail. After Evergreen, **Flourishes** arrive every +60 sunshine (8
   permanent visitors: a ladybird, a bee, a snail, a butterfly, a hanging trail, a moss collar, a second shoot, a ribbon).
+  They are a high-water mark: an un-check inside the refund window can take sunshine back, never a visitor.
 * Foliage species "bloom" as their peak form (a monstera's first split leaf, a pothos trailing past the sill). The stage
   names stay universal, and Habit Detail uses a species-true caption.
 * **Toxicity-aware**: cats never nibble pothos, monstera or lilies. Only cat grass and catnip are eaten. Cats sit in, sleep
@@ -198,18 +214,24 @@ Four resources, each drawn as a real object, and each with one job (internal ids
 * The ledger stores the amount paid per (habit, date). Unchecking refunds it if the balance allows. A re-check pays
   `min(original, current)`. Balances never go negative.
 * **Period goal met**: +10 (weekly kinds) / +20 (monthly), once per (habit, periodStart).
-* **Perfect day**: every scheduled day-based habit is done or allowed-rest, and done ≥ max(2, ⌈⅔ scheduled⌉) (flexible
-  check-ins count). Pays 2 × done, clamped 4–16, once per date.
+* **Perfect day**: every scheduled day-based habit is done or allowed-rest, and done ≥ max(2, ⌈⅔ scheduled⌉) (in-target
+  flexible check-ins count). Pays 2 × done, clamped 4–16, once per date. A "Take today off" day is neither perfect nor
+  imperfect. A rest excuses a habit only within the weekly allowance, and a rest that completed a paid perfect day keeps
+  using the allowance after an un-rest. Resuming a habit whose pause excused today's paid perfect day brings it back
+  tomorrow.
 * **Welcome home**: the first check-in after ≥ 3 quiet calendar days gives 20 coins + 1 ticket (at most every 14 days). The copy
   never mentions the gap: "Everything kept. There's a ticket on the sill."
 * **Streak rungs** (per habit, coins only): at 3/7/14/21/30/45/60/90/120/180/365 (occurrence-equivalent) they pay
-  10/20/30/35/40/50/60/80/100/150/250, once per (habit, tier).
+  10/20/30/35/40/50/60/80/100/150/250, once per (habit, tier). The flexible occurrence-equivalent is Σ achieved per met
+  period (a period scaled down by a mid-period start, a pause or a cut counts only what it asked for and got). Streak
+  *length* is the calendar weeks or months the run covers, and rungs pay only on the streak since the creation day.
 * **The Showing-up ladder** (account level; the source of stamps and tickets). `showUpDays` = distinct app days with ≥ 1
   rewarded check-in. Rungs 7:1 · 14:2 · 21:2+🎟 · 30:3+🎟 · 45:3 · 60:4+🎟 · 90:5+🎟 · 120:5+🎟 · 180:6+2🎟 · 250:8+2🎟 ·
   **365: 12 + 3🎟 + the Window Seat**, then 6 + 🎟 every +100 days.
 * **Sunday Note**: 1 stamp for any check-in that week, +1 at ≥ 60%, +1 at ≥ 85% (bonus tiers need ≥ 5 expected). **Herbarium
   page** (monthly): 1 stamp for showing up, +1 ≥ 70%, +1 ≥ 85%, +1 when ≥ 5 pts above last month (bonus tiers need ≥ 10
-  expected). Both pay **upward differences** when a backfill raises the tier, and never downward.
+  expected). Both pay **upward differences** when a backfill raises the tier, and never downward. Once written, they change
+  only by the delta of a reward-path change inside the window: history edits and habit deletions never move them.
 * **Evergreen reward**: the first plant to reach Evergreen grants the **Laurel Sprig** (an exclusive head wearable).
 
 Expected pace: 5 daily habits at ~80% ≈ 25–35 coins/day, which is about **one capsule a day**, plus stamps weekly. Long-term coin
@@ -236,6 +258,8 @@ Tabletop **capsule cabinets** named like real blind-box series. Each has a numbe
 likely than every individual commoner one (big series 8/5/5/3, seasonal 7/4/3/2, Night 5/4/5/3). **Each series has one
 Secret** (a Super rare), shown on the lineup as a "?" with one sparkle. **Pity**: Rare within 10 pulls (forces the rare
 tier only). Super rare within 40 (independent). A pity roll picks an **unowned** item where possible, and counters hide once their tier is fully owned.
+A counter counts only pulls made while its tier still has something unowned, so it can't fire the moment a Moonlit
+variant joins the tier. Night's Moonlit variants share one Rare slot weighing half a printed item.
 The **lucky meter**: after 4 duplicates in a row, the next pull is guaranteed new ("●●●○ next one's new"). New-first weighting is 3×.
 **Commit before animate**: the pull is decided and saved (`pendingReveal`) before anything moves, so a reload resumes the reveal.
 
@@ -263,7 +287,8 @@ stripes · Secret = holo stripes + "?". The tier word is always printed.
 
 **Special Order** (at the counter): any unowned item for stamps, Classic 2 · Special 4 · Rare 8 · Super rare 15 · Moonlit
 8. **Memories rule**: a seasonal edition's items become orderable only after that season has visited since the
-profile was created. An unowned Secret appears as a "?" tile, and ordering it plays the full reveal. **Swap-in**: on a
+profile was created: from the first day she has the app while the season is on (a profile created mid-season has seen
+that visit). An unowned Secret appears as a "?" tile, and ordering it plays the full reveal. **Swap-in**: on a
 completed series, 250 coins → 40 swaps.
 
 ## 8. Pets, places, items
@@ -415,6 +440,9 @@ Diagnostics).
 3. **"Anything already done today?"**: live check buttons. The first watering plays the full choreography, and a one-time
    top-up brings the jar to exactly 25 coins.
 4. **"Cats or Cows?"**: two cabinets. Insert, turn, twist. The first pull is a guaranteed Classic/Special pet from that series, and it doesn't advance pity.
+   It and step 3's top-up are one gift of one capsule: taken before any check-in it is free (and the top-up never
+   comes); taken after the top-up, the coin she inserts is the top-up. Every save's first capsule, on any series, is a
+   pet, since a new save owns none.
 5. Name them (suggestions + reroll) · a **came-home date** · **"Find them a plant"** (they move into one of her new cuttings'
    pots, keeping that habit company) → Today.
 6. "Not yet, I'll earn it" → Today with a pinned card: "Your first capsule: water anything."
