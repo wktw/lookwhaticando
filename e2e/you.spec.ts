@@ -206,3 +206,29 @@ test('a second window shows every setting disabled until "Use here"', async ({ p
   await expect(other.getByLabel('Your name')).toBeEnabled();
   await other.close();
 });
+
+/**
+ * The installed app's "Add to calendar" (iPhone) links a static file in cal/. Under the service
+ * worker that link is a navigation, so it must reach the file, not the app shell, and work offline.
+ * Runs only where a service worker runs (the preview's pwa projects; see NOTES-w2-you request 1).
+ */
+test('@pwa a watering-time file is a calendar under the service worker, online and offline', async ({ page, context }, info) => {
+  test.skip(info.project.use.serviceWorkers !== 'allow', 'needs the service worker (E2E_TARGET=preview, pwa project)');
+  await openYou(page);
+  await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
+  await page.reload();
+  await expect.poll(() => page.evaluate(() => !!navigator.serviceWorker.controller)).toBe(true);
+  const calendarAt = async () => {
+    const download = page.waitForEvent('download', { timeout: 15_000 }).catch(() => null);
+    await page.goto('./cal/morning-0800.ics').catch(() => undefined);
+    const d = await download;
+    if (!d) return `not a download: ${await page.title()}`;
+    const { readFile } = await import('node:fs/promises');
+    return (await readFile((await d.path())!, 'utf8')).slice(0, 15);
+  };
+  expect(await calendarAt()).toBe('BEGIN:VCALENDAR');
+  await page.goto('./#/you');
+  await context.setOffline(true);
+  expect(await calendarAt()).toBe('BEGIN:VCALENDAR');
+  await context.setOffline(false);
+});
