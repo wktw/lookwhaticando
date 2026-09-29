@@ -1,0 +1,127 @@
+.stack {
+  position: fixed;
+  top: calc(var(--safe-top) + 10px);
+  left: 50%;
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: min(420px, calc(100vw - 24px));
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+@media (min-width: 900px) {
+  .stack {
+    top: 18px;
+    left: calc(var(--sidebar-w) + (100vw - var(--sidebar-w)) / 2);
+  }
+}
+
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 100%;
+  min-height: 52px;
+  padding: 8px 10px 8px 12px;
+  border-radius: 22px;
+  background: var(--card);
+  box-shadow:
+    0 0 0 1px var(--line),
+    var(--shadow-md);
+  pointer-events: auto;
+  cursor: default;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  animation: toast-in 420ms var(--ease-pop) backwards;
+  transition:
+    transform 240ms var(--ease-out),
+    opacity 200ms ease;
+}
+
+.leaving {
+  animation: toast-out 220ms var(--ease-out) both;
+}
+
+.art {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--t100);
+}
+
+.message {
+  flex: 1;
+  min-width: 0;
+  padding: 4px 6px 4px 2px;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--ink);
+}
+.message:only-child {
+  padding-left: 6px;
+}
+
+.updated {
+  animation: nudge 360ms var(--ease-pop);
+}
+
+.action {
+  flex: none;
+  height: 36px;
+  padding: 0 14px;
+  border-radius: var(--r-pill);
+  background: var(--t100);
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  position: relative;
+}
+.action::after {
+  content: '';
+  position: absolute;
+  inset: -4px -2px;
+}
+:global([data-theme='night']) .action {
+  background: var(--t300);
+}
+.action:focus-visible {
+  border-radius: var(--r-pill);
+}
+.action:active {
+  transform: scale(0.95);
+}
+
+@keyframes toast-in {
+  from {
+    transform: translateY(-18px) scale(0.9);
+    opacity: 0;
+  }
+}
+
+@keyframes toast-out {
+  to {
+    transform: translateY(-14px) scale(0.95);
+    opacity: 0;
+  }
+}
+
+@keyframes nudge {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.06);
+  }
+  100% {
+    transform: scale(1);
+  }
+}

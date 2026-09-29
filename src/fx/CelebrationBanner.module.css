@@ -1,0 +1,205 @@
+.anchor {
+  position: fixed;
+  top: calc(var(--safe-top) + 10px);
+  left: 50%;
+  z-index: 250;
+  width: min(440px, calc(100vw - 20px));
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+@media (min-width: 900px) {
+  .anchor {
+    top: 18px;
+    left: calc(var(--sidebar-w) + (100vw - var(--sidebar-w)) / 2);
+  }
+}
+
+.banner {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 12px 8px 14px 12px;
+  overflow: hidden;
+  border-radius: 26px;
+  background: var(--card);
+  box-shadow:
+    0 0 0 1.5px var(--t300),
+    0 3px 0 var(--t300),
+    var(--shadow-lg);
+  pointer-events: auto;
+  cursor: default;
+  animation: drop-in 560ms var(--ease-pop) backwards;
+}
+
+.leaving {
+  animation: lift-out 260ms var(--ease-out) forwards;
+}
+
+/* One slow light sweep across the card as it lands. */
+.shine {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(105deg, transparent 35%, rgba(255, 255, 255, 0.55) 50%, transparent 65%);
+  transform: translateX(-110%);
+  animation: shine 1100ms 380ms var(--ease-out) both;
+  pointer-events: none;
+}
+
+.artTile {
+  position: relative;
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 92px;
+  height: 92px;
+  border-radius: 22px;
+  background: radial-gradient(circle at 50% 38%, #fff8 0 18%, transparent 60%), var(--t100);
+}
+
+.art {
+  animation: art-pop 700ms 120ms var(--ease-pop) backwards;
+}
+
+.spark {
+  position: absolute;
+  color: var(--butter-500);
+  animation: twinkle 1.6s var(--ease-in-out) infinite;
+}
+.spark1 {
+  top: 8px;
+  right: 8px;
+}
+.spark2 {
+  bottom: 12px;
+  left: 8px;
+  animation-delay: -0.8s;
+}
+
+.copy {
+  flex: 1;
+  min-width: 0;
+  padding-top: 2px;
+}
+
+.eyebrow {
+  font-family: var(--font-display);
+  font-size: var(--fs-micro);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+
+.title {
+  margin-top: 1px;
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--ink);
+  text-wrap: balance;
+}
+
+.text {
+  margin-top: 3px;
+  font-size: var(--fs-caption);
+  line-height: 1.35;
+  color: var(--ink-2);
+  text-wrap: pretty;
+}
+
+.also {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  color: var(--ink);
+}
+.also li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.also svg {
+  flex: none;
+  color: var(--butter-500);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 28px;
+  padding: 0 10px 0 5px;
+  border-radius: var(--r-pill);
+  background: var(--butter-100);
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  animation: art-pop 500ms 420ms var(--ease-pop) backwards;
+}
+.chip + .chip {
+  animation-delay: 500ms;
+}
+
+.close {
+  flex: none;
+  margin: -4px 0 0 -6px;
+}
+
+@keyframes drop-in {
+  from {
+    transform: translateY(-70px) scale(0.92);
+    opacity: 0;
+  }
+  60% {
+    opacity: 1;
+  }
+}
+
+@keyframes lift-out {
+  to {
+    transform: translateY(-40px) scale(0.96);
+    opacity: 0;
+  }
+}
+
+@keyframes shine {
+  to {
+    transform: translateX(110%);
+  }
+}
+
+@keyframes art-pop {
+  from {
+    transform: scale(0.4) rotate(-8deg);
+    opacity: 0;
+  }
+}
+
+@keyframes twinkle {
+  0%,
+  100% {
+    transform: scale(0.7);
+    opacity: 0.6;
+  }
+  50% {
+    transform: scale(1.15) rotate(25deg);
+    opacity: 1;
+  }
+}

@@ -1,0 +1,110 @@
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-2);
+  padding: 0 4px;
+}
+
+.label {
+  font-size: var(--fs-caption);
+  font-weight: 800;
+  color: var(--ink-2);
+}
+
+.count {
+  font-size: var(--fs-micro);
+  font-weight: 700;
+  color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.control {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-height: 52px;
+  padding: 0 var(--s-4);
+  border-radius: var(--r-md);
+  background: var(--bg-2);
+  box-shadow: inset 0 0 0 1.5px transparent;
+  transition: box-shadow var(--t-micro) ease;
+  cursor: text;
+}
+.control:focus-within {
+  background: var(--card);
+  box-shadow:
+    inset 0 0 0 2px var(--lavender-500),
+    0 0 0 4px var(--lavender-100);
+}
+.invalid .control {
+  box-shadow: inset 0 0 0 2px var(--peach-500);
+}
+
+.multi {
+  align-items: stretch;
+  padding: 0;
+}
+
+.icon {
+  display: inline-flex;
+  flex: none;
+  margin-left: -2px;
+  color: var(--ink-2);
+}
+
+.trailing {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  color: var(--ink-2);
+  font-size: var(--fs-caption);
+  font-weight: 700;
+}
+
+.input {
+  flex: 1;
+  min-width: 0;
+  height: 48px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  /* 16px minimum stops iOS from zooming on focus. */
+  font-size: max(16px, var(--fs-body));
+  font-weight: 600;
+  color: var(--ink);
+  outline: none;
+}
+.input:focus-visible {
+  outline: none;
+}
+.input::placeholder {
+  color: var(--ink-3);
+  font-weight: 600;
+  opacity: 1;
+}
+
+.area {
+  height: auto;
+  padding: 14px var(--s-4);
+  line-height: 1.45;
+  resize: none;
+}
+
+.note {
+  padding: 0 4px;
+  font-size: var(--fs-caption);
+  color: var(--ink-2);
+}
+
+.error {
+  color: var(--peach-700);
+  font-weight: 700;
+}

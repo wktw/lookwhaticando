@@ -1,0 +1,37 @@
+.burst {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.spark {
+  position: absolute;
+  top: calc(var(--size) / -2);
+  left: calc(var(--size) / -2);
+  width: var(--size);
+  height: var(--size);
+  opacity: 0;
+  animation: spark 620ms var(--ease-out) var(--delay) both;
+}
+
+@keyframes spark {
+  0% {
+    transform: translate(0, 0) scale(0.2) rotate(0deg);
+    opacity: 0;
+  }
+  25% {
+    opacity: 1;
+  }
+  60% {
+    transform: translate(var(--dx), var(--dy)) scale(1.1) rotate(var(--rot));
+    opacity: 1;
+  }
+  100% {
+    transform: translate(calc(var(--dx) * 1.15), calc(var(--dy) * 1.15)) scale(0) rotate(var(--rot));
+    opacity: 0;
+  }
+}

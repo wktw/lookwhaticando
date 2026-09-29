@@ -1,0 +1,63 @@
+.card {
+  display: block;
+  position: relative;
+  border-radius: var(--r-lg);
+  background: var(--card);
+  color: var(--ink);
+  box-shadow: var(--shadow-md);
+  text-align: start;
+}
+
+.tinted {
+  background: var(--t100);
+}
+
+.flat {
+  box-shadow: none;
+}
+
+.none {
+  padding: 0;
+}
+.sm {
+  padding: var(--s-3);
+}
+.md {
+  padding: var(--s-4);
+}
+.lg {
+  padding: var(--s-6);
+}
+
+.interactive {
+  width: 100%;
+  cursor: pointer;
+  text-decoration: none;
+  transition: transform 200ms var(--ease-out);
+}
+/* The deeper hover shadow fades in on a pseudo-element, so only opacity animates. */
+.interactive::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: var(--shadow-lg);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 200ms var(--ease-out);
+}
+.interactive:focus-visible {
+  border-radius: var(--r-lg);
+}
+@media (hover: hover) {
+  .interactive:hover {
+    transform: translateY(-2px);
+  }
+  .interactive:hover::after {
+    opacity: 1;
+  }
+}
+.interactive:active {
+  transform: scale(0.985);
+  transition-duration: 80ms;
+}

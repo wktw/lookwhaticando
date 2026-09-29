@@ -1,0 +1,163 @@
+.art {
+  display: block;
+  width: 100%;
+  max-width: 300px;
+  height: auto;
+  margin: 0 auto;
+  overflow: visible;
+}
+
+.screen {
+  fill: var(--card);
+  stroke: var(--line);
+  stroke-width: 1.5;
+}
+.well {
+  fill: var(--bg-2);
+}
+.wallpaper {
+  fill: var(--sky-100);
+}
+.dropdown {
+  fill: var(--card);
+  stroke: var(--line);
+  stroke-width: 1.5;
+  filter: drop-shadow(0 4px 6px rgba(74, 53, 64, 0.12));
+}
+
+.url {
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 600;
+  fill: var(--ink-2);
+}
+
+.glyph {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.ringFill {
+  fill: var(--blush-100);
+}
+.ring {
+  fill: none;
+  stroke: var(--blush-500);
+  stroke-width: 2.5;
+}
+.pulse {
+  fill: none;
+  stroke: var(--blush-500);
+  stroke-width: 2;
+  animation: pulse 1.8s var(--ease-out) infinite;
+}
+
+.spark {
+  fill: var(--butter-500);
+  animation: twinkle 1.8s var(--ease-in-out) infinite;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.rowHl {
+  fill: var(--blush-100);
+  stroke: var(--blush-300);
+  stroke-width: 1.5;
+}
+.rowSolid {
+  fill: var(--blush-500);
+}
+.rowText,
+.rowTextHl,
+.rowTextSolid,
+.menu,
+.menuBold {
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 700;
+  fill: var(--ink-2);
+}
+.rowTextHl,
+.menuBold {
+  fill: var(--ink);
+  font-weight: 800;
+}
+.rowTextSolid {
+  fill: #3f2d37;
+  font-weight: 800;
+}
+.menu,
+.menuBold {
+  font-size: 10.5px;
+}
+
+.divider {
+  stroke: var(--line);
+  stroke-width: 1.5;
+}
+
+.dock {
+  fill: var(--card);
+  opacity: 0.85;
+  stroke: var(--line);
+  stroke-width: 1.5;
+}
+.tooltip {
+  fill: var(--card);
+  stroke: var(--line);
+  stroke-width: 1.2;
+}
+.running {
+  fill: var(--ink-2);
+}
+
+.labelBar {
+  fill: var(--ink-3);
+  opacity: 0.5;
+}
+
+.appLabel {
+  font-family: var(--font-display);
+  font-size: 9.5px;
+  font-weight: 600;
+  fill: var(--ink);
+}
+
+.newApp {
+  animation: arrive 900ms var(--ease-pop) backwards;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+@keyframes pulse {
+  from {
+    transform: scale(1);
+    opacity: 0.9;
+  }
+  to {
+    transform: scale(1.7);
+    opacity: 0;
+  }
+}
+
+@keyframes twinkle {
+  0%,
+  100% {
+    transform: scale(0.7);
+    opacity: 0.7;
+  }
+  50% {
+    transform: scale(1.15) rotate(20deg);
+    opacity: 1;
+  }
+}
+
+@keyframes arrive {
+  from {
+    transform: scale(0.3);
+    opacity: 0;
+  }
+}

@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <title>Mochi Meadow</title>
+  <defs>
+    <clipPath id="head"><path d="M32 18C45 18 54 27 54 39C54 50 45 57.5 32 57.5C19 57.5 10 50 10 39C10 27 19 18 32 18Z"/></clipPath>
+  </defs>
+  <g stroke="#5A3E45" stroke-width="3" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M12.5 31C11.5 24 12.5 16 15 12C16 10.5 17.8 10.4 19 11.5C22.5 14.5 25.5 17 28 19.5" fill="#FFF9F0"/>
+    <path d="M51.5 31C52.5 24 51.5 16 49 12C48 10.5 46.2 10.4 45 11.5C41.5 14.5 38.5 17 36 19.5" fill="#FFF9F0"/>
+  </g>
+  <path d="M15.6 25C15.6 21 16.1 18 17.1 16.5C19.1 18.2 21.4 20.2 23.1 22C20.1 22.5 17.6 23.6 15.6 25Z" fill="#FFC4D3"/>
+  <path d="M48.4 25C48.4 21 47.9 18 46.9 16.5C44.9 18.2 42.6 20.2 40.9 22C43.9 22.5 46.4 23.6 48.4 25Z" fill="#FFC4D3"/>
+  <path d="M32 18C45 18 54 27 54 39C54 50 45 57.5 32 57.5C19 57.5 10 50 10 39C10 27 19 18 32 18Z" fill="#FFF9F0"/>
+  <g clip-path="url(#head)">
+    <path d="M40 16.5C47 16.5 55.5 22.5 56 31C56.3 35 52 36.6 49 34.6C46.4 33 47 29.6 43.5 28.6C39.5 27.6 36.5 25 37 21.5C37.3 19 38.2 16.8 40 16.5Z" fill="#6E5250"/>
+    <path d="M6 50C9 46 15 46.5 16.5 50.5C18 55 13 59 9 58C5 57 4 53 6 50Z" fill="#6E5250"/>
+    <ellipse cx="21" cy="26" rx="7" ry="3.6" transform="rotate(-28 21 26)" fill="#fff" opacity="0.55"/>
+  </g>
+  <path d="M32 18C45 18 54 27 54 39C54 50 45 57.5 32 57.5C19 57.5 10 50 10 39C10 27 19 18 32 18Z" fill="none" stroke="#5A3E45" stroke-width="3"/>
+  <ellipse cx="17.2" cy="45" rx="4.2" ry="2.5" fill="#FF9FB8" opacity="0.7"/>
+  <ellipse cx="46.8" cy="45" rx="4.2" ry="2.5" fill="#FF9FB8" opacity="0.7"/>
+  <ellipse cx="23.8" cy="38.5" rx="3.4" ry="4.1" fill="#4A3540"/>
+  <ellipse cx="40.2" cy="38.5" rx="3.4" ry="4.1" fill="#4A3540"/>
+  <circle cx="25.1" cy="36.9" r="1.35" fill="#fff"/>
+  <circle cx="41.5" cy="36.9" r="1.35" fill="#fff"/>
+  <path d="M30.3 42.4H33.7Q33.7 43 32 44.3Q30.3 43 30.3 42.4Z" fill="#F58CAA" stroke="#F58CAA" stroke-width="1" stroke-linejoin="round"/>
+  <path d="M28.6 45.2Q30.3 47.3 32 45.2Q33.7 47.3 35.4 45.2" fill="none" stroke="#5A3E45" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+  <g stroke="#5A3E45" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M32 18.5C32 15 32.5 12.3 33.3 10" fill="none"/>
+    <path d="M33 11C29.5 6 23.8 5.8 21.6 8.8C24.6 12.6 29.6 13.3 33 11Z" fill="#9CCB86"/>
+    <path d="M33.3 10.4C35.8 5 41.6 3.8 44.2 6.4C41.6 10.8 36.7 12.2 33.3 10.4Z" fill="#9CCB86"/>
+  </g>
+</svg>

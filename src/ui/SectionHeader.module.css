@@ -1,0 +1,39 @@
+.header {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  min-height: 44px;
+  margin: var(--s-6) 0 var(--s-3);
+  padding: 0 4px;
+}
+
+.icon {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+}
+
+.text {
+  flex: 1;
+  min-width: 0;
+}
+
+.title {
+  font-size: var(--fs-headline);
+  color: var(--ink);
+}
+
+h3.title {
+  font-size: var(--fs-body-lg);
+}
+
+.subtitle {
+  margin-top: 2px;
+  font-size: var(--fs-caption);
+  color: var(--ink-2);
+}
+
+.action {
+  flex: none;
+  margin-right: -8px;
+}

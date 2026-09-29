@@ -1,0 +1,85 @@
+/*
+ * Pastel tone scopes for the UI kit. A `.mm-tone-<key>` class maps one pastel family onto
+ * --t100/--t300/--t500/--t700 plus --tlip (the darker candy "lip" under a 500 face).
+ * Components read only these variables, so every tone works in light and night.
+ */
+:root {
+  /* Text on pastel 500 faces. Fixed in both themes: pastel faces stay light at night. */
+  --on-pastel: #3f2d37;
+  --candy-drop: 0 10px 18px -12px rgba(74, 53, 64, 0.45);
+}
+
+:root[data-theme='night'] {
+  --candy-drop: 0 10px 18px -10px rgba(0, 0, 0, 0.6);
+}
+
+.mm-tone-blush {
+  --t100: var(--blush-100);
+  --t300: var(--blush-300);
+  --t500: var(--blush-500);
+  --t700: var(--blush-700);
+  --tlip: #d96a8b;
+}
+.mm-tone-peach {
+  --t100: var(--peach-100);
+  --t300: var(--peach-300);
+  --t500: var(--peach-500);
+  --t700: var(--peach-700);
+  --tlip: #e07b4b;
+}
+.mm-tone-butter {
+  --t100: var(--butter-100);
+  --t300: var(--butter-300);
+  --t500: var(--butter-500);
+  --t700: var(--butter-700);
+  --tlip: #d6a21e;
+}
+.mm-tone-sage {
+  --t100: var(--sage-100);
+  --t300: var(--sage-300);
+  --t500: var(--sage-500);
+  --t700: var(--sage-700);
+  --tlip: #6e9f5d;
+}
+.mm-tone-mint {
+  --t100: var(--mint-100);
+  --t300: var(--mint-300);
+  --t500: var(--mint-500);
+  --t700: var(--mint-700);
+  --tlip: #4aa88b;
+}
+.mm-tone-sky {
+  --t100: var(--sky-100);
+  --t300: var(--sky-300);
+  --t500: var(--sky-500);
+  --t700: var(--sky-700);
+  --tlip: #5a95c8;
+}
+.mm-tone-lavender {
+  --t100: var(--lavender-100);
+  --t300: var(--lavender-300);
+  --t500: var(--lavender-500);
+  --t700: var(--lavender-700);
+  --tlip: #8a72cf;
+}
+.mm-tone-lilac {
+  --t100: var(--lilac-100);
+  --t300: var(--lilac-300);
+  --t500: var(--lilac-500);
+  --t700: var(--lilac-700);
+  --tlip: #b96db9;
+}
+/* Gentle coral for destructive actions: clearly not "primary pink", never alarm red. */
+.mm-tone-danger {
+  --t100: #ffebe7;
+  --t300: #ffc9bf;
+  --t500: #ff9c8f;
+  --t700: #b3473a;
+  --tlip: #e0766a;
+}
+:root[data-theme='night'] .mm-tone-danger,
+[data-theme='night'] .mm-tone-danger {
+  --t100: #4a2c33;
+  --t300: #8c4a4c;
+  --t700: #ffb9ad;
+}

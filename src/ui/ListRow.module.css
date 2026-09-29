@@ -1,0 +1,135 @@
+.row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  width: 100%;
+  min-height: 56px;
+  padding: var(--s-2) var(--s-4);
+  color: var(--ink);
+  text-align: start;
+  text-decoration: none;
+  background: transparent;
+}
+
+/* Inset hairline between rows (starts after the leading tile). */
+.row + .row::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: var(--s-4);
+  left: var(--s-4);
+  height: 1px;
+  background: var(--line);
+}
+.row:has(.leading) + .row::before,
+.row + .row:has(.leading)::before {
+  left: 60px;
+}
+
+.interactive {
+  cursor: pointer;
+  transition: background-color var(--t-micro) ease;
+}
+.interactive:focus-visible {
+  border-radius: var(--r-md);
+  outline-offset: -3px;
+}
+@media (hover: hover) {
+  .interactive:hover {
+    background: var(--card-2);
+  }
+}
+.interactive:active {
+  background: var(--bg-2);
+}
+
+.disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.leading {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 32px;
+  height: 32px;
+}
+.tile {
+  border-radius: 10px;
+  background: var(--t300);
+  color: var(--on-pastel);
+}
+:global([data-theme='night']) .tile {
+  background: var(--t500);
+}
+
+.text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.title {
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.destructive {
+  color: var(--peach-700);
+}
+
+.subtitle {
+  font-size: var(--fs-caption);
+  color: var(--ink-2);
+}
+
+.trailing {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  flex: none;
+  color: var(--ink-2);
+  font-size: var(--fs-caption);
+  font-weight: 700;
+}
+
+.chevron {
+  display: inline-flex;
+  flex: none;
+  margin-right: -6px;
+  color: var(--ink-3);
+}
+
+/* ---------- Group ---------- */
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.groupTitle {
+  padding: 0 var(--s-4);
+  font-family: var(--font-body);
+  font-size: var(--fs-caption);
+  font-weight: 800;
+  color: var(--ink-2);
+}
+
+.card {
+  overflow: hidden;
+  border-radius: var(--r-lg);
+  background: var(--card);
+  box-shadow:
+    0 0 0 1px var(--line),
+    var(--shadow-md);
+}
+
+.footer {
+  padding: 0 var(--s-4);
+  font-size: var(--fs-caption);
+  color: var(--ink-2);
+}
