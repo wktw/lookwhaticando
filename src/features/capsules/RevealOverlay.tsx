@@ -8,8 +8,9 @@ import { sfx } from '@/fx/sound';
 import { haptic } from '@/fx/haptics';
 import { cx } from './ui/CandyButton';
 import { useFocusTrap } from './ui/useFocusTrap';
+import { lockScroll } from './ui/scrollLock';
 import { prefersReducedMotion } from './motion';
-import { RevealCard } from './RevealCard';
+import { RevealCard, type PullAgainOffer } from './RevealCard';
 import { Rays } from './Rays';
 import type { RevealData } from './reveal';
 import s from './RevealOverlay.module.css';
@@ -23,8 +24,10 @@ export interface RevealOverlayProps {
   /** Skip the anticipation and go straight to the card (Settings › Quick capsule open). */
   quickOpen?: boolean;
   onClose: () => void;
-  /** Offered when another pull is affordable. */
-  onPullAgain?: () => void;
+  /** Offered when another pull can be paid for (the card shows how). */
+  pullAgain?: PullAgainOffer;
+  /** Where focus goes on close if the element that opened the reveal is gone. */
+  returnFocus?: () => HTMLElement | null | undefined;
   /** Start at a given stage (gallery demos). */
   initialStage?: RevealStage;
   /** Pre-cracked shell (gallery demos). */
@@ -72,7 +75,7 @@ const HINT: Record<number, string> = { 3: 'Something special… tap to crack it!
  * Full-screen reveal (DESIGN §9.3 steps 4–5): the capsule floats in with rarity anticipation,
  * pops open with rays and confetti, and the item springs up above its card.
  */
-export function RevealOverlay({ data, origin, quickOpen, onClose, onPullAgain, initialStage, initialCracks = 0 }: RevealOverlayProps) {
+export function RevealOverlay({ data, origin, quickOpen, onClose, pullAgain, returnFocus, initialStage, initialCracks = 0 }: RevealOverlayProps) {
   const reduced = prefersReducedMotion();
   // Pulls arrive in a capsule; so does a wished-for Secret (it stays a surprise). Other wishes just appear.
   const inCapsule = data.via === 'pull' || data.rarity === 'ultra';
@@ -88,17 +91,11 @@ export function RevealOverlay({ data, origin, quickOpen, onClose, onPullAgain, i
   const celebrated = useRef(false);
   const left = TAPS[data.rarity] - cracks;
 
-  useFocusTrap(root, true, () => (stage === 'anticipate' ? pop() : onClose()));
+  // Esc during the anticipation skips straight to the result (the item is already yours, so
+  // closing unseen would lose the moment); once it's open, Esc closes.
+  useFocusTrap(root, true, { onEscape: () => (stage === 'anticipate' ? pop() : onClose()), returnFocus });
 
-  // Lock page scroll underneath.
-  useEffect(() => {
-    const el = document.documentElement;
-    const prev = el.style.overflow;
-    el.style.overflow = 'hidden';
-    return () => {
-      el.style.overflow = prev;
-    };
-  }, []);
+  useEffect(() => lockScroll(), []);
 
   // The capsule flies up from the machine's tray to center stage.
   useLayoutEffect(() => {
@@ -125,6 +122,8 @@ export function RevealOverlay({ data, origin, quickOpen, onClose, onPullAgain, i
 
   useEffect(() => {
     if (stage === 'anticipate') capsuleButton.current?.focus({ preventScroll: true });
+    // The capsule button is gone while it pops: keep focus (and Esc) inside the dialog.
+    if (stage === 'open') root.current?.focus({ preventScroll: true });
     if (stage === 'open' || (stage === 'card' && !celebrated.current)) celebrate();
     if (stage === 'open') {
       const t = setTimeout(() => setStage('card'), reduced ? 250 : 720);
@@ -210,7 +209,7 @@ export function RevealOverlay({ data, origin, quickOpen, onClose, onPullAgain, i
           )}
         </div>
 
-        {stage === 'card' && <RevealCard data={data} onClose={onClose} onPullAgain={onPullAgain} />}
+        {stage === 'card' && <RevealCard data={data} onClose={onClose} pullAgain={pullAgain} />}
       </div>
     </div>,
     document.body,

@@ -105,19 +105,21 @@
   flex: none;
 }
 
+/* Tone text is the -700 shade nudged 25% toward --ink: darker by day, lighter by night, AA on
+   its 100 fill in both themes (contrast.test.ts). */
 .common {
   background: var(--sage-100);
-  color: var(--sage-700);
+  color: color-mix(in srgb, var(--sage-700) 75%, var(--ink));
 }
 
 .uncommon {
   background: var(--sky-100);
-  color: var(--sky-700);
+  color: color-mix(in srgb, var(--sky-700) 75%, var(--ink));
 }
 
 .rare {
   background: var(--lavender-100);
-  color: var(--lavender-700);
+  color: color-mix(in srgb, var(--lavender-700) 75%, var(--ink));
 }
 
 .ultra {
@@ -127,12 +129,12 @@
 
 .butter {
   background: var(--butter-100);
-  color: var(--butter-700);
+  color: color-mix(in srgb, var(--butter-700) 75%, var(--ink));
 }
 
 .blush {
   background: var(--blush-100);
-  color: var(--blush-700);
+  color: color-mix(in srgb, var(--blush-700) 75%, var(--ink));
 }
 
 /* ---------- Sheet ---------- */

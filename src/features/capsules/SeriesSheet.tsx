@@ -4,6 +4,7 @@ import { itemsInMachine } from '@/catalog/collectibles';
 import { state } from '@/state/store';
 import { CollectibleArt } from '@/art/CollectibleArt';
 import { shade, tint } from '@/art/machines/color';
+import { machineHue } from '@/art/machines/theme';
 import { Sheet } from './ui/Sheet';
 import { Pill } from './ui/CandyButton';
 import { RARITY_LABEL } from './copy';
@@ -25,11 +26,12 @@ export function SeriesSheet({ machine, open, onClose }: SeriesSheetProps) {
   const items = itemsInMachine(machine.id);
   const owned = items.filter((i) => collection[i.id]).length;
   const byRarity = (r: Rarity) => items.filter((i) => i.rarity === r).sort((a, b) => Number(b.category === 'pet') - Number(a.category === 'pet'));
-  const theme = machine.theme;
+  const hue = machineHue(machine);
+  // Ink on this poster is checked for AA on every machine in contrast.test.ts.
   const posterVars = {
-    '--poster': tint(theme.body === '#FFFFFF' ? theme.trim : theme.body, 0.55),
-    '--poster-ink': theme.ink,
-    '--poster-edge': shade(theme.body === '#FFFFFF' ? theme.trim : theme.body, 0.12),
+    '--poster': tint(hue, 0.55),
+    '--poster-ink': machine.theme.ink,
+    '--poster-edge': shade(hue, 0.12),
   } as Record<string, string>;
 
   return (

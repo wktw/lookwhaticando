@@ -6,8 +6,8 @@
  *   y≈8–58    topper motif + dome cap
  *   y=44–212  glass globe (center 120,128), its bottom hidden by the collar
  *   y=196–214 collar with the price plate
- *   y=210–306 body: decal · crank · coin slot, chute below
- *   y≈306–318 two little mochi feet; the capsule rolls out onto the ground in front
+ *   y=210–306 body: decal · crank · coin plate, chute with its tray lip below
+ *   y≈306–318 two little mochi feet; the capsule rolls out onto the ground, clear of the right foot
  */
 
 export const VIEW_W = 240;
@@ -33,17 +33,20 @@ export const CRANK = { cx: 120, cy: 244, r: 24 } as const;
 export const CRANK_REST = 35;
 /** Invisible hit area around the crank (touch target ≫ 44px at every machine size). */
 export const CRANK_HIT_R = 42;
-export const SLOT = { cx: 168, cy: 240, w: 18, h: 30 } as const;
+/** The coin plate: a coin glyph over the slit (`slitY`), so it reads as "coins go here". */
+export const SLOT = { cx: 168, cy: 240, w: 24, h: 44, slitY: 248 } as const;
 export const DECAL = { cx: 72, cy: 240 } as const;
-export const CHUTE = { cx: 120, cy: 286, w: 48, h: 26 } as const;
+export const CHUTE = { cx: 120, cy: 284, w: 48, h: 26 } as const;
+/** The little tray lip the capsule rolls out over. */
+export const TRAY = { cx: 120, y: 296, w: 60, h: 9 } as const;
 export const FEET = { y: 311, dx: 44, rx: 17, ry: 8 } as const;
 export const GROUND_Y = 318;
 
 /** Capsule radius inside the dome, and the rolled-out capsule. */
 export const CAPSULE_R = 14;
 export const OUT_CAPSULE_R = 17;
-/** Where the dropped capsule comes to rest. */
-export const REST = { x: 150, y: 344 - OUT_CAPSULE_R } as const;
+/** Where the dropped capsule comes to rest: rolled out past the right foot. */
+export const REST = { x: 198, y: 344 - OUT_CAPSULE_R } as const;
 
 export const CAPSULE_COUNT = 20;
 

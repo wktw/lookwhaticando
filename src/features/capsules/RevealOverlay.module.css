@@ -217,7 +217,8 @@
   right: 18px;
   padding: 5px 12px 6px;
   border-radius: 12px;
-  background: var(--blush-700);
+  /* Fixed colors: the night blush-700 is a light pink that white text can't sit on. */
+  background: #c23f68;
   color: #fff;
   font-family: var(--font-display);
   font-weight: 700;
@@ -260,7 +261,6 @@
   color: var(--ink-2);
   font-weight: 700;
   font-size: var(--fs-caption);
-  text-transform: capitalize;
 }
 
 .personality {
@@ -297,7 +297,7 @@
   padding: 6px 14px;
   border-radius: var(--r-pill);
   background: var(--lavender-100);
-  color: var(--lavender-700);
+  color: color-mix(in srgb, var(--lavender-700) 75%, var(--ink));
   font-weight: 700;
   font-size: var(--fs-caption);
 }
@@ -309,7 +309,7 @@
   padding: 7px 16px;
   border-radius: var(--r-pill);
   background: var(--butter-100);
-  color: var(--butter-700);
+  color: color-mix(in srgb, var(--butter-700) 75%, var(--ink));
   font-family: var(--font-display);
   font-weight: 600;
   font-size: var(--fs-body);
@@ -342,6 +342,7 @@
   border-color: var(--lavender-500);
 }
 
+.petActions,
 .actions {
   display: flex;
   flex-wrap: wrap;
@@ -351,14 +352,26 @@
   margin-top: 18px;
 }
 
-.actions > * {
-  flex: 1 1 0;
-  max-width: 200px;
+.actions {
+  margin-top: 14px;
 }
 
-.actions > .wide {
-  flex-basis: 100%;
-  max-width: none;
+.petActions > *,
+.actions > * {
+  flex: 1 1 0;
+  max-width: 220px;
+}
+
+/* The price of another pull, right on its button. */
+.cost {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: 2px;
+  padding: 2px 8px 2px 4px;
+  border-radius: var(--r-pill);
+  background: var(--bg-2);
+  font-size: var(--fs-body);
 }
 
 /* ---------- reduced motion: cross-fades only ---------- */

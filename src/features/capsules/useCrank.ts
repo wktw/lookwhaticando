@@ -4,8 +4,8 @@ import { Ratchet, angleDelta } from './ratchet';
 
 /** A press that moves less than this is a tap (auto-turn), not a drag. */
 const TAP_DEG = 10;
-/** Closer than this to the hub (px), the pointer's angle is noise. */
-const DEAD_ZONE = 8;
+/** Closer to the hub than this share of the crank's radius (and at least 10px), the pointer's angle is noise. */
+const DEAD_ZONE = 0.3;
 
 export interface CrankCallbacks {
   /** First real movement of a drag. */
@@ -14,12 +14,15 @@ export interface CrankCallbacks {
   onAdvance: (progress: number, delta: number, dir: 1 | -1) => void;
   /** Tap, click, Enter or Space: turn it automatically. */
   onAutoTurn: () => void;
+  /** A tap while the crank can't turn yet (nothing paid). */
+  onIdleTap?: () => void;
 }
 
 interface Drag {
   pointerId: number;
   cx: number;
   cy: number;
+  dead: number;
   /** Last pointer angle; null until the pointer is far enough from the hub. */
   last: number | null;
   moved: number;
@@ -28,13 +31,14 @@ interface Drag {
 function angleAt(d: Drag, x: number, y: number): number | null {
   const dx = x - d.cx;
   const dy = y - d.cy;
-  if (dx * dx + dy * dy < DEAD_ZONE * DEAD_ZONE) return null;
+  if (dx * dx + dy * dy < d.dead * d.dead) return null;
   return (Math.atan2(dy, dx) * 180) / Math.PI;
 }
 
 /**
  * Circular drag on the crank: angle via atan2 around the hub (pointer capture keeps the drag
- * even when the finger strays), fed through a ratchet. Returns handlers for the crank button.
+ * even when the finger strays), fed through a ratchet that ignores jumps across the hub.
+ * Returns handlers for the crank button.
  */
 export function useCrank(enabled: boolean, cb: CrankCallbacks) {
   const drag = useRef<Drag | null>(null);
@@ -52,7 +56,14 @@ export function useCrank(enabled: boolean, cb: CrankCallbacks) {
       if (!enabled || e.button !== 0) return;
       const el = e.currentTarget;
       const r = el.getBoundingClientRect();
-      const d: Drag = { pointerId: e.pointerId, cx: r.left + r.width / 2, cy: r.top + r.height / 2, last: null, moved: 0 };
+      const d: Drag = {
+        pointerId: e.pointerId,
+        cx: r.left + r.width / 2,
+        cy: r.top + r.height / 2,
+        dead: Math.max(10, (r.width / 2) * DEAD_ZONE),
+        last: null,
+        moved: 0,
+      };
       d.last = angleAt(d, e.clientX, e.clientY);
       drag.current = d;
       el.setPointerCapture(e.pointerId);
@@ -90,6 +101,7 @@ export function useCrank(enabled: boolean, cb: CrankCallbacks) {
         return;
       }
       if (enabled) cbs.current.onAutoTurn();
+      else cbs.current.onIdleTap?.();
     },
   };
 

@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'preact/hooks';
 import type { MachineDef } from '@/catalog/types';
 import { Icon } from '@/art/icons';
+import { machineHue } from '@/art/machines/theme';
 import { sfx } from '@/fx/sound';
 import { CapsuleMachine } from './CapsuleMachine';
 import { cx } from './ui/CandyButton';
@@ -143,7 +144,7 @@ export function MachineCarousel({ machines, index, onIndex, busy, onBusyChange }
             disabled={busy}
             aria-label={m.name}
             aria-current={i === index ? 'true' : undefined}
-            style={{ '--dot': m.theme.body === '#FFFFFF' ? m.theme.trim : m.theme.body } as Record<string, string>}
+            style={{ '--dot': machineHue(m) } as Record<string, string>}
           >
             <span />
           </button>

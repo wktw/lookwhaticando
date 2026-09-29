@@ -4,6 +4,7 @@ import { useEffect, useId, useRef, useState } from 'preact/hooks';
 import { Icon } from '@/art/icons';
 import { sfx } from '@/fx/sound';
 import { useFocusTrap } from './useFocusTrap';
+import { lockScroll } from './scrollLock';
 import { cx } from './CandyButton';
 import s from './ui.module.css';
 
@@ -42,17 +43,9 @@ export function Sheet({ open, title, onClose, aside, children, class: cls }: She
     return () => clearTimeout(t);
   }, [open]);
 
-  useEffect(() => {
-    if (!mounted) return;
-    const root = document.documentElement;
-    const prev = root.style.overflow;
-    root.style.overflow = 'hidden';
-    return () => {
-      root.style.overflow = prev;
-    };
-  }, [mounted]);
+  useEffect(() => (mounted ? lockScroll() : undefined), [mounted]);
 
-  useFocusTrap(panel, mounted && !closing, onClose);
+  useFocusTrap(panel, mounted && !closing, { onEscape: onClose });
 
   if (!mounted) return null;
   return createPortal(

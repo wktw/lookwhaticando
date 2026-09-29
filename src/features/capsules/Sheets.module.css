@@ -116,7 +116,7 @@
   padding: 1px 7px;
   border-radius: var(--r-pill);
   background: var(--blush-100);
-  color: var(--blush-700);
+  color: color-mix(in srgb, var(--blush-700) 75%, var(--ink));
   font-family: var(--font-display);
   font-weight: 600;
   font-size: var(--fs-micro);
@@ -260,6 +260,17 @@
   list-style: none;
 }
 
+/* Off-screen tiles skip layout and paint until scrolled near. */
+.wishGrid > li {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 136px;
+}
+
+/* Scrolling near this loads the next page of tiles. */
+.more {
+  height: 1px;
+}
+
 .wishTile {
   display: flex;
   flex-direction: column;
@@ -301,7 +312,7 @@
   padding: 1px 8px 1px 4px;
   border-radius: var(--r-pill);
   background: var(--butter-100);
-  color: var(--butter-700);
+  color: color-mix(in srgb, var(--butter-700) 75%, var(--ink));
   font-family: var(--font-display);
   font-weight: 600;
   font-size: var(--fs-caption);
@@ -366,10 +377,10 @@
   }
 }
 
-/* Night: dim the printed poster a touch so it doesn't glare. */
+/* Night: dim the printed poster a touch so it doesn't glare (its ink stays AA: contrast.test.ts). */
 :global(:root[data-theme='night']) .poster {
   background:
-    linear-gradient(rgba(34, 28, 48, 0.28), rgba(34, 28, 48, 0.28)),
+    linear-gradient(rgba(34, 28, 48, 0.08), rgba(34, 28, 48, 0.08)),
     radial-gradient(circle at 12px 12px, rgba(255, 255, 255, 0.4) 2px, transparent 2.5px) 0 0 / 22px 22px,
     var(--poster);
 }
@@ -377,7 +388,7 @@
 @media (prefers-color-scheme: dark) {
   :global(:root:not([data-theme='light']):not([data-theme='night'])) .poster {
     background:
-      linear-gradient(rgba(34, 28, 48, 0.28), rgba(34, 28, 48, 0.28)),
+      linear-gradient(rgba(34, 28, 48, 0.08), rgba(34, 28, 48, 0.08)),
       radial-gradient(circle at 12px 12px, rgba(255, 255, 255, 0.4) 2px, transparent 2.5px) 0 0 / 22px 22px,
       var(--poster);
   }

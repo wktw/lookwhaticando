@@ -10,6 +10,7 @@ import { MachineArt } from '@/art/machines/MachineArt';
 import { CapsuleArt } from '@/art/machines/CapsuleArt';
 import { RARITIES } from '@/catalog/types';
 import { CapsuleMachine } from '@/features/capsules/CapsuleMachine';
+import type { Payment } from '@/features/capsules/payment';
 import { state } from '@/state/store';
 import type { GallerySection } from './sections';
 
@@ -68,6 +69,8 @@ function Frame({ w, h, children }: { w: number; h: number; children: ComponentCh
 /** Reveal demos: one per rarity, plus the duplicate/fusion, wish and quick-open variants. */
 const DEMOS: Record<string, RevealData> = {
   common: demo('pet-cat-orange', 'common', { pet: true }),
+  // A brand-new pet whose pull result carried no pet state: still gets the full intro.
+  meet: demo('pet-frog-green', 'common', {}),
   uncommon: demo('wear-fish-hat', 'uncommon', {}),
   rare: demo('pet-cat-strawberry', 'rare', { pet: true }),
   ultra: demo('pet-cat-lucky', 'ultra', { pet: true }),
@@ -113,6 +116,8 @@ function RevealDemos({ params }: { params: URLSearchParams }) {
   });
   const stage = (params.get('stage') as RevealStage | null) ?? undefined;
   const cracks = Number(params.get('cracks') ?? 0);
+  // &pay=ticket shows the ticket version of "Pull again".
+  const pay: Payment = params.get('pay') === 'ticket' ? 'ticket' : 'price';
   const data = open ? DEMOS[open.key] : undefined;
   return (
     <div class="gal-row">
@@ -131,7 +136,7 @@ function RevealDemos({ params }: { params: URLSearchParams }) {
           initialStage={stage}
           initialCracks={cracks}
           onClose={() => setOpen(null)}
-          onPullAgain={() => setOpen(null)}
+          pullAgain={{ pay, machine: MACHINES[0]!, onPull: () => setOpen(null) }}
         />
       )}
     </div>
@@ -193,11 +198,11 @@ export const SECTIONS: GallerySection[] = [
   },
   {
     id: 'capsules-reveal',
-    title: 'Reveal demos (?reveal=rare&stage=card)',
+    title: 'Reveal demos (?reveal=rare&stage=card, &pay=ticket)',
     render: (params) => <RevealDemos params={params} />,
   },
   {
-    id: 'capsules-screen',
+    id: 'capsules-phone',
     title: 'Capsules screen · phone (dev wallet: 500 coins, 20 stars, 2 tickets)',
     render: (params) => {
       seedWallet(params);
@@ -209,7 +214,7 @@ export const SECTIONS: GallerySection[] = [
     },
   },
   {
-    id: 'capsules-screen-wide',
+    id: 'capsules-desktop',
     title: 'Capsules screen · desktop',
     render: (params) => {
       seedWallet(params);

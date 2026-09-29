@@ -12,16 +12,27 @@
   opacity: 1;
 }
 
+.capsule-body {
+  transform-origin: 0 40px;
+}
+
+/* Open: the halves part around the center, scaled to stay inside the 100×100 canvas. */
+.capsule.is-open .capsule-body {
+  transform: scale(0.8);
+  transform-origin: 0 0;
+}
+
 .capsule.is-open .capsule-top {
-  transform: translate(-10px, -30px) rotate(-24deg);
+  transform: translate(-8px, -13px) rotate(-18deg);
 }
 
 .capsule.is-open .capsule-bottom {
-  transform: translate(6px, 12px) rotate(10deg);
+  transform: translate(6px, 16px) rotate(8deg);
 }
 
-.capsule-body {
-  transform-origin: 0 40px;
+.capsule.is-open .capsule-aura,
+.capsule.is-open .capsule-orbit {
+  display: none;
 }
 
 .capsule .capsule-sheen {

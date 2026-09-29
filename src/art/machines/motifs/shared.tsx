@@ -1,13 +1,14 @@
-import type { JSX } from 'preact';
+import type { ComponentChildren, JSX } from 'preact';
 import type { MachineDef } from '@/catalog/types';
 import { STROKE } from '../geometry';
 import { Face } from '../parts';
 
 /**
  * Per-series dressing (DESIGN §6.2): each machine is the same gumball machine wearing its
- * own topper and decals. Layers, back to front:
- *   back → body (clipped to the body) → decal (at DECAL, local coords) → capBack (behind the
- *   dome cap) → cap (over the cap) → topper (replaces the default knob) → front
+ * own topper, body print and decal. Layers, back to front:
+ *   back → body (a print clipped to the body) → decal (at DECAL, local coords) → capBack
+ *   (behind the dome cap) → cap (over the cap) → topper (replaces the default knob) → front
+ * `theme` adjusts the catalog palette where two series would otherwise look alike.
  */
 export interface MotifCtx {
   theme: MachineDef['theme'];
@@ -17,6 +18,7 @@ export interface MotifCtx {
 type Layer = (ctx: MotifCtx) => JSX.Element | null;
 
 export interface Motif {
+  theme?: Partial<MachineDef['theme']>;
   back?: Layer;
   body?: Layer;
   decal?: Layer;
@@ -52,3 +54,44 @@ export function blob(cx: number, cy: number, rx: number, ry: number, k: number[]
 
 /** A cute face sitting on the dome cap. */
 export const capFace = (mouth: 'u' | 'cat' | 'none' = 'u') => <Face x={120} y={41} spread={11} scale={0.9} mouth={mouth} />;
+
+/** A repeating print across the machine body (the body layer is already clipped to the body). */
+export function Print({
+  id,
+  w,
+  h,
+  opacity = 1,
+  transform,
+  children,
+}: {
+  id: string;
+  w: number;
+  h: number;
+  opacity?: number;
+  transform?: string;
+  children: ComponentChildren;
+}) {
+  return (
+    <g opacity={opacity}>
+      <defs>
+        <pattern id={id} width={w} height={h} patternUnits="userSpaceOnUse" patternTransform={transform}>
+          {children}
+        </pattern>
+      </defs>
+      <rect x={36} y={200} width={168} height={110} fill={`url(#${id})`} />
+    </g>
+  );
+}
+
+/** A paw print, about 10 units wide, centered on its main pad. */
+export function Paw({ x, y, s = 1, rot = 0, fill }: { x: number; y: number; s?: number; rot?: number; fill: string }) {
+  return (
+    <g transform={`translate(${x} ${y}) rotate(${rot}) scale(${s})`} fill={fill}>
+      <ellipse cx={0} cy={1.8} rx={3.5} ry={2.9} />
+      <circle cx={-3.8} cy={-2.2} r={1.4} />
+      <circle cx={-1.35} cy={-4.1} r={1.4} />
+      <circle cx={1.35} cy={-4.1} r={1.4} />
+      <circle cx={3.8} cy={-2.2} r={1.4} />
+    </g>
+  );
+}

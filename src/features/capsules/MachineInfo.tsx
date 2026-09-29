@@ -5,7 +5,7 @@ import { machineStatus, state } from '@/state/store';
 import { CollectibleArt } from '@/art/CollectibleArt';
 import { CoinIcon, Icon, StarIcon } from '@/art/icons';
 import { Pill } from './ui/CandyButton';
-import { machineCandy, monthDay, pityHint, priceLabel } from './copy';
+import { currencyWord, machineCandy, monthDay, pityHint, priceLabel } from './copy';
 import s from './CapsulesScreen.module.css';
 
 export interface MachineInfoProps {
@@ -48,7 +48,7 @@ export function MachineInfo({ machine, onLineup, onOdds }: MachineInfoProps) {
         <Pill tone="butter" title={priceLabel(machine)}>
           {machine.currency === 'stars' ? <StarIcon size={18} /> : <CoinIcon size={18} />}
           <span class="num">{machine.price}</span>
-          <span class="sr-only">{machine.currency} per pull</span>
+          <span class="sr-only"> {currencyWord(machine)} per pull</span>
         </Pill>
         <Pill tone="rare">{pityHint(status.rareIn)}</Pill>
       </div>

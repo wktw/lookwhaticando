@@ -194,15 +194,29 @@ export class DomeSim {
     }
   }
 
-  /** Remove the capsule sitting lowest (over the exit) and return it; neighbors tumble into its place. */
-  removeOne(): DomeBody | null {
+  /**
+   * Remove the capsule sitting lowest (over the exit) and return it; neighbors tumble into its
+   * place. With `prefer`, a preferred capsule close to the exit wins over the very lowest one
+   * (e.g. a colored capsule over a white one); if none is close, the lowest one still goes.
+   */
+  removeOne(prefer?: (b: DomeBody) => boolean): DomeBody | null {
     if (this.bodies.length === 0) return null;
     const exitScore = (b: DomeBody) => b.y - Math.abs(b.x - this.cx) * 0.35;
-    let best = 0;
-    for (let i = 1; i < this.bodies.length; i++) {
-      if (exitScore(this.bodies[i]!) > exitScore(this.bodies[best]!)) best = i;
+    const bestOf = (ok: (b: DomeBody) => boolean) => {
+      let best = -1;
+      for (let i = 0; i < this.bodies.length; i++) {
+        const b = this.bodies[i]!;
+        if (ok(b) && (best < 0 || exitScore(b) > exitScore(this.bodies[best]!))) best = i;
+      }
+      return best;
+    };
+    let pick = bestOf(() => true);
+    if (prefer && !prefer(this.bodies[pick]!)) {
+      const floor = exitScore(this.bodies[pick]!) - this.bodyRadius * 2.2;
+      const near = bestOf((b) => prefer(b) && exitScore(b) >= floor);
+      if (near >= 0) pick = near;
     }
-    const [removed] = this.bodies.splice(best, 1);
+    const [removed] = this.bodies.splice(pick, 1);
     this.contacts = [];
     this.wake();
     return removed ?? null;

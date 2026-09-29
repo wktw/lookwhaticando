@@ -8,7 +8,7 @@ import { prefersReducedMotion } from './motion';
 /** One sim per machine for the whole session, so a machine keeps its pile across swipes and tabs. */
 const sims = new Map<MachineId, DomeSim>();
 
-export function machineSim(machine: MachineDef): DomeSim {
+function machineSim(machine: MachineDef): DomeSim {
   let sim = sims.get(machine.id);
   if (!sim) {
     sim = createMachineSim(machine);
@@ -18,13 +18,12 @@ export function machineSim(machine: MachineDef): DomeSim {
 }
 
 export interface DomeController {
-  sim: DomeSim;
   /** Capsules to render (changes only when one leaves or arrives). */
   bodies: readonly DomeBody[];
   register: (id: number, nodes: CapsuleNodes | null) => void;
   stir: (strength: number, swirl?: number) => void;
-  /** Take the capsule over the exit; returns it for the drop animation. */
-  release: () => DomeBody | null;
+  /** Take the capsule over the exit (a `prefer`red one if it's close); returns it for the drop animation. */
+  release: (prefer?: (b: DomeBody) => boolean) => DomeBody | null;
   refill: () => void;
 }
 
@@ -85,7 +84,6 @@ export function useDome(machine: MachineDef, active: boolean): DomeController {
   }, [active]);
 
   return {
-    sim,
     bodies,
     register: (id, n) => (n ? nodes.set(id, n) : nodes.delete(id)),
     stir: (strength, swirl = 0) => {
@@ -93,8 +91,8 @@ export function useDome(machine: MachineDef, active: boolean): DomeController {
       sim.agitate(strength, swirl);
       kick();
     },
-    release: () => {
-      const b = sim.removeOne();
+    release: (prefer) => {
+      const b = sim.removeOne(prefer);
       setBodies([...sim.bodies]);
       kick();
       return b;

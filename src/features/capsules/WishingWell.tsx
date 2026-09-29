@@ -1,5 +1,5 @@
-import type { ComponentChildren } from 'preact';
-import { useMemo, useState } from 'preact/hooks';
+import type { ComponentChildren, Ref } from 'preact';
+import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import type { Category, CollectibleDef, MachineId } from '@/catalog/types';
 import { COLLECTIBLES } from '@/catalog/collectibles';
 import { MACHINE_BY_ID, MACHINES, WISH_PRICE } from '@/catalog/machines';
@@ -14,29 +14,35 @@ import { CandyButton, Pill, cx } from './ui/CandyButton';
 import { CATEGORY_LABEL, MACHINE_SHORT, RARITY_LABEL, wishErrorText } from './copy';
 import type { RevealData } from './reveal';
 import s from './Sheets.module.css';
-import screen from './CapsulesScreen.module.css';
+import card from './WishingWell.module.css';
 
 const CATEGORIES: Category[] = ['pet', 'wearable', 'treat', 'decor', 'plant', 'pot'];
+/** Tiles are built a page at a time as you scroll: opening the well stays light. */
+const PAGE = 24;
 
 /** Any machine item you don't own yet, seasonal ones included (exclusives can't be wished for). */
 function wishable(collection: Record<string, unknown>): CollectibleDef[] {
   return COLLECTIBLES.filter((c) => MACHINE_BY_ID.has(c.source as MachineId) && !collection[c.id]);
 }
 
-export function WishingWellCard({ onOpen }: { onOpen: () => void }) {
+const LAVENDER = { face: 'var(--lavender-300)', lip: 'var(--lavender-500)', ink: 'var(--ink)' };
+
+export function WishingWellCard({ onOpen, buttonRef }: { onOpen: () => void; buttonRef?: Ref<HTMLButtonElement> }) {
   const stars = state.value.wallet.stars;
   return (
-    <section class={screen.wellCard} aria-labelledby="wishing-well-title">
-      <WishingWellArt size={92} class={screen.wellArt} />
-      <div class={screen.wellText}>
-        <h2 id="wishing-well-title">Wishing Well</h2>
+    <section class={card.card} aria-labelledby="wishing-well-title">
+      <WishingWellArt size={92} class={card.art} />
+      <div class={card.text}>
+        <h2 id="wishing-well-title" class={card.title}>
+          Wishing Well
+        </h2>
         <p>Pick any friend or item you're missing and wish for it with stars.</p>
-        <CandyButton size="sm" colors={{ face: 'var(--lavender-300)', lip: 'var(--lavender-500)', ink: 'var(--ink)' }} onClick={onOpen}>
-          Make a wish
-          <span class={screen.wellStars}>
+        <CandyButton buttonRef={buttonRef} size="sm" colors={LAVENDER} onClick={onOpen}>
+          Make a wish{' '}
+          <span class={card.stars}>
             <StarIcon size={18} />
             <span class="num">{stars}</span>
-            <span class="sr-only">stars</span>
+            <span class="sr-only"> stars</span>
           </span>
         </CandyButton>
       </div>
@@ -46,21 +52,68 @@ export function WishingWellCard({ onOpen }: { onOpen: () => void }) {
 
 export interface WishingWellSheetProps {
   open: boolean;
+  /** The machine on screen: the grid starts filtered to its series. */
+  machineId: MachineId;
   onClose: () => void;
   onGranted: (reveal: RevealData) => void;
 }
 
 /** The star shop (DESIGN §6.4): a filterable grid of everything you're missing, with star prices. */
-export function WishingWellSheet({ open, onClose, onGranted }: WishingWellSheetProps) {
+export function WishingWellSheet({ open, machineId, onClose, onGranted }: WishingWellSheetProps) {
+  const stars = state.value.wallet.stars;
+  return (
+    <Sheet
+      open={open}
+      title="Wishing Well"
+      onClose={onClose}
+      aside={
+        <Pill tone="butter">
+          <StarIcon size={18} /> <span class="num">{stars}</span>
+          <span class="sr-only"> stars</span>
+        </Pill>
+      }
+    >
+      <WellBody initialMachine={machineId} onGranted={onGranted} />
+    </Sheet>
+  );
+}
+
+/** Mounted only while the sheet is, so each visit starts fresh on the machine you were looking at. */
+function WellBody({ initialMachine, onGranted }: { initialMachine: MachineId; onGranted: (reveal: RevealData) => void }) {
   const { collection, wallet } = state.value;
-  const [machine, setMachine] = useState<MachineId | 'all'>('all');
+  const all = useMemo(() => wishable(collection), [collection]);
+  const [machine, setMachine] = useState<MachineId | 'all'>(() => (all.some((c) => c.source === initialMachine) ? initialMachine : 'all'));
   const [category, setCategory] = useState<Category | 'all'>('all');
   const [picked, setPicked] = useState<CollectibleDef | null>(null);
   const [error, setError] = useState('');
+  const [limit, setLimit] = useState(PAGE);
+  const sentinel = useRef<HTMLDivElement>(null);
 
-  const all = useMemo(() => wishable(collection), [collection]);
   const items = all.filter((c) => (machine === 'all' || c.source === machine) && (category === 'all' || c.category === category));
   const machinesWithItems = MACHINES.filter((m) => all.some((c) => c.source === m.id));
+  const more = items.length > limit;
+
+  // The next page arrives as the end of the grid scrolls near.
+  useEffect(() => {
+    const el = sentinel.current;
+    if (!more || !el) return;
+    if (typeof IntersectionObserver === 'undefined') {
+      setLimit(Infinity);
+      return;
+    }
+    const io = new IntersectionObserver((entries) => entries.some((e) => e.isIntersecting) && setLimit((n) => n + PAGE), { rootMargin: '320px' });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [more, limit]);
+
+  const filterMachine = (m: MachineId | 'all') => {
+    setMachine(m);
+    setLimit(PAGE);
+  };
+  const filterCategory = (c: Category | 'all') => {
+    setCategory(c);
+    setLimit(PAGE);
+  };
 
   const pick = (item: CollectibleDef | null) => {
     setPicked(item);
@@ -96,36 +149,26 @@ export function WishingWellSheet({ open, onClose, onGranted }: WishingWellSheetP
   const short = picked ? price - wallet.stars : 0;
 
   return (
-    <Sheet
-      open={open}
-      title="Wishing Well"
-      onClose={onClose}
-      aside={
-        <Pill tone="butter">
-          <StarIcon size={18} /> <span class="num">{wallet.stars}</span>
-          <span class="sr-only">stars</span>
-        </Pill>
-      }
-    >
+    <>
       <p class={s.lead}>Every item from every series, seasonal ones too, whenever you like. Wishes cost stars.</p>
 
       <div class={s.filters} role="group" aria-label="Filter by machine">
-        <Chip on={machine === 'all'} onClick={() => setMachine('all')}>
+        <Chip on={machine === 'all'} onClick={() => filterMachine('all')}>
           All machines
         </Chip>
         {machinesWithItems.map((m) => (
-          <Chip key={m.id} on={machine === m.id} onClick={() => setMachine(m.id)}>
+          <Chip key={m.id} on={machine === m.id} onClick={() => filterMachine(m.id)}>
             {m.seasonal && <span aria-hidden="true">{m.seasonal.emoji} </span>}
             {MACHINE_SHORT[m.id]}
           </Chip>
         ))}
       </div>
       <div class={s.filters} role="group" aria-label="Filter by kind">
-        <Chip on={category === 'all'} onClick={() => setCategory('all')}>
+        <Chip on={category === 'all'} onClick={() => filterCategory('all')}>
           Everything
         </Chip>
         {CATEGORIES.map((c) => (
-          <Chip key={c} on={category === c} onClick={() => setCategory(c)}>
+          <Chip key={c} on={category === c} onClick={() => filterCategory(c)}>
             {CATEGORY_LABEL[c]}
           </Chip>
         ))}
@@ -137,7 +180,7 @@ export function WishingWellSheet({ open, onClose, onGranted }: WishingWellSheetP
         </p>
       ) : (
         <ul class={s.wishGrid}>
-          {items.map((item) => (
+          {items.slice(0, limit).map((item) => (
             <li key={item.id}>
               <button
                 type="button"
@@ -152,13 +195,14 @@ export function WishingWellSheet({ open, onClose, onGranted }: WishingWellSheetP
                 <span class={s.wishPrice}>
                   <StarIcon size={16} />
                   <span class="num">{WISH_PRICE[item.rarity]}</span>
-                  <span class="sr-only">stars, {RARITY_LABEL[item.rarity]}</span>
+                  <span class="sr-only"> stars, {RARITY_LABEL[item.rarity]}</span>
                 </span>
               </button>
             </li>
           ))}
         </ul>
       )}
+      {more && <div ref={sentinel} class={s.more} aria-hidden="true" />}
 
       {picked && (
         <div class={s.confirm} role="region" aria-label="Confirm your wish">
@@ -185,18 +229,13 @@ export function WishingWellSheet({ open, onClose, onGranted }: WishingWellSheetP
             <CandyButton size="sm" variant="plain" onClick={() => pick(null)}>
               Not now
             </CandyButton>
-            <CandyButton
-              size="sm"
-              colors={{ face: 'var(--lavender-300)', lip: 'var(--lavender-500)', ink: 'var(--ink)' }}
-              onClick={makeWish}
-              disabled={short > 0}
-            >
+            <CandyButton size="sm" colors={LAVENDER} onClick={makeWish} disabled={short > 0}>
               Make the wish
             </CandyButton>
           </div>
         </div>
       )}
-    </Sheet>
+    </>
   );
 }
 

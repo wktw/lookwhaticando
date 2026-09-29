@@ -158,6 +158,21 @@ describe('DomeSim', () => {
     expectContained(sim);
   });
 
+  it('removeOne can prefer a capsule near the exit, and falls back to the lowest', () => {
+    const sim = new DomeSim(DOME);
+    sim.settle();
+    const exitScore = (b: { x: number; y: number }) => b.y - Math.abs(b.x - sim.cx) * 0.35;
+    const lowest = sim.bodies.reduce((a, b) => (exitScore(b) > exitScore(a) ? b : a));
+    const other = sim.removeOne((b) => b.id !== lowest.id);
+    expect(other).not.toBeNull();
+    expect(other!.id).not.toBe(lowest.id);
+    expect(exitScore(other!)).toBeGreaterThanOrEqual(exitScore(lowest) - 2.2 * DOME.bodyRadius);
+    // Nothing acceptable: the lowest capsule still leaves.
+    const fallback = sim.removeOne(() => false);
+    const lowestNow = Math.max(...[fallback!, ...sim.bodies].map(exitScore));
+    expect(exitScore(fallback!)).toBe(lowestNow);
+  });
+
   it('removeOne on an empty dome returns null', () => {
     const sim = new DomeSim({ ...DOME, count: 1 });
     expect(sim.removeOne()).not.toBeNull();

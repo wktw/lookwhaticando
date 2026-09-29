@@ -1,24 +1,44 @@
 import type { ComponentChildren, JSX, Ref } from 'preact';
 import { useId } from 'preact/hooks';
 import type { MachineDef } from '@/catalog/types';
-import type { DomeBody } from '@/fx/physics';
-import { CAP, CHUTE, COLLAR, CRANK, CRANK_REST, DECAL, DOME, DOME_INNER, FEET, GROUND_Y, OUTLINE, SLOT, STROKE, VIEWBOX, bodyPath, capPath } from './geometry';
+import {
+  CAP,
+  CHUTE,
+  COLLAR,
+  CRANK,
+  CRANK_REST,
+  DECAL,
+  DOME,
+  DOME_INNER,
+  FEET,
+  GROUND_Y,
+  OUTLINE,
+  SLOT,
+  STROKE,
+  TRAY,
+  VIEWBOX,
+  bodyPath,
+  capPath,
+} from './geometry';
 import { shade, tint } from './color';
 import { DomeCapsules } from './DomeCapsules';
 import { MOTIFS, type MotifCtx } from './motifs';
 import { settledPile } from './pile';
+import { machineTheme } from './theme';
 import './machine.css';
+
+type Theme = MachineDef['theme'];
 
 export interface MachineArtProps {
   machine: MachineDef;
-  /** Capsules resting in the dome; defaults to this machine's settled pile. */
-  capsules?: readonly DomeBody[];
-  /** Replaces the dome capsules entirely (interactive machines render their own). */
+  /** Replaces the dome capsules (interactive machines render their own); defaults to the settled pile. */
   dome?: JSX.Element;
-  /** Crank handle rotation in degrees (static renders). */
-  crankAngle?: number;
+  /** The machine's root <svg>, e.g. for idle life. */
+  svgRef?: Ref<SVGSVGElement>;
   /** The rotating crank handle, for direct transform writes. */
   crankRef?: Ref<SVGGElement>;
+  /** The coin plate (it jiggles when you turn the crank before paying). */
+  slotRef?: Ref<SVGGElement>;
   /** The chute flap (hinged at its top edge). */
   flapRef?: Ref<SVGGElement>;
   /** Drawn inside the chute opening, under the flap: a capsule on its way out. */
@@ -41,13 +61,14 @@ export interface MachineArtProps {
 export function MachineArt(props: MachineArtProps) {
   const { machine, title, height } = props;
   const uid = `mc${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`;
-  const theme = machine.theme;
+  const theme = machineTheme(machine);
   const motif = MOTIFS[machine.id];
   const ctx: MotifCtx = { theme, uid };
   const px = typeof height === 'number' ? `${height}px` : height;
 
   return (
     <svg
+      ref={props.svgRef}
       class={['machine', `machine-${machine.id}`, props.class ?? ''].filter(Boolean).join(' ')}
       viewBox={VIEWBOX}
       width={px ? undefined : '100%'}
@@ -66,7 +87,7 @@ export function MachineArt(props: MachineArtProps) {
           <circle cx={DOME.cx} cy={DOME.cy} r={DOME_INNER} />
         </clipPath>
         <clipPath id={`${uid}-chute`}>
-          <rect x={CHUTE.cx - CHUTE.w / 2 + 5} y={CHUTE.cy - CHUTE.h / 2 + 5} width={CHUTE.w - 10} height={CHUTE.h + 40} rx={7} />
+          <rect x={CHUTE.cx - CHUTE.w / 2 + 5} y={CHUTE.cy - CHUTE.h / 2 + 5} width={CHUTE.w - 10} height={CHUTE.h - 10} rx={7} />
         </clipPath>
       </defs>
 
@@ -80,16 +101,16 @@ export function MachineArt(props: MachineArtProps) {
 
       <MachineBody ctx={ctx} uid={uid} pattern={motif.body?.(ctx)} />
       <g transform={`translate(${DECAL.cx} ${DECAL.cy})`}>{motif.decal?.(ctx)}</g>
-      <CoinSlot theme={theme} />
+      <CoinSlot theme={theme} slotRef={props.slotRef} />
       <Chute theme={theme} uid={uid} flapRef={props.flapRef}>
         {props.chute}
       </Chute>
-      <Crank theme={theme} angle={props.crankAngle ?? CRANK_REST} crankRef={props.crankRef} />
+      <Crank theme={theme} crankRef={props.crankRef} />
 
       <Glass uid={uid} theme={theme}>
-        {props.dome ?? <DomeCapsules uid={uid} colors={theme.capsules} bodies={props.capsules ?? settledPile(machine)} />}
+        {props.dome ?? <DomeCapsules uid={uid} colors={theme.capsules} bodies={settledPile(machine)} />}
       </Glass>
-      <Collar machine={machine} />
+      <Collar machine={machine} theme={theme} />
 
       {motif.capBack?.(ctx)}
       {!motif.topper && <Knob theme={theme} />}
@@ -136,7 +157,7 @@ function MachineBody({ ctx, uid, pattern }: { ctx: MotifCtx; uid: string; patter
   );
 }
 
-function Glass({ uid, theme, children }: { uid: string; theme: MachineDef['theme']; children: ComponentChildren }) {
+function Glass({ uid, theme, children }: { uid: string; theme: Theme; children: ComponentChildren }) {
   const { cx, cy, r } = DOME;
   const arc = (rad: number, a0: number, a1: number) => {
     const p = (a: number) => `${(cx + Math.cos((a * Math.PI) / 180) * rad).toFixed(2)} ${(cy + Math.sin((a * Math.PI) / 180) * rad).toFixed(2)}`;
@@ -144,7 +165,7 @@ function Glass({ uid, theme, children }: { uid: string; theme: MachineDef['theme
   };
   return (
     <g class="machine-glass">
-      <circle cx={cx} cy={cy} r={r} fill={theme.glass} />
+      <circle class="machine-glass-fill" cx={cx} cy={cy} r={r} fill={theme.glass} style={{ '--machine-glass': theme.glass } as JSX.CSSProperties} />
       <ellipse cx={cx} cy={cy + r * 0.62} rx={r * 0.8} ry={r * 0.36} fill={OUTLINE} opacity={0.05} />
       <g clip-path={`url(#${uid}-dome)`}>{children}</g>
       <circle cx={cx} cy={cy} r={r - 5} fill="none" stroke="#fff" stroke-width={7} opacity={0.3} />
@@ -153,12 +174,16 @@ function Glass({ uid, theme, children }: { uid: string; theme: MachineDef['theme
       <path d={arc(r - 8, 14, 56)} fill="none" stroke="#fff" stroke-width={4.5} stroke-linecap="round" opacity={0.6} />
       <circle cx={cx + r * 0.5} cy={cy - r * 0.52} r={4} fill="#fff" opacity={0.8} />
       <circle cx={cx} cy={cy} r={r} fill="none" stroke={OUTLINE} stroke-width={STROKE} />
+      {/* Night only: a rim of moonlight so the glass edge reads on a dark page. */}
+      <g class="machine-night-rim" fill="none" stroke="#fff">
+        <circle cx={cx} cy={cy} r={r - 2.6} stroke-width={1.4} opacity={0.3} />
+        <circle cx={cx} cy={cy} r={r + 2.8} stroke-width={2.6} opacity={0.1} />
+      </g>
     </g>
   );
 }
 
-function Collar({ machine }: { machine: MachineDef }) {
-  const { theme } = machine;
+function Collar({ machine, theme }: { machine: MachineDef; theme: Theme }) {
   const { x, y, w, h, r } = COLLAR;
   const stars = machine.currency === 'stars';
   const label = String(machine.price);
@@ -199,7 +224,7 @@ function MiniStar() {
   );
 }
 
-function Knob({ theme }: { theme: MachineDef['theme'] }) {
+function Knob({ theme }: { theme: Theme }) {
   return (
     <g stroke={OUTLINE} stroke-width={STROKE}>
       <rect x={114} y={20} width={12} height={14} rx={3} fill={shade(theme.trim, 0.06)} />
@@ -209,20 +234,29 @@ function Knob({ theme }: { theme: MachineDef['theme'] }) {
   );
 }
 
-function CoinSlot({ theme }: { theme: MachineDef['theme'] }) {
-  const { cx, cy, w, h } = SLOT;
+/** A coin plate: a little coin over the slit, so it can't be mistaken for a zero. */
+function CoinSlot({ theme, slotRef }: { theme: Theme; slotRef?: Ref<SVGGElement> }) {
+  const { cx, cy, w, h, slitY } = SLOT;
   return (
-    <g class="machine-slot">
-      <rect x={cx - w / 2} y={cy - h / 2} width={w} height={h} rx={7} fill={theme.trim} stroke={OUTLINE} stroke-width={STROKE} />
-      <rect x={cx - 2.2} y={cy - 9} width={4.4} height={18} rx={2.2} fill={OUTLINE} opacity={0.85} />
+    <g class="machine-slot" ref={slotRef}>
+      <rect x={cx - w / 2} y={cy - h / 2} width={w} height={h} rx={10} fill={theme.trim} stroke={OUTLINE} stroke-width={STROKE} />
+      <path d={`M${cx - 6} ${cy - h / 2 + 5} L${cx + 1} ${cy - h / 2 + 5}`} stroke="#fff" stroke-width={2.4} stroke-linecap="round" opacity={0.7} />
+      <g transform={`translate(${cx} ${cy - 10})`} stroke={OUTLINE} stroke-width={1.5}>
+        <circle r={5.6} fill="#F6C544" />
+        <circle r={3.1} fill="none" stroke="#FFE593" stroke-width={1.2} />
+      </g>
+      <rect x={cx - 2.4} y={slitY - 8} width={4.8} height={16} rx={2.4} fill={OUTLINE} opacity={0.88} />
     </g>
   );
 }
 
-function Chute({ theme, uid, flapRef, children }: { theme: MachineDef['theme']; uid: string; flapRef?: Ref<SVGGElement>; children?: ComponentChildren }) {
+function Chute({ theme, uid, flapRef, children }: { theme: Theme; uid: string; flapRef?: Ref<SVGGElement>; children?: ComponentChildren }) {
   const { cx, cy, w, h } = CHUTE;
   const x = cx - w / 2;
   const y = cy - h / 2;
+  const t = TRAY;
+  const tl = t.cx - t.w / 2;
+  const tr = t.cx + t.w / 2;
   return (
     <g class="machine-chute">
       <rect x={x} y={y} width={w} height={h} rx={11} fill={theme.trim} stroke={OUTLINE} stroke-width={STROKE} />
@@ -232,6 +266,15 @@ function Chute({ theme, uid, flapRef, children }: { theme: MachineDef['theme']; 
         <rect x={x + 5} y={y + 5} width={w - 10} height={h - 10} rx={7} fill={shade(theme.trim, 0.1)} stroke={OUTLINE} stroke-width={1.8} />
         <path d={`M${cx - 8} ${y + 10.5} L${cx + 8} ${y + 10.5}`} stroke={OUTLINE} stroke-width={2} stroke-linecap="round" opacity={0.45} />
       </g>
+      {/* the tray lip the capsule rolls out over */}
+      <path
+        d={`M${tl + 3} ${t.y} H${tr - 3} Q${tr + 1} ${t.y} ${tr} ${t.y + 3} L${tr - 2} ${t.y + t.h - 2.5} Q${tr - 3} ${t.y + t.h} ${tr - 6} ${t.y + t.h} H${tl + 6} Q${tl + 3} ${t.y + t.h} ${tl + 2} ${t.y + t.h - 2.5} L${tl} ${t.y + 3} Q${tl - 1} ${t.y} ${tl + 3} ${t.y} Z`}
+        fill={shade(theme.trim, 0.05)}
+        stroke={OUTLINE}
+        stroke-width={STROKE}
+        stroke-linejoin="round"
+      />
+      <path d={`M${tl + 8} ${t.y + 3} H${t.cx - 6}`} stroke="#fff" stroke-width={2.2} stroke-linecap="round" opacity={0.75} />
     </g>
   );
 }
@@ -245,7 +288,7 @@ function hubPath(r: number, bumps: number): string {
   return `${d} Z`;
 }
 
-function Crank({ theme, angle, crankRef }: { theme: MachineDef['theme']; angle: number; crankRef?: Ref<SVGGElement> }) {
+function Crank({ theme, crankRef }: { theme: Theme; crankRef?: Ref<SVGGElement> }) {
   const { cx, cy, r } = CRANK;
   const knob = theme.body === '#FFFFFF' ? theme.trim : theme.body;
   return (
@@ -254,7 +297,7 @@ function Crank({ theme, angle, crankRef }: { theme: MachineDef['theme']; angle: 
       <path d={hubPath(r - 2.5, 9)} fill={theme.trim} stroke={OUTLINE} stroke-width={STROKE} stroke-linejoin="round" />
       <circle r={r - 9} fill={tint(theme.trim, 0.55)} stroke={OUTLINE} stroke-width={1.5} opacity={0.95} />
       <g class="machine-crank-wobble">
-        <g class="machine-crank-handle" ref={crankRef} transform={`rotate(${angle})`}>
+        <g class="machine-crank-handle" ref={crankRef} transform={`rotate(${CRANK_REST})`}>
           <rect x={-4.6} y={-r + 3} width={9.2} height={r - 1} rx={4.6} fill={shade(theme.trim, 0.08)} stroke={OUTLINE} stroke-width={STROKE} />
           <circle cx={0} cy={-r + 3} r={9.5} fill={knob} stroke={OUTLINE} stroke-width={STROKE} />
           <circle cx={-3} cy={-r} r={2.6} fill="#fff" opacity={0.85} />

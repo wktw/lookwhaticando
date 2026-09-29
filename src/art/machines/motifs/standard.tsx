@@ -1,11 +1,18 @@
 import { OUTLINE } from '../geometry';
 import { tint } from '../color';
+import { SPARKLE_PATH } from '../CapsuleArt';
 import { Blossom, Face, Heart, Leaf, Sparkle, Star } from '../parts';
-import { MIRROR, PETAL, SW, blob, capFace, type Motif } from './shared';
+import { MIRROR, PETAL, Paw, Print, SW, blob, capFace, type Motif } from './shared';
 
 /* The six standard series. */
 
 export const kitty: Motif = {
+  body: ({ theme, uid }) => (
+    <Print id={`${uid}-paws`} w={30} h={27} opacity={0.6}>
+      <Paw x={8} y={8} s={0.9} rot={-14} fill={tint(theme.body, 0.5)} />
+      <Paw x={23} y={21.5} s={0.9} rot={12} fill={tint(theme.body, 0.5)} />
+    </Print>
+  ),
   back: ({ theme }) => (
     <g class="machine-tail">
       <path d="M186 292 C207 295 219 280 217 260 C216 250 211 244 205 244" fill="none" stroke={OUTLINE} stroke-width={9 + SW * 2} stroke-linecap="round" />
@@ -27,8 +34,8 @@ export const kitty: Motif = {
       </g>
     );
     return (
-      <g class="machine-ears">
-        <g class="machine-ear-l">{ear}</g>
+      <g>
+        <g class="machine-ear">{ear}</g>
         <g transform={MIRROR}>{ear}</g>
       </g>
     );
@@ -111,7 +118,28 @@ export const moo: Motif = {
   ),
 };
 
+/** A little dog bone, about 12 units long. */
+function Bone({ x, y, rot }: { x: number; y: number; rot: number }) {
+  return (
+    <g transform={`translate(${x} ${y}) rotate(${rot})`}>
+      <rect x={-4.6} y={-1.4} width={9.2} height={2.8} rx={1.4} />
+      <circle cx={-4.8} cy={-1.5} r={1.8} />
+      <circle cx={-4.8} cy={1.5} r={1.8} />
+      <circle cx={4.8} cy={-1.5} r={1.8} />
+      <circle cx={4.8} cy={1.5} r={1.8} />
+    </g>
+  );
+}
+
 export const puppy: Motif = {
+  body: ({ uid }) => (
+    <Print id={`${uid}-bones`} w={34} h={26} opacity={0.62}>
+      <g fill="#fff">
+        <Bone x={9} y={7} rot={-24} />
+        <Bone x={26} y={20} rot={18} />
+      </g>
+    </Print>
+  ),
   topper: () => null,
   front: () => {
     const ear = (
@@ -122,7 +150,7 @@ export const puppy: Motif = {
     );
     return (
       <g>
-        <g class="machine-ear-l">{ear}</g>
+        <g class="machine-ear">{ear}</g>
         <g transform={MIRROR}>{ear}</g>
         <Face x={120} y={39} spread={11} scale={0.9} mouth="none" />
         <ellipse cx={120} cy={44.2} rx={3.4} ry={2.4} fill={OUTLINE} />
@@ -142,6 +170,15 @@ export const puppy: Motif = {
 };
 
 export const sakura: Motif = {
+  body: ({ uid }) => (
+    <Print id={`${uid}-petals`} w={30} h={26} opacity={0.85}>
+      <g fill="#FFE9EF">
+        <path d={PETAL} transform="translate(8 9) rotate(-30) scale(0.95)" />
+        <path d={PETAL} transform="translate(23 21) rotate(40) scale(0.85)" />
+        <circle cx={22} cy={6} r={1.1} />
+      </g>
+    </Print>
+  ),
   back: () => (
     <g class="machine-petals" fill="#FFC4D3" stroke={OUTLINE} stroke-width={1.3}>
       <g transform="translate(30 104) rotate(-30)">
@@ -153,7 +190,7 @@ export const sakura: Motif = {
     </g>
   ),
   topper: () => (
-    <g>
+    <g class="machine-sway">
       <path d="M120 34 L120 24" stroke={OUTLINE} stroke-width={SW + 3} stroke-linecap="round" />
       <path d="M120 34 L120 24" stroke="#B98A72" stroke-width={3} stroke-linecap="round" />
       <Blossom x={120} y={18} s={1.15} rot={-8} />
@@ -198,6 +235,15 @@ export const sakura: Motif = {
 };
 
 export const sweets: Motif = {
+  // Bakery-box gingham.
+  body: ({ uid }) => (
+    <Print id={`${uid}-gingham`} w={16} h={16} opacity={0.34}>
+      <g fill="#fff">
+        <rect x={0} y={0} width={8} height={16} />
+        <rect x={0} y={0} width={16} height={8} />
+      </g>
+    </Print>
+  ),
   cap: () => (
     <g>
       <path
@@ -222,7 +268,7 @@ export const sweets: Motif = {
     </g>
   ),
   topper: () => (
-    <g stroke={OUTLINE} stroke-linejoin="round">
+    <g class="machine-sway" stroke={OUTLINE} stroke-linejoin="round">
       <path d="M121 13 C122 7 125 2.5 131 0" fill="none" stroke-width={SW} stroke-linecap="round" />
       <path d="M126 5 C130 1.5 135 2 137 4 C134 6.5 129.5 7 126 5 Z" fill="#C3DFB4" stroke-width={1.6} />
       <circle cx={120} cy={21} r={9.5} fill="#F0607F" stroke-width={SW} />
@@ -248,6 +294,15 @@ export const sweets: Motif = {
 };
 
 export const dreamy: Motif = {
+  body: ({ uid }) => (
+    <Print id={`${uid}-stars`} w={36} h={32} opacity={0.9}>
+      <path d={SPARKLE_PATH} transform="translate(7 8) scale(0.62)" fill="#FFF3C4" />
+      <path d={SPARKLE_PATH} transform="translate(26 24) scale(0.46)" fill="#fff" />
+      <circle cx={24} cy={6} r={0.95} fill="#fff" />
+      <circle cx={11} cy={25} r={0.8} fill="#FFF3C4" />
+      <circle cx={32} cy={15} r={0.7} fill="#fff" />
+    </Print>
+  ),
   back: ({ uid }) => (
     <g>
       <defs>
@@ -262,7 +317,7 @@ export const dreamy: Motif = {
     </g>
   ),
   topper: () => (
-    <g stroke={OUTLINE} stroke-linejoin="round">
+    <g class="machine-sway" stroke={OUTLINE} stroke-linejoin="round">
       <path d="M120 34 L120 26" stroke-width={SW + 2.4} stroke-linecap="round" />
       <path d="M120 34 L120 26" stroke="#FFE593" stroke-width={2.6} stroke-linecap="round" />
       <g transform="translate(118 12) rotate(-18)">

@@ -39,11 +39,22 @@ const BOTTOM_HALF = `M${-R} 0 A${R} ${R} 0 0 0 ${R} 0 Z`;
 export const SPARKLE_PATH = 'M0 -5 C0.7 -1.3 1.3 -0.7 5 0 C1.3 0.7 0.7 1.3 0 5 C-0.7 1.3 -1.3 0.7 -5 0 C-1.3 -0.7 -0.7 -1.3 0 -5 Z';
 export const HOLO_STOPS = ['#FFB3C7', '#FFE593', '#B3E6D6', '#BBDCF6', '#D6C8F8'];
 
-/** Eggshell cracks, one set per tap: each starts at the seam or rim and branches. */
-const CRACKS = [
-  'M-5 -3 L-8 -9 L-3 -13.5 L-7 -19 L-4 -24 M-3 -13.5 L2.5 -16',
-  'M16 -3 L12.5 -8.5 L18 -12.5 L15 -18.5 L20 -24 M18 -12.5 L24.5 -13 M-4 -24 L-9 -30.5 L-6 -35',
-  'M-24 -3 L-20.5 -9.5 L-26 -14 L-22.5 -20 M-20.5 -9.5 L-14 -11 M5 -39 L2.5 -33 L7 -28.5 L4 -23',
+/**
+ * Eggshell cracks spreading from one impact point near the top: [level, path]. Each tap
+ * (level) lengthens the cracks already there and adds a branch, until they reach the seam.
+ */
+const CRACKS: [number, string][] = [
+  [1, 'M9 -27 L5 -22 L8 -18'],
+  [1, 'M9 -27 L14 -29 L17 -26'],
+  [1, 'M9 -27 L8 -33'],
+  [2, 'M8 -18 L3 -14 L5 -10'],
+  [2, 'M17 -26 L22 -22 L21 -17'],
+  [2, 'M8 -33 L4 -36.5'],
+  [2, 'M9 -27 L2 -30 L-3 -27'],
+  [3, 'M5 -10 L0 -6.5 L2 -3'],
+  [3, 'M21 -17 L27 -13 L26 -8 L31 -3'],
+  [3, 'M-3 -27 L-8 -21 L-6 -15 L-12 -10 L-10 -3'],
+  [3, 'M22 -22 L29 -24 L32 -20'],
 ];
 
 export function CapsuleShell({ rarity, color, color2, state = 'closed', cracks = 0, animated, stroke = 2.4, class: cls }: CapsuleShellProps) {
@@ -144,9 +155,10 @@ function HoloShimmer() {
 }
 
 function Cracks({ level, stroke }: { level: number; stroke: number }) {
-  const paths = CRACKS.slice(0, Math.min(3, level));
+  const paths = CRACKS.filter(([l]) => l <= level).map(([, d]) => d);
   return (
     <g class="capsule-cracks" fill="none" stroke-linecap="round" stroke-linejoin="round">
+      {/* at the last tap, light leaks through */}
       {level >= 3 && paths.map((d) => <path key={`g${d}`} d={d} stroke="#FFFBEA" stroke-width={stroke * 2.4} />)}
       {paths.map((d) => (
         <path key={d} d={d} stroke={OUTLINE} stroke-width={stroke * 0.7} />

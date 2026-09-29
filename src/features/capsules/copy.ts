@@ -2,7 +2,9 @@
 import type { Category, CollectibleDef, MachineDef, MachineId, Rarity } from '@/catalog/types';
 import type { PullError } from '@/state/api';
 import type { CandyColors } from './ui/CandyButton';
+import type { Payment } from './payment';
 import { mix, shade } from '@/art/machines/color';
+import { machineHue } from '@/art/machines/theme';
 
 export const RARITY_LABEL: Record<Rarity, string> = {
   common: 'Common',
@@ -30,11 +32,13 @@ export const CATEGORY_LABEL: Record<Category, string> = {
 
 const SLOT_LABEL = { head: 'Head wear', face: 'Face wear', neck: 'Neckwear', body: 'Outfit' } as const;
 
-/** "Calico · cat", "Head wear", "Treat"… */
+const capitalize = (w: string) => w.charAt(0).toUpperCase() + w.slice(1);
+
+/** "Calico · Cat", "Strawberry Cat" (no "· Cat" twice), "Head wear", "Treat"… */
 export function kindLabel(def: CollectibleDef): string {
   switch (def.category) {
     case 'pet':
-      return `${def.name} · ${def.species}`;
+      return new RegExp(`\\b${def.species}\\b`, 'i').test(def.name) ? def.name : `${def.name} · ${capitalize(def.species)}`;
     case 'wearable':
       return SLOT_LABEL[def.slot];
     case 'treat':
@@ -81,12 +85,28 @@ export function monthDay(md: { month: number; day: number }): string {
 }
 
 export function priceLabel(m: MachineDef): string {
-  return `${m.price} ${m.currency === 'coins' ? (m.price === 1 ? 'coin' : 'coins') : m.price === 1 ? 'star' : 'stars'}`;
+  return `${m.price} ${currencyWord(m)}`;
+}
+
+/** "coins" / "stars" (singular for a price of 1). */
+export function currencyWord(m: MachineDef): string {
+  return m.currency === 'coins' ? (m.price === 1 ? 'coin' : 'coins') : m.price === 1 ? 'star' : 'stars';
+}
+
+/** "for 25 coins", "for 3 stars", "with a ticket" */
+export function paymentPhrase(pay: Payment, m: MachineDef): string {
+  return pay === 'ticket' ? 'with a ticket' : `for ${priceLabel(m)}`;
 }
 
 export function pityHint(rareIn: number): string {
   if (rareIn <= 1) return 'Next pull is Rare or better ✨';
   return `Rare+ within ${rareIn} pulls ✨`;
+}
+
+/** Said when the crank is tapped before anything is paid (and shown, shorter, in a bubble). */
+export function nudgeText(m: MachineDef, short = false): string {
+  const token = m.currency === 'stars' ? 'star' : 'coin';
+  return short ? `${token === 'star' ? 'Star' : 'Coin'} first!` : `Pop a ${token} in first!`;
 }
 
 export interface FriendlyNotice {
@@ -114,8 +134,8 @@ export function pullErrorNotice(error: PullError, m: MachineDef): FriendlyNotice
   }
 }
 
-/** Candy-button colors for a machine: a soft face in the body hue, text in the theme's AA ink. */
+/** Candy-button colors for a machine: a soft face in its signature hue, text in the theme's AA ink. */
 export function machineCandy(m: MachineDef): CandyColors {
-  const base = m.theme.body.toUpperCase() === '#FFFFFF' ? m.theme.trim : m.theme.body;
+  const base = machineHue(m);
   return { face: mix(base, '#FFFFFF', 0.45), lip: shade(base, 0.18), ink: m.theme.ink };
 }

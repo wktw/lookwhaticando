@@ -1,5 +1,5 @@
 import { signal } from '@preact/signals';
-import { useState } from 'preact/hooks';
+import { useRef, useState } from 'preact/hooks';
 import { MACHINES } from '@/catalog/machines';
 import { machineStatus } from '@/state/store';
 import { MachineCarousel } from './MachineCarousel';
@@ -29,6 +29,7 @@ export function CapsulesScreen() {
   const [busy, setBusy] = useState(false);
   const [sheet, setSheet] = useState<SheetName>(null);
   const [granted, setGranted] = useState<RevealData | null>(null);
+  const wishButton = useRef<HTMLButtonElement>(null);
 
   return (
     <section class={s.screen} aria-labelledby="capsules-title">
@@ -43,7 +44,7 @@ export function CapsulesScreen() {
         </div>
         <div class={s.infoCol}>
           <MachineInfo machine={machine} onLineup={() => setSheet('lineup')} onOdds={() => setSheet('odds')} />
-          <WishingWellCard onOpen={() => setSheet('wish')} />
+          <WishingWellCard onOpen={() => setSheet('wish')} buttonRef={wishButton} />
           <p class={s.pastSeasons}>
             <span aria-hidden="true">🍂</span> Seasonal series come back every year, and their friends can be wished for any time.
           </p>
@@ -54,13 +55,15 @@ export function CapsulesScreen() {
       <OddsSheet machine={machine} open={sheet === 'odds'} onClose={() => setSheet(null)} />
       <WishingWellSheet
         open={sheet === 'wish'}
+        machineId={machine.id}
         onClose={() => setSheet(null)}
         onGranted={(r) => {
+          // The reveal opens over the sheet as it slides away; focus comes home to the well card.
           setSheet(null);
           setGranted(r);
         }}
       />
-      {granted && <RevealOverlay data={granted} onClose={() => setGranted(null)} />}
+      {granted && <RevealOverlay data={granted} onClose={() => setGranted(null)} returnFocus={() => wishButton.current} />}
     </section>
   );
 }

@@ -18,16 +18,11 @@
 
 .wallet {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   margin: 0;
-  padding: 2px;
+  padding: 0;
   list-style: none;
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-
-.wallet::-webkit-scrollbar {
-  display: none;
 }
 
 .chip {
@@ -61,6 +56,28 @@
   }
 }
 
+/* Small phones: the four chips tighten up to stay on one line. */
+@media (max-width: 359px) {
+  .wallet {
+    gap: 6px;
+  }
+
+  .chip {
+    gap: 4px;
+    min-height: 36px;
+    padding: 5px 10px 5px 6px;
+  }
+
+  .chip > svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  .chipValue {
+    font-size: 1rem;
+  }
+}
+
 /* ---------- carousel ---------- */
 .carousel {
   position: relative;
@@ -69,6 +86,9 @@
 
 .track {
   display: flex;
+  /* A horizontal scroller clips vertically too: pages carry padding for their shadows and
+     spotlight, and these margins give that room back to the layout. */
+  margin: -28px 0 -24px;
   overflow-x: auto;
   scroll-snap-type: x mandatory;
   overscroll-behavior-x: contain;
@@ -88,7 +108,7 @@
   display: flex;
   flex: 0 0 100%;
   justify-content: center;
-  padding-top: 8px;
+  padding: 36px 0 24px;
   scroll-snap-align: center;
   scroll-snap-stop: always;
 }
@@ -263,7 +283,7 @@
   padding: 2px 10px;
   border-radius: var(--r-pill);
   background: var(--sage-100);
-  color: var(--sage-700);
+  color: color-mix(in srgb, var(--sage-700) 75%, var(--ink));
   font-size: var(--fs-caption);
 }
 
@@ -365,45 +385,6 @@
   transition: transform var(--t-micro) var(--ease-out);
 }
 
-/* ---------- wishing well ---------- */
-.wellCard {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  margin: 16px var(--gutter) 0;
-  padding: 16px 18px 16px 10px;
-  border-radius: var(--r-lg);
-  background: linear-gradient(135deg, var(--lavender-100), var(--sky-100));
-  box-shadow: var(--shadow-sm);
-}
-
-.wellArt {
-  flex: none;
-}
-
-.wellCard .wellText h2 {
-  color: var(--ink);
-  font-size: var(--fs-headline);
-}
-
-.wellText p {
-  margin: 4px 0 12px;
-  color: var(--ink-2);
-  font-size: var(--fs-caption);
-  font-weight: 600;
-}
-
-.wellStars {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  margin-left: 2px;
-  padding: 2px 8px 2px 4px;
-  border-radius: var(--r-pill);
-  background: rgba(255, 255, 255, 0.6);
-  font-size: var(--fs-body);
-}
-
 .pastSeasons {
   margin: 14px var(--gutter) 0;
   color: var(--ink-2);
@@ -434,7 +415,6 @@
   }
 
   .info,
-  .wellCard,
   .pastSeasons {
     margin-left: 0;
     margin-right: 0;

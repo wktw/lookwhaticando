@@ -103,6 +103,16 @@
   pointer-events: none;
 }
 
+/* "Coin first!" just above the coin plate, pointing down at it. */
+.bubbleSlot {
+  left: 63%;
+  top: auto;
+  bottom: 39%;
+  border-radius: 14px 14px 14px 4px;
+  transform-origin: 0 100%;
+  animation: bubble-in var(--t-slow) var(--ease-pop) both;
+}
+
 @keyframes bubble-in {
   from {
     transform: scale(0.4);

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { Ratchet, TURN_TARGET, angleDelta } from './ratchet';
+import { MAX_STEP_DEG, Ratchet, TURN_TARGET, angleDelta, ticksCrossed } from './ratchet';
 
 describe('angleDelta', () => {
   it('takes the short way round across ±180°', () => {
@@ -64,5 +64,27 @@ describe('Ratchet', () => {
     expect(r.dir).toBe(0);
     expect(r.turn(-12)).toBe(12);
     expect(r.dir).toBe(-1);
+  });
+
+  it('ignores a jump across the hub (a finger passing over the center)', () => {
+    const r = new Ratchet();
+    r.turn(20);
+    expect(r.turn(MAX_STEP_DEG + 100)).toBe(0);
+    expect(r.turn(-170)).toBe(0);
+    expect(r.progress).toBe(20);
+    // Two swipes straight across the hub never complete a turn.
+    for (let i = 0; i < 4; i++) r.turn(i % 2 ? -178 : 179);
+    expect(r.progress).toBe(20);
+  });
+});
+
+describe('ticksCrossed', () => {
+  it('owes one click per 30° crossed, capped for fast flicks', () => {
+    expect(ticksCrossed(0, 29)).toBe(0);
+    expect(ticksCrossed(29, 31)).toBe(1);
+    expect(ticksCrossed(0, 60)).toBe(2);
+    expect(ticksCrossed(0, 300)).toBe(3);
+    expect(ticksCrossed(0, 300, 20)).toBe(10);
+    expect(ticksCrossed(90, 80)).toBe(0);
   });
 });
