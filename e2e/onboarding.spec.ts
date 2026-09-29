@@ -10,6 +10,30 @@ import { expectNoAxeViolations, watchErrors } from './support';
 const IPHONE_SAFARI = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.5 Mobile/15E148 Safari/604.1';
 
 const h1 = (page: Page) => page.locator('main h1');
+/** A celebration banner (a new pin) and its close button. */
+const pinBanner = (page: Page) => page.getByRole('button', { name: 'Put the note away' });
+
+/** The saved state, as this window last wrote it. */
+const saved = (page: Page) => page.evaluate(() => JSON.parse(localStorage.getItem('catkin:v1') ?? 'null')?.state as { wallet: { coins: number }; pets: Record<string, unknown> } | undefined);
+
+/** Step 4 on the house: the Cows cabinet, a coin in, the handle, the capsule opened, to "Find … a plant". */
+async function firstCapsule(page: Page) {
+  await page.getByRole('button', { name: /^No\. 02 · Cows/ }).click();
+  await page.getByRole('button', { name: /^Put a coin in/ }).first().click();
+  const handle = page.getByRole('slider', { name: 'Turn the handle' });
+  await expect(handle).toHaveAttribute('aria-disabled', 'false');
+  await handle.focus();
+  await page.keyboard.press('Enter');
+  const find = page.getByRole('button', { name: /^Find .+ a plant$/ });
+  for (let i = 0; i < 30 && !(await find.isVisible().catch(() => false)); i++) {
+    // The capsule in the tray, then the capsule itself in the reveal ("Open capsule, … finish").
+    const open = page.getByRole('button', { name: /Open the capsule|take it out|tray/i }).locator('visible=true').first();
+    if (await open.count()) await open.click({ force: true }).catch(() => undefined);
+    await page.waitForTimeout(600);
+  }
+  await find.click();
+  await expect(h1(page)).toHaveText(/^Find .+ a plant$/);
+}
 
 /** A first boot; on the phone projects (an iPhone's Safari tab) past the install gate, into the tab. */
 async function start(page: Page) {
@@ -39,10 +63,14 @@ test('a first boot is onboarding: sill → picks → water → the four cabinets
   await page.getByRole('button', { name: 'Plant them' }).click();
 
   await expect(h1(page)).toHaveText('Anything already done today?');
-  // Before the first watering: its pin banner (fx) is not in a landmark yet (NOTES-w2-you.md).
   await expectNoAxeViolations(page, info);
   await page.getByRole('button', { name: 'Walk', exact: true }).click();
   await expect(page.getByText('There are 25 coins in the jar. That’s a capsule.')).toBeVisible();
+  // The pins and notes wait for Today: nothing covers the sill, the heading or Skip.
+  await page.waitForTimeout(900);
+  await expect(pinBanner(page)).toHaveCount(0);
+  await expect(page.getByRole('region', { name: 'Notes' })).toHaveCount(0);
+  await expectNoAxeViolations(page, info);
   await expect(page.getByRole('button', { name: 'Add 1 glass to Drink water' })).toBeVisible();
 
   // A reload lands back on the same step.
@@ -52,12 +80,7 @@ test('a first boot is onboarding: sill → picks → water → the four cabinets
 
   await expect(h1(page)).toHaveText('Who comes home first?');
   for (const name of ['No. 01 · Cats', 'No. 02 · Cows', 'No. 03 · Dogs', 'No. 04 · Pond']) await expect(page.getByRole('button', { name: new RegExp(`^${name}`) })).toBeVisible();
-  // The pin banner from the first watering, put away (see above).
-  const dismiss = page.getByRole('button', { name: 'Put the note away' });
-  while (await dismiss.first().isVisible().catch(() => false)) {
-    await dismiss.first().click();
-    await page.waitForTimeout(400);
-  }
+  await expect(pinBanner(page)).toHaveCount(0);
   await expectNoAxeViolations(page, info);
   await page.getByRole('button', { name: 'Not yet, I’ll earn it' }).first().click();
 
@@ -77,25 +100,36 @@ test('the first capsule, on the house: a pet comes home and moves into a plant',
   await page.getByRole('button', { name: 'Read' }).click();
   await page.getByRole('button', { name: 'Plant it' }).click();
   await page.getByRole('button', { name: 'Next' }).click();
-  await page.getByRole('button', { name: /^No\. 02 · Cows/ }).click();
-  await page.getByRole('button', { name: /^Put a coin in/ }).first().click();
-  const handle = page.getByRole('slider', { name: 'Turn the handle' });
-  await expect(handle).toHaveAttribute('aria-disabled', 'false');
-  await handle.focus();
-  await page.keyboard.press('Enter');
-  const find = page.getByRole('button', { name: /^Find .+ a plant$/ });
-  for (let i = 0; i < 30 && !(await find.isVisible().catch(() => false)); i++) {
-    // The capsule in the tray, then the capsule itself in the reveal ("Open capsule, … finish").
-    const open = page.getByRole('button', { name: /Open the capsule|take it out|tray/i }).locator('visible=true').first();
-    if (await open.count()) await open.click({ force: true }).catch(() => undefined);
-    await page.waitForTimeout(600);
-  }
-  await find.click();
-  await expect(h1(page)).toHaveText(/^Find .+ a plant$/);
+  await firstCapsule(page);
+  // The reveal named the pet; here the name waits behind Rename.
+  await expect(page.getByRole('button', { name: 'Another name' })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Rename' }).click();
   await page.getByRole('button', { name: 'Another name' }).click();
   await page.getByRole('button', { name: 'Read', exact: true }).click();
   await expect(page).toHaveURL(/#\/today$/);
   await expect(page.locator('main')).toHaveAttribute('aria-label', 'Today');
+  expect(errors, errors.join('\n')).toEqual([]);
+});
+
+test('watered on step 3, then the capsule on the house: one pet, and the capsule spends the top-up', async ({ page }) => {
+  test.skip(test.info().project.name.includes('desktop'), 'one journey through the cabinet is enough');
+  const errors = watchErrors(page);
+  await start(page);
+  await page.getByRole('button', { name: 'Next' }).click();
+  await page.getByRole('button', { name: 'Read' }).click();
+  await page.getByRole('button', { name: 'Plant it' }).click();
+  await page.getByRole('button', { name: 'Read', exact: true }).click();
+  await expect(page.getByText('There are 25 coins in the jar. That’s a capsule.')).toBeVisible();
+  await expect.poll(async () => (await saved(page))?.wallet.coins).toBe(25);
+  await page.getByRole('button', { name: 'Next' }).click();
+  await firstCapsule(page);
+  await page.getByRole('button', { name: 'Read', exact: true }).click();
+  await expect(page.locator('main')).toHaveAttribute('aria-label', 'Today');
+  // The pins held back through onboarding arrive on Today.
+  await expect(pinBanner(page).first()).toBeVisible();
+  await expect.poll(async () => Object.keys((await saved(page))?.pets ?? {}).length).toBe(1);
+  // The free capsule spends the top-up (domain/gacha.ts): the watering's own 5 coins stay in the jar.
+  await expect.poll(async () => (await saved(page))?.wallet.coins).toBe(5);
   expect(errors, errors.join('\n')).toEqual([]);
 });
 

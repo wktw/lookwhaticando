@@ -16,7 +16,7 @@
  * visibly lands. Steps 3–5 survive a reload (./progress).
  */
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
-import { DATA, INSTALL, ONBOARDING } from '@/catalog/lines';
+import { DATA, INSTALL, ONBOARDING, fillLine } from '@/catalog/lines';
 import { TEMPLATES } from '@/catalog/templates';
 import { Wordmark } from '@/art/icons/brand';
 import { useArtLight } from '@/art/scene/moment';
@@ -185,7 +185,8 @@ export function Onboarding() {
 
   const skip = () => {
     if (phase === 'pick') {
-      const ids = plantPicks(name, { templateIds: [], custom: [] });
+      // What she already picked is planted, not dropped.
+      const ids = plantPicks(name, picks);
       return go(nextPhase('pick', ids.length), ids);
     }
     go(nextPhase(phase, habitIds.length));
@@ -221,11 +222,14 @@ export function Onboarding() {
     <div class={cx(s.page, onSill && s.withSill)} data-step={phase}>
       <header class={s.top}>
         <Wordmark size={22} light={light} class={s.brand} />
-        <ol class={s.dots} aria-hidden="true">
-          {STEPS.map((st, i) => (
-            <li key={st} class={cx(s.dot, i === index && s.dotOn, i < index && s.dotDone)} />
-          ))}
-        </ol>
+        <span class={s.dotsWrap}>
+          <span class="sr-only">{fillLine(ONBOARDING_COPY.stepOf, { n: index + 1, count: STEPS.length })}</span>
+          <ol class={s.dots} aria-hidden="true">
+            {STEPS.map((st, i) => (
+              <li key={st} class={cx(s.dot, i === index && s.dotOn, i < index && s.dotDone)} />
+            ))}
+          </ol>
+        </span>
         <Button variant="quiet" size="sm" class={s.skip} onClick={phase === 'first' ? finish : skip}>
           {ONBOARDING.skip}
         </Button>
@@ -240,7 +244,7 @@ export function Onboarding() {
             onName={setName}
             onNext={() => go('pick')}
             other={
-              <Button variant="quiet" size="md" icon="import" onClick={() => (standalone ? pasteNow() : setImporting('file'))}>
+              <Button variant="quiet" size="sm" icon="import" onClick={() => (standalone ? pasteNow() : setImporting('file'))}>
                 {standalone ? INSTALL.paste : DATA.import}
               </Button>
             }

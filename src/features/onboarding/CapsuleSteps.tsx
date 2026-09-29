@@ -11,11 +11,11 @@
  * 5. "Find {name} a plant": the name once more, with ideas, and her new cuttings to choose from
  *    (`setCompanion`), or "Let {name} choose".
  */
-import { useRef, useState } from 'preact/hooks';
+import { useEffect, useRef, useState } from 'preact/hooks';
 import type { MachineId } from '@/catalog/types';
 import { getMachine, seriesLabel } from '@/catalog/machines';
 import { getCollectible } from '@/catalog/collectibles';
-import { COMPANION, ONBOARDING, fillLine } from '@/catalog/lines';
+import { COMPANION, ONBOARDING, PET_CARD, fillLine } from '@/catalog/lines';
 import { choseLine } from '@/catalog/format';
 import { FIRST_CAPSULE_MACHINES } from '@/domain/gacha';
 import { CabinetArt } from '@/art/machines/CabinetArt';
@@ -135,6 +135,12 @@ export function PlaceStep({ petId, habitIds, onDone }: { petId: string; habitIds
   const pet = app.pets[petId];
   const [draft, setDraft] = useState(pet?.name ?? def?.name ?? '');
   const [round, setRound] = useState(0);
+  // The reveal has just named the pet (with its own Rename): here the name waits behind one.
+  const [renaming, setRenaming] = useState(false);
+  const nameInput = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (renaming) nameInput.current?.focus();
+  }, [renaming]);
   const habits = habitIds.map((id) => app.habits.find((h) => h.id === id)).filter((h): h is NonNullable<typeof h> => !!h && h.archivedOn === undefined);
   const light = useArtLight();
 
@@ -179,34 +185,46 @@ export function PlaceStep({ petId, habitIds, onDone }: { petId: string; habitIds
       </div>
       <h1 class={s.title}>{fillLine(COMPANION.reveal.find, { name })}</h1>
 
-      <div class={s.nameField}>
-        <label class={s.fieldLabel} for="onb-pet-name">
-          {ONBOARDING_COPY.notice}
-        </label>
-        <input
-          id="onb-pet-name"
-          class={s.ownInput}
-          value={draft}
-          maxLength={NAME_MAX}
-          autoComplete="off"
-          enterKeyHint="done"
-          onInput={(e) => setDraft(e.currentTarget.value)}
-          onBlur={keepName}
-        />
-        <div class={s.ideas} role="group" aria-label={ONBOARDING_COPY.nameIdeas}>
-          {nameIdeas(def.species, round, draft).map((n) => (
-            <button key={n} type="button" class={s.idea} onClick={() => setDraft(n)}>
-              {n}
+      {renaming ? (
+        <div class={s.nameField}>
+          <label class={s.fieldLabel} for="onb-pet-name">
+            {ONBOARDING_COPY.notice}
+          </label>
+          <input
+            id="onb-pet-name"
+            ref={nameInput}
+            class={s.ownInput}
+            value={draft}
+            maxLength={NAME_MAX}
+            autoComplete="off"
+            enterKeyHint="done"
+            onInput={(e) => setDraft(e.currentTarget.value)}
+            onBlur={keepName}
+          />
+          <div class={s.ideas} role="group" aria-label={ONBOARDING_COPY.nameIdeas}>
+            {nameIdeas(def.species, round, draft).map((n) => (
+              <button key={n} type="button" class={s.idea} onClick={() => setDraft(n)}>
+                {n}
+              </button>
+            ))}
+            <button type="button" class={s.idea} onClick={() => setRound((r) => r + 1)}>
+              {ONBOARDING_COPY.anotherName}
             </button>
-          ))}
-          <button type="button" class={s.idea} onClick={() => setRound((r) => r + 1)}>
-            {ONBOARDING_COPY.anotherName}
-          </button>
+          </div>
         </div>
-      </div>
+      ) : (
+        <Button variant="quiet" size="sm" icon="edit" class={s.renameButton} onClick={() => setRenaming(true)}>
+          {PET_CARD.buttons.rename}
+        </Button>
+      )}
 
       {habits.length > 0 && (
-        <ul class={s.plants}>
+        <p class={s.note} id="onb-plants-lead">
+          {fillLine(ONBOARDING_COPY.plantsLead, { name })}
+        </p>
+      )}
+      {habits.length > 0 && (
+        <ul class={s.plants} aria-labelledby="onb-plants-lead">
           {habits.map((h) => (
             <li key={h.id}>
               <button type="button" class={s.plant} onClick={() => home(h.id)}>

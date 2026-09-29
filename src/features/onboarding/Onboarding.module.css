@@ -26,6 +26,15 @@
   color: var(--ink);
 }
 
+.renameButton {
+  align-self: flex-start;
+  margin: -8px 0 0 -10px;
+}
+
+.dotsWrap {
+  display: contents;
+}
+
 .dots {
   display: flex;
   gap: 6px;
@@ -503,19 +512,27 @@
 
 /* ---------- wide screens: the sill is a framed picture, the column stays calm ---------- */
 @media (min-width: 900px) {
+  /* One column width for the top bar, the sill, the heading and the step, so their edges line up. */
+  .page {
+    --onb-w: 720px;
+  }
+  .page[data-step='first'] {
+    --onb-w: 900px;
+  }
   .top {
-    max-width: 720px;
+    max-width: var(--onb-w);
     width: 100%;
     margin: 0 auto;
     padding-top: calc(var(--safe-top) + 24px);
   }
   .sill {
-    width: min(720px, calc(100% - 64px));
+    width: min(calc(var(--onb-w) - 2 * var(--gutter)), calc(100% - 64px));
     margin: 8px auto 0;
     border-radius: var(--r-lg);
     box-shadow: var(--shadow-md);
   }
   .body {
+    max-width: var(--onb-w);
     padding-top: var(--s-8);
   }
   .foot {
@@ -536,8 +553,5 @@
   }
   .chips {
     grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-  [data-step='first'] .body {
-    max-width: 900px;
   }
 }

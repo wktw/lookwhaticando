@@ -121,6 +121,8 @@ export const ONBOARDING_COPY = {
   notice: 'Name',
   nameIdeas: 'Name ideas',
   anotherName: 'Another name',
+  plantsLead: 'Tap a plant, and {name} moves in.',
+  stepOf: 'Step {n} of {count}',
 } as const;
 
 /** "{habit}, 2 of 5." */

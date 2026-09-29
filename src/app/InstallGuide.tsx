@@ -15,9 +15,10 @@ import { currentInstallPlatform, installPrompt, promptInstall, safariMajor, type
 import { AddToHomeArt, AndroidMenuArt, ChromeInstallArt, CompactShareArt, DockArt, HomeScreenArt, MacDockArt, ShareStepArt, ViewMoreArt } from './installArt';
 import { INSTALL } from '@/catalog/lines';
 import { INSTALL_COPY as SHELL_INSTALL_COPY } from './copy';
-
-const INSTALL_COPY = { ...SHELL_INSTALL_COPY, gateStay: 'Keep it in this tab' } as const;
+import { SHELL_LINES } from '@/features/you/shellCopy';
 import s from './InstallGuide.module.css';
+
+const INSTALL_COPY = { ...SHELL_INSTALL_COPY, gateStay: SHELL_LINES.gateStay } as const;
 
 export interface InstallStep {
   title: string;
@@ -192,9 +193,9 @@ export function InstallGate({ onPeek, onPaste, onStay, platform }: { onPeek: () 
         {INSTALL_COPY.gatePeek}
       </Button>
       {onPaste && (
-        <Button variant="quiet" size="lg" block onClick={onPaste}>
+        <button type="button" class={s.stay} onClick={onPaste}>
           {INSTALL.paste}
-        </Button>
+        </button>
       )}
       {onStay && (
         <button type="button" class={s.stay} onClick={onStay}>
