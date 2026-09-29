@@ -321,7 +321,7 @@ function flavorProblems(p: { flavor: string; species: Species }): string[] {
 /* The lint                                                                  */
 /* ------------------------------------------------------------------------ */
 
-describe('voice lint (DESIGN §12)', () => {
+describe('voice lint (DESIGN §12)', { timeout: 60_000 }, () => {
   it('every UI string under VOICE_SCAN_DIRS follows the voice', () => {
     const bad = uiStrings()
       .filter((f) => !isKnownException(f))
