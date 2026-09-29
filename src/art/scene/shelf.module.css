@@ -1,0 +1,388 @@
+/*
+ * The Shelf's scenes. Everything is sized in room units: 1 unit = 1cqh of the scene, so a scene is
+ * laid out once by its height and scrolls sideways. Motion is transform and opacity only, and every
+ * animation pauses while the scene is off screen or the tab is hidden ([data-paused]).
+ */
+
+.scene {
+  position: relative;
+  container-type: size;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  isolation: isolate;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.scene::-webkit-scrollbar {
+  display: none;
+}
+
+.track {
+  position: relative;
+  height: 100%;
+  overflow: hidden;
+}
+
+.segment {
+  position: absolute;
+  top: 0;
+  height: 100%;
+}
+
+.pot,
+.decor,
+.prop {
+  pointer-events: none;
+}
+
+.decor {
+  overflow: visible;
+}
+
+/* ── Plant tags: paper on a stake, real text ─────────────────────────────────── */
+
+.tag {
+  position: absolute;
+  /* the stake's foot sits on the anchor, the card reaches out over the rim on its side */
+  translate: calc(-1.6cqh - 0.275cqh) -100%;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.tag::after {
+  content: '';
+  width: 0.55cqh;
+  min-width: 1.5px;
+  height: 5cqh;
+  margin-left: 1.6cqh;
+  background: #efe3cf;
+  border-radius: 0 0 1px 1px;
+}
+
+.tagLeft {
+  translate: calc(-100% + 1.6cqh + 0.275cqh) -100%;
+  align-items: flex-end;
+}
+
+.tagLeft::after {
+  margin-left: 0;
+  margin-right: 1.6cqh;
+}
+
+.tagCard {
+  display: flex;
+  flex-direction: column;
+  padding: 0.5cqh 1.3cqh 0.7cqh;
+  border-radius: 0.7cqh;
+  background: #fffdf9;
+  box-shadow: 0.55cqh 0.55cqh 0 var(--shade);
+  rotate: -4deg;
+  color: #3b3236;
+  font-family: var(--font-display);
+  line-height: 1.12;
+  white-space: nowrap;
+}
+
+.tagLeft .tagCard {
+  rotate: 3deg;
+}
+
+/* Legible floors (11 / 10 px) whatever the scene's size; the card is as wide as its words. */
+.tagName {
+  font-size: max(11px, 3.1cqh);
+}
+
+.tagNote {
+  font-size: max(10px, 2.5cqh);
+  font-style: italic;
+  color: #66585d;
+}
+
+/* On a short scene, the name alone: a note is left off rather than cut mid-word. */
+@container (max-height: 220px) {
+  .tagNote {
+    display: none;
+  }
+}
+
+.night .tagCard {
+  background: #efe6dc;
+}
+
+/* ── Pets ─────────────────────────────────────────────────────────────────────── */
+
+.actor {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transition-property: transform, opacity;
+  transition-timing-function: linear;
+  will-change: transform;
+}
+
+.cast {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.body {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform-origin: 50% 94%;
+}
+
+.body > svg {
+  display: block;
+}
+
+/* A cow's four-beat walk: one small bob per footfall. */
+.gaitCow {
+  animation: gait-cow 1.2s linear infinite;
+}
+
+@keyframes gait-cow {
+  0%, 25%, 50%, 75%, 100% {
+    transform: translateY(0);
+  }
+  12.5%, 62.5% {
+    transform: translateY(-1%) rotate(0.5deg);
+  }
+  37.5%, 87.5% {
+    transform: translateY(-1%) rotate(-0.5deg);
+  }
+}
+
+/* Cats, dogs, bears: a soft two-beat pad. */
+.gaitPad {
+  animation: gait-pad 0.72s ease-in-out infinite;
+}
+
+@keyframes gait-pad {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-0.8%);
+  }
+}
+
+.gaitDuck {
+  animation: gait-duck 0.56s ease-in-out infinite alternate;
+}
+
+@keyframes gait-duck {
+  from {
+    transform: rotate(-4deg);
+  }
+  to {
+    transform: rotate(4deg);
+  }
+}
+
+/* Frogs and rabbits hop along. */
+.gaitHop {
+  animation: gait-hop 0.5s cubic-bezier(0.3, 0, 0.5, 1) infinite;
+}
+
+@keyframes gait-hop {
+  0%, 100% {
+    transform: translateY(0) scaleY(1);
+  }
+  15% {
+    transform: translateY(0) scaleY(0.94);
+  }
+  50% {
+    transform: translateY(-6%) scaleY(1.03);
+  }
+  85% {
+    transform: translateY(0) scaleY(0.97);
+  }
+}
+
+.gaitScurry {
+  animation: gait-pad 0.26s ease-in-out infinite;
+}
+
+/* A cat's two-stage hop: a crouch, then the leap while the move carries it across. */
+.hop {
+  animation: hop 0.72s cubic-bezier(0.2, 0.8, 0.2, 1) 1;
+}
+
+@keyframes hop {
+  0% {
+    transform: translateY(0) scale(1, 1);
+  }
+  25% {
+    transform: translateY(0) scale(1.04, 0.9);
+  }
+  60% {
+    transform: translateY(-16%) scale(0.98, 1.04);
+  }
+  88% {
+    transform: translateY(0) scale(1.03, 0.96);
+  }
+  100% {
+    transform: translateY(0) scale(1, 1);
+  }
+}
+
+/* Reaching up to sniff something: stretched a little taller, leaning toward it (composes with gaits). */
+.reachLeft,
+.reachRight {
+  scale: 1 1.08;
+  rotate: -7deg;
+  transition: scale 0.6s var(--ease-pop, ease), rotate 0.6s var(--ease-pop, ease);
+}
+
+.reachRight {
+  rotate: 7deg;
+}
+
+/* A resident looks up when its plant is watered. */
+.react {
+  animation: react 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) 1;
+}
+
+@keyframes react {
+  0%, 100% {
+    transform: translateY(0) rotate(0);
+  }
+  30% {
+    transform: translateY(-2%) rotate(-3deg);
+  }
+  60% {
+    transform: translateY(-1%) rotate(-2deg);
+  }
+}
+
+/* Off screen or in a hidden tab, nothing moves. */
+.scene[data-paused] * {
+  animation-play-state: paused !important;
+}
+
+/* ── The frame a long scene scrolls in: focus, edge fades, chevrons ─────────────── */
+
+.frame {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.frame > .scene {
+  position: absolute;
+  inset: 0;
+}
+
+/*
+ * The focus ring. The scene's own art is painted over anything drawn on the scroller itself, so the
+ * ring is drawn by the non-scrolling frame, above the art, the fades and the chevrons.
+ */
+.scene:focus-visible {
+  outline: none;
+}
+
+.frame::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  border-radius: inherit;
+  box-shadow: inset 0 0 0 3px var(--focus);
+  pointer-events: none;
+  opacity: 0;
+}
+
+.frame:has(> .scene:focus-visible)::after {
+  opacity: 1;
+}
+
+/* A quiet fade of wall paint at an end with more room beyond it: the room goes on. */
+.edge {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 28px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s var(--ease-pop, ease);
+  z-index: 1;
+}
+
+.edgeLeft {
+  left: 0;
+  background: linear-gradient(to right, var(--wall), transparent);
+}
+
+.edgeRight {
+  right: 0;
+  background: linear-gradient(to left, var(--wall), transparent);
+}
+
+.frame[data-more-left] .edgeLeft,
+.frame[data-more-right] .edgeRight {
+  opacity: 0.85;
+}
+
+/*
+ * Chevrons for a mouse (no swipe), at the ends that have more to see. They sit low in the corners,
+ * over the sill's front edge and the wall under it, clear of the pots, pets and tags; the target is
+ * 44 px, the visible disc 30 px, quiet until the pointer is over the scene.
+ */
+.chevron {
+  display: none;
+  position: absolute;
+  bottom: 2px;
+  z-index: 2;
+  width: 44px;
+  height: 44px;
+  padding: 7px;
+  border: 0;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--card, #fffdf9) 90%, transparent);
+  background-clip: content-box;
+  color: var(--ink, #3b3236);
+  cursor: pointer;
+  place-items: center;
+  opacity: 0.62;
+  transition: opacity 0.2s var(--ease-pop, ease);
+}
+
+.chevron > svg {
+  width: 18px;
+  height: 18px;
+}
+
+.frame:hover .chevron {
+  opacity: 1;
+}
+
+.chevron:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.chevronLeft {
+  left: 4px;
+}
+
+.chevronRight {
+  right: 4px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .frame[data-more-left] .chevronLeft,
+  .frame[data-more-right] .chevronRight {
+    display: grid;
+  }
+}

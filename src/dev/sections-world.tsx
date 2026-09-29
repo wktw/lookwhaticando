@@ -1,262 +1,394 @@
-/** Gallery sections for the world module: the Meadow, the Today windowsill and all decor. */
+/** Gallery sections for the shelf module: the Sill, the Today band, the places and the vignettes. */
 import type { JSX } from 'preact';
-import { DECOR, MACHINES } from '@/catalog';
-import type { DecorSlot, PlantSpeciesId, PotId } from '@/catalog/types';
-import { PetArt } from '@/art/pets/PetArt';
-import { PlantArt } from '@/art/plants';
-import { CollectibleArt } from '@/art/CollectibleArt';
-import {
-  MeadowScene,
-  WindowsillScene,
-  TIMES_OF_DAY,
-  PET_UNITS,
-  groundToStyle,
-  placeDecor,
-  sillLayout,
-  type PlanterPlant,
-  type TimeOfDay,
-} from '@/art/scene';
+import { useRef } from 'preact/hooks';
+import type { SillPot, ShelfPet, ShelfDecor } from '@/art/scene';
+import { CoinJar, PlaceArt, ShelfScene, SillScene, TableLamp, WindowsillBand, momentAt, lightAtSun, type Moment, type WindowsillBandHandle } from '@/art/scene';
+import { DAY_LIGHT, NIGHT_LIGHT, type Light } from '@/art/light';
+import type { PlaceId } from '@/catalog/types';
+import { PLACES } from '@/catalog/places';
+import { DECOR as CATALOG_DECOR } from '@/catalog/collectibles';
+import { DECOR_ENTRIES } from '@/art/scene/decor';
 import type { GallerySection } from './sections';
 
-type Slots = Partial<Record<DecorSlot, string>>;
-
-const PLANTERS: PlanterPlant[] = [
-  { species: 'sunflower', stage: 6, pot: 'terracotta' },
-  { species: 'tulip', stage: 5, pot: 'blush' },
-  { species: 'monstera', stage: 4, pot: 'cream' },
+const POTS: SillPot[] = [
+  { habitId: 'walk', name: 'Walk', note: 'after lunch', species: 'pothos', stage: 6, pot: 'terracotta', damp: true },
+  { habitId: 'water', name: 'Drink water', note: 'after coffee', species: 'pilea', stage: 4, pot: 'cream' },
+  { habitId: 'read', name: 'Read', note: 'before bed', species: 'begonia', stage: 5, pot: 'blush' },
+  { habitId: 'stretch', name: 'Stretch', species: 'snakeplant', stage: 3, pot: 'speckled' },
+  { habitId: 'grass', name: 'Tidy 10 min', species: 'catgrass', stage: 5, pot: 'cream' },
+  { habitId: 'yoga', name: 'Yoga', species: 'pothos', stage: 1, pot: 'blush' },
 ];
 
-const SHOWCASE: Slots = {
-  'back-left': 'decor-mushroom-house',
-  'back-right': 'decor-cherry-tree',
-  'ground-center': 'decor-picnic-blanket',
-  'ground-right': 'decor-yarn-basket',
-  sky: 'decor-heart-balloons',
-};
-
-/** One item in every slot: the busiest a Meadow can get. */
-const EVERY_SLOT: Slots = {
-  'back-left': 'decor-little-barn',
-  'back-right': 'decor-cherry-tree',
-  'ground-left': 'decor-tulip-bed',
-  'ground-center': 'decor-tea-party',
-  'ground-right': 'decor-beach-umbrella',
-  sky: 'decor-fairy-lights',
-};
-
-const PETS: readonly { id: string; x: number; y: number; facing: 'left' | 'right' }[] = [
-  { id: 'pet-mochi', x: 0.52, y: 0.62, facing: 'right' },
-  { id: 'pet-cat-orange', x: 0.76, y: 0.8, facing: 'left' },
-  { id: 'pet-cow-holstein', x: 0.3, y: 0.3, facing: 'right' },
-  { id: 'pet-cat-calico', x: 0.66, y: 0.24, facing: 'left' },
+const PETS: ShelfPet[] = [
+  { petId: 'pet-cat-grey', name: 'Pepper', personality: 'sleepy', home: 'walk' },
+  { petId: 'pet-cow-highland', name: 'Hattie', personality: 'gentle', home: 'water' },
+  { petId: 'pet-cat-calico', name: 'Juniper', personality: 'sunny' },
+  { petId: 'pet-cow-beltie', name: 'Oreo', personality: 'dreamy' },
+  { petId: 'pet-frog-tree', name: 'Basil', personality: 'curious' },
 ];
 
-function Pets({ time, count = PETS.length }: { time: TimeOfDay; count?: number }) {
-  return (
-    <>
-      {PETS.slice(0, count).map((p) => (
-        <div key={p.id} style={groundToStyle(p.x, p.y, { size: PET_UNITS })}>
-          <PetArt petId={p.id} size="100%" facing={p.facing} expression={time === 'night' ? 'sleep' : 'idle'} animated />
-        </div>
-      ))}
-    </>
-  );
+const DECOR: ShelfDecor[] = [];
+
+/** A pinned moment: `sun` 0 morning … 1 evening on a September day, or night. */
+function at(sun: number, night = false, hour = night ? 21.5 : 7 + sun * 12): Moment {
+  const base = momentAt(new Date(2026, 8, 29, 12));
+  return { ...base, light: lightAtSun(sun, night), time: night ? 'night' : sun < 0.2 ? 'dawn' : sun > 0.8 ? 'golden' : 'day', hour };
 }
+
+const TIMES: { label: string; moment: Moment }[] = [
+  { label: 'Morning · 8:40 am', moment: at(0.12) },
+  { label: 'Midday · 1:10 pm', moment: at(0.5) },
+  { label: 'Evening · 6:20 pm', moment: at(0.9) },
+  { label: 'Night · 9:30 pm', moment: at(1, true) },
+];
 
 function Frame({ w, h, label, children }: { w: number; h: number; label: string; children: JSX.Element }) {
   return (
     <figure style={{ margin: 0, display: 'grid', gap: '6px' }}>
-      <div style={{ width: `${w}px`, height: `${h}px`, borderRadius: '22px', overflow: 'hidden', boxShadow: 'var(--shadow-md)' }}>{children}</div>
+      <div style={{ width: `${w}px`, height: `${h}px`, borderRadius: '18px', overflow: 'hidden', boxShadow: 'var(--shadow-md)' }}>{children}</div>
       <figcaption style={{ fontSize: '12px', color: 'var(--ink-2)' }}>{label}</figcaption>
     </figure>
   );
 }
 
-interface MeadowCase {
-  w: number;
-  h: number;
-  time: TimeOfDay;
-  slots?: Slots;
-  planters?: PlanterPlant[];
-  pets?: number;
-  label?: string;
-}
-
-/** A Meadow at a fixed size, its decor placed for that size just as the Meadow screen would. */
-function Meadow({ w, h, time, slots = {}, planters = [], pets = 0, label }: MeadowCase) {
-  return (
-    <Frame w={w} h={h} label={label ?? `${time} · ${w}×${h}`}>
-      <MeadowScene time={time} decor={placeDecor(slots, w / h)} planters={planters} label="Meadow" style={{ width: '100%', height: '100%' }}>
-        {pets > 0 && <Pets time={time} count={pets} />}
-      </MeadowScene>
-    </Frame>
-  );
-}
-
-/** `?time=night` narrows a section to one time of day. */
-const timesFrom = (params: URLSearchParams) => TIMES_OF_DAY.filter((t) => !params.get('time') || params.get('time') === t);
-const timeFrom = (params: URLSearchParams, fallback: TimeOfDay = 'day') => (params.get('time') as TimeOfDay | null) ?? fallback;
-
-function meadows(params: URLSearchParams, w: number, h: number, bare = false) {
-  return (
-    <div class="gal-row" style={{ alignItems: 'flex-start' }}>
-      {timesFrom(params).map((t) => (
-        <Meadow key={t} w={w} h={h} time={t} slots={bare ? {} : SHOWCASE} planters={bare ? [] : PLANTERS} pets={bare ? 0 : PETS.length} />
-      ))}
-    </div>
-  );
-}
-
-const SILL_PLANTS: readonly { species: PlantSpeciesId; stage: number; pot: PotId }[] = [
-  { species: 'tulip', stage: 5, pot: 'blush' },
-  { species: 'pilea', stage: 3, pot: 'terracotta' },
-  { species: 'sunflower', stage: 6, pot: 'cream' },
-  { species: 'monstera', stage: 4, pot: 'terracotta' },
-  { species: 'begonia', stage: 2, pot: 'blush' },
-];
-const BUDDY_SIZE = 60;
-const POT_SIZE = 46;
-
-function Sill({ time, w, h, plants }: { time: TimeOfDay; w: number; h: number; plants: number }) {
-  const shown = SILL_PLANTS.slice(0, plants);
-  // The buddy sits second from the left, with the pots around it.
-  const buddyAt = Math.min(1, plants);
-  const sizes = Array.from({ length: plants + 1 }, (_, i) => (i === buddyAt ? BUDDY_SIZE : POT_SIZE));
-  const styles = sillLayout(sizes, buddyAt);
-  return (
-    <Frame w={w} h={h} label={`${time} · ${w}×${h} · buddy + ${plants} pots`}>
-      <WindowsillScene time={time} style={{ width: '100%', height: '100%' }}>
-        {styles.map((style, i) => {
-          if (i === buddyAt)
-            return (
-              <div key="buddy" style={style}>
-                <PetArt petId="pet-mochi" size="100%" expression={time === 'night' ? 'sleep' : 'happy'} animated />
-              </div>
-            );
-          const p = shown[i < buddyAt ? i : i - 1]!;
-          return (
-            <div key={i} style={style}>
-              <PlantArt species={p.species} stage={p.stage} pot={p.pot} size="100%" />
-            </div>
-          );
-        })}
-      </WindowsillScene>
-    </Frame>
-  );
-}
-
-function DecorCell({ id, name, slot, size }: { id: string; name: string; slot: string; size: number }) {
-  return (
-    <div class="gal-cell">
-      <div style={{ display: 'flex', alignItems: 'flex-end', gap: '10px' }}>
-        <CollectibleArt id={id} size={size} />
-        <CollectibleArt id={id} size={48} />
-      </div>
-      <b>{name}</b>
-      <small>{slot}</small>
-    </div>
-  );
-}
-
-/** One small meadow per series, its decor at the default slot positions. */
-function DecorInScene({ time }: { time: TimeOfDay }) {
-  const machines = MACHINES.filter((m) => DECOR.some((d) => d.source === m.id));
-  return (
-    <div class="gal-row" style={{ alignItems: 'flex-start' }}>
-      {machines.map((m) => {
-        const slots: Slots = Object.fromEntries(DECOR.filter((d) => d.source === m.id).map((d) => [d.slot, d.id]));
-        return <Meadow key={m.id} w={300} h={430} time={time} slots={slots} planters={PLANTERS.slice(0, 2)} pets={1} label={m.name} />;
-      })}
-    </div>
-  );
-}
-
-const BACK_LEFT = DECOR.filter((d) => d.slot === 'back-left');
-
 export const SECTIONS: GallerySection[] = [
-  { id: 'world-meadow-phone', title: 'Meadow · phone (390×560)', render: (p) => meadows(p, 390, 560) },
-  { id: 'world-meadow-wide', title: 'Meadow · wide (1200×600)', render: (p) => meadows(p, 1200, 600) },
-  { id: 'world-meadow-bare', title: 'Meadow · bare backdrop (first run)', render: (p) => meadows(p, 390, 560, true) },
   {
-    id: 'world-meadow-sizes',
-    title: 'Meadow · other sizes (small phone, tall phone, tablet, ultra-wide)',
-    render: (params) => (
-      <div class="gal-row" style={{ alignItems: 'flex-start' }}>
-        {[
-          [320, 480],
-          [390, 700],
-          [768, 560],
-          [1600, 480],
-        ].map(([w, h]) => (
-          <Meadow key={w} w={w!} h={h!} time={timeFrom(params)} slots={SHOWCASE} planters={PLANTERS} pets={PETS.length} />
-        ))}
-      </div>
-    ),
-  },
-  {
-    id: 'world-meadow-slots',
-    title: 'Meadow · every slot filled (the busiest case) at phone, tall phone and wide',
-    render: (params) => (
-      <div class="gal-row" style={{ alignItems: 'flex-start' }}>
-        {[
-          [390, 560],
-          [390, 700],
-          [1200, 600],
-        ].map(([w, h]) => (
-          <Meadow key={`${w}x${h}`} w={w!} h={h!} time={timeFrom(params)} slots={EVERY_SLOT} planters={PLANTERS} pets={2} />
-        ))}
-      </div>
-    ),
-  },
-  {
-    id: 'world-meadow-backleft',
-    title: 'Meadow · each back-left item beside the tree (swing and lantern stay in view)',
-    render: (params) => (
-      <div class="gal-row" style={{ alignItems: 'flex-start' }}>
-        {BACK_LEFT.flatMap((d) =>
-          [
-            [390, 560],
-            [1200, 600],
-          ].map(([w, h]) => <Meadow key={`${d.id}-${w}`} w={w!} h={h!} time={timeFrom(params, 'night')} slots={{ 'back-left': d.id }} label={`${d.name} · ${w}×${h}`} />),
-        )}
-      </div>
-    ),
-  },
-  {
-    id: 'world-sill',
-    title: 'Today windowsill',
-    render: () => (
-      <div style={{ display: 'grid', gap: '18px' }}>
-        <div class="gal-row" style={{ alignItems: 'flex-start' }}>
-          {TIMES_OF_DAY.map((t) => (
-            <Sill key={t} time={t} w={390} h={170} plants={3} />
-          ))}
-        </div>
-        <div class="gal-row" style={{ alignItems: 'flex-start' }}>
-          <Sill time="day" w={320} h={150} plants={5} />
-          <Sill time="night" w={320} h={150} plants={5} />
-          <Sill time="golden" w={900} h={190} plants={5} />
-        </div>
-      </div>
-    ),
-  },
-  {
-    id: 'world-decor',
-    title: 'Decor (110 px and 48 px; ?size= for a closer look)',
+    id: 'shelf-sill',
+    title: 'The Sill · 390×300 through the day',
     render: (params) => {
-      const size = Number(params.get('size') ?? 110);
+      const w = Number(params.get('w') ?? 390);
+      const h = Number(params.get('h') ?? 300);
       return (
-        <div class="gal-grid" style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${size + 80}px, 1fr))` }}>
-          {DECOR.map((d) => (
-            <DecorCell key={d.id} id={d.id} name={d.name} slot={`${d.slot} · ${d.rarity}`} size={size} />
+        <div class="gal-row" style={{ alignItems: 'flex-start' }}>
+          {TIMES.map((t) => (
+            <Frame key={t.label} w={w} h={h} label={t.label}>
+              <SillScene pots={POTS} pets={PETS} decor={DECOR} coins={142} moment={t.moment} live={false} style={{ width: '100%', height: '100%' }} />
+            </Frame>
           ))}
         </div>
       );
     },
   },
-  {
-    id: 'world-decor-scene',
-    title: 'Decor in the Meadow, by series (default slots)',
-    render: (params) => <DecorInScene time={timeFrom(params)} />,
-  },
 ];
+
+const SEASON_MONTHS: { label: string; month: number }[] = [
+  { label: 'Spring · April', month: 3 },
+  { label: 'Summer · July', month: 6 },
+  { label: 'Autumn · October', month: 9 },
+  { label: 'Winter · January', month: 0 },
+];
+
+SECTIONS.push({
+  id: 'shelf-seasons',
+  title: 'The Sill and the Balcony Box through the year · midday and night',
+  render: () => (
+    <div style={{ display: 'grid', gap: '16px' }}>
+      {[false, true].map((night) => (
+        <div key={String(night)} class="gal-row" style={{ alignItems: 'flex-start' }}>
+          {SEASON_MONTHS.map((m) => {
+            const base = momentAt(new Date(2026, m.month, 12, 12));
+            const moment: Moment = { ...base, light: lightAtSun(0.5, night), time: night ? 'night' : 'day', hour: night ? 21.5 : 13 };
+            return (
+              <Frame key={m.label} w={300} h={200} label={`${m.label}${night ? ' · night' : ''}`}>
+                <ShelfScene pots={POTS.slice(0, 2)} pets={[]} places={['balcony']} open="start" moment={moment} live={false} style={{ width: '100%', height: '100%' }} />
+              </Frame>
+            );
+          })}
+        </div>
+      ))}
+      <div class="gal-row" style={{ alignItems: 'flex-start' }}>
+        {SEASON_MONTHS.map((m) => {
+          const base = momentAt(new Date(2026, m.month, 12, 12));
+          return (
+            <Frame key={m.label} w={300} h={200} label={`${m.label} · Balcony Box`}>
+              <ShelfScene pots={POTS.slice(0, 1)} pets={[]} retired={RETIRED_SHORT} places={['balcony']} open="balcony" moment={{ ...base, light: lightAtSun(0.55), time: 'day', hour: 13 }} live={false} style={{ width: '100%', height: '100%' }} />
+            </Frame>
+          );
+        })}
+      </div>
+    </div>
+  ),
+});
+
+const RETIRED_SHORT: SillPot[] = [{ habitId: 'old-run', name: 'Run', species: 'lavender', stage: 7, pot: 'terracotta' }];
+
+const BAND_POTS = POTS.slice(0, 5);
+
+/** The chips the Today screen lays over the band, mocked for review. */
+function Chips({ collapse, night }: { collapse: number; night: boolean }) {
+  // The screen shrinks its chips as the band collapses; mock the same so every frame is honest.
+  const collapsed = collapse > 0.5;
+  const chip: JSX.CSSProperties = {
+    position: 'absolute',
+    top: collapsed ? '8px' : '12px',
+    transform: `scale(${collapsed ? 1 : 1 - 0.34 * collapse * 2})`,
+    transformOrigin: '0 0',
+    background: night ? 'rgba(45, 39, 51, 0.88)' : 'rgba(255, 253, 249, 0.85)',
+    color: night ? '#f4ede6' : '#3b3236',
+    borderRadius: '14px',
+    padding: collapsed ? '4px 10px' : '8px 14px',
+    zIndex: 1000,
+  };
+  return (
+    <>
+      <div style={{ ...chip, left: '16px' }}>
+        {collapsed ? (
+          <b style={{ font: '700 12px var(--font-body)' }}>Tue 29 · 3 of 5</b>
+        ) : (
+          <>
+            <div style={{ font: '700 12px var(--font-body)', opacity: 0.8 }}>Tuesday, Sep 29</div>
+            <div style={{ font: '20px var(--font-display)' }}>{night ? 'Good evening, Sam' : 'Good afternoon, Sam'}</div>
+          </>
+        )}
+      </div>
+      <div style={{ ...chip, right: '16px', transformOrigin: '100% 0', borderRadius: '999px', font: `700 ${collapsed ? 13 : 15}px var(--font-body)` }}>
+        <span style={{ display: 'inline-block', width: '14px', height: '14px', borderRadius: '50%', background: '#EDCB72', boxShadow: 'inset 0 0 0 2px #D2A24B', verticalAlign: '-2px', marginRight: '6px' }} />
+        142
+      </div>
+    </>
+  );
+}
+
+function BandFrame({ moment, collapse, label }: { moment: Moment; collapse: number; label: string }) {
+  const visible = 168 - 104 * collapse;
+  return (
+    <figure style={{ margin: 0, display: 'grid', gap: '6px' }}>
+      <div style={{ position: 'relative', width: '390px', height: `${visible}px`, overflow: 'hidden', borderRadius: '14px', boxShadow: 'var(--shadow-md)' }}>
+        <div style={{ position: 'absolute', inset: 0, height: '168px', top: 0 }}>
+          <WindowsillBand pots={BAND_POTS} pets={PETS} coins={142} moment={moment} collapse={collapse} onWindowTap={() => {}} />
+        </div>
+        <Chips collapse={collapse} night={moment.light.night} />
+      </div>
+      <figcaption style={{ fontSize: '12px', color: 'var(--ink-2)' }}>{label}</figcaption>
+    </figure>
+  );
+}
+
+function Choreography() {
+  const band = useRef<WindowsillBandHandle>(null);
+  const button: JSX.CSSProperties = { font: '700 13px var(--font-body)', padding: '8px 14px', borderRadius: '999px', border: '1px solid var(--line)', background: 'var(--card)', color: 'var(--ink)' };
+  return (
+    <div style={{ display: 'grid', gap: '10px', width: '390px' }}>
+      <div style={{ position: 'relative', height: '168px', overflow: 'hidden', borderRadius: '14px', boxShadow: 'var(--shadow-md)' }}>
+        <WindowsillBand ref={band} pots={BAND_POTS} pets={PETS} coins={142} moment={at(0.62)} />
+      </div>
+      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+        <button type="button" style={button} onClick={() => band.current?.pour('water')}>Pour on Drink water</button>
+        <button type="button" style={button} onClick={() => band.current?.coinToJar()}>Coin to the jar</button>
+        <button type="button" style={button} onClick={() => band.current?.react('pet-cat-grey')}>Pepper looks up</button>
+      </div>
+    </div>
+  );
+}
+
+SECTIONS.push(
+  {
+    id: 'shelf-band',
+    title: 'The Today band · 168 px and 64 px, day and night',
+    render: () => (
+      <div style={{ display: 'grid', gap: '18px' }}>
+        <div class="gal-row" style={{ alignItems: 'flex-start' }}>
+          <BandFrame moment={at(0.62)} collapse={0} label="Afternoon · open" />
+          <BandFrame moment={at(1, true)} collapse={0} label="Night · open" />
+        </div>
+        <div class="gal-row" style={{ alignItems: 'flex-start' }}>
+          <BandFrame moment={at(0.62)} collapse={1} label="Afternoon · collapsed to 64 px" />
+          <BandFrame moment={at(1, true)} collapse={1} label="Night · collapsed" />
+          <BandFrame moment={at(0.62)} collapse={0.5} label="Halfway" />
+        </div>
+      </div>
+    ),
+  },
+  {
+    id: 'shelf-choreography',
+    title: 'Check-in choreography (tap the buttons)',
+    render: () => <Choreography />,
+  },
+);
+
+/** Everyone out across every place. */
+const HOUSEHOLD: ShelfPet[] = [
+  ...PETS,
+  { petId: 'pet-duck-yellow', name: 'Sunny', personality: 'playful', place: 'pond' },
+  { petId: 'pet-duck-pekin', name: 'Dumpling', personality: 'curious', place: 'pond' },
+  { petId: 'pet-frog-tomato', name: 'Poppy', personality: 'sleepy', place: 'pond' },
+  { petId: 'pet-cow-holstein', name: 'Clover', personality: 'gentle', place: 'grass' },
+  { petId: 'pet-bunny-dutch', name: 'Toffee', personality: 'curious', place: 'grass' },
+  { petId: 'pet-cat-black', name: 'Olive', personality: 'dreamy', place: 'bookshelf' },
+  { petId: 'pet-cat-orange', name: 'Pudding', personality: 'sleepy', place: 'bookshelf' },
+  { petId: 'pet-dog-shiba', name: 'Kinako', personality: 'sunny', place: 'balcony' },
+  { petId: 'pet-hamster-syrian', name: 'Nugget', personality: 'foodie', place: 'balcony' },
+  { petId: 'pet-bear-brown', name: 'Honey', personality: 'sleepy', place: 'quilt' },
+  { petId: 'pet-dog-corgi', name: 'Waffles', personality: 'dramatic', place: 'quilt' },
+  { petId: 'pet-hamster-winterwhite', name: 'Onigiri', personality: 'shy', place: 'quilt' },
+];
+
+const RETIRED: SillPot[] = [
+  { habitId: 'old-run', name: 'Run', species: 'lavender', stage: 7, pot: 'terracotta' },
+  { habitId: 'old-piano', name: 'Piano', species: 'violet', stage: 6, pot: 'rosy' },
+  { habitId: 'old-french', name: 'French', species: 'hoya', stage: 7, pot: 'speckled' },
+];
+
+const ALL_PLACES: PlaceId[] = PLACES.map((p) => p.id);
+
+SECTIONS.push(
+  {
+    id: 'shelf-places',
+    title: 'Places on the map · open, not yet opened, and at night',
+    render: () => (
+      <div style={{ display: 'grid', gap: '14px' }}>
+        {[
+          { label: 'Open, afternoon', moment: at(0.62), locked: false },
+          { label: 'Not yet opened', moment: at(0.62), locked: true },
+          { label: 'Open, night', moment: at(1, true), locked: false },
+        ].map((row) => (
+          <div key={row.label} style={{ display: 'grid', gap: '6px' }}>
+            <small style={{ color: 'var(--ink-2)' }}>{row.label}</small>
+            <div class="gal-row" style={{ alignItems: 'flex-end' }}>
+              {PLACES.map((p) => (
+                <figure key={p.id} style={{ margin: 0, display: 'grid', gap: '4px' }}>
+                  <PlaceArt place={p.id} locked={row.locked && p.price > 0} moment={row.moment} width={200} />
+                  <figcaption style={{ fontSize: '12px', color: 'var(--ink-2)' }}>{p.name}</figcaption>
+                </figure>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    ),
+  },
+  {
+    id: 'shelf-place-scenes',
+    title: 'Each place in the Shelf · 390×300, day and night',
+    render: () => (
+      <div style={{ display: 'grid', gap: '16px' }}>
+        {PLACES.filter((p) => p.id !== 'sill').map((p) => (
+          <div key={p.id} class="gal-row" style={{ alignItems: 'flex-start' }}>
+            {[at(0.55), at(1, true, 23.5)].map((m, i) => (
+              <Frame key={i} w={390} h={300} label={`${p.name} · ${i === 0 ? 'day' : 'night'}`}>
+                <ShelfScene pots={POTS} pets={HOUSEHOLD} retired={RETIRED} places={[p.id]} coins={142} moment={m} live={false} open={p.id} style={{ width: '100%', height: '100%' }} />
+              </Frame>
+            ))}
+          </div>
+        ))}
+      </div>
+    ),
+  },
+  {
+    id: 'shelf-full',
+    title: 'The whole Shelf, every place open',
+    render: (params) => {
+      const live = params.get('live') === '1';
+      return (
+        <div style={{ display: 'grid', gap: '16px' }}>
+          <Frame w={1500} h={300} label="Afternoon, scrolled to the sun">
+            <ShelfScene pots={POTS} pets={HOUSEHOLD} retired={RETIRED} places={ALL_PLACES} coins={142} moment={at(0.62)} live={live} style={{ width: '100%', height: '100%' }} />
+          </Frame>
+          <Frame w={390} h={300} label="Phone, scrolled to the lamp at night">
+            <ShelfScene pots={POTS} pets={HOUSEHOLD} retired={RETIRED} places={ALL_PLACES} coins={142} moment={at(1, true)} live={live} style={{ width: '100%', height: '100%' }} />
+          </Frame>
+        </div>
+      );
+    },
+  },
+  {
+    id: 'shelf-vignettes',
+    title: 'Vignettes · the ducks walk on under normal motion (a cat asleep on a cow’s back waits for the lying cow)',
+    render: () => (
+      <div class="gal-row" style={{ alignItems: 'flex-start' }}>
+        <Frame w={390} h={300} label="Ducks walking in a line">
+          <ShelfScene pots={POTS.slice(0, 1)} pets={['pet-duck-yellow', 'pet-duck-pekin', 'pet-duck-call', 'pet-duck-mallard'].map((petId) => ({ petId, place: 'balcony' as const }))} places={['balcony']} open="balcony" moment={at(0.55)} vignette={{ id: 'duck-line', place: 'balcony' }} style={{ width: '100%', height: '100%' }} />
+        </Frame>
+        <Frame w={390} h={300} label="The nap pile on the Quilt, late">
+          <ShelfScene pots={POTS.slice(0, 1)} pets={HOUSEHOLD.filter((p) => p.place === 'quilt').concat([{ petId: 'pet-cat-calico', place: 'quilt' }])} places={['quilt']} open="quilt" moment={at(1, true, 23.5)} vignette={{ id: 'nap-pile', place: 'quilt' }} style={{ width: '100%', height: '100%' }} />
+        </Frame>
+        <Frame w={390} h={300} label="A rabbit sniffing a new leaf">
+          <SillScene pots={POTS.slice(0, 3)} pets={[{ petId: 'pet-bunny-lop', name: 'Biscuit' }]} coins={30} moment={at(0.35)} vignette="bunny-leaf" style={{ width: '100%', height: '100%' }} />
+        </Frame>
+      </div>
+    ),
+  },
+);
+
+const LIGHTS: { label: string; light: Light }[] = [
+  { label: 'light from the left', light: DAY_LIGHT },
+  { label: 'from the top', light: { from: 'top', night: false } },
+  { label: 'from the right', light: { from: 'right', night: false } },
+  { label: 'lamplight', light: NIGHT_LIGHT },
+];
+
+function Swatch({ night, children, label }: { night: boolean; children: JSX.Element; label: string }) {
+  return (
+    <figure style={{ margin: 0, display: 'grid', gap: '4px', justifyItems: 'center' }}>
+      <div style={{ width: '132px', height: '132px', borderRadius: '14px', background: night ? '#34304A' : '#EFE5D8', display: 'grid', placeItems: 'center', '--shade': night ? 'rgba(10, 8, 22, 0.3)' : 'rgba(94, 76, 154, 0.16)', '--contact': night ? 'rgba(0, 0, 0, 0.22)' : 'rgba(59, 50, 54, 0.08)' } as JSX.CSSProperties}>
+        {children}
+      </div>
+      <figcaption style={{ fontSize: '11px', color: 'var(--ink-2)' }}>{label}</figcaption>
+    </figure>
+  );
+}
+
+SECTIONS.push({
+  id: 'shelf-props',
+  title: 'The coin jar and the lamp · every light, and the jar filling',
+  render: () => (
+    <div style={{ display: 'grid', gap: '14px' }}>
+      <div class="gal-row">
+        {LIGHTS.map((l) => (
+          <Swatch key={l.label} night={l.light.night} label={`Jar · ${l.label}`}>
+            <div style={{ width: '120px', height: '120px' }}>
+              <CoinJar coins={260} light={l.light} />
+            </div>
+          </Swatch>
+        ))}
+        {LIGHTS.map((l) => (
+          <Swatch key={l.label} night={l.light.night} label={`Lamp · ${l.label}`}>
+            <div style={{ width: '120px', height: '120px' }}>
+              <TableLamp light={l.light} />
+            </div>
+          </Swatch>
+        ))}
+      </div>
+      <div class="gal-row" style={{ alignItems: 'flex-end' }}>
+        {[0, 1, 25, 142, 400, 700, 1000, 5000].map((c) => (
+          <Swatch key={c} night={false} label={c === 1 ? '1 coin' : `${c} coins`}>
+            <div style={{ width: '96px', height: '96px' }}>
+              <CoinJar coins={c} />
+            </div>
+          </Swatch>
+        ))}
+        {[40, 28].map((px) => (
+          <Swatch key={px} night={false} label={`${px} px`}>
+            <div style={{ width: `${px}px`, height: `${px}px` }}>
+              <CoinJar coins={260} />
+            </div>
+          </Swatch>
+        ))}
+      </div>
+    </div>
+  ),
+});
+
+/** Twelve decor items: catalog ids that have art, topped up with whatever else is drawn. */
+function busyDecor(): ShelfDecor[] {
+  const ids = CATALOG_DECOR.map((d) => d.id).filter((id) => DECOR_ENTRIES[id]);
+  for (const id of Object.keys(DECOR_ENTRIES)) if (ids.length < 12 && !ids.includes(id)) ids.push(id);
+  return ids.slice(0, 12).map((itemId, i) => ({ itemId, flip: i % 3 === 1 }));
+}
+
+const EIGHT: ShelfPet[] = [...PETS, { petId: 'pet-bunny-lop', personality: 'shy' }, { petId: 'pet-duck-yellow', personality: 'playful' }, { petId: 'pet-hamster-syrian', personality: 'foodie' }];
+
+SECTIONS.push({
+  id: 'shelf-busy',
+  title: 'The busiest Sill · 6 plants, 8 pets, 12 decor (live)',
+  render: (params) => (
+    <div style={{ display: 'grid', gap: '16px' }}>
+      <Frame w={1400} h={300} label="Afternoon">
+        <SillScene pots={POTS} pets={EIGHT} decor={busyDecor()} coins={420} moment={at(0.6)} live={params.get('live') !== '0'} style={{ width: '100%', height: '100%' }} />
+      </Frame>
+      <Frame w={1400} h={300} label="Late at night: beds first, then under the lamp">
+        <SillScene pots={POTS} pets={EIGHT} decor={busyDecor()} coins={420} moment={at(1, true, 23.5)} live={false} style={{ width: '100%', height: '100%' }} />
+      </Frame>
+    </div>
+  ),
+});
