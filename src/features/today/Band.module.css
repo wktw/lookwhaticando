@@ -6,8 +6,6 @@
  */
 
 .wrap {
-  --c: 0;
-  --clip: 0px;
   --band-radius: 0 0 20px 20px;
   position: sticky;
   top: 0;
@@ -21,10 +19,8 @@
 .clip {
   position: relative;
   height: 168px;
-  clip-path: inset(0 0 var(--clip) 0 round var(--band-radius));
+  clip-path: inset(0 0 0 0 round var(--band-radius));
   pointer-events: auto;
-  /* A hairline under the band once it has collapsed over the list. */
-  filter: drop-shadow(0 calc(var(--c) * 1px) 0 var(--line));
 }
 
 .band {
@@ -59,8 +55,6 @@
   max-width: calc(100% - var(--gutter) * 2 - 104px);
   padding: 7px 14px 8px;
   border-radius: var(--r-md);
-  opacity: calc(1 - var(--c) * 2.4);
-  transform: translateY(calc(var(--c) * -10px)) scale(calc(1 - var(--c) * 0.12));
   transform-origin: 0 0;
 }
 
@@ -100,7 +94,7 @@
   border-radius: var(--r-pill);
   font-weight: 800;
   font-size: var(--fs-caption);
-  opacity: calc((var(--c) - 0.55) * 2.6);
+  opacity: 0;
   visibility: hidden;
 }
 
@@ -146,6 +140,7 @@
   margin: 0;
   padding: 0 14px 0 10px;
   border: 0;
+  justify-content: center;
   border-radius: var(--r-pill);
   font: 800 var(--fs-body) / 1 var(--font-body);
   font-variant-numeric: tabular-nums;
@@ -171,6 +166,10 @@
   min-width: 2ch;
 }
 
+.wallet:not(:has(.walletNum)) {
+  padding: 0 10px;
+}
+
 /* The vine chip on the sill ledge ("3 of 5 · +18 coins"). */
 .vine {
   left: var(--gutter);
@@ -182,7 +181,6 @@
   font-weight: 800;
   line-height: 1.35;
   white-space: nowrap;
-  opacity: calc(1 - var(--c) * 3);
   pointer-events: none;
 }
 

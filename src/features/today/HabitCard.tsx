@@ -8,7 +8,7 @@
  * inline stepper. A long press opens the number pad for a count habit, or logs the tiny version.
  */
 import { memo } from 'preact/compat';
-import { useRef } from 'preact/hooks';
+import { useEffect, useRef, useState } from 'preact/hooks';
 import { CardPlant } from '@/art/plants/CardPlant';
 import { CHECKIN_TOASTS, LOOKS, TODAY_LINES, fillLine } from '@/catalog/lines';
 import { cardAriaLabel, forDayLabel, num, statusLine } from '@/catalog/format';
@@ -34,6 +34,8 @@ export interface HabitCardProps {
   residentPetId: string | null;
   /** The inline stepper is open (a full count habit, tapped again). */
   adjusting: boolean;
+  /** Draw the plant at once (the first cards on screen); the rest draw as they come near the view. */
+  eager?: boolean;
   onRing: (card: HabitCardVM, ring: HTMLElement) => void;
   onHold: (card: HabitCardVM, ring: HTMLElement) => void;
   onMore: (card: HabitCardVM, button: HTMLElement) => void;
@@ -77,9 +79,39 @@ export function ringDescription(card: HabitCardVM, weekStart: WeekStart): string
   return statusLine(card.subtitle, weekStart) ?? undefined;
 }
 
+/**
+ * Cards re-render only when what they show changed: the view model builds fresh card objects on
+ * every commit, so a watering elsewhere compares equal here and leaves this card alone.
+ */
+export function sameCard(a: HabitCardProps, b: HabitCardProps): boolean {
+  for (const k of Object.keys(b) as (keyof HabitCardProps)[]) {
+    if (k === 'card') continue;
+    if (a[k] !== b[k]) return false;
+  }
+  return a.card === b.card || JSON.stringify(a.card) === JSON.stringify(b.card);
+}
+
+/**
+ * Whether a card is near the view: a busy list draws the plants of the first cards at once and the
+ * rest as they scroll near (the plant art is the heaviest thing on the card).
+ */
+function useNear(eager: boolean) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [near, setNear] = useState(eager || typeof IntersectionObserver === 'undefined');
+  useEffect(() => {
+    const el = ref.current;
+    if (near || !el) return;
+    const io = new IntersectionObserver((entries) => entries.some((e) => e.isIntersecting) && setNear(true), { rootMargin: '600px 0px' });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [near]);
+  return [ref, near] as const;
+}
+
 export const HabitCard = memo(function HabitCard(props: HabitCardProps) {
   const { card, date, past, weekStart, compact, residentPetId, adjusting } = props;
   const ring = useRef<HTMLDivElement>(null);
+  const [plantBox, near] = useNear(props.eager ?? true);
   const hold = useRef<{ timer: number; fired: boolean }>({ timer: 0, fired: false });
   const status = statusLine(card.subtitle, weekStart);
   const anchor = card.after ? fillLine(LOOKS.stacking.after, { anchor: card.after.name }) : card.anchor;
@@ -107,8 +139,9 @@ export const HabitCard = memo(function HabitCard(props: HabitCardProps) {
   return (
     <article class={cx(s.card, compact && s.compact, card.damp && s.watered, card.rested && s.rested)} data-habit={card.id} aria-label={cardAriaLabel(card)}>
       <div class={s.body} onClick={() => props.onOpen(card)}>
-        <div class={s.plant} aria-hidden="true">
-          <CardPlant
+        <div class={s.plant} aria-hidden="true" ref={plantBox}>
+          {near && (
+            <CardPlant
             species={card.plant.species}
             stage={card.plant.displayStage}
             progress={card.plant.progress}
@@ -121,8 +154,9 @@ export const HabitCard = memo(function HabitCard(props: HabitCardProps) {
             icon={card.icon}
             tone={card.color}
             size={compact ? 44 : 60}
-            pulse={card.waterings}
-          />
+              pulse={card.waterings}
+            />
+          )}
         </div>
         <div class={s.text}>
           <h3 class={s.name}>{card.name}</h3>
@@ -158,4 +192,4 @@ export const HabitCard = memo(function HabitCard(props: HabitCardProps) {
       )}
     </article>
   );
-});
+}, sameCard);

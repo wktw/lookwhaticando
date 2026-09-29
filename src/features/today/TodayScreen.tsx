@@ -156,7 +156,7 @@ export function TodayScreen() {
 
   const residentOf = new Map(vm.sill.map((p) => [p.habitId, p.resident?.petId ?? null]));
   const compact = vm.compactToday;
-  const renderCard = (c: HabitCardVM) => (
+  const renderCard = (c: HabitCardVM, eager: boolean) => (
     <HabitCard
       card={c}
       date={date}
@@ -165,6 +165,7 @@ export function TodayScreen() {
       compact={compact}
       residentPetId={residentOf.get(c.id) ?? null}
       adjusting={adjusting === c.id}
+      eager={eager}
       onRing={onRing}
       onHold={onHold}
       onMore={onMore}

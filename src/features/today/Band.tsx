@@ -94,8 +94,13 @@ export const Band = forwardRef(function Band({ vm, state, coins, onOpenNote, onW
   const [tagFor, setTagFor] = useState<string | undefined>(undefined);
   const tagTimer = useRef<ReturnType<typeof setTimeout>>();
 
-  const pots = useMemo(() => bandPots(vm, state.habits), [vm, state.habits]);
-  const pets = useMemo(() => bandPets(vm, state.pets), [vm.sill, state.pets]);
+  // Kept by value: the view model is rebuilt on every commit, the band's world only when a pot changed.
+  const potsNow = bandPots(vm, state.habits);
+  const potsKey = JSON.stringify(potsNow);
+  const pots = useMemo(() => potsNow, [potsKey]);
+  const petsNow = bandPets(vm, state.pets);
+  const petsKey = JSON.stringify(petsNow);
+  const pets = useMemo(() => petsNow, [petsKey]);
   const onBand = useMemo(() => new Set(pots.slice(0, 6).map((p) => p.habitId)), [pots]);
   const residentOf = useMemo(() => new Map(vm.sill.map((p) => [p.habitId, p.resident?.petId ?? null])), [vm.sill]);
 
@@ -118,10 +123,16 @@ export const Band = forwardRef(function Band({ vm, state, coins, onOpenNote, onW
   );
   useEffect(() => () => clearTimeout(tagTimer.current), []);
 
-  // Scroll drives the collapse: CSS variables and the band's signal, never a render.
+  // Scroll drives the collapse without a render: inline styles on the few elements that move (never an
+  // inherited custom property, which would restyle the whole drawing), and the band's own signal.
   useEffect(() => {
     const el = wrap.current;
     if (!el) return;
+    const part = (name: string) => el.querySelector<HTMLElement>(`[data-part="${name}"]`);
+    const clip = part('clip');
+    const greeting = part('greeting');
+    const mini = part('mini');
+    const vine = part('vine');
     let raf = 0;
     let last = -1;
     const apply = () => {
@@ -129,15 +140,21 @@ export const Band = forwardRef(function Band({ vm, state, coins, onOpenNote, onW
       const t = Math.min(1, Math.max(0, window.scrollY / COLLAPSE_RANGE));
       if (t === last) return;
       last = t;
-      el.style.setProperty('--c', t.toFixed(3));
-      el.style.setProperty('--clip', `${(t * COLLAPSE_RANGE).toFixed(1)}px`);
+      if (clip) clip.style.clipPath = `inset(0 0 ${(t * COLLAPSE_RANGE).toFixed(1)}px 0 round var(--band-radius))`;
+      if (greeting) {
+        greeting.style.opacity = String(Math.max(0, 1 - t * 2.4));
+        greeting.style.transform = t ? `translateY(${(-10 * t).toFixed(1)}px) scale(${(1 - t * 0.12).toFixed(3)})` : '';
+      }
+      if (mini) mini.style.opacity = String(Math.min(1, Math.max(0, (t - 0.55) * 2.6)));
+      if (vine) vine.style.opacity = String(Math.max(0, 1 - t * 3));
       el.toggleAttribute('data-collapsed', t > 0.6);
       collapse.value = t;
     };
     const onScroll = () => {
       if (!raf) raf = requestAnimationFrame(apply);
     };
-    apply();
+    // The first read waits for the frame, so mounting never forces a layout of the whole page.
+    raf = requestAnimationFrame(apply);
     addEventListener('scroll', onScroll, { passive: true });
     return () => {
       removeEventListener('scroll', onScroll);
@@ -166,7 +183,7 @@ export const Band = forwardRef(function Band({ vm, state, coins, onOpenNote, onW
 
   return (
     <div ref={wrap} class={s.wrap} data-quiet={quiet ? '' : undefined}>
-      <div class={s.clip}>
+      <div class={s.clip} data-part="clip">
         <WindowsillBand
           ref={band}
           class={s.band}
@@ -183,18 +200,18 @@ export const Band = forwardRef(function Band({ vm, state, coins, onOpenNote, onW
           {...(note ? { note } : {})}
           cake={vm.birthday !== null}
         />
-        <div class={s.greeting}>
+        <div class={s.greeting} data-part="greeting">
           <h1 class={s.hello} id="today-title" tabIndex={-1}>
             {greeting}
           </h1>
           <p class={s.date}>{vm.dateLabel}</p>
         </div>
-        <div class={s.mini} aria-hidden="true">
+        <div class={s.mini} data-part="mini" aria-hidden="true">
           <span class={s.miniDate}>{vm.shortDate}</span>
           <MiniRing fraction={vm.progress.fraction} />
         </div>
         {vine && (
-          <p class={s.vine} role="progressbar" aria-label={TODAY_COPY.today} aria-valuemin={0} aria-valuemax={vm.progress.total || 1} aria-valuenow={vm.progress.total ? vm.progress.done : 1} aria-valuetext={valueText ?? vine}>
+          <p class={s.vine} data-part="vine" role="progressbar" aria-label={TODAY_COPY.today} aria-valuemin={0} aria-valuemax={vm.progress.total || 1} aria-valuenow={vm.progress.total ? vm.progress.done : 1} aria-valuetext={valueText ?? vine}>
             {vine}
           </p>
         )}
@@ -202,7 +219,7 @@ export const Band = forwardRef(function Band({ vm, state, coins, onOpenNote, onW
           <>
             <button type="button" class={s.wallet} data-wallet-target="coins" aria-label={walletLabel} onClick={onWallet}>
               <CoinIcon size={20} />
-              <AnimatedNumber value={coins} walletKind="coins" class={s.walletNum} />
+              {coins > 0 && <AnimatedNumber value={coins} walletKind="coins" class={s.walletNum} />}
             </button>
             <span class={s.jar} data-wallet-target="coins" aria-hidden="true" onAnimationStart={onJarBump} />
           </>

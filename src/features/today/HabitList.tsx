@@ -16,6 +16,9 @@ import { cx } from '@/ui/cx';
 import type { GroupSnapshot } from './state';
 import s from './HabitList.module.css';
 
+/** How many cards draw their plants at once; the rest as they scroll near. */
+export const EAGER_CARDS = 6;
+
 export type LiveGroup = GroupSnapshot & { cards: HabitCardVM[]; done: number };
 
 /** A group's header words: "Morning 2/3", "Watered for the week", "This month", "Other days". */
@@ -31,7 +34,7 @@ export function groupTitle(g: Pick<LiveGroup, 'key' | 'cards' | 'done'>): string
 export interface HabitListProps {
   groups: readonly LiveGroup[];
   paused: PausedSummaryVM | null;
-  renderCard: (card: HabitCardVM) => ComponentChildren;
+  renderCard: (card: HabitCardVM, eager: boolean) => ComponentChildren;
   onOpenHabit: (habitId: string) => void;
 }
 
@@ -46,6 +49,7 @@ export function HabitList({ groups, paused, renderCard, onOpenHabit }: HabitList
       return next;
     });
 
+  let drawn = 0;
   return (
     <div class={s.list}>
       {groups.map((g) => {
@@ -70,7 +74,7 @@ export function HabitList({ groups, paused, renderCard, onOpenHabit }: HabitList
               {open &&
                 g.cards.map((c) => (
                   <li key={c.id} class={s.item}>
-                    {renderCard(c)}
+                    {renderCard(c, drawn++ < EAGER_CARDS)}
                   </li>
                 ))}
             </ul>
