@@ -28,6 +28,8 @@ export const SHELF_COPY = {
   decor: {
     title: 'Decorate',
     hint: 'Drag a thing to move it. Tap one to flip it or put it away.',
+    /** A thing's button in edit mode, after its name (screen readers). */
+    keys: 'Arrow keys move it, F flips it, Delete removes it.',
     add: 'Add to {place}',
     flip: 'Flip',
     putAway: 'Put away',

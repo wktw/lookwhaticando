@@ -362,6 +362,12 @@ export function ShelfScreen() {
         setSelected(null);
         if (d) announce(fillLine(SHELF_COPY.decor.removed, { thing: decorLabel(d) }));
       },
+      // Each thing by its own name (a keepsake by what it is), and the keys in the deck's words.
+      label(key) {
+        const d = decorOf(key);
+        return d ? decorLabel(d) : '';
+      },
+      hint: SHELF_COPY.decor.keys,
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [],

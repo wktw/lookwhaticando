@@ -77,7 +77,7 @@ function DecorHit({ d, floor, rows, place, edit, sceneRef }: { d: PlacedDecor } 
       class={s.decorHit}
       style={style}
       data-edit={d.key}
-      aria-label={`${decorLabel(d)}. Arrow keys move it, F flips it, Delete removes it.`}
+      aria-label={`${edit.label?.(d.key) || decorLabel(d)}. ${edit.hint ?? 'Arrow keys move it, F flips it, Delete removes it.'}`}
       onPointerDown={(e) => {
         (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
         start.current = { x: e.clientX, y: e.clientY };
