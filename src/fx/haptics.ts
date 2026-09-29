@@ -2,7 +2,9 @@
  * Haptic feedback, gated by settings.haptics.
  * - Android & friends: navigator.vibrate with tiny patterns.
  * - iOS 18+ Safari (no vibrate API): clicking the label of a hidden `<input type=checkbox switch>`
- *   inside the user's gesture makes the system play its real switch haptic.
+ *   makes the system play its real switch haptic, but ONLY inside the user's gesture. So call
+ *   haptic() synchronously from the tap (CelebrationHost does, as events arrive); from a timer
+ *   it is skipped on iPhone, and 'success' is a single tick there.
  */
 import { state } from '@/state/store';
 
@@ -55,9 +57,9 @@ export function haptic(kind: HapticKind = 'light'): void {
       navigator.vibrate(PATTERNS[kind]);
       return;
     }
-    if (!isAppleTouch()) return;
+    // Outside a gesture the switch trick does nothing but toggle a hidden input.
+    if (!isAppleTouch() || navigator.userActivation?.isActive === false) return;
     tapSwitch();
-    if (kind === 'success') setTimeout(tapSwitch, 90);
   } catch {
     /* Haptics are a garnish; never break the interaction. */
   }

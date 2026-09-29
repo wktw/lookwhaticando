@@ -50,6 +50,8 @@ export interface ToastSpec {
   tone: Tone;
   art: CelebrationArt;
   sound?: SfxName;
+  /** The batch's rewards, when this toast is the only moment and carries them itself. */
+  rewards?: Tally;
 }
 
 export interface CelebrationPlan {
@@ -93,6 +95,53 @@ export function formatTally(t: Tally): string {
   return parts.join(' · ');
 }
 
+/** Stages that get a banner (DESIGN §5.5: Blooming and Evergreen are celebrations). */
+export const isMajorStage = (stage: number) => stage === 5 || stage >= 7;
+/** Friendship level that makes best friends (a banner and a crown). */
+export const BEST_FRIENDS_LEVEL = 10;
+
+/** How the in-between growth stages read: "Your Yoga plant is getting leafy 🌿". */
+const STAGE_PHRASE: Record<number, [phrase: string, emoji: string]> = {
+  1: ['sprouted', '🌱'],
+  2: ['is a little seedling now', '🌱'],
+  3: ['is getting leafy', '🌿'],
+  4: ['has its first bud', '🌷'],
+  6: ['is flourishing', '✨'],
+};
+
+const plantOf = (name: string | undefined) => (name ? `Your ${name} plant` : 'Your plant');
+
+/** The coins/stars an event adds that should fly into the wallet (reserved the moment it arrives). */
+export function walletDelta(e: GameEvent): { kind: 'coins' | 'stars'; amount: number } | null {
+  if (e.type === 'coins' && e.reason !== 'refund' && e.amount > 0) return { kind: 'coins', amount: e.amount };
+  if (e.type === 'stars' && e.reason !== 'fusion' && e.amount > 0) return { kind: 'stars', amount: e.amount };
+  return null;
+}
+
+/** How strongly a moment is felt: 'big' ones get a banner (and a success haptic), 'small' ones a toast. */
+export function eventWeight(e: GameEvent): 'big' | 'small' | null {
+  switch (e.type) {
+    case 'exclusive':
+    case 'milestone':
+    case 'perfectDay':
+    case 'badge':
+      return 'big';
+    case 'plantStage':
+      return isMajorStage(e.stage) ? 'big' : 'small';
+    case 'petLevel':
+      return e.level >= BEST_FRIENDS_LEVEL ? 'big' : 'small';
+    case 'stars':
+      return e.reason === 'fusion' ? 'small' : null;
+    case 'favoriteFound':
+    case 'welcomeBack':
+    case 'periodGoal':
+    case 'letter':
+      return 'small';
+    default:
+      return null;
+  }
+}
+
 const UNIT_LABEL = { days: ['day', 'days'], weeks: ['week', 'weeks'], months: ['month', 'months'] } as const;
 const MILESTONE_LINES = ['Look at you go!', 'That is real, lovely consistency.', 'Your plant is beaming.', 'Your future self says thank you.', 'Tiny steps, big bloom.'];
 
@@ -123,7 +172,11 @@ export function planCelebration(events: readonly GameEvent[], ctx: CelebrationCo
         break;
       case 'stars':
         if (e.reason === 'fusion') {
-          moments.push({ priority: 15, line: `Stardust became ${plural(e.amount, 'star')} ✦`, toast: { key: 'fusion', message: `Your stardust fused into ${plural(e.amount, 'star')} ✦`, tone: 'lavender', art: { type: 'currency', kind: 'stars' }, sound: 'sparkle' } });
+          moments.push({
+            priority: 15,
+            line: `Stardust became ${plural(e.amount, 'star')} ✦`,
+            toast: { key: 'fusion', message: `Your stardust fused into ${plural(e.amount, 'star')} ✦`, tone: 'lavender', art: { type: 'currency', kind: 'stars' }, sound: 'sparkle' },
+          });
         } else bonus.stars += e.amount;
         break;
       case 'tickets':
@@ -159,18 +212,18 @@ export function planCelebration(events: readonly GameEvent[], ctx: CelebrationCo
       }
       case 'plantStage': {
         const h = ctx.habit(e.habitId);
-        const name = h?.name ?? 'Your plant';
-        const major = e.stage === 5 || e.stage >= 7;
-        if (major && h) {
+        const plant = plantOf(h?.name);
+        if (isMajorStage(e.stage) && h) {
           const evergreen = e.stage >= 7;
+          const firstBloom = !evergreen && events.some((x) => x.type === 'badge' && x.badgeId === 'first-bloom');
           moments.push({
             priority: 70,
-            line: `${name} is ${e.stageName}`,
+            line: `${plant} is ${evergreen ? 'Evergreen' : 'blooming'}`,
             banner: {
               kind: 'plant',
-              eyebrow: evergreen ? 'Evergreen!' : 'First bloom',
-              title: `${name} is ${e.stageName} ${evergreen ? '✨' : '🌸'}`,
-              text: evergreen ? 'Months of gentle care, and now it shines. A tiny golden watering can is yours.' : 'All that care is showing. Look at those petals!',
+              eyebrow: evergreen ? 'Evergreen' : firstBloom ? 'First bloom' : 'In bloom',
+              title: `${plant} is ${evergreen ? 'Evergreen' : 'blooming'}!`,
+              text: evergreen ? 'Months of gentle care, and now it shines. A tiny golden watering can is yours.' : 'All that gentle care is showing. It’s so proud of you.',
               art: { type: 'plant', species: h.plant, stage: e.stage, pot: h.pot },
               tone: 'sage',
               epic: false,
@@ -179,10 +232,17 @@ export function planCelebration(events: readonly GameEvent[], ctx: CelebrationCo
             },
           });
         } else {
+          const [phrase, emoji] = STAGE_PHRASE[e.stage] ?? ['is growing', '🌱'];
           moments.push({
             priority: 25,
-            line: `${name} grew into a ${e.stageName}`,
-            toast: { key: `plant-${e.habitId}`, message: `${name} grew into a ${e.stageName} 🌱`, tone: 'sage', art: h ? { type: 'plant', species: h.plant, stage: e.stage, pot: h.pot } : { type: 'pet', petId: ctx.buddy, expression: 'happy' }, sound: 'sparkle' },
+            line: `${plant} ${phrase}`,
+            toast: {
+              key: `plant-${e.habitId}`,
+              message: `${plant} ${phrase} ${emoji}`,
+              tone: 'sage',
+              art: h ? { type: 'plant', species: h.plant, stage: e.stage, pot: h.pot } : { type: 'pet', petId: ctx.buddy, expression: 'happy' },
+              sound: 'sparkle',
+            },
           });
         }
         break;
@@ -194,7 +254,7 @@ export function planCelebration(events: readonly GameEvent[], ctx: CelebrationCo
           banner: {
             kind: 'perfectDay',
             eyebrow: 'Perfect day',
-            title: 'Every habit, done! 🌼',
+            title: 'Every habit, done!',
             text: `${ctx.petName(ctx.buddy)} is doing a little happy dance.`,
             art: { type: 'pet', petId: ctx.buddy, expression: 'happy' },
             tone: 'butter',
@@ -225,30 +285,66 @@ export function planCelebration(events: readonly GameEvent[], ctx: CelebrationCo
       }
       case 'petLevel': {
         const name = ctx.petName(e.petId);
-        if (e.level >= 10) {
+        if (e.level >= BEST_FRIENDS_LEVEL) {
           moments.push({
             priority: 55,
             line: `${name} is your best friend`,
-            banner: { kind: 'bestFriends', eyebrow: 'Best friends', title: `You and ${name} 💞`, text: 'Friendship level 10. A sparkly crown for the best of friends.', art: { type: 'pet', petId: e.petId, expression: 'love' }, tone: 'blush', epic: false, confetti: 'medium', sound: 'fanfare' },
+            banner: {
+              kind: 'bestFriends',
+              eyebrow: 'Best friends',
+              title: `You and ${name}`,
+              text: 'Friendship level 10. A sparkly crown for the best of friends.',
+              art: { type: 'pet', petId: e.petId, expression: 'love' },
+              tone: 'blush',
+              epic: false,
+              confetti: 'medium',
+              sound: 'fanfare',
+            },
           });
         } else {
-          moments.push({ priority: 20, line: `${name} reached friendship level ${e.level}`, toast: { key: `pet-${e.petId}`, message: `${name} reached friendship level ${e.level} 💕`, tone: 'blush', art: { type: 'pet', petId: e.petId, expression: 'love' }, sound: 'sparkle' } });
+          moments.push({
+            priority: 20,
+            line: `${name} reached friendship level ${e.level}`,
+            toast: { key: `pet-${e.petId}`, message: `${name} reached friendship level ${e.level} 💕`, tone: 'blush', art: { type: 'pet', petId: e.petId, expression: 'love' }, sound: 'sparkle' },
+          });
         }
         break;
       }
       case 'favoriteFound': {
         const name = ctx.petName(e.petId);
-        moments.push({ priority: 22, line: `${name} loves ${ctx.itemName(e.treatId)}`, toast: { key: `fav-${e.petId}`, message: `${name} loves ${ctx.itemName(e.treatId)}! 💕`, tone: 'blush', art: { type: 'pet', petId: e.petId, expression: 'love' }, sound: 'sparkle' } });
+        moments.push({
+          priority: 22,
+          line: `${name} loves ${ctx.itemName(e.treatId)}`,
+          toast: { key: `fav-${e.petId}`, message: `${name} loves ${ctx.itemName(e.treatId)}! 💕`, tone: 'blush', art: { type: 'pet', petId: e.petId, expression: 'love' }, sound: 'sparkle' },
+        });
         break;
       }
       case 'welcomeBack':
-        moments.push({ priority: 30, line: `Welcome back to ${habitName(e.habitId)}`, toast: { key: `welcome-${e.habitId}`, message: `Welcome back to ${habitName(e.habitId)}! 🌷`, tone: 'blush', art: { type: 'pet', petId: ctx.buddy, expression: 'happy' }, sound: 'chime' } });
+        moments.push({
+          priority: 30,
+          line: `Welcome back to ${habitName(e.habitId)}`,
+          toast: { key: `welcome-${e.habitId}`, message: `Welcome back to ${habitName(e.habitId)}! 🌷`, tone: 'blush', art: { type: 'pet', petId: ctx.buddy, expression: 'happy' }, sound: 'chime' },
+        });
         break;
       case 'periodGoal':
-        moments.push({ priority: 28, line: `${habitName(e.habitId)}: ${e.period === 'week' ? 'weekly' : 'monthly'} goal met`, toast: { key: `period-${e.habitId}`, message: `${habitName(e.habitId)}: ${e.period === 'week' ? 'weekly' : 'monthly'} goal met! 🌿`, tone: 'sage', art: { type: 'currency', kind: 'coins' }, sound: 'chime' } });
+        moments.push({
+          priority: 28,
+          line: `${habitName(e.habitId)}: ${e.period === 'week' ? 'weekly' : 'monthly'} goal met`,
+          toast: {
+            key: `period-${e.habitId}`,
+            message: `${habitName(e.habitId)}: ${e.period === 'week' ? 'weekly' : 'monthly'} goal met! 🌿`,
+            tone: 'sage',
+            art: { type: 'currency', kind: 'coins' },
+            sound: 'chime',
+          },
+        });
         break;
       case 'letter':
-        moments.push({ priority: 10, line: 'A letter arrived', toast: { key: 'letter', message: 'A little letter arrived for you 💌', tone: 'lilac', art: { type: 'pet', petId: ctx.buddy, expression: 'happy' }, sound: 'pop' } });
+        moments.push({
+          priority: 10,
+          line: 'A letter arrived',
+          toast: { key: 'letter', message: 'A little letter arrived for you 💌', tone: 'lilac', art: { type: 'pet', petId: ctx.buddy, expression: 'happy' }, sound: 'pop' },
+        });
         break;
       case 'checkin':
       case 'uncheck':
@@ -260,20 +356,41 @@ export function planCelebration(events: readonly GameEvent[], ctx: CelebrationCo
     moments.push({
       priority: 100,
       line: ctx.itemName(id),
-      banner: { kind: 'exclusive', eyebrow: 'Something special', title: ctx.itemName(id), text: ctx.itemFlavor(id), art: { type: 'collectible', id }, tone: 'butter', epic: true, confetti: 'epic', sound: 'reveal-ultra' },
+      banner: {
+        kind: 'exclusive',
+        eyebrow: 'Something special',
+        title: ctx.itemName(id),
+        text: ctx.itemFlavor(id),
+        art: { type: 'collectible', id },
+        tone: 'butter',
+        epic: true,
+        confetti: 'epic',
+        sound: 'reveal-ultra',
+      },
     });
   }
 
   const ranked = moments.sort((a, b) => b.priority - a.priority);
   const lead = ranked.find((m) => m.banner);
   if (!lead?.banner) {
-    return { banner: null, toasts: ranked.flatMap((m) => (m.toast ? [m.toast] : [])), wallet: bonus };
+    const toasts = ranked.flatMap((m) => (m.toast ? [m.toast] : []));
+    // One small moment carries its own bonus ("Welcome back to Walk! 🌷 +3"): one toast, not two.
+    if (toasts.length === 1 && !isEmptyTally(bonus)) return { banner: null, toasts: [{ ...toasts[0]!, rewards: bonus }], wallet: { ...EMPTY_TALLY } };
+    return { banner: null, toasts, wallet: bonus };
   }
   // The lead banner carries every reward and folds the other moments into short lines.
   // Letters still toast: they point somewhere (the inbox), not just at a feeling.
   const others = ranked.filter((m) => m !== lead);
   return {
-    banner: { ...lead.banner, priority: lead.priority, also: others.filter((m) => m.toast?.key !== 'letter').slice(0, 2).map((m) => m.line), rewards: bonus },
+    banner: {
+      ...lead.banner,
+      priority: lead.priority,
+      also: others
+        .filter((m) => m.toast?.key !== 'letter')
+        .slice(0, 2)
+        .map((m) => m.line),
+      rewards: bonus,
+    },
     toasts: others.flatMap((m) => (m.toast?.key === 'letter' ? [m.toast] : [])),
     wallet: { ...EMPTY_TALLY },
   };

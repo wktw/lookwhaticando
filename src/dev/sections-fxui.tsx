@@ -46,8 +46,9 @@ import { haptic } from '@/fx/haptics';
 import { PET_VOICES, SFX_NAMES, sfx, type PetVoice } from '@/fx/sound';
 import { SparkleBurst } from '@/fx/SparkleBurst';
 import { CelebrationHost } from '@/fx/celebrations';
+import { walletDelta } from '@/fx/celebrationPlan';
 import { celebrateCheckIn } from '@/fx/checkin';
-import { InstallGuide, InstallSheet } from '@/app/InstallGuide';
+import { InstallGuide, InstallSheet, type InstallGuideKey } from '@/app/InstallGuide';
 import { AppIconArt, type AppIconShape } from '@/app/AppIconArt';
 import { SplashArt } from '@/app/SplashArt';
 import { ScreenError, ScreenLoading } from '@/app/ScreenHost';
@@ -70,6 +71,7 @@ const GALLERY_CSS = `
 .fxui-wallet { position: fixed; top: 12px; right: 12px; z-index: 90; display: flex; gap: 8px; }
 .fxui-wallet > span { display: inline-flex; align-items: center; gap: 6px; height: 40px; padding: 0 14px 0 8px; border-radius: 999px; background: var(--card); box-shadow: var(--shadow-md); font: 600 17px var(--font-display); }
 .fxui-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.fxui-pressed > span:nth-of-type(2) { transform: translateY(3px); }
 `;
 
 let tokensInstalled = false;
@@ -208,6 +210,16 @@ function addStars(n: number) {
   state.value = { ...s, wallet: { ...s.wallet, stars: s.wallet.stars + n } };
 }
 
+/** What the store does: commit the events' coins and stars, then emit them (same tick). */
+function commitAndEmit(events: GameEvent[]) {
+  for (const e of events) {
+    const d = walletDelta(e);
+    if (d?.kind === 'coins') addCoins(d.amount);
+    else if (d?.kind === 'stars') addStars(d.amount);
+  }
+  emitGameEvents(events);
+}
+
 const rectOf = (e: MouseEvent) => (e.currentTarget as HTMLElement).getBoundingClientRect();
 
 /* ------------------------------------------------------------------------------------------ */
@@ -216,11 +228,15 @@ const rectOf = (e: MouseEvent) => (e.currentTarget as HTMLElement).getBoundingCl
 
 const VARIANTS: CandyVariant[] = ['primary', 'secondary', 'soft', 'ghost', 'danger'];
 
-function Buttons() {
+function Buttons({ params }: { params: URLSearchParams }) {
   const [busy, setBusy] = useState(false);
+  // ?focus=1 shows the keyboard focus ring (programmatic focus on load counts as keyboard focus).
+  useEffect(() => {
+    if (params.get('focus')) document.querySelector<HTMLElement>('[data-demo-focus]')?.focus();
+  }, []);
   return (
     <Panels>
-      {() => (
+      {(theme) => (
         <div class="fxui-stack">
           <Sub>Variants</Sub>
           <div class="fxui-row">
@@ -242,10 +258,21 @@ function Buttons() {
               Large
             </CandyButton>
           </div>
+          <Sub>States: loading · pressed · focus ring (?focus=1) · live loading</Sub>
           <div class="fxui-row">
-            <CandyButton loading={busy} onClick={() => (setBusy(true), setTimeout(() => setBusy(false), 1600))}>
+            <CandyButton loading>Saving</CandyButton>
+            <CandyButton class="fxui-pressed">Pressed</CandyButton>
+            <CandyButton variant="secondary" class="fxui-pressed">
+              Pressed
+            </CandyButton>
+            <CandyButton variant="soft" tone="sky" {...(theme === 'light' ? { 'data-demo-focus': true } : {})}>
+              Focused
+            </CandyButton>
+            <CandyButton loading={busy} variant="secondary" onClick={() => (setBusy(true), setTimeout(() => setBusy(false), 1600))}>
               {busy ? 'Saving' : 'Tap to load'}
             </CandyButton>
+          </div>
+          <div class="fxui-row">
             <CandyButton disabled>Disabled</CandyButton>
             <CandyButton variant="secondary" disabled>
               Disabled
@@ -366,7 +393,15 @@ function Surfaces() {
     <Panels>
       {() => (
         <div class="fxui-stack">
-          <SectionHeader title="This week" subtitle="6 of 7 check-ins · 86%" action={<CandyButton variant="ghost" size="sm">See all</CandyButton>} />
+          <SectionHeader
+            title="This week"
+            subtitle="6 of 7 check-ins · 86%"
+            action={
+              <CandyButton variant="ghost" size="sm">
+                See all
+              </CandyButton>
+            }
+          />
           <div class="fxui-row" style={{ alignItems: 'stretch' }}>
             <Card style={{ flex: '1 1 140px' }}>
               <b>Plain card</b>
@@ -616,14 +651,22 @@ function Fx() {
   useEffect(seedDemoState, []);
   const checkIn = (e: MouseEvent) => {
     const el = e.currentTarget as HTMLElement;
-    addCoins(5);
+    // Like a screen: checkIn() commits and emits, then the flourish claims its coins.
     const events: GameEvent[] = [{ type: 'coins', amount: 5, reason: 'checkin', habitId: 'h-walk' }];
+    commitAndEmit(events);
     celebrateCheckIn({ events, coins: 5, completed: true, rewarded: true }, 'h-walk', el);
-    emitGameEvents(events);
   };
   return (
     <div class="fxui-stack">
       <FxHosts />
+      <Panels>{() => <FxTriggers spark={spark} setSpark={setSpark} checkIn={checkIn} />}</Panels>
+    </div>
+  );
+}
+
+function FxTriggers({ spark, setSpark, checkIn }: { spark: number; setSpark: (n: number) => void; checkIn: (e: MouseEvent) => void }) {
+  return (
+    <div class="fxui-stack">
       <Sub>Confetti (at the button · big & epic without an origin fire corner cannons)</Sub>
       <div class="fxui-row">
         {(['tiny', 'small', 'medium'] as const).map((i) => (
@@ -685,13 +728,19 @@ function Fx() {
         <CandyButton variant="secondary" onClick={() => toast({ message: 'Walk marked as a rest day', action: { label: 'Undo', onAction: () => toast({ message: 'Back on the list 🌼' }) } })}>
           With Undo
         </CandyButton>
-        <CandyButton variant="secondary" onClick={() => toast({ message: 'Patches loves Strawberry! 💕', art: <PetArt petId="pet-cat-calico" size={34} expression="love" shadow={false} />, tone: 'blush' })}>
+        <CandyButton
+          variant="secondary"
+          onClick={() => toast({ message: 'Patches loves Strawberry! 💕', art: <PetArt petId="pet-cat-calico" size={34} expression="love" shadow={false} />, tone: 'blush' })}
+        >
           With pet art
         </CandyButton>
         <CandyButton variant="secondary" onClick={() => rapidCheckins()}>
           Rapid coins (coalesced)
         </CandyButton>
-        <CandyButton variant="secondary" onClick={() => toast({ key: 'sw-update', message: 'A fresh version is ready 🌱', tone: 'sage', duration: 0, action: { label: 'Refresh', onAction: () => undefined } })}>
+        <CandyButton
+          variant="secondary"
+          onClick={() => toast({ key: 'sw-update', message: 'A fresh version is ready 🌱', tone: 'sage', duration: 0, action: { label: 'Refresh', onAction: () => undefined } })}
+        >
           Update ready
         </CandyButton>
       </div>
@@ -707,10 +756,7 @@ function center(r: DOMRect) {
 function rapidCheckins() {
   seedDemoState();
   for (let i = 0; i < 5; i++) {
-    setTimeout(() => {
-      addCoins(5);
-      emitGameEvents([{ type: 'coins', amount: 5, reason: 'checkin', habitId: 'h-water' }]);
-    }, i * 180);
+    setTimeout(() => commitAndEmit([{ type: 'coins', amount: 5, reason: 'checkin', habitId: 'h-water' }]), i * 180);
   }
 }
 
@@ -753,14 +799,37 @@ function Sounds() {
 /* ------------------------------------------------------------------------------------------ */
 
 const CELEBRATIONS: Record<string, { label: string; events: GameEvent[] }> = {
-  perfectDay: { label: 'Perfect day', events: [{ type: 'perfectDay', date: '2026-09-29', coins: 10 }, { type: 'coins', amount: 10, reason: 'perfect' }] },
+  perfectDay: {
+    label: 'Perfect day',
+    events: [
+      { type: 'perfectDay', date: '2026-09-29', coins: 10 },
+      { type: 'coins', amount: 10, reason: 'perfect' },
+    ],
+  },
   milestone: {
     label: 'Milestone (7 days)',
-    events: [{ type: 'milestone', habitId: 'h-walk', rung: 7, unit: 'days', coins: 25, stars: 1, tickets: 0 }, { type: 'coins', amount: 25, reason: 'milestone' }, { type: 'stars', amount: 1, reason: 'milestone' }],
+    events: [
+      { type: 'milestone', habitId: 'h-walk', rung: 7, unit: 'days', coins: 25, stars: 1, tickets: 0 },
+      { type: 'coins', amount: 25, reason: 'milestone' },
+      { type: 'stars', amount: 1, reason: 'milestone' },
+    ],
   },
-  badge: { label: 'Badge', events: [{ type: 'badge', badgeId: 'first-perfect-day', stars: 1 }, { type: 'stars', amount: 1, reason: 'badge' }] },
+  badge: {
+    label: 'Badge',
+    events: [
+      { type: 'badge', badgeId: 'first-perfect-day', stars: 1 },
+      { type: 'stars', amount: 1, reason: 'badge' },
+    ],
+  },
   bloom: { label: 'Plant blooms', events: [{ type: 'plantStage', habitId: 'h-yoga', stage: 5, stageName: 'Blooming' }] },
-  evergreen: { label: 'Plant evergreen', events: [{ type: 'plantStage', habitId: 'h-walk', stage: 7, stageName: 'Evergreen' }, { type: 'badge', badgeId: 'first-evergreen', stars: 5 }, { type: 'stars', amount: 5, reason: 'badge' }] },
+  evergreen: {
+    label: 'Plant evergreen',
+    events: [
+      { type: 'plantStage', habitId: 'h-walk', stage: 7, stageName: 'Evergreen' },
+      { type: 'badge', badgeId: 'first-evergreen', stars: 5 },
+      { type: 'stars', amount: 5, reason: 'badge' },
+    ],
+  },
   stacked: {
     label: 'Stacked (perfect day + milestone + badge + goal)',
     events: [
@@ -776,24 +845,53 @@ const CELEBRATIONS: Record<string, { label: string; events: GameEvent[] }> = {
   },
   exclusive: {
     label: 'Exclusive (epic)',
-    events: [{ type: 'milestone', habitId: 'h-walk', rung: 90, unit: 'days', coins: 120, stars: 4, tickets: 1, exclusive: 'wear-evergreen-crown' }, { type: 'coins', amount: 120, reason: 'milestone' }, { type: 'stars', amount: 4, reason: 'milestone' }],
+    events: [
+      { type: 'milestone', habitId: 'h-walk', rung: 90, unit: 'days', coins: 120, stars: 4, tickets: 1, exclusive: 'wear-evergreen-crown' },
+      { type: 'coins', amount: 120, reason: 'milestone' },
+      { type: 'stars', amount: 4, reason: 'milestone' },
+    ],
   },
   bestFriends: { label: 'Best friends (pet L10)', events: [{ type: 'petLevel', petId: 'pet-mochi', level: 10 }] },
   sprout: { label: 'Plant sprouted (toast)', events: [{ type: 'plantStage', habitId: 'h-water', stage: 2, stageName: 'Seedling' }] },
-  period: { label: 'Weekly goal (toast)', events: [{ type: 'periodGoal', habitId: 'h-yoga', period: 'week', coins: 10 }, { type: 'coins', amount: 10, reason: 'period' }] },
-  welcome: { label: 'Welcome back (toast)', events: [{ type: 'welcomeBack', habitId: 'h-walk', coins: 3 }, { type: 'coins', amount: 3, reason: 'welcome' }] },
+  period: {
+    label: 'Weekly goal (toast)',
+    events: [
+      { type: 'periodGoal', habitId: 'h-yoga', period: 'week', coins: 10 },
+      { type: 'coins', amount: 10, reason: 'period' },
+    ],
+  },
+  welcome: {
+    label: 'Welcome back (toast)',
+    events: [
+      { type: 'welcomeBack', habitId: 'h-walk', coins: 3 },
+      { type: 'coins', amount: 3, reason: 'welcome' },
+    ],
+  },
   petLevel: { label: 'Friendship level (toast)', events: [{ type: 'petLevel', petId: 'pet-mochi', level: 3 }] },
   favorite: { label: 'Favorite found (toast)', events: [{ type: 'favoriteFound', petId: 'pet-mochi', treatId: 'treat-strawberry' }] },
-  fusion: { label: 'Stardust fusion (toast)', events: [{ type: 'stardust', amount: 8, fused: 1 }, { type: 'stars', amount: 1, reason: 'fusion' }] },
+  fusion: {
+    label: 'Stardust fusion (toast)',
+    events: [
+      { type: 'stardust', amount: 8, fused: 1 },
+      { type: 'stars', amount: 1, reason: 'fusion' },
+    ],
+  },
   letter: { label: 'Letter (toast)', events: [{ type: 'letter', letterId: 'w-2026-09-21' }] },
 };
+
+/** A banner, a letter and a screen's Undo toast all at once: toasts must stay visible below it. */
+function collision() {
+  commitAndEmit([...CELEBRATIONS.perfectDay!.events, { type: 'letter', letterId: 'w-2026-09-28' }]);
+  toast({ message: 'Walk marked as a rest day', action: { label: 'Undo', onAction: () => toast({ message: 'Back on the list 🌼' }) } });
+}
 
 function Celebrations({ params }: { params: URLSearchParams }) {
   useEffect(() => {
     seedDemoState();
     const auto = params.get('celebrate');
-    if (auto && CELEBRATIONS[auto]) {
-      const t = setTimeout(() => emitGameEvents(CELEBRATIONS[auto]!.events), 250);
+    const run = auto === 'collision' ? collision : auto && CELEBRATIONS[auto] ? () => commitAndEmit(CELEBRATIONS[auto]!.events) : null;
+    if (run) {
+      const t = setTimeout(run, 250);
       return () => clearTimeout(t);
     }
     return undefined;
@@ -803,10 +901,13 @@ function Celebrations({ params }: { params: URLSearchParams }) {
       <FxHosts />
       <div class="fxui-row">
         {Object.entries(CELEBRATIONS).map(([k, c]) => (
-          <CandyButton key={k} size="sm" variant={c.label.includes('toast') ? 'secondary' : 'soft'} tone={k === 'exclusive' ? 'butter' : 'blush'} onClick={() => emitGameEvents(c.events)}>
+          <CandyButton key={k} size="sm" variant={c.label.includes('toast') ? 'secondary' : 'soft'} tone={k === 'exclusive' ? 'butter' : 'blush'} onClick={() => commitAndEmit(c.events)}>
             {c.label}
           </CandyButton>
         ))}
+        <CandyButton size="sm" variant="secondary" onClick={collision}>
+          Banner + letter + Undo (collision)
+        </CandyButton>
         <CandyButton size="sm" variant="secondary" onClick={() => rapidCheckins()}>
           Rapid check-ins (toast)
         </CandyButton>
@@ -819,10 +920,10 @@ function Celebrations({ params }: { params: URLSearchParams }) {
 /* Install, app icon, splash                                                                   */
 /* ------------------------------------------------------------------------------------------ */
 
-const PLATFORMS: InstallPlatform[] = ['ios-safari', 'ios-other', 'mac-safari', 'prompt', 'chromium', 'android', 'other', 'installed'];
+const PLATFORMS: (InstallPlatform | InstallGuideKey)[] = ['ios-safari', 'ios-safari-classic', 'ios-other', 'mac-safari', 'prompt', 'chromium', 'android', 'other', 'installed'];
 
 function Install({ params }: { params: URLSearchParams }) {
-  const [platform, setPlatform] = useState<InstallPlatform | null>((params.get('install') as InstallPlatform | null) ?? null);
+  const [platform, setPlatform] = useState<InstallPlatform | InstallGuideKey | null>((params.get('install') as InstallPlatform | InstallGuideKey | null) ?? null);
   return (
     <div class="fxui-stack">
       <FxHosts />
@@ -928,7 +1029,7 @@ function Splash({ params }: { params: URLSearchParams }) {
 }
 
 export const SECTIONS: GallerySection[] = [
-  { id: 'fxui-buttons', title: 'UI kit · CandyButton & IconButton', render: () => <Buttons /> },
+  { id: 'fxui-buttons', title: 'UI kit · CandyButton & IconButton', render: (p) => <Buttons params={p} /> },
   { id: 'fxui-controls', title: 'UI kit · Toggle, Segmented, Chips, Stepper, Fields', render: () => <Controls /> },
   { id: 'fxui-surfaces', title: 'UI kit · Card, ListRow, SectionHeader, EmptyState', render: () => <Surfaces /> },
   { id: 'fxui-status', title: 'UI kit · ProgressRing, ProgressBar, Pills, AnimatedNumber', render: () => <Status /> },

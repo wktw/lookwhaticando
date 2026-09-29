@@ -3,6 +3,7 @@
  * back button and deep links work. Each tab remembers its own scroll position.
  */
 import { effect, signal } from '@preact/signals';
+import { prefersReducedMotion } from '@/fx/motion';
 import { formatHash, parseHash, type TabId } from './routes';
 
 const initial = typeof location === 'undefined' ? parseHash('') : parseHash(location.hash);
@@ -33,8 +34,9 @@ function setTab(tab: TabId, rest: string[]) {
 
 export function navigate(tab: TabId, rest: string[] = []): void {
   if (tab === currentTab.value && rest.join('/') === routeRest.value.join('/')) {
-    // Re-selecting the current tab scrolls back to the top, like iOS.
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    // Re-selecting the current tab scrolls back to the top, like iOS (instantly with reduced
+    // motion: a JS 'smooth' scroll ignores the CSS reduced-motion override).
+    window.scrollTo({ top: 0, behavior: prefersReducedMotion() ? 'auto' : 'smooth' });
     return;
   }
   location.hash = formatHash(tab, rest);

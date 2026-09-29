@@ -1,7 +1,12 @@
 /**
  * Applies settings.theme (auto/light/night) to <html data-theme>, settings.reduceMotion to
- * <html data-motion>, and keeps the browser chrome in step: meta theme-color and the iOS
- * status bar style. index.html runs the same logic inline before first paint (no flash).
+ * <html data-motion>, and keeps the browser chrome in step via meta theme-color. index.html runs
+ * the same logic inline before first paint (no flash).
+ *
+ * The iOS status bar style stays "default" in both themes (index.html): iOS reads that tag only
+ * at launch, so a per-theme style would be wrong after the first switch (white text on cream
+ * when a night-launched app turns light). "default" takes its tint from theme-color and picks
+ * readable text itself.
  */
 import { computed, effect } from '@preact/signals';
 import { state } from '@/state/store';
@@ -32,7 +37,6 @@ export function applyTheme(theme: ResolvedTheme): void {
   // One unconditional theme-color: the media-query pair in index.html would follow the OS, not the setting.
   for (const m of document.querySelectorAll('meta[name="theme-color"][media]')) m.remove();
   meta('theme-color').content = THEME_COLOR[theme];
-  meta('apple-mobile-web-app-status-bar-style').content = theme === 'night' ? 'black-translucent' : 'default';
 }
 
 export function applyMotion(pref: Settings['reduceMotion']): void {

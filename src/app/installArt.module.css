@@ -86,7 +86,7 @@
   font-weight: 800;
 }
 .rowTextSolid {
-  fill: #3f2d37;
+  fill: var(--on-pastel);
   font-weight: 800;
 }
 .menu,

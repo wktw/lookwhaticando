@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'preact';
 import { act } from 'preact/test-utils';
 import { useState } from 'preact/hooks';
-import { CandyButton, IconButton, Segmented, Sheet, Toggle } from '@/ui';
+import { Card, CandyButton, ConfirmDialog, IconButton, Segmented, Sheet, Toggle } from '@/ui';
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 // jsdom has no layout: scrolling is a no-op here.
@@ -77,6 +77,46 @@ describe('Sheet', () => {
     expect(document.activeElement?.id).toBe('opener');
   });
 
+  it('stacked sheets: Esc closes only the top one, and focus goes back into the one below', async () => {
+    setup();
+    const closed: string[] = [];
+    function Stack() {
+      const [inner, setInner] = useState(false);
+      return (
+        <Sheet open title="Pet" onClose={() => closed.push('outer')}>
+          <button id="wardrobe" onClick={() => setInner(true)}>
+            Wardrobe
+          </button>
+          <Sheet open={inner} title="Wardrobe" onClose={() => (closed.push('inner'), setInner(false))}>
+            <button>Done</button>
+          </Sheet>
+        </Sheet>
+      );
+    }
+    mount(<Stack />);
+    const wardrobe = document.getElementById('wardrobe')!;
+    wardrobe.focus();
+    act(() => wardrobe.click());
+    const [outer, inner] = [...document.querySelectorAll<HTMLElement>('[role="dialog"]')];
+    expect(inner!.contains(document.activeElement)).toBe(true);
+    expect((outer!.closest('[data-state]') as HTMLElement).inert).toBe(true);
+    act(() => {
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    });
+    expect(closed).toEqual(['inner']);
+    await act(() => sleep(400));
+    expect(document.querySelectorAll('[role="dialog"]')).toHaveLength(1);
+    expect((outer!.closest('[data-state]') as HTMLElement).inert).toBe(false);
+    expect(document.activeElement).toBe(wardrobe);
+  });
+
+  it('ConfirmDialog is an alertdialog that is described by its message', () => {
+    setup();
+    mount(<ConfirmDialog open title="Delete it?" message="Its plant goes too." onConfirm={() => undefined} onCancel={() => undefined} />);
+    const dialog = document.querySelector<HTMLElement>('[role="alertdialog"]')!;
+    expect(document.getElementById(dialog.getAttribute('aria-describedby')!)?.textContent).toBe('Its plant goes too.');
+  });
+
   it('keeps Tab inside the sheet', () => {
     setup();
     mount(<Harness />);
@@ -107,7 +147,18 @@ describe('controls', () => {
     setup();
     function Seg() {
       const [v, setV] = useState<'a' | 'b' | 'c'>('a');
-      return <Segmented label="Theme" value={v} onChange={setV} options={[{ value: 'a', label: 'Auto' }, { value: 'b', label: 'Light' }, { value: 'c', label: 'Night' }]} />;
+      return (
+        <Segmented
+          label="Theme"
+          value={v}
+          onChange={setV}
+          options={[
+            { value: 'a', label: 'Auto' },
+            { value: 'b', label: 'Light' },
+            { value: 'c', label: 'Night' },
+          ]}
+        />
+      );
     }
     const host = mount(<Seg />);
     const group = host.querySelector('[role="radiogroup"]')!;
@@ -131,6 +182,12 @@ describe('controls', () => {
     expect(btn.getAttribute('aria-busy')).toBe('true');
     act(() => btn.click());
     expect(onClick).not.toHaveBeenCalled();
+  });
+
+  it('a button Card never submits the form around it', () => {
+    setup();
+    const host = mount(<Card as="button">Pick me</Card>);
+    expect(host.querySelector('button')!.type).toBe('button');
   });
 
   it('IconButton always has an accessible name', () => {

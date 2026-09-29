@@ -14,6 +14,8 @@
   left: calc(var(--size) / -2);
   width: var(--size);
   height: var(--size);
+  /* The burst box is 0×0; the global svg max-width would squash the sparks to nothing. */
+  max-width: none;
   opacity: 0;
   animation: spark 620ms var(--ease-out) var(--delay) both;
 }

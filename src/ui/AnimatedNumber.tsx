@@ -1,22 +1,24 @@
 import { useLayoutEffect, useRef } from 'preact/hooks';
-import { inboundFlight, type WalletKind } from '@/fx/coinFly';
+import { onPendingChange, pendingFor, type WalletKind } from '@/fx/walletLedger';
 import { prefersReducedMotion } from '@/fx/motion';
 
 export interface AnimatedNumberProps {
   value: number;
   /**
-   * When set and coins/stars are flying toward this counter, the number ticks up as each
-   * sprite lands instead of jumping early.
+   * A wallet counter: amounts still flying toward it (see fx/walletLedger) are held back, so
+   * the number ticks up as each coin lands instead of jumping early.
    */
   walletKind?: WalletKind;
   format?: (n: number) => string;
-  /** Tween length when not synced to a flight (ms). */
+  /** Tween length for a plain value change (ms). */
   duration?: number;
   class?: string;
 }
 
 const defaultFormat = (n: number) => n.toLocaleString();
 const easeOut = (t: number) => 1 - (1 - t) ** 3;
+/** A landing coin's tick: quick, so a stream of landings reads as counting. */
+const LANDING_MS = 220;
 
 /**
  * A number that counts to its new value. Text is written straight to the DOM from rAF,
@@ -29,38 +31,45 @@ export function AnimatedNumber({ value, walletKind, format = defaultFormat, dura
   useLayoutEffect(() => {
     const el = ref.current;
     if (!el) return;
+    let raf = 0;
     const write = (n: number) => {
       shown.current = n;
       el.textContent = format(n);
     };
-    const from = shown.current;
-    if (from === null || from === value || prefersReducedMotion()) {
-      write(value);
-      return;
-    }
-
-    const flight = walletKind && value > from ? inboundFlight(walletKind) : null;
-    if (flight) {
-      const off = flight.onLand((landed, count) => write(Math.round(from + ((value - from) * landed) / count)));
-      return () => {
-        off();
-        write(value);
-      };
-    }
-
-    let raf = 0;
-    const start = performance.now();
-    const tick = (now: number) => {
-      const t = Math.min(1, (now - start) / duration);
-      write(Math.round(from + (value - from) * easeOut(t)));
-      if (t < 1) raf = requestAnimationFrame(tick);
-    };
-    raf = requestAnimationFrame(tick);
-    return () => {
+    const target = () => Math.max(0, value - (walletKind ? pendingFor(walletKind) : 0));
+    const tweenTo = (to: number, ms: number) => {
       cancelAnimationFrame(raf);
-      write(value);
+      const from = shown.current;
+      if (from === null || from === to || prefersReducedMotion()) return write(to);
+      const start = performance.now();
+      const tick = () => {
+        const t = Math.min(1, (performance.now() - start) / ms);
+        write(Math.round(from + (to - from) * easeOut(t)));
+        if (t < 1) raf = requestAnimationFrame(tick);
+      };
+      raf = requestAnimationFrame(tick);
     };
-  }, [value]);
+
+    tweenTo(target(), duration);
+    // Next frame, not now: a reward is reserved in the same tick the store commits it, before
+    // this component has re-rendered with the new value. Landings only ever count up; a flight
+    // reserved after its coins were already shown never makes the number dip.
+    let soon = 0;
+    const off = walletKind
+      ? onPendingChange(() => {
+          cancelAnimationFrame(soon);
+          soon = requestAnimationFrame(() => {
+            const to = target();
+            if (to > (shown.current ?? -Infinity)) tweenTo(to, LANDING_MS);
+          });
+        })
+      : undefined;
+    return () => {
+      off?.();
+      cancelAnimationFrame(soon);
+      cancelAnimationFrame(raf);
+    };
+  }, [value, walletKind]);
 
   return <span ref={ref} class={cls} style={{ fontVariantNumeric: 'tabular-nums' }} />;
 }

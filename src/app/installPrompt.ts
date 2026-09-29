@@ -34,6 +34,15 @@ export function detectInstallPlatform({ ua, platform, maxTouchPoints, standalone
   return 'other';
 }
 
+/**
+ * Safari's major version from its user agent ("Version/26.0"). iOS 26 froze the OS number in
+ * the UA but not this one, so it tells the new compact Safari (⋯ menu) from the classic toolbar.
+ */
+export function safariMajor(ua: string): number | null {
+  const m = /Version\/(\d+)/.exec(ua);
+  return m ? Number(m[1]) : null;
+}
+
 interface BeforeInstallPromptEvent extends Event {
   prompt(): Promise<void>;
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;

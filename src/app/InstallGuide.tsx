@@ -10,8 +10,8 @@ import { Pill } from '@/ui/Pill';
 import { Sheet } from '@/ui/Sheet';
 import { toast } from '@/ui/toast';
 import { AppIconArt } from './AppIconArt';
-import { currentInstallPlatform, installPrompt, promptInstall, type InstallPlatform } from './installPrompt';
-import { AddToHomeArt, AndroidMenuArt, ChromeInstallArt, DockArt, HomeScreenArt, MacDockArt, ShareStepArt } from './installArt';
+import { currentInstallPlatform, installPrompt, promptInstall, safariMajor, type InstallPlatform } from './installPrompt';
+import { AddToHomeArt, AndroidMenuArt, ChromeInstallArt, CompactShareArt, DockArt, HomeScreenArt, MacDockArt, ShareStepArt, ViewMoreArt } from './installArt';
 import s from './InstallGuide.module.css';
 
 interface Step {
@@ -22,8 +22,19 @@ interface Step {
 
 const HOME: Step = { title: 'Tap Add', text: 'Mochi Meadow opens full-screen, works offline and gets her very own icon.', art: HomeScreenArt };
 
-const GUIDES: Record<Exclude<InstallPlatform, 'installed'>, { title: string; steps: Step[] }> = {
+/** Guides by platform; iOS Safari has two, for the iOS 26 compact bar and the classic toolbar. */
+export type InstallGuideKey = Exclude<InstallPlatform, 'installed'> | 'ios-safari-classic';
+
+const GUIDES: Record<InstallGuideKey, { title: string; steps: Step[] }> = {
   'ios-safari': {
+    title: 'Add to your Home Screen',
+    steps: [
+      { title: 'Tap ⋯, then Share', text: 'It’s at the end of Safari’s address bar. (With the Top or Bottom layout, tap the square-with-an-arrow Share button instead.)', art: CompactShareArt },
+      { title: 'Tap View More, then “Add to Home Screen”', text: 'Scroll down the share options a little to find View More.', art: ViewMoreArt },
+      { ...HOME, text: 'Leave “Open as Web App” on. Mochi Meadow opens full-screen, works offline and gets her very own icon.' },
+    ],
+  },
+  'ios-safari-classic': {
     title: 'Add to your Home Screen',
     steps: [
       { title: 'Tap Share', text: 'The square with an arrow, in Safari’s toolbar.', art: () => <ShareStepArt /> },
@@ -59,16 +70,20 @@ const GUIDES: Record<Exclude<InstallPlatform, 'installed'>, { title: string; ste
   },
   android: {
     title: 'Add to your Home screen',
-    steps: [
-      { title: 'Open the ⋮ menu', text: 'Choose “Install app” or “Add to Home screen”.', art: AndroidMenuArt },
-      HOME,
-    ],
+    steps: [{ title: 'Open the ⋮ menu', text: 'Choose “Install app” or “Add to Home screen”.', art: AndroidMenuArt }, HOME],
   },
   other: {
     title: 'Install Mochi Meadow',
     steps: [{ title: 'Try Safari, Chrome or Edge', text: 'Open this page in one of those to install it. Or keep using it right here, that works too!', art: HomeScreenArt }],
   },
 };
+
+/** Which guide to show: Safari before 26 still has the classic toolbar with Share in it. */
+export function guideFor(platform: Exclude<InstallPlatform, 'installed'>, ua: string): InstallGuideKey {
+  if (platform !== 'ios-safari') return platform;
+  const v = safariMajor(ua);
+  return v !== null && v < 26 ? 'ios-safari-classic' : 'ios-safari';
+}
 
 async function install() {
   if (await promptInstall()) toast({ message: 'Welcome home, little meadow 🌱', tone: 'sage' });
@@ -77,8 +92,8 @@ async function install() {
 export interface InstallSheetProps {
   open: boolean;
   onClose: () => void;
-  /** Force a platform (gallery, tests); defaults to the detected one. */
-  platform?: InstallPlatform;
+  /** Force a platform or guide (gallery, tests); defaults to the detected one. */
+  platform?: InstallPlatform | InstallGuideKey;
 }
 
 export function InstallSheet({ open, onClose, platform }: InstallSheetProps) {
@@ -93,7 +108,7 @@ export function InstallSheet({ open, onClose, platform }: InstallSheetProps) {
       </Sheet>
     );
   }
-  const guide = GUIDES[p];
+  const guide = GUIDES[p === 'ios-safari-classic' ? p : guideFor(p, navigator.userAgent)];
   return (
     <Sheet
       open={open}

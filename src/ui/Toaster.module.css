@@ -8,7 +8,8 @@
   align-items: center;
   gap: 8px;
   width: min(420px, calc(100vw - 24px));
-  transform: translateX(-50%);
+  transform: translate(-50%, var(--lane-shift, 0px));
+  transition: transform 360ms var(--ease-out);
   pointer-events: none;
 }
 
@@ -23,6 +24,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
+  min-width: min(280px, 100%);
   max-width: 100%;
   min-height: 52px;
   padding: 8px 10px 8px 12px;

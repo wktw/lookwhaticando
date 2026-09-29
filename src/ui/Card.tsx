@@ -20,6 +20,8 @@ export function Card({ as = 'div', tone = 'plain', padding = 'md', interactive, 
   const Tag = as as 'div';
   return (
     <Tag
+      // A button card never submits the form around it by accident.
+      {...(as === 'button' ? { type: 'button' } : {})}
       {...(rest as JSX.HTMLAttributes<HTMLDivElement>)}
       class={cx(s.card, s[padding], tone !== 'plain' && s.tinted, tone !== 'plain' && toneClass(tone), interactive && s.interactive, flat && s.flat, cls as string)}
     >

@@ -33,34 +33,34 @@
   height: 30px;
   padding: 0 12px;
   border-radius: 999px;
-  background: var(--butter-300);
-  color: #3f2d37;
+  background: var(--chip-coin);
+  color: var(--on-pastel);
   font-family: var(--font-display);
   font-size: 1.0625rem;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
   box-shadow:
-    0 2px 0 #d6a21e,
+    0 2px 0 var(--butter-lip),
     0 8px 18px -8px rgba(74, 53, 64, 0.45);
   will-change: transform, opacity;
 }
 .mm-fx-float[data-tone='star'] {
-  background: #fff1b8;
+  background: var(--chip-star);
   box-shadow:
-    0 2px 0 #e9bd3c,
+    0 2px 0 var(--butter-lip),
     0 8px 18px -8px rgba(74, 53, 64, 0.45);
 }
 .mm-fx-float[data-tone='heart'] {
-  background: #ffc4d3;
+  background: var(--chip-heart);
   box-shadow:
-    0 2px 0 #d96a8b,
+    0 2px 0 var(--blush-lip),
     0 8px 18px -8px rgba(74, 53, 64, 0.45);
 }
 .mm-fx-float[data-tone='sage'] {
-  background: #c3dfb4;
+  background: var(--chip-sage);
   box-shadow:
-    0 2px 0 #6e9f5d,
+    0 2px 0 var(--sage-lip),
     0 8px 18px -8px rgba(74, 53, 64, 0.45);
 }
 .mm-fx-float[data-tone='ink'] {

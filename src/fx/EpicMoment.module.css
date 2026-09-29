@@ -1,22 +1,30 @@
-.layer {
+/*
+ * Scrim and card are separate fixed layers (the wrapper makes no stacking context), so the
+ * confetti canvas flies between them: bright over the dimmed page, behind the readable card.
+ */
+.scrim {
   position: fixed;
   inset: 0;
-  z-index: 260;
+  z-index: 240;
+  /* Deep plum night with a warm golden glow where the treasure appears. */
+  background: radial-gradient(circle at 50% 38%, rgba(255, 214, 128, 0.5), rgba(255, 176, 150, 0.2) 34%, transparent 60%), rgba(52, 26, 58, 0.7);
+  animation: fade 400ms ease backwards;
+}
+
+.center {
+  position: fixed;
+  inset: 0;
+  z-index: 248;
   display: grid;
   place-items: center;
   padding: calc(var(--safe-top) + 20px) 20px calc(var(--safe-bottom) + 20px);
-}
-
-.scrim {
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(circle at 50% 42%, rgba(255, 229, 147, 0.35), transparent 55%), rgba(46, 30, 44, 0.62);
-  animation: fade 400ms ease backwards;
+  pointer-events: none;
 }
 
 .card {
   position: relative;
   display: flex;
+  pointer-events: auto;
   flex-direction: column;
   align-items: center;
   width: min(360px, 100%);
@@ -76,7 +84,7 @@
 .s2,
 .s3 {
   position: absolute;
-  color: #ffe593;
+  color: var(--star);
   animation: twinkle 1.7s var(--ease-in-out) infinite;
 }
 .s1 {

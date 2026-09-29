@@ -39,6 +39,26 @@ export const EXIT_MS = 220;
 
 export const toasts = signal<ToastItem[]>([]);
 
+/**
+ * The bottom edge (px from the top of the viewport) of a celebration banner that shares the
+ * top of the screen; the toast stack slides below it so nothing hides underneath. 0 = none.
+ */
+export const toastLaneTop = signal(0);
+
+/** While > 0 (a full-screen moment is up), toast timers wait so nothing expires unseen. */
+export const toastsHeld = signal(0);
+
+/** Pause every toast's timer until the returned function is called. */
+export function holdToasts(): () => void {
+  toastsHeld.value++;
+  let done = false;
+  return () => {
+    if (done) return;
+    done = true;
+    toastsHeld.value--;
+  };
+}
+
 let seq = 0;
 
 /** Pure: insert a toast, or update the live toast with the same key in place. */

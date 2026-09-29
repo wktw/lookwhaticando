@@ -50,6 +50,18 @@
   outline: none;
   border-radius: var(--r-xl) var(--r-xl) 0 0;
 }
+/* The surface continues below the bottom edge, so pulling the sheet up (rubber band) never
+   opens a gap under it. */
+.sheet::after {
+  content: '';
+  position: absolute;
+  top: calc(100% - 1px);
+  right: 0;
+  left: 0;
+  height: 100vh;
+  background: var(--card);
+  pointer-events: none;
+}
 
 .tall {
   height: calc(100dvh - var(--safe-top) - var(--sheet-gap) - var(--kb, 0px));
@@ -190,6 +202,9 @@
   }
   .sheet:focus-visible {
     border-radius: var(--r-xl);
+  }
+  .sheet::after {
+    content: none;
   }
   .tall {
     height: auto;

@@ -65,23 +65,18 @@
   color: #fff;
 }
 
+/* DESIGN §10.1 rarity colors, shared with Capsules and the Collection. */
 .common {
-  background: #a9d59a;
+  background: var(--rarity-common);
 }
 .uncommon {
-  background: #9fcbf0;
+  background: var(--rarity-uncommon);
 }
 .rare {
-  background: #c3b3f3;
-}
-.rare .sparkle {
-  color: #fff8d6;
+  background: var(--rarity-rare);
 }
 .ultra {
-  background: linear-gradient(115deg, #ffb3c7 0%, #ffe593 30%, #b3e6d6 55%, #bbdcf6 78%, #d6c8f8 100%);
-}
-.ultra .sparkle {
-  color: #fff;
+  background: var(--holo);
 }
 /* A slow light sweep across the holographic foil. */
 .ultra::after {

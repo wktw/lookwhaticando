@@ -1,7 +1,8 @@
 /**
  * Coins (or stars) that arc from where they were earned into the wallet.
- * The wallet element is whatever carries `data-wallet-target="coins" | "stars"`; on each landing
- * it gets a bump and counters listening via `inboundFlight()` tick up in step.
+ * The wallet element is whatever carries `data-wallet-target="coins" | "stars"`; each landing
+ * bumps it and releases a share of the flight's reservation, so counters (AnimatedNumber
+ * with `walletKind`) tick up in step with the coins.
  */
 import { h, render } from 'preact';
 import { CoinIcon, StarIcon } from '@/art/icons';
@@ -9,33 +10,23 @@ import { fxLayer, toPoint, type Point } from './layer';
 import { arcControl, easeInOutCubic, quadAt, spriteCount } from './arc';
 import { prefersReducedMotion } from './motion';
 import { sfx } from './sound';
+import { chunkOf, reserve, type Payout, type Reservation, type WalletKind } from './walletLedger';
 
-export type WalletKind = 'coins' | 'stars';
+export type { WalletKind } from './walletLedger';
 
 export interface FlyCoinsOptions {
   from: DOMRect | Point;
   amount: number;
   kind?: WalletKind;
+  /**
+   * The reservation made when the reward was committed (see walletLedger). Without one, the
+   * flight reserves `amount` itself, which only holds the counter back if it's called in the
+   * same tick as the store update (as celebrateCheckIn does).
+   */
+  reservation?: Reservation;
 }
 
-type LandListener = (landed: number, count: number) => void;
-
-/** A flight in progress toward one wallet counter. */
-export interface Flight {
-  kind: WalletKind;
-  count: number;
-  landed: number;
-  onLand(fn: LandListener): () => void;
-  done: Promise<void>;
-}
-
-const inbound = new Map<WalletKind, Flight>();
 const BUMP = 'mm-wallet-bump';
-
-/** The flight currently heading to `kind`'s counter, if any (read by AnimatedNumber). */
-export function inboundFlight(kind: WalletKind): Flight | null {
-  return inbound.get(kind) ?? null;
-}
 
 function isVisible(el: Element): DOMRect | null {
   const r = el.getBoundingClientRect();
@@ -65,31 +56,6 @@ export function bumpWallet(el: HTMLElement) {
   void el.offsetWidth; // restart the animation
   el.classList.add(BUMP);
   el.addEventListener('animationend', () => el.classList.remove(BUMP), { once: true });
-}
-
-function createFlight(kind: WalletKind, count: number): Flight & { land(): void } {
-  const listeners = new Set<LandListener>();
-  let resolve!: () => void;
-  const done = new Promise<void>((r) => (resolve = r));
-  const flight = {
-    kind,
-    count,
-    landed: 0,
-    done,
-    onLand(fn: LandListener) {
-      listeners.add(fn);
-      return () => listeners.delete(fn);
-    },
-    land() {
-      flight.landed++;
-      for (const fn of listeners) fn(flight.landed, count);
-      if (flight.landed >= count) {
-        if (inbound.get(kind) === flight) inbound.delete(kind);
-        resolve();
-      }
-    },
-  };
-  return flight;
 }
 
 const FRAMES = 16;
@@ -126,34 +92,46 @@ function flySprite(kind: WalletKind, from: Point, to: Point, index: number, coun
 }
 
 /** Fly `amount` coins/stars from a point or element rect into the wallet. Resolves once all have landed. */
-export function flyCoins({ from, amount, kind = 'coins' }: FlyCoinsOptions): Promise<void> {
+export function flyCoins({ from, amount, kind = 'coins', reservation }: FlyCoinsOptions): Promise<void> {
   const count = spriteCount(amount);
-  if (!count || typeof document === 'undefined') return Promise.resolve();
+  if (!count || typeof document === 'undefined') {
+    reservation?.release();
+    return Promise.resolve();
+  }
+  const held = reservation ?? reserve(kind, amount);
+  const total = held.left;
   const origin = toPoint(from);
   const target = findWalletTarget(kind, origin);
-  const flight = createFlight(kind, count);
-  inbound.set(kind, flight);
-
+  let landed = 0;
   const land = () => {
     if (target) bumpWallet(target);
-    flight.land();
+    held.release(chunkOf(total, count, landed++));
   };
 
   if (!target || prefersReducedMotion() || typeof Element.prototype.animate !== 'function') {
     // No visible wallet (or no motion): count up in place without the flight.
-    queueMicrotask(() => {
-      for (let i = 0; i < count; i++) land();
-    });
-    if (target) sfx.play('coin', { volume: 0.7 });
-    return flight.done;
+    held.release();
+    if (target) {
+      bumpWallet(target);
+      sfx.play('coin', { volume: 0.7 });
+    }
+    return Promise.resolve();
   }
 
+  held.hold(Infinity);
   const to = toPoint(target.getBoundingClientRect());
-  for (let i = 0; i < count; i++) {
-    void flySprite(kind, origin, to, i, count).then(() => {
+  const flights = Array.from({ length: count }, (_, i) =>
+    flySprite(kind, origin, to, i, count).then(() => {
       sfx.play('coin', { volume: 0.55, pitch: 1 + i * 0.045 });
       land();
-    });
+    }),
+  );
+  return Promise.all(flights).then(() => held.release());
+}
+
+/** Fly a batch's reserved rewards (coins and stars) from one place. */
+export function flyPayout(payout: Payout | undefined, from: DOMRect | Point): void {
+  for (const r of [payout?.coins, payout?.stars]) {
+    if (r?.left) void flyCoins({ from, amount: r.left, kind: r.kind, reservation: r });
   }
-  return flight.done;
 }

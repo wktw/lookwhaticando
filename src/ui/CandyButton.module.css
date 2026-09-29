@@ -85,16 +85,13 @@
 
 .secondary {
   --face: var(--card);
-  --lip: #ecdcd2;
+  --lip: var(--raised-lip);
   --text: var(--ink);
 }
 .secondary .face {
   box-shadow:
     inset 0 0 0 1.5px var(--line),
     inset 0 2px 0 rgba(255, 255, 255, 0.6);
-}
-:global([data-theme='night']) .secondary {
-  --lip: #251f36;
 }
 :global([data-theme='night']) .secondary .face {
   box-shadow:
@@ -113,6 +110,10 @@
 :global([data-theme='night']) .soft {
   --face: var(--t300);
   --lip: var(--t100);
+}
+/* Night butter-300 is too light for light text (3.98:1); a deeper gold keeps it AA. */
+:global([data-theme='night']) .soft:global(.mm-tone-butter) {
+  --face: var(--butter-soft-night);
 }
 :global([data-theme='night']) .soft .face {
   box-shadow: inset 0 1.5px 0 rgba(255, 255, 255, 0.12);

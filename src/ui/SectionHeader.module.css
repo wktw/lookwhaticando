@@ -37,3 +37,11 @@ h3.title {
   flex: none;
   margin-right: -8px;
 }
+
+/* With a subtitle, the action lines up with the title row instead of floating between lines. */
+.hasSub {
+  align-items: flex-start;
+}
+.hasSub .action {
+  margin-top: -8px;
+}

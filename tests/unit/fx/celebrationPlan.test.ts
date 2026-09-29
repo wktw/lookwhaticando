@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { addTally, EMPTY_TALLY, enqueueBanner, formatTally, planCelebration, type BannerSpec, type CelebrationContext } from '@/fx/celebrationPlan';
+import { addTally, EMPTY_TALLY, enqueueBanner, eventWeight, formatTally, planCelebration, walletDelta, type BannerSpec, type CelebrationContext } from '@/fx/celebrationPlan';
 import { BADGE_BY_ID } from '@/catalog/badges';
 import type { GameEvent } from '@/state/api';
 
@@ -34,7 +34,13 @@ describe('planCelebration', () => {
   });
 
   it('a perfect day gets a banner that carries its coins', () => {
-    const plan = planCelebration([{ type: 'perfectDay', date: '2026-09-29', coins: 10 }, { type: 'coins', amount: 10, reason: 'perfect' }], ctx());
+    const plan = planCelebration(
+      [
+        { type: 'perfectDay', date: '2026-09-29', coins: 10 },
+        { type: 'coins', amount: 10, reason: 'perfect' },
+      ],
+      ctx(),
+    );
     expect(plan.banner).toMatchObject({ kind: 'perfectDay', epic: false, rewards: { coins: 10 } });
     expect(plan.banner!.text).toContain('Mochi');
     expect(plan.wallet).toEqual(EMPTY_TALLY);
@@ -70,18 +76,64 @@ describe('planCelebration', () => {
     expect(planCelebration([{ type: 'plantStage', habitId: 'h-yoga', stage: 5, stageName: 'Blooming' }], ctx()).banner?.kind).toBe('plant');
     const small = planCelebration([{ type: 'plantStage', habitId: 'h-yoga', stage: 2, stageName: 'Seedling' }], ctx());
     expect(small.banner).toBeNull();
-    expect(small.toasts[0]?.message).toBe('Yoga grew into a Seedling 🌱');
+    expect(small.toasts[0]?.message).toBe('Your Yoga plant is a little seedling now 🌱');
   });
 
-  it('small moments toast on their own, with their bonus coins in the wallet tally', () => {
-    const plan = planCelebration([{ type: 'welcomeBack', habitId: 'h-walk', coins: 3 }, { type: 'coins', amount: 3, reason: 'welcome' }], ctx());
+  it('every growth stage reads as a real sentence', () => {
+    const say = (stage: number, stageName: string) => {
+      const plan = planCelebration([{ type: 'plantStage', habitId: 'h-yoga', stage, stageName }], ctx());
+      return plan.banner?.title ?? plan.toasts[0]?.message;
+    };
+    expect(say(1, 'Sprout')).toBe('Your Yoga plant sprouted 🌱');
+    expect(say(2, 'Seedling')).toBe('Your Yoga plant is a little seedling now 🌱');
+    expect(say(3, 'Leafy')).toBe('Your Yoga plant is getting leafy 🌿');
+    expect(say(4, 'Budding')).toBe('Your Yoga plant has its first bud 🌷');
+    expect(say(5, 'Blooming')).toBe('Your Yoga plant is blooming!');
+    expect(say(6, 'Flourishing')).toBe('Your Yoga plant is flourishing ✨');
+    expect(say(7, 'Evergreen')).toBe('Your Yoga plant is Evergreen!');
+  });
+
+  it('a bloom says "First bloom" only when it earned the First Bloom badge', () => {
+    const bloom: GameEvent = { type: 'plantStage', habitId: 'h-yoga', stage: 5, stageName: 'Blooming' };
+    expect(planCelebration([bloom], ctx()).banner?.eyebrow).toBe('In bloom');
+    expect(planCelebration([bloom, { type: 'badge', badgeId: 'first-bloom', stars: 2 }], ctx()).banner?.eyebrow).toBe('First bloom');
+  });
+
+  it('one small moment carries its own bonus: one toast, not a second "+3 coins" one', () => {
+    const plan = planCelebration(
+      [
+        { type: 'welcomeBack', habitId: 'h-walk', coins: 3 },
+        { type: 'coins', amount: 3, reason: 'welcome' },
+      ],
+      ctx(),
+    );
     expect(plan.banner).toBeNull();
     expect(plan.toasts.map((t) => t.message)).toEqual(['Welcome back to Walk! 🌷']);
+    expect(plan.toasts[0]?.rewards).toEqual({ coins: 3, stars: 0, tickets: 0, stardust: 0 });
+    expect(plan.wallet).toEqual(EMPTY_TALLY);
+  });
+
+  it('several small moments keep the shared wallet toast for their coins', () => {
+    const plan = planCelebration(
+      [
+        { type: 'welcomeBack', habitId: 'h-walk', coins: 3 },
+        { type: 'coins', amount: 3, reason: 'welcome' },
+        { type: 'letter', letterId: 'w1' },
+      ],
+      ctx(),
+    );
+    expect(plan.toasts.every((t) => !t.rewards)).toBe(true);
     expect(plan.wallet.coins).toBe(3);
   });
 
   it('letters still toast next to a banner (they point to the inbox)', () => {
-    const plan = planCelebration([{ type: 'badge', badgeId: 'first-checkin', stars: 1 }, { type: 'letter', letterId: 'w1' }], ctx());
+    const plan = planCelebration(
+      [
+        { type: 'badge', badgeId: 'first-checkin', stars: 1 },
+        { type: 'letter', letterId: 'w1' },
+      ],
+      ctx(),
+    );
     expect(plan.banner?.kind).toBe('badge');
     expect(plan.toasts.map((t) => t.key)).toEqual(['letter']);
   });
@@ -104,8 +156,40 @@ describe('planCelebration', () => {
   });
 });
 
+describe('event helpers (used in the gesture, before planning)', () => {
+  it('reserves exactly the coins and stars that will fly (never refunds or fused stars)', () => {
+    expect(walletDelta(checkin('h-walk'))).toEqual({ kind: 'coins', amount: 5 });
+    expect(walletDelta({ type: 'stars', amount: 2, reason: 'milestone' })).toEqual({ kind: 'stars', amount: 2 });
+    expect(walletDelta({ type: 'coins', amount: 5, reason: 'refund' })).toBeNull();
+    expect(walletDelta({ type: 'stars', amount: 1, reason: 'fusion' })).toBeNull();
+    expect(walletDelta({ type: 'tickets', amount: 1 })).toBeNull();
+  });
+
+  it('weighs moments like the plan does: banners are big, toasts small, coins silent', () => {
+    expect(eventWeight({ type: 'perfectDay', date: 'x', coins: 5 })).toBe('big');
+    expect(eventWeight({ type: 'plantStage', habitId: 'h', stage: 5, stageName: 'Blooming' })).toBe('big');
+    expect(eventWeight({ type: 'plantStage', habitId: 'h', stage: 3, stageName: 'Leafy' })).toBe('small');
+    expect(eventWeight({ type: 'petLevel', petId: 'p', level: 10 })).toBe('big');
+    expect(eventWeight({ type: 'letter', letterId: 'w' })).toBe('small');
+    expect(eventWeight(checkin('h-walk'))).toBeNull();
+  });
+});
+
 describe('banner queue & tallies', () => {
-  const banner = (title: string, epic = false): BannerSpec => ({ kind: 'badge', priority: 60, eyebrow: '', title, text: '', also: [], rewards: { coins: 1, stars: 1, tickets: 0, stardust: 0 }, art: { type: 'badge', badgeId: 'x' }, tone: 'blush', epic, confetti: 'medium', sound: 'fanfare' });
+  const banner = (title: string, epic = false): BannerSpec => ({
+    kind: 'badge',
+    priority: 60,
+    eyebrow: '',
+    title,
+    text: '',
+    also: [],
+    rewards: { coins: 1, stars: 1, tickets: 0, stardust: 0 },
+    art: { type: 'badge', badgeId: 'x' },
+    tone: 'blush',
+    epic,
+    confetti: 'medium',
+    sound: 'fanfare',
+  });
 
   it('queues up to the limit, then merges newcomers into the last waiting banner', () => {
     let q: BannerSpec[] = [];

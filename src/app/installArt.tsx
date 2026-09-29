@@ -39,7 +39,7 @@ function ShareGlyph({ x, y }: { x: number; y: number }) {
   );
 }
 
-/** iOS Safari's toolbar with the Share button highlighted. */
+/** Classic iOS Safari (before 26): the bottom toolbar with the Share button highlighted. */
 export function ShareStepArt({ inAddressBar = false }: { inAddressBar?: boolean }) {
   return (
     <Frame label={inAddressBar ? 'Browser address bar with the Share button highlighted' : 'Safari toolbar with the Share button highlighted'}>
@@ -74,6 +74,74 @@ export function ShareStepArt({ inAddressBar = false }: { inAddressBar?: boolean 
       )}
       <Spark x={inAddressBar ? 214 : 143} y={inAddressBar ? 18 : 66} />
       <Spark x={inAddressBar ? 176 : 98} y={inAddressBar ? 60 : 106} k={0.6} />
+    </Frame>
+  );
+}
+
+function MoreGlyph({ x, y }: { x: number; y: number }) {
+  return (
+    <g class={s.glyph} transform={`translate(${x} ${y})`}>
+      <path d="M-5.5 0 h0.01 M0 0 h0.01 M5.5 0 h0.01" stroke-width="3.4" />
+    </g>
+  );
+}
+
+/** iOS 26 Safari's compact bar (back · address · ⋯), its ⋯ menu open with Share highlighted. */
+export function CompactShareArt() {
+  return (
+    <Frame label="Safari’s compact address bar with the more button and its Share item highlighted">
+      <rect class={s.screen} x="12" y="6" width="216" height="120" rx="20" />
+      {/* The ⋯ menu, popped up above its button */}
+      <rect class={s.dropdown} x="112" y="14" width="104" height="60" rx="13" />
+      <rect class={s.rowSolid} x="118" y="20" width="92" height="22" rx="9" />
+      <text class={s.rowTextSolid} x="128" y="35">
+        Share
+      </text>
+      <g transform="translate(198 31) scale(0.62)">
+        <ShareGlyph x={0} y={0} />
+      </g>
+      <text class={s.rowText} x="128" y="61">
+        Bookmark
+      </text>
+      {/* The compact bar */}
+      <circle class={s.well} cx="38" cy="102" r="14" />
+      <path class={s.glyph} d="M41 96 l-6 6 l6 6" />
+      <rect class={s.well} x="58" y="88" width="124" height="28" rx="14" />
+      <text class={s.url} x="120" y="106" text-anchor="middle">
+        mochi meadow
+      </text>
+      <Ring x={202} y={102} r={14} />
+      <MoreGlyph x={202} y={102} />
+      <Spark x={100} y={30} />
+      <Spark x={222} y={84} k={0.6} />
+    </Frame>
+  );
+}
+
+/** The share options: View More first, then "Add to Home Screen" in the longer list. */
+export function ViewMoreArt() {
+  return (
+    <Frame label="Share options with View More, then Add to Home Screen highlighted">
+      <rect class={s.screen} x="14" y="4" width="150" height="82" rx="16" />
+      <text class={s.rowText} x="28" y="26">
+        Add Bookmark
+      </text>
+      <path class={s.divider} d="M28 36 H150" />
+      <rect class={s.rowHl} x="20" y="42" width="138" height="26" rx="10" />
+      <text class={s.rowTextHl} x="28" y="59">
+        View More
+      </text>
+      <path class={s.glyph} d="M144 50 l5 5 l-5 5" />
+      <rect class={s.dropdown} x="70" y="74" width="158" height="54" rx="15" />
+      <rect class={s.rowSolid} x="76" y="80" width="146" height="24" rx="9" />
+      <text class={s.rowTextSolid} x="86" y="96">
+        Add to Home Screen
+      </text>
+      <text class={s.rowText} x="86" y="120">
+        Add to Reading List
+      </text>
+      <Spark x={218} y={56} />
+      <Spark x={52} y={104} k={0.6} />
     </Frame>
   );
 }

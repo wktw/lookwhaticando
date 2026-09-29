@@ -16,7 +16,7 @@ export interface SectionHeaderProps {
 
 export function SectionHeader({ title, subtitle, action, icon, as: Tag = 'h2', id, class: cls }: SectionHeaderProps) {
   return (
-    <header class={cx(s.header, cls)}>
+    <header class={cx(s.header, !!subtitle && s.hasSub, cls)}>
       {icon && <span class={s.icon}>{icon}</span>}
       <div class={s.text}>
         <Tag class={s.title} id={id}>

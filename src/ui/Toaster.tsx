@@ -1,17 +1,60 @@
 import { createPortal } from 'preact/compat';
-import { useEffect, useRef, useState } from 'preact/hooks';
+import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { cx } from './cx';
 import { toneClass } from './tone';
 import { overlayRoot } from './overlay';
-import { dismissToast, toastDuration, toasts, visibleToasts, type ToastItem } from './toast';
+import { dismissToast, toastDuration, toastLaneTop, toasts, toastsHeld, visibleToasts, type ToastItem } from './toast';
 import s from './Toaster.module.css';
+
+/** Wallet counters this close to the top get a clear zone, so landing coins stay visible. */
+const WALLET_ZONE_PX = 160;
+
+/**
+ * Where the stack may start: below a celebration banner, and below any wallet counter it
+ * would otherwise cover (the Today header's wallet pill on phones).
+ */
+function laneTop(stack: DOMRect, bannerBottom: number): number {
+  let top = bannerBottom ? bannerBottom + 10 : 0;
+  for (const el of document.querySelectorAll<HTMLElement>('[data-wallet-target]')) {
+    const r = el.getBoundingClientRect();
+    if (!r.width || r.bottom <= 0 || r.top > WALLET_ZONE_PX || r.right < stack.left || r.left > stack.right) continue;
+    top = Math.max(top, r.bottom + 8);
+  }
+  return top;
+}
 
 /** Mount once near the app root. Renders the toast queue at the top of the screen. */
 export function Toaster() {
   const items = visibleToasts(toasts.value);
+  const bannerBottom = toastLaneTop.value;
+  const stackRef = useRef<HTMLElement>(null);
+  const shift = useRef(0);
+
+  // Slide the stack clear of banners and wallet pills (transform only; no jump on first show).
+  useLayoutEffect(() => {
+    const el = stackRef.current;
+    if (!el) {
+      shift.current = 0;
+      return;
+    }
+    const rect = el.getBoundingClientRect();
+    const natural = rect.top - shift.current;
+    const next = Math.max(0, laneTop(rect, bannerBottom) - natural);
+    if (next === shift.current && el.dataset.placed) return;
+    const first = !el.dataset.placed;
+    if (first) el.style.transition = 'none';
+    el.style.setProperty('--lane-shift', `${next}px`);
+    shift.current = next;
+    if (first) {
+      void el.offsetWidth;
+      el.style.transition = '';
+      el.dataset.placed = '';
+    }
+  }, [items.map((t) => t.id).join(), bannerBottom]);
+
   if (!items.length || typeof document === 'undefined') return null;
   return createPortal(
-    <section class={s.stack} aria-label="Notifications">
+    <section ref={stackRef} class={s.stack} aria-label="Notifications">
       {items.map((t) => (
         <ToastCard key={t.id} item={t} />
       ))}
@@ -22,15 +65,16 @@ export function Toaster() {
 
 function ToastCard({ item }: { item: ToastItem }) {
   const [paused, setPaused] = useState(false);
+  const held = toastsHeld.value > 0;
   const cardRef = useRef<HTMLDivElement>(null);
   const drag = useRef<{ y: number; id: number } | null>(null);
 
   useEffect(() => {
     const ms = toastDuration(item);
-    if (paused || item.leaving || !ms) return;
+    if (paused || held || item.leaving || !ms) return;
     const timer = setTimeout(() => dismissToast(item.id), ms);
     return () => clearTimeout(timer);
-  }, [item.version, paused, item.leaving]);
+  }, [item.version, paused, held, item.leaving]);
 
   // Flick up to dismiss.
   const onPointerDown = (e: PointerEvent) => {
@@ -66,6 +110,7 @@ function ToastCard({ item }: { item: ToastItem }) {
     <div
       ref={cardRef}
       class={cx(s.toast, item.leaving && s.leaving, toneClass(item.tone ?? 'blush'))}
+      data-toast-id={item.id}
       onPointerEnter={(e) => e.pointerType === 'mouse' && setPaused(true)}
       onPointerLeave={(e) => e.pointerType === 'mouse' && !drag.current && setPaused(false)}
       onFocusIn={() => setPaused(true)}
@@ -75,7 +120,11 @@ function ToastCard({ item }: { item: ToastItem }) {
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerUp}
     >
-      {item.art && <span class={s.art}>{item.art}</span>}
+      {item.art && (
+        <span class={s.art} data-toast-art>
+          {item.art}
+        </span>
+      )}
       <p key={item.version} class={cx(s.message, item.version > 0 && s.updated)}>
         {item.message}
       </p>

@@ -102,6 +102,13 @@
   text-wrap: balance;
 }
 
+.titleSpark {
+  display: inline-block;
+  margin: 0 0 0.12em 0.3em;
+  color: var(--butter-500);
+  vertical-align: middle;
+}
+
 .text {
   margin-top: 3px;
   font-size: var(--fs-caption);
@@ -155,6 +162,23 @@
 }
 .chip + .chip {
   animation-delay: 500ms;
+}
+
+/* Rewards riding along in a toast's line. */
+.inline {
+  display: inline-flex;
+  gap: 8px;
+  margin-left: 2px;
+  vertical-align: -3px;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.inline > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
 }
 
 .close {

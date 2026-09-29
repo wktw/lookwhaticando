@@ -3,7 +3,7 @@
  * pointer-events: none; DPR-aware (capped at 2); the rAF loop only runs while particles live,
  * and the canvas is removed after a short idle. Reduced motion = a brief, still sparkle fade.
  */
-import { BUDGET, MAX_LIVE, PASTEL_CONFETTI, alphaOf, spawn, spawnStill, step, type Intensity, type Particle, type ParticleShape } from './particles';
+import { BUDGET, DRAG, MAX_LIVE, PASTEL_CONFETTI, alphaOf, spawn, spawnRain, spawnStill, step, type Intensity, type Particle, type ParticleShape } from './particles';
 import { prefersReducedMotion } from './motion';
 import { SPARKLE_PATH } from '@/ui/Sparkle';
 
@@ -17,10 +17,15 @@ export interface BurstOptions {
   shapes?: ('petal' | 'heart' | 'star' | 'circle' | 'sparkle' | 'coin')[];
   /** CSS colors; defaults to the pastel palette. */
   colors?: string[];
+  /** Half-angle (radians) of the launch cone around straight up; Math.PI sprays all around. */
+  spread?: number;
 }
 
 const SPRITE = 32; // sprite cell size in CSS px (drawn at DPR)
 const IDLE_REMOVE_MS = 1500;
+/** Below celebration banners (they burst out from behind the card), above everything else. */
+const Z_CONFETTI = 245;
+const COCOA_HAIRLINE = 'rgba(90, 62, 69, 0.28)';
 
 let canvas: HTMLCanvasElement | null = null;
 let ctx: CanvasRenderingContext2D | null = null;
@@ -97,14 +102,11 @@ function sprite(shape: ParticleShape, color: string): HTMLCanvasElement {
     c.strokeStyle = '#FFE593';
     c.lineWidth = 1.4;
     c.stroke();
-  } else if (color.toUpperCase() === '#FFFFFF') {
-    // White pieces get a whisper of outline so they read on cream.
-    c.save();
-    shapePath(c, shape);
-    c.restore();
-    c.lineWidth = 1;
-    c.strokeStyle = 'rgba(183,163,173,0.55)';
-    if (shape !== 'sparkle') c.stroke();
+  } else if (shape !== 'sparkle') {
+    // A whisper of cocoa outline, like the illustrations: pale pastels still read on cream.
+    c.lineWidth = 1.2;
+    c.strokeStyle = COCOA_HAIRLINE;
+    c.stroke();
   }
   sprites.set(key, cv);
   return cv;
@@ -114,9 +116,11 @@ function sprite(shape: ParticleShape, color: string): HTMLCanvasElement {
 
 function resize() {
   if (!canvas || !ctx) return;
-  const nextDpr = Math.min(2, window.devicePixelRatio || 1);
-  if (nextDpr !== dpr) sprites.clear();
-  dpr = nextDpr;
+  dpr = Math.min(2, window.devicePixelRatio || 1);
+  // CSS size in px from the same innerWidth/innerHeight as the backing store: in iOS Safari
+  // 100vh is taller than the visible viewport, which would stretch and offset every particle.
+  canvas.style.width = `${innerWidth}px`;
+  canvas.style.height = `${innerHeight}px`;
   canvas.width = Math.round(innerWidth * dpr);
   canvas.height = Math.round(innerHeight * dpr);
 }
@@ -125,7 +129,7 @@ function ensureCanvas(): CanvasRenderingContext2D | null {
   if (canvas && ctx) return ctx;
   canvas = document.createElement('canvas');
   canvas.setAttribute('aria-hidden', 'true');
-  canvas.style.cssText = 'position:fixed;inset:0;width:100vw;height:100vh;pointer-events:none;z-index:280';
+  canvas.style.cssText = `position:fixed;top:0;left:0;pointer-events:none;z-index:${Z_CONFETTI}`;
   ctx = canvas.getContext('2d');
   if (!ctx) {
     canvas = null;
@@ -144,7 +148,6 @@ function teardown() {
   canvas?.remove();
   canvas = null;
   ctx = null;
-  sprites.clear();
 }
 
 function frame(now: number) {
@@ -210,6 +213,12 @@ const SPEED: Record<Intensity, [number, number]> = {
   epic: [0.55, 1.3],
 };
 
+/** Corner cannons for big moments: fast and light enough to reach the top third of a phone. */
+const CANNON_SPEED: [number, number] = [1.15, 2.2];
+/** Share of an epic budget that falls as a second, top-down wave. */
+const RAIN_SHARE = 0.32;
+const RAIN_DELAY_MS = 380;
+
 export function burst(opts: BurstOptions = {}): void {
   if (typeof window === 'undefined' || document.hidden) return;
   try {
@@ -227,17 +236,22 @@ export function burst(opts: BurstOptions = {}): void {
       return;
     }
 
-    const speed = SPEED[intensity];
-    const small = intensity === 'tiny' || intensity === 'small';
-    if (!hasOrigin && (intensity === 'big' || intensity === 'epic')) {
-      // Two party cannons from the bottom corners, aimed up and inward.
-      const half = Math.round(count / 2);
+    const grand = intensity === 'big' || intensity === 'epic';
+    const scale = grand ? 1.45 : 1;
+    const drag = grand ? DRAG.soaring : DRAG.floaty;
+    if (!hasOrigin && grand) {
+      // Two party cannons from the bottom corners, aimed up and inward…
+      const rain = intensity === 'epic' ? Math.round(count * RAIN_SHARE) : 0;
+      const left = Math.round((count - rain) / 2);
       const up = -Math.PI / 2;
-      add(spawn({ x: -10, y: innerHeight + 10, count: half, shapes, colors, angle: up + 0.45, spread: 0.32, speed: [speed[0] + 0.35, speed[1] + 0.45] }));
-      add(spawn({ x: innerWidth + 10, y: innerHeight + 10, count: count - half, shapes, colors, angle: up - 0.45, spread: 0.32, speed: [speed[0] + 0.35, speed[1] + 0.45] }));
+      add(spawn({ x: -10, y: innerHeight + 10, count: left, shapes, colors, angle: up + 0.42, spread: 0.3, speed: CANNON_SPEED, scale, drag }));
+      add(spawn({ x: innerWidth + 10, y: innerHeight + 10, count: count - rain - left, shapes, colors, angle: up - 0.42, spread: 0.3, speed: CANNON_SPEED, scale, drag }));
+      // …then, for the rarest moments, a soft shower over the whole screen.
+      if (rain) setTimeout(() => add(spawnRain({ width: innerWidth, count: rain, shapes, colors, scale })), RAIN_DELAY_MS);
       return;
     }
-    add(spawn({ x, y, count, shapes, colors, spread: small ? Math.PI : Math.PI / 2.4, speed }));
+    const small = intensity === 'tiny' || intensity === 'small';
+    add(spawn({ x, y, count, shapes, colors, spread: opts.spread ?? (small ? Math.PI : Math.PI / 2.4), speed: SPEED[intensity], scale, drag }));
   } catch {
     /* Confetti is decoration. */
   }

@@ -104,9 +104,9 @@ export function createVoice(ctx: BaseAudioContext, out: AudioNode, now: number, 
         // Amplitude modulation: a gain whose level wobbles between (1 - depth) and 1.
         const trem = ctx.createGain();
         trem.gain.value = 1 - am.depth / 2;
+        // A sine wobble: a soft flutter, never the buzzy edges of a square gate.
         const lfo = ctx.createOscillator();
         const depth = ctx.createGain();
-        lfo.type = 'square';
         lfo.frequency.value = am.rate;
         depth.gain.value = am.depth / 2;
         lfo.connect(depth).connect(trem.gain);

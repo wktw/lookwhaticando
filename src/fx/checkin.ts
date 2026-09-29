@@ -1,10 +1,11 @@
 /**
  * The check-in flourish (DESIGN §9.1), for screens that check habits off:
  * sparkle puff at the button → "+5" floats up → coins fly to the wallet → chime + haptic tick.
- * Claims the check-in's coins so <CelebrationHost/> doesn't celebrate them twice.
+ * Call it in the same tick as checkIn(): it claims the check-in's coins from <CelebrationHost/>
+ * (so they're celebrated once) and reserves them, so the wallet counter waits for the coins.
  */
 import type { CheckInResult } from '@/state/api';
-import { burst } from './confetti';
+import { sparklePuff } from './SparkleBurst';
 import { flyCoins } from './coinFly';
 import { floatText } from './floatingText';
 import { haptic } from './haptics';
@@ -16,7 +17,7 @@ export function celebrateCheckIn(result: CheckInResult, habitId: string, at: Ele
   const rect = at instanceof Element ? at.getBoundingClientRect() : at;
   const coins = result.events.reduce((sum, e) => (e.type === 'coins' && e.reason === 'checkin' && e.habitId === habitId ? sum + e.amount : sum), 0);
   if (result.completed) {
-    burst({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2, intensity: 'tiny', shapes: ['sparkle', 'circle', 'star'] });
+    sparklePuff(rect, { radius: Math.max(30, rect.width * 0.6) });
     sfx.play('chime');
   } else {
     sfx.play('pop');

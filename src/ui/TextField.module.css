@@ -86,7 +86,7 @@
   outline: none;
 }
 .input::placeholder {
-  color: var(--ink-3);
+  color: var(--ink-2);
   font-weight: 600;
   opacity: 1;
 }
@@ -105,6 +105,6 @@
 }
 
 .error {
-  color: var(--peach-700);
+  color: var(--error-ink);
   font-weight: 700;
 }

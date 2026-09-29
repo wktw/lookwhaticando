@@ -10,7 +10,11 @@ export const BUDGET: Record<Intensity, number> = { tiny: 10, small: 24, medium: 
 /** Hard cap on live particles across overlapping bursts. */
 export const MAX_LIVE = 320;
 
-export const PASTEL_CONFETTI = ['#FFC4D3', '#F58CAA', '#FFE593', '#F6C544', '#C3DFB4', '#B3E6D6', '#BBDCF6', '#D6C8F8', '#FFCBA8', '#FFFFFF'];
+/** Brand pastels, deep enough to read on cream and on night plum (no white: it vanishes on cream). */
+export const PASTEL_CONFETTI = ['#FFC4D3', '#F58CAA', '#FFE593', '#F6C544', '#C3DFB4', '#8EC07C', '#B3E6D6', '#BBDCF6', '#7DB7E8', '#D6C8F8', '#A993EA', '#FFCBA8'];
+
+/** Air resistance per ms: light petals float; big celebrations use less so pieces fly higher. */
+export const DRAG = { floaty: 0.0026, soaring: 0.0016, heavy: 0.0012 } as const;
 
 export interface Particle {
   x: number;
@@ -50,10 +54,14 @@ export interface SpawnOptions {
   spread?: number;
   /** Launch speed range in px/ms. */
   speed?: [number, number];
+  /** Piece size multiplier (big moments use bigger, easier-to-see pieces). */
+  scale?: number;
+  /** Air resistance for light pieces (coins are always heavy). */
+  drag?: number;
   rng?: Rng;
 }
 
-export function spawn({ x, y, count, shapes, colors, angle = -Math.PI / 2, spread = Math.PI / 2.4, speed = [0.35, 0.95], rng = Math.random }: SpawnOptions): Particle[] {
+export function spawn({ x, y, count, shapes, colors, angle = -Math.PI / 2, spread = Math.PI / 2.4, speed = [0.35, 0.95], scale = 1, drag = DRAG.floaty, rng = Math.random }: SpawnOptions): Particle[] {
   const out: Particle[] = [];
   for (let i = 0; i < count; i++) {
     const shape = pick(rng, shapes);
@@ -69,16 +77,46 @@ export function spawn({ x, y, count, shapes, colors, angle = -Math.PI / 2, sprea
       vr: range(rng, -0.012, 0.012),
       wob: range(rng, 0, Math.PI * 2),
       vw: range(rng, 0.004, 0.011),
-      size: shape === 'sparkle' ? range(rng, 9, 15) : shape === 'coin' ? range(rng, 12, 16) : range(rng, 8, 13),
+      size: scale * (shape === 'sparkle' ? range(rng, 9, 15) : shape === 'coin' ? range(rng, 12, 16) : range(rng, 8, 13)),
       shape,
       color: shape === 'coin' ? '#F6C544' : pick(rng, colors),
       age: 0,
       life: range(rng, 1700, 2700),
-      drag: heavy ? 0.0012 : 0.0026,
+      drag: heavy ? DRAG.heavy : drag,
       gravity: heavy ? 0.0013 : 0.00075,
     });
   }
   return out;
+}
+
+/**
+ * A soft shower from above the top edge across `width`: the second wave of an epic moment,
+ * so the whole screen fills, not just the corners the cannons fire from.
+ */
+export function spawnRain({
+  width,
+  count,
+  shapes,
+  colors,
+  scale = 1,
+  rng = Math.random,
+}: {
+  width: number;
+  count: number;
+  shapes: readonly ParticleShape[];
+  colors: readonly string[];
+  scale?: number;
+  rng?: Rng;
+}): Particle[] {
+  return spawn({ x: 0, y: 0, count, shapes, colors, scale, drag: DRAG.soaring, rng }).map((p) => ({
+    ...p,
+    x: range(rng, 0.04, 0.96) * width,
+    // Staggered heights above the edge make the pieces arrive one by one.
+    y: -20 - range(rng, 0, 260),
+    vx: range(rng, -0.06, 0.06),
+    vy: range(rng, 0.05, 0.2),
+    life: range(rng, 3000, 3800),
+  }));
 }
 
 /** Reduced motion: sparkles that appear in place around (x, y), breathe once and fade. */

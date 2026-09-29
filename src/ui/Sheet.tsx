@@ -19,6 +19,8 @@ export interface SheetProps {
   title: string;
   hideTitle?: boolean;
   description?: ComponentChildren;
+  /** Id of an element inside the sheet that describes it (when there is no `description`). */
+  describedBy?: string;
   children?: ComponentChildren;
   /** Sticky action area at the bottom. */
   footer?: ComponentChildren;
@@ -50,7 +52,24 @@ const isWide = () => typeof matchMedia === 'function' && matchMedia(WIDE).matche
  * Portals into #overlay-root, traps focus, restores it, closes on Esc, locks page scroll and stacks.
  */
 export function Sheet(props: SheetProps) {
-  const { open, onClose, title, hideTitle, description, children, footer, detents, size = 'md', dismissible = true, showClose = true, role = 'dialog', peek, initialFocus, class: cls } = props;
+  const {
+    open,
+    onClose,
+    title,
+    hideTitle,
+    description,
+    describedBy,
+    children,
+    footer,
+    detents,
+    size = 'md',
+    dismissible = true,
+    showClose = true,
+    role = 'dialog',
+    peek,
+    initialFocus,
+    class: cls,
+  } = props;
   const id = useId();
   const titleId = `${id}-title`;
   const descId = `${id}-desc`;
@@ -306,7 +325,7 @@ export function Sheet(props: SheetProps) {
         role={role}
         aria-modal="true"
         aria-labelledby={titleId}
-        aria-describedby={description ? descId : undefined}
+        aria-describedby={description ? descId : describedBy}
         tabIndex={-1}
         onKeyDown={(e) => panelRef.current && isTopLayer(id) && trapTab(e, panelRef.current)}
       >

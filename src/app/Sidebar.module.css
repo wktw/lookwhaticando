@@ -109,7 +109,7 @@
   border-radius: 7px;
   background: var(--card);
   box-shadow: 0 1.5px 0 var(--line);
-  color: var(--ink-3);
+  color: var(--ink-2);
   font-family: var(--font-display);
   font-size: var(--fs-micro);
   font-weight: 600;

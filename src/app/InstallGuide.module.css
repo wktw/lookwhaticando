@@ -63,7 +63,7 @@
   color: var(--on-pastel);
   font-family: var(--font-display);
   font-weight: 600;
-  box-shadow: 0 2px 0 #d96a8b;
+  box-shadow: 0 2px 0 var(--blush-lip);
 }
 
 .stepTitle {

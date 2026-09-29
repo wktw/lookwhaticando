@@ -29,17 +29,16 @@
   left: var(--pad);
   width: calc((100% - 2 * var(--pad)) / var(--n));
   border-radius: var(--r-pill);
-  background: var(--card);
+  background: var(--raised);
   box-shadow:
-    0 2px 0 #ecdcd2,
+    0 2px 0 var(--raised-lip),
     0 6px 14px -6px rgba(74, 53, 64, 0.3);
   transform: translateX(calc(100% * var(--i)));
   transition: transform 340ms var(--ease-pop);
 }
 :global([data-theme='night']) .thumb {
-  background: #4a4066;
   box-shadow:
-    0 2px 0 #1d1829,
+    0 2px 0 var(--raised-lip),
     0 6px 14px -6px rgba(0, 0, 0, 0.5);
 }
 
@@ -69,6 +68,15 @@
 }
 .md .option {
   font-size: 0.9375rem;
+}
+/* Small options are 38px; their hit area reaches into the track padding for a full 44px. */
+.sm .option {
+  position: relative;
+}
+.sm .option::after {
+  content: '';
+  position: absolute;
+  inset: calc(-1 * var(--pad)) 0;
 }
 
 .checked {
