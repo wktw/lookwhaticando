@@ -43,15 +43,16 @@
          const skip = page.getByRole('button', { name: 'Skip' });
          await expect(stay.or(skip).or(page.getByRole('navigation', { name: 'Main' }).first())).toBeVisible();
          if (await stay.isVisible()) await stay.click();
-         while (await skip.isVisible()) await skip.click();              // sill → pick → (nothing planted) → cabinets
-         await page.getByRole('button', { name: 'Not yet, I’ll earn it' }).first().click();
+         while (await skip.isVisible()) await skip.click(); // sill → pick (nothing planted) → cabinets → Today
          await page.evaluate((t) => (location.hash = `#/${t}`), tab);
        } else await page.evaluate((t) => (location.hash = `#/${t}`), tab);
        await expect(page.locator('main h1')).toBeVisible();
        await expect(page).toHaveURL(new RegExp(`#/${tab}$`));
      }
      ```
-     (single-file.spec.ts needs the same before it walks the routes.)
+     I ran the whole shared suite with exactly this patch applied locally (not committed): 28
+     passed, 2 skipped, 1 failed once under load (phone-light Today axe) and passed on its own
+     rerun. Without it, 24 of the 31 fail, all at `openRoute`.
 2. **First-paint size.** The entry grew from 119.9 to 140.9 KB gzip (budget 150). Not from my
    modules: `store.ts` is in the entry, and Rollup keeps every store export a lazy screen uses in
    the store's chunk. Once You calls `enterDemo`/`resetAll`, `wateringTimeFile`/`exportCsv` and
@@ -68,6 +69,9 @@
 5. **A celebration banner sits over the capsule reveal** in onboarding (the First watering /
    First capsule pins arrive while the cabinet and reveal are up). `pushLayer(..., { moment: true })`
    makes new banners wait, but one already showing stays on top of the reveal. For fx/capsules.
+   The banner is also outside every landmark (axe `region`, moderate): `CelebrationBanner`'s
+   anchor needs `role="region"`/`aria-label`, or to live inside the Toaster's section. My
+   onboarding spec runs axe before the first watering and after putting the banner away.
 6. **`__BUILD__`.** About shows "Version 1.0.0" and the build kind (Home Screen app / In the
    browser / Single file / Development). A build id (git sha, date) would need a `define` in
    vite.config.ts.

@@ -249,7 +249,7 @@ export function HabitsSection() {
       title={YOU.sections.habits}
       action={
         canArrange && (
-          <Button variant="quiet" size="sm" aria-pressed={on} onClick={() => setArranging(!on)}>
+          <Button variant="quiet" size="sm" onClick={() => setArranging(!on)}>
             {on ? HABITS_COPY.done : HABITS_COPY.arrange}
           </Button>
         )

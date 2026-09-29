@@ -518,6 +518,11 @@
   .foot {
     flex-direction: row-reverse;
     justify-content: flex-start;
+    /* Right under the step on a big screen, not at the bottom of the window. */
+    margin-top: var(--s-4);
+  }
+  .cabinet > svg {
+    width: min(100%, 176px);
   }
   .foot > :is(button, a) {
     width: auto;
