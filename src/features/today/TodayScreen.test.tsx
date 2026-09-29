@@ -4,20 +4,21 @@
  * note, the list that never regroups on a tap, the week strip's roving focus and the past-day banner,
  * the ⋯ menu, a rest day, the number pad, and the Habit Editor planting a new habit.
  */
-import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createInitialState } from '@/state/defaults';
 import { transact } from '@/domain/tx';
 import { openDay } from '@/domain/rollover';
 import * as habitsDomain from '@/domain/habits';
 import { mulberry32 } from '@/domain/rng';
 import { appDayKey, runtimeLocalTime } from '@/domain/dates';
-import { state, today } from '@/state/store';
+import { now, state, today } from '@/state/store';
 import type { AppState } from '@/state/types';
 import { toasts } from '@/ui/toast';
 import { habitEditorRequest } from '@/features/habits/open';
 import { SheetHosts } from '@/app/SheetHosts';
 import { TodayScreen } from './TodayScreen';
 import { selectedDay } from './state';
+import { greetingLine } from './Band';
 import { button, click, installDom, key, mount, type, until } from '@/features/capsules/testing';
 
 function seed(templateIds: string[], name = 'Sam'): AppState {
@@ -53,14 +54,32 @@ afterEach(() => {
 });
 
 describe('Today', () => {
-  it('has exactly one h1: the greeting', () => {
-    state.value = seed(['water', 'walk', 'read']);
-    today.value = appDayKey(Date.now(), 180, runtimeLocalTime);
-    view = mount(<TodayScreen />);
-    const h1s = document.querySelectorAll('h1');
-    expect(h1s).toHaveLength(1);
-    expect(h1s[0]!.textContent).toMatch(/, Sam\.$/);
-    expect(document.querySelector('[role="radiogroup"]')?.querySelectorAll('[role="radio"]')).toHaveLength(7);
+  // The greeting follows the wall clock, so the clock is pinned: an afternoon, then a late night
+  // (whose two lines are picked by the day of the month).
+  it.each([
+    [14, () => 'Afternoon, Sam.'],
+    [23, (day: string) => greetingLine({ period: 'late', hour: 23, name: 'Sam', birthday: false }, Number(day.slice(8, 10)))],
+  ])('has exactly one h1: the greeting (at %i:00)', (hour, expected) => {
+    const at = new Date();
+    at.setHours(hour, 0, 0, 0);
+    vi.useFakeTimers({ toFake: ['Date'] });
+    try {
+      vi.setSystemTime(at);
+      now.value = at.getTime();
+      state.value = seed(['water', 'walk', 'read']);
+      today.value = appDayKey(at.getTime(), 180, runtimeLocalTime);
+      view = mount(<TodayScreen />);
+      const h1s = document.querySelectorAll('h1');
+      expect(h1s).toHaveLength(1);
+      expect(h1s[0]!.textContent).toBe(expected(today.value));
+      expect(document.querySelector('[role="radiogroup"]')?.querySelectorAll('[role="radio"]')).toHaveLength(7);
+    } finally {
+      view?.unmount();
+      view = null;
+      vi.useRealTimers();
+      now.value = Date.now();
+      today.value = appDayKey(Date.now(), 180, runtimeLocalTime);
+    }
   });
 
   it('shows the empty sill with "Add a habit" before any habit', () => {

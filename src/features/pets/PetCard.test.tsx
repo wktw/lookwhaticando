@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
-import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { buildDemo } from '@/state/demo';
 import { getCollectible } from '@/catalog/collectibles';
 import { runtimeLocalTime } from '@/domain/dates';
-import { state, today } from '@/state/store';
+import { now, state, today } from '@/state/store';
 import type { AppState } from '@/state/types';
 import { closePetCard, openPetCard, petCardRequest } from '@/features/habits/open';
 import { toasts } from '@/ui/toast';
@@ -13,20 +13,29 @@ import PetCardHost from './PetCardHost';
 
 vi.setConfig({ testTimeout: 60_000, hookTimeout: 120_000 });
 
+// The whole file runs on 29 September at 3 pm: the demo, the pantry's restock day and the store's
+// own rollover (which reads Date.now()) all agree on the day, whatever the real clock says.
 const TODAY = '2026-09-29';
+const NOW = Date.parse('2026-09-29T15:00:00');
 let demo: AppState;
 let view: ReturnType<typeof mount> | null = null;
 let petId = '';
 
 beforeAll(() => {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(NOW);
   installDom();
+  now.value = NOW;
   today.value = TODAY;
-  demo = buildDemo({ today: TODAY, now: Date.parse('2026-09-29T15:00:00'), local: runtimeLocalTime });
+  demo = buildDemo({ today: TODAY, now: NOW, local: runtimeLocalTime });
   petId = Object.values(demo.pets).find((p) => p.inMeadow)!.id;
 });
 beforeEach(() => {
   state.value = demo;
   toasts.value = [];
+});
+afterAll(() => {
+  vi.useRealTimers();
 });
 afterEach(() => {
   closePetCard();
