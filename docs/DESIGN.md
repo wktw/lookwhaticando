@@ -31,7 +31,7 @@ opening the tracker is something to look forward to.
 | **Wordmark** | Lowercase **Castoro**. The mark is a single catkin sprig: a twig with three soft silver-grey catkins. There are no cat ears on the letters and no faces on the mark. |
 | **Tagline** | "Look after the little things." |
 | **Explainer** | "Your habits grow the plants. The plants become a home." |
-| **App icon** | A small black cat loafing on the rim of a terracotta pot with two leaves, in a slanting diagonal window beam. The cat casts a hard shadow on a soft lavender wall. It must stay legible at 29 px on light and dark wallpapers, and the cat fills ≥ 35% of the icon width. |
+| **App icon** | A small black cat loafing on the rim of a terracotta pot with two leaves, with a small Holstein calf lying beside the pot, in a slanting diagonal window beam. Both cast hard shadows on a soft lavender wall. It must stay legible at 29 px on light and dark wallpapers: the cat fills ≥ 35% of the icon width, and the calf reads as a calf (horn buds, muzzle, black-and-white patches) at 29 px. |
 | **Many animals** | catkin is not a cat app. Eight species live here: cats, cows, dogs, rabbits, frogs, ducklings, bear cubs and hamsters. Cats are about a quarter of the pets (21 of 88). The name and the icon lean cat, so every other surface shows the mix. The app icon pairs the black cat with a small Holstein calf. The Shelf tab shows the silhouette of *your* closest pet. The first pick offers four cabinets (Cats · Cows · Dogs · Pond). Every demo, example and screenshot uses a mixed cast. Candidate new species for later updates: a lamb and a hedgehog. |
 | **No mascot** | Every app in the genre is fronted by a chatty mascot. catkin deliberately has none. **The animals never speak.** Personality shows through what real animals do (the slow blink, the loaf, the cud-chew, the throat-puff) and through short third-person captions. |
 | **Narrator** | An unnamed voice that writes like a friend's plant-sitting note: brief, kind, specific, observed. "Walk, watered. +5 · Pudding opened one eye." (§12) |
@@ -61,7 +61,7 @@ inlined, runs by double-click) · **local dev** (`npm run dev`). A Capacitor wra
 4. **The tracker stands alone.** With *Quiet rewards* on, it's a complete, beautiful habit tracker.
 5. **The collection lives inside the progress.** Animals live in the plants your habits grow and sit on your real habit
    cards. The game layer and the tracking layer are one surface, not two tabs.
-6. **Transparent, generous randomness.** Odds are displayed. Pity exists. New items are favored. Every duplicate still
+6. **Transparent, generous randomness.** Odds are displayed. Pity exists. New items are favoured. Every duplicate still
    counts toward something. Any item can eventually be *chosen*.
 7. **Delight scales with meaning.** A check-in gets a ≤ 700 ms flourish that never blocks the next tap. The big
    moments are reserved for pulls, blooms and milestones.
@@ -80,7 +80,7 @@ Five destinations: a bottom tab bar on phones, and a left sidebar at ≥ 900 px 
 | **Today** | a sill with a pot | Check in, the day's progress, the windowsill band, the wallet |
 | **Progress** | a pressed leaf | Consistency, trends, calendar, the year, plants, records, pins, the memory shelf |
 | **Capsules** | a small capsule cabinet | The series, pulls, reveals, Special Order, lineups |
-| **Shelf** | a cat on a pot | The home: plants, places, pets, decor, the Field Guide |
+| **Shelf** | your closest pet on a pot (§1) | The home: plants, places, pets, decor, the Field Guide |
 | **You** | a catkin sprig | Habits, preferences, reminders, data, install guide, about |
 
 Overlays (sheets, never routed): Habit Editor · Habit Detail · Pet Card · Capsule Reveal (full-screen) · Special
@@ -92,7 +92,7 @@ to `location.hash` (`#/today`, `#/progress`, `#/capsules`, `#/shelf`, `#/you`).
 ### 5.1 Model (as built in `src/state/types.ts`)
 
 A habit has a name, a custom **icon** (`catalog/habitIcons.ts`, 48 drawn icons, suggested automatically from the name), a
-color family, a **plant species** and a **pot**, and a list of **versioned rules**. Each rule has a `from` date, a
+colour family, a **plant species** and a **pot**, and a list of **versioned rules**. Each rule has a `from` date, a
 schedule, a target, a step and an optional tiny version. Every day and period is judged by the rule in effect *then*,
 so edits never rewrite history. Other fields: `effort` (light/steady/big), `timeOfDay`
 (morning/midday/evening/anytime), optional `anchor` ("After I pour my coffee"), `polarity` (build/avoid, which changes
@@ -125,7 +125,7 @@ records the times of **live** check-ins only (≤ 24). Backfill and history edit
   counts as **done** for streaks and consistency, and earns ⌈pay/2⌉ and 50% sunshine. The split is shown openly ("26 of 30
   days · 8 tiny"). Tiny is a *level* on the day: logging it never changes the count (so Undo restores the day exactly),
   and it is refused on rules without a tiny version. **Graduation** is *offered*, never automatic: at ≥ 85% over 28
-  days with ≤ 25% tiny, "Ready to grow?" (+1 stamp on accept, only for a genuinely bigger rule; the offer then stays
+  days with ≤ 25% tiny, "A bigger pot?" (+1 stamp on accept, only for a genuinely bigger rule; the offer then stays
   closed for 28 days, even if the pending rule is withdrawn). Below 40%, "Make it tinier?".
 
 ### 5.3 Day boundary, rest, pause, backfill
@@ -159,9 +159,10 @@ scheduled active days count, and today counts only if done. A period spanning tw
   counts, otherwise yesterday, for the per-habit and the aggregate phrases alike.
 * Phrases per kind: "26 of the last 30 days" · "11 of your last 13 Mon/Wed/Fri" · "3 of the last 4 weeks" · "5 of the
   last 6 months". Aggregate: **"You showed up 26 of the last 30 days"** (days with ≥ 1 check-in), plus the weighted %
-  and "Weekly & monthly goals: 3 of 5 on track". Rests: "26 of 28 days · 2 rests".
-* Month-to-date is compared with the same elapsed span of last month. A quieter month shows its **best fact** instead,
-  never the higher previous number, and never in red.
+  and "3 goals on track" (no line when none are). Rests: "26 of 28 days · 2 rests".
+* Month-to-date is compared with the same elapsed span of last month: "Up on the same days last month" · "Level with
+  the same days last month". A quieter month drops that line and shows its **best fact** instead ("62 waterings so far in
+  September. Walk is the steadiest."), never the higher previous number, and never in red.
 * **Streaks**: day-based streaks count consecutive done scheduled days, and allowed rests, off days, pauses and unscheduled days
   are transparent. Flexible streaks count consecutive met periods. Today pending never breaks anything. A streak of 0 is never shown;
   the card falls back to the rolling phrase.
@@ -203,7 +204,7 @@ Four resources, each drawn as a real object, and each with one job (internal ids
 | Display name | Object | Internal | Earned by | Spent on |
 |---|---|---|---|---|
 | **Coins** | brass coins with a pressed leaf, kept in a glass jar | `coins` | check-ins, perfect days, period goals, rungs, welcome home | coin series (25 each) |
-| **Stamps** | a shop loyalty card that fills | `stars` | the Showing-up ladder, Sunday Notes, Herbarium pages, pins, swaps | No. 07 Night (3), Special Order |
+| **Stamps** | a shop loyalty card that fills | `stars` | the Showing-up ladder, Sunday Notes, Herbarium pages, pins, swaps, Grow | No. 07 Night (3), Special Order |
 | **Swaps** | duplicates set on the swap shelf | `stardust` | duplicate pulls (2/4/8/15) | auto: **every 10 swaps → 1 stamp** |
 | **Tickets** | a printed stub | `tickets` | the Showing-up ladder, welcome home | one free pull on any series |
 
@@ -238,6 +239,13 @@ Four resources, each drawn as a real object, and each with one job (internal ids
 Expected pace: 5 daily habits at ~80% ≈ 25–35 coins/day, which is about **one capsule a day**, plus stamps weekly. Long-term coin
 goals are the **Places** (§8.4).
 
+**Stamp pace** (tested in `tests/unit/domain/stamp-pace.test.ts`): at that pace stamps arrive at **4–6 a week** from the
+ladder, Sunday Notes, Herbarium pages and swaps, plus about 30 once from the first months' pins. That buys a chosen Classic
+or a No. 07 Night capsule every few days, never as many things as the capsules bring: over the first 10 weeks, even a player
+who spends every stamp on the cheapest Special Order chooses fewer than half as many things as she opens. So a chosen
+Classic costs what a Night capsule does (3 stamps), and the collect-N pins ("Collect 10 different things from the capsules")
+count only things that came out of a capsule, so ordering can't pay for the next order.
+
 ## 7. Capsules: series, machines, the pull
 
 ### 7.1 Series
@@ -252,7 +260,7 @@ Tabletop **capsule cabinets** named like real blind-box series. Each has a numbe
 | **No. 04 Pond** | 25 coins | frogs and ducks, rain things, pond decor |
 | **No. 05 Garden** | 25 coins | bunnies, **plant species and pots for your habits**, garden decor |
 | **No. 06 Pantry** | 25 coins | hamsters, bears, treats, kitchen-scale decor |
-| **No. 07 Night** | **3 stamps** | night-coat variants, pajamas & lamps, **Moonlit** variants of pets you own. Better odds (40/30/20/10) |
+| **No. 07 Night** | **3 stamps** | night-coat variants, pyjamas & lamps, **Moonlit** variants of pets you own. Better odds (40/30/20/10) |
 | **Seasonal editions** | 25 coins | **Autumn** Sep 1–Nov 10 · **Winter** Nov 11–Jan 14 · **Valentine** Jan 15–Feb 29 · **Spring** Mar 1–May 31 · **Summer** Jun 1–Aug 31. Fixed calendar dates, returning every year. |
 
 **Odds** (coin series): Classic 60 · Special 25 · Rare 10 · Super rare 5. Tiers are balanced so every individual rarer item is less
@@ -265,7 +273,7 @@ The **lucky meter**: after 4 duplicates in a row, the next pull is guaranteed ne
 **Commit before animate**: the pull is decided and saved (`pendingReveal`) before anything moves, so a reload resumes the reveal.
 
 **Display tiers**: **Classic · Special · Rare · Super rare · Secret**. Each has a static **print finish** that survives
-reduced motion: Classic = matte paper · Special = two-color print · Rare = foil-edged insert · Super rare = holographic
+reduced motion: Classic = matte paper · Special = two-colour print · Rare = foil-edged insert · Super rare = holographic
 stripes · Secret = holo stripes + "?". The tier word is always printed.
 
 ### 7.2 The pull (the signature interaction)
@@ -279,15 +287,16 @@ stripes · Secret = holo stripes + "?". The tier word is always printed.
 6. The halves part, and the figure steps out onto a **folded paper insert**: the reveal card ("No. 02 · Cows · Belted Galloway ·
    5 of 9", one observed line, the finish). NEW, or "Onto the swap shelf · +4 swaps". A new pet gets a name field with
    5 species suggestions and a reroll, plus a **"came home" date**.
-7. **Find them a place**: drag onto a habit's plant (they keep that habit company, §14.1) or a place, or "Let them choose"
-   (species preferences decide).
+7. **"Find {name} a plant"**: drag the pet onto a habit's plant (the pet keeps that habit company, §14.1) or onto an open
+   place, or **"Let {name} choose"**: species preferences pick the plant (`suggestHabitFor`) and, when a place it loves is
+   open, where it spends its time (`suggestPlaceFor`). "Not now" keeps the pet on the sill.
 
 *Quick open* skips the anticipation. *Reduced motion*: static cabinet, crossfades, no tumbling.
 
 ### 7.3 Special Order & the swap shelf
 
-**Special Order** (at the counter): any unowned item for stamps, Classic 2 · Special 4 · Rare 8 · Super rare 15 · Moonlit
-8. **Memories rule**: a seasonal edition's items become orderable only after that season has visited since the
+**Special Order** (at the counter): any unowned item for stamps, Classic 3 · Special 4 · Rare 8 · Super rare 15 · Moonlit
+8 (the stamps pace, §6). An order is committed before it animates, like a pull (`pendingReveal` with `order: true`); unlike a capsule's, an order's reveal never holds the cabinets: the next pull replaces it. **Memories rule**: a seasonal edition's items become orderable only after that season has visited since the
 profile was created: from the first day she has the app while the season is on (a profile created mid-season has seen
 that visit). An unowned Secret appears as a "?" tile, and ordering it plays the full reveal. **Swap-in**: on a
 completed series, 250 coins → 40 swaps.
@@ -298,7 +307,7 @@ completed series, 250 coins → 40 swaps.
 
 Eight species: **cat, cow, dog, bunny, frog, bear, hamster, duck**. At least 70% of pets are **real coats and breeds**.
 Cats: orange tabby, grey tabby, tuxedo, calico, black, tortie, Siamese, cow cat, Maine Coon, odd-eyed white. Cows:
-Holstein, Jersey, Belted Galloway, Brown Swiss, Dexter, Hereford, Highland. Fantasy lives **only in color and pattern**
+Holstein, Jersey, Belted Galloway, Brown Swiss, Dexter, Hereford, Highland. Fantasy lives **only in colour and pattern**
 (a strawberry-milk cow, Moonlit variants), and there are **no animals made of food**. Characters are drawn in *true postures*
 (§10.4): a cat loaf, a curled cat, a cow folded in a cow-loaf, a waddling duck.
 
@@ -306,12 +315,13 @@ Holstein, Jersey, Belted Galloway, Brown Swiss, Dexter, Hereford, Highland. Fant
 
 * Levels 1–10 at `0,20,50,100,170,260,380,540,750,1000` XP, then bond levels 11–15 at `1300,1650,2050,2500,3000`. Nothing
   ever decays, and there are no needs.
-* XP: petting/stroke/boop 1 each (5/day), treats 4 (favorite 12, first favorite per day only; 3 counted treats/day), a
+* XP: petting/stroke/boop 1 each (5/day), treats 4 (favourite 12, first favourite per day only; 3 counted treats/day), a
   companion's habit check-ins `min(30, round(5 × 7/expectedPerWeek))` (§14.1), duplicate pull +20.
-* Levels change **behavior**, not just badges: L2 looks up when you water · L3 **slow-blinks back** (cats) / nose-licks
-  (cows) · L4 claims a favorite spot · L5 follows the sunbeam · L6 leaves a small **found thing** on the sill on days you
-  check in (a button, a leaf, a bead; 1 swap, never a chore) · L7 naps touching you (the edge of the screen) · L8 naps next
-  to its best friend · L10 **best friends** (a tiny brass tag). Every 150 XP after L10 adds a dated **Memory** from real
+* Levels change **behaviour**, not just pins: L2 looks up when you water · L3 **slow-blinks back** (cats) / nose-licks
+  (cows) · L4 claims a favourite spot (stored as the pet's `spot`: the place or pot it uses most, else its species'
+  favourite place) · L5 follows the sunbeam · L6 leaves a small **found thing** on the sill on days you check in (a button,
+  a leaf, a bead; 1 swap, never a chore) · L7 naps at the front of the sill, nearest you · L8 naps next to a best friend
+  (the pet it has spent the most time out with) · L10 **best friends** (a tiny brass tag). Every 150 XP after L10 adds a dated **Memory** from real
   events ("Came home Sep 29", "The day Read bloomed").
 * **Gestures** (Shelf): tap = look up + a tiny hop · stroke (drag ≥ 40 px) = happy squint, purr, lean-in · boop (top 30%
   face zone) = a cat blep, a cow nose-lick, a bunny ear flop · carry (300 ms long-press) = lift with dangling feet, a springy
@@ -320,7 +330,7 @@ Holstein, Jersey, Belted Galloway, Brown Swiss, Dexter, Hereford, Highland. Fant
 * **Time of day**: morning stretches · afternoons follow the **real sunbeam** · 20:00–23:00 gather under the lamp · 23:00–06:00
   sleep. Tapping a sleeping pet gets a yawn and a slow blink, never grumpiness.
 * **Personalities** (10, rolled on arrival): Sleepy, Playful, Curious, Shy, Sassy, Gentle, Foodie, Dramatic, Sunny, Dreamy.
-  They show as behavior weights and third-person captions only ("Pudding would like the sun to stay exactly where it is").
+  They show as behaviour weights and third-person captions only ("Pudding would like the sun to stay exactly where it is").
 * **Pantry**: each owned treat restocks **2 servings every morning** (banks up to 5). *Bake a tray* makes 5 for 10 coins.
   **Harvest**: a completing check-in on a Blooming-or-later **edible** plant (cat grass, catnip, strawberry, lavender)
   drops one serving into the basket, at most one per plant per day.
@@ -348,8 +358,15 @@ Holstein, Jersey, Belted Galloway, Brown Swiss, Dexter, Hereford, Highland. Fant
 | **Balcony Box** | 1,500 | everyone: seasons, stars, room to roam; retired plants live on its shelf |
 | **The Quilt** | 2,500 | the night nap pile, stargazing |
 
-Each place adds room for 2 more pets (8 → 18). Species prefer places but none is restricted. Plants live on the sill (it
-scrolls sideways, and overflow goes to the plant stand). **Residency**: a habit's companion lives in its plant (§14.1).
+Each place adds room for 2 more pets (8 → 18). Species prefer places but none is restricted. Every pet out on the Shelf
+spends the day in a **place** (`PetState.place`; absent or not open = the Sill). The Sill holds everyone; every other place
+holds as many pets as the room it adds. Opening a place moves in the pets out who love it most and have never been placed
+(companions stay with their pots), up to its room, and each new day a never-placed pet settles the same way
+(`settleUnplacedPets`: a duck that came home after the pond opened); the Pet Card moves a pet to any open place with room ("Move {name}"),
+and "Let {name} choose" picks by the same preferences (`suggestPlaceFor`). Plants live on the sill (it scrolls sideways,
+and overflow goes to the plant stand). **Residency**: a habit's companion lives in its plant (§14.1): while it is out, the Today band
+shows it in its pot, whatever place it spends the Shelf's day in (a companion brought indoors leaves its pot to the
+nearest pet on the Sill; a pet spending the day in another place never sits in a sill pot as the nearest).
 
 ### 8.5 The Field Guide (collection)
 
@@ -363,14 +380,14 @@ Favourite spot · Came home**. Species pages have completion rewards (stamps + a
 
 * **The windowsill band** (168 px → 64 px sticky on scroll): the nearest stretch of the sill, lit by **Windowlight**.
   It shows the real sky through the window, the sunbeam crossing the sill, today's habit pots (up to 6, scrolling sideways),
-  and whoever lives in them. The greeting ("Good afternoon, Sam") and long date sit top-left on an 85% card chip. The wallet
+  and whoever lives in them. The greeting ("Afternoon, Sam.") and long date sit top-left on an 85% card chip. The wallet
   pill sits top-right. The vine chip on the sill ledge reads "3 of 5 · +18 coins". Collapsed: short date · mini ring · wallet.
   Tapping the window opens the Shelf.
 * **Week strip** (56 px): the last 7 app days. Each day is a **flower sized by how full it was**, a **moon** for rest/off, and just the
   date for an empty day. Today has a dot. It's a `radiogroup` with roving focus.
 * **Habit list**, grouped by time block, current block first, with completed earlier blocks collapsed ("Morning 3/3"). Flexible habits sit in
-  their block with a pace line and fold into "Done for the week". Monthly habits not yet met go in one "This month" row. "Not
-  today" and "Resting" rows are collapsed. Order is stable (never regrouped on tap). **First card top ≤ safe-top + 260 px.**
+  their block with a pace line and fold into "Watered for the week". Monthly habits not yet met go in one "This month" row.
+  "Other days" (habits with nothing on that day) and "Resting" rows are collapsed. Order is stable (never regrouped on tap). **First card top ≤ safe-top + 260 px.**
 * **Habit card** (a nursery plant tag): the plant in its pot with its **resident** peeking (≤ 20 px) and the habit's icon on a
   little stake · the name in **Castoro** · the anchor or "After Walk" in **Castoro italic** · the status line (§9.1.1) · the **check
   button**, a 48 px ring that **fills like water rising in a glass** (a meniscus, 240 ms) before a hairline check draws. Count
@@ -379,7 +396,7 @@ Favourite spot · Came home**. Species pages have completion rewards (stamps + a
 * **Check-in choreography** (≤ 700 ms, never blocks): the ring fills → a hairline check → in the band, a thin stream of water pours
   onto that pot, it takes one growth step, and its resident reacts (an ear flick, a look up) → a brass coin clinks into the
   jar (the counter rolls once per burst) → a rising water-drop chime → the toast "Walk, watered. +5 · Pudding opened one eye.
-  · Undo". There is no confetti. A **perfect day** gets ≤ 12 petals in the plants' own colors and "Everything's watered. The whole
+  · Undo". There is no confetti. A **perfect day** gets ≤ 12 petals in the plants' own colours and "Everything's watered. The whole
   sill is in the sun."
 * **Burst rule**: rapid check-ins each play their own ring and chip, but only one coin flies at a time and the live region
   announces once after 1.2 s of quiet. **Celebration queue**: all events from one action merge into one banner, anchored in
@@ -387,20 +404,22 @@ Favourite spot · Came home**. Species pages have completion rewards (stamps + a
   Nothing opens modally at launch. Notes and pages arrive **on the sill** ("There's a note on the sill") and open on tap.
 
 #### 9.1.1 Card status line (first match wins)
-count in progress "5/8 glasses" · tiny logged "Tiny version ✓" · flexible "2 of 3 this week · 1 more by Sun" / "Done
-for the week ✓" · streak ≥ 3 "12 days" ("12 in a row" for day-sets; "Kept it up 12 days" for avoid) · ≥ 10 expected "26
-of the last 30 days" · otherwise **"Rooting · 2 more to pot up"** for new plants, or "Just planted".
+resting today "Resting today" · count in progress "5/8 glasses" · tiny logged "Tiny version ✓" · flexible "2 of 3 this week"
+(nothing after it: no deadline, no count of what's left) / "Watered for the week ✓" · 3 or more in a row "12 days" ("12 in
+a row" for day-sets, "4 weeks in a row" for weekly, "Held off 12 days" for avoid) · ≥ 10 expected "26 of the last 30
+days" · otherwise **"Rooting · 2 more to pot up"** for new plants, or "Just planted". The view model returns the kind and
+the numbers (`StatusLine`); `statusLine()` in `src/catalog/format.ts` words it from VOICE.md §5.
 
 ### 9.2 Progress
 
 Hero ("You showed up 26 of the last 30 days", the weighted % with its threshold rule, the week chip, month-to-date vs. the same span,
-goals on track) → **Recent months** (calm labelled bars) → **Plants** (every habit's plant on shelf tiers; tap →
+"3 goals on track") → **Recent months** (calm labelled bars) → **Plants** (every habit's plant on shelf tiers; tap →
 Habit Detail) → **Calendar** (a month grid of day glyphs; tap a day for its notes; history edits carry "fixes history, no
 rewards") → **The year** (a horizontally scrolling strip of day flowers; 53×7 at ≥ 600 px; aria-hidden with a text
 summary) → **Records** · **Insights** → **Pins** (enamel pins for achievements; unearned pins are outline-only) → **Memory
 shelf** (Sunday Notes, Herbarium pages, retired plants, seasons).
 
-**Habit Detail**: a large plant with its residents · "4 more check-ins to Blooming, around Oct 14" (never sunshine numbers) ·
+**Habit Detail**: a large plant with its residents · "4 more waterings to Blooming." (never sunshine numbers, never a date) ·
 the **plant tag** (its bloom look in plain words, §14.2) · the **Garden Journal** sentences · stat tiles · "Why it matters"
 (if set) · **Moments** (notes, newest first) · the history calendar · the rung ladder · graduation offers · actions (Edit,
 Pause "Back on…", Resume, Start tracking from…, Archive, Delete → "Keep the plant on the balcony shelf?", **Tune my habits**).
@@ -419,15 +438,15 @@ A horizontally scrolling home: **The Sill** first, then each opened place. It's 
 behave by species, personality and time. There are cross-pet vignettes (a cat asleep on a cow's back; a nap pile on the Quilt; ducks
 in a line; a bunny sniffing a new leaf, never damaging it). Decor edit mode (drag, flip, remove) · the places map (open new
 places with coins) · the **Pet Card** (Likes · Known for · Favourite spot · Came home · friendship dots · personality ·
-favorite treat or its hint · wardrobe · feed from the pantry · keeps which habit company · Memories · rename) · the **Field
+favourite treat or its hint · wardrobe · feed from the pantry · keeps which habit company · Memories · rename) · the **Field
 Guide** · the basket (harvest + pantry) · **photo mode** (stretch; renders from the scene model, never the DOM).
 
 ### 9.5 You
 
 Profile (name, birthday) · Habits (arrange, archived, restore) · Preferences (week starts, day starts at, theme, sounds
 + volume, haptics where supported, reduce motion, quick open, **Quiet rewards**, **Compact Today**, show companions,
-hemisphere) · Reminders (Morning/Midday/Evening "watering time" calendar files) · Data (Save a backup → share/download,
-Copy backup (CK1), Import with preview + Undo 24 h, snapshots, CSV, storage status, last backup) · Demo · Install guide
+hemisphere) · Reminders (Morning/Midday/Evening "watering time" calendar files, `wateringTimeIcs`) · Data (Save a backup → share/download,
+Copy backup (CK1), Import with preview + Undo 24 h, snapshots, CSV (`exportCsv`), storage status, last backup) · Demo · Install guide
 (per OS) · About (principles, "How it works", credits, version/build, Check for updates, Reload app, 7 taps →
 Diagnostics).
 
@@ -435,24 +454,26 @@ Diagnostics).
 
 1. An empty sill in morning light. One line: **"New place. Which plants came with you?"** An optional name field sits on
    the same screen.
-2. **Pick up to 3 habits** from 8 starter chips (Drink water, Walk, Read, Stretch, Journal, Tidy 10 min, Take vitamins,
-   Skincare) plus "More ideas" and "Make my own", with the copy "Start small. You can add more anytime." Each chosen habit appears on
-   the sill as **a cutting in a water glass**.
+2. **Pick up to 3 habits** from 8 starter chips (Drink water, Walk, Read, Stretch, Journal, Tidy for 10 minutes, Take vitamins,
+   Skincare) plus "More ideas" and "Make my own", with the copy "More can go on the sill anytime." Each chosen habit appears on
+   the sill as **a cutting in a water glass**. Custom habits from "Make my own" join the same step (at most 3 in all).
 3. **"Anything already done today?"**: live check buttons. The first watering plays the full choreography, and a one-time
    top-up brings the jar to exactly 25 coins.
-4. **"Cats or Cows?"**: two cabinets. Insert, turn, twist. The first pull is a guaranteed Classic/Special pet from that series, and it doesn't advance pity.
+4. **"Who comes home first?"**: four cabinets, No. 01 · Cats, No. 02 · Cows, No. 03 · Dogs and No. 04 · Pond, in a 2×2 grid
+   at phone width, with no price ("Your first capsule is on the house. Choose a cabinet."). Insert, turn, twist. The first
+   pull is a guaranteed Classic/Special pet from that series, and it doesn't advance pity.
    It and step 3's top-up are one gift of one capsule: taken before any check-in it is free (and the top-up never
    comes); taken after the top-up, the coin she inserts is the top-up. Every save's first capsule, on any series, is a
    pet, since a new save owns none.
-5. Name them (suggestions + reroll) · a **came-home date** · **"Find them a plant"** (they move into one of her new cuttings'
-   pots, keeping that habit company) → Today.
+5. Name the pet (suggestions + reroll) · a **came-home date** · **"Find {name} a plant"** (the pet moves into one of her
+   new cuttings' pots, keeping that habit company) or "Let {name} choose" → Today.
 6. "Not yet, I'll earn it" → Today with a pinned card: "Your first capsule: water anything."
 Day start and birthday live in Preferences/Profile. The install-first gate (§11.1) comes before step 1 on iOS/macOS
 Safari tabs.
 
 ## 10. Visual system
 
-### 10.1 Color (tokens in `src/styles/tokens.css`; names are stable, values themed)
+### 10.1 Colour (tokens in `src/styles/tokens.css`; names are stable, values themed)
 
 **Paper** (day): paper `#FAF6EF` · oat `#F1E9DD` · card `#FFFDF9` · ink (warm graphite) `#3B3236` · ink-2 `#66585D` · ink-3
 `#6F6065` · hairline `#E6DCD0`. Families (100 / 300 / **500** / 700 text-safe):
@@ -504,7 +525,7 @@ instead of heavy boxes · 44 px minimum targets.
 
 Unhurried: `cubic-bezier(.2,.8,.2,1)`, with no overshoot in the interface. Animals move with weight (a cow's four-beat walk with a
 1-unit bob, a cat's two-stage hop, the slow blink at 400 ms close / hold / 400 ms open). Celebrations are **≤ 12 petals or leaves
-in the plants' own colors, never confetti**, and a rare reveal gets one foil glint. **Reduced motion**: check-ins fill instantly;
+in the plants' own colours, never confetti**, and a rare reveal gets one foil glint. **Reduced motion**: check-ins fill instantly;
 the cabinet is static with a crossfade; the reveal is a 200 ms fade on a static glow; pets hold poses and relocate by crossfade at most
 every 30 s; the sunbeam still moves (it is light, not motion); blinking and breathing ≤ 1.5% stay.
 
@@ -556,11 +577,14 @@ WCAG AA (test-enforced) · focus-visible rings · every icon button named · she
 target-1 check buttons are `<button aria-pressed>` named with the habit, with the status described · count buttons: "Add 1
 glass to Drink water" described by "5 of 8 glasses" · the week strip is a radiogroup · day progress is a `progressbar` with valuetext
 · the capsule flow moves focus Insert → "Turn the handle" → "Open capsule, Rare finish" and announces the reveal as a sentence ·
-every drag, stroke, long-press or twist has a button/menu equivalent · rarity and day state are never shown by color alone (§7.1,
+every drag, stroke, long-press or twist has a button/menu equivalent · rarity and day state are never shown by colour alone (§7.1,
 §10.4) · Dynamic Type with `data-type="large"` reflow (no horizontal overflow at 320 px or 200% zoom) · reduced motion
 per §10.5.
 
 ## 12. Voice
+
+**On any user-facing string, VOICE.md wins.** This section keeps the principles; the copy deck (`docs/VOICE.md`) holds every
+line, and where a quoted line here and the deck differ, the deck is right and this file is fixed the same day.
 
 **The plant-sitter's note.** Brief, kind, specific, observed. Present tense, plain words, sentence case, numerals.
 Warmth comes from specifics (names, plants, times), not adjectives.
@@ -580,8 +604,8 @@ Warmth comes from specifics (names, plants, times), not adjectives.
 | Rest day | "Yoga is resting today. Nothing here wilts." |
 | Welcome home | "Everything kept. There's a ticket on the sill." |
 | Reveal | "No. 02 · Cows. A Belted Galloway, black with a white belt all the way round." |
-| Secret | "No. 02 · Cows, the secret one. A Highland, about the size of your thumb, who would like somewhere soft." |
-| Sunday Note | "Week of Sep 22. Nineteen waterings. The reading plant opened its first bud on Thursday, and Juniper has napped in it every afternoon since. Three stamps, enclosed." |
+| Secret | "No. 02 · Cows, the secret one! A Highland, about the size of your thumb, who would like somewhere soft." |
+| Sunday Note | "Week of Sep 22. Nineteen waterings. The Read plant showed a first bud on Thursday, and Juniper has napped in it every afternoon since. Three stamps, enclosed." |
 
 The copy deck is `docs/VOICE.md`, and the caption matrix is `src/catalog/lines.ts` (10 personalities × contexts × ≥ 4
 third-person lines, no line repeated within the last 5 in a context). A lint test fails the build on banned words.
@@ -601,18 +625,18 @@ third-person lines, no line repeated within the last 5 in a context). A lint tes
 * **The Cutting** (lifetime gauge): a pothos cutting in a jar on the window frame, there from day one. It grows on lifetime
   sunshine across all habits (thresholds 0/5/20/50/105/210/450/900): roots, then a pot, then a vine trailing along the window
   frame until it frames the whole window. **The Window Seat** (365 show-up days) is a cushioned seat built into the window, with the
-  best light in the apartment.
+  best light in the place.
 
 ## 14. The three cozy-game pillars (Animal Crossing × Stardew Valley × Pokémon)
 
 Researched, designed by three independent designers and judged by a gimmick detector, a habit-centrality judge and a
 target-user panel (AUDITS.md). **Every pillar is driven by real habit data and makes the tracker itself more meaningful.**
 
-### 14.1 Keeping Company *(AC's neighbors who know you · Pokémon's buddy · Stardew's heart events)*
+### 14.1 Keeping Company *(AC's neighbours who know you · Pokémon's buddy · Stardew's heart events)*
 
 * **Residency = companionship.** Any pet may keep **one** habit company and each habit has at most one companion (optional).
   The companion **lives in that habit's plant**: it peeks from the pot on the card (≤ 20 px) and waters with you in the sill
-  band. Habits without one are watered by whoever is nearest. Offered after naming at a reveal ("Find them a plant"),
+  band. Habits without one are watered by whoever is nearest. Offered after naming at a reveal ("Find {name} a plant"),
   in the Habit Editor ("Who keeps it company?") and on the Pet Card, at most once per day, and never again after 3 declines
   (the counters are shared by all three; pairing by hand always works). Archiving, retiring or deleting a habit frees its
   companion.
@@ -640,12 +664,12 @@ target-user panel (AUDITS.md). **Every pillar is driven by real habit data and m
 ### 14.2 Blooms Like You *(Pokémon's branching evolution · AC's hybrid flowers)* + Garden Journal + stacking
 
 * When a plant first reaches **Blooming**, its look is computed from *how* she keeps the habit, and re-read at Evergreen. Looks are only
-  ever added, and she chooses which to show (Classic is always available). **Color** from when she usually checks in: **Dawn ·
+  ever added, and she chooses which to show (Classic is always available). **Colour** from when she usually checks in: **Dawn ·
   Sunlit · Twilight · Wildflower** (anytime). The classifier uses live `at` stamps only, drops catch-up bursts (≥ 3 habits within
   120 s, measured in time, across the day start) and 23:00–03:59, and needs ≥ 10 eligible days (a read waits for them rather than guess). Bands: Dawn before 9:00,
   Sunlit 9:00–17:59, Twilight from 18:00; "usually" is a band holding ≥ 60% of the eligible days of the kept stamps (120 days),
   else Wildflower. **Shape**: **Classic · Petite** (tiny on ≥ 25% of days, ≥ 5 days) **·
-  Paired** (stacked on ≥ 14 kept-together days: petals take the partner's card color, the pots sit side by side, a bee visits;
+  Paired** (stacked on ≥ 14 kept-together days: petals take the partner's card colour, the pots sit side by side, a bee visits;
   Paired wins over Petite). A kept-together day: both done, the follower at or after its anchor when both were live.
   **No performance-graded looks.** It pays nothing. The **plant tag** explains it in plain words ("Dawn · Paired: you usually
   water it before 9, and 18 days you did it right after Walk"). A mismatch offers "You set Walk for mornings but usually
@@ -666,7 +690,7 @@ a time-lapse of up to 8 plants through the season just ended, with residents bes
 **fresh-start chips** per habit: **Keep going** (preselected) · **Tinier** · **Grow** (if eligible) · **Rest till next
 season** · **Finish** (to the balcony shelf with a ribbon), plus a one-tap **Keep everything**. "Just this season" habits
 (`endsOn`) retire with a ribbon and are never shown as incomplete. **Tune my habits** is available anytime. It pays nothing
-beyond Grow's stamp (paid only while "Ready to grow?" stands), and seasons that passed unopened are filed silently. The card is
+beyond Grow's stamp (paid only while "A bigger pot?" stands), and seasons that passed unopened are filed silently. The card is
 for the season just ended, when she opened the app in it and something was watered; a card still waiting when the next season
 begins is filed. Rest runs to the day before the next season; Finish and a finished "just this season" archive the habit as of
 its last day, so no later day is ever expected of it.

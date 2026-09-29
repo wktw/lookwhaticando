@@ -169,8 +169,10 @@ and never "Evening" at 2 am.
 | 22 to 4 | "Hello, {userName}. The lamp’s on." or "Hello, {userName}. Everything on the sill is asleep." |
 | Her birthday | "Happy birthday, {userName}." |
 
-The long date: "Monday, September 29". The vine chip on the sill ledge: "3 of 5 · +18 coins".
-Collapsed band: "Sep 29", the mini ring, the wallet. Tapping the window: "Open the Shelf".
+The long date: "Monday, September 29". The vine chip on the sill ledge: "3 of 5 · +18 coins" (before any
+coins today, just "3 of 5"). With only flexible habits watered and nothing day-based on: "2 watered". With
+nothing on at all, the chip isn't there. Collapsed band: "Sep 29", the mini ring, the wallet. Tapping the
+window: "Open the Shelf".
 
 ### The card status line
 
@@ -181,16 +183,19 @@ One line under the habit name, first match wins (DESIGN §9.1.1). It never shows
 |---|---|
 | Count in progress | "5/8 glasses" |
 | Tiny version logged | "Tiny version ✓" |
-| Flexible, in progress | "2 of 3 this week" (nothing after it) |
-| Flexible, met | "Watered for the week ✓" (monthly: "Watered for the month ✓") |
+| Flexible, in progress | "2 of 3 this week" (nothing after it; before the first watering of the period, no line at all) |
+| Flexible, met | "Watered for the week ✓" (monthly: "Watered for the month ✓"; every 2 weeks "Watered for the fortnight ✓"; quarterly "Watered for the quarter ✓") |
 | 3 or more in a row, daily | "12 days" |
 | 3 or more in a row, certain days | "12 in a row" |
 | 3 or more in a row, weekly or monthly | "4 weeks in a row", "3 months in a row" |
-| Avoid habit, 3 or more | "Held off 12 days" |
+| Avoid habit, 3 or more | "Held off 12 days" (certain days: "Held off 12 in a row"; weekly: "Held off 4 weeks in a row") |
 | 10 or more expected | "26 of the last 30 days", "11 of your last 13 Mon/Wed/Fri", "3 of the last 4 weeks", "5 of the last 6 months" |
 | New plant | "Rooting · 2 more to pot up" |
 | Brand new | "Just planted" |
 | Resting today | "Resting today" (with the moon) |
+
+The line is built by `statusLine()` in `src/catalog/format.ts` from the card's `subtitle` data (kind and
+numbers only); the same function is used by the card, its screen-reader description and the fx layer.
 
 Below 10 expected occurrences there are no percentages: "4 of 4 so far". The anchor sits above it in
 Castoro italic: "After I pour my coffee", or for a stacked habit, "After Walk".
@@ -321,12 +326,25 @@ The one screen that looks back, so it only ever looks back at what happened. A n
 simply not shown.
 
 - The hero: "You showed up 26 of the last 30 days".
-- This month so far: "September so far: 22 of 29 days".
+- This month so far: "September so far: 22 of 29 days". Below 10 expected waterings, no percentage: "4 of 4
+  so far".
+- This week: "6 of 7 this week".
 - The comparison with the same days last month shows only when it's up or level: "Up on the same days
-  last month" · "Level with the same days last month". When it's down, that line isn't there.
-- Goals: "3 goals on track". When none are, the line isn't there.
+  last month" · "Level with the same days last month". When it's down, that line isn't there, and one fact
+  from the month stands in its place: "62 waterings so far in September. Walk is the steadiest." (a closed
+  month: "62 waterings in August. Walk was the steadiest.").
+- Goals: "3 goals on track" (one: "1 goal on track"). When none are, the line isn't there.
+- Rests, last 30 days: "2 rests · 1 day off". None: no line.
 - Recent months, one calm bar each, labelled "Aug · 24 days".
+- The year strip's summary: "312 waterings in 2025, across 180 days" (one: "1 watering in 2025, across 1 day").
+- Records: "Waterings: 312" · "Tiny versions: 8" · "Longest run: Walk, 21 days in a row" · "Best month:
+  August" · "Everything watered: 14 days" · "Days showing up: 180".
+- Insights: "Thursdays are the steadiest." · "Walk is the steadiest habit." · "Evenings are when most
+  watering happens."
 - The calendar's history note: "Fixes history. No coins for this one."
+
+The words come from `src/catalog/format.ts` (`PROGRESS_LINES` in lines.ts); the view model carries the
+numbers.
 
 ## 7. Plants
 
@@ -374,7 +392,7 @@ doesn't matter: "reached Blooming".
 
 **Forecast** on Habit Detail, in waterings, never sunshine numbers and never a date (a date slides later
 whenever she rests): "4 more waterings to Blooming." · "1 more watering to Blooming." · at Evergreen,
-"Evergreen. Small visitors arrive from here on."
+"Evergreen. Small visitors arrive from here on." (`STAGE_FORECAST`, worded by `forecastLine()`).
 
 **Flourishes** after Evergreen (`FLOURISH_LINES`): "A ladybird has moved into {plant}." · "A bee visits
 {plant} now." · "A robin looks in at {plant} from the ledge most mornings." · "A butterfly stops at
@@ -532,6 +550,11 @@ a button, a leaf, a bead, a blue thread, a seed, a bottle top, a feather.
 
 - Fields: "Likes" · "Known for" · "Favourite spot" · "Came home" · "Friendship" · "Personality" ·
   "Favourite treat" · "Wardrobe" · "Keeps {habit} company" · "Memories".
+- "Likes": the treat hint until the favourite is found ("Perks up at anything sweet"), then "{treat}, most
+  of all".
+- "Favourite spot", from level 4: a place ("The Saucer Pond") or a pot ("The Read plant"). Before level 4 the
+  row isn't there.
+- "Best friend", from level 8: "{friend}". Alone on the sill, the row isn't there.
 - Buttons for every gesture: "Say hello" (tap) · "Stroke" · "Touch nose" (for ducks, "Touch beak"; for
   frogs, "Touch head") · "Pick up" and "Put down" · "Feed" · "Rename" · "Find {name} a plant".
 - The name tag that floats up after a tap: "{name}’s card".
@@ -645,7 +668,7 @@ single "?" for the Secret.
 
 At the counter, for stamps: "Anything not yet in the Field Guide, for stamps."
 
-- Prices: "Classic 2 · Special 4 · Rare 8 · Super rare 15 · Moonlit 8"
+- Prices: "Classic 3 · Special 4 · Rare 8 · Super rare 15 · Moonlit 8"
 - Confirm: "Order the Siamese for 8 stamps?" · "Order" · "Not now"
 - It arrives with the reveal: "Your order: a Siamese." An unknown Secret stays a "?" tile, and ordering it
   plays the full Secret reveal.
@@ -682,6 +705,11 @@ in the jar or on the card, the notice leaves the count out.
 The places map: "The Sill" "free" · "Saucer Pond" "400 coins" · "Cat-grass Tray" "700 coins" ·
 "Bookshelf" "1,000 coins" · "Balcony Box" "1,500 coins" · "The Quilt" "2,500 coins". Button "Open for
 400 coins". Each one adds "Room for 2 more pets".
+
+Pets out on the Shelf each spend the day in one place. Opening a place moves the pets who love it most
+into it (up to its room). On the Pet Card: "Spends the day in" with the place's name, and "Move {name}" →
+the open places as chips → "{name} moved to the Saucer Pond." / "{name} moved back to the Sill." From "Let
+{name} choose": "{name} chose the Saucer Pond."
 
 Opened, with the pet who loves it most, or without:
 
@@ -911,8 +939,10 @@ Ninety seconds or less to the first capsule, and every step skippable ("Skip").
    on the sill anytime." Each chosen habit appears on the sill as a cutting in a water glass.
 3. "Anything already done today?" Live water buttons. The first watering plays in full: "Walk, watered.
    +5". The jar tops up: "There are 25 coins in the jar. That’s a capsule."
-4. "Cats or Cows?" Two cabinets. "Put a coin in" · "Turn the handle" · "Twist to open, or tap". The first
-   capsule is always a pet.
+4. "Who comes home first?" Four cabinets, two by two: "No. 01 · Cats" · "No. 02 · Cows" · "No. 03 · Dogs"
+   · "No. 04 · Pond", with no price. Under the heading: "Your first capsule is on the house. Choose a
+   cabinet." Then "Put a coin in" · "Turn the handle" · "Twist to open, or tap". The first capsule is always
+   a pet.
 5. "Name" (a suggestion filled in, "Another name") · "Came home: today" · "Find {name} a plant".
 6. The other way out: "Not yet, I’ll earn it" → Today, with a pinned card: "Your first capsule: water
    anything."
@@ -985,7 +1015,8 @@ Web push would need a server, so reminders are calendar events she adds herself 
   calendar". Helper: "catkin can’t send notifications, so it makes a calendar event that repeats every
   day. Your calendar does the reminding."
 - The `.ics` event: SUMMARY "Watering time", DESCRIPTION "Morning plants: Walk, Stretch, Take vitamins.",
-  alarm text "Watering time".
+  alarm text "Watering time". With no habits in that block: DESCRIPTION "Morning plants." Built by
+  `wateringTimeIcs()` in `src/domain/profile.ts`; the file is "catkin-watering-time-morning.ics".
 - Never `Don't forget`, never a count, never a name of a pet.
 
 ## 21. Data
@@ -1001,7 +1032,7 @@ Under You › Data.
 | Imported | "Imported. You can undo this for 24 hours." |
 | Undo import | "Undo import" → "Back to how things were before the import." |
 | Snapshots | "Daily copies, kept on this device: 7 daily and 4 weekly." · "Restore this copy" |
-| CSV | "Export waterings as CSV" |
+| CSV | "Export waterings as CSV" (file "catkin-waterings-2025-09-29.csv"; columns "date", "habit", "count", "target", "state"; states "watered", "tiny", "partial", "rest") |
 | Storage | "Saved on this device" / "Saved in this browser tab" |
 | Last backup | "Last backup: Sep 20" / "No backup yet" |
 | The nudge | "Worth saving a backup: the last one is from Aug 2." |
@@ -1042,6 +1073,16 @@ or avoid" ("Do it" · "Avoid it") · "Why it matters" · "Who keeps it company?"
 "Plant it" (new) / "Save" (edit). With 3 long habits already: "3 long habits is the most at once. Pick a
 shorter time, or pause one of the others."
 
+The editor's field notes say what to do, never "invalid": "Give it a name, up to 60 characters." · "Pick an
+icon." · "That plant is still in a capsule." · "Pick at least one day." · "Pick another habit to follow." ·
+"The tiny version needs a few words." · "Make the tiny version smaller than the whole amount." (all in
+`HABIT_ISSUES`, lines.ts, by issue code).
+
+How often, as a habit's summary (Habit Detail, the history): "Every day" · "Mon/Wed/Fri" · "3 times a
+week" · "Once every 2 weeks" · "Twice a month" · "Once a quarter" · "Once a year". A change: "From Oct 6:
+Mon/Wed/Fri"; the first rule: "Since Sep 22: Every day"; a count habit adds its amount: "Every day · 8
+glasses". (`SCHEDULE_LINES` in lines.ts, worded by `scheduleText` and `ruleChangeText` in format.ts.)
+
 About: "Look after the little things." · "Your habits grow the plants. The plants become a home." · "How it
 works" · "Credits" · "Version {version}".
 
@@ -1049,7 +1090,9 @@ works" · "Credits" · "Version {version}".
 
 - Check buttons are named with the habit ("Walk") and use pressed state, never `not done`.
 - Count buttons: "Add 1 glass to Drink water", described by "5 of 8 glasses".
-- Day progress: "3 of 5 watered".
+- Day progress: "3 of 5 watered". The week strip's days: "Saturday, September 27, 3 of 5 watered" (nothing on:
+  "Saturday, September 27").
+- A habit card: "Walk" with pressed state; a count habit "Drink water, 5 of 8 glasses".
 - The capsule flow: "Put a coin in" → "Turn the handle" → "Open capsule, Rare finish", and the reveal as
   one sentence (section 10).
 - Pets: "Pudding, orange tabby, asleep" for the art; the caption is the live text.

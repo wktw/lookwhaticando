@@ -8,10 +8,13 @@ import { HARVEST_BY_PLANT, TOY_IDS, getCollectible, moonlitBase } from '@/catalo
 import { PERSONALITY_BY_ID } from '@/catalog/personalities';
 import { PLACES } from '@/catalog/places';
 import { WEARABLE_SLOTS, type PlaceId, type PlantSpeciesId, type Personality, type Species, type TreatTag, type WearableSlot } from '@/catalog/types';
-import type { AppState, DateKey, HerbariumMargin, HerbariumPressing, Letter, PetState, PlacedDecor, SeasonRecord, SundayHighlight, SundayPS } from '../types';
-import { machineCollectiblesOwned, ownedTreats, ownedWearables } from '@/domain/collection';
+import type { AppState, DateKey, HerbariumMargin, HerbariumPressing, Letter, Outfit, PetMemory, PetSpotClaim, PetState, PlacedDecor, SeasonRecord, SundayHighlight, SundayPS } from '../types';
+import type { RitualKind } from '../api';
+import { chooseBestFriend, claimSpot, petPlace, suggestPlaceFor } from '@/domain/places';
+import { BEST_FRIEND_LEVEL, SPOT_LEVEL } from '@/domain/friendship';
+import { capsuleCollectiblesOwned, ownedTreats, ownedWearables } from '@/domain/collection';
 import { appDayKey, monthDayLabel } from '@/domain/dates';
-import { PET_XP, dailyFor, featuredPetId } from '@/domain/friendship';
+import { PET_XP, closestPetId, dailyFor, featuredPetId } from '@/domain/friendship';
 import type { CuttingVM } from '@/domain/growth';
 import { cuttingOf } from '@/domain/economy';
 import { LEVEL_PERKS, MAX_FRIEND_LEVEL, levelProgress, memoriesFor, type LevelPerk, type LevelProgress } from '@/domain/levels';
@@ -42,6 +45,10 @@ export interface PetSummaryVM {
   fraction: number;
   /** Out on the Shelf (the rest are indoors). */
   out: boolean;
+  /** The place it spends the day in (the Sill unless moved; ShelfScene's `ShelfPet.place`). */
+  place: PlaceId;
+  /** What it wears (ShelfPet.outfit, PetArt). */
+  outfit: Outfit;
   favorite: boolean;
   /** The pet a view features when it needs one (friendship.featuredPetId). */
   featured: boolean;
@@ -67,6 +74,8 @@ export function petSummary(s: AppState, pet: PetState, featured: string | null =
     hearts: Math.min(MAX_FRIEND_LEVEL, lp.level),
     fraction: lp.fraction,
     out: pet.inMeadow,
+    place: petPlace(s, pet),
+    outfit: pet.outfit,
     favorite: pet.favorite,
     featured: pet.id === featured,
     moonlit: moonlitBase(pet.id) !== null,
@@ -82,6 +91,8 @@ export interface PetsVM {
   capacity: number;
   /** The featured pet (null before the first pet). */
   featured: string | null;
+  /** Your closest pet and its species, for the Shelf tab's silhouette (§1 Many animals); null before the first pet. */
+  closest: { id: string; species: Species | null } | null;
 }
 
 export function petsVM(s: AppState): PetsVM {
@@ -89,21 +100,41 @@ export function petsVM(s: AppState): PetsVM {
   const pets = Object.values(s.pets)
     .map((p) => petSummary(s, p, featured))
     .sort((a, b) => Number(b.favorite) - Number(a.favorite) || a.obtainedAt - b.obtainedAt || (a.id < b.id ? -1 : 1));
-  return { pets, out: petsOutCount(s), capacity: petsOutCapacity(s), featured };
+  const closestId = closestPetId(s);
+  const closest = closestId ? { id: closestId, species: pets.find((p) => p.id === closestId)?.species ?? null } : null;
+  return { pets, out: petsOutCount(s), capacity: petsOutCapacity(s), featured, closest };
 }
 
 /** The favourite-treat hint before it is found: by the treat's first tag, or the plant it is harvested from. */
 export type FavoriteHint = { kind: 'tag'; tag: TreatTag } | { kind: 'plant'; plant: PlantSpeciesId } | { kind: 'unknown' };
 
-export interface PetVM extends PetSummaryVM {
+export interface PetVM extends Omit<PetSummaryVM, 'outfit'> {
   personalityBlurb: string;
   progress: LevelProgress;
   /** What each level changes (§8.2), and whether it is unlocked. */
   perks: { level: number; perk: LevelPerk; unlocked: boolean }[];
-  /** Memories earned after level 10 (one per 150 XP). */
-  memories: number;
+  /** How many Memories it has earned after level 10 (one per 150 XP). */
+  memoryCount: number;
+  /**
+   * Its dated Memories, oldest first (`memoryText` → "Came home Sep 29", "The day Read bloomed",
+   * "Best friends, Nov 2"). Empty before best friends ("Memories start once you’re best friends.").
+   */
+  memories: PetMemory[];
   /** The favourite treat once discovered; otherwise a hint. */
   favoriteTreat: { known: boolean; treatId: string | null; name: string | null; hint: FavoriteHint };
+  /**
+   * "Likes" (§8.5, the Pet Card): the favourite treat once found ("{Treat}, most of all"), before
+   * that the hint's tag (TREAT_TAG_HINTS[tag], "Perks up at anything sweet") or the plant it comes
+   * from.
+   */
+  likes: { kind: 'treat'; treatId: string } | { kind: 'tag'; tag: TreatTag } | { kind: 'plant'; plant: PlantSpeciesId } | null;
+  /** "Favourite spot", from level 4 (§8.2): a pot or a place. Null before. */
+  spot: PetSpotClaim | null;
+  /** "Best friend", from level 8: the pet it naps next to (null before, or alone on the Shelf). */
+  bestFriend: string | null;
+  /** "Let {name} choose": the place its species would pick now. */
+  suggestedPlace: PlaceId;
+  /** What it wears, per slot (null = nothing); the scene takes `PetSummaryVM.outfit`. */
   outfit: Record<WearableSlot, string | null>;
   /** Owned wearables per slot (any pet may wear any owned item). */
   wardrobe: Record<WearableSlot, { id: string; name: string }[]>;
@@ -140,6 +171,13 @@ export function favoriteHint(treatId: string): FavoriteHint {
   return tag ? { kind: 'tag', tag } : { kind: 'unknown' };
 }
 
+/** The Pet Card's "Likes": the favourite once found, else what the hint says. */
+export function likesOf(pet: Pick<PetState, 'favoriteKnown' | 'favoriteTreat'>): PetVM['likes'] {
+  if (pet.favoriteKnown) return { kind: 'treat', treatId: pet.favoriteTreat };
+  const hint = favoriteHint(pet.favoriteTreat);
+  return hint.kind === 'unknown' ? null : hint;
+}
+
 export function petVM(s: AppState, env: ViewEnv, id: string): PetVM | null {
   const pet = s.pets[id];
   if (!pet) return null;
@@ -156,7 +194,12 @@ export function petVM(s: AppState, env: ViewEnv, id: string): PetVM | null {
     personalityBlurb: pers?.blurb ?? '',
     progress: lp,
     perks: Object.entries(LEVEL_PERKS).map(([lvl, perk]) => ({ level: Number(lvl), perk, unlocked: lp.level >= Number(lvl) })),
-    memories: memoriesFor(pet.xp),
+    memoryCount: memoriesFor(pet.xp),
+    memories: [...(pet.memories ?? [])],
+    likes: likesOf(pet),
+    spot: lp.level >= SPOT_LEVEL ? (pet.spot ?? claimSpot(s, id)) : null,
+    bestFriend: lp.level >= BEST_FRIEND_LEVEL ? (pet.bestFriend && s.pets[pet.bestFriend] ? pet.bestFriend : chooseBestFriend(s, id)) : null,
+    suggestedPlace: suggestPlaceFor(s, id),
     favoriteTreat: {
       known: pet.favoriteKnown,
       treatId: pet.favoriteKnown ? pet.favoriteTreat : null,
@@ -262,8 +305,8 @@ export function shelfVM(s: AppState): ShelfVM {
 /* seasons (§9.2, §13)                                                 */
 /* ------------------------------------------------------------------ */
 
-/** The screens' names for the rituals (internally a weekly letter and a monthly bouquet). */
-export type RitualKind = 'sundayNote' | 'herbarium' | 'anniversary';
+/** The screens' names for the rituals (internally a weekly letter and a monthly bouquet); the `letter` event carries it too. */
+export type { RitualKind };
 
 export function ritualKind(l: Letter): RitualKind {
   return l.kind === 'weekly' ? 'sundayNote' : l.kind === 'monthly' ? 'herbarium' : 'anniversary';
@@ -384,9 +427,17 @@ export interface BadgeVM {
   color: (typeof BADGES)[number]['color'];
   earned: boolean;
   earnedAt: number | null;
-  /** Counting badges: how far along ("43 / 50 check-ins"). */
+  /** Counting badges: how far along (43 of 50). */
   progress: { have: number; need: number } | null;
+  /**
+   * Not shown until earned: "Key under the mat" (an outline only a lapse can fill would read as a
+   * "you left" pin, VOICE.md §8).
+   */
+  hidden: boolean;
 }
+
+/** Pins whose outline stays hidden until they are earned. */
+export const HIDDEN_UNTIL_EARNED: ReadonlySet<string> = new Set(['comeback']);
 
 const COUNTERS: Record<string, (s: AppState) => { have: number; need: number }> = {
   'checkins-10': (s) => ({ have: s.lifetime.checkins, need: 10 }),
@@ -395,10 +446,10 @@ const COUNTERS: Record<string, (s: AppState) => { have: number; need: number }> 
   'checkins-250': (s) => ({ have: s.lifetime.checkins, need: 250 }),
   'checkins-500': (s) => ({ have: s.lifetime.checkins, need: 500 }),
   'checkins-1000': (s) => ({ have: s.lifetime.checkins, need: 1000 }),
-  'collect-10': (s) => ({ have: machineCollectiblesOwned(s.collection), need: 10 }),
-  'collect-25': (s) => ({ have: machineCollectiblesOwned(s.collection), need: 25 }),
-  'collect-50': (s) => ({ have: machineCollectiblesOwned(s.collection), need: 50 }),
-  'collect-100': (s) => ({ have: machineCollectiblesOwned(s.collection), need: 100 }),
+  'collect-10': (s) => ({ have: capsuleCollectiblesOwned(s.collection), need: 10 }),
+  'collect-25': (s) => ({ have: capsuleCollectiblesOwned(s.collection), need: 25 }),
+  'collect-50': (s) => ({ have: capsuleCollectiblesOwned(s.collection), need: 50 }),
+  'collect-100': (s) => ({ have: capsuleCollectiblesOwned(s.collection), need: 100 }),
 };
 
 export function badgesVM(s: AppState): { earned: number; total: number; badges: BadgeVM[] } {
@@ -415,6 +466,7 @@ export function badgesVM(s: AppState): { earned: number; total: number; badges: 
       earned: at !== undefined,
       earnedAt: at ?? null,
       progress: p && at === undefined ? { have: Math.min(p.have, p.need), need: p.need } : null,
+      hidden: at === undefined && HIDDEN_UNTIL_EARNED.has(b.id),
     };
   });
   return { earned: badges.filter((b) => b.earned).length, total: badges.length, badges };

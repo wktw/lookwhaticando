@@ -3,7 +3,9 @@ import {
   CUTTING_THRESHOLDS,
   STAGE_NAMES,
   STAGE_THRESHOLDS,
-  bloomsFor,
+  extraBloomsFor,
+  artBlooms,
+  MAX_BLOOMS,
   displayStage,
   flourishesFor,
   growthInfo,
@@ -121,7 +123,7 @@ describe('progress, next stage and blooms', () => {
     [900, 7, 6], // capped
     [300, 6, 0], // not Evergreen yet (held back): no blooms
   ])('blooms at %d sunshine (stage %i) = %i', (s, stage, blooms) => {
-    expect(bloomsFor(s, stage)).toBe(blooms);
+    expect(extraBloomsFor(s, stage)).toBe(blooms);
   });
 
   it.each([
@@ -149,7 +151,7 @@ describe('progress, next stage and blooms', () => {
       progress: (33 - 21) / 21,
       sunshineToNext: 9,
       nextName: 'Blooming',
-      blooms: 0,
+      extraBlooms: 0,
       flourishes: 0,
       heldBack: false,
       paced: false,
@@ -157,6 +159,13 @@ describe('progress, next stage and blooms', () => {
     const monthlyFirst = growthInfo({ sunshine: sunshinePerOccurrence({ schedule: monthly(1) }), completedOccurrences: 1 });
     expect(monthlyFirst).toMatchObject({ stage: 1, name: 'Rooting', heldBack: true, sunshineToNext: 0, progress: 1 });
     expect(growthInfo({ sunshine: 5, completedOccurrences: 5, bestStage: 6 })).toMatchObject({ stage: 2, displayStage: 6, name: 'Flourishing' });
+  });
+
+  it('artBlooms leaves the art to follow the stage below Evergreen, and adds the extra blooms at Evergreen', () => {
+    for (let stage = 0; stage < 7; stage++) expect(artBlooms(stage, 0), `stage ${stage}`).toBeUndefined();
+    expect(artBlooms(7, 0)).toBe(5);
+    expect(artBlooms(7, 1)).toBe(6);
+    expect(artBlooms(7, 6)).toBe(MAX_BLOOMS);
   });
 });
 

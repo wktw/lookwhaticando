@@ -34,7 +34,7 @@ import type { AppState, Company, CompanyPair, DateKey, Habit, HabitRule, Keepsak
 import { inLifetime, logStatus, showedUp } from './activity';
 import { dayNumber } from './dates';
 import { dailyFor, addXp } from './friendship';
-import { BLOOMING } from './growth';
+import { BLOOMING, POTTED } from './growth';
 import { evaluatePeriod, flexPeriodAt } from './periods';
 import { ruleAt } from './rules';
 import { KEEPSAKE_STAGES, SPECIES_ROUTINES, keepsakeKind, routineOf, routinePhase, type Routine, type RoutinePhase } from './routines';
@@ -286,6 +286,10 @@ export function companionCheckin(tx: Tx, habitId: string, date: DateKey): number
     tx.emit({ type: 'companionXp', petId, habitId, date, xp: paid });
     addXp(tx, petId, paid);
   }
+  // "Known for" (§14.1): the routine first shows on a watered day from Potted on; from then on the
+  // Pet Card keeps the line, whatever a later day holds.
+  const pair = pairOf(tx.s, petId, habitId);
+  if (pair && pair.knownForSince === undefined && (tx.s.ledger.bestStage[habitId] ?? 0) >= POTTED) ensurePair(tx, petId, habitId).knownForSince = date < pair.since ? pair.since : date;
   unlockNextStory(tx, habit, petId);
   return paid;
 }

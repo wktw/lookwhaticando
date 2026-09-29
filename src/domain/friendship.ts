@@ -22,11 +22,12 @@
 import { TREATS, getCollectible, moonlitBase } from '@/catalog/collectibles';
 import { PERSONALITIES } from '@/catalog/personalities';
 import type { PetInteractionResult } from '@/state/api';
-import type { AppState, DateKey, FoundThing, PetState } from '@/state/types';
+import type { AppState, DateKey, FoundThing, PetMemory, PetState } from '@/state/types';
 import type { WearableSlot } from '@/catalog/types';
 import { evaluateBadges } from './badges';
-import { addDays } from './dates';
-import { FOUND_THING_LEVEL, levelForXp, levelsCrossed } from './levels';
+import { addDays, appDayKey } from './dates';
+import { FOUND_THING_LEVEL, MAX_FRIEND_LEVEL, levelForXp, levelsCrossed, memoriesFor } from './levels';
+import { chooseBestFriend, claimSpot } from './places';
 import { takeServing } from './pantry';
 import { pick, randomInt, type Rng } from './rng';
 import type { Tx } from './tx';
@@ -84,8 +85,28 @@ export function featuredPetId(s: Pick<AppState, 'pets'>): string | null {
 }
 
 /**
+ * Your closest pet: the most friendship XP, ties to the pet who came home first. The Shelf tab
+ * shows its silhouette (DESIGN §1 Many animals: the tab shows *your* closest pet, not always a cat).
+ * Null before the first pet.
+ */
+export function closestPetId(s: Pick<AppState, 'pets'>): string | null {
+  let best: PetState | null = null;
+  for (const p of Object.values(s.pets)) {
+    if (!best || p.xp > best.xp || (p.xp === best.xp && (p.obtainedAt < best.obtainedAt || (p.obtainedAt === best.obtainedAt && p.id < best.id)))) best = p;
+  }
+  return best?.id ?? null;
+}
+
+/** The level at which a pet claims its favourite spot, and the one from which it naps next to a best friend (§8.2). */
+export const SPOT_LEVEL = 4;
+export const BEST_FRIEND_LEVEL = 8;
+
+/**
  * Adds XP (after the caller applied its cap), emitting a `petLevel` event per level crossed.
- * Returns the levels crossed.
+ * Levels change behaviour (§8.2), and three of them leave a mark on the pet that stays: level 4
+ * claims a favourite spot (`spot`), level 8 a best friend on the Shelf (`bestFriend`), level 10 the
+ * day you became best friends (`bestFriendsOn`); and every 150 XP after level 10 records a dated
+ * Memory (`memories`). Returns the levels crossed.
  */
 export function addXp(tx: Tx, petId: string, amount: number): number[] {
   if (!(amount > 0) || !tx.s.pets[petId]) return [];
@@ -94,7 +115,42 @@ export function addXp(tx: Tx, petId: string, amount: number): number[] {
   pet.xp = before + amount;
   const crossed = levelsCrossed(before, pet.xp);
   for (const level of crossed) tx.emit({ type: 'petLevel', petId, level });
+  const level = levelForXp(pet.xp);
+  if (level >= SPOT_LEVEL && pet.spot === undefined) tx.pet(petId).spot = claimSpot(tx.s, petId);
+  if (level >= BEST_FRIEND_LEVEL && pet.bestFriend === undefined) {
+    const friend = chooseBestFriend(tx.s, petId);
+    if (friend) tx.pet(petId).bestFriend = friend;
+  }
+  if (level >= MAX_FRIEND_LEVEL && pet.bestFriendsOn === undefined) tx.pet(petId).bestFriendsOn = tx.env.today;
+  const due = memoriesFor(pet.xp) - (tx.s.pets[petId]!.memories?.length ?? 0);
+  for (let i = 0; i < due; i++) recordMemory(tx, petId);
   return crossed;
+}
+
+/**
+ * The next dated Memory (§8.2), from real events not yet remembered, oldest kind first: the day
+ * you became best friends, the day it came home, each plant it keeps company blooming ("The day
+ * Read bloomed"), moving into a plant, the day its favourite treat was found; then a quiet day on
+ * the sill (today).
+ */
+function recordMemory(tx: Tx, petId: string): void {
+  const pet = tx.s.pets[petId]!;
+  const have = pet.memories ?? [];
+  const known = (m: PetMemory) => have.some((h) => h.kind === m.kind && h.habitId === m.habitId && (m.kind === 'day' ? h.date === m.date : true));
+  const pairs = Object.values(tx.s.company?.pairs ?? {})
+    .filter((p) => p.petId === petId)
+    .sort((a, b) => (a.since < b.since ? -1 : a.since > b.since ? 1 : 0));
+  const cameHome = appDayKey(pet.obtainedAt, tx.s.settings.dayStartsAt, tx.env.local);
+  const candidates: PetMemory[] = [
+    ...(pet.bestFriendsOn ? [{ kind: 'best-friends' as const, date: pet.bestFriendsOn }] : []),
+    { kind: 'came-home', date: cameHome },
+    ...pairs.filter((p) => p.stories?.lookAtUs).map((p) => ({ kind: 'bloomed' as const, date: p.stories!.lookAtUs!.on, habitId: p.habitId })),
+    ...pairs.map((p) => ({ kind: 'moved-in' as const, date: p.since, habitId: p.habitId })),
+    ...(pet.favoriteKnown ? [{ kind: 'favourite' as const, date: tx.env.today, treatId: pet.favoriteTreat }] : []),
+    { kind: 'day', date: tx.env.today },
+  ];
+  const next = candidates.find((m) => !known(m)) ?? { kind: 'day' as const, date: tx.env.today };
+  tx.pet(petId).memories = [...have, next];
 }
 
 /** The once-key of the day's found thing. */

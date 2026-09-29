@@ -5,8 +5,9 @@
  * 1. Availability & payment: seasonal editions only inside their window; coins or stamps
  *    (internally stars) at the series price, or a ticket (any available series, Night included).
  *    A pending reveal blocks new pulls.
- *    `free` is the onboarding capsule ("Cats or Cows?", §9.6): only No. 01 Cats or No. 02 Cows, only
- *    as the very first pull, exactly once. It and First Sprout (the first check-in topping the jar up
+ *    `free` is the onboarding capsule ("Who comes home first?", §9.6): one of the four first-pick
+ *    cabinets (No. 01 Cats, No. 02 Cows, No. 03 Dogs, No. 04 Pond), only as the very first pull,
+ *    exactly once. It and First Sprout (the first check-in topping the jar up
  *    to 25 coins, economy.ts) are one gift of one capsule, never two: taken before any check-in it
  *    costs nothing and First Sprout never pays; taken after First Sprout, it spends exactly the coins
  *    First Sprout added (the coin she inserts), so the coins her check-ins earned stay hers.
@@ -51,8 +52,11 @@ import { machineAvailability, seasonVisited } from './seasons';
 import type { Tx } from './tx';
 import { addToCollection, grantStardust, hasOnce, setOnce, spendCoins, spendStars, spendTicket } from './wallet';
 
-/** The two cabinets of onboarding's "Cats or Cows?" (§9.6): the only series the free capsule works on. */
-export const FIRST_CAPSULE_MACHINES: readonly MachineId[] = ['cats', 'cows'];
+/**
+ * The four cabinets of onboarding's "Who comes home first?" (§1 Many animals, §9.6): the only series
+ * the free capsule works on. Each has Classic and Special pets for the guaranteed first pet.
+ */
+export const FIRST_CAPSULE_MACHINES: readonly MachineId[] = ['cats', 'cows', 'dogs', 'pond'];
 /** Once-key: the onboarding capsule was taken (the free pull happens exactly once). */
 export const FIRST_CAPSULE_KEY = 'gift|first-capsule';
 /** Once-key holding the coins First Sprout added (economy.ts). */
@@ -273,7 +277,7 @@ export function isFirstCapsule(s: Pick<AppState, 'lifetime'>): boolean {
   return s.lifetime.pulls === 0;
 }
 
-/** Whether onboarding's free capsule can be pulled on this series now ("Cats or Cows?", exactly once). */
+/** Whether onboarding's free capsule can be pulled on this series now ("Who comes home first?", exactly once). */
 export function canPullFree(s: Pick<AppState, 'lifetime' | 'ledger'>, machineId: MachineId): boolean {
   return isFirstCapsule(s) && FIRST_CAPSULE_MACHINES.includes(machineId) && !hasOnce(s, FIRST_CAPSULE_KEY);
 }
@@ -286,7 +290,9 @@ export interface PullOptions {
 
 export function pull(tx: Tx, machineId: MachineId, opts: PullOptions = {}): PullResult | { ok: false; error: PullError } {
   const s = tx.s;
-  if (s.pendingReveal) return { ok: false, error: 'reveal-pending' };
+  // A capsule reveal still waiting holds the cabinets (commit before animate). A Special Order's
+  // reveal never does: its first showing plays from the wish result, so the new pull replaces it.
+  if (s.pendingReveal && !s.pendingReveal.order) return { ok: false, error: 'reveal-pending' };
   const machine = getMachine(machineId);
   if (!machineAvailability(machineId, tx.env.today).available) return { ok: false, error: 'machine-unavailable' };
 
@@ -307,12 +313,15 @@ export function pull(tx: Tx, machineId: MachineId, opts: PullOptions = {}): Pull
     paidWith = 'ticket';
   } else if (machine.currency === 'stars') {
     if (!spendStars(tx, machine.price)) return { ok: false, error: 'not-enough-stars' };
+    tx.emit({ type: 'stars', amount: -machine.price, reason: 'spend' });
     paidWith = 'stars';
   } else {
     if (!spendCoins(tx, machine.price)) return { ok: false, error: 'not-enough-coins' };
+    tx.emit({ type: 'coins', amount: -machine.price, reason: 'spend' });
     paidWith = 'coins';
   }
 
+  const spent = tx.events.filter((e) => (e.type === 'coins' || e.type === 'stars') && e.reason === 'spend');
   const decision = decidePull(tx.s, machineId, tx.env.rng);
   const def = getCollectible(decision.item.id)!;
   // Pity only counts pulls while its tier still has something to give (§7.1 "counters hide once
@@ -350,7 +359,7 @@ export function pull(tx: Tx, machineId: MachineId, opts: PullOptions = {}): Pull
   evaluateBadges(tx, { pulled: def.rarity });
   return {
     ok: true,
-    events: [],
+    events: spent,
     machineId,
     itemId: def.id,
     rarity: def.rarity,
@@ -401,13 +410,39 @@ export function wishStatus(s: AppState, itemId: string, today: DateKey, createdO
   return { ok: true, price };
 }
 
+/**
+ * Special Order: spends the stamps (a `stars` event with reason 'spend'), adds the item (never a
+ * duplicate: only unowned items can be ordered) and, commit before animate (§7.1), stores the
+ * reveal as `pendingReveal` with `order: true` so a reload mid-reveal still plays it ("Your order:
+ * a Siamese."; a Secret plays the full Secret reveal). `finishReveal` clears it. A capsule reveal
+ * already waiting keeps its place (the order's reveal plays straight from the result); an earlier
+ * order's reveal gives way to this one. An order's reveal never blocks the capsules: `pull` goes
+ * ahead and replaces it.
+ */
 export function wish(tx: Tx, itemId: string): WishOutcome {
   const status = wishStatus(tx.s, itemId, tx.env.today, profileCreatedOn(tx.s, tx.env.local));
   if (!status.ok) return status;
   if (!spendStars(tx, status.price)) return { ok: false, error: 'not-enough-stars' };
-  const got = acquire(tx, getCollectible(itemId)!, false);
+  const spend = { type: 'stars', amount: -status.price, reason: 'spend' } as const;
+  tx.emit(spend);
+  const def = getCollectible(itemId)!;
+  const got = acquire(tx, def, false);
+  markOrdered(tx, def.id);
+  if ((!tx.s.pendingReveal || tx.s.pendingReveal.order) && isMachineSource(def.source)) {
+    tx.set('pendingReveal', { machineId: def.source, itemId: def.id, isNew: true, stardust: 0, fusedStars: 0, order: true, at: tx.env.now });
+  }
   evaluateBadges(tx);
-  return { ok: true, itemId, stars: status.price, ...(got.pet ? { pet: got.pet } : {}), events: [] };
+  return { ok: true, itemId, stars: status.price, ...(got.pet ? { pet: got.pet } : {}), events: [spend] };
+}
+
+/**
+ * Marks an item as ordered rather than opened (`OwnedItem.ordered`): the collect-N pins count only
+ * things that came out of a capsule (§6 stamp pace), so ordering can't pay for more ordering.
+ */
+function markOrdered(tx: Tx, id: string): void {
+  const collection = tx.section('collection');
+  const cur = collection[id];
+  if (cur && cur.count === 1) collection[id] = { ...cur, ordered: true };
 }
 
 /* ------------------------------------------------------------------ */

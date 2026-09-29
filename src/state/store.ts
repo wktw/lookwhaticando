@@ -79,7 +79,7 @@ import * as friendship from '@/domain/friendship';
 import * as pantry from '@/domain/pantry';
 import * as shelfDomain from '@/domain/shelf';
 import * as profileDomain from '@/domain/profile';
-import { readLetter } from '@/domain/letters';
+import { earlyNoteWeek, readLetter } from '@/domain/letters';
 import * as company from '@/domain/company';
 import * as signature from '@/domain/signature';
 import * as seasonReview from '@/domain/seasonReview';
@@ -473,12 +473,19 @@ export function flushSaves(): void {
   if (writable()) queue?.flush();
 }
 
-/** One clock tick: refresh `now`/`today`; on a new app day run the day's work and snapshot. */
+/** The Sunday Note is due this evening and not written yet (it arrives at 18:00 on the week's last day). */
+function sundayNoteDue(s: AppState, t: DateKey, ms: number): boolean {
+  if (!s.profile.onboarded) return false;
+  const week = earlyNoteWeek(s, t, ms, rt.local);
+  return week !== null && s.ledger.once[`weekly|${week}`] === undefined && s.habits.some((h) => h.startedOn <= t);
+}
+
+/** One clock tick: refresh `now`/`today`; on a new app day run the day's work and snapshot; deliver the Sunday Note at 18:00. */
 function tick(): void {
   const ms = rt.now();
   const s = state.value;
   const t = todayFor(s, ms);
-  if (t > s.clock.maxDateKey && writable()) actVoid(() => undefined);
+  if ((t > s.clock.maxDateKey || sundayNoteDue(s, t, ms)) && writable()) actVoid(() => undefined);
   else
     batch(() => {
       now.value = ms;
@@ -633,7 +640,7 @@ export function availableMachines(): MachineId[] {
  * Decides the pull, commits it and writes it at once (pendingReveal), then returns it for the
  * reveal. Commit before animate (§7.1): when the save can't be written (storage full), the pull is
  * rolled back and refused ('storage-full'), so a reload can never re-roll a pull already shown.
- * `free` is onboarding's "Cats or Cows?" capsule (gacha.ts; `canPullFree` says when it is offered).
+ * `free` is onboarding's "Who comes home first?" capsule (gacha.ts; `canPullFree` says when it is offered).
  */
 export function pull(machineId: MachineId, opts: { useTicket?: boolean; free?: boolean } = {}): PullOutcome {
   if (!writable()) return { ok: false, error: 'machine-unavailable' };
@@ -694,9 +701,20 @@ export function togglePetOut(petId: string): void {
 }
 
 /* ---------------- Shelf ---------------- */
-/** Opens a place with coins (DESIGN §8.4). */
+/** Opens a place with coins (DESIGN §8.4); `movedIn` are the pets who went straight there. */
 export function buyPlace(place: PlaceId): PlacePurchase {
   return actValue((tx) => shelfDomain.buyPlace(tx, place), { ok: false, error: 'not-enough-coins' } as PlacePurchase);
+}
+/** Moves a pet to an open place with room ("Move {name}"); null = back to the Sill. False when refused. */
+export function setPetPlace(petId: string, place: PlaceId | null): boolean {
+  return actValue((tx) => shelfDomain.setPetPlace(tx, petId, place), false);
+}
+/**
+ * "Let {name} choose" (reveal, Pet Card): the pet picks a plant to keep company when it has none,
+ * and a place its species loves. Null for an unknown pet.
+ */
+export function letPetChoose(petId: string): { habitId: string | null; place: PlaceId } | null {
+  return actValue((tx) => shelfDomain.letPetChoose(tx, petId), null);
 }
 export function placeDecor(itemId: string, place: PlaceId, x: number, y: number, flip = false): string | null {
   return actValue((tx) => shelfDomain.placeDecor(tx, itemId, place, x, y, flip), null);
@@ -772,11 +790,16 @@ export function setBirthday(mmdd: string | undefined): void {
 export function updateSettings(patch: Partial<AppState['settings']>): void {
   actVoid((tx) => profileDomain.updateSettings(tx, patch as Partial<Settings>));
 }
-export function completeOnboarding(opts: { name: string; templateIds: string[]; dayStartsAt?: number; birthday?: string }): void {
-  actVoid((tx) => habitsDomain.completeOnboarding(tx, opts));
+/**
+ * Finishes onboarding (§9.6): up to 3 habits from the starter chips and "Make my own", in one
+ * transaction. Returns the new habit ids (for "Find {name} a plant"); [] once already onboarded.
+ */
+export function completeOnboarding(opts: { name: string; templateIds: string[]; customHabits?: HabitInput[]; dayStartsAt?: number; birthday?: string }): string[] {
+  const ids = actValue((tx) => habitsDomain.completeOnboarding(tx, opts), [] as string[]);
   // §11.1: ask the browser to keep storage only once onboarded, and only in the installed app.
   if (!demoMode.value && rt.standalone()) rt.persistStorage();
   snapshotToday();
+  return ids;
 }
 
 /* ---------------- Data ---------------- */
@@ -792,6 +815,32 @@ function ownSave(): AppState {
 
 function backupJson(): string {
   return JSON.stringify(makeBackup(ownSave(), { now: rt.now(), appVersion: rt.appVersion, device: rt.device }));
+}
+
+/**
+ * "Export waterings as CSV" (§9.5): the user's own save (the real one inside the demo), one row per
+ * logged day. `name` is "catkin-waterings-2025-09-29.csv".
+ */
+export function exportCsv(): { name: string; text: string } {
+  const t = today.value;
+  return { name: profileDomain.wateringsCsvFileName(t), text: profileDomain.wateringsCsv(ownSave(), t) };
+}
+
+/**
+ * The "watering time" calendar file for a block (§11.1, VOICE.md §20), from its time in
+ * settings.reminders and the live habits in that block. Null when the block has no time set.
+ */
+export function wateringTimeFile(slot: profileDomain.WateringSlot): { name: string; text: string } | null {
+  const s = state.value;
+  const time = s.settings.reminders[slot];
+  if (!time) return null;
+  const t = today.value;
+  const names = [...s.habits]
+    .filter((h) => h.timeOfDay === slot && h.archivedOn === undefined && h.startedOn <= t)
+    .sort((a, b) => a.order - b.order)
+    .map((h) => h.name);
+  const text = profileDomain.wateringTimeIcs(slot, time, names, { startDate: t, now: rt.now() });
+  return text ? { name: profileDomain.wateringTimeFileName(slot), text } : null;
 }
 
 /** Backup file contents (`catkin-backup` JSON) of the user's own save (the real one inside the demo). Marks lastBackupAt. */

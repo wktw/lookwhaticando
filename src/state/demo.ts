@@ -7,7 +7,7 @@
  * The story: seven habits covering every schedule kind (daily count habit with a tiny version,
  * daily, certain days, weekly, monthly, an "avoid" habit, all four time blocks); a sick week with
  * off days; a vacation pause; a habit started mid-way; a schedule edit; notes on some days; the
- * "Cats or Cows?" capsule at onboarding, then capsule pulls (≈ 14 pets), treats, outfits and
+ * "Who comes home first?" capsule at onboarding, then capsule pulls (≈ 14 pets), treats, outfits and
  * favourites; decor placed; the Saucer Pond opened; and last week's Sunday Note still waiting on
  * the sill. Keeping Company: the first friend lives in the reading plant, later friends sometimes
  * choose a plant, their keepsakes sit on the sill; the walk follows the vitamins; some notes are
@@ -15,7 +15,7 @@
  */
 import { MACHINES } from '@/catalog/machines';
 import { COLLECTIBLES, getCollectible } from '@/catalog/collectibles';
-import type { MachineId } from '@/catalog/types';
+import type { MachineId, Species } from '@/catalog/types';
 import type { HabitInput } from './api';
 import type { AppState, DateKey, StoryId } from './types';
 import { createInitialState } from './defaults';
@@ -113,11 +113,14 @@ export function buildDemo(opts: DemoOptions): AppState {
   const at = (date: DateKey, h: number, m: number) => epochAtLocal(date, h, m, local);
 
   sim.run((tx) => habits.completeOnboarding(tx, { name: opts.name ?? 'Sam', templateIds: [] }));
-  // "Cats or Cows?": the first pet comes home with onboarding's free capsule.
+  // "Who comes home first?": the first pet comes home with onboarding's free capsule, from one of the
+  // four first-pick cabinets (chosen by the seed, so the demo isn't always a cat's).
+  const firstPick = pick(rng, gacha.FIRST_CAPSULE_MACHINES);
   sim.run((tx) => {
-    gacha.pull(tx, 'cats', { free: true });
+    gacha.pull(tx, firstPick, { free: true });
     gacha.finishReveal(tx);
   });
+  const opening = FIRST_FOUR.filter((m) => m !== firstPick);
 
   const make = (input: Partial<HabitInput> & Pick<HabitInput, 'name' | 'icon'>): string =>
     sim.run((tx) =>
@@ -239,7 +242,7 @@ export function buildDemo(opts: DemoOptions): AppState {
     }
 
     if (!moment(21, 30)) continue;
-    eveningOnTheShelf(sim, date, rng);
+    eveningOnTheShelf(sim, date, rng, opening);
   }
 
   // Rituals: everything read except the latest Sunday Note (it waits on the sill). Stories: all
@@ -259,15 +262,48 @@ export function buildDemo(opts: DemoOptions): AppState {
   return sim.state;
 }
 
+/** After the first pick, the other first-pick cabinets in turn until four pets live here (a mixed cast, §1). */
+const FIRST_FOUR: readonly MachineId[] = ['cows', 'dogs', 'pond', 'cats'];
+
+/** The species each series' pets are (a seasonal edition has several). */
+function machineSpecies(machineId: MachineId): Species[] {
+  return [...new Set(COLLECTIBLES.filter((c) => c.category === 'pet' && c.source === machineId).map((c) => (c.category === 'pet' ? c.species : 'cat')))];
+}
+
+/**
+ * The series for the evening's capsule: the other first-pick cabinets in turn until there are four
+ * pets, then mostly the series whose species are fewest on the Shelf (a mixed cast on any date:
+ * every demo shows the mix, DESIGN §1), now and then any series.
+ */
+function demoMachine(s: AppState, date: DateKey, rng: Rng, opening: readonly MachineId[]): MachineId {
+  const coinMachines = availableMachineIds(date).filter((m) => MACHINES.find((x) => x.id === m)!.currency === 'coins') as MachineId[];
+  const friends = Object.keys(s.pets).length;
+  if (friends < 4) {
+    const next = opening[Math.min(opening.length - 1, Math.max(0, friends - 1))]!;
+    if (coinMachines.includes(next)) return next;
+  }
+  if (chance(rng, 0.2)) return pick(rng, coinMachines);
+  const counts = new Map<Species, number>();
+  for (const p of Object.values(s.pets)) {
+    const def = getCollectible(p.id.replace(/^moonlit:/, ''));
+    if (def?.category === 'pet') counts.set(def.species, (counts.get(def.species) ?? 0) + 1);
+  }
+  const score = (m: MachineId): number => {
+    const sp = machineSpecies(m);
+    return sp.length === 0 ? Number.POSITIVE_INFINITY : Math.min(...sp.map((x) => counts.get(x) ?? 0));
+  };
+  const best = Math.min(...coinMachines.map(score));
+  return pick(rng, coinMachines.filter((m) => score(m) === best));
+}
+
 /** An evening on the Shelf: capsules, pets, treats, outfits, decor and a place. */
-function eveningOnTheShelf(sim: Sim, date: DateKey, rng: Rng): void {
+function eveningOnTheShelf(sim: Sim, date: DateKey, rng: Rng, opening: readonly MachineId[]): void {
   const s = () => sim.state;
   // Capsules: about one pull every few evenings until ~14 pets live here, then the odd pull.
   const friends = Object.keys(s().pets).length;
   const wantsPull = friends < 14 ? chance(rng, 0.3) : chance(rng, 0.1);
   if (s().wallet.coins >= 90 && wantsPull) {
-    const coinMachines = availableMachineIds(date).filter((m) => MACHINES.find((x) => x.id === m)!.currency === 'coins') as MachineId[];
-    const machine = pick(rng, coinMachines);
+    const machine = demoMachine(s(), date, rng, opening);
     sim.run((tx) => {
       const out = gacha.pull(tx, machine);
       gacha.finishReveal(tx);

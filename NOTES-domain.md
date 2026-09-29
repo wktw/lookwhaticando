@@ -11,7 +11,7 @@ There is no mascot, no buddy and no meadow any more. Every change below is in th
 
 ### State (`src/state/types.ts`)
 
-- `profile.buddy` is gone. A new save owns **no pets**; the first comes from the "Cats or Cows?" capsule.
+- `profile.buddy` is gone. A new save owns **no pets**; the first comes from the "Who comes home first?" capsule (four cabinets: Cats, Cows, Dogs, Pond).
 - `meadow: { zones, decor }` → `shelf: { places: PlaceId[]; decor: PlacedDecor[] }`. `places` always starts with
   `'sill'` and stays in Shelf order. `PlacedDecor.zone` → `PlacedDecor.place` (`PlaceId` from `@/catalog/types`).
   `MeadowZoneId` is gone.
@@ -25,9 +25,9 @@ There is no mascot, no buddy and no meadow any more. Every change below is in th
 
 ### Store (`src/state/store.ts`)
 
-- `pull(machineId, { free: true })` is onboarding's "Cats or Cows?" capsule (see the reading below). The domain's
+- `pull(machineId, { free: true })` is onboarding's "Who comes home first?" capsule (see the reading below). The domain's
   `canPullFree(state, machineId)` says when to offer it; `capsulesVM().machines[i].free` carries it.
-- `buyZone` → `buyPlace(place: PlaceId): PlacePurchase` (`{ ok: true; place } | { ok: false; error }`). Nothing
+- `buyZone` → `buyPlace(place: PlaceId): PlacePurchase` (`{ ok: true; place; movedIn } | { ok: false; error }`). Nothing
   outside the logic layer called `buyZone`, so there is no alias.
 - `toggleInMeadow` → `togglePetOut(petId)`. `setBuddy` is gone.
 - `placeDecor(itemId, place, x, y, flip?)` and `moveDecor(id, { x, y, place, flip })` take a place.
@@ -76,7 +76,7 @@ View models carry data, not catalog prose or emoji; the screens word them from `
    4 pulls a free capsule. Taken before any check-in, the free capsule costs nothing and First Sprout never pays
    (it only pays before the first pull). Taken after First Sprout, it spends exactly the coins First Sprout added
    (capped by the jar), so the coins her check-ins earned stay hers and the gift is never two capsules. It is offered
-   once, on Cats or Cows only, as the first pull; it doesn't touch pity.
+   once, on the four first-pick cabinets only (`FIRST_CAPSULE_MACHINES`: Cats, Cows, Dogs, Pond), as the first pull; it doesn't touch pity.
 2. **Every first capsule is a pet.** A new save owns none, and "animals are on Today at all times" (§10.1): the first
    pull ever, free or paid, on any series, is a guaranteed Classic or Special pet from that series and doesn't
    advance pity. This replaces the old rule (first pull on Kitty or Moo).
@@ -166,7 +166,7 @@ stamps of §6 (unchanged, upward differences only).
 
 ### Domain helpers the screens may call
 
-`companionOfferOpen`, `suggestHabitFor` ("Let them choose"), `companionXpFor`, `STORY_SUNSHINE`,
+`companionOfferOpen`, `suggestHabitFor` ("Let {name} choose"; the store's `letPetChoose` does the whole choice), `companionXpFor`, `STORY_SUNSHINE`,
 `routineOf`, `ROUTINES`, `KEEPSAKE_FAMILIES`, `readTimes`/`eligibleTimes`, `justThisSeasonEnd`,
 `seasonAt`, `nextSeasonStart`, `inferHemisphere`, `hemisphereOf`, `freshStartOptions`, `tinierPatch`,
 `growPatch`, `gardenJournal`, `keptTogetherDays`, `stackOrder`, `anniversaryOf`, `cameHomeToday`.

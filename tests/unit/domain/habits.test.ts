@@ -167,7 +167,7 @@ describe('onboarding (DESIGN §9.6)', () => {
     expect(g.state.profile).toMatchObject({ name: 'Sam', onboarded: true, birthday: '09-30' });
     expect('buddy' in g.state.profile).toBe(false);
     expect(g.state.settings.dayStartsAt).toBe(240);
-    expect(g.state.pets).toEqual({}); // the first pet comes from the "Cats or Cows?" capsule
+    expect(g.state.pets).toEqual({}); // the first pet comes from the "Who comes home first?" capsule
     expect(Object.keys(g.state.pantry).sort()).toEqual(['treat-oat-biscuit', 'treat-strawberry']);
     expect(g.state.habits.map((h) => [h.name, h.plant, h.pot])).toEqual([
       ['Yoga', 'pilea', 'terracotta'],
@@ -207,5 +207,43 @@ describe('"Ready to grow?" (DESIGN §5.2)', () => {
     expect(g.run((tx) => habits.acceptGrowOffer(tx, id, { target: 3 }))).toBe(false); // accepted: the change is pending
     g.goTo('2026-04-02');
     expect(g.run((tx) => habits.acceptGrowOffer(tx, id, { target: 3 }))).toBe(false); // the new rule needs 28 days first
+  });
+});
+
+describe('the editor’s field notes come from the copy deck (HABIT_ISSUES, VOICE.md §22)', () => {
+  it('every issue says what to do in words from lines.ts, with its limit filled in', async () => {
+    const { HABIT_ISSUES } = await import('@/catalog/lines');
+    const g = new Game();
+    const inputs: Parameters<typeof baseInput>[0][] = [
+      { name: '   ' },
+      { icon: 'nope' },
+      { color: 'nope' as never },
+      { plant: 'lavender' },
+      { pot: 'teacup' },
+      { effort: 'huge' as never },
+      { timeOfDay: 'noon' as never },
+      { polarity: 'maybe' as never },
+      { dueDay: 40 },
+      { anchor: 'x'.repeat(200) },
+      { anchorHabitId: 'nope' },
+      { endsOn: 'soon' },
+      { schedule: { kind: 'days', days: [] } },
+      { schedule: { kind: 'weekly', times: 9, every: 1 } },
+      { target: 0 },
+      { step: 0 },
+      { tiny: { label: ' ' } },
+    ];
+    const seen = new Set<string>();
+    for (const over of inputs) {
+      for (const issue of habits.validateHabitInput(g.state, baseInput(over))) {
+        seen.add(issue.code);
+        expect(Object.keys(HABIT_ISSUES), issue.code).toContain(issue.code);
+        expect(issue.message).not.toMatch(/\{|!|invalid|must|error/i);
+      }
+    }
+    expect(seen.size).toBeGreaterThanOrEqual(15);
+    expect(habits.habitIssueMessage('name', 60)).toBe('Give it a name, up to 60 characters.');
+    expect(habits.habitIssueMessage('too-many-big', 3)).toBe('3 long habits is the most at once. Pick a shorter time, or pause one of the others.');
+    expect(habits.habitIssueMessage('target-range', 100_000)).toBe('Pick an amount from 1 to 100,000.');
   });
 });

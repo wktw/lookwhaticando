@@ -240,7 +240,7 @@ export function anniversaryNote(tx: Tx): boolean {
     const first = [...s.habits].sort((a, b) => a.createdAt - b.createdAt)[0];
     const letter: Letter = { kind: 'anniversary', id: `anniversary-${day}`, date: day, years, ...(first ? { firstHabitId: first.id } : {}), waterings: s.lifetime.checkins, stars: 0 };
     tx.section('inbox').push(letter);
-    tx.emit({ type: 'letter', letterId: letter.id });
+    tx.emit({ type: 'letter', letterId: letter.id, kind: 'anniversary' });
     return true;
   }
   return false;

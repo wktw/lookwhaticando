@@ -267,8 +267,8 @@ describe('the Shelf (DESIGN §8.3 decor, §8.4 places)', () => {
     const g = new Game();
     g.setWallet({ coins: 1200 });
     expect(g.run((tx) => shelf.buyPlace(tx, 'sill'))).toEqual({ ok: false, error: 'owned' });
-    expect(g.run((tx) => shelf.buyPlace(tx, 'grass'))).toEqual({ ok: true, place: 'grass' });
-    expect(g.run((tx) => shelf.buyPlace(tx, 'pond'))).toEqual({ ok: true, place: 'pond' });
+    expect(g.run((tx) => shelf.buyPlace(tx, 'grass'))).toEqual({ ok: true, place: 'grass', movedIn: [] });
+    expect(g.run((tx) => shelf.buyPlace(tx, 'pond'))).toEqual({ ok: true, place: 'pond', movedIn: [] });
     expect(g.run((tx) => shelf.buyPlace(tx, 'bookshelf'))).toEqual({ ok: false, error: 'not-enough-coins' });
     expect(g.coins).toBe(1200 - 700 - 400);
     expect(g.state.shelf.places).toEqual(['sill', 'pond', 'grass']);

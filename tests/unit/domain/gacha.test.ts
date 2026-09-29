@@ -68,11 +68,11 @@ function addDay(d: string): string {
   return t.toISOString().slice(0, 10);
 }
 
-describe('the first capsule: "Cats or Cows?" (DESIGN §9.6)', () => {
+describe('the first capsule: "Who comes home first?" (DESIGN §9.6)', () => {
   it.each(Array.from({ length: 25 }, (_, i) => i + 1))('seed %i: a guaranteed Classic or Special pet from that series, free, no pity', (seed) => {
     const g = new Game({ seed });
     expect(g.state.pets).toEqual({}); // a new save owns no pets
-    const m: MachineId = seed % 2 ? 'cats' : 'cows';
+    const m: MachineId = gacha.FIRST_CAPSULE_MACHINES[seed % 4]!;
     expect(gacha.canPullFree(g.state, m)).toBe(true);
     const r = pull(g, m, { free: true });
     expect(r.ok).toBe(true);
@@ -88,14 +88,40 @@ describe('the first capsule: "Cats or Cows?" (DESIGN §9.6)', () => {
     expect(g.state.lifetime.pulls).toBe(1);
   });
 
-  it('is available exactly once, and only on No. 01 Cats or No. 02 Cows', () => {
+  it('is available exactly once, and only on the four first-pick cabinets (§1 Many animals)', () => {
+    expect(gacha.FIRST_CAPSULE_MACHINES).toEqual(['cats', 'cows', 'dogs', 'pond']);
     const g = new Game();
+    for (const m of ['cats', 'cows', 'dogs', 'pond'] as const) expect(gacha.canPullFree(g.state, m), m).toBe(true);
     expect(pull(g, 'garden', { free: true })).toEqual({ ok: false, error: 'machine-unavailable' });
     expect(pull(g, 'night', { free: true })).toEqual({ ok: false, error: 'machine-unavailable' });
-    expect(pull(g, 'cats', { free: true }).ok).toBe(true);
-    expect(gacha.canPullFree(g.state, 'cows')).toBe(false);
-    expect(pull(g, 'cows', { free: true })).toEqual({ ok: false, error: 'machine-unavailable' });
-    expect(pull(g, 'cats', { free: true })).toEqual({ ok: false, error: 'machine-unavailable' });
+    expect(pull(g, 'pond', { free: true }).ok).toBe(true);
+    for (const m of ['cats', 'cows', 'dogs', 'pond'] as const) expect(gacha.canPullFree(g.state, m), m).toBe(false);
+    expect(pull(g, 'dogs', { free: true })).toEqual({ ok: false, error: 'machine-unavailable' });
+    expect(pull(g, 'pond', { free: true })).toEqual({ ok: false, error: 'machine-unavailable' });
+  });
+
+  it('every first-pick cabinet has Classic and Special pets for the guaranteed first pet', () => {
+    for (const m of gacha.FIRST_CAPSULE_MACHINES) {
+      const pets = gacha.machinePool(m, {}).map((p) => getCollectible(p.id)!).filter((d) => d.category === 'pet');
+      expect(pets.some((d) => d.rarity === 'common'), `${m} Classic pet`).toBe(true);
+      expect(pets.some((d) => d.rarity === 'uncommon'), `${m} Special pet`).toBe(true);
+    }
+  });
+
+  it.each([
+    ['before any watering', false],
+    ['after First Sprout', true],
+  ] as const)('%s, the four cabinets leave the same coins: one gift, whichever she chooses', (_label, sprouted) => {
+    const coins = gacha.FIRST_CAPSULE_MACHINES.map((m) => {
+      const g = new Game({ seed: 3 });
+      if (sprouted) g.checkIn(g.addHabit());
+      const r = pull(g, m, { free: true });
+      expect(r, m).toMatchObject({ ok: true, paidWith: 'free' });
+      if (r.ok) expect(getCollectible(r.itemId)).toMatchObject({ category: 'pet', source: m });
+      return g.coins;
+    });
+    expect(new Set(coins).size, coins.join(',')).toBe(1);
+    expect(coins[0]).toBe(sprouted ? 5 : 0);
   });
 
   it('taken before any check-in, First Sprout never tops the jar up afterwards (one gift, one capsule)', () => {
@@ -324,7 +350,7 @@ describe('No. 07 Night: Moonlit variants of pets you own (DESIGN §7.1)', () => 
 
 describe('Special Order (internally the wish; DESIGN §7.3)', () => {
   it.each([
-    ['pet-cat-orange', 2],
+    ['pet-cat-orange', 3],
     ['pet-cat-calico', 4],
     ['pet-cat-tortie', 8],
     ['pet-cat-oddeyed', 15],
@@ -437,5 +463,68 @@ describe('odds', () => {
     const ratio = avg(commons.filter((c) => !owned.includes(c))) / avg(owned);
     expect(ratio).toBeGreaterThan(2.8);
     expect(ratio).toBeLessThan(3.2);
+  });
+});
+
+describe('spending shows up as events, and a Special Order is committed before it animates (M1 audit)', () => {
+  it('a paid capsule emits its spend: coins on a coin series, stamps on No. 07 Night', () => {
+    const g = new Game({ seed: 5 });
+    g.setWallet({ coins: 60, stars: 5 });
+    const r = pull(g, 'dogs');
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.events).toEqual([{ type: 'coins', amount: -25, reason: 'spend' }]);
+    expect(g.lastOf('coins')).toContainEqual({ type: 'coins', amount: -25, reason: 'spend' });
+    g.run((tx) => gacha.finishReveal(tx));
+    pull(g, 'night');
+    expect(g.lastOf('stars')).toContainEqual({ type: 'stars', amount: -3, reason: 'spend' });
+  });
+
+  it('a Special Order spends its stamps as an event and writes pendingReveal (order: true) until finishReveal', () => {
+    const g = new Game();
+    g.setWallet({ stars: 20 });
+    const id = COLLECTIBLES.find((c) => c.rarity === 'uncommon' && c.category === 'wearable' && c.source === 'cats')!.id;
+    const out = g.run((tx) => gacha.wish(tx, id));
+    expect(out).toMatchObject({ ok: true, itemId: id, stars: 4, events: [{ type: 'stars', amount: -4, reason: 'spend' }] });
+    expect(g.state.pendingReveal).toMatchObject({ machineId: 'cats', itemId: id, isNew: true, order: true });
+    expect(g.lastOf('stars')).toEqual([{ type: 'stars', amount: -4, reason: 'spend' }]);
+    g.run((tx) => gacha.finishReveal(tx));
+    expect(g.state.pendingReveal).toBeUndefined();
+  });
+
+  it('a capsule reveal already waiting keeps its place when something is ordered', () => {
+    const g = new Game({ seed: 2 });
+    g.setWallet({ coins: 25, stars: 20 });
+    const r = g.run((tx) => gacha.pull(tx, 'cows')); // not revealed yet
+    expect(r.ok).toBe(true);
+    const waiting = g.state.pendingReveal;
+    expect(waiting).toMatchObject({ machineId: 'cows' });
+    const id = COLLECTIBLES.find((c) => c.rarity === 'common' && c.category === 'decor' && c.source === 'pond')!.id;
+    expect(g.run((tx) => gacha.wish(tx, id)).ok).toBe(true);
+    expect(g.state.pendingReveal).toEqual(waiting);
+  });
+
+  it('a Special Order never blocks the capsules: the next pull, on another cabinet or the same one, goes ahead', () => {
+    for (const machineId of ['cats', 'dogs'] as const) {
+      const g = new Game({ start: '2026-09-29', seed: 3 });
+      g.setWallet({ coins: 100, stars: 20 });
+      expect(g.run((tx) => gacha.wish(tx, 'pet-dog-shiba'))).toMatchObject({ ok: true });
+      expect(g.state.pendingReveal).toMatchObject({ machineId: 'dogs', itemId: 'pet-dog-shiba', order: true });
+      const r = g.run((tx) => gacha.pull(tx, machineId));
+      expect(r, machineId).toMatchObject({ ok: true, machineId });
+      // The capsule's reveal replaces the order's (which played from the wish result).
+      expect(g.state.pendingReveal).toMatchObject({ machineId });
+      expect(g.state.pendingReveal?.order).toBeUndefined();
+      // …and that capsule reveal holds the cabinets until it has been shown.
+      expect(g.run((tx) => gacha.pull(tx, 'cats'))).toEqual({ ok: false, error: 'reveal-pending' });
+    }
+  });
+
+  it('a second Special Order’s reveal replaces the first order’s', () => {
+    const g = new Game({ start: '2026-09-29' });
+    g.setWallet({ stars: 40 });
+    const [a, b] = COLLECTIBLES.filter((c) => c.rarity === 'common' && c.source === 'cats');
+    expect(g.run((tx) => gacha.wish(tx, a!.id)).ok).toBe(true);
+    expect(g.run((tx) => gacha.wish(tx, b!.id)).ok).toBe(true);
+    expect(g.state.pendingReveal).toMatchObject({ itemId: b!.id, order: true });
   });
 });

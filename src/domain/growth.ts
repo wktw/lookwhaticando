@@ -18,7 +18,8 @@
  *   from growing a plant faster than real time.
  * - Display stage = max(stage, bestStage): plants never shrink.
  * - After Evergreen: Flourishes (permanent visitors: a ladybird, a bee, a snail…) arrive every +60
- *   sunshine, 8 at most, and blooms = min(6, floor((sunshine − 180) / 30)) add continuous detail.
+ *   sunshine, 8 at most, and extra blooms = min(6, floor((sunshine − 180) / 30)) add continuous
+ *   detail (`artBlooms` turns them into the art's bloom count).
  * - The Cutting (§13) is the lifetime gauge: a pothos cutting in a jar on the window frame that
  *   grows on lifetime sunshine across all habits, deleted habits' sunshine included, with its own
  *   thresholds 0/5/20/50/105/210/450/900: roots, then a pot, then a vine trailing along the frame
@@ -33,8 +34,9 @@ export type PlantStage = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7;
 
 /** Sunshine needed for each stage (index = stage). */
 export const STAGE_THRESHOLDS = [0, 1, 4, 10, 21, 42, 90, 180] as const;
-export const STAGE_NAMES = ['Cutting', 'Rooting', 'Potted', 'Leafy', 'Budding', 'Blooming', 'Flourishing', 'Evergreen'] as const;
-export type StageName = (typeof STAGE_NAMES)[number];
+/** The stage names live with the copy (src/catalog/lines.ts); this is the same list. */
+import { STAGE_NAMES, type StageName } from '@/catalog/lines';
+export { STAGE_NAMES, type StageName };
 
 export const ROOTING: PlantStage = 1;
 export const POTTED: PlantStage = 2;
@@ -101,8 +103,12 @@ export function stageName(stage: number): StageName {
   return STAGE_NAMES[clampStage(stage)];
 }
 
-/** Blooms after Evergreen: one per 30 sunshine beyond 180, capped at 6 (0 before Evergreen). */
-export function bloomsFor(sunshine: number, stage: number): number {
+/**
+ * Extra blooms after Evergreen: one per 30 sunshine beyond 180, capped at 6 (0 before Evergreen).
+ * These are *extra*: the art's own bloom count follows the stage (Blooming 2–3, Flourishing 4,
+ * Evergreen 5), and `artBlooms` adds these on top at Evergreen.
+ */
+export function extraBloomsFor(sunshine: number, stage: number): number {
   if (stage < EVERGREEN) return 0;
   return Math.max(0, Math.min(MAX_BLOOMS, Math.floor((sunshine - STAGE_THRESHOLDS[EVERGREEN] + EPS) / SUNSHINE_PER_BLOOM)));
 }
@@ -115,7 +121,7 @@ export function bloomsFor(sunshine: number, stage: number): number {
 export function stageProgress(sunshine: number, stage: number): number {
   const s = clampStage(stage);
   if (s === EVERGREEN) {
-    const blooms = bloomsFor(sunshine, s);
+    const blooms = extraBloomsFor(sunshine, s);
     if (blooms >= MAX_BLOOMS) return 1;
     const into = sunshine - STAGE_THRESHOLDS[EVERGREEN] - blooms * SUNSHINE_PER_BLOOM;
     return clamp01(into / SUNSHINE_PER_BLOOM);
@@ -160,7 +166,8 @@ export interface GrowthInfo {
   /** Sunshine to the next stage (0 when only a check-in is missing); null at Evergreen. */
   sunshineToNext: number | null;
   nextName: StageName | null;
-  blooms: number;
+  /** Extra blooms after Evergreen (0 before it). The plant art takes `artBlooms(...)`, not this. */
+  extraBlooms: number;
   flourishes: number;
   /** Sunshine is ahead of the stage: the next check-in grows the plant. */
   heldBack: boolean;
@@ -187,11 +194,21 @@ export function growthInfo(input: {
     progress: stageProgress(sunshine, shown),
     sunshineToNext: sunshineToNextStage(sunshine, shown),
     nextName: shown < EVERGREEN ? stageName(shown + 1) : null,
-    blooms: bloomsFor(sunshine, shown),
+    extraBlooms: extraBloomsFor(sunshine, shown),
     flourishes: Math.max(flourishesFor(sunshine, shown), shown >= EVERGREEN ? Math.min(MAX_FLOURISHES, bestFlourishes ?? 0) : 0),
     heldBack: stageFromSunshine(sunshine) > stage && plantStage(sunshine, completedOccurrences + 1, elapsedDays) > stage,
     paced: stageFromSunshine(sunshine) > stage && plantStage(sunshine, completedOccurrences + 1, elapsedDays) === stage,
   };
+}
+
+/**
+ * The `blooms` the plant art takes (PlantArt, SillPot): left out below Evergreen, so the art's own
+ * count follows the stage (Blooming shows 2–3 flowers, Flourishing 4); at Evergreen the art's 5
+ * plus the extra blooms, at most MAX_BLOOMS. Never 0 from Blooming on, which the art would draw
+ * as a plant without flowers.
+ */
+export function artBlooms(stage: number, extraBlooms: number): number | undefined {
+  return stage < EVERGREEN ? undefined : Math.min(MAX_BLOOMS, 5 + Math.max(0, Math.floor(extraBlooms)));
 }
 
 /** The Cutting (§13): the lifetime gauge on the window frame. */

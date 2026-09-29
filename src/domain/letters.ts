@@ -3,8 +3,11 @@
  * (monthly; internally the "bouquet": its once-key is still `bloom|<YYYY-MM>`), DESIGN §6 and §13.
  * Their contents (highlights, the P.S., pressings, the margin note) come from rituals.ts.
  *
- * - On the first open of a new week, last week's note is written (if that week had any check-in):
- *   1 stamp for showing up, +1 at ≥ 60%, +1 at ≥ 85% (the bonus tiers need ≥ 5 expected).
+ * - The Sunday Note arrives on the week's last day (a Sunday for a Monday week), from 18:00
+ *   (`SUNDAY_NOTE_HOUR`; the small hours before the day start still belong to that evening), if the
+ *   week had any check-in: 1 stamp for showing up, +1 at ≥ 60%, +1 at ≥ 85% (the bonus tiers need
+ *   ≥ 5 expected). Waterings later that evening top it up like a backfill. A week whose last evening
+ *   passed without an open gets its note on the first open of the next week, as before.
  *   Contents: waterings, two highlights, a starred note quoted, a P.S. (rituals.ts), show-up days.
  * - On the first open of a new month, last month's page is always given (once the profile existed
  *   that month): every habit watered or rested that month is pressed, sized by its waterings.
@@ -187,11 +190,37 @@ function overlapsLetteredWeek(s: AppState, weekStart: DateKey): boolean {
   return false;
 }
 
-/** Writes last week's letter once (its first open). Later changes come only through `topUpLetters`. */
+/** The hour the Sunday Note arrives on the week's last day (§13: it is a Sunday Note, not a Monday one). */
+export const SUNDAY_NOTE_HOUR = 18;
+
+/**
+ * The week whose Sunday Note may arrive now, early: the current week, on its last app day from
+ * 18:00 (or in the small hours before the day start, which still belong to that evening). Null
+ * otherwise.
+ */
+export function earlyNoteWeek(s: Pick<AppState, 'settings'>, today: DateKey, now: number, local: Tx['env']['local']): DateKey | null {
+  const weekStart = startOfWeek(today, s.settings.weekStart);
+  if (addDays(weekStart, 6) !== today) return null;
+  const t = local(now);
+  const minutes = t.hour * 60 + t.minute;
+  return minutes >= SUNDAY_NOTE_HOUR * 60 || minutes < s.settings.dayStartsAt ? weekStart : null;
+}
+
+/** Writes last week's note once (its first open), unless it arrived early. Later changes come only through `topUpLetters`. */
 export function ensureWeeklyLetter(tx: Tx): void {
+  writeWeeklyLetter(tx, addDays(startOfWeek(tx.env.today, tx.s.settings.weekStart), -7));
+}
+
+/** The Sunday Note for this week, from 18:00 on its last day (once; later waterings top it up). */
+export function ensureEarlyWeeklyNote(tx: Tx): void {
+  if (!tx.s.profile.onboarded || rewardsPaused(tx.s, tx.env.now)) return;
+  const week = earlyNoteWeek(tx.s, tx.env.today, tx.env.now, tx.env.local);
+  if (week !== null && tx.s.ledger.once[`weekly|${week}`] === undefined) writeWeeklyLetter(tx, week);
+}
+
+function writeWeeklyLetter(tx: Tx, weekStart: DateKey): void {
   const s = tx.s;
   const today = tx.env.today;
-  const weekStart = addDays(startOfWeek(today, s.settings.weekStart), -7);
   const key = `weekly|${weekStart}`;
   if (s.ledger.once[key] !== undefined) return;
   if (profileCreatedOn(s, tx) > addDays(weekStart, 6) || !s.habits.some((h) => h.startedOn <= addDays(weekStart, 6))) return;
@@ -201,7 +230,7 @@ export function ensureWeeklyLetter(tx: Tx): void {
   const id = `weekly-${weekStart}`;
   setOnce(tx, key, stars);
   upsertLetter(tx, { kind: 'weekly', id, ...facts, stars });
-  tx.emit({ type: 'letter', letterId: id });
+  tx.emit({ type: 'letter', letterId: id, kind: 'sundayNote' });
   grantStars(tx, stars, 'letter');
 }
 
@@ -235,8 +264,8 @@ export function ensureMonthlyBouquet(tx: Tx): void {
     ...(page.margin ? { margin: page.margin } : {}),
     firstPage: page.firstPage,
   });
-  tx.emit({ type: 'letter', letterId: id });
-  grantStars(tx, stars, 'bloom');
+  tx.emit({ type: 'letter', letterId: id, kind: 'herbarium' });
+  grantStars(tx, stars, 'herbarium');
   if (isPctReady(f.tally) && pct !== null && pct >= STEADY_MONTH_PCT) evaluateBadges(tx, { steadyMonth: true });
 }
 
@@ -249,6 +278,7 @@ export function ensureLetters(tx: Tx): void {
   if (!tx.s.profile.onboarded || rewardsPaused(tx.s, tx.env.now)) return;
   ensureWeeklyLetter(tx);
   ensureMonthlyBouquet(tx);
+  ensureEarlyWeeklyNote(tx);
 }
 
 /**
@@ -264,6 +294,12 @@ export function topUpLetters(tx: Tx, before: AppState, habitId: string, date: Da
   if (date >= lastWeek && date <= addDays(lastWeek, 6)) {
     if (!hasOnce(s, `weekly|${lastWeek}`)) ensureWeeklyLetter(tx);
     else topUpWeekly(tx, lastWeek, habitDelta(tx, before, habitId, weekWindow(lastWeek, s.settings.weekStart)), showUpDelta(tx, before, date));
+  }
+  // This week's note, when it arrived early (its last evening): a later watering that day tops it up.
+  const thisWeek = startOfWeek(today, s.settings.weekStart);
+  if (date >= thisWeek) {
+    if (hasOnce(s, `weekly|${thisWeek}`)) topUpWeekly(tx, thisWeek, habitDelta(tx, before, habitId, weekWindow(thisWeek, s.settings.weekStart)), showUpDelta(tx, before, date));
+    else ensureEarlyWeeklyNote(tx);
   }
   const month = monthFromIndex(monthIndex(today) - 1);
   if (date.startsWith(`${month}-`)) {
@@ -326,7 +362,7 @@ function topUpBouquet(tx: Tx, month: MonthKey, delta: Tally, date: DateKey): voi
   if (stars <= before) return;
   setOnce(tx, key, stars);
   inbox[i] = { ...inbox[i]!, stars, growingBonus: growing } as Monthly;
-  grantStars(tx, stars - before, 'bloom');
+  grantStars(tx, stars - before, 'herbarium');
 }
 
 /** Any habit shows up on `date`. */

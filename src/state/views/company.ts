@@ -5,7 +5,8 @@
  */
 import type { AppState, DateKey, Habit, Keepsake, StoryId } from '../types';
 import { STORIES, STORY_SUNSHINE, companionOf, habitOfPet, latestMoment, pairOf, routineOn, type RoutineOn } from '@/domain/company';
-import { BLOOMING, sunshinePerOccurrence } from '@/domain/growth';
+import { BLOOMING, POTTED, sunshinePerOccurrence } from '@/domain/growth';
+import { routineOf } from '@/domain/routines';
 import { ruleAt } from '@/domain/rules';
 import { checkinsToStage, plantVM, type ViewEnv } from './common';
 
@@ -82,8 +83,12 @@ export interface PetCompanyVM {
   /** The habit it keeps company, or null ("Find {name} a plant"). */
   habitId: string | null;
   since: DateKey | null;
-  /** "Known for": the routine (starting on done days from Potted, settled from Blooming). */
-  knownFor: { icon: string; routine: RoutineOn } | null;
+  /**
+   * "Known for" (`knownFor(icon)` in lines.ts): the routine, 'starting' from the first watered day
+   * at Potted or later (`since`), 'settled' from Blooming. Sticky: once it has shown, it stays on
+   * the Pet Card on every day, watered or not.
+   */
+  knownFor: { icon: string; routine: RoutineOn; since: DateKey | null } | null;
   /** Every habit it has kept company, oldest pairing first. */
   history: { habitId: string; since: DateKey; waterings: number }[];
 }
@@ -94,8 +99,10 @@ export function petCompanyVM(s: AppState, env: ViewEnv, petId: string): PetCompa
   let knownFor: PetCompanyVM['knownFor'] = null;
   if (habit && habit.archivedOn === undefined) {
     const stage = plantVM(s, habit, env.today, env.local).displayStage;
-    const routine = routineOn(s, habit, env.today, stage, env.today);
-    if (routine) knownFor = { icon: habit.icon, routine };
+    const since = pairOf(s, petId, habit.id)?.knownForSince ?? null;
+    const today = routineOn(s, habit, env.today, stage, env.today);
+    if (today) knownFor = { icon: habit.icon, routine: today, since };
+    else if (since !== null && stage >= POTTED) knownFor = { icon: habit.icon, routine: { petId, routine: routineOf(habit.icon), phase: stage >= BLOOMING ? 'settled' : 'starting' }, since };
   }
   return {
     habitId: habit?.id ?? null,

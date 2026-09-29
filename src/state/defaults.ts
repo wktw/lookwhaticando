@@ -3,7 +3,7 @@ import { SCHEMA_VERSION, type AppState } from './types';
 
 /**
  * A brand-new save. The free starter plants, pots and treat recipes are owned from the beginning;
- * there are no pets yet (the first comes from onboarding's "Cats or Cows?" capsule, DESIGN §9.6).
+ * there are no pets yet (the first comes from onboarding's "Who comes home first?" capsule, DESIGN §9.6).
  */
 export function createInitialState(now: number = Date.now()): AppState {
   const collection: AppState['collection'] = {};

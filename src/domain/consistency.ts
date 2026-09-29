@@ -13,6 +13,7 @@
  * but the UI owns the copy (never "down", never red).
  */
 import type { AppState, DateKey, Habit, Weekday } from '@/state/types';
+import { consistencyText } from '@/catalog/format';
 import {
   addDays,
   daysInRange,
@@ -297,35 +298,13 @@ export function habitPhrase(habit: Habit, logs: HabitLogs, ctx: EvalContext): Ha
   return { kind: monthly ? 'months' : 'weeks', met, of, span, every: everyOf(rule) };
 }
 
-const WEEK_UNITS: Record<number, [string, string]> = {
-  1: ['week', 'weeks'],
-  2: ['fortnight', 'fortnights'],
-  3: ['3-week stretch', '3-week stretches'],
-  4: ['4-week stretch', '4-week stretches'],
-};
-const MONTH_UNITS: Record<number, [string, string]> = {
-  1: ['month', 'months'],
-  2: ['2-month stretch', '2-month stretches'],
-  3: ['quarter', 'quarters'],
-  6: ['half-year', 'half-years'],
-  12: ['year', 'years'],
-};
-
-/** Plain-English rendering of a phrase (the UI may use its own copy from the same numbers). */
+/**
+ * The phrase in words (VOICE.md §5): the templates are CONSISTENCY_LINES in src/catalog/lines.ts,
+ * worded by `consistencyText` (src/catalog/format.ts), which returns null for a phrase that would
+ * say 0; this returns '' then.
+ */
 export function formatHabitPhrase(p: HabitPhrase, weekStart: WeekStart): string {
-  const tiny = (n: number) => (n > 0 ? ` · ${n} tiny` : '');
-  switch (p.kind) {
-    case 'days':
-      return `${p.achieved} of the last ${p.spanDays} ${p.spanDays === 1 ? 'day' : 'days'}${tiny(p.tiny)}`;
-    case 'weekdays':
-      return `${p.achieved} of your last ${p.expected} ${weekdaysLabel(p.days, weekStart)}${tiny(p.tiny)}`;
-    case 'weeks':
-    case 'months': {
-      const units = (p.kind === 'weeks' ? WEEK_UNITS : MONTH_UNITS)[p.every] ?? ['period', 'periods'];
-      if (p.of === p.span) return `${p.met} of the last ${p.span} ${units[1]}`;
-      return `${p.met} of ${p.of} ${p.of === 1 ? units[0] : units[1]} so far`;
-    }
-  }
+  return consistencyText(p, weekStart) ?? '';
 }
 
 /* ------------------------------------------------------------------ */
@@ -335,7 +314,7 @@ export function formatHabitPhrase(p: HabitPhrase, weekStart: WeekStart): string 
 export const GRADUATION = {
   /** Look-back, and the time the current rule must have been in effect. */
   days: 28,
-  /** Offer "Ready to grow?" at or above this rate… */
+  /** Offer "A bigger pot?" at or above this rate… */
   growAt: 0.85,
   /** …when at most this share of the check-ins were the tiny version. */
   maxTinyShare: 0.25,

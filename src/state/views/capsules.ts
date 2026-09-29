@@ -6,6 +6,7 @@
 import { ALBUMS, COLLECTIBLES, PETS, SECRET_IDS, getCollectible } from '@/catalog/collectibles';
 import { MACHINES, STARDUST_PER_STAR, WISH_PRICE, getMachine, seriesLabel } from '@/catalog/machines';
 import { RARITIES, RARITY_LABEL, type Category, type CollectibleDef, type MachineDef, type MachineId, type Rarity } from '@/catalog/types';
+import { CATEGORY_LABELS } from '@/catalog/lines';
 import type { MachineStatus } from '../api';
 import type { AppState, DateKey, PendingReveal } from '../types';
 import { albumMembers, albumProgress, eligibleMoonlitIds, isMachineSource, owns } from '@/domain/collection';
@@ -72,7 +73,7 @@ export interface MachineCardVM extends MachineStatus {
   luckyPips: number;
   /** Everything owned: pulls still work (all swaps) and the swap-in is offered (store.sparkleExchange). */
   swapIn: boolean;
-  /** Onboarding's free "Cats or Cows?" capsule can be pulled here (§9.6). */
+  /** Onboarding's free "Who comes home first?" capsule can be pulled here (§9.6). */
   free: boolean;
 }
 
@@ -293,7 +294,8 @@ export interface CollectionVM {
   moonlit: { owned: number; total: number; items: BookItemVM[] };
 }
 
-const CATEGORY_LABEL: Record<Category, string> = { pet: 'Friends', wearable: 'Wardrobe', treat: 'Treats', decor: 'Decor', plant: 'Plants', pot: 'Pots' };
+/** Field Guide sections: pets as a category are "Pets" (VOICE.md §3). */
+const CATEGORY_LABEL: Record<Category, string> = CATEGORY_LABELS;
 const SOURCE_LABEL: Record<string, string> = { starter: 'Starter', exclusive: 'Exclusive', harvest: 'Harvest' };
 
 function bookItem(s: AppState, def: CollectibleDef): BookItemVM {

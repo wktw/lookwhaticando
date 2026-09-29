@@ -3,19 +3,19 @@
 **Look after the little things.**
 
 catkin is a habit tracker for iPhone and Mac. Every habit is a houseplant, grown from a cutting in a glass of water.
-Each check-in waters it, and over weeks it roots, gets potted up, leafs out and blooms. The plants turn your windowsill
+Keeping the habit waters it, and over weeks it roots, gets potted up, leafs out and blooms. The plants turn your windowsill
 into a home, and small, real animals come to live there: cats, cows, dogs, rabbits, frogs, ducklings, bear cubs and
 hamsters. They arrive in capsules bought with the coins your habits earn.
 
-Nothing wilts. Missing a day costs nothing, and coming back is noticed kindly. Progress is counted as showing up over
-time ("26 of the last 30 days"), never as a streak that falls to zero. Hide every game element and it is still a
+Nothing wilts. A quiet day costs nothing, and coming back is noticed kindly. Progress is counted as showing up over
+time (“26 of the last 30 days”), never as a run that starts over. Hide every game element and it is still a
 complete habit tracker. The game is there so that opening the tracker is something to look forward to.
 
 ## Try it
 
 ### On a Windows PC (no install)
 
-1. Open the latest **CI & Deploy** run under the repository's **Actions** tab.
+1. Open the latest **CI & Deploy** run under the repository’s **Actions** tab.
 2. Download the artifact **catkin-single-file** and unzip it.
 3. Double-click **catkin.html**. It opens in your browser and runs completely offline. Everything is saved in that
    browser on that PC.
@@ -31,7 +31,7 @@ npm run dev          # open the printed URL; --host also serves it to phones on 
 
 1. Open the hosted app in **Safari** (see *Hosting* below).
 2. Tap **Share**, then **Add to Home Screen**. catkin then opens full-screen, works offline and keeps its own data.
-3. Open it from the Home Screen, not from the Safari tab. iOS keeps a Safari tab's data separate from the installed
+3. Open it from the Home Screen, not from the Safari tab. iOS keeps a Safari tab’s data separate from the installed
    app, so catkin asks you to install first.
 
 ### On a Mac

@@ -135,3 +135,48 @@ describe('catkin catalog (DESIGN §7–§8, §12)', () => {
     }
   });
 });
+
+describe('one source for the copy (M1 audit)', () => {
+  it('the catalog index exports lines.ts and format.ts', async () => {
+    const catalog = await import('@/catalog');
+    const lines = await import('@/catalog/lines');
+    const format = await import('@/catalog/format');
+    for (const name of ['STAGE_NAMES', 'STATUS_LINE', 'PROGRESS_LINES', 'PROGRESS_HERO', 'STORIES', 'KEEPSAKE_CAPTIONS', 'COMPANION', 'LOOKS', 'TIME_NUDGE', 'SEASON_REVIEW', 'PLACES_OPENED', 'BIRTHDAY', 'CAME_HOME', 'ONBOARDING', 'EMPTY', 'ERRORS', 'SETTINGS', 'DATA', 'REMINDERS', 'GREETINGS', 'REVEAL_LINES'] as const) {
+      expect(lines, name).toHaveProperty(name);
+      expect((catalog as Record<string, unknown>)[name], name).toBe((lines as Record<string, unknown>)[name]);
+    }
+    for (const name of ['statusLine', 'runText', 'forecastLine', 'vineChip', 'showedUpLine', 'trendLine', 'memoryText'] as const) {
+      expect((catalog as Record<string, unknown>)[name], name).toBe((format as Record<string, unknown>)[name]);
+    }
+  });
+
+  it('one list of stage names: the domain re-exports the catalog’s', async () => {
+    const { STAGE_NAMES: fromLines } = await import('@/catalog/lines');
+    const { STAGE_NAMES: fromDomain } = await import('@/domain/growth');
+    expect(fromDomain).toBe(fromLines);
+    expect(fromLines).toEqual(['Cutting', 'Rooting', 'Potted', 'Leafy', 'Budding', 'Blooming', 'Flourishing', 'Evergreen']);
+  });
+
+  it('the routine icon maps in domain/routines.ts and lines.ts stay identical', async () => {
+    const lines = await import('@/catalog/lines');
+    const routines = await import('@/domain/routines');
+    expect([...routines.ROUTINES]).toEqual([...lines.ARCHETYPES]);
+    expect(routines.ROUTINE_BY_ICON).toEqual(lines.ARCHETYPE_BY_ICON);
+  });
+
+  it('no seasonal cabinet carries an emoji, and pets as a category are "Pets"', async () => {
+    const { CATEGORY_LABELS } = await import('@/catalog/lines');
+    for (const m of MACHINES) expect(JSON.stringify(m), m.id).not.toMatch(/\p{Extended_Pictographic}/u);
+    expect(CATEGORY_LABELS.pet).toBe('Pets');
+  });
+
+  it('onboarding offers eight starter chips, all real templates', async () => {
+    const { ONBOARDING_STARTERS, ONBOARDING_SUGGESTIONS } = await import('@/catalog/templates');
+    expect(ONBOARDING_STARTERS).toHaveLength(8);
+    for (const id of ONBOARDING_STARTERS) expect(TEMPLATES.some((t) => t.id === id), id).toBe(true);
+    expect(TEMPLATES.filter((t) => (ONBOARDING_STARTERS as readonly string[]).includes(t.id)).map((t) => t.name).sort()).toEqual(
+      ['Drink water', 'Journal', 'Read', 'Skincare', 'Stretch', 'Take vitamins', 'Tidy for 10 minutes', 'Walk'].sort(),
+    );
+    for (const id of ONBOARDING_SUGGESTIONS) expect(ONBOARDING_STARTERS as readonly string[]).toContain(id);
+  });
+});

@@ -11,6 +11,7 @@ import { machinePool, pityOf, pull } from '@/domain/gacha';
 import { addDays, dayNumber } from '@/domain/dates';
 import { plantVM } from '@/state/views/common';
 import { todayVM } from '@/state/views/today';
+import { vineChip } from '@/catalog/format';
 import { Game, UTC, deepFreeze } from './game';
 
 const patch = (g: Game, f: (s: AppState) => AppState): void => {
@@ -104,8 +105,10 @@ describe('the day vine when nothing day-based is due (§9.1 day progress)', () =
     const g = new Game({ start: '2026-03-02' });
     const y = g.addHabit({ name: 'Yoga', schedule: { kind: 'weekly', times: 2, every: 1 } });
     const env = { today: g.today, now: g.now, local: UTC };
-    expect(todayVM(g.state, env).progress).toMatchObject({ total: 0, nothingDue: true, fraction: 0, label: 'Nothing due' });
+    expect(todayVM(g.state, env).progress).toMatchObject({ total: 0, nothingDue: true, fraction: 0, flexibleCheckins: 0 });
+    expect(vineChip(todayVM(g.state, env).progress)).toBeNull();
     g.checkIn(y);
-    expect(todayVM(g.state, { ...env, now: g.now }).progress).toMatchObject({ total: 0, nothingDue: true, fraction: 1, label: '1 checked in' });
+    expect(todayVM(g.state, { ...env, now: g.now }).progress).toMatchObject({ total: 0, nothingDue: true, fraction: 1, flexibleCheckins: 1 });
+    expect(vineChip(todayVM(g.state, { ...env, now: g.now }).progress)).toBe('1 watered');
   });
 });

@@ -11,7 +11,7 @@ import { logsOf, trackingCtx } from '@/domain/economy';
 import {
   CUTTING_THRESHOLDS,
   STAGE_THRESHOLDS,
-  bloomsFor,
+  extraBloomsFor,
   flourishesFor,
   theCutting,
   plantStage,
@@ -133,9 +133,9 @@ describe('plant stages (DESIGN §13.4)', () => {
       [10_000, 6, 8],
     ];
     for (const [sun, blooms, flourishes] of table) {
-      expect(bloomsFor(sun, 7), `blooms @${sun}`).toBe(blooms);
+      expect(extraBloomsFor(sun, 7), `blooms @${sun}`).toBe(blooms);
       expect(flourishesFor(sun, 7), `flourishes @${sun}`).toBe(flourishes);
-      expect(bloomsFor(sun, 6)).toBe(0);
+      expect(extraBloomsFor(sun, 6)).toBe(0);
     }
     // 9 × 7/3 (a Mon/Wed/Fri habit) reaches Budding's 21 despite floating-point error.
     expect(plantStage(9 * sunshinePerOccurrence({ schedule: { kind: 'days', days: [1, 3, 5] } }), 9)).toBe(4);

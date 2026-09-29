@@ -168,8 +168,8 @@ export interface YearQuiltVM {
   weeks: (QuiltPatch | null)[][];
   /** Where each month begins (for the month initials / bands that open the calendar). */
   months: { month: MonthKey; label: string; column: number }[];
-  /** For the text summary (the grid itself is aria-hidden). */
-  summary: { checkins: number; daysShowedUp: number; text: string };
+  /** For the text summary (the grid itself is aria-hidden): `yearSummaryLine({ year, ...summary })` → "312 waterings in 2025, across 180 days". */
+  summary: { checkins: number; daysShowedUp: number };
   /** Column holding today (the strip opens there on narrow screens). */
   todayColumn: number | null;
 }
@@ -226,9 +226,5 @@ export function yearQuiltVM(s: AppState, env: ViewEnv, year: number, habitId: st
       }
     }
   }
-  const daysShowedUp = shownUp.size;
-  const span = Math.max(0, diffDays(jan1, today < dec31 ? today : dec31) + 1);
-  const plural = (n: number, one: string, many: string) => `${n.toLocaleString('en-US')} ${n === 1 ? one : many}`;
-  const text = `${plural(checkins, 'check-in', 'check-ins')} in ${year}${span > 0 && checkins > 0 ? `, across ${plural(daysShowedUp, 'day', 'days')}` : ''}`;
-  return { year, weeks, months, summary: { checkins, daysShowedUp, text }, todayColumn };
+  return { year, weeks, months, summary: { checkins, daysShowedUp: shownUp.size }, todayColumn };
 }

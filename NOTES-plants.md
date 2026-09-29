@@ -17,13 +17,13 @@ Gallery: `/gallery.html?only=garden` (sections `garden-matrix`, `garden-night`, 
 - `progress` 0..1 adds continuous growth inside a stage (a leaf growing in, roots lengthening). NaN counts as 0.
 - `blooms` **changed meaning**: it is now "how many flowers, berries or peak features are showing" from Blooming on
   (0..`MAX_BLOOMS` = 6), ignored before Blooming. Left out, it follows the stage (Blooming 2–3, Flourishing 4,
-  Evergreen 5). Foliage plants map it to their peak: pothos vine length, pilea pups, monstera aerial roots, snake plant
+  Evergreen 5). The view models already give this as `plant.blooms` (undefined below Evergreen). Foliage plants map it to their peak: pothos vine length, pilea pups, monstera aerial roots, snake plant
   flower spikes, cat grass oat heads. The old "extra blooms after Evergreen" count is gone.
 - `light?: Light` (default `DAY_LIGHT`): crescents sit on the side `shadeSide()` gives, the contact shadow falls away
   from the light, the shade side of every plant takes its darker inks, the sunflower faces `light.from`, and at night
   (`light.night`) lit colours warm toward the lamp, the midnight glaze gets a lamp rim, and the prayer plant folds its
   leaves up.
-- `damp` darkens the soil (watered today). `pulse`: pass a monotonic check-in counter; each increase after mount plays
+- `damp` darkens the soil (watered today). `pulse`: pass the card's `waterings` (SillPotVM `pulse`); each increase after mount plays
   a leaf lift and a glint on the soil and dampens it. Reduced motion keeps the glint (a crossfade) and the soil change.
 - `fit`: `'scene'` (default) keeps every stage on the same 100-unit canvas so pots match in scale on the sill;
   `'icon'` crops to the plant at its stage (a committed square frame per species × stage, `iconFrames.ts`), so a
@@ -57,20 +57,17 @@ at y 59.4.
 2. **Stage names in fx** (`tests/unit/fx/celebrationPlan.test.ts`, `src/dev/sections-fxui.tsx`) still use "Seedling" and
    "Sprout". The stages are now Cutting, Rooting, Potted, Leafy, Budding, Blooming, Flourishing, Evergreen; the
    celebration copy for stages 1–2 should become Rooting ("white roots in the glass") and Potted.
-3. ~~**`blooms` semantics** (see above): `src/art/scene/meadow/Planter.tsx` documents `blooms` as "extra blooms after
-   Evergreen". Please pass the Blooms Like You count (or leave it out) and update that comment.~~
-   **Superseded (M1 triage):** the Meadow planter is gone. The live blooms blocker (PlantArt and today.ts) is an M1 art/logic finding.
-4. **Lamplight in the light theme**: crescents paint with `var(--shade)`, which follows the theme. If a scene shows
+3. **Lamplight in the light theme**: crescents paint with `var(--shade)`, which follows the theme. If a scene shows
    Lamplight while the UI theme is light, set the night value on the scene container
    (`--shade: rgba(10, 8, 22, 0.3); --contact: rgba(0, 0, 0, 0.22)`) so crescents deepen with the lamp. No token change
    is needed; a shared `--shade-lamp` token would make this tidier if the lead prefers.
-5. **Stage 0 "beside its empty pot"** (DESIGN §5.5): resolved here. Pass `withPot` in the sill scene and the plant
+4. **Stage 0 "beside its empty pot"** (DESIGN §5.5): resolved here. Pass `withPot` in the sill scene and the plant
    detail view; leave it off (or use `fit="icon"`) on cards.
-6. **Tulip pots**: the tulip grows in a forcing glass for its whole life; its `pot` only tints the glass (terracotta
+5. **Tulip pots**: the tulip grows in a forcing glass for its whole life; its `pot` only tints the glass (terracotta
    and gourd give amber glass, blush/rosy/teacup rose, ticking/mug blue, midnight cobalt, tin green, the rest clear).
    The Habit Editor's pot picker could say "Grows in a forcing glass; the pot sets the glass colour" for tulips.
-7. **Gallery title** (`src/dev/gallery.tsx`) still reads "Mochi Meadow · Art Gallery".
-8. **Today card framing**: the Today card (and any 40–64 px plant tile) should pass `fit="icon"` to `PlantArt`.
+6. **Gallery title** (`src/dev/gallery.tsx`) still reads "Mochi Meadow · Art Gallery".
+7. **Today card framing**: the Today card (and any 40–64 px plant tile) should pass `fit="icon"` to `PlantArt`.
 
 ## Known gaps
 

@@ -9,7 +9,18 @@ import type { BloomColour, BloomShape, DateKey, Effort, KeepsakeKind, Schedule, 
 /* Game events: emitted by actions, consumed by FX/celebration layers  */
 /* ------------------------------------------------------------------ */
 
-export type CoinReason = 'checkin' | 'perfect' | 'period' | 'home' | 'rung' | 'letter' | 'badge' | 'gift' | 'refund' | 'exchange';
+export type CoinReason = 'checkin' | 'perfect' | 'period' | 'home' | 'rung' | 'letter' | 'badge' | 'gift' | 'refund' | 'exchange' | 'spend';
+
+/**
+ * Why stamps (internally stars) moved: 'showup' the Showing-up ladder · 'letter' a Sunday Note ·
+ * 'herbarium' a Herbarium page · 'badge' a pin · 'fusion' 10 swaps · 'grow' accepting "A bigger pot?"
+ * (or Grow in the Season Review) · 'album' a full Field Guide page · 'spend' a No. 07 Night capsule
+ * or a Special Order (amount < 0).
+ */
+export type StarReason = 'showup' | 'letter' | 'herbarium' | 'badge' | 'fusion' | 'grow' | 'album' | 'spend';
+
+/** The rituals by their screen names (internally a weekly letter, a monthly bouquet, an anniversary note). */
+export type RitualKind = 'sundayNote' | 'herbarium' | 'anniversary';
 
 /**
  * Internal names (DESIGN §6): `stars` are stamps, `stardust` are swaps. The screens word every event
@@ -17,11 +28,13 @@ export type CoinReason = 'checkin' | 'perfect' | 'period' | 'home' | 'rung' | 'l
  */
 export type GameEvent =
   /**
-   * `amount` < 0 when coins leave the wallet by a refund (un-check), the swap-in ('exchange'), or
-   * the onboarding capsule spending First Sprout's top-up ('gift').
+   * `amount` < 0 when coins leave the wallet: a refund (un-check), the swap-in ('exchange'), the
+   * onboarding capsule spending First Sprout's top-up ('gift'), or a capsule paid with coins
+   * ('spend'). Celebrations count only amount > 0.
    */
   | { type: 'coins'; amount: number; reason: CoinReason; habitId?: string }
-  | { type: 'stars'; amount: number; reason: 'showup' | 'letter' | 'bloom' | 'badge' | 'fusion' | 'gift' }
+  /** `amount` < 0 for 'spend' (a Night capsule, a Special Order). */
+  | { type: 'stars'; amount: number; reason: StarReason }
   | { type: 'tickets'; amount: number }
   | { type: 'stardust'; amount: number; /** stars produced by fusion as a result */ fused: number }
   | { type: 'checkin'; habitId: string; date: DateKey; completed: boolean; tiny: boolean; count: number; target: number }
@@ -34,12 +47,21 @@ export type GameEvent =
   | { type: 'rung'; habitId: string; streak: number; unit: 'days' | 'times' | 'weeks' | 'months'; tierDays: number; coins: number }
   /** Account-level Showing-up ladder (stars/tickets/exclusives). */
   | { type: 'showUp'; days: number; stars: number; tickets: number; exclusive?: string }
-  | { type: 'plantStage'; habitId: string; stage: number; stageName: string }
+  /**
+   * A plant reached a stage: word it from `stage` (STAGE_NAMES / STAGE_LINES in lines.ts).
+   * @deprecated `stageName` is no longer sent (no display text in events); it stays optional only
+   * until the gallery fixtures drop it.
+   */
+  | { type: 'plantStage'; habitId: string; stage: number; stageName?: string }
   | { type: 'badge'; badgeId: string; stars: number }
   | { type: 'exclusive'; collectibleId: string }
   | { type: 'petLevel'; petId: string; level: number }
   | { type: 'favoriteFound'; petId: string; treatId: string }
-  | { type: 'letter'; letterId: string }
+  /**
+   * A ritual arrived on the sill: "There’s a note on the sill." / "There’s a page on the sill."
+   * `kind` is always sent (optional in the type only until the gallery fixtures add it).
+   */
+  | { type: 'letter'; letterId: string; kind?: RitualKind }
   | { type: 'restock'; treats: number }
   /** A check-in on a Blooming+ edible plant dropped a harvest treat into the basket (DESIGN §8.2). */
   | { type: 'harvest'; habitId: string; treatId: string; firstTime: boolean }
@@ -185,4 +207,5 @@ export interface ImportPreview {
   device?: string;
 }
 
-export type PlacePurchase = { ok: true; place: PlaceId } | { ok: false; error: 'not-enough-coins' | 'owned' };
+/** `movedIn`: the pets who went straight to the new place (the ones who love it most, up to its room). */
+export type PlacePurchase = { ok: true; place: PlaceId; movedIn: string[] } | { ok: false; error: 'not-enough-coins' | 'owned' };

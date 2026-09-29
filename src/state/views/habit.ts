@@ -4,11 +4,15 @@
  */
 import type { AppState, DateKey, Habit, HabitRule, PlantLook } from '../types';
 import { logStatus, showedUp } from '@/domain/activity';
-import { habitTally, monthWindow, weekWindow, formatHabitPhrase, habitPhrase, type Tally } from '@/domain/consistency';
-import { monthDayLabel, monthFromIndex, monthIndex, monthLabel, shortDateLabel, type MonthKey } from '@/domain/dates';
+import { habitTally, monthWindow, weekWindow, habitPhrase, type HabitPhrase, type Tally } from '@/domain/consistency';
+import { monthDayLabel, monthFromIndex, monthIndex, monthLabel, shortDateLabel, type MonthKey, type WeekStart } from '@/domain/dates';
 import { habitCreatedOn, logsOf, streakOf, trackingCtx } from '@/domain/economy';
 import { RUNGS } from '@/domain/streaks';
-import { currentOffer } from '@/domain/habits';
+import { MAX_BIG_HABITS, bigHabitCount, currentOffer, habitInputFromTemplate, habitInputOf, validateHabitInput, type HabitIssue } from '@/domain/habits';
+import { ownedPlantSpecies, ownedPots } from '@/domain/collection';
+import { TEMPLATES } from '@/catalog/templates';
+import { ruleChangeText, type RuleChange } from '@/catalog/format';
+import type { HabitInput } from '../api';
 import { pauseCovering, pauseReturnDay } from '@/domain/pauses';
 import { ruleAt, ruleSegments } from '@/domain/rules';
 import { calendarMonthVM, tallyVM, type CalendarMonthVM, type TallyVM } from './calendar';
@@ -18,7 +22,7 @@ import { BLOOMING } from '@/domain/growth';
 import { gardenJournal, type JournalEntry } from '@/domain/journal';
 import { dueRead, looksOf, timeNudge, type TimeNudge } from '@/domain/signature';
 import { keptTogetherDays } from '@/domain/stacking';
-import { freshStartOptions, hemisphereOf, type FreshStartOptions } from '@/domain/seasonReview';
+import { freshStartOptions, hemisphereOf, justThisSeasonEnd, type FreshStartOptions } from '@/domain/seasonReview';
 
 export interface RungVM {
   /** Occurrence-equivalent needed. */
@@ -43,10 +47,13 @@ export interface HabitDetailVM {
   habit: Habit;
   /** The rule in effect today. */
   rule: HabitRule;
-  /** "Every day" · "Mon/Wed/Fri" · "3× a week"… */
+  /** "Every day" · "Mon/Wed/Fri" · "3 times a week"… (`scheduleText(rule.schedule, weekStart)`). */
   scheduleLabel: string;
-  /** A rule edit waiting to start (next period, tomorrow, or after today's rewarded check-in): "From Oct 1: Mon/Wed/Fri". */
-  upcoming: { from: DateKey; rule: HabitRule; label: string } | null;
+  /**
+   * A rule edit waiting to start (next period, tomorrow, or after today's rewarded check-in), as data
+   * (`change`, worded by `ruleChangeText`) and in words: "From Oct 1: Mon/Wed/Fri".
+   */
+  upcoming: { from: DateKey; rule: HabitRule; change: RuleChange; label: string } | null;
   archived: boolean;
   /** First day rewards can pay for (the creation day). */
   createdOn: DateKey;
@@ -58,8 +65,8 @@ export interface HabitDetailVM {
     newRhythm: boolean;
     /** Check-in days ever (tiny included) and how many were tiny. */
     total: { checkins: number; tiny: number };
-    /** "26 of the last 30 days · 3 tiny" (or the weekly/monthly equivalent). */
-    phrase: string | null;
+    /** The rolling phrase as data: `consistencyText(phrase, weekStart)` → "26 of the last 30 days · 3 tiny". */
+    phrase: HabitPhrase | null;
   };
   thisWeek: TallyVM;
   thisMonth: TallyVM;
@@ -69,11 +76,12 @@ export interface HabitDetailVM {
   ladder: { rungs: RungVM[]; next: RungVM | null; bestOccurrences: number };
   /** Notes, newest first ("Moments"). */
   moments: MomentVM[];
-  /** "Ready to grow?" / "Make it tinier?" (never automatic). */
+  /** "A bigger pot?" / "Make it tinier?" (never automatic). */
   offer: 'grow' | 'tinier' | null;
-  pause: { paused: boolean; back: DateKey | null; label: string | null; upcoming: { start: DateKey; end?: DateKey } | null };
-  /** The habit's rule history, oldest first ("Since Sep 22: Mon/Wed/Fri"). */
-  history: { from: DateKey | null; label: string }[];
+  /** Paused: "{habit} is resting until {date}." (CHECKIN_TOASTS.paused / pausedOpen). */
+  pause: { paused: boolean; back: DateKey | null; upcoming: { start: DateKey; end?: DateKey } | null };
+  /** The habit's rule history, oldest first, as data (`change`) and in words (`ruleChangeText`: "Since Sep 22: Mon/Wed/Fri"). */
+  history: { from: DateKey | null; change: RuleChange; label: string }[];
   /** "Why it matters" (§14.1), editable from day 0. */
   why: string | null;
   /** Keeping Company (§14.1): the companion, its stories and today's routine. */
@@ -108,6 +116,12 @@ export interface LooksVM {
   /** A read is due (Blooming / Evergreen) and waits for 10 eligible live check-in days. */
   waiting: 'bloom' | 'evergreen' | null;
 }
+
+/** A rule as a history row's data (RuleChange, src/catalog/format.ts). */
+function changeOf(habit: Habit, date: DateKey, rule: Pick<HabitRule, 'schedule' | 'target'>, first: boolean): RuleChange {
+  return { date, first, schedule: rule.schedule, target: rule.target, unit: habit.unit ?? null };
+}
+const withLabel = <T extends { change: RuleChange }>(row: T, weekStart: WeekStart): T & { label: string } => ({ ...row, label: ruleChangeText(row.change, weekStart) });
 
 export function habitDetailVM(s: AppState, env: ViewEnv, id: string): HabitDetailVM | null {
   const habit = s.habits.find((h) => h.id === id);
@@ -160,7 +174,7 @@ export function habitDetailVM(s: AppState, env: ViewEnv, id: string): HabitDetai
     habit,
     rule,
     scheduleLabel: scheduleLabel(rule.schedule, s.settings.weekStart),
-    upcoming: pending ? { from: pending.from, rule: pending, label: `From ${monthDayLabel(pending.from)}: ${scheduleLabel(pending.schedule, s.settings.weekStart)}` } : null,
+    upcoming: pending ? withLabel({ from: pending.from, rule: pending, change: changeOf(habit, pending.from, pending, false) }, s.settings.weekStart) : null,
     archived: habit.archivedOn !== undefined,
     createdOn: habitCreatedOn(habit, s.settings.dayStartsAt, env.local),
     plant,
@@ -169,7 +183,7 @@ export function habitDetailVM(s: AppState, env: ViewEnv, id: string): HabitDetai
       best: streakVM(streak.best, habit.polarity),
       newRhythm: streak.newRhythm,
       total: { checkins, tiny },
-      phrase: phrase ? formatHabitPhrase(phrase, s.settings.weekStart) : null,
+      phrase,
     },
     thisWeek: tally(habitTally(habit, logs, weekWindow(today, s.settings.weekStart), ctx)),
     thisMonth: tally(habitTally(habit, logs, monthWindow(today), ctx)),
@@ -181,15 +195,9 @@ export function habitDetailVM(s: AppState, env: ViewEnv, id: string): HabitDetai
     pause: {
       paused: covering !== undefined,
       back,
-      label: covering ? (back ? `Resting · back ${monthDayLabel(back)}` : 'Resting') : null,
       upcoming: upcoming ? { start: upcoming.start, ...(upcoming.end ? { end: upcoming.end } : {}) } : null,
     },
-    history: ruleSegments(habit).map((seg) => ({
-      from: seg.start,
-      label: `${seg.start ? `From ${monthDayLabel(seg.start)}` : `Since ${monthDayLabel(habit.startedOn)}`}: ${scheduleLabel(seg.rule.schedule, s.settings.weekStart)}${
-        seg.rule.target > 1 ? ` · ${seg.rule.target}${habit.unit ? ` ${habit.unit}` : ''}` : ''
-      }`,
-    })),
+    history: ruleSegments(habit).map((seg) => withLabel({ from: seg.start, change: changeOf(habit, seg.start ?? habit.startedOn, seg.rule, !seg.start) }, s.settings.weekStart)),
     why: habit.why ?? null,
     companion: companionVM(s, env, habit),
     keepsakes: (s.keepsakes ?? []).filter((k) => k.habitId === id).map((k) => keepsakeVM(s, k)),
@@ -207,5 +215,79 @@ export function habitDetailVM(s: AppState, env: ViewEnv, id: string): HabitDetai
     endsOn: habit.endsOn ?? null,
     ribbon: habit.ribbon ?? null,
     tune: habit.archivedOn === undefined ? freshStartOptions(s, habit, today, hemisphereOf(s, env.timeZone)) : null,
+  };
+}
+
+/* ------------------------------------------------------------------ */
+/* The Habit Editor (DESIGN §5.1, §14.1 "Who keeps it company?")      */
+/* ------------------------------------------------------------------ */
+
+/** A new habit's starting values when no template is chosen (the watering can suits anything). */
+export const BLANK_HABIT: HabitInput = {
+  name: '',
+  icon: 'watering-can',
+  color: 'sage',
+  plant: 'pothos',
+  pot: 'terracotta',
+  schedule: { kind: 'daily' },
+  target: 1,
+  step: 1,
+  effort: 'light',
+  timeOfDay: 'anytime',
+  polarity: 'build',
+};
+
+export interface HabitEditorVM {
+  mode: 'new' | 'edit';
+  habitId: string | null;
+  /** The form's values: the habit as it stands today, a template's, or BLANK_HABIT. */
+  input: HabitInput;
+  /** Plants and pots she owns (the free starters, and any from the Garden series). */
+  plants: string[];
+  pots: string[];
+  /** "Who keeps it company?": the pets as chips, with the habit each already keeps company (it would move). */
+  companions: { petId: string; name: string; keepsHabitId: string | null }[];
+  /** The habit's companion now (null = "No one, for now"). */
+  companion: string | null;
+  /** Habits it can follow ("After…"): live habits, not itself and not one that follows it. */
+  anchors: { habitId: string; name: string }[];
+  /** "Longer" is taken 3 times already: "3 long habits is the most at once." */
+  bigAtLimit: boolean;
+  /** "Just this season": the season's last day, for `endsOn`. */
+  seasonEnds: DateKey;
+  /** Problems with `input` as it stands (empty for a fresh form with a name still to type). */
+  issues: HabitIssue[];
+}
+
+/** The Habit Editor's data: a new habit (optionally from a template) or an existing one. */
+export function habitEditorVM(s: AppState, env: ViewEnv, habitId: string | null, templateId?: string): HabitEditorVM | null {
+  const today = env.today;
+  const habit = habitId ? s.habits.find((h) => h.id === habitId) : undefined;
+  if (habitId && !habit) return null;
+  const template = templateId ? TEMPLATES.find((t) => t.id === templateId) : undefined;
+  const input = habit ? habitInputOf(habit, today) : template ? habitInputFromTemplate(template) : { ...BLANK_HABIT };
+  const followers = new Set<string>();
+  if (habit) {
+    const queue = [habit.id];
+    while (queue.length > 0) {
+      const id = queue.pop()!;
+      for (const h of s.habits) if (h.anchorHabitId === id && !followers.has(h.id)) (followers.add(h.id), queue.push(h.id));
+    }
+  }
+  const byOrder = [...s.habits].sort((a, b) => a.order - b.order);
+  return {
+    mode: habit ? 'edit' : 'new',
+    habitId: habit?.id ?? null,
+    input,
+    plants: ownedPlantSpecies(s.collection),
+    pots: ownedPots(s.collection),
+    companions: Object.values(s.pets)
+      .sort((a, b) => Number(b.favorite) - Number(a.favorite) || a.obtainedAt - b.obtainedAt || (a.id < b.id ? -1 : 1))
+      .map((p) => ({ petId: p.id, name: p.name, keepsHabitId: s.habits.find((h) => h.companionId === p.id && h.archivedOn === undefined)?.id ?? null })),
+    companion: habit?.companionId ?? null,
+    anchors: byOrder.filter((h) => h.archivedOn === undefined && h.id !== habit?.id && !followers.has(h.id)).map((h) => ({ habitId: h.id, name: h.name })),
+    bigAtLimit: bigHabitCount(s, habit?.id) >= MAX_BIG_HABITS,
+    seasonEnds: justThisSeasonEnd(s, today, env.timeZone),
+    issues: input.name.trim() === '' ? [] : validateHabitInput(s, input, habit?.id, today),
   };
 }

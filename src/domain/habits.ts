@@ -25,6 +25,7 @@
  */
 import { HABIT_ICON_IDS } from '@/catalog/habitIcons';
 import { TEMPLATES } from '@/catalog/templates';
+import { HABIT_ISSUES, fillLine } from '@/catalog/lines';
 import type { HabitTemplate, PastelKey, PotId } from '@/catalog/types';
 import { PASTELS } from '@/catalog/types';
 import type { HabitInput } from '@/state/api';
@@ -39,7 +40,7 @@ import { anchorIssue, unstackFollowers } from './stacking';
 import { inferHemisphere } from './hemisphere';
 import { ensureRecipe } from './pantry';
 import { ruleAt, withRuleEdit, withStartedOn, type RuleEditTiming } from './rules';
-import { isBiggerRule, isDayBased, normalizeRuleContent, sameRuleContent, validateRuleContent, type RuleContent } from './schedule';
+import { RULE_LIMITS, isBiggerRule, isDayBased, normalizeRuleContent, sameRuleContent, validateRuleContent, type RuleContent } from './schedule';
 import { GROW_COOLDOWN_DAYS, forfeitLoweredGoal, ledgerKey, resettleHabit } from './economy';
 import type { Tx } from './tx';
 import { grantStars, hasOnce, refundCoins, setOnce } from './wallet';
@@ -76,6 +77,12 @@ const RULE_FIELD: Record<string, keyof HabitInput> = {
   'tiny-count-range': 'tiny',
 };
 
+/** The editor's words for an issue code (HABIT_ISSUES), with its limit filled in. */
+export function habitIssueMessage(code: string, max?: number): string {
+  const tmpl = (HABIT_ISSUES as Record<string, string>)[code];
+  return tmpl ? fillLine(tmpl, { max: max === undefined ? '' : max.toLocaleString('en-GB') }) : code;
+}
+
 /** Active (not archived) big habits, optionally ignoring the one being edited. */
 export function bigHabitCount(s: Pick<AppState, 'habits'>, exceptId?: string): number {
   return s.habits.filter((h) => h.effort === 'big' && h.archivedOn === undefined && h.id !== exceptId).length;
@@ -87,33 +94,30 @@ export function bigHabitCount(s: Pick<AppState, 'habits'>, exceptId?: string): n
  */
 export function validateHabitInput(s: AppState, input: HabitInput, editingId?: string, today?: DateKey): HabitIssue[] {
   const issues: HabitIssue[] = [];
-  const add = (field: keyof HabitInput, code: string, message: string) => issues.push({ field, code, message });
+  /** The message is the editor's field note (HABIT_ISSUES in lines.ts, VOICE.md §22). */
+  const add = (field: keyof HabitInput, code: string, max?: number) => issues.push({ field, code, message: habitIssueMessage(code, max) });
   const name = typeof input.name === 'string' ? input.name.trim() : '';
-  if (name.length === 0 || name.length > LIMITS.name) add('name', 'name', `Give it a name (up to ${LIMITS.name} characters).`);
-  if (!HABIT_ICON_IDS.has(input.icon)) add('icon', 'icon', 'Pick an icon.');
-  if (!(PASTELS as readonly string[]).includes(input.color)) add('color', 'color', 'Pick a colour.');
-  if (!owns(s.collection, `plant-${input.plant}`)) add('plant', 'plant-locked', 'That plant is still in a capsule.');
-  if (!owns(s.collection, `pot-${input.pot}`)) add('pot', 'pot-locked', 'That pot is still in a capsule.');
-  if (!EFFORTS.includes(input.effort)) add('effort', 'effort', 'Pick how long it takes.');
-  else if (input.effort === 'big' && bigHabitCount(s, editingId) >= MAX_BIG_HABITS) {
-    add('effort', 'too-many-big', 'Big is for the heavy lifts. You have 3 already.');
-  }
-  if (!TIMES.includes(input.timeOfDay)) add('timeOfDay', 'time-of-day', 'Pick a time of day.');
-  if (input.polarity !== 'build' && input.polarity !== 'avoid') add('polarity', 'polarity', 'Build or avoid?');
-  if (input.dueDay !== undefined && input.dueDay !== 'last' && !(Number.isInteger(input.dueDay) && input.dueDay >= 1 && input.dueDay <= 31)) {
-    add('dueDay', 'due-day', 'Due day is 1–31 or "last".');
-  }
-  if (input.anchor !== undefined && input.anchor.length > LIMITS.anchor) add('anchor', 'anchor', `Keep the anchor under ${LIMITS.anchor} characters.`);
-  if (input.unit !== undefined && input.unit.length > LIMITS.unit) add('unit', 'unit', `Keep the unit under ${LIMITS.unit} characters.`);
-  if (input.notes !== undefined && input.notes.length > LIMITS.notes) add('notes', 'notes', `Keep notes under ${LIMITS.notes} characters.`);
-  if (input.why !== undefined && (typeof input.why !== 'string' || Array.from(input.why.trim()).length > LIMITS.why)) add('why', 'why', `Keep it under ${LIMITS.why} characters.`);
+  if (name.length === 0 || name.length > LIMITS.name) add('name', 'name', LIMITS.name);
+  if (!HABIT_ICON_IDS.has(input.icon)) add('icon', 'icon');
+  if (!(PASTELS as readonly string[]).includes(input.color)) add('color', 'color');
+  if (!owns(s.collection, `plant-${input.plant}`)) add('plant', 'plant-locked');
+  if (!owns(s.collection, `pot-${input.pot}`)) add('pot', 'pot-locked');
+  if (!EFFORTS.includes(input.effort)) add('effort', 'effort');
+  else if (input.effort === 'big' && bigHabitCount(s, editingId) >= MAX_BIG_HABITS) add('effort', 'too-many-big', MAX_BIG_HABITS);
+  if (!TIMES.includes(input.timeOfDay)) add('timeOfDay', 'time-of-day');
+  if (input.polarity !== 'build' && input.polarity !== 'avoid') add('polarity', 'polarity');
+  if (input.dueDay !== undefined && input.dueDay !== 'last' && !(Number.isInteger(input.dueDay) && input.dueDay >= 1 && input.dueDay <= 31)) add('dueDay', 'due-day');
+  if (input.anchor !== undefined && input.anchor.length > LIMITS.anchor) add('anchor', 'anchor', LIMITS.anchor);
+  if (input.unit !== undefined && input.unit.length > LIMITS.unit) add('unit', 'unit', LIMITS.unit);
+  if (input.notes !== undefined && input.notes.length > LIMITS.notes) add('notes', 'notes', LIMITS.notes);
+  if (input.why !== undefined && (typeof input.why !== 'string' || Array.from(input.why.trim()).length > LIMITS.why)) add('why', 'why', LIMITS.why);
   if (input.anchorHabitId !== undefined) {
     const issue = typeof input.anchorHabitId === 'string' ? anchorIssue(s, editingId, input.anchorHabitId) : 'unknown';
-    if (issue) add('anchorHabitId', `anchor-${issue}`, 'Pick another habit to follow.');
+    if (issue) add('anchorHabitId', `anchor-${issue}`);
   }
-  if (input.endsOn !== undefined && (!isDateKey(input.endsOn) || (today !== undefined && input.endsOn < today))) add('endsOn', 'ends-on', 'Pick a last day from today on.');
+  if (input.endsOn !== undefined && (!isDateKey(input.endsOn) || (today !== undefined && input.endsOn < today))) add('endsOn', 'ends-on');
   const content = ruleContentOf(input);
-  for (const issue of validateRuleContent(content)) add(RULE_FIELD[issue.code] ?? 'schedule', issue.code, issue.message);
+  for (const issue of validateRuleContent(content)) add(RULE_FIELD[issue.code] ?? 'schedule', issue.code, issue.code === 'target-range' ? RULE_LIMITS.targetMax : undefined);
   return issues;
 }
 
@@ -442,7 +446,7 @@ export function acceptGrowOffer(tx: Tx, id: string, patch: Partial<HabitInput>):
   if (!isBiggerRule(ruleAt(h, today), ruleContentOf(merged))) return false;
   updateHabit(tx, id, patch, 'tomorrow');
   setOnce(tx, `grow|${id}|${today}`);
-  grantStars(tx, GROW_STARS, 'gift');
+  grantStars(tx, GROW_STARS, 'grow');
   return true;
 }
 
@@ -475,15 +479,19 @@ export function habitInputFromTemplate(template: HabitTemplate): HabitInput {
 export interface OnboardingInput {
   name: string;
   templateIds: string[];
+  /** "Make my own" habits from the same step, planted after the chosen starters (3 in all at most). */
+  customHabits?: HabitInput[];
   dayStartsAt?: number;
   birthday?: string;
 }
 
 /**
  * Finishes onboarding (§9.6): the name, the day start and birthday when given, the starter recipes
- * in the pantry, and up to 3 habits from templates. There is no pet and no coin gift here: the first
- * pet comes from the "Cats or Cows?" capsule (`pull(…, { free: true })`, gacha.ts), and the first
- * check-in tops the jar up to one capsule (First Sprout, economy.ts). Idempotent once onboarded.
+ * in the pantry, and up to 3 habits: the chosen starters, then any "Make my own" habits (one
+ * transaction, one limit). Returns the new habit ids in that order, for "Find {name} a plant".
+ * There is no pet and no coin gift here: the first pet comes from the "Who comes home first?"
+ * capsule (`pull(…, { free: true })`, gacha.ts), and the first check-in tops the jar up to one
+ * capsule (First Sprout, economy.ts). Idempotent once onboarded (returns []).
  */
 export function completeOnboarding(tx: Tx, opts: OnboardingInput): string[] {
   if (tx.s.profile.onboarded) return [];
@@ -496,10 +504,12 @@ export function completeOnboarding(tx: Tx, opts: OnboardingInput): string[] {
   if (tx.s.settings.hemisphere === undefined && tx.env.timeZone) tx.section('settings').hemisphere = inferHemisphere(tx.env.timeZone);
   for (const t of ownedTreats(tx.s.collection)) ensureRecipe(tx, t.id);
   const ids: string[] = [];
-  for (const templateId of opts.templateIds.slice(0, ONBOARDING_MAX_HABITS)) {
-    const template = TEMPLATES.find((t) => t.id === templateId);
-    if (!template) continue;
-    const input = habitInputFromTemplate(template);
+  const inputs = [
+    ...opts.templateIds.map((templateId) => TEMPLATES.find((t) => t.id === templateId)).filter((t): t is HabitTemplate => t !== undefined).map(habitInputFromTemplate),
+    ...(opts.customHabits ?? []),
+  ];
+  for (const input of inputs) {
+    if (ids.length >= ONBOARDING_MAX_HABITS) break;
     if (validateHabitInput(tx.s, input).length > 0) continue;
     ids.push(createHabit(tx, input));
   }
