@@ -14,7 +14,9 @@ import { AppIconArt } from './AppIconArt';
 import { currentInstallPlatform, installPrompt, promptInstall, safariMajor, type InstallPlatform } from './installPrompt';
 import { AddToHomeArt, AndroidMenuArt, ChromeInstallArt, CompactShareArt, DockArt, HomeScreenArt, MacDockArt, ShareStepArt, ViewMoreArt } from './installArt';
 import { INSTALL } from '@/catalog/lines';
-import { INSTALL_COPY } from './copy';
+import { INSTALL_COPY as SHELL_INSTALL_COPY } from './copy';
+
+const INSTALL_COPY = { ...SHELL_INSTALL_COPY, gateStay: 'Keep it in this tab' } as const;
 import s from './InstallGuide.module.css';
 
 export interface InstallStep {
@@ -169,9 +171,10 @@ export function InstallSheet({ open, onClose, platform }: InstallSheetProps) {
 /**
  * The install-first gate: a full page before onboarding, with the reason in one line, the steps
  * for this browser, "Just peek" for anyone who only wants to look around (the demo), and "Paste
- * my plants" for a CK1 backup she brought with her.
+ * my plants" for a CK1 backup she brought with her, and, quietest, "Keep it in this tab" (the
+ * You screen then says what a Safari tab can do to a save).
  */
-export function InstallGate({ onPeek, onPaste, platform }: { onPeek: () => void; onPaste?: () => void; platform?: InstallPlatform | InstallGuideKey }) {
+export function InstallGate({ onPeek, onPaste, onStay, platform }: { onPeek: () => void; onPaste?: () => void; onStay?: () => void; platform?: InstallPlatform | InstallGuideKey }) {
   const p = platform ?? currentInstallPlatform();
   const key: InstallGuideKey = p === 'installed' ? 'other' : p === 'ios-safari-classic' ? p : guideFor(p, navigator.userAgent);
   const guide = GUIDES[key];
@@ -190,6 +193,11 @@ export function InstallGate({ onPeek, onPaste, platform }: { onPeek: () => void;
         <Button variant="quiet" size="lg" block onClick={onPaste}>
           {INSTALL.paste}
         </Button>
+      )}
+      {onStay && (
+        <button type="button" class={s.stay} onClick={onStay}>
+          {INSTALL_COPY.gateStay}
+        </button>
       )}
     </section>
   );

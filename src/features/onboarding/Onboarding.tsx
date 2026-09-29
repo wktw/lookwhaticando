@@ -150,7 +150,14 @@ export function Onboarding() {
   if (phase === 'gate') {
     return (
       <div class={s.gate}>
-        <InstallGate onPeek={peek} onPaste={() => setImporting('paste')} />
+        <InstallGate
+          onPeek={peek}
+          onPaste={() => setImporting('paste')}
+          onStay={() => {
+            markGateSeen();
+            setPhase('sill');
+          }}
+        />
         <ImportSheet open={!!importing} title={INSTALL.paste} pasteFirst onClose={() => setImporting(false)} onImported={finish} />
       </div>
     );

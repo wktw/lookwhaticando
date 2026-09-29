@@ -131,7 +131,9 @@ describe('You (DESIGN §9.5)', () => {
   });
 
   it('opens Diagnostics at #/you/diagnostics, with its own h1 and Copy report', async () => {
-    await act(() => (routeRest.value = ['diagnostics']));
+    await act(() => {
+      routeRest.value = ['diagnostics'];
+    });
     const h1s = view!.root.querySelectorAll('h1');
     expect(h1s).toHaveLength(1);
     expect(h1s[0]!.textContent).toBe('Diagnostics');
