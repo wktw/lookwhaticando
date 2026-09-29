@@ -46,7 +46,8 @@ export interface PlantArtProps {
   fit?: PlantFit;
   /**
    * Stages 0–1 (and the tulip): stand the habit's chosen pot, still empty, behind the glass on the shade side
-   * (DESIGN §5.5, "a cutting in a water glass beside its empty pot"). For scenes and detail views; ignored by `icon`.
+   * (DESIGN §5.5, "a cutting in a water glass beside its empty pot"). With `icon`, the frame widens to hold both (a
+   * habit card's cutting stands by its pot too).
    */
   withPot?: boolean;
   /**
@@ -182,9 +183,10 @@ export function PlantArt(props: PlantArtProps) {
   const c = useMemo(() => composePlant(species, g, pot, k, damp, look, flourishes), [species, g.stage, g.progress, g.blooms, pot, k, damp, lookKey, flourishes]);
 
   const icon = props.fit === 'icon';
-  const box = icon ? iconFrame(species, g.stage) : SCENE_FRAME;
+  const besidePot = !!props.withPot && c.kind !== 'pot';
+  const box = icon ? (besidePot ? iconFrameWithPot(species, g.stage, pot, k.away) : iconFrame(species, g.stage)) : SCENE_FRAME;
   const mute = (el: JSX.Element | null | undefined) => (props.muted && el ? (muteTree(el) as JSX.Element) : el);
-  const emptyPot = !icon && props.withPot && c.kind !== 'pot' ? mute(<g>{EmptyPot({ pot, k })}</g>) : null;
+  const emptyPot = besidePot ? mute(<g>{EmptyPot({ pot, k })}</g>) : null;
   const back = layer !== 'front';
   const front = layer !== 'back';
 
@@ -247,6 +249,28 @@ function EmptyPot({ pot, k }: { pot: PotId; k: Kit }) {
       <g data-vessel="empty-pot">{def.render(k, false)}</g>
     </g>
   );
+}
+
+/** Where the empty pot beside a cutting lands on the canvas: its box [x0, y0, x1, y1]. */
+export function emptyPotBox(pot: PotId, away: number): readonly [number, number, number, number] {
+  const def = POTS[pot] ?? POTS.terracotta;
+  const s = EMPTY_POT.scale;
+  const tx = 50 + (away || 1) * EMPTY_POT.dx - 50 * s;
+  const ty = FOOT_Y - EMPTY_POT.back - FOOT_Y * s;
+  const hw = def.mouth.hw + 1.6;
+  return [tx + s * (50 - hw), ty + s * (def.mouth.y - 1), tx + s * (50 + hw), ty + s * (FOOT_Y + 2)];
+}
+
+/** The icon frame for a cutting and its empty pot together: the glass's own frame widened to take in the pot, square. */
+export function iconFrameWithPot(species: PlantSpeciesId, stage: number, pot: PotId, away: number): string {
+  const fr = ICON_FRAMES[species]?.[stage] ?? [0, 0, 100];
+  const [px0, py0, px1, py1] = emptyPotBox(pot, away);
+  const x0 = Math.min(fr[0], px0 - 1.5);
+  const x1 = Math.max(fr[0] + fr[2], px1 + 1.5);
+  const y0 = Math.min(fr[1], py0 - 1.5);
+  const y1 = Math.max(fr[1] + fr[2], py1);
+  const side = Math.max(x1 - x0, y1 - y0);
+  return `${f((x0 + x1) / 2 - side / 2)} ${f(y1 - side)} ${f(side)} ${f(side)}`;
 }
 
 /** A lone pot is cropped to this square so it fills the icon like other collectibles. */

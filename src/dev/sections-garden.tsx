@@ -8,7 +8,8 @@ import { Fragment, type ComponentChildren, type JSX } from 'preact';
 import { useState } from 'preact/hooks';
 import type { PlantSpeciesId, PotId } from '@/catalog/types';
 import { PLANTS, POTS } from '@/catalog/collectibles';
-import { PlantArt, PlantTag, PotArt, PLANT_STAGE_NAMES, tagAnchor } from '@/art/plants';
+import { CardPlant, PlantArt, PlantTag, PotArt, PLANT_STAGE_NAMES, tagAnchor, FLOURISHES } from '@/art/plants';
+import type { PlantLookArt } from '@/art/plants';
 import { DAY_LIGHT, NIGHT_LIGHT, type Light } from '@/art/light';
 import type { GallerySection } from './sections';
 
@@ -196,6 +197,71 @@ function HabitCards({ params }: { params: URLSearchParams }) {
   );
 }
 
+/** The habit card's plant (DESIGN §9.1): resident peeking from the rim, the icon on a stake; a mixed cast. */
+const CARD_PLANTS: { species: PlantSpeciesId; stage: number; pot: PotId; pet?: string; icon: string; tone: 'blush' | 'sage' | 'sky' | 'butter' | 'lavender' | 'peach' | 'mint' | 'lilac' }[] = [
+  { species: 'pilea', stage: 5, pot: 'ticking', pet: 'pet-cow-holstein', icon: 'water', tone: 'sky' },
+  { species: 'monstera', stage: 6, pot: 'terracotta', pet: 'pet-dog-corgi', icon: 'walk', tone: 'sage' },
+  { species: 'begonia', stage: 5, pot: 'cream', pet: 'pet-cat-calico', icon: 'book', tone: 'blush' },
+  { species: 'snakeplant', stage: 4, pot: 'cream', pet: 'pet-duck-yellow', icon: 'stretch', tone: 'butter' },
+  { species: 'pothos', stage: 1, pot: 'blush', pet: 'pet-frog-tree', icon: 'yoga', tone: 'mint' },
+  { species: 'violet', stage: 0, pot: 'blush', icon: 'journal', tone: 'lavender' },
+  { species: 'catgrass', stage: 3, pot: 'mug', pet: 'pet-bunny-lop', icon: 'vitamins', tone: 'peach' },
+  { species: 'orchid', stage: 7, pot: 'speckled', pet: 'pet-hamster-syrian', icon: 'sparkle', tone: 'lilac' },
+];
+
+function CardPlants() {
+  return (
+    <div style={{ display: 'grid', gap: '12px' }}>
+      {[DAY_LIGHT, NIGHT_LIGHT].map((light) => (
+        <div key={String(light.night)} class="gal-row" style={{ gap: '10px', padding: '12px', borderRadius: '14px', background: light.night ? '#2b2436' : 'var(--card)' }}>
+          {CARD_PLANTS.map((c) => (
+            <div key={c.species} style={{ display: 'grid', justifyItems: 'center', gap: '4px' }}>
+              <CardPlant species={c.species} stage={c.stage} progress={0.5} pot={c.pot} residentPetId={c.pet} icon={c.icon} tone={c.tone} size={56} light={light} />
+              <CardPlant species={c.species} stage={c.stage} progress={0.5} pot={c.pot} residentPetId={c.pet} icon={c.icon} tone={c.tone} size={40} light={light} />
+            </div>
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** Blooms Like You (DESIGN §14.2): each look on a flowering plant, and Flourishes 0–8 on an Evergreen. */
+const LOOKS: [string, PlantLookArt | undefined][] = [
+  ['Classic', undefined],
+  ['Dawn', { colour: 'dawn', shape: 'classic' }],
+  ['Sunlit', { colour: 'sunlit', shape: 'classic' }],
+  ['Twilight', { colour: 'twilight', shape: 'classic' }],
+  ['Wildflower', { colour: 'wildflower', shape: 'classic' }],
+  ['Petite', { colour: 'twilight', shape: 'petite' }],
+  ['Paired (sky)', { colour: 'sunlit', shape: 'paired', partnerColour: 'sky' }],
+];
+
+function LooksDemo() {
+  return (
+    <div style={{ display: 'grid', gap: '12px' }}>
+      {(['begonia', 'violet', 'tulip'] as PlantSpeciesId[]).map((sp) => (
+        <div key={sp} class="gal-row" style={{ gap: '8px' }}>
+          {LOOKS.map(([name, look]) => (
+            <div key={name} class="gal-cell" style={{ ...tile, padding: '6px' }}>
+              <PlantArt species={sp} stage={6} pot="cream" size={96} look={look} />
+              <small>{name}</small>
+            </div>
+          ))}
+        </div>
+      ))}
+      <div class="gal-row" style={{ gap: '8px' }}>
+        {Array.from({ length: FLOURISHES.length + 1 }, (_, n) => (
+          <div key={n} class="gal-cell" style={{ ...tile, padding: '6px' }}>
+            <PlantArt species="pothos" stage={7} pot="terracotta" size={96} flourishes={n} />
+            <small>{n === 0 ? 'Evergreen' : `+ ${FLOURISHES[n - 1]}`}</small>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /** Small-size tests: the same plants at 64, 32 and 20 px, framed as icons (`&fit=scene` for the full canvas). */
 function SmallSizes({ params }: { params: URLSearchParams }) {
   const stage = Number(params.get('stage') ?? 5);
@@ -346,6 +412,8 @@ export const SECTIONS: GallerySection[] = [
   { id: 'garden-light', title: 'Plants: the window on the left, overhead, on the right, and the lamp', render: (params) => <LightDemo params={params} /> },
   { id: 'garden-pots', title: 'Pots: every pot in every light, damp soil, and at 40 px', render: (params) => <PotsDemo params={params} /> },
   { id: 'garden-cards', title: 'Plants at card size (40 px)', render: (params) => <HabitCards params={params} /> },
+  { id: 'garden-cardplant', title: 'The card plant: resident peeking, the icon on a stake (56 and 40 px, day and lamplight)', render: () => <CardPlants /> },
+  { id: 'garden-looks', title: 'Blooms Like You looks, and the Flourishes', render: () => <LooksDemo /> },
   { id: 'garden-small', title: 'Plants at 64, 32 and 20 px', render: (params) => <SmallSizes params={params} /> },
   { id: 'garden-glass', title: 'The water glass: Cutting and Rooting, close up, beside the empty pot', render: (params) => <GlassDemo params={params} /> },
   { id: 'garden-blooms', title: 'Blooms: 0, 2, 4 and 6 showing', render: (params) => <BloomsDemo params={params} /> },

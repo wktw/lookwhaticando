@@ -8,6 +8,7 @@ import { CollectibleArt } from '@/art/CollectibleArt';
 import { artBounds } from '@/art/plants/svgBounds.testutil';
 import { mutedInk, muteTree } from '@/art/muted';
 import { SHADE_WHITE_DAY } from '@/art/shade';
+import { CardPlant, CARD_RESIDENT_MAX_PX, cardFrame, iconFrame } from '@/art/plants';
 
 function html(node: JSX.Element, read?: (host: HTMLElement) => void): string {
   const host = document.createElement('div');
@@ -88,5 +89,28 @@ describe('muting a light source', () => {
   it('keeps a glowing item’s halo as it is (a hook-using light is never expanded)', () => {
     const out = html(<CollectibleArt id="decor-jam-jar" size={48} muted light={NIGHT_LIGHT} />);
     expect(out).toContain('radialGradient');
+  });
+});
+
+describe('CardPlant', () => {
+  it('peeks the resident from the rim at no more than 20 px, and prints the icon on a stake', () => {
+    html(<CardPlant species="pilea" stage={5} pot="cream" residentPetId="pet-cow-holstein" icon="water" tone="sky" size={80} light={{ from: 'left', night: false }} />, (host) => {
+      const pet = host.querySelector<SVGSVGElement>('svg.pet-art')!;
+      expect(Number.parseFloat(pet.getAttribute('width')!)).toBeLessThanOrEqual(CARD_RESIDENT_MAX_PX);
+      // The plant's back layer, the stake, the resident, then the leaves that spill over the rim in front of it.
+      const kids = [...host.querySelector('[data-card-plant]')!.children];
+      expect(kids[0]!.classList.contains('plant-art')).toBe(true);
+      expect(kids.at(-1)!.classList.contains('plant-art')).toBe(true);
+      expect(kids.indexOf(pet)).toBe(kids.length - 2);
+      expect(host.querySelector('[data-part="stake"]')).not.toBeNull();
+    });
+  });
+
+  it('stands a cutting beside its empty pot, framed to hold both', () => {
+    html(<CardPlant species="pothos" stage={0} pot="blush" icon="yoga" light={{ from: 'left', night: false }} />, (host) => {
+      expect(host.querySelector('[data-empty-pot="blush"]')).not.toBeNull();
+    });
+    const [, , glassOnly] = iconFrame('pothos', 0).split(' ').map(Number);
+    expect(cardFrame('pothos', 0, 'blush', 1)[2]).toBeGreaterThan(glassOnly!);
   });
 });

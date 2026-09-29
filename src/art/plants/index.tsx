@@ -6,11 +6,12 @@ import type { PlantSpeciesId, PotId } from '@/catalog/types';
 import { PLANT_SPECIES } from './species';
 import { POTS } from './pots';
 
-export { PlantArt, PotArt, PLANT_STAGE_NAMES, MAX_BLOOMS, bloomCount, type PlantArtProps, type PotArtProps, type PlantFit, type PlantLayer } from './PlantArt';
+export { PlantArt, PotArt, PLANT_STAGE_NAMES, MAX_BLOOMS, bloomCount, iconFrameWithPot, type PlantArtProps, type PotArtProps, type PlantFit, type PlantLayer } from './PlantArt';
 export { PETAL_INKS, PASTEL_HEX, lookInk, type PlantLookArt } from './looks';
 export { FLOURISHES, MAX_FLOURISHES, type Flourish } from './flourishes';
 export { iconFrame, ICON_FRAMES, SCENE_FRAME } from './iconFrames';
 export { PlantTag, type PlantTagProps } from './PlantTag';
+export { CardPlant, CARD_RESIDENT_MAX_PX, cardFrame, type CardPlantProps } from './CardPlant';
 export { POT_GEOMETRY, tagAnchor, type PotGeometry } from './geometry';
 
 /** Registries used by the coverage test. */
