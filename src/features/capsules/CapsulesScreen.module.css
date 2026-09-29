@@ -1,0 +1,430 @@
+.screen {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: calc(var(--safe-top) + 16px) 0 calc(var(--s-10) + var(--safe-bottom));
+}
+
+/* ---------- header + wallet ---------- */
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 0 var(--gutter);
+}
+
+.header h1 {
+  font-size: var(--fs-title);
+}
+
+.wallet {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.chip {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 6px 13px 6px 8px;
+  border-radius: var(--r-pill);
+  background: var(--card);
+  box-shadow: var(--shadow-sm);
+}
+
+.chipValue {
+  display: inline-block;
+  font-size: 1.0625rem;
+  font-weight: 600;
+  animation: bump 420ms var(--ease-pop);
+}
+
+.chipOf {
+  margin-left: 1px;
+  color: var(--ink-2);
+  font-size: var(--fs-micro);
+}
+
+@keyframes bump {
+  40% {
+    transform: translateY(-3px) scale(1.12);
+  }
+}
+
+/* Small phones: the four chips tighten up to stay on one line. */
+@media (max-width: 359px) {
+  .wallet {
+    gap: 6px;
+  }
+
+  .chip {
+    gap: 4px;
+    min-height: 36px;
+    padding: 5px 10px 5px 6px;
+  }
+
+  .chip > svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  .chipValue {
+    font-size: 1rem;
+  }
+}
+
+/* ---------- carousel ---------- */
+.carousel {
+  position: relative;
+  margin-top: 6px;
+}
+
+.track {
+  display: flex;
+  /* A horizontal scroller clips vertically too: pages carry padding for their shadows and
+     spotlight, and these margins give that room back to the layout. */
+  margin: -28px 0 -24px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.track::-webkit-scrollbar {
+  display: none;
+}
+
+.locked {
+  overflow-x: hidden;
+}
+
+.page {
+  display: flex;
+  flex: 0 0 100%;
+  justify-content: center;
+  padding: 36px 0 24px;
+  scroll-snap-align: center;
+  scroll-snap-stop: always;
+}
+
+.pagePlaceholder {
+  height: clamp(280px, 44dvh, 360px);
+}
+
+@media (min-width: 900px) {
+  .pagePlaceholder {
+    height: clamp(340px, 60dvh, 470px);
+  }
+
+  .arrow {
+    top: calc(8px + clamp(340px, 60dvh, 470px) * 0.38);
+  }
+
+  .arrowPrev {
+    left: max(6px, calc(50% - 240px));
+  }
+
+  .arrowNext {
+    right: max(6px, calc(50% - 240px));
+  }
+}
+
+.arrow {
+  position: absolute;
+  top: calc(8px + clamp(280px, 44dvh, 360px) * 0.38);
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--card);
+  color: var(--ink-2);
+  box-shadow: var(--shadow-sm);
+  transform: translateY(-50%);
+  transition:
+    opacity var(--t-std) ease,
+    transform var(--t-micro) var(--ease-out);
+}
+
+.arrow:active:not(:disabled) {
+  transform: translateY(-50%) scale(0.9);
+}
+
+.arrow:disabled {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.arrowPrev {
+  left: max(6px, calc(50% - 178px));
+}
+
+.arrowNext {
+  right: max(6px, calc(50% - 178px));
+}
+
+.dots {
+  display: flex;
+  justify-content: center;
+  margin-top: 2px;
+  padding: 0 var(--gutter);
+}
+
+/* 44px targets; they only narrow if there are ever more machines than fit in one row. */
+.dot {
+  display: grid;
+  place-items: center;
+  width: min(44px, calc((100% - 1px) / var(--n, 7)));
+  height: 44px;
+}
+
+.dot span {
+  width: 9px;
+  height: 9px;
+  border-radius: var(--r-pill);
+  background: var(--ink-3);
+  opacity: 0.45;
+  transition:
+    width var(--t-std) var(--ease-out),
+    opacity var(--t-std) ease;
+}
+
+.dot[aria-current] span {
+  width: 24px;
+  opacity: 1;
+  background: var(--dot);
+  box-shadow: 0 0 0 1.5px var(--cocoa);
+}
+
+.dot:disabled {
+  cursor: default;
+}
+
+/* ---------- machine info ---------- */
+.info {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 6px var(--gutter) 0;
+  padding: 20px;
+  border-radius: var(--r-lg);
+  background: var(--card);
+  box-shadow: var(--shadow-md);
+  animation: info-in var(--t-std) var(--ease-out);
+}
+
+@keyframes info-in {
+  from {
+    opacity: 0.4;
+    transform: translateY(4px);
+  }
+}
+
+.season {
+  align-self: flex-start;
+}
+
+.infoHead {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+/* Doubled class: outranks host-page heading styles (e.g. the dev gallery's). */
+.info .infoTitle {
+  flex: 1;
+  color: var(--ink);
+  font-size: clamp(1.5rem, 6.2vw, var(--fs-title));
+}
+
+.tagline {
+  margin-top: -4px;
+  color: var(--ink-2);
+}
+
+.facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.series {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.seriesHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: var(--fs-body);
+}
+
+.seriesHead b {
+  font-weight: 600;
+  font-size: 1.25rem;
+}
+
+.muted {
+  color: var(--ink-2);
+}
+
+.complete {
+  padding: 2px 10px;
+  border-radius: var(--r-pill);
+  background: var(--sage-100);
+  color: color-mix(in srgb, var(--sage-700) 75%, var(--ink));
+  font-size: var(--fs-caption);
+}
+
+.bar {
+  height: 10px;
+  border-radius: var(--r-pill);
+  background: var(--bg-2);
+  overflow: hidden;
+}
+
+.bar span {
+  display: block;
+  height: 100%;
+  min-width: 10px;
+  border-radius: inherit;
+  background: var(--accent-theme, var(--blush-500));
+  transition: width var(--t-slow) var(--ease-out);
+}
+
+.lineupButton {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 64px;
+  margin-top: 4px;
+  padding: 10px 12px 10px 18px;
+  border-radius: var(--r-md);
+  background: var(--bg-2);
+  color: var(--ink-2);
+  text-align: left;
+  transition: transform var(--t-micro) var(--ease-out);
+}
+
+.lineupButton:active,
+.oddsButton:active {
+  transform: scale(0.96);
+}
+
+.teasers {
+  display: flex;
+  flex: none;
+}
+
+.teaser {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  margin-left: -9px;
+  padding: 3px;
+  border-radius: 50%;
+  background: var(--card);
+  box-shadow: 0 0 0 2px var(--bg-2);
+  overflow: hidden;
+}
+
+.teaserSecret {
+  background: var(--holo);
+  color: #4a3540;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.05rem;
+}
+
+.lineupText {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.lineupText b {
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: var(--fs-body-lg);
+}
+
+.lineupText small {
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.oddsButton {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 5px;
+  min-height: 44px;
+  margin: -6px -8px 0 0;
+  padding: 0 14px 0 10px;
+  border-radius: var(--r-pill);
+  background: var(--bg-2);
+  color: var(--ink-2);
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: var(--fs-caption);
+  transition: transform var(--t-micro) var(--ease-out);
+}
+
+.pastSeasons {
+  margin: 14px var(--gutter) 0;
+  color: var(--ink-2);
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  text-align: center;
+}
+
+/* ---------- wide: machine and info side by side ---------- */
+@media (min-width: 900px) {
+  .header {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(320px, 400px);
+    gap: 28px;
+    align-items: start;
+    padding: 0 var(--gutter);
+  }
+
+  .machineCol {
+    position: sticky;
+    top: 12px;
+  }
+
+  .info,
+  .pastSeasons {
+    margin-left: 0;
+    margin-right: 0;
+  }
+
+  .info {
+    margin-top: 14px;
+  }
+
+  .pastSeasons {
+    text-align: left;
+  }
+}
