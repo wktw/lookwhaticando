@@ -111,7 +111,7 @@ function SnapshotsSheet({ open, onClose }: { open: boolean; onClose: () => void 
   };
   return (
     <>
-      <Sheet open={open} onClose={onClose} title={DATA_COPY.snapshotsRow} description={DATA.snapshots} size="md">
+      <Sheet open={open} onClose={onClose} title={DATA_COPY.snapshotsRow} description={DATA_COPY.snapshotsKept} size="md">
         {list === null ? null : list.length === 0 ? (
           <p class={s.helper}>{EMPTY.snapshots}</p>
         ) : (

@@ -21,6 +21,11 @@ export const DAY_START_OPTIONS = Array.from({ length: (DAY_STARTS_AT_MAX - DAY_S
   return { value: m, label: minutesLabel(m) };
 });
 
+/** Keyboard shortcuts only where a keyboard is likely: a fine pointer (a Mac, an iPad with a trackpad). */
+export function keyboardLikely(): boolean {
+  return typeof matchMedia !== 'function' || matchMedia('(any-pointer: fine)').matches || !matchMedia('(pointer: coarse)').matches;
+}
+
 /** Haptics only where the device can play them: a phone's vibration, or an iPhone's switch tick. */
 export function hapticsSupported(): boolean {
   if (typeof navigator === 'undefined') return false;
@@ -113,7 +118,7 @@ export function AccessSection() {
   return (
     <Group id="access" title={YOU.sections.access}>
       <SegmentRow label={SETTINGS.reduceMotion.label} value={g.reduceMotion} options={motion} onChange={(v) => set({ reduceMotion: v })} />
-      <ToggleRow label={PREFS_COPY.shortcuts.label} helper={PREFS_COPY.shortcuts.helper} checked={shortcutsEnabled(g)} onChange={(v) => set({ keyboardShortcuts: v })} />
+      {keyboardLikely() && <ToggleRow label={PREFS_COPY.shortcuts.label} helper={PREFS_COPY.shortcuts.helper} checked={shortcutsEnabled(g)} onChange={(v) => set({ keyboardShortcuts: v })} />}
     </Group>
   );
 }

@@ -141,7 +141,7 @@ export function Diagnostics() {
         </Button>
       </div>
       <div class={s.group}>
-        <SectionHeader title={DIAG_COPY.title} as="h2" />
+        <SectionHeader title={DIAG_COPY.device} as="h2" />
         <div class={s.card}>
           <dl class={s.diag}>
             {rows.map(([k, v]) => (

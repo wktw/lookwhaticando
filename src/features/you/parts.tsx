@@ -1,6 +1,6 @@
 /** The You screen's building blocks: a titled group of rows, and the rows it holds. */
 import type { ComponentChildren } from 'preact';
-import { useId } from 'preact/hooks';
+import { useId, useLayoutEffect, useRef } from 'preact/hooks';
 import { SectionHeader } from '@/ui/SectionHeader';
 import { Toggle } from '@/ui/Toggle';
 import { Segmented } from '@/ui/Segmented';
@@ -70,7 +70,7 @@ export function SelectRow<T extends string | number>({
 }) {
   const id = useId();
   return (
-    <Row label={label} helper={helper} helperId={`${id}-help`} labelFor={id}>
+    <Row label={label} helper={helper} helperId={`${id}-help`} labelFor={id} class={s.selectRow}>
       <select
         id={id}
         class={s.select}
@@ -94,9 +94,20 @@ export function SelectRow<T extends string | number>({
 
 /** A segmented choice under its label (a radiogroup). */
 export function SegmentRow<T extends string>({ label, helper, value, options, onChange }: { label: string; helper?: string; value: T; options: readonly { value: T; label: string }[]; onChange: (v: T) => void }) {
+  const id = useId();
+  const wrap = useRef<HTMLDivElement>(null);
+  // The kit's Segmented takes no aria-describedby: the helper is tied to its radiogroup here.
+  useLayoutEffect(() => {
+    const group = wrap.current?.querySelector('[role="radiogroup"]');
+    if (!group) return;
+    if (helper) group.setAttribute('aria-describedby', `${id}-help`);
+    else group.removeAttribute('aria-describedby');
+  }, [helper]);
   return (
-    <Row label={label} helper={helper} stack>
-      <Segmented options={options} value={value} onChange={onChange} label={label} block />
+    <Row label={label} helper={helper} helperId={`${id}-help`} stack>
+      <div ref={wrap} class={s.segWrap}>
+        <Segmented options={options} value={value} onChange={onChange} label={label} block />
+      </div>
     </Row>
   );
 }

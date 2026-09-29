@@ -215,10 +215,15 @@ function HabitList({ habits }: { habits: Habit[] }) {
     <ul class={s.habits}>
       {habits.map((h) => (
         <li key={h.id} class={s.habit}>
-          <button type="button" class={s.habitMain} aria-label={fillLine(HABITS_COPY.edit, { habit: h.name })} onClick={() => openHabitEditor({ id: h.id })}>
+          <button type="button" class={s.habitMain} onClick={() => openHabitEditor({ id: h.id })}>
             <Tile habit={h} />
             <span class={s.habitText}>
-              <span class={s.habitName}>{h.name}</span>
+              {/* Named by what it shows: "Edit Walk, Every day · Anytime". */}
+              <span class={s.habitName}>
+                <span class="sr-only">{HABITS_COPY.editWord} </span>
+                {h.name}
+                <span class="sr-only">, </span>
+              </span>
               <span class={s.habitMeta}>{habitMeta(h, weekStart, day)}</span>
             </span>
             <span class={s.chev} aria-hidden="true">
@@ -256,7 +261,7 @@ export function HabitsSection() {
           </Button>
         )
       }
-      footer={on ? <span id="you-arrange-hint">{HABITS_COPY.moveHint}</span> : archived.length === 0 ? EMPTY.archived : undefined}
+      footer={on ? <span id="you-arrange-hint">{HABITS_COPY.moveHint}</span> : archived.length === 0 && live.length > 0 ? EMPTY.archived : undefined}
     >
       {live.length === 0 ? <p class={s.empty}>{EMPTY.today}</p> : on ? <ArrangeList habits={live} /> : <HabitList habits={live} />}
       {!on && !locked && (

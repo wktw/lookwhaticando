@@ -63,10 +63,6 @@
   overflow-wrap: break-word;
   hyphens: auto;
 }
-.nameEmpty {
-  color: var(--ink-2);
-  font-style: italic;
-}
 
 .since {
   margin: 2px 0 0;
@@ -264,6 +260,8 @@
 
 .subhead {
   margin: 0;
+  font-family: var(--font-body);
+  line-height: 1.2;
   padding: 14px var(--s-4) 4px;
   border-top: 1px solid var(--line);
   font-size: var(--fs-micro);
@@ -707,4 +705,35 @@
   place-items: center;
   width: 30px;
   height: 30px;
+}
+
+.segWrap {
+  display: contents;
+}
+
+/* Phone width: a select row stacks (label and helper, then the select), so neither squeezes. */
+@media (max-width: 420px) {
+  .selectRow {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--s-2);
+  }
+  .selectRow > select {
+    width: 100%;
+  }
+}
+
+/* The install card on a phone: the text gets the row, the button goes under it. */
+@media (max-width: 460px) {
+  .installCard {
+    flex-wrap: wrap;
+    row-gap: 10px;
+  }
+  .installCard > div {
+    flex: 1 1 calc(100% - 70px);
+  }
+  .installCard > button,
+  .installCard > span {
+    margin-left: 70px;
+  }
 }

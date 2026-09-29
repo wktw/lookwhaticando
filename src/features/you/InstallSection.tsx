@@ -37,7 +37,7 @@ export function InstallSection() {
   return (
     <section class={s.group} aria-labelledby="you-install">
       <SectionHeader title={YOU.sections.install} id="you-install" />
-      {!single && <InstallGuide />}
+      {!single && <InstallGuide class={s.installCard} />}
       {(installed || (hasPlants && !single)) && (
         <div class={s.card} style={{ marginTop: 'var(--s-3)' }}>
           {installed ? (

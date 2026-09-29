@@ -141,7 +141,8 @@ export function ProfileSection() {
             <CatkinSprig size={44} light={light} />
           </span>
           <div class={s.who}>
-            <p class={`${s.name} ${app.profile.name ? '' : s.nameEmpty}`}>{app.profile.name || SETTINGS.name.label}</p>
+            {/* No name yet: the field below asks for one; the card doesn't say it twice. */}
+            {app.profile.name && <p class={s.name}>{app.profile.name}</p>}
             <p class={s.since}>{fillLine(YOU.sinceLine, { date: dayOf(app.profile.createdAt || Date.now()) })}</p>
             {facts && <p class={s.facts}>{facts}</p>}
           </div>

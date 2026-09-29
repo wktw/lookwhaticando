@@ -75,7 +75,7 @@ describe('You (DESIGN §9.5)', () => {
   it('brings an archived habit back to the sill, and says so', async () => {
     const read = state.value.habits.find((h) => h.name === 'Read')!;
     await act(() => archiveHabit(read.id));
-    await click(button('Bring Read back'), 'Bring Read back');
+    await click(button('Bring it back: Read'), 'Bring it back: Read');
     expect(state.value.habits.find((h) => h.id === read.id)!.archivedOn).toBeUndefined();
     expect(toasts.value.some((t) => String(t.message).startsWith('Read is back on the sill.'))).toBe(true);
     expect(view!.root.textContent).toContain('Nothing archived.');

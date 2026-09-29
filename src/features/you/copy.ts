@@ -28,8 +28,8 @@ export const HABITS_COPY = {
   done: 'Done',
   archived: 'Archived',
   bringBack: 'Bring it back',
-  bringBackLabel: 'Bring {habit} back',
-  edit: 'Edit {habit}',
+  bringBackLabel: 'Bring it back: {habit}',
+  editWord: 'Edit',
   move: 'Move {habit}',
   moveUp: 'Move {habit} up',
   moveDown: 'Move {habit} down',
@@ -49,6 +49,8 @@ export const PREFS_COPY = {
 
 export const DATA_COPY = {
   snapshotsRow: 'Daily copies',
+  /** DATA.snapshots without repeating the sheet's title. */
+  snapshotsKept: 'Kept on this device: 7 daily and 4 weekly.',
   snapshotKinds: { daily: 'Daily copy', weekly: 'Weekly copy', 'pre-import': 'Before an import' },
   snapshotLine: '{habits} habits · {waterings} waterings',
   restoredSnapshot: 'Back to the copy from {date}.',
@@ -102,6 +104,7 @@ export const DIAG_COPY = {
   title: 'Diagnostics',
   back: 'You',
   lead: 'What this device says about catkin. Copy the report to share it.',
+  device: 'This device',
   copied: 'Report copied.',
   measure: 'Measure frame timing',
   checkClock: 'Check the clock',
