@@ -487,3 +487,10 @@
     animation: none !important;
   }
 }
+
+/* Lamplight: a warm pool on the portrait, so a dark coat still reads (DESIGN §10.4). */
+:global(:root[data-theme='night']) .portrait {
+  background:
+    radial-gradient(circle at 72% 24%, color-mix(in srgb, var(--lamp) 26%, transparent), transparent 62%),
+    var(--card-2);
+}
