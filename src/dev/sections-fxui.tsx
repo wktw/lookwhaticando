@@ -62,7 +62,7 @@ import { CelebrationHost } from '@/fx/celebrations';
 import { CELEBRATION_ANCHOR, RewardInline } from '@/fx/CelebrationBanner';
 import { walletDelta } from '@/fx/celebrationPlan';
 import { celebrateCheckIn, showCheckInNote, showUncheckNote } from '@/fx/checkin';
-import { restLine } from '@/fx/copy';
+import { checkInLine, restLine, uncheckLine } from '@/fx/copy';
 import { InstallGate, InstallGuide, InstallSheet, type InstallGuideKey } from '@/app/InstallGuide';
 import { ScreenError, ScreenLoading } from '@/app/ScreenHost';
 import { ErrorFallback } from '@/app/ErrorBoundary';
@@ -920,7 +920,9 @@ function Notes({ params }: { params: URLSearchParams }) {
             <ToastNote
               item={{ message: <>Walk, watered.{coin(5)}</>, note: 'Pudding opened one eye.', art: <WaterDrop size={22} light={lightFor(theme)} />, actions: [{ label: 'Undo', onAction: noop }, { label: 'Add a note', onAction: noop }], version: 0 }}
             />
-            <ToastNote item={{ message: <>Drink water, tiny version.{coin(3)}</>, art: <WaterDrop size={22} light={lightFor(theme)} />, action: { label: 'Undo', onAction: noop }, version: 0 }} />
+            <ToastNote item={{ message: <>{checkInLine('tiny', { habit: 'Drink water' })}{coin(3)}</>, art: <WaterDrop size={22} light={lightFor(theme)} />, action: { label: 'Undo', onAction: noop }, version: 0 }} />
+            <ToastNote item={{ message: checkInLine('history', { habit: 'Walk', date: 'Sat, Sep 20' }), art: <WaterDrop size={22} light={lightFor(theme)} />, version: 0 }} />
+            <ToastNote item={{ message: uncheckLine('Walk', { refunded: 5 }), art: <WaterDrop size={22} light={lightFor(theme)} />, version: 0 }} />
             <Sub>Small moments</Sub>
             <ToastNote item={{ message: <>Everything kept. There’s a ticket on the sill. <RewardInline rewards={{ coins: 20, stars: 0, tickets: 1, stardust: 0 }} /></>, art: <TicketIcon size={22} />, version: 0 }} />
             <ToastNote item={{ message: 'The Yoga plant is potted up.', art: <EmptyPot size={30} light={lightFor(theme)} />, version: 0 }} />

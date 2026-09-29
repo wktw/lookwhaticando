@@ -85,7 +85,9 @@ export function watchScene(root: HTMLElement, { sample = true }: { sample?: bool
   if (sample && !isLite() && !sampled) {
     sampled = true;
     void sampleFrames(SAMPLE_MS, abort.signal).then((times) => {
-      if (!abort.signal.aborted && shouldGoLite(times)) setLite(true);
+      // Left before the sample was whole: sample again next time the Shelf opens.
+      if (abort.signal.aborted) sampled = false;
+      else if (shouldGoLite(times)) setLite(true);
     });
   }
 

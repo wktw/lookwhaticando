@@ -1,5 +1,6 @@
-import { describe, expect, it } from 'vitest';
-import { LITE_MEDIAN_MS, MAX_FLICKING, median, nearestFlickers, shouldGoLite } from '@/fx/frameMonitor';
+// @vitest-environment jsdom
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { isLite, LITE_MEDIAN_MS, MAX_FLICKING, median, nearestFlickers, resetFrameMonitor, shouldGoLite, watchScene } from '@/fx/frameMonitor';
 
 describe('auto-lite (DESIGN §11.1)', () => {
   it('goes lite only when the median frame is over 25 ms, over a real sample', () => {
@@ -19,5 +20,59 @@ describe('auto-lite (DESIGN §11.1)', () => {
     expect(on.size).toBe(MAX_FLICKING);
     expect([...on]).toEqual(['a', 'b', 'c', 'd']);
     expect(on.has('far')).toBe(false);
+  });
+});
+
+describe('watchScene', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    resetFrameMonitor();
+  });
+
+  /** A hand-driven requestAnimationFrame: each step() runs the queued frame at t += dt. */
+  function fakeFrames() {
+    let queue: FrameRequestCallback[] = [];
+    let t = 0;
+    let requested = 0;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => (requested++, queue.push(cb), queue.length));
+    vi.stubGlobal('cancelAnimationFrame', () => (queue = []));
+    return {
+      get requested() {
+        return requested;
+      },
+      run(frames: number, dt: number) {
+        for (let i = 0; i < frames; i++) {
+          const q = queue;
+          queue = [];
+          t += dt;
+          q.forEach((cb) => cb(t));
+        }
+      },
+    };
+  }
+
+  it('goes lite after a slow 2 s sample, once a session', async () => {
+    const f = fakeFrames();
+    const root = document.createElement('div');
+    const stop = watchScene(root);
+    f.run(80, 40);
+    await Promise.resolve();
+    expect(isLite()).toBe(true);
+    stop();
+  });
+
+  it('leaving the Shelf mid-sample samples again next time', async () => {
+    const f = fakeFrames();
+    const root = document.createElement('div');
+    const first = watchScene(root);
+    f.run(10, 40);
+    first();
+    await Promise.resolve();
+    expect(isLite()).toBe(false);
+    const stop = watchScene(root);
+    f.run(80, 40);
+    await Promise.resolve();
+    expect(isLite()).toBe(true);
+    stop();
   });
 });

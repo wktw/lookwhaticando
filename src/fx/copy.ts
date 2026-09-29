@@ -242,8 +242,11 @@ export const KEEPSAKE_THINGS: Readonly<Record<KeepsakeKind, string>> = {
   'brass-seed': 'a brass seed',
 };
 
+/** The keepsake note (VOICE §13): "{name} left {thing} by the pot." */
+export const KEEPSAKE_LINE = '{name} left {thing} by the pot.';
+
 /** "Pudding left a pebble from the path by the pot." */
-export const keepsakeLine = (name: string, kind: KeepsakeKind) => `${name} left ${KEEPSAKE_THINGS[kind] ?? 'something small'} by the pot.`;
+export const keepsakeLine = (name: string, kind: KeepsakeKind) => fillLine(KEEPSAKE_LINE, { name, thing: KEEPSAKE_THINGS[kind] ?? 'something small' });
 
 /* ------------------------------------------------------------------ */
 /* Keeping Company, Blooms Like You, the seasons                       */

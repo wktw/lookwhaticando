@@ -1,8 +1,9 @@
 /**
  * The kit's own small drawings: ordinary things drawn simply and exactly (DESIGN §10.4), for
  * empty states, error screens and notes. The pot and the cutting are the sill's own PotArt and
- * PlantArt (src/art/plants). Flat matte fills, no outlines; each standing shape has a hard shade crescent in var(--shade) on the side away from the light and
- * a flat contact shadow in var(--contact). At night the lamp is the light: shades flip and the
+ * PlantArt (src/art/plants). Flat matte fills, no outlines; each standing shape has a hard shade
+ * crescent in var(--shade) on the side away from the light and a flat contact shadow in
+ * var(--contact). At night the lamp is the light: shades flip and the
  * lit side warms toward var(--lamp). Crescents are precomputed (./objectPaths).
  */
 import type { ComponentChildren } from 'preact';
@@ -42,7 +43,6 @@ function Frame({ size = 48, title, class: cls, box = 48, children }: ObjectArtPr
     </svg>
   );
 }
-
 
 /** The tin watering can: the Shelf's Tin Watering Can decor, drawn from the same shapes and palette. */
 const TIN = { body: '#BCC6CE', band: '#D3DADF', dark: '#8F9BA6', rose: '#A9B4BE' };
