@@ -1,5 +1,6 @@
 /**
- * Demo Shelf until the screen is wired to the store: a few habit plants, the household out, and two
+ * Demo Shelf until the screen is wired to the store: a few habit plants, a mixed household out (a
+ * cat, a cow, a bunny and a dog in the first 390 px of the sill; DESIGN §1 Many animals), and two
  * places opened. Everything is catalog ids, so it renders with whatever art the modules ship.
  */
 import type { PlaceId } from '@/catalog/types';
@@ -16,11 +17,12 @@ export const DEMO_POTS: SillPot[] = [
 export const DEMO_PETS: ShelfPet[] = [
   { petId: 'pet-cat-grey', name: 'Earl', personality: 'sleepy', home: 'walk' },
   { petId: 'pet-cow-highland', name: 'Tuppence', personality: 'gentle', home: 'water' },
-  { petId: 'pet-cat-calico', name: 'Juniper', personality: 'sunny' },
-  { petId: 'pet-cow-beltie', name: 'Humbug', personality: 'dreamy' },
+  { petId: 'pet-bunny-lop', name: 'Biscuit', personality: 'sunny' },
+  { petId: 'pet-dog-shiba', name: 'Kinako', personality: 'dreamy' },
   { petId: 'pet-frog-tree', name: 'Fern', personality: 'curious', place: 'pond' },
   { petId: 'pet-duck-yellow', name: 'Sunny', personality: 'playful', place: 'pond' },
   { petId: 'pet-cat-black', name: 'Olive', personality: 'shy', place: 'bookshelf' },
+  { petId: 'pet-hamster-syrian', name: 'Nugget', personality: 'curious', place: 'bookshelf' },
 ];
 
 export const DEMO_DECOR: ShelfDecor[] = [

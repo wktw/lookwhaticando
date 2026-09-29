@@ -1,6 +1,6 @@
 /**
  * Catalog type contracts. The catalog is static data describing every collectible,
- * machine, template and personality in Mochi Meadow. Art modules render by id;
+ * machine, template and personality in catkin. Art modules render by id;
  * domain modules reason by id. See docs/DESIGN.md §6–§8.
  */
 
@@ -18,7 +18,7 @@ export type Category = 'pet' | 'wearable' | 'treat' | 'decor' | 'plant' | 'pot';
 export type WearableSlot = 'head' | 'face' | 'neck' | 'body';
 export const WEARABLE_SLOTS: readonly WearableSlot[] = ['head', 'face', 'neck', 'body'] as const;
 
-/** Where decor sits in the Meadow scene. */
+/** Where decor sits on the Shelf (the Sill and the places). */
 export type DecorSlot = 'back-left' | 'back-right' | 'ground-left' | 'ground-center' | 'ground-right' | 'sky';
 export const DECOR_SLOTS: readonly DecorSlot[] = [
   'back-left',

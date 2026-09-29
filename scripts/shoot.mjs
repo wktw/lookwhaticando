@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 /**
  * Screenshot helper for visual review.
- *   node scripts/shoot.mjs <path> <out.png> [--w=390] [--h=844] [--full] [--dark] [--wait=600] [--scale=2]
+ *   node scripts/shoot.mjs <path> <out.png> [--w=390] [--h=844] [--full] [--dark] [--wait=600] [--scale=2] [--seed-file=save.json]
+ * --seed-file puts a save envelope (encodeEnvelope) under catkin:v1 before the page loads.
  * Examples:
  *   node scripts/shoot.mjs "/gallery.html?only=pets" .shots/pets.png --w=1200 --full
  *   node scripts/shoot.mjs "/#/today" .shots/today.png
@@ -9,14 +10,14 @@
  */
 import { createServer } from 'vite';
 import { chromium } from '@playwright/test';
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, readFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 
 const [, , path = '/', out = '.shots/shot.png', ...rest] = process.argv;
 const opt = Object.fromEntries(
   rest.map((a) => {
-    const [k, v] = a.replace(/^--/, '').split('=');
-    return [k, v ?? true];
+    const [k, ...v] = a.replace(/^--/, '').split('=');
+    return [k, v.length ? v.join('=') : true];
   }),
 );
 const w = Number(opt.w ?? 390);
@@ -40,6 +41,7 @@ try {
   const errors = [];
   page.on('pageerror', (e) => errors.push(String(e)));
   page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
+  if (opt['seed-file']) opt.seed = readFileSync(String(opt['seed-file']), 'utf8');
   if (opt.seed) {
     await page.addInitScript((seed) => localStorage.setItem('catkin:v1', seed), String(opt.seed));
   }

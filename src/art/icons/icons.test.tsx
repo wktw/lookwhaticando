@@ -4,7 +4,7 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { render } from 'preact';
 import type { VNode } from 'preact';
-import { Icon, ICON_ALIASES, ICON_NAMES, CoinIcon, StampIcon, SwapIcon, TicketIcon, StarIcon, StardustIcon, type IconName } from '@/art/icons';
+import { Icon, ICON_ALIASES, ICON_NAMES, CoinIcon, StampIcon, SwapIcon, TicketIcon, type IconName } from '@/art/icons';
 import { SOFT_OPACITY } from '@/art/icons/glyphs';
 import { circlePath, cogPath, crescentPath, flowerPath, heartPath, memo, ringSegmentPath, roundRectPath, scallopPath, sparklePath, starPath } from '@/art/icons/shapes';
 import tabsCss from '@/art/icons/tabs.module.css';
@@ -85,10 +85,9 @@ describe('UI glyphs', () => {
 });
 
 describe('tab icons', () => {
-  it('has all five tabs, with the old Meadow name kept as an alias of Shelf', () => {
+  it('has all five tabs, and no old Meadow name', () => {
     for (const t of TABS) expect(ICON_NAMES).toContain(t);
-    expect(mount(<Icon name="tab-meadow" />).innerHTML).toBe(mount(<Icon name="tab-shelf" />).innerHTML);
-    expect(mount(<Icon name="tab-meadow" filled />).innerHTML).toBe(mount(<Icon name="tab-shelf" filled />).innerHTML);
+    expect(ICON_NAMES).not.toContain('tab-meadow');
   });
 
   it('gives every tab a quiet inactive state and a filled active state', () => {
@@ -154,13 +153,12 @@ describe('tab icons', () => {
 });
 
 describe('currency tokens', () => {
-  it('renders all four tokens, and the old names still work', () => {
-    for (const C of [CoinIcon, StampIcon, SwapIcon, TicketIcon, StarIcon, StardustIcon]) {
+  it('renders all four tokens', () => {
+    for (const C of [CoinIcon, StampIcon, SwapIcon, TicketIcon]) {
       const svg = mount(<C size={16} />).querySelector('svg')!;
       expect(svg.getAttribute('viewBox')).toBe('0 0 32 32');
       expect(svg.getAttribute('aria-hidden')).toBe('true');
     }
-    expect(StarIcon).toBe(StampIcon);
   });
 
   it('sits inline in text by default', () => {
@@ -177,8 +175,6 @@ describe('currency tokens', () => {
     expect(filled(<SwapIcon count={4} />)).toBe(4);
     expect(filled(<SwapIcon count={14} />)).toBe(10);
     expect(filled(<SwapIcon count={-2} />)).toBe(0);
-    // The old stardust API: level is swaps / 10.
-    expect(filled(<StardustIcon level={0.3} />)).toBe(3);
   });
 
   it('draws the stamp as an ink impression: an open rim with a sprig, never a check', () => {
@@ -242,7 +238,7 @@ describe('path builders', () => {
 /** Every source file of this module's art, for the emoji and filter scans. */
 function sources(): string[] {
   const roots = ['src/art/icons', 'src/art/badges', 'src/art/habit-icons'];
-  const files = ['src/app/AppIconArt.tsx', 'src/app/SplashArt.tsx', 'src/app/SplashArt.module.css', 'src/app/installArt.tsx', 'src/app/installArt.module.css', 'src/app/GumballArt.tsx', 'src/dev/sections-icons.tsx'];
+  const files = ['src/app/AppIconArt.tsx', 'src/app/SplashArt.tsx', 'src/app/installArt.tsx', 'src/app/installArt.module.css', 'src/app/GumballArt.tsx', 'src/dev/sections-icons.tsx'];
   const walk = (dir: string): string[] =>
     readdirSync(dir).flatMap((f) => {
       const p = join(dir, f);

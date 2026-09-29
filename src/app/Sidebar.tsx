@@ -4,6 +4,7 @@ import { cx } from '@/ui/cx';
 import { navigate } from './router';
 import { formatHash, ROUTES, type TabId } from './routes';
 import { preloadScreen } from './screens';
+import { tabSpecies } from './shelfTab';
 import { WalletSummary } from './WalletSummary';
 import { SHELL_COPY } from './copy';
 import s from './Sidebar.module.css';
@@ -39,7 +40,7 @@ export function Sidebar({ tab }: { tab: TabId }) {
                   onPointerEnter={() => preloadScreen(r.id)}
                 >
                   <span class={s.icon}>
-                    <Icon name={r.icon} size={24} filled={active} />
+                    <Icon name={r.icon} size={24} filled={active} species={tabSpecies(r.id)} />
                   </span>
                   <span class={s.label}>{r.label}</span>
                   <kbd class={s.kbd} aria-hidden="true">

@@ -5,6 +5,7 @@ import { haptic } from '@/fx/haptics';
 import { navigate } from './router';
 import { formatHash, ROUTES, type TabId } from './routes';
 import { preloadScreen } from './screens';
+import { tabSpecies } from './shelfTab';
 import s from './TabBar.module.css';
 
 /**
@@ -36,7 +37,7 @@ export function TabBar({ tab }: { tab: TabId }) {
                 onPointerDown={() => preloadScreen(r.id)}
               >
                 <span class={s.icon}>
-                  <Icon name={r.icon} size={26} filled={active} />
+                  <Icon name={r.icon} size={26} filled={active} species={tabSpecies(r.id)} />
                 </span>
                 <span class={s.label}>{r.label}</span>
               </a>

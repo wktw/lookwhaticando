@@ -367,4 +367,20 @@ describe('the Shelf tab shows your closest pet (DESIGN §1 Many animals)', () =>
     const demoClosest = petsVM(demo).closest!;
     expect(demoClosest.id).toBe(Object.values(demo.pets).sort((a, b) => b.xp - a.xp || a.obtainedAt - b.obtainedAt)[0]!.id);
   });
+
+  it('the tab bar and the sidebar draw that species on the Shelf tab, and a sprig before the first pet', async () => {
+    const { closestPet } = await import('@/state/views/pets');
+    const { state } = await import('@/state/store');
+    const { shelfTabSpecies, tabSpecies } = await import('@/app/shelfTab');
+    const g = new Game();
+    const cow = 'pet-cow-jersey';
+    state.value = { ...g.state, pets: {} };
+    expect(shelfTabSpecies.value).toBeNull();
+    state.value = { ...g.state, pets: { [cow]: newPetState(cow, g.rng, g.now, g.today, true) } };
+    expect(shelfTabSpecies.value).toBe('cow');
+    expect(tabSpecies('shelf')).toBe('cow');
+    expect(tabSpecies('today')).toBeUndefined();
+    const { petsVM } = await import('@/state/views/pets');
+    expect(closestPet(demo)).toEqual(petsVM(demo).closest);
+  });
 });

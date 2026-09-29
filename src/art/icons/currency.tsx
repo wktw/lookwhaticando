@@ -22,11 +22,6 @@ export interface SwapIconProps extends CurrencyIconProps {
   count?: number;
 }
 
-export interface StardustIconProps extends CurrencyIconProps {
-  /** The old API: how full the ring is, 0..1 (swaps / 10). Rounds to whole segments. */
-  level?: number;
-}
-
 /** Tokens sit in running text by default ("+5 {coin}"); flex and grid parents blockify them anyway. */
 const INLINE: JSX.CSSProperties = { display: 'inline-block', verticalAlign: '-0.2em' };
 
@@ -168,11 +163,4 @@ export function TicketIcon(props: CurrencyIconProps) {
       </g>
     </CurrencySvg>
   );
-}
-
-/** Old names from the Mochi economy: stars became stamps, stardust became swaps. */
-export const StarIcon = StampIcon;
-
-export function StardustIcon({ level = 0.6, ...props }: StardustIconProps) {
-  return <SwapIcon count={level * 10} {...props} />;
 }

@@ -172,7 +172,5 @@ export const TAB_GLYPHS = {
   'tab-progress': progress,
   'tab-capsules': capsules,
   'tab-shelf': shelf,
-  /** The old name for the Shelf tab (the routes still use it). */
-  'tab-meadow': shelf,
   'tab-you': you,
 } satisfies Record<string, Glyph>;

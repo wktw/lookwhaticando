@@ -10,7 +10,7 @@ import { TAB_GLYPHS } from './tabs';
 import type { Species } from '@/catalog/types';
 
 export type IconName =
-  | 'tab-today' | 'tab-progress' | 'tab-capsules' | 'tab-shelf' | 'tab-meadow' | 'tab-you'
+  | 'tab-today' | 'tab-progress' | 'tab-capsules' | 'tab-shelf' | 'tab-you'
   | 'plus' | 'check' | 'close' | 'chevron-left' | 'chevron-right' | 'chevron-down' | 'chevron-up' | 'more'
   | 'edit' | 'pause' | 'play' | 'archive' | 'trash' | 'calendar' | 'bell' | 'share' | 'export' | 'import' | 'camera'
   | 'gear' | 'info' | 'sparkle' | 'heart' | 'streak' | 'moon' | 'sun' | 'undo' | 'note'
@@ -45,7 +45,6 @@ export const ICON_NAMES = Object.keys(GLYPHS) as IconName[];
 
 /** Names that only repeat another drawing (kept so older screens keep working). */
 export const ICON_ALIASES: Partial<Record<IconName, IconName>> = {
-  'tab-meadow': 'tab-shelf',
   magnifier: 'search',
   'field-guide': 'book',
   rest: 'moon',
@@ -75,7 +74,7 @@ export function Icon({ name, size = 24, title, class: cls, style, filled = false
   );
 }
 
-export { CoinIcon, StampIcon, SwapIcon, TicketIcon, StarIcon, StardustIcon, STAMP_INK } from './currency';
-export type { CurrencyIconProps, SwapIconProps, StardustIconProps } from './currency';
+export { CoinIcon, StampIcon, SwapIcon, TicketIcon, STAMP_INK } from './currency';
+export type { CurrencyIconProps, SwapIconProps } from './currency';
 export { CatkinSprig, Wordmark } from './brand';
 export type { CatkinSprigProps, WordmarkProps } from './brand';

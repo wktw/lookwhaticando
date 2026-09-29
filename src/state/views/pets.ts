@@ -100,9 +100,19 @@ export function petsVM(s: AppState): PetsVM {
   const pets = Object.values(s.pets)
     .map((p) => petSummary(s, p, featured))
     .sort((a, b) => Number(b.favorite) - Number(a.favorite) || a.obtainedAt - b.obtainedAt || (a.id < b.id ? -1 : 1));
-  const closestId = closestPetId(s);
-  const closest = closestId ? { id: closestId, species: pets.find((p) => p.id === closestId)?.species ?? null } : null;
-  return { pets, out: petsOutCount(s), capacity: petsOutCapacity(s), featured, closest };
+  return { pets, out: petsOutCount(s), capacity: petsOutCapacity(s), featured, closest: closestPet(s) };
+}
+
+/**
+ * Your closest pet (most friendship, then the oldest friend) and its species: the Shelf tab's
+ * silhouette (DESIGN §1 Many animals). Cheap on its own, so the app shell reads it without the
+ * whole pets view.
+ */
+export function closestPet(s: Pick<AppState, 'pets'>): PetsVM['closest'] {
+  const id = closestPetId(s);
+  if (!id) return null;
+  const def = getCollectible(id);
+  return { id, species: def?.category === 'pet' ? def.species : null };
 }
 
 /** The favourite-treat hint before it is found: by the treat's first tag, or the plant it is harvested from. */

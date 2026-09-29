@@ -1,7 +1,7 @@
 /**
  * The five destinations (DESIGN §4): Today · Progress · Capsules · Shelf · You. Screens are loaded
  * lazily (one chunk each). Hash routing: '#/today' (default). The older '#/meadow' still works
- * and lands on '#/shelf' (the Shelf screen module keeps its path, features/meadow/MeadowScreen).
+ * and lands on '#/shelf'.
  */
 import type { ComponentType } from 'preact';
 import type { IconName } from '@/art/icons';
@@ -22,8 +22,7 @@ export const ROUTES: readonly RouteDef[] = [
   { id: 'today', label: 'Today', icon: 'tab-today', wide: false, load: () => import('@/features/today/TodayScreen').then((m) => m.TodayScreen) },
   { id: 'progress', label: 'Progress', icon: 'tab-progress', wide: false, load: () => import('@/features/progress/ProgressScreen').then((m) => m.ProgressScreen) },
   { id: 'capsules', label: 'Capsules', icon: 'tab-capsules', wide: true, load: () => import('@/features/capsules/CapsulesScreen').then((m) => m.CapsulesScreen) },
-  // The Shelf screen module still lives at features/meadow (a move to features/shelf/ShelfScreen is requested in NOTES-m1-ui.md).
-  { id: 'shelf', label: 'Shelf', icon: 'tab-shelf', wide: true, load: () => import('@/features/meadow/MeadowScreen').then((m) => m.MeadowScreen) },
+  { id: 'shelf', label: 'Shelf', icon: 'tab-shelf', wide: true, load: () => import('@/features/shelf/ShelfScreen').then((m) => m.ShelfScreen) },
   { id: 'you', label: 'You', icon: 'tab-you', wide: false, load: () => import('@/features/you/YouScreen').then((m) => m.YouScreen) },
 ];
 

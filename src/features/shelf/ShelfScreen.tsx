@@ -5,9 +5,9 @@
 import { PLACES } from '@/catalog/places';
 import { PlaceArt, ShelfScene } from '@/art/scene';
 import { DEMO_COINS, DEMO_DECOR, DEMO_PETS, DEMO_PLACES, DEMO_POTS } from './demo';
-import s from './MeadowScreen.module.css';
+import s from './ShelfScreen.module.css';
 
-export function MeadowScreen() {
+export function ShelfScreen() {
   return (
     <section class={s.screen} aria-labelledby="shelf-title">
       <h1 id="shelf-title" class={s.title}>
@@ -41,4 +41,4 @@ export function MeadowScreen() {
   );
 }
 
-export default MeadowScreen;
+export default ShelfScreen;
