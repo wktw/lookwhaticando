@@ -1,0 +1,74 @@
+/* Sky layers shared by the Meadow and the Windowsill. Only transform/opacity animate. */
+
+.fill {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  pointer-events: none;
+}
+
+/* Stars: several layers twinkling out of phase (timing and height set inline). */
+.stars {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  max-width: none;
+  pointer-events: none;
+  animation: twinkle var(--dur, 4s) ease-in-out var(--delay, 0s) infinite alternate;
+}
+
+@keyframes twinkle {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0.3;
+  }
+}
+
+/* Sun / moon, positioned by its centre. */
+.orb {
+  position: absolute;
+  aspect-ratio: 1;
+  max-width: none;
+  pointer-events: none;
+  translate: -50% -50%;
+}
+
+.halo {
+  animation: halo 7s ease-in-out infinite alternate;
+}
+
+@keyframes halo {
+  from {
+    transform: scale(0.92);
+    opacity: 0.8;
+  }
+  to {
+    transform: scale(1.04);
+    opacity: 1;
+  }
+}
+
+/* Clouds drift across the whole container and wrap around. `--x` is the resting left (%). */
+.cloud {
+  position: absolute;
+  left: calc(var(--x) * 1%);
+  aspect-ratio: 2.2;
+  max-width: none;
+  pointer-events: none;
+  animation: drift var(--dur) linear var(--delay) infinite;
+  will-change: transform;
+}
+
+@keyframes drift {
+  from {
+    transform: translateX(calc(var(--x) * -1cqw - 100%));
+  }
+  to {
+    transform: translateX(calc((100 - var(--x)) * 1cqw));
+  }
+}
