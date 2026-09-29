@@ -580,7 +580,9 @@ celebration queue, physics) · `src/ui` (kit) · `src/features/*` (screens).
 * **Performance**: the cabinet's capsules may render on `<canvas>` from pre-rasterized sprites. Shelf pets are absolutely
   positioned elements moved with `translate3d`. Loops pause when hidden or off-tab. **Auto-lite** kicks in at median frame > 25 ms.
   Budget: p95 ≤ 16.7 ms.
-* **file:// build**: a "Test copy · saved only in this browser, for this file" ribbon. First boot offers *Import a backup*.
+* **file:// build**: one self-contained `catkin.html`: no service worker, no launch-screen links, the apple-touch-icon
+  inlined, and no `public/` folder copied. A "Test copy · saved only in this browser, for this file" ribbon (the shell pads
+  by `--safe-top`, which grows by the ribbon's 28 px). First boot offers *Import a backup*.
 * **Diagnostics** (`#/diagnostics`): display-mode, storage, envelope, SW, audio, share, haptics, viewport, frame timing,
   *Copy report*.
 

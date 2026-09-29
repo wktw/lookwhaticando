@@ -75,7 +75,7 @@ export interface PlantArtProps {
 export type PlantFit = 'scene' | 'icon';
 export type PlantLayer = 'all' | 'back' | 'front';
 
-export const PLANT_STAGE_NAMES = ['Cutting', 'Rooting', 'Potted', 'Leafy', 'Budding', 'Blooming', 'Flourishing', 'Evergreen'] as const;
+export { STAGE_NAMES as PLANT_STAGE_NAMES } from '@/catalog/lines';
 
 /** Blooms beyond this are not drawn. */
 export const MAX_BLOOMS = 6;

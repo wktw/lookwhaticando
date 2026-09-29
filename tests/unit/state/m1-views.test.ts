@@ -47,6 +47,7 @@ import { yearQuiltVM } from '@/state/views/calendar';
 import { bandPets, bandPots, monthJarStems, todayVM, type TodayVM } from '@/state/views/today';
 import type { ViewEnv } from '@/state/views/common';
 import { Game, UTC, at } from '../domain/game';
+import { lint } from '../voiceLint';
 
 vi.setConfig({ testTimeout: 60_000 });
 
@@ -56,7 +57,7 @@ const demo = buildDemo({ today: TODAY, now: NOW, local: UTC });
 const demoEnv: ViewEnv = { today: TODAY, now: NOW, local: UTC };
 
 /* ------------------------------------------------------------------ */
-/* The voice rules the lines must keep (VOICE.md §1–§3)                */
+/* The voice rules the lines must keep (VOICE.md §1–§3), on top of lint */
 /* ------------------------------------------------------------------ */
 
 const VOICE_RULES: readonly [string, RegExp][] = [
@@ -74,8 +75,9 @@ const VOICE_RULES: readonly [string, RegExp][] = [
   ['an emoji', /\p{Extended_Pictographic}/u],
 ];
 
+/** The shared voice lint (tests/unit/voiceLint.ts), plus the rules for formatter output above. */
 function voiceProblems(text: string): string[] {
-  return VOICE_RULES.filter(([, re]) => re.test(text)).map(([why]) => why);
+  return [...lint(text), ...VOICE_RULES.filter(([, re]) => re.test(text)).map(([why]) => why)];
 }
 
 function expectVoice(lines: Iterable<string | null>): number {
