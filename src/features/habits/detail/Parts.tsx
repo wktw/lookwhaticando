@@ -11,7 +11,7 @@ import { COMPANION, EMPTY, LOOKS, STORIES, fillLine } from '@/catalog/lines';
 import { consistencyText, num, runText } from '@/catalog/format';
 import { monthDayLabel } from '@/domain/dates';
 import type { HabitDetailVM } from '@/state/selectors';
-import { acceptGrowOffer, answerTimeNudge, answerWhy, readStory, setPlantLook, starNote, state, updateHabit } from '@/state/store';
+import { acceptGrowOffer, answerTimeNudge, declineOffer, answerWhy, readStory, setPlantLook, starNote, state, updateHabit } from '@/state/store';
 import { Button } from '@/ui/Button';
 import { TextField } from '@/ui/TextField';
 import { toast } from '@/ui/toast';
@@ -285,7 +285,7 @@ export function Offer({ vm }: { vm: HabitDetailVM }) {
           >
             {D.grow.yes}
           </Button>
-          <Button size="md" variant="quiet" onClick={() => setClosed('grow')}>
+          <Button size="md" variant="quiet" onClick={() => (declineOffer(vm.habit.id, 'grow'), setClosed('grow'))}>
             {D.grow.no}
           </Button>
         </div>
@@ -311,7 +311,7 @@ export function Offer({ vm }: { vm: HabitDetailVM }) {
         >
           {D.tinier.yes}
         </Button>
-        <Button size="md" variant="quiet" onClick={() => setClosed('tinier')}>
+        <Button size="md" variant="quiet" onClick={() => (declineOffer(vm.habit.id, 'tinier'), setClosed('tinier'))}>
           {D.tinier.no}
         </Button>
       </div>

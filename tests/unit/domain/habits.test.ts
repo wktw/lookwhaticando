@@ -210,6 +210,31 @@ describe('"Ready to grow?" (DESIGN §5.2)', () => {
   });
 });
 
+describe('"Keep it as it is" (NOTES-w2-progress 9)', () => {
+  it('closes that offer until the habit earns it afresh, 28 days on', () => {
+    const g = new Game({ start: '2026-03-01' });
+    const id = g.addHabit({ name: 'Read', target: 1 });
+    expect(g.run((tx) => habits.declineOffer(tx, id, 'grow'))).toBe(false); // nothing to decline yet
+    for (let d = '2026-03-01'; d <= '2026-03-30'; d = addDays(d, 1)) {
+      g.goTo(d);
+      g.checkIn(id);
+    }
+    const habit = () => g.state.habits[0]!;
+    expect(habits.currentOffer(g.state, habit(), g.state.clock.maxDateKey)).toBe('grow');
+    expect(g.run((tx) => habits.declineOffer(tx, id, 'tinier'))).toBe(false); // not the offer standing
+    expect(g.run((tx) => habits.declineOffer(tx, id, 'grow'))).toBe(true);
+    expect(habits.currentOffer(g.state, habit(), '2026-03-30')).toBeNull();
+    for (let d = '2026-03-31'; d <= '2026-04-26'; d = addDays(d, 1)) {
+      g.goTo(d);
+      g.checkIn(id);
+      expect(habits.currentOffer(g.state, habit(), d), d).toBeNull();
+    }
+    g.goTo('2026-04-27');
+    g.checkIn(id);
+    expect(habits.currentOffer(g.state, habit(), '2026-04-27')).toBe('grow');
+  });
+});
+
 describe('the editor’s field notes come from the copy deck (HABIT_ISSUES, VOICE.md §22)', () => {
   it('every issue says what to do in words from lines.ts, with its limit filled in', async () => {
     const { HABIT_ISSUES } = await import('@/catalog/lines');

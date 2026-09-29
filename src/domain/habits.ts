@@ -409,7 +409,11 @@ export function hasPendingRule(habit: Pick<Habit, 'rules'>, today: DateKey): boo
 
 /** The day "Ready to grow?" was last accepted for this habit within the cooldown, if any. */
 function recentGrowAccept(s: AppState, habitId: string, today: DateKey): DateKey | null {
-  const prefix = `grow|${habitId}|`;
+  return recentOnce(s, `grow|${habitId}|`, today);
+}
+
+/** The latest day recorded under `prefix` (`<prefix><day>` keys in ledger.once) within the cooldown, if any. */
+function recentOnce(s: AppState, prefix: string, today: DateKey): DateKey | null {
   const since = addDays(today, -(GROW_COOLDOWN_DAYS - 1));
   let last: DateKey | null = null;
   for (const k of Object.keys(s.ledger.once)) {
@@ -421,15 +425,28 @@ function recentGrowAccept(s: AppState, habitId: string, today: DateKey): DateKey
 }
 
 /**
- * The graduation offer to show today: none while an edit is already pending, and no "Ready to
- * grow?" for 28 days after one was accepted, even if the new rule was then withdrawn (v1 §13.2; one
- * star per real graduation).
+ * The graduation offer to show today: none while an edit is already pending, none for 28 days after
+ * she declined that offer, and no "Ready to grow?" for 28 days after one was accepted, even if the
+ * new rule was then withdrawn (v1 §13.2; one star per real graduation).
  */
 export function currentOffer(s: AppState, habit: Habit, today: DateKey): 'grow' | 'tinier' | null {
   if (hasPendingRule(habit, today)) return null;
   const t = trackingOf(s);
   const offer = graduationOffer(habit, logsFor(t, habit.id), evalContext(t, today));
+  if (offer && recentOnce(s, `decline-${offer}|${habit.id}|`, today) !== null) return null;
   return offer === 'grow' && recentGrowAccept(s, habit.id, today) !== null ? null : offer;
+}
+
+/**
+ * "Keep it as it is" on "A bigger pot?" or "Make it tinier?": that offer stays closed for its 28-day
+ * look-back, so it only comes back once the habit has earned it afresh (NOTES-w2-progress 9). The
+ * day is recorded as `decline-<kind>|<id>|<day>`. False when that offer isn't standing.
+ */
+export function declineOffer(tx: Tx, id: string, kind: 'grow' | 'tinier'): boolean {
+  const h = tx.s.habits.find((x) => x.id === id);
+  if (!h || currentOffer(tx.s, h, tx.env.today) !== kind) return false;
+  setOnce(tx, `decline-${kind}|${id}|${tx.env.today}`);
+  return true;
 }
 
 /**

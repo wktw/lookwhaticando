@@ -583,6 +583,10 @@ export function setStartedOn(id: string, date: DateKey): void {
 export function acceptGrowOffer(id: string, patch: Partial<HabitInput>): boolean {
   return actValue((tx) => habitsDomain.acceptGrowOffer(tx, id, patch), false);
 }
+/** "Keep it as it is": the offer stays closed until the habit earns it afresh (28 days). */
+export function declineOffer(id: string, kind: 'grow' | 'tinier'): boolean {
+  return actValue((tx) => habitsDomain.declineOffer(tx, id, kind), false);
+}
 
 /* ---------------- Logging ---------------- */
 const NO_CHECKIN: Omit<CheckInResult, 'events'> = { coins: 0, completed: false, partial: false, rewarded: false };

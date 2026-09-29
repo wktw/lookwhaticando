@@ -927,7 +927,9 @@ export function onceKeyExpired(s: AppState, key: string, value: number | true, t
       if (parts.length === 4) return (typeof value === 'number' ? value : dayNumber(parts[2]!)) < dayNumber(addDays(today, -(BACKFILL_DAYS + 7)));
       return parts[2]! < addDays(today, -LEDGER_DAYS);
     case 'grow':
-      // An accepted offer keeps the offer closed for GROW_COOLDOWN_DAYS.
+    case 'decline-grow':
+    case 'decline-tinier':
+      // An accepted or declined offer keeps the offer closed for GROW_COOLDOWN_DAYS.
       return parts[2]! < addDays(today, -(GROW_COOLDOWN_DAYS - 1));
     case 'home':
       return typeof value !== 'number' || todayN - value >= WELCOME_HOME.cooldownDays;
