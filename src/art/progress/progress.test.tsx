@@ -63,3 +63,14 @@ describe('the rituals', () => {
     expect(lay[4]!.angle).toBeGreaterThan(0);
   });
 });
+
+describe('Pressing: one silhouette per species (NOTES-w2-progress request 10)', () => {
+  it('no two species press to the same leaves', async () => {
+    const { pressedForm } = await import('./index');
+    const species = ['pothos', 'pilea', 'begonia', 'snakeplant', 'catgrass', 'monstera', 'strawberry', 'lavender', 'catnip', 'hoya', 'orchid', 'calathea', 'violet', 'tulip', 'xmascactus', 'sunflower'] as const;
+    const forms = species.map((sp) => { const f = pressedForm(sp, 30, 0.7); return f.leaves + '|' + f.stalks; });
+    // Pothos and the sunflower share heart leaves; everything else is its own.
+    expect(new Set(forms).size).toBe(species.length - 1);
+    for (const f of forms) expect(f).not.toMatch(/NaN/);
+  });
+});

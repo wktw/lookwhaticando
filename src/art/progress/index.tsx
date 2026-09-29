@@ -179,7 +179,223 @@ export interface PressingProps extends ArtBase {
   rests?: number;
 }
 
-/** One habit's pressing on a Herbarium page (60 × 100 canvas; `size` is its height in px). */
+/* ---- Pressed silhouettes, one per species (DESIGN §13: flattened silhouettes in the plant's colours) ---- */
+
+/** Each species' leaf green (its own `GREENS` light ink in src/art/plants/species). */
+export const PRESS_GREENS: Readonly<Record<PlantSpeciesId, string>> = {
+  pothos: '#AECB92',
+  pilea: '#A9CB8E',
+  begonia: '#93B282',
+  snakeplant: '#6E9A66',
+  catgrass: '#A8BF8D',
+  monstera: '#A7C78F',
+  strawberry: '#9DC486',
+  lavender: '#B2C4A6',
+  catnip: '#B4C3A2',
+  hoya: '#8FB386',
+  orchid: '#80A96F',
+  calathea: '#9FC088',
+  violet: '#7FA66F',
+  tulip: '#A3BE95',
+  xmascactus: '#86B479',
+  sunflower: '#8DB575',
+};
+
+/** A green once pressed: a little grey and papery (a quarter of the way to the page). */
+function pressedGreen(hex: string): string {
+  const paper = [0xf1, 0xea, 0xdc];
+  const n = parseInt(hex.slice(1), 16);
+  const rgb = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((v, i) => Math.round(v + (paper[i]! - v) * 0.25));
+  return `#${rgb.map((v) => v.toString(16).padStart(2, '0')).join('').toUpperCase()}`;
+}
+
+type LeafShape = 'lens' | 'heart' | 'round' | 'strap' | 'wing';
+
+/** A leaf from its base (x, y), `len` long and `w` wide each side, turned `deg` clockwise from straight up. */
+function leafAt(x: number, y: number, len: number, w: number, deg: number, shape: LeafShape = 'lens'): string {
+  const t = (deg * Math.PI) / 180;
+  const cos = Math.cos(t);
+  const sin = Math.sin(t);
+  const P = (px: number, py: number) => `${f(x + px * cos - py * sin)} ${f(y + px * sin + py * cos)}`;
+  const L = -len;
+  switch (shape) {
+    case 'heart':
+      return `M${P(0, L * 0.1)}C${P(w * 0.7, len * 0.08)} ${P(w * 1.35, L * 0.3)} ${P(0, L)}C${P(-w * 1.35, L * 0.3)} ${P(-w * 0.7, len * 0.08)} ${P(0, L * 0.1)}Z`;
+    case 'round':
+      return `M${P(0, 0)}C${P(w * 1.3, L * 0.02)} ${P(w * 1.3, L * 0.98)} ${P(0, L)}C${P(-w * 1.3, L * 0.98)} ${P(-w * 1.3, L * 0.02)} ${P(0, 0)}Z`;
+    case 'strap':
+      return `M${P(0, 0)}C${P(w * 1.05, L * 0.08)} ${P(w * 0.8, L * 0.85)} ${P(0, L)}C${P(-w * 0.8, L * 0.85)} ${P(-w * 1.05, L * 0.08)} ${P(0, 0)}Z`;
+    case 'wing':
+      return `M${P(0, 0)}C${P(w * 1.7, L * 0.15)} ${P(w * 1.3, L * 0.8)} ${P(w * 0.35, L)}C${P(-w * 0.2, L * 0.72)} ${P(-w * 0.8, L * 0.22)} ${P(0, 0)}Z`;
+    default:
+      return `M${P(0, 0)}C${P(w * 1.1, L * 0.25)} ${P(w * 0.9, L * 0.75)} ${P(0, L)}C${P(-w * 0.9, L * 0.75)} ${P(-w * 1.1, L * 0.25)} ${P(0, 0)}Z`;
+  }
+}
+
+interface PressedForm {
+  /** The leaves (evenodd: a monstera's slits are holes in its leaf). */
+  leaves: string;
+  /** Thin stalks drawn as lines (petioles, blades' midribs). */
+  stalks: string;
+  /** The central stem from the foot to (30, top), when the plant has one. */
+  stem: boolean;
+  /** Where the flower sits (flowering species). */
+  bloom: [number, number];
+}
+
+/** The species' pressed silhouette for a pressing whose stem reaches `top` (s: 0..1, how full). */
+export function pressedForm(species: PlantSpeciesId, top: number, s: number): PressedForm {
+  const base = 88;
+  const span = base - top;
+  const along = (i: number, n: number) => base - (span * (i + 0.8)) / (n + 0.6);
+  const out: PressedForm = { leaves: '', stalks: '', stem: true, bloom: [30, top] };
+  switch (species) {
+    case 'pothos':
+    case 'sunflower': {
+      // Heart leaves turning left and right up a trailing stem.
+      const n = 2 + Math.round(s * 3);
+      for (let i = 0; i < n; i++) out.leaves += leafAt(30, along(i, n), 8 + s * 5, 4.4 + s * 2, i % 2 ? 58 : -58, 'heart');
+      break;
+    }
+    case 'hoya': {
+      // Thick oval leaves in pairs.
+      const n = 1 + Math.round(s * 3);
+      for (let i = 0; i < n; i++) {
+        const y = along(i, n);
+        out.leaves += leafAt(30, y, 7 + s * 4, 3.4 + s, -62, 'round') + leafAt(30, y - 2, 7 + s * 4, 3.4 + s, 62, 'round');
+      }
+      break;
+    }
+    case 'pilea': {
+      // Round coins on long thin petioles, fanned from the top of the stem.
+      const n = 3 + Math.round(s * 3);
+      for (let i = 0; i < n; i++) {
+        const a = ((-75 + (150 * i) / (n - 1)) * Math.PI) / 180;
+        const r = 3.2 + s * 2.2;
+        const reach = 9 + s * 4 + (i % 2) * 2;
+        const y0 = top + 10 + (i % 2) * 4;
+        const cx = 30 + Math.sin(a) * reach;
+        const cy = y0 - Math.cos(a) * reach;
+        out.stalks += `M30 ${f(y0)}L${f(cx)} ${f(cy)}`;
+        out.leaves += ell(cx + Math.sin(a) * r * 0.8, cy - Math.cos(a) * r * 0.8, r);
+      }
+      break;
+    }
+    case 'begonia': {
+      // Lopsided angel wings, alternating.
+      const n = 2 + Math.round(s * 2);
+      for (let i = 0; i < n; i++) {
+        const side = i % 2 ? 1 : -1;
+        out.leaves += side > 0 ? leafAt(30, along(i, n), 10 + s * 5, 3.6 + s * 1.4, 52, 'wing') : leafAt(30, along(i, n), 10 + s * 5, -(3.6 + s * 1.4), -52, 'wing');
+      }
+      break;
+    }
+    case 'snakeplant': {
+      // Upright blades from the foot, no stem.
+      out.stem = false;
+      [1, 0.82, 0.66].forEach((k, i) => (out.leaves += leafAt(30 + (i - 1) * 3.5, 92, span * k + 4, 3.4 + s * 1.4, [-4, 9, -16][i]!, 'strap')));
+      out.bloom = [30, top - 2];
+      break;
+    }
+    case 'catgrass': {
+      // A tuft of thin blades.
+      out.stem = false;
+      for (let i = 0; i < 5; i++) out.leaves += leafAt(30 + (i - 2) * 1.6, 92, (span + 4) * [0.8, 0.95, 1, 0.9, 0.75][i]!, 1.3, (i - 2) * 9, 'strap');
+      break;
+    }
+    case 'monstera': {
+      // One big leaf on its stalk, its holes (fenestrations) punched through: evenodd leaves the page showing.
+      const len = 22 + s * 12;
+      const w = 11 + s * 5;
+      const y = top + len * 0.85;
+      let d = leafAt(30, y, len, w, 0, 'heart');
+      for (let i = 0; i < 3; i++) {
+        const yy = y - len * (0.28 + i * 0.2);
+        const dx = w * (0.52 - i * 0.08);
+        const r = 1.1 + s * 0.5;
+        d += ell(30 + dx, yy, r * 1.5, r) + ell(30 - dx, yy, r * 1.5, r);
+      }
+      out.leaves = d;
+      break;
+    }
+    case 'strawberry': {
+      // Three toothed leaflets on the stem, the flower above them.
+      const y = top + 12;
+      for (const deg of [-48, 0, 48]) out.leaves += leafAt(30, y, 8 + s * 4, 3.8 + s * 1.2, deg, 'round');
+      break;
+    }
+    case 'lavender': {
+      // Narrow grey leaves in pairs up the stem, the spike above.
+      const n = 3 + Math.round(s * 3);
+      for (let i = 0; i < n; i++) {
+        const y = along(i, n + 1);
+        out.leaves += leafAt(30, y, 7 + s * 2, 1.1, -34, 'strap') + leafAt(30, y - 1.5, 7 + s * 2, 1.1, 34, 'strap');
+      }
+      break;
+    }
+    case 'orchid':
+    case 'tulip': {
+      // Broad straps from the foot; the flower on its own stem.
+      const n = species === 'orchid' ? 3 : 2;
+      for (let i = 0; i < n; i++) out.leaves += leafAt(30, 91, 18 + s * 9 - i * 2, 4.2 + s * 1.2, [-38, 32, -8][i]!, 'strap');
+      break;
+    }
+    case 'calathea': {
+      // Long oval leaves on petioles from the foot, a darker feather down each (drawn as its midrib).
+      out.stem = false;
+      const leaves: [number, number, number][] = [
+        [22, top + 18, -18],
+        [37, top + 10, 14],
+        [29, top + 4, -2],
+      ];
+      leaves.slice(0, 2 + Math.round(s)).forEach(([x, y, deg]) => {
+        out.stalks += `M30 92L${f(x)} ${f(y)}`;
+        out.leaves += leafAt(x, y, 14 + s * 7, 5 + s * 2, deg, 'lens');
+      });
+      break;
+    }
+    case 'violet': {
+      // A rosette of round leaves at the foot; the flowers on a short stem.
+      for (const deg of [-72, -32, 32, 72]) {
+        const t = (deg * Math.PI) / 180;
+        const x = 30 + Math.sin(t) * 6;
+        const y = 90 - Math.cos(t) * 6;
+        out.stalks += `M30 91L${f(x)} ${f(y)}`;
+        out.leaves += leafAt(x, y, 8 + s * 3, 3.8 + s, deg, 'round');
+      }
+      break;
+    }
+    case 'xmascactus': {
+      // A chain of flat segments, each from the tip of the last; the flower at the end.
+      out.stem = false;
+      const n = 3 + Math.round(s * 3);
+      const seg = span / n + 2;
+      let x = 30;
+      let y = 92;
+      for (let i = 0; i < n; i++) {
+        const deg = i % 2 ? 16 : -16;
+        out.leaves += leafAt(x, y, seg, 3.2, deg, 'strap');
+        const t = (deg * Math.PI) / 180;
+        x += Math.sin(t) * seg * 0.92;
+        y -= Math.cos(t) * seg * 0.92;
+      }
+      out.bloom = [x, y - 2];
+      break;
+    }
+    default: {
+      // Catnip and anything new: soft toothed pairs up the stem.
+      const pairs = 1 + Math.round(s * 3);
+      for (let i = 0; i < pairs; i++) {
+        const y = 88 - ((88 - top) * (i + 0.8)) / (pairs + 1);
+        const l = 7 + s * 5;
+        out.leaves += leafAt(30, y, l, l * 0.42, -60) + leafAt(30, y - 3, l, l * 0.42, 60);
+      }
+    }
+  }
+  return out;
+}
+
+/** One habit's pressing on a Herbarium page (60 × 100 canvas; `size` is its height in px): its species' own silhouette in its own greens. */
 export function Pressing({ species, share, rests = 0, size = 100, light: given, title, class: cls, style }: PressingProps) {
   const appLight = useArtLight();
   const light = given ?? appLight;
@@ -188,15 +404,11 @@ export function Pressing({ species, share, rests = 0, size = 100, light: given, 
   const top = 58 - 44 * s;
   const petal = c(pressedInk(species));
   const flowering = !!PETAL_INKS[species];
-  const pairs = 1 + Math.round(s * 3);
-  const leaves: string[] = [];
-  for (let i = 0; i < pairs; i++) {
-    const y = 88 - ((88 - top) * (i + 0.8)) / (pairs + 1);
-    const l = 7 + s * 5;
-    leaves.push(`M30 ${f(y)}C${f(30 - l * 0.4)} ${f(y - 1.6)} ${f(30 - l)} ${f(y - l * 0.5)} ${f(30 - l * 1.05)} ${f(y - l * 0.8)}C${f(30 - l * 0.5)} ${f(y - l * 0.7)} ${f(30 - l * 0.1)} ${f(y - 1.5)} 30 ${f(y)}Z`);
-    leaves.push(`M30 ${f(y - 3)}C${f(30 + l * 0.4)} ${f(y - 4.6)} ${f(30 + l)} ${f(y - 3 - l * 0.5)} ${f(30 + l * 1.05)} ${f(y - 3 - l * 0.8)}C${f(30 + l * 0.5)} ${f(y - 3 - l * 0.7)} ${f(30 + l * 0.1)} ${f(y - 4.5)} 30 ${f(y - 3)}Z`);
-  }
+  const form = pressedForm(species, top, s);
+  const green = c(pressedGreen(PRESS_GREENS[species] ?? PRESSED_LEAF));
+  const stalk = c(GLYPH_INKS.leafDeep);
   const bloomR = 5 + 5 * s;
+  const [bx, by] = form.bloom;
   const n = Math.max(0, Math.min(MAX_REST_FLOWERS, Math.floor(rests)));
   const restFlowers = Array.from({ length: n }, (_, i) => {
     const x = 30 + (i % 2 === 0 ? -1 : 1) * (7 + Math.floor(i / 2) * 6);
@@ -205,15 +417,14 @@ export function Pressing({ species, share, rests = 0, size = 100, light: given, 
   return (
     <Svg box="0 0 60 100" w={size * 0.6} h={size} title={title} class={cls} style={style}>
       <g data-pressing={species}>
-        <path d={`M30 94C29.4 80 30.8 ${f(top + 14)} 30 ${f(top)}`} fill="none" stroke={c(GLYPH_INKS.leafDeep)} stroke-width={1.1} stroke-linecap="round" />
-        <path d={leaves.join('')} fill={c(PRESSED_LEAF)} />
-        {flowering ? (
+        {form.stem && <path d={`M30 94C29.4 80 30.8 ${f(top + 14)} 30 ${f(top)}`} fill="none" stroke={stalk} stroke-width={1.1} stroke-linecap="round" />}
+        {form.stalks && <path d={form.stalks} fill="none" stroke={stalk} stroke-width={0.8} stroke-linecap="round" />}
+        <path d={form.leaves} fill={green} fill-rule="evenodd" />
+        {flowering && (
           <g>
-            <path d={flowerPaths(30, top - bloomR * 0.3, bloomR)} fill={petal} opacity={0.92} />
-            <path d={ell(30, top - bloomR * 0.3, bloomR * 0.26)} fill={c(GLYPH_INKS.heart)} />
+            <path d={flowerPaths(bx, by - bloomR * 0.3, bloomR)} fill={petal} opacity={0.92} />
+            <path d={ell(bx, by - bloomR * 0.3, bloomR * 0.26)} fill={c(GLYPH_INKS.heart)} />
           </g>
-        ) : (
-          <path d={`M30 ${f(top + 2)}C${f(30 - bloomR)} ${f(top - bloomR * 0.4)} ${f(30 - bloomR * 0.4)} ${f(top - bloomR * 1.6)} 30 ${f(top - bloomR * 1.7)}C${f(30 + bloomR * 0.4)} ${f(top - bloomR * 1.6)} ${f(30 + bloomR)} ${f(top - bloomR * 0.4)} 30 ${f(top + 2)}Z`} fill={c(GLYPH_INKS.leaf)} />
         )}
         {restFlowers && <path d={restFlowers} fill={c(GLYPH_INKS.moon)} data-rests={n} />}
         {/* a strip of paper tape holding the stem to the page */}

@@ -291,6 +291,16 @@ function ProgressArt() {
               </div>
             ))}
           </div>
+          <div class="gal-row" style={{ gap: '6px', alignItems: 'flex-end' }}>
+            {SPECIES.map((sp) => (
+              <Pressing key={sp} species={sp} share={0.85} size={96} light={light} title={sp} />
+            ))}
+          </div>
+          <div class="gal-row" style={{ gap: '6px', alignItems: 'flex-end' }}>
+            {SPECIES.map((sp) => (
+              <Pressing key={sp} species={sp} share={0.2} rests={1} size={96} light={light} />
+            ))}
+          </div>
           <div class="gal-row" style={{ gap: '14px', alignItems: 'flex-end' }}>
             {([['begonia', 1, 0], ['pothos', 0.6, 2], ['lavender', 0.25, 4], ['violet', 0.05, 6]] as [PlantSpeciesId, number, number][]).map(([sp, share, rests]) => (
               <Pressing key={sp} species={sp} share={share} rests={rests} size={110} light={light} />
