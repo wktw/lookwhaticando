@@ -21,6 +21,7 @@ import { CoinIcon } from '@/art/icons';
 import { memoryShelfView, petsView, plantVM, shelfView, todayView, walletView } from '@/state/selectors';
 import { buyPlace, moveDecor, now, petPet, placeDecor, removeDecor, state, storeLocal, today } from '@/state/store';
 import { openHabitDetail, openPetCard } from '@/features/habits/open';
+import { openRitual } from '@/features/rituals/open';
 import { petVoice } from '@/features/pets/voice';
 import { AnimatedNumber } from '@/ui/AnimatedNumber';
 import { Button } from '@/ui/Button';
@@ -432,9 +433,9 @@ export function ShelfScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const onNote = useCallback((kind: 'letter' | 'story') => {
-    const story = todayView.peek().storyWaiting;
-    if (kind === 'story' && story) openHabitDetail(story.habitId);
-    else location.hash = '#/today';
+    const vm = todayView.peek();
+    if (kind === 'story' && vm.storyWaiting) openHabitDetail(vm.storyWaiting.habitId);
+    else if (vm.letterWaiting) openRitual(vm.letterWaiting.id, { fromSill: true });
   }, []);
 
   const onOpenGuide = useCallback((page: string | null) => {

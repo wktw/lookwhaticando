@@ -14,6 +14,8 @@ import { memoryShelfView, type RitualVM } from '@/state/selectors';
 import { dismissLetter, state } from '@/state/store';
 import type { SeasonRecord } from '@/state/types';
 import { Sheet } from '@/ui/Sheet';
+import { toast } from '@/ui/toast';
+import { PROGRESS_LINES, TODAY_LINES, fillLine } from '@/catalog/lines';
 import { cx } from '@/ui/cx';
 import { ritualLookup } from './lookup';
 import { closeRitual, type RitualRequest } from './open';
@@ -35,9 +37,14 @@ export function RitualReader({ request }: { request: RitualRequest | null }) {
     if (letter && !letter.read) dismissLetter(letter.id);
   }, [letter?.id]);
 
+  // Put away from the sill: say where it went.
+  const close = () => {
+    closeRitual();
+    if (request?.kind === 'letter' && request.fromSill) toast({ key: 'letter-filed', message: fillLine(TODAY_LINES.filed, { shelf: PROGRESS_LINES.memoryShelf }), tone: 'butter' });
+  };
   const title = letter ? titleOf(letter, look) : season ? seasonWords(season, look).title : SUNDAY_NOTE_TITLE;
   return (
-    <Sheet open={open} onClose={closeRitual} title={title} hideTitle size="md" detents={letter?.kind === 'herbarium' ? ['large'] : ['content']} peek={letter ? peekOf(letter) : undefined} class={s.sheet}>
+    <Sheet open={open} onClose={close} title={title} hideTitle size="md" detents={letter?.kind === 'herbarium' ? ['large'] : ['content']} peek={letter ? peekOf(letter) : undefined} class={s.sheet}>
       {letter?.kind === 'sundayNote' && <SundayNote note={letter} look={look} />}
       {letter?.kind === 'herbarium' && <HerbariumPage page={letter} look={look} />}
       {letter?.kind === 'anniversary' && <Anniversary note={letter} look={look} />}

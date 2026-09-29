@@ -479,6 +479,8 @@ export const TODAY_LINES = {
   firstCapsuleWaiting: 'Your first capsule is waiting on the Capsules tab.',
   letterWaiting: LETTER_WAITING,
   storyWaiting: 'There’s a story on the plant tag for {habit}.',
+  /** After the note from the sill is put away: where it went (the Progress tab's memory shelf). Slot: {shelf}. */
+  filed: 'It’s on the {shelf} now, in Progress.',
   /** A count habit's card, for screen readers ("Drink water, 5 of 8 glasses"). */
   cardAria: '{habit}, {count} of {target} {unit}',
   cardAriaBare: '{habit}, {count} of {target}',

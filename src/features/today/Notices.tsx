@@ -20,7 +20,8 @@ import { declineCompanionOffer, noteCompanionOffer, setCompanion, state, today }
 import { Button } from '@/ui/Button';
 import { toast } from '@/ui/toast';
 import { openPetCard } from '@/features/habits/open';
-import { LetterSheet, StorySheet, type StoryTarget } from './SillSheets';
+import { StorySheet, type StoryTarget } from './SillSheets';
+import { openRitual } from '@/features/rituals/open';
 import { SeasonReviewCard } from './SeasonReview';
 import { TODAY_COPY } from './copy';
 import s from './Notices.module.css';
@@ -55,14 +56,13 @@ function Notice({ art, title, children, actions, below, tone }: { art?: Componen
 }
 
 export const Notices = forwardRef(function Notices({ vm }: { vm: TodayVM }, ref: Ref<NoticesHandle>) {
-  const [letter, setLetter] = useState<string | null>(null);
   const [story, setStory] = useState<StoryTarget | null>(null);
   const st = state.value;
   const day = today.value;
 
   useImperativeHandle(ref, () => ({
     openSill() {
-      if (vm.letterWaiting) setLetter(vm.letterWaiting.id);
+      if (vm.letterWaiting) openRitual(vm.letterWaiting.id, { fromSill: true });
       else if (vm.storyWaiting) setStory(vm.storyWaiting);
     },
   }));
@@ -101,7 +101,7 @@ export const Notices = forwardRef(function Notices({ vm }: { vm: TodayVM }, ref:
           title={TODAY_LINES.letterWaiting[vm.letterWaiting.kind]}
           tone="butter"
           actions={
-            <Button onClick={() => setLetter(vm.letterWaiting!.id)}>
+            <Button onClick={() => openRitual(vm.letterWaiting!.id, { fromSill: true })}>
               {TODAY_COPY.read}
             </Button>
           }
@@ -196,7 +196,6 @@ export const Notices = forwardRef(function Notices({ vm }: { vm: TodayVM }, ref:
         !quiet && vm.firstCapsule && <Notice art={<Icon name="tab-capsules" size={36} />} title={TODAY_LINES.firstCapsule} tone="butter" />
       )}
 
-      <LetterSheet id={letter} onClose={() => setLetter(null)} />
       <StorySheet target={story} onClose={() => setStory(null)} />
     </>
   );

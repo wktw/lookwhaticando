@@ -1,4 +1,4 @@
-/* The small sheets Today opens: the note, the number pad, the wallet, letters and stories. */
+/* The small sheets Today opens: the note, the number pad, the wallet and the stories. */
 
 .noteForm {
   display: grid;
@@ -82,7 +82,7 @@
   line-height: 1.45;
 }
 
-/* ---------- letters and stories ---------- */
+/* ---------- stories ---------- */
 
 .letter {
   display: grid;
@@ -112,36 +112,6 @@
 
 .letterBody p:last-child {
   margin-bottom: 0;
-}
-
-.letterTitle {
-  font-size: 1.25rem;
-}
-
-.pressings {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
-  gap: 10px 8px;
-  margin: 10px 0 12px;
-  padding: 0;
-  list-style: none;
-  font-family: var(--font-body);
-}
-
-.pressing {
-  display: grid;
-  justify-items: center;
-  gap: 2px;
-  font-size: var(--fs-micro);
-  font-weight: 700;
-  color: var(--ink-2);
-  text-align: center;
-}
-
-.small {
-  font-family: var(--font-body);
-  font-size: var(--fs-caption);
-  color: var(--ink-2);
 }
 
 .why {

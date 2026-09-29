@@ -33,9 +33,6 @@ export const TODAY_COPY = {
   open: 'Open',
   read: 'Read it',
   close: 'Close',
-  putAway: 'Put it on the shelf',
-  /** After a letter is put away: where it went (the Progress tab's Memory shelf). */
-  filed: 'It’s on the {shelf} now, in Progress.',
   toCapsules: 'Go to Capsules',
   /** The Keeping Company offer's habit chips. */
   pickPlant: 'Pick a plant for {name}',

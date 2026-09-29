@@ -678,7 +678,7 @@
 @media (min-width: 900px) {
   /*
    * The DESIGN §4 column: 720 px beside the sidebar. Centred on the shell's own column whatever its
-   * padding (see NOTES-w2-progress.md: the shell's column is narrower than --content-max today).
+   * padding.
    */
   .screen {
     --col: min(var(--content-max), calc(100vw - var(--sidebar-w) - 64px));

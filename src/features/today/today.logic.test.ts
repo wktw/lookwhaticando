@@ -21,7 +21,6 @@ import { groupAriaLabel, groupTitle } from './HabitList';
 import { dayMark } from './WeekStrip';
 import { quickAdds } from './CountPad';
 import { amountHead } from './WalletSheet';
-import { highlightLine, sundayNoteText, timesWord } from './letterText';
 import { choicesFor, seasonPlantLine, seasonPlantLines } from './SeasonReview';
 import { cleanInput, issuesByField, maxTimes, patchOf, scheduleFor, toggleDay, touchesRule, withName, withSchedule, withUnitPreset } from '@/features/habits/editor/form';
 
@@ -158,25 +157,7 @@ describe('the list and the strip', () => {
   });
 });
 
-describe('letters and the season in words (VOICE §12)', () => {
-  const s = household();
-  const walk = s.habits.find((h) => h.name === 'Walk')!;
-  it('writes a Sunday Note without a percentage, spelling counts at the start', () => {
-    const t = sundayNoteText(s, { id: 'l', kind: 'sundayNote', weekStart: '2026-09-21', waterings: 19, highlights: [{ kind: 'everyDay', habitId: walk.id }, { kind: 'stageUp', habitId: walk.id, stage: 4, date: '2026-09-24' }], quote: null, ps: null, stamps: 3, read: false });
-    expect(t.lines.map((l) => l.text)).toEqual(['Week of Sep 21. Nineteen waterings.', 'Walk, watered every day.', 'The Walk plant showed a first bud on Thursday.', 'Three stamps, enclosed.']);
-    expect(t.lines.join(' ')).not.toMatch(/%/);
-  });
-  it('skips a bare count below five', () => {
-    const t = sundayNoteText(s, { id: 'l', kind: 'sundayNote', weekStart: '2026-09-21', waterings: 2, highlights: [], quote: null, ps: null, stamps: 1, read: false });
-    expect(t.lines[0]!.text).toBe('Week of Sep 21.');
-    expect(t.lines[1]!.text).toBe('One stamp, enclosed.');
-  });
-  it('words the P.S. times and the highlights', () => {
-    expect(timesWord(4, 'evening')).toBe('four evenings');
-    expect(timesWord(1, 'morning')).toBe('one morning');
-    expect(timesWord(7, 'anytime')).toBe('every day');
-    expect(highlightLine(s, { kind: 'topHabit', habitId: walk.id, days: 1 })).toBe('Walk, watered on 1 day.');
-  });
+describe('the season in words (VOICE §12; the letters are in src/features/rituals/words.test.ts)', () => {
   it('offers only the chips a habit can take, and words each plant in counts', () => {
     expect(choicesFor({ tinier: null, grow: null })).toEqual(['keep', 'rest', 'finish']);
     expect(choicesFor({ tinier: {}, grow: { patch: {}, pays: true } })).toEqual(['keep', 'tinier', 'grow', 'rest', 'finish']);
