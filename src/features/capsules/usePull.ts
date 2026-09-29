@@ -10,7 +10,7 @@ import { useDome } from './useDome';
 import { useCrank } from './useCrank';
 import { TICK_DEG, TURN_TARGET, ticksCrossed } from './ratchet';
 import { animateChute, animateCoin, animateSink, closeFlap, jolt } from './choreography';
-import { nudgeText, pullErrorNotice, type FriendlyNotice } from './copy';
+import { insertLabel, landedLine, nudgeText, pullErrorNotice, type FriendlyNotice } from './copy';
 import { nextPayment, pullOptions, type Payment } from './payment';
 import { prefersReducedMotion, wait } from './motion';
 import { capsuleShell, isWhiteish, revealFromPending, revealFromPull, type RevealData } from './reveal';
@@ -156,7 +156,7 @@ export function usePull(machine: MachineDef, active: boolean, options: PullOptio
       );
     }
     setPhase('ready');
-    setSay(`The ${kind === 'ticket' ? 'ticket' : kind} is in. Now turn the handle: drag it round, or press it.`);
+    setSay(`The ${kind === 'ticket' ? 'ticket' : kind} is in. Turn the handle: drag it round, or Space or Enter turns it.`);
   };
 
   /** The handle was tried before paying: point at the slot. */
@@ -165,7 +165,7 @@ export function usePull(machine: MachineDef, active: boolean, options: PullOptio
     setNudging(true);
     clearTimeout(run.nudgeTimer);
     run.nudgeTimer = window.setTimeout(() => setNudging(false), 1800);
-    setSay(`${nudgeText(machine)} Press Insert, then turn the handle.`);
+    setSay(`${nudgeText(machine)} ${insertLabel(machine)}, then turn the handle.`);
     haptic('light');
     if (prefersReducedMotion()) return;
     refs.slot.current?.animate([{ transform: 'translateY(0)' }, { transform: 'translateY(-2px)' }, { transform: 'translateY(0)' }], {
@@ -263,7 +263,7 @@ export function usePull(machine: MachineDef, active: boolean, options: PullOptio
     }
     setPhase('waiting');
     phaseNow.current = 'waiting';
-    setSay('A capsule dropped into the chute.');
+    setSay(landedLine(pulled.rarity, pulled.secret));
     run.openTimer = window.setTimeout(openReveal, reduced ? 300 : 700);
   };
 

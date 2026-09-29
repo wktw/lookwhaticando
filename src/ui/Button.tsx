@@ -1,4 +1,4 @@
-import type { ComponentChildren, JSX } from 'preact';
+import type { ComponentChildren, JSX, Ref } from 'preact';
 import { Icon, type IconName } from '@/art/icons';
 import { cx } from './cx';
 import { toneClass, type Tone } from './tone';
@@ -27,6 +27,13 @@ export interface ButtonProps extends Omit<JSX.ButtonHTMLAttributes<HTMLButtonEle
   block?: boolean;
   disabled?: boolean;
   type?: 'button' | 'submit' | 'reset';
+  /**
+   * A face of its own for a primary button (a capsule series' painted colour), with its label ink.
+   * The disabled look still wins.
+   */
+  face?: { fill: string; ink?: string };
+  /** The underlying <button> (focus management, measuring). */
+  buttonRef?: Ref<HTMLButtonElement>;
   children?: ComponentChildren;
 }
 
@@ -60,7 +67,10 @@ export function Button({
   block = false,
   disabled,
   type = 'button',
+  face,
+  buttonRef,
   class: cls,
+  style,
   children,
   onClick,
   ...rest
@@ -68,9 +78,12 @@ export function Button({
   const look = CANONICAL[variant];
   const resolvedTone: Tone = tone ?? (variant === 'danger' ? 'danger' : 'blush');
   const iconOnly = !children;
+  const faceVars = face ? ({ '--btn-face': face.fill, ...(face.ink ? { '--btn-ink': face.ink } : {}) } as JSX.CSSProperties) : undefined;
   return (
     <button
       {...rest}
+      ref={buttonRef}
+      style={faceVars ? { ...faceVars, ...(typeof style === 'object' && style ? style : {}) } : style}
       type={type}
       disabled={disabled}
       aria-busy={loading || undefined}

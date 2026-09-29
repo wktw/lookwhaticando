@@ -1,11 +1,9 @@
 import type { MachineDef } from '@/catalog/types';
-import { RARITIES } from '@/catalog/types';
-import { itemsInMachine } from '@/catalog/collectibles';
-import { NEW_ITEM_WEIGHT, PITY_RARE, PITY_ULTRA, STARDUST_FOR_DUPLICATE, STARDUST_PER_STAR, WISH_PRICE, seriesLabel } from '@/catalog/machines';
-import { machineStatus } from '@/state/store';
-import { Sheet } from './ui/Sheet';
-import { Pill } from './ui/CandyButton';
-import { pityLines, tierLabel } from './copy';
+import { NEW_ITEM_WEIGHT, PITY_RARE, PITY_ULTRA, STARDUST_FOR_DUPLICATE, seriesLabel } from '@/catalog/machines';
+import { capsulesView, selectSeries } from '@/state/selectors';
+import { Sheet } from '@/ui/Sheet';
+import { RarityPill } from '@/ui/Pill';
+import { pityLines, priceLabel } from './copy';
 import s from './Sheets.module.css';
 
 export interface OddsSheetProps {
@@ -14,28 +12,29 @@ export interface OddsSheetProps {
   onClose: () => void;
 }
 
-const TONE = { common: 'common', uncommon: 'uncommon', rare: 'rare', ultra: 'ultra' } as const;
-
 /** One decimal, without a trailing ".0". */
 const pct = (n: number) => `${Math.round(n * 10) / 10}%`;
 
-/** Transparent, generous randomness (DESIGN §3.6, §7.1), in plain words. */
+/**
+ * The odds, printed (DESIGN §3.6, §7.1; the words are VOICE §10's). The numbers come from the
+ * series view (selectSeries) and the pity from the cabinet's card (capsulesView), the same
+ * sources the rest of the counter reads.
+ */
 export function OddsSheet({ machine, open, onClose }: OddsSheetProps) {
-  const status = machineStatus(machine.id);
-  const items = itemsInMachine(machine.id);
-  const now = pityLines(status.rareIn, status.ultraIn);
+  const series = selectSeries(machine.id).value;
+  const card = capsulesView.value.machines.find((m) => m.id === machine.id);
+  const now = card ? pityLines(card.rareIn, card.ultraIn) : [];
   // "Right now" only says something when a counter has moved off its fresh value.
-  const moved = (status.rareIn !== null && status.rareIn !== PITY_RARE) || (status.ultraIn !== null && status.ultraIn !== PITY_ULTRA);
-  const allOwned = status.rareIn === null && status.ultraIn === null;
-  const unit = machine.currency === 'stars' ? 'stamps' : 'coins';
+  const moved = !!card && ((card.rareIn !== null && card.rareIn !== PITY_RARE) || (card.ultraIn !== null && card.ultraIn !== PITY_ULTRA));
+  const [classic, special, rare, superRare] = series.tiers.map((t) => STARDUST_FOR_DUPLICATE[t.rarity]);
   return (
     <Sheet open={open} title="Odds" onClose={onClose}>
       <p class={s.lead}>
-        Every capsule is a surprise, and the odds are printed here. This is how {seriesLabel(machine)} works, for {machine.price} {unit} a capsule.
+        Every capsule is one of these tiers, at these odds. {seriesLabel(machine)} is {priceLabel(machine)} a capsule.
       </p>
 
       <table class={s.odds}>
-        <caption class="sr-only">The chance of each tier, and of each item in it, per capsule</caption>
+        <caption class="sr-only">The chance of each tier, and of each thing in it, per capsule</caption>
         <thead>
           <tr>
             <th scope="col">Tier</th>
@@ -45,47 +44,35 @@ export function OddsSheet({ machine, open, onClose }: OddsSheetProps) {
           </tr>
         </thead>
         <tbody>
-          {RARITIES.map((r) => {
-            const n = items.filter((i) => i.rarity === r).length;
-            return (
-              <tr key={r}>
-                <th scope="row">
-                  <Pill tone={TONE[r]}>{tierLabel(r)}</Pill>
-                  <span class={s.kinds}>{n === 1 ? '1 kind' : `${n} kinds`}</span>
-                </th>
-                <td class="num">{machine.odds[r]}%</td>
-                <td class="num">{n ? pct(machine.odds[r] / n) : '–'}</td>
-                <td class={s.nowrap}>
-                  <span class="num">+{STARDUST_FOR_DUPLICATE[r]}</span> swaps
-                </td>
-              </tr>
-            );
-          })}
+          {series.tiers.map((t) => (
+            <tr key={t.rarity}>
+              <th scope="row">
+                <RarityPill rarity={t.rarity} size="sm" />
+                <span class={s.kinds}>{t.items.length === 1 ? '1 kind' : `${t.items.length} kinds`}</span>
+              </th>
+              <td class="num">{t.odds}%</td>
+              <td class="num">{t.items.length ? pct(t.eachPct) : '–'}</td>
+              <td class={s.nowrap}>
+                <span class="num">+{STARDUST_FOR_DUPLICATE[t.rarity]}</span> swaps
+              </td>
+            </tr>
+          ))}
         </tbody>
       </table>
-      <p class={s.footnote}>Each item's chance is before new-first weighting, which only ever raises the chance of something new.</p>
+      <p class={s.footnote}>Each thing’s chance is before new-first weighting, which only ever raises the chance of something new.</p>
 
       <ul class={s.promises}>
+        <li>Things you don’t have yet are {NEW_ITEM_WEIGHT} times as likely.</li>
         <li>
-          <b>
-            A Rare within {PITY_RARE} capsules, and a Super rare within {PITY_ULTRA}
-          </b>
-          , on every series, each counted on its own. A guaranteed pull picks something you don't have yet whenever it can.
-          {moved && now.length ? ` Right now: ${now.join('; ')}.` : ''}
-          {allOwned ? ' Every Rare and Super rare here is already yours.' : ''}
+          A Rare turns up within {PITY_RARE} capsules, and a Super rare within {PITY_ULTRA}.
+          {moved && now.length ? ` Right now: ${now.join(' ')}` : ''}
         </li>
+        <li>Once every Rare in a series is yours, that count goes away.</li>
+        <li>After 4 repeats in a row, the next one is always new.</li>
         <li>
-          <b>New things first.</b> Anything you don't have yet is {NEW_ITEM_WEIGHT}× as likely as a repeat of the same tier, and after four repeats in a row the
-          next capsule is new.
+          Ones you already had go on the swap shelf: {classic}, {special}, {rare} or {superRare} swaps, by tier. Every 10 swaps make a stamp.
         </li>
-        <li>
-          <b>Repeats go onto the swap shelf.</b> {STARDUST_FOR_DUPLICATE.common}, {STARDUST_FOR_DUPLICATE.uncommon}, {STARDUST_FOR_DUPLICATE.rare} or{' '}
-          {STARDUST_FOR_DUPLICATE.ultra} swaps, by tier, and every {STARDUST_PER_STAR} swaps make a stamp.
-        </li>
-        <li>
-          <b>Anything can be chosen.</b> At the counter, a Special Order trades {WISH_PRICE.common} to {WISH_PRICE.ultra} stamps for any item you don't have
-          yet. Seasonal items can be ordered once their season has visited.
-        </li>
+        <li>Each series has one Secret, shown as a ? until it turns up.</li>
       </ul>
     </Sheet>
   );

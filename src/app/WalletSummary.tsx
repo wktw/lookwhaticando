@@ -1,5 +1,5 @@
 import { wallet } from '@/state/store';
-import { CoinIcon, StarIcon, TicketIcon, StardustIcon } from '@/art/icons';
+import { CoinIcon, StampIcon, SwapIcon, TicketIcon } from '@/art/icons';
 import { AnimatedNumber } from '@/ui/AnimatedNumber';
 import { cx } from '@/ui/cx';
 import { SHELL_COPY } from './copy';
@@ -26,7 +26,7 @@ export function WalletSummary({ class: cls }: { class?: string }) {
       <dl class={s.row}>
         <div class={s.mini} data-wallet-target="stars">
           <dt>
-            <StarIcon size={18} />
+            <StampIcon size={18} />
             <span class="sr-only">Stamps</span>
           </dt>
           <dd>
@@ -44,7 +44,7 @@ export function WalletSummary({ class: cls }: { class?: string }) {
         </div>
         <div class={s.mini} title={SHELL_COPY.swapsHint}>
           <dt>
-            <StardustIcon size={18} level={Math.min(1, w.stardust / 10)} />
+            <SwapIcon size={18} count={Math.min(10, w.stardust % 10)} />
             <span class="sr-only">Swaps, every 10 become a stamp</span>
           </dt>
           <dd>

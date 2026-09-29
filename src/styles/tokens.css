@@ -133,6 +133,18 @@
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --safe-left: env(safe-area-inset-left, 0px);
   --safe-right: env(safe-area-inset-right, 0px);
+
+  /* The UI kit's surfaces (moved here from src/ui/tones.css; the --kit-* names stay as aliases). */
+  /* Paper cards: a barely-there warm shadow under a 1px hairline. */
+  --shadow-card: 0 1px 0 rgba(59, 50, 54, 0.03), 0 6px 16px -14px rgba(59, 50, 54, 0.35);
+  /* Things that float over the page (sheets, notes, menus). */
+  --shadow-float: 0 1px 0 rgba(59, 50, 54, 0.04), 0 14px 32px -18px rgba(59, 50, 54, 0.34);
+  --kit-card-shadow: var(--shadow-card);
+  --kit-float-shadow: var(--shadow-float);
+  /* Form error text: AA on --bg, --bg-2 and --card. */
+  --error-ink: #a9501f;
+  /* Soft-variant butter at night, where butter-300 is too light under light text. */
+  --butter-soft-night: #74622f;
 }
 
 @media (min-width: 390px) {
@@ -194,6 +206,9 @@
   --shadow-sm: 0 1px 0 rgba(0, 0, 0, 0.2), 0 2px 8px -4px rgba(0, 0, 0, 0.5);
   --shadow-md: 0 1px 0 rgba(0, 0, 0, 0.2), 0 8px 24px -14px rgba(0, 0, 0, 0.6);
   --shadow-lg: 0 2px 0 rgba(0, 0, 0, 0.2), 0 20px 48px -22px rgba(0, 0, 0, 0.7);
+  --shadow-card: 0 1px 0 rgba(0, 0, 0, 0.18), 0 8px 18px -14px rgba(0, 0, 0, 0.6);
+  --shadow-float: 0 1px 0 rgba(0, 0, 0, 0.2), 0 16px 36px -18px rgba(0, 0, 0, 0.7);
+  --error-ink: var(--peach-700);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -246,5 +261,8 @@
     --sun: rgba(255, 201, 138, 0.18);
     --shade: rgba(10, 8, 22, 0.3);
     --contact: rgba(0, 0, 0, 0.22);
+    --shadow-card: 0 1px 0 rgba(0, 0, 0, 0.18), 0 8px 18px -14px rgba(0, 0, 0, 0.6);
+    --shadow-float: 0 1px 0 rgba(0, 0, 0, 0.2), 0 16px 36px -18px rgba(0, 0, 0, 0.7);
+    --error-ink: var(--peach-700);
   }
 }

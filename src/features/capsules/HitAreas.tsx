@@ -1,6 +1,6 @@
 import type { JSX, Ref } from 'preact';
 import { HANDLE, HANDLE_HIT_R, VIEW_H, VIEW_W } from '@/art/machines/geometry';
-import { cx } from './ui/CandyButton';
+import { cx } from '@/ui/cx';
 import s from './CapsuleMachine.module.css';
 
 /** A percent box over the cabinet art, from a circle in view-box units. */

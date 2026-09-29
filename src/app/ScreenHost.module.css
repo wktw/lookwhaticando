@@ -52,3 +52,4 @@
   font-style: italic;
   color: var(--ink-2);
 }
+.artSpace { display: inline-block; }

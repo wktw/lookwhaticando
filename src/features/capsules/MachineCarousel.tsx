@@ -1,6 +1,6 @@
 import type { JSX } from 'preact';
 import { useEffect, useRef } from 'preact/hooks';
-import type { MachineDef } from '@/catalog/types';
+import type { MachineDef, MachineId } from '@/catalog/types';
 import { seriesLabel } from '@/catalog/machines';
 import type { Light } from '@/art/light';
 import { Icon } from '@/art/icons';
@@ -8,7 +8,7 @@ import { sfx } from '@/fx/sound';
 import { CapsuleMachine } from './CapsuleMachine';
 import { LeafletCard } from './Leaflet';
 import type { PlaceHandlers } from './RevealOverlay';
-import { cx } from './ui/CandyButton';
+import { cx } from '@/ui/cx';
 import { prefersReducedMotion } from './motion';
 import s from './CapsulesScreen.module.css';
 
@@ -20,6 +20,8 @@ export interface MachineCarouselProps extends PlaceHandlers {
   onBusyChange: (busy: boolean) => void;
   onLineup: () => void;
   light: Light;
+  /** Cabinets whose next capsule is the free first one (capsulesView `free`). */
+  free?: ReadonlySet<MachineId>;
 }
 
 /**
@@ -27,8 +29,11 @@ export interface MachineCarouselProps extends PlaceHandlers {
  * beside it (DESIGN §7.2 step 1). Arrows and dots below, and ←/→ keys. Only the cabinet on
  * screen takes input; its neighbours render at rest, and pages further away stay empty.
  */
-export function MachineCarousel({ machines, index, onIndex, busy, onBusyChange, onLineup, light, onPlace, onLetThemChoose }: MachineCarouselProps) {
+export function MachineCarousel({ machines, index, onIndex, busy, onBusyChange, onLineup, light, free, onPlace, onLetThemChoose }: MachineCarouselProps) {
   const track = useRef<HTMLDivElement>(null);
+  const dots = useRef<HTMLDivElement>(null);
+  /** The dots are one tab stop (roving tabindex): arrow keys move along them, and focus follows. */
+  const dotFocus = useRef(false);
   const frame = useRef(0);
   /** Focus was inside the outgoing page (which turns inert), so hand it to the new one. */
   const carryFocus = useRef(false);
@@ -57,6 +62,10 @@ export function MachineCarousel({ machines, index, onIndex, busy, onBusyChange, 
   }, [index]);
 
   useEffect(() => {
+    if (dotFocus.current) {
+      dotFocus.current = false;
+      dots.current?.querySelector<HTMLElement>('[aria-current]')?.focus({ preventScroll: true });
+    }
     if (!carryFocus.current) return;
     carryFocus.current = false;
     track.current?.children[index]?.querySelector<HTMLElement>('button:not([tabindex="-1"])')?.focus({ preventScroll: true });
@@ -86,6 +95,15 @@ export function MachineCarousel({ machines, index, onIndex, busy, onBusyChange, 
       const i = Math.round(at);
       if (i !== index && i >= 0 && i < n) onIndex(i);
     });
+  };
+
+  const onDotKey = (e: KeyboardEvent) => {
+    const to = { ArrowLeft: index - 1, ArrowRight: index + 1, Home: 0, End: n - 1 }[e.key];
+    if (to === undefined) return;
+    e.preventDefault();
+    e.stopPropagation();
+    dotFocus.current = true;
+    go(to);
   };
 
   const onKeyDown = (e: KeyboardEvent) => {
@@ -131,6 +149,7 @@ export function MachineCarousel({ machines, index, onIndex, busy, onBusyChange, 
                       active={current}
                       light={light}
                       onBusyChange={current ? onBusyChange : undefined}
+                      free={free?.has(m.id)}
                       onPlace={onPlace}
                       onLetThemChoose={onLetThemChoose}
                     />
@@ -151,7 +170,7 @@ export function MachineCarousel({ machines, index, onIndex, busy, onBusyChange, 
         <button type="button" class={s.arrow} onClick={() => go(index - 1)} disabled={busy || index === 0} aria-label="Previous cabinet">
           <Icon name="chevron-left" size={22} />
         </button>
-        <div class={s.dots} role="group" aria-label="Choose a cabinet">
+        <div ref={dots} class={s.dots} role="group" aria-label="Choose a cabinet" onKeyDown={onDotKey}>
           {machines.map((m, i) => (
             <button
               key={m.id}
@@ -159,6 +178,7 @@ export function MachineCarousel({ machines, index, onIndex, busy, onBusyChange, 
               class={s.dot}
               onClick={() => go(i)}
               disabled={busy}
+              tabIndex={i === index ? 0 : -1}
               aria-label={seriesLabel(m)}
               aria-current={i === index ? 'true' : undefined}
               style={{ '--dot': m.theme.body } as JSX.CSSProperties}

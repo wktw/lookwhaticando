@@ -1,17 +1,20 @@
 import type { ComponentChildren } from 'preact';
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
-import type { Category, CollectibleDef, MachineId } from '@/catalog/types';
-import { COLLECTIBLES, SECRET_IDS } from '@/catalog/collectibles';
-import { MACHINE_BY_ID, MACHINES, STARDUST_PER_STAR, WISH_PRICE } from '@/catalog/machines';
-import { machineStatus, sparkleExchange, state, today, wish } from '@/state/store';
+import type { Category, MachineId } from '@/catalog/types';
+import { MACHINE_BY_ID, WISH_PRICE } from '@/catalog/machines';
+import { MOONLIT_WISH_PRICE, SPARKLE_EXCHANGE } from '@/domain/gacha';
+import { sparkleExchange, wish } from '@/state/store';
+import { capsulesView, walletView, wishListView } from '@/state/selectors';
+import type { WishItemVM } from '@/state/views/capsules';
 import { CollectibleArt } from '@/art/CollectibleArt';
-import { StarIcon } from '@/art/icons';
+import { StampIcon } from '@/art/icons';
 import { sfx } from '@/fx/sound';
 import { haptic } from '@/fx/haptics';
-import { Sheet } from './ui/Sheet';
-import { PillButton, Pill, cx, type PillTone } from './ui/CandyButton';
-import { CATEGORY_LABEL, MACHINE_SHORT, monthDay, orderErrorText, tierLabel } from './copy';
-import { dayKeyOf, seasonHasVisited } from './season';
+import { Sheet } from '@/ui/Sheet';
+import { Button } from '@/ui/Button';
+import { Pill, RarityPill } from '@/ui/Pill';
+import { cx } from '@/ui/cx';
+import { CATEGORY_LABEL, MACHINE_SHORT, monthDay, monthDayOfKey, orderErrorText } from './copy';
 import { SwapRing } from './SwapRing';
 import type { RevealData } from './reveal';
 import s from './Sheets.module.css';
@@ -20,20 +23,17 @@ const CATEGORIES: Category[] = ['pet', 'wearable', 'treat', 'decor', 'plant', 'p
 /** Tiles are built a page at a time as you scroll, so the sheet opens light. */
 const PAGE = 24;
 /** On a completed series: coins for swaps (DESIGN §7.3). */
-const SWAP_IN = { coins: 250, swaps: 40 } as const;
+const SPARKLE_EXCHANGE_COINS = SPARKLE_EXCHANGE.coins;
+const SPARKLE_EXCHANGE_SWAPS = SPARKLE_EXCHANGE.stardust;
+/** The counter's price list (VOICE §10): "Classic 2 · Special 4 · Rare 8 · Super rare 15 · Moonlit 8". */
+const PRICE_LIST = `Classic ${WISH_PRICE.common} · Special ${WISH_PRICE.uncommon} · Rare ${WISH_PRICE.rare} · Super rare ${WISH_PRICE.ultra} · Moonlit ${MOONLIT_WISH_PRICE}`;
 
-const TONE: Record<CollectibleDef['rarity'], PillTone> = { common: 'common', uncommon: 'uncommon', rare: 'rare', ultra: 'ultra' };
+/** The Moonlit page (No. 07's variants of pets you have) is its own filter. */
+type SeriesKey = MachineId | 'moonlit';
 
-/** Anything from any series you don't have yet (exclusives come another way). */
-function orderable(collection: Record<string, unknown>): CollectibleDef[] {
-  return COLLECTIBLES.filter((c) => MACHINE_BY_ID.has(c.source as MachineId) && !collection[c.id]);
-}
-
-/** Series whose season has visited since the profile began (the Memories rule): orderable. */
-function visitedSeries(): Set<MachineId> {
-  const from = dayKeyOf(state.value.profile.createdAt || Date.now(), state.value.settings.dayStartsAt);
-  const to = today.value;
-  return new Set(MACHINES.filter((m) => seasonHasVisited(m, from, to)).map((m) => m.id));
+/** One orderable tile: the item, and the series it belongs to. */
+interface Tile extends WishItemVM {
+  series: SeriesKey;
 }
 
 export interface SpecialOrderSheetProps {
@@ -45,21 +45,23 @@ export interface SpecialOrderSheetProps {
 }
 
 /**
- * Special Order, at the counter (DESIGN §7.3): any item you don't have yet, for stamps. A Secret
- * shows as a "?" and still arrives in its capsule. Seasonal lineups can be ordered once their
- * season has visited. The swap shelf is here too.
+ * Special Order, at the counter (DESIGN §7.3, VOICE §10): anything not yet in the Field Guide, for
+ * stamps. Everything it offers, and why a tile waits, comes from wishListView, the same rule
+ * wish() checks, so the counter never offers what it would refuse. A Secret shows as a "?" and
+ * still arrives in its capsule. The swap shelf is here too.
  */
 export function SpecialOrderSheet({ open, machineId, onClose, onOrdered }: SpecialOrderSheetProps) {
-  const stamps = state.value.wallet.stars;
+  const stamps = walletView.value.stars;
   return (
     <Sheet
       open={open}
       title="Special Order"
       onClose={onClose}
+      detents={['large']}
       aside={
-        <Pill tone="butter">
-          <StarIcon size={16} /> <span class="num">{stamps}</span>
-          <span class="sr-only"> stamps</span>
+        <Pill tone="butter" icon={<StampIcon size={16} />}>
+          <span class="num">{stamps}</span>
+          <span class="sr-only"> {stamps === 1 ? 'stamp' : 'stamps'}</span>
         </Pill>
       }
     >
@@ -69,13 +71,13 @@ export function SpecialOrderSheet({ open, machineId, onClose, onOrdered }: Speci
 }
 
 function SwapShelf({ machineId }: { machineId: MachineId }) {
-  const w = state.value.wallet;
-  const swaps = w.stardust % STARDUST_PER_STAR;
-  const complete = machineStatus(machineId).complete;
+  const w = walletView.value;
+  const swaps = w.dust.have % w.dust.of;
+  const card = capsulesView.value.machines.find((m) => m.id === machineId);
   const [note, setNote] = useState('');
   const swapIn = () => {
     const r = sparkleExchange(machineId);
-    setNote(r.ok ? `${SWAP_IN.swaps} swaps, onto the shelf.` : `That takes ${SWAP_IN.coins} coins.`);
+    setNote(r.ok ? `${SPARKLE_EXCHANGE_SWAPS} swaps, onto the swap shelf.` : `That takes ${SPARKLE_EXCHANGE_COINS} coins.`);
     if (r.ok) sfx.play('chime');
   };
   return (
@@ -86,13 +88,13 @@ function SwapShelf({ machineId }: { machineId: MachineId }) {
           The swap shelf
         </h3>
         <p>
-          <b class="num">{swaps}</b> of {STARDUST_PER_STAR} swaps toward the next stamp. Repeats come here, and every ten make a stamp.
+          <b class="num">{swaps}</b> of {w.dust.of} swaps toward the next stamp. Repeats come here, and every 10 make a stamp.
         </p>
-        {complete && (
+        {card?.swapIn && (
           <p class={s.swapIn}>
-            <PillButton variant="secondary" size="sm" onClick={swapIn}>
-              {SWAP_IN.coins} coins for {SWAP_IN.swaps} swaps
-            </PillButton>
+            <Button variant="secondary" size="sm" onClick={swapIn}>
+              Trade {SPARKLE_EXCHANGE_COINS} coins for {SPARKLE_EXCHANGE_SWAPS} swaps
+            </Button>
             <span role="status">{note}</span>
           </p>
         )}
@@ -103,18 +105,21 @@ function SwapShelf({ machineId }: { machineId: MachineId }) {
 
 /** Mounted only while the sheet is, so each visit starts on the series you were looking at. */
 function OrderBody({ initialMachine, onOrdered }: { initialMachine: MachineId; onOrdered: (reveal: RevealData) => void }) {
-  const { collection, wallet } = state.value;
-  const all = useMemo(() => orderable(collection), [collection]);
-  const visited = useMemo(visitedSeries, []);
-  const [machine, setMachine] = useState<MachineId | 'all'>(() => (all.some((c) => c.source === initialMachine) ? initialMachine : 'all'));
+  const list = wishListView.value;
+  const all = useMemo<Tile[]>(
+    () => [...list.groups.flatMap((g) => g.items.map((i) => ({ ...i, series: g.machineId as SeriesKey }))), ...list.moonlit.map((i) => ({ ...i, series: 'moonlit' as const }))],
+    [list],
+  );
+  const seriesWithItems = useMemo(() => [...new Set(all.map((t) => t.series))], [all]);
+  const [series, setSeries] = useState<SeriesKey | 'all'>(() => (all.some((t) => t.series === initialMachine) ? initialMachine : 'all'));
   const [category, setCategory] = useState<Category | 'all'>('all');
-  const [picked, setPicked] = useState<CollectibleDef | null>(null);
+  const [pickedId, setPickedId] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [limit, setLimit] = useState(PAGE);
   const sentinel = useRef<HTMLDivElement>(null);
+  const picked = all.find((t) => t.id === pickedId) ?? null;
 
-  const items = all.filter((c) => (machine === 'all' || c.source === machine) && (category === 'all' || c.category === category));
-  const seriesWithItems = MACHINES.filter((m) => all.some((c) => c.source === m.id));
+  const items = all.filter((t) => (series === 'all' || t.series === series) && (category === 'all' || t.category === category));
   const more = items.length > limit;
 
   // The next page arrives as the end of the grid scrolls near.
@@ -130,8 +135,8 @@ function OrderBody({ initialMachine, onOrdered }: { initialMachine: MachineId; o
     return () => io.disconnect();
   }, [more, limit]);
 
-  const filterMachine = (m: MachineId | 'all') => {
-    setMachine(m);
+  const filterSeries = (m: SeriesKey | 'all') => {
+    setSeries(m);
     setLimit(PAGE);
   };
   const filterCategory = (c: Category | 'all') => {
@@ -139,28 +144,28 @@ function OrderBody({ initialMachine, onOrdered }: { initialMachine: MachineId; o
     setLimit(PAGE);
   };
 
-  const pick = (item: CollectibleDef | null) => {
-    setPicked(item);
+  const pick = (item: Tile | null) => {
+    setPickedId(item?.id ?? null);
     setError('');
   };
 
   const place = () => {
     if (!picked) return;
-    const price = WISH_PRICE[picked.rarity];
     const outcome = wish(picked.id);
     if (!outcome.ok) {
-      setError(orderErrorText(outcome.error, price, wallet.stars));
+      const m = picked.series === 'moonlit' ? undefined : MACHINE_BY_ID.get(picked.series);
+      setError(orderErrorText(outcome.error, { rarity: picked.rarity, price: picked.price, machine: m }, list.stars));
       haptic('light');
       return;
     }
     sfx.play('chime');
-    const m = MACHINE_BY_ID.get(picked.source as MachineId);
+    const m = picked.series === 'moonlit' ? MACHINE_BY_ID.get('night') : MACHINE_BY_ID.get(picked.series);
     const colors = m?.theme.capsules ?? ['#DDD4F1', '#F6E6B4'];
-    setPicked(null);
+    setPickedId(null);
     onOrdered({
       itemId: outcome.itemId,
       rarity: picked.rarity,
-      secret: SECRET_IDS.has(picked.id),
+      secret: picked.hidden,
       machineId: m?.id,
       isNew: true,
       stardust: 0,
@@ -171,22 +176,23 @@ function OrderBody({ initialMachine, onOrdered }: { initialMachine: MachineId; o
     });
   };
 
-  const price = picked ? WISH_PRICE[picked.rarity] : 0;
-  const short = picked ? price - wallet.stars : 0;
+  const short = picked ? picked.price - list.stars : 0;
+  const empty = all.length === 0 ? 'Everything in the Field Guide is yours.' : 'Everything in this series is in your collection. Try another series.';
 
   return (
     <>
-      <p class={s.lead}>Anything you don't have yet, ordered at the counter for stamps. Seasonal items can be ordered once their season has visited.</p>
+      <p class={s.lead}>Anything not yet in the Field Guide, for stamps.</p>
+      <p class={s.muted}>{PRICE_LIST}</p>
 
       <SwapShelf machineId={initialMachine} />
 
       <div class={s.filters} role="group" aria-label="Series">
-        <Chip on={machine === 'all'} onClick={() => filterMachine('all')}>
+        <Chip on={series === 'all'} onClick={() => filterSeries('all')}>
           Every series
         </Chip>
-        {seriesWithItems.map((m) => (
-          <Chip key={m.id} on={machine === m.id} onClick={() => filterMachine(m.id)}>
-            {m.number ? `${m.number} ${MACHINE_SHORT[m.id]}` : MACHINE_SHORT[m.id]}
+        {seriesWithItems.map((key) => (
+          <Chip key={key} on={series === key} onClick={() => filterSeries(key)}>
+            {seriesChip(key)}
           </Chip>
         ))}
       </div>
@@ -202,32 +208,38 @@ function OrderBody({ initialMachine, onOrdered }: { initialMachine: MachineId; o
       </div>
 
       {items.length === 0 ? (
-        <p class={s.empty}>{all.length === 0 ? 'Every item in every series is in your collection.' : 'Nothing missing here. Try another series.'}</p>
+        <p class={s.empty}>{empty}</p>
       ) : (
         <ul class={s.orderGrid}>
           {items.slice(0, limit).map((item) => {
-            const m = MACHINE_BY_ID.get(item.source as MachineId);
-            const away = !!m?.seasonal && !visited.has(m.id);
+            const away = item.status === 'season-not-visited';
+            const m = item.series === 'moonlit' ? undefined : MACHINE_BY_ID.get(item.series);
+            const visits = away && m?.seasonal ? `Can be ordered once the ${m.name} has visited. It visits ${monthDay(m.seasonal.start)} to ${monthDay(m.seasonal.end)}, every year.` : '';
             return (
               <li key={item.id}>
                 <button
                   type="button"
-                  class={cx(s.orderTile, picked?.id === item.id && s.orderPicked, away && s.orderAway)}
+                  class={cx(s.orderTile, pickedId === item.id && s.orderPicked, away && s.orderAway)}
                   onClick={() => pick(item)}
-                  aria-pressed={picked?.id === item.id}
+                  aria-pressed={pickedId === item.id}
+                  aria-disabled={away || undefined}
                   disabled={away}
+                  title={visits || undefined}
                 >
                   <span class={s.orderArt}>
                     <OrderArt item={item} />
                   </span>
                   <span class={s.tileName}>{orderName(item)}</span>
-                  {away && m?.seasonal ? (
-                    <span class={s.orderAwayNote}>Visits {monthDay(m.seasonal.start)}</span>
+                  {away ? (
+                    <span class={s.orderAwayNote}>
+                      {item.arrives ? `Visits ${monthDayOfKey(item.arrives)}` : 'Visits later'}
+                      <span class="sr-only">. {visits}</span>
+                    </span>
                   ) : (
                     <span class={s.orderPrice}>
-                      <StarIcon size={14} />
-                      <span class="num">{WISH_PRICE[item.rarity]}</span>
-                      <span class="sr-only"> stamps, {tierLabel(item.rarity, SECRET_IDS.has(item.id))}</span>
+                      <StampIcon size={14} />
+                      <span class="num">{item.price}</span>
+                      <span class="sr-only"> stamps, {item.rarityLabel}</span>
                     </span>
                   )}
                 </button>
@@ -244,11 +256,13 @@ function OrderBody({ initialMachine, onOrdered }: { initialMachine: MachineId; o
             <OrderArt item={picked} />
           </span>
           <div class={s.confirmText}>
-            <p class={s.confirmTitle}>Order {SECRET_IDS.has(picked.id) ? `the ${orderName(picked)}` : `the ${picked.name}`}?</p>
+            <p class={s.confirmTitle}>
+              Order the {orderName(picked)} for {picked.price} stamps?
+            </p>
             <p class={s.confirmMeta}>
-              <Pill tone={SECRET_IDS.has(picked.id) ? 'secret' : TONE[picked.rarity]}>{tierLabel(picked.rarity, SECRET_IDS.has(picked.id))}</Pill>
+              <RarityPill rarity={picked.rarity} secret={picked.hidden} size="sm" />
               <span>
-                <StarIcon size={16} /> <b class="num">{price}</b> · you have <span class="num">{wallet.stars}</span>
+                <StampIcon size={16} /> <span class="num">{list.stars}</span> on the card
               </span>
             </p>
             {error ? (
@@ -256,16 +270,16 @@ function OrderBody({ initialMachine, onOrdered }: { initialMachine: MachineId; o
                 {error}
               </p>
             ) : short > 0 ? (
-              <p class={s.confirmError}>{short === 1 ? 'One more stamp.' : `${short} more stamps.`} Stamps come from showing up, Sunday Notes and pins.</p>
+              <p class={s.confirmError}>{orderErrorText('not-enough-stars', { rarity: picked.rarity, price: picked.price }, list.stars)}</p>
             ) : null}
           </div>
           <div class={s.confirmActions}>
-            <PillButton size="sm" variant="quiet" onClick={() => pick(null)}>
+            <Button size="sm" variant="quiet" onClick={() => pick(null)}>
               Not now
-            </PillButton>
-            <PillButton size="sm" colors={{ face: 'var(--lavender-500)', ink: '#3B3236' }} onClick={place} disabled={short > 0}>
-              Place the order
-            </PillButton>
+            </Button>
+            <Button size="sm" face={{ fill: 'var(--lavender-500)', ink: '#3B3236' }} onClick={place} disabled={short > 0}>
+              Order
+            </Button>
           </div>
         </div>
       )}
@@ -274,8 +288,8 @@ function OrderBody({ initialMachine, onOrdered }: { initialMachine: MachineId; o
 }
 
 /** A Secret stays a secret at the counter too: it can be ordered, and it's still a surprise. */
-function OrderArt({ item }: { item: CollectibleDef }) {
-  if (!SECRET_IDS.has(item.id)) return <CollectibleArt id={item.id} size="100%" />;
+function OrderArt({ item }: { item: Tile }) {
+  if (!item.hidden) return <CollectibleArt id={item.id} size="100%" />;
   return (
     <span class={s.secretMark} aria-hidden="true">
       ?
@@ -283,8 +297,14 @@ function OrderArt({ item }: { item: CollectibleDef }) {
   );
 }
 
-function orderName(item: CollectibleDef): string {
-  return SECRET_IDS.has(item.id) ? `${MACHINE_SHORT[item.source as MachineId]} Secret` : item.name;
+function seriesChip(key: SeriesKey): string {
+  if (key === 'moonlit') return 'Moonlit';
+  const m = MACHINE_BY_ID.get(key);
+  return m?.number ? `${m.number} ${MACHINE_SHORT[key]}` : MACHINE_SHORT[key];
+}
+
+function orderName(item: Tile): string {
+  return item.hidden && item.series !== 'moonlit' ? `${MACHINE_SHORT[item.series]} Secret` : item.name;
 }
 
 function Chip({ on, onClick, children }: { on: boolean; onClick: () => void; children: ComponentChildren }) {

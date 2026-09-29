@@ -85,7 +85,7 @@
   gap: 10px;
   min-height: 60px;
   width: 100%;
-  padding: 0 var(--gutter);
+  min-width: 0;
 }
 
 .buttons {
@@ -93,6 +93,16 @@
   flex-wrap: wrap;
   justify-content: center;
   gap: 10px 12px;
+}
+
+/* The label keeps its words on one line; it never shrinks below its own width (desktop's
+   cabinet column is narrow, and the button may reach past the cabinet's edge a little). */
+.insert {
+  min-width: max-content;
+}
+
+.insert span {
+  overflow: visible;
 }
 
 .buttons :global(.num) {
@@ -132,5 +142,25 @@
 @media (min-width: 900px) {
   .machine {
     --machine-h: var(--cabinet-h, clamp(360px, 58dvh, 470px));
+  }
+}
+
+/* On the narrowest phones the label wraps onto two lines rather than losing its words. */
+@media (max-width: 359px) {
+  .insert.insert {
+    --px: 14px;
+    height: auto;
+    min-height: 54px;
+    min-width: 0;
+    max-width: 100%;
+    padding-block: 8px;
+    font-size: var(--fs-body);
+    white-space: normal;
+    line-height: 1.15;
+    text-align: center;
+  }
+
+  .insert.insert span {
+    white-space: normal;
   }
 }

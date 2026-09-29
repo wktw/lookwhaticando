@@ -22,8 +22,8 @@ export const ROUTES: readonly RouteDef[] = [
   { id: 'today', label: 'Today', icon: 'tab-today', wide: false, load: () => import('@/features/today/TodayScreen').then((m) => m.TodayScreen) },
   { id: 'progress', label: 'Progress', icon: 'tab-progress', wide: false, load: () => import('@/features/progress/ProgressScreen').then((m) => m.ProgressScreen) },
   { id: 'capsules', label: 'Capsules', icon: 'tab-capsules', wide: true, load: () => import('@/features/capsules/CapsulesScreen').then((m) => m.CapsulesScreen) },
-  // TODO(integration): switch to 'tab-shelf' if the icons module renames the Shelf tab icon.
-  { id: 'shelf', label: 'Shelf', icon: 'tab-meadow', wide: true, load: () => import('@/features/meadow/MeadowScreen').then((m) => m.MeadowScreen) },
+  // The Shelf screen module still lives at features/meadow (a move to features/shelf/ShelfScreen is requested in NOTES-m1-ui.md).
+  { id: 'shelf', label: 'Shelf', icon: 'tab-shelf', wide: true, load: () => import('@/features/meadow/MeadowScreen').then((m) => m.MeadowScreen) },
   { id: 'you', label: 'You', icon: 'tab-you', wide: false, load: () => import('@/features/you/YouScreen').then((m) => m.YouScreen) },
 ];
 

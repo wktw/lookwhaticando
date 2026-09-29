@@ -1,13 +1,13 @@
 import type { JSX } from 'preact';
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
-import { CoinIcon, StarIcon, TicketIcon, StardustIcon } from '@/art/icons';
+import { CoinIcon, StampIcon, SwapIcon, TicketIcon } from '@/art/icons';
 import { IconButton } from '@/ui/IconButton';
 import { cx } from '@/ui/cx';
 import { toneClass } from '@/ui/tone';
 import { toastLaneTop } from '@/ui/toast';
 import { burst } from './confetti';
 import { flyPayout } from './coinFly';
-import { CelebrationArt } from './CelebrationArt';
+import { LazyCelebrationArt } from './celebrationArtLoader';
 import { FX_UI } from './copy';
 import type { BannerSpec, Tally } from './celebrationPlan';
 import type { Payout } from './walletLedger';
@@ -25,9 +25,9 @@ export const CELEBRATION_ANCHOR = 'data-celebration-anchor';
 
 const TOKENS: [keyof Tally, (p: { size?: number }) => JSX.Element][] = [
   ['coins', CoinIcon],
-  ['stars', StarIcon],
+  ['stars', StampIcon],
   ['tickets', TicketIcon],
-  ['stardust', StardustIcon],
+  ['stardust', SwapIcon],
 ];
 
 /** The rewards as a row of currency tokens ("{coin} +10 · {stamp} +1"). */
@@ -159,7 +159,7 @@ export function CelebrationBanner({ spec, payouts = [], onDone }: { spec: Banner
         onClick={(e) => !(e.target as HTMLElement).closest('button') && leave()}
       >
         <div class={s.artTile} aria-hidden="true">
-          <CelebrationArt art={spec.art} size={64} />
+          <LazyCelebrationArt art={spec.art} size={64} />
         </div>
         <div class={s.copy}>
           <p class={s.eyebrow}>{spec.eyebrow}</p>

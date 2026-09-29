@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { state, wish } from '@/state/store';
+import { state, today, wish } from '@/state/store';
 import { CapsulesScreen, availableCabinets } from './CapsulesScreen';
 import { button, buttonWithText, click, installDom, key, mount, pause, revealDialog, until } from './testing';
 
@@ -19,7 +19,7 @@ class FakeObserver {
   disconnect() {}
 }
 
-const orderSheet = () => Array.from(document.querySelectorAll<HTMLElement>('[role="dialog"]')).find((d) => d.textContent?.includes('ordered at the counter'));
+const orderSheet = () => Array.from(document.querySelectorAll<HTMLElement>('[role="dialog"]')).find((d) => d.textContent?.includes('not yet in the Field Guide'));
 const tiles = () => orderSheet()?.querySelectorAll('ul li button').length ?? 0;
 
 let view: ReturnType<typeof mount> | null = null;
@@ -41,23 +41,40 @@ afterEach(() => {
 });
 
 describe('the counter', () => {
-  it('only in-season editions stand on the counter', () => {
-    const autumn = availableCabinets('2026-09-29').map((m) => m.id);
+  it('only in-season editions stand on the counter (capsulesView)', () => {
+    const was = today.value;
+    today.value = '2026-09-29';
+    const autumn = availableCabinets().map((m) => m.id);
     expect(autumn).toEqual(['cats', 'cows', 'dogs', 'pond', 'garden', 'pantry', 'night', 'autumn']);
-    const winter = availableCabinets('2026-12-01').map((m) => m.id);
+    today.value = '2026-12-01';
+    const winter = availableCabinets().map((m) => m.id);
     expect(winter).toContain('winter');
     expect(winter).not.toContain('autumn');
+    today.value = was;
   });
 
   it('each cabinet stands beside its lineup leaflet, which opens the full lineup', async () => {
     const leaflet = button(/^Lineup leaflet/)!;
-    expect(leaflet.getAttribute('aria-label')).toMatch(/0 of 21 collected/);
+    expect(leaflet.getAttribute('aria-label')).toMatch(/0 of 21 in the Field Guide/);
     expect(leaflet.textContent).toMatch(/\?/);
     await click(leaflet, 'the leaflet');
     const sheet = await until(() => document.querySelector('[role="dialog"][aria-modal="true"]'), 'the Lineup sheet');
     expect(sheet.textContent).toMatch(/Classic/);
     expect(sheet.textContent).toMatch(/Super rare/);
     expect(sheet.textContent).toMatch(/Secret/);
+  });
+});
+
+describe('the free first capsule (after "Not yet, I’ll earn it")', () => {
+  it('each first-pick cabinet offers it on the Capsules tab, and pulls it free', async () => {
+    view?.unmount();
+    state.value = { ...state.value, lifetime: { ...state.value.lifetime, pulls: 0 }, ledger: { ...state.value.ledger, once: {} }, wallet: { coins: 0, stars: 0, stardust: 0, tickets: 0 } };
+    view = mount(<CapsulesScreen />);
+    // Cats is the first cabinet: its first capsule is on the house, not "unaffordable at 0 coins".
+    expect(document.body.textContent).toMatch(/Your first capsule is on the house/);
+    const put = buttonWithText('Put a coin in')!;
+    expect(document.querySelector('[class*="facts"]')?.textContent).toMatch(/on the house/);
+    expect(put.getAttribute('aria-label')).toBe('Put a coin in, on the house');
   });
 });
 
@@ -81,7 +98,7 @@ describe('Special Order', () => {
     await click(opener, 'Special Order');
     await until(orderSheet, 'the Special Order sheet');
     await click(orderSheet()!.querySelector('ul li button'), 'a tile');
-    await click(button('Place the order'), 'Place the order');
+    await click(button('Order'), 'Order');
 
     const reveal = await until(revealDialog, 'the reveal');
     expect(reveal.contains(document.activeElement)).toBe(true);
@@ -103,8 +120,8 @@ describe('Special Order', () => {
     await click(buttonWithText('Special Order'), 'Special Order');
     await until(orderSheet, 'the Special Order sheet');
     await click(orderSheet()!.querySelector('ul li button'), 'a tile');
-    await click(button('Place the order'), 'Place the order');
+    await click(button('Order'), 'Order');
     const alert = await until(() => document.querySelector('[role="alert"]'), 'the notice');
-    expect(alert.textContent).toMatch(/Stamps come from showing up, Sunday Notes and pins\./);
+    expect(alert.textContent).toMatch(/^A Classic is 2 stamps at the counter\. There are 30 on the card\.$/);
   });
 });

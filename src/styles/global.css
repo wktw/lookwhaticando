@@ -199,3 +199,21 @@ select {
 [data-theme='night'] .collectible-silhouette {
   opacity: 0.16;
 }
+
+/*
+ * Auto-lite (DESIGN §11.1; src/fx/frameMonitor.ts). On a device that can't keep up, the Shelf's
+ * small loops that matter least stop: ear and tail flicks, a frog's throat and wave, a dog's wag,
+ * a bunny's twitch, a hamster's chew, the bob, waddle and hop of a walk, the plants' sway.
+ * Breathing and blinking carry on. Everywhere, a pet off screen holds still, and only the few
+ * pets nearest the middle of the screen keep those small loops going.
+ */
+:root[data-lite] .pet-art :is(.pet-tailflick, .pet-earflick, .pet-throat, .pet-wag, .pet-twitch, .pet-chew, .pet-wave, .pet-bob, .pet-waddle, .pet-hop),
+:root[data-lite] .plant-art .plant-sway,
+.pet-art[data-flick='off'] :is(.pet-tailflick, .pet-earflick, .pet-throat, .pet-wag, .pet-twitch, .pet-chew, .pet-wave, .pet-bob, .pet-waddle, .pet-hop) {
+  animation: none !important;
+}
+
+.pet-art[data-offscreen],
+.pet-art[data-offscreen] * {
+  animation-play-state: paused !important;
+}

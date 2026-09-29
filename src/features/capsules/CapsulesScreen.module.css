@@ -120,6 +120,7 @@
 
 /* As tall as the screen allows, and never wider than the page leaves beside the leaflet. */
 .cabinetSlot {
+  min-width: 0;
   --cabinet-h: min(clamp(270px, 44dvh, 340px), calc((100cqi - var(--leaflet-w) - 10px) * 1.458));
 }
 
@@ -160,8 +161,7 @@
   opacity: 0.3;
 }
 
-.arrow:focus-visible,
-.dot:focus-visible {
+.arrow:focus-visible {
   outline: 3px solid var(--focus);
   outline-offset: -4px;
   border-radius: 50%;
@@ -170,21 +170,33 @@
 .dots {
   display: flex;
   justify-content: center;
+  gap: 2px;
   min-width: 0;
 }
 
-/* 44 px targets; they only narrow if there are ever more cabinets than fit in one row. */
+/* 44 px tall, never narrower than 24 px (WCAG 2.5.8); the visual dot sits inside. */
 .dot {
   display: grid;
   place-items: center;
-  width: min(34px, calc((100vw - 140px) / 9));
+  width: max(24px, min(34px, calc((100vw - 140px) / 9)));
   height: 44px;
+}
+
+.dot:focus-visible {
+  outline: none;
+}
+
+/* The focus ring follows the pill of the dot itself, a little outside it. */
+.dot:focus-visible span {
+  outline: 3px solid var(--focus);
+  outline-offset: 3px;
+  opacity: 1;
 }
 
 .dot span {
   width: 8px;
   height: 8px;
-  border-radius: var(--r-pill);
+  border-radius: 999px;
   background: var(--control-border);
   opacity: 0.55;
   transition:
@@ -248,6 +260,16 @@
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+}
+
+/* A sentence, not a price: it wraps on a narrow phone instead of running out of the card. */
+.facts .freePill {
+  flex: 0 1 auto;
+  height: auto;
+  min-height: 26px;
+  padding-block: 5px;
+  line-height: 1.25;
+  white-space: normal;
 }
 
 .series {

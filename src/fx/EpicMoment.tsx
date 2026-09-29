@@ -3,7 +3,7 @@ import { Button } from '@/ui/Button';
 import { isTopLayer, pushLayer, removeLayer, trapTab } from '@/ui/sheetStack';
 import { holdToasts } from '@/ui/toast';
 import { flyPayout } from './coinFly';
-import { CelebrationArt } from './CelebrationArt';
+import { LazyCelebrationArt } from './celebrationArtLoader';
 import { RewardChips } from './CelebrationBanner';
 import { SparkleBurst } from './SparkleBurst';
 import { EXCLUSIVE } from './copy';
@@ -39,7 +39,7 @@ export function EpicMoment({ spec, payouts = [], onDone }: { spec: BannerSpec; p
 
   useLayoutEffect(() => {
     restore.current = document.activeElement as HTMLElement | null;
-    pushLayer(id);
+    pushLayer(id, { moment: true });
     // Notes that arrive meanwhile wait under the dimmed room instead of expiring unseen.
     const release = holdToasts();
     // Focus lands on the card itself (named by its title), so no ring shows until she uses the keyboard.
@@ -79,7 +79,7 @@ export function EpicMoment({ spec, payouts = [], onDone }: { spec: BannerSpec; p
         <div ref={cardRef} class={s.card} role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1} onKeyDown={(e) => cardRef.current && trapTab(e, cardRef.current)}>
           <div class={s.stage} aria-hidden="true">
             <div class={s.art}>
-              <CelebrationArt art={spec.art} size={132} />
+              <LazyCelebrationArt art={spec.art} size={132} />
             </div>
             <span class={s.contact} />
             <span class={s.glint}>

@@ -1,4 +1,5 @@
-import { Icon } from '@/art/icons';
+import { Icon, Wordmark } from '@/art/icons';
+import { themeLight } from '@/ui/art/objects';
 import { cx } from '@/ui/cx';
 import { navigate } from './router';
 import { formatHash, ROUTES, type TabId } from './routes';
@@ -15,9 +16,8 @@ export function Sidebar({ tab }: { tab: TabId }) {
   return (
     <aside class={s.sidebar}>
       <a class={s.brand} href={formatHash('today')} aria-label={SHELL_COPY.brandLabel} onClick={(e) => (e.preventDefault(), navigate('today'))}>
-        {/* TODO(integration): render <Wordmark /> from @/art/icons once the icons module exports it. */}
         <span class={s.wordmark} aria-hidden="true">
-          catkin
+          <Wordmark size={30} light={themeLight()} />
         </span>
         <span class={s.tagline} aria-hidden="true">
           {SHELL_COPY.tagline}

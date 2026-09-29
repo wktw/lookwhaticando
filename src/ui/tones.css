@@ -6,33 +6,7 @@
 :root {
   /* Labels on any -500 face are graphite (DESIGN §10.1). Kept as an alias for older call sites. */
   --on-pastel: var(--on-accent);
-
-  /*
-   * Kit values that tokens.css doesn't carry (requested in NOTES-ui.md). Components read only
-   * these variables; the kit's own values live here and nowhere else.
-   */
-  /* Paper cards: barely-there warm shadow under a 1px hairline. */
-  --kit-card-shadow: 0 1px 0 rgba(59, 50, 54, 0.03), 0 6px 16px -14px rgba(59, 50, 54, 0.35);
-  /* Things that float over the page (sheets, notes, menus). */
-  --kit-float-shadow: 0 1px 0 rgba(59, 50, 54, 0.04), 0 14px 32px -18px rgba(59, 50, 54, 0.34);
-  /* Form error text: AA on --bg, --bg-2 and --card. */
-  --error-ink: #a9501f;
-  /* Soft-variant butter at night, where butter-300 is too light under light text. */
-  --butter-soft-night: #74622f;
-}
-
-:root[data-theme='night'] {
-  --kit-card-shadow: 0 1px 0 rgba(0, 0, 0, 0.18), 0 8px 18px -14px rgba(0, 0, 0, 0.6);
-  --kit-float-shadow: 0 1px 0 rgba(0, 0, 0, 0.2), 0 16px 36px -18px rgba(0, 0, 0, 0.7);
-  --error-ink: var(--peach-700);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme='light']):not([data-theme='night']) {
-    --kit-card-shadow: 0 1px 0 rgba(0, 0, 0, 0.18), 0 8px 18px -14px rgba(0, 0, 0, 0.6);
-    --kit-float-shadow: 0 1px 0 rgba(0, 0, 0, 0.2), 0 16px 36px -18px rgba(0, 0, 0, 0.7);
-    --error-ink: var(--peach-700);
-  }
+  /* The kit's shadows, error ink and night butter now live in src/styles/tokens.css. */
 }
 
 .ck-tone-blush,

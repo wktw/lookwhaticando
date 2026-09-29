@@ -1,6 +1,6 @@
 /**
  * Toast queue. `toast()` from anywhere; <Toaster/> (mounted once by the app) renders each one as
- * a small paper note ("Walk, watered. +5 · Pudding opened one eye. · Undo").
+ * a small paper note ("Walk, watered. +5 · Pudding opened one eye. · Undo · Add a note").
  * Toasts with the same `key` coalesce: the visible one updates in place and its timer restarts,
  * which is how rapid events ("+5", "+5", "+8") become one calm "+18".
  */
@@ -24,6 +24,9 @@ export interface ToastOptions {
   /** A small leading drawing: a water drop, a currency token, a plant. */
   art?: ComponentChildren;
   tone?: Tone;
+  /** Up to two buttons on the note, in order ("Undo" · "Add a note"). */
+  actions?: readonly ToastAction[];
+  /** One button: the older single form of `actions` (both may be given; `action` goes first). */
   action?: ToastAction;
   /** Auto-dismiss after ms (default 3200, or 4000 with an action, like Undo). 0 = stay until dismissed. */
   duration?: number;
@@ -41,6 +44,8 @@ export interface ToastItem extends ToastOptions {
 }
 
 export const MAX_VISIBLE = 2;
+/** A note holds at most two buttons (DESIGN §5.2: "Undo" and "Add a note"). */
+export const MAX_ACTIONS = 2;
 export const EXIT_MS = 220;
 
 export const toasts = signal<ToastItem[]>([]);
@@ -82,8 +87,13 @@ export function visibleToasts(list: readonly ToastItem[]): ToastItem[] {
   return list.slice(0, MAX_VISIBLE);
 }
 
+/** A note's buttons: `action` then `actions`, at most MAX_ACTIONS. */
+export function toastActions(t: Pick<ToastOptions, 'action' | 'actions'>): ToastAction[] {
+  return [...(t.action ? [t.action] : []), ...(t.actions ?? [])].slice(0, MAX_ACTIONS);
+}
+
 export function toastDuration(t: ToastOptions): number {
-  return t.duration ?? (t.action ? 4000 : 3200);
+  return t.duration ?? (toastActions(t).length ? 4000 : 3200);
 }
 
 /**
@@ -94,12 +104,23 @@ export function toast(opts: ToastOptions): string {
   const { list, id } = upsertToast(toasts.value, opts, `t${++seq}`);
   toasts.value = list;
   const text = opts.label ?? [opts.message, opts.note].filter((x): x is string => typeof x === 'string').join(' ');
-  if (text && !opts.silent) announce(opts.action ? `${text}. ${opts.action.label} available.` : text);
+  const buttons = toastActions(opts).map((a) => a.label);
+  if (text && !opts.silent) announce(buttons.length ? `${text}. ${buttons.join(' or ')} available.` : text);
   return id;
 }
 
 export function findToast(key: string): ToastItem | undefined {
   return toasts.value.find((t) => t.key === key && !t.leaving);
+}
+
+/**
+ * Press one of a note's buttons: the note is put away first, then the action runs. An action
+ * that shows a note of its own (Undo shows "not watered after all") therefore never lands on the
+ * note that is leaving, and is never dismissed along with it.
+ */
+export function runToastAction(id: string, action: ToastAction): void {
+  dismissToast(id);
+  action.onAction();
 }
 
 export function dismissToast(id: string): void {

@@ -1,6 +1,6 @@
 /** "+5" chips: a small paper note with a currency token, rising a little from where it happened. */
 import { h, render } from 'preact';
-import { CoinIcon, StarIcon } from '@/art/icons';
+import { CoinIcon, StampIcon } from '@/art/icons';
 import { fxLayer, toPoint, type Point } from './layer';
 import { prefersReducedMotion } from './motion';
 
@@ -24,7 +24,7 @@ export function floatText(text: string, at: DOMRect | Point, { tone = 'coin', ic
   el.dataset.tone = withIcon ? tone : 'plain';
   if (withIcon) {
     const holder = document.createElement('span');
-    render(h(tone === 'coin' ? CoinIcon : StarIcon, { size: 16 }), holder);
+    render(h(tone === 'coin' ? CoinIcon : StampIcon, { size: 16 }), holder);
     el.appendChild(holder.firstChild ?? holder);
   }
   el.appendChild(document.createTextNode(text));

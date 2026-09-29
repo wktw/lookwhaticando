@@ -1,20 +1,22 @@
 import type { JSX } from 'preact';
 import { useEffect, useId, useRef, useState } from 'preact/hooks';
-import type { MachineDef, Rarity } from '@/catalog/types';
+import type { MachineDef } from '@/catalog/types';
 import { RARITY_FINISH } from '@/catalog/types';
 import { getCollectible } from '@/catalog/collectibles';
 import { MACHINE_BY_ID, seriesLabel } from '@/catalog/machines';
-import { machineStatus, renamePet, state } from '@/state/store';
+import { renamePet, state } from '@/state/store';
+import { selectSeries } from '@/state/selectors';
 import type { Light } from '@/art/light';
 import { CollectibleArt } from '@/art/CollectibleArt';
 import { OpenCapsuleArt } from '@/art/machines/CapsuleArt';
 import { pillFace } from '@/art/machines/theme';
 import { mix } from '@/art/machines/color';
-import { CoinIcon, StarIcon, StardustIcon, TicketIcon } from '@/art/icons';
+import { CoinIcon, StampIcon, SwapIcon, TicketIcon } from '@/art/icons';
 import { sfx } from '@/fx/sound';
 import { haptic } from '@/fx/haptics';
-import { PillButton, Pill, type PillTone } from './ui/CandyButton';
-import { SPECIES_NOUN, kindLabel, paymentPhrase, revealSentence, shortDate, tierLabel } from './copy';
+import { Button } from '@/ui/Button';
+import { RarityPill } from '@/ui/Pill';
+import { SPECIES_NOUN, cameHomeLabel, duplicateLine, fusionLine, kindLabel, orderLine, paymentPhrase, revealLine, revealSentence } from './copy';
 import { nameIdeas } from './names';
 import type { Payment } from './payment';
 import { finishFor, type RevealData } from './reveal';
@@ -38,20 +40,20 @@ export interface RevealCardProps extends PlaceHandlers {
 }
 
 const NAME_MAX = 20;
+const GRAPHITE = '#3B3236';
 
-const TONE: Record<Rarity, PillTone> = { common: 'common', uncommon: 'uncommon', rare: 'rare', ultra: 'ultra' };
-
+/** Another capsule, with its cost in plain sight (VOICE §3: in the UI a pull is a "capsule"). */
 function PullAgainButton({ offer }: { offer: PullAgainOffer }) {
   const { pay, machine } = offer;
-  const icon = pay === 'ticket' ? <TicketIcon size={18} /> : machine.currency === 'stars' ? <StarIcon size={18} /> : <CoinIcon size={18} />;
+  const icon = pay === 'ticket' ? <TicketIcon size={18} /> : machine.currency === 'stars' ? <StampIcon size={18} /> : <CoinIcon size={18} />;
   return (
-    <PillButton variant="secondary" onClick={offer.onPull} aria-label={`Pull again ${paymentPhrase(pay, machine)}`}>
-      Pull again
+    <Button variant="secondary" onClick={offer.onPull} aria-label={`Another capsule ${paymentPhrase(pay, machine)}`}>
+      Another capsule
       <span class={s.cost} aria-hidden="true">
         {icon}
         <span class="num">{pay === 'ticket' ? 1 : machine.price}</span>
       </span>
-    </PillButton>
+    </Button>
   );
 }
 
@@ -112,12 +114,15 @@ export function RevealCard({ data, light, onClose, pullAgain, onPlace, onLetThem
 
   if (!def) return null;
   const machine = data.machineId ? MACHINE_BY_ID.get(data.machineId) : undefined;
-  const status = machine ? machineStatus(machine.id) : null;
+  const series = machine ? selectSeries(machine.id).value : null;
   const finish = finishFor(data);
   const isPet = def.category === 'pet';
   const newPet = isPet && data.isNew;
   const inCapsule = data.via === 'pull' || data.secret;
   const cameHome = data.pet?.obtainedAt || Date.now();
+  const face = machine ? { fill: pillFace(machine), ink: GRAPHITE } : undefined;
+  // A repeat pet: the one already on the sill comes over to look (its friendship shows as dots on the Pet Card, never a number).
+  const homeName = isPet && !data.isNew ? (state.value.pets[def.id]?.name ?? petName) : undefined;
   const theme = machine?.theme;
   // The Special print's band: the series colour let down with paper by day, and with the night card
   // under lamplight, where the light ink prints on it (both AA: contrast.test.ts).
@@ -152,7 +157,7 @@ export function RevealCard({ data, light, onClose, pullAgain, onPlace, onLetThem
     else location.hash = '#/shelf';
   };
 
-  const letThemChoose = () => {
+  const letChoose = () => {
     onClose();
     onLetThemChoose?.(def.id);
   };
@@ -178,13 +183,10 @@ export function RevealCard({ data, light, onClose, pullAgain, onPlace, onLetThem
       <section class={s.card} aria-labelledby={titleId}>
         {(finish === 'rare' || finish === 'super' || finish === 'secret') && <span class={s.glint} aria-hidden="true" />}
         <header class={s.cardHead}>
-          <p class={s.series}>
-            {machine ? seriesLabel(machine) : 'Special Order'}
-            {data.secret && <span class={s.secretOne}>The secret one!</span>}
-          </p>
-          {status && (
+          <p class={s.series}>{machine ? seriesLabel(machine) : 'Special Order'}</p>
+          {series && (
             <p class={s.count}>
-              <span class="num">{status.owned}</span> of <span class="num">{status.total}</span>
+              <span class="num">{series.owned}</span> of <span class="num">{series.total}</span>
             </p>
           )}
         </header>
@@ -192,27 +194,25 @@ export function RevealCard({ data, light, onClose, pullAgain, onPlace, onLetThem
           {def.name}
         </h2>
         <p class={s.kind}>{isPet ? SPECIES_NOUN[def.species] : kindLabel(def)}</p>
+        <p class={s.line} aria-hidden="true">
+          {data.via === 'order' && !data.secret ? orderLine(def) : revealLine(def, machine, data.rarity, data.secret)}
+        </p>
         <p class={s.flavor}>{def.flavor}</p>
         <div class={s.fold} aria-hidden="true" />
         <p class={s.tier}>
-          <Pill tone={data.secret ? 'secret' : TONE[data.rarity]}>{tierLabel(data.rarity, data.secret)}</Pill>
-          <span>{RARITY_FINISH[data.rarity]}</span>
-          {data.isNew && <span class={s.new}>New to your collection</span>}
+          <RarityPill rarity={data.rarity} secret={data.secret} />
+          <span>{data.secret ? 'holographic' : RARITY_FINISH[data.rarity]}</span>
+          {data.isNew && <span class={s.new}>New</span>}
         </p>
 
         {!data.isNew && (
           <div class={s.progress}>
             <span class={s.dupe}>
-              <StardustIcon size={20} /> Onto the swap shelf · <b class="num">+{data.stardust}</b> swaps
+              <SwapIcon size={20} /> {duplicateLine(def, data.stardust, homeName)}
             </span>
-            {isPet && data.friendshipXp ? (
-              <span class={s.dupe}>
-                {petName} is already home. <b class="num">+{data.friendshipXp}</b> friendship
-              </span>
-            ) : null}
             {data.fusedStars > 0 && (
               <span class={s.fusion}>
-                <StarIcon size={20} /> Ten swaps made a stamp · <b class="num">+{data.fusedStars}</b>
+                <StampIcon size={20} /> {fusionLine(data.fusedStars)}
               </span>
             )}
           </div>
@@ -222,18 +222,18 @@ export function RevealCard({ data, light, onClose, pullAgain, onPlace, onLetThem
           <div class={s.nameTag}>
             <span class={s.tag}>
               <span class={s.tagName}>{petName}</span>
-              <span class={s.tagDate}>came home {shortDate(cameHome)}</span>
+              <span class={s.tagDate}>{cameHomeLabel(cameHome)}</span>
             </span>
-            <PillButton variant="quiet" size="sm" onClick={() => setNaming(true)}>
+            <Button variant="quiet" size="sm" onClick={() => setNaming(true)}>
               Rename
-            </PillButton>
+            </Button>
           </div>
         )}
 
         {naming && (
           <form class={s.nameForm} onSubmit={saveName}>
             <label class={s.nameLabel} for={`${titleId}-name`}>
-              {def.category === 'pet' ? `A name for the ${SPECIES_NOUN[def.species].toLowerCase()}` : 'A name'}
+              Name
             </label>
             <div class={s.nameRow}>
               <input
@@ -247,9 +247,9 @@ export function RevealCard({ data, light, onClose, pullAgain, onPlace, onLetThem
                 onKeyDown={cancelName}
                 ref={nameInput}
               />
-              <PillButton type="submit" size="sm">
+              <Button type="submit" size="sm" face={face}>
                 Save
-              </PillButton>
+              </Button>
             </div>
             {def.category === 'pet' && (
               <div class={s.ideas} role="group" aria-label="Name ideas">
@@ -259,7 +259,7 @@ export function RevealCard({ data, light, onClose, pullAgain, onPlace, onLetThem
                   </button>
                 ))}
                 <button type="button" class={s.idea} onClick={() => setRound((r) => r + 1)} onKeyDown={cancelName}>
-                  Other names
+                  Another name
                 </button>
               </div>
             )}
@@ -268,34 +268,30 @@ export function RevealCard({ data, light, onClose, pullAgain, onPlace, onLetThem
 
         <div class={s.actions}>
           {visit && (
-            <PillButton variant="quiet" onClick={place}>
+            <Button variant="quiet" onClick={place}>
               Visit {petName}
-            </PillButton>
+            </Button>
           )}
           {placeable && (
-            <PillButton colors={machine ? { face: pillFace(machine), ink: '#3B3236' } : undefined} onClick={place}>
-              {isPet ? 'Find them a place' : 'Find it a place'}
-            </PillButton>
+            <Button face={face} onClick={place}>
+              {isPet ? `Find ${petName} a plant` : 'Find it a place'}
+            </Button>
           )}
           {newPet && (
-            <PillButton variant="secondary" onClick={letThemChoose}>
-              Let them choose
-            </PillButton>
+            <Button variant="secondary" onClick={letChoose}>
+              Let {petName} choose
+            </Button>
           )}
         </div>
         <div class={s.actions}>
           {pullAgain && <PullAgainButton offer={pullAgain} />}
-          <PillButton
-            variant={placeable ? 'quiet' : 'primary'}
-            colors={!placeable && machine ? { face: pillFace(machine), ink: '#3B3236' } : undefined}
-            onClick={onClose}
-          >
-            Done
-          </PillButton>
+          <Button variant={placeable ? 'quiet' : 'primary'} face={placeable ? undefined : face} onClick={onClose}>
+            {newPet ? 'Not now' : 'Done'}
+          </Button>
         </div>
 
         <p class="sr-only" role="status">
-          {revealSentence(def, machine, data.rarity, data.secret, data.isNew, data.stardust)}
+          {revealSentence(def, machine, data.rarity, data.secret, data.isNew, data.stardust, homeName)}
         </p>
       </section>
     </div>
