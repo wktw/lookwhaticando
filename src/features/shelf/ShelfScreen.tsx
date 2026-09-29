@@ -242,6 +242,12 @@ export function ShelfScreen() {
   useEffect(() => {
     if (selected && !decorById.has(selected)) setSelected(null);
   }, [decorById, selected]);
+  // Done: focus goes back to Decorate, where she started.
+  const wasEditing = useRef(false);
+  useEffect(() => {
+    if (wasEditing.current && !editing) stageRef.current?.parentElement?.querySelector<HTMLElement>('[data-decorate]')?.focus({ preventScroll: true });
+    wasEditing.current = editing;
+  }, [editing]);
 
   const counts = useMemo(() => decorCounts(shelf.decor), [shelf.decor]);
   const addDecor = (itemId: string, label: string) => {

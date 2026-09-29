@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'preact/hooks';
 import type { PlaceId } from '@/catalog/types';
 import { EMPTY, capitalise, fillLine } from '@/catalog/lines';
 import { placePhrase } from '@/catalog/format';
@@ -32,16 +33,19 @@ export function DecorTray({ place, inventory, count, selected, onAdd, onFlip, on
   const full = count >= MAX_DECOR_PER_PLACE;
   const where = placeName(place);
   const label = decorLabel;
+  // Decorate gave way to this tray: focus comes here, to its heading.
+  const title = useRef<HTMLHeadingElement>(null);
+  useEffect(() => title.current?.focus({ preventScroll: true }), []);
   return (
     <section class={s.tray} aria-labelledby="shelf-decorate">
       <div class={s.trayHead}>
-        <h2 id="shelf-decorate" class={s.trayTitle}>
+        <h2 id="shelf-decorate" class={s.trayTitle} ref={title} tabIndex={-1}>
           {SHELF_COPY.decor.title}
           <span class={s.trayPlace}>
             {where} · {count} of {MAX_DECOR_PER_PLACE}
           </span>
         </h2>
-        <Button size="sm" icon="check" onClick={onDone} data-autofocus>
+        <Button size="sm" icon="check" onClick={onDone}>
           {SHELF_COPY.done}
         </Button>
       </div>

@@ -421,6 +421,7 @@
 
 .trayHead .trayTitle {
   display: grid;
+  outline: none;
   margin: 0;
   color: var(--ink);
   font-family: var(--font-display);
@@ -528,6 +529,11 @@
 
 /* ---------- wide screens: the scene in a frame, the paper in two columns ---------- */
 @media (min-width: 900px) {
+  /* The sidebar's wallet shows the coins on wide screens. */
+  .coins {
+    display: none;
+  }
+
   .stage {
     margin: var(--s-4) var(--gutter) 0;
     border-radius: var(--r-lg);

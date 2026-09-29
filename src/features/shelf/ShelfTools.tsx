@@ -34,7 +34,7 @@ export function ShelfTools({ places, inView, onGo, onDecorate, onBasket }: Shelf
         </nav>
       )}
       <div class={s.toolRow}>
-        <Button variant="secondary" size="sm" icon="frame" onClick={onDecorate}>
+        <Button variant="secondary" size="sm" icon="frame" onClick={onDecorate} data-decorate>
           {SHELF_COPY.decorate}
         </Button>
         <Button variant="secondary" size="sm" icon="bowl" onClick={onBasket}>
