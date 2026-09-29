@@ -1,56 +1,606 @@
+/* The Shelf (DESIGN §9.4): a scene at pet eye level, a line from the sill, then the paper below. */
+
 .screen {
-  display: grid;
-  gap: var(--s-5);
-  padding-bottom: var(--s-8);
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: calc(var(--safe-top) + 16px) 0 calc(var(--s-10) + var(--safe-bottom));
 }
 
-.title {
-  margin: 0;
-  padding: var(--s-4) var(--gutter) 0;
-  font: var(--fs-title) / 1.1 var(--font-display);
-  font-weight: 400;
-  color: var(--ink);
-}
-
-.scene {
-  height: clamp(260px, 40vh, 380px);
-}
-
-.section {
-  display: grid;
+/* ---------- header ---------- */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   gap: var(--s-3);
   padding: 0 var(--gutter);
 }
 
-.label {
+/* Doubled class: outranks host-page heading styles (the dev gallery's). */
+.header .title {
   margin: 0;
-  font: 800 var(--fs-micro) / 1.2 var(--font-body);
-  letter-spacing: var(--tracking-caps);
-  text-transform: uppercase;
-  color: var(--ink-2);
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: var(--fs-title);
+  line-height: 1.1;
 }
 
+.coins {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 7px;
+  min-height: 40px;
+  margin: 0;
+  padding: 4px 14px 4px 8px;
+  border-radius: var(--r-pill);
+  background: var(--card);
+  box-shadow: inset 0 0 0 1px var(--line);
+  font-weight: 800;
+  font-size: var(--fs-body);
+  color: var(--ink);
+}
+
+/* ---------- the scene ---------- */
+.stage {
+  position: relative;
+  margin-top: var(--s-3);
+}
+
+.scene {
+  height: clamp(300px, 50svh, 440px);
+}
+
+/* Decor edit mode: the scene sits in a quiet frame so it reads as "being arranged". */
+.screen[data-editing] .stage {
+  box-shadow: 0 0 0 2px var(--lavender-500);
+}
+
+.caption {
+  box-sizing: border-box;
+  max-width: 40em;
+  min-height: calc(2 * 1.4em + 12px);
+  margin: 0 auto;
+  padding: 10px var(--gutter) 2px;
+  color: var(--ink-2);
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: var(--fs-body-lg);
+  line-height: 1.4;
+  text-align: center;
+  text-wrap: balance;
+}
+.caption:empty {
+  min-height: 12px;
+  padding: 0;
+}
+
+/* ---------- places and tools under the scene ---------- */
+.tools {
+  display: grid;
+  gap: var(--s-3);
+  padding: var(--s-2) var(--gutter) 0;
+}
+
+.placeNav ul {
+  display: flex;
+  gap: var(--s-2);
+  margin: 0 calc(-1 * var(--gutter));
+  padding: 2px var(--gutter);
+  overflow-x: auto;
+  list-style: none;
+  scrollbar-width: none;
+}
+.placeNav ul::-webkit-scrollbar {
+  display: none;
+}
+.placeNav li {
+  flex: none;
+}
+
+.placeChip {
+  min-height: 44px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: transparent;
+  color: var(--ink-2);
+  font: 600 var(--fs-caption) / 1.2 var(--font-body);
+  cursor: pointer;
+  transition:
+    background var(--t-micro) var(--ease-out),
+    color var(--t-micro) var(--ease-out);
+}
+.placeChip:hover {
+  color: var(--ink);
+}
+/* The place in view: a raised paper pill; the others are just their names. */
+.placeChip[aria-current='true'] {
+  background: var(--card);
+  color: var(--ink);
+  font-weight: 800;
+  box-shadow:
+    inset 0 0 0 1px var(--line),
+    var(--shadow-sm);
+}
+.placeChip:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.toolRow {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s-2);
+}
+.toolRow[data-count='1'] {
+  grid-template-columns: minmax(0, 1fr);
+}
+.toolRow > * {
+  min-width: 0;
+}
+
+/* ---------- sections ---------- */
+.sectionHead {
+  margin: var(--s-8) 0 var(--s-3);
+}
+
+.roster,
+.places,
+.guide,
+.empty {
+  padding: 0 var(--gutter);
+}
+
+.empty {
+  margin-top: var(--s-6);
+}
+
+.group + .group {
+  margin-top: var(--s-4);
+}
+
+.groupHead {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-2);
+  margin: 0 0 var(--s-2);
+}
+
+.groupHead .groupTitle {
+  margin: 0;
+  color: var(--ink);
+  font: 700 var(--fs-caption) / 1.3 var(--font-body);
+}
+
+.groupMeta {
+  color: var(--ink-2);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- pets ---------- */
+.petRow {
+  display: flex;
+  gap: 10px;
+  margin: 0 calc(-1 * var(--gutter));
+  padding: 4px var(--gutter) 10px;
+  overflow-x: auto;
+  list-style: none;
+  scroll-snap-type: x proximity;
+  scroll-padding: 0 var(--gutter);
+  scrollbar-width: none;
+}
+.petRow::-webkit-scrollbar {
+  display: none;
+}
+.petRow li {
+  flex: none;
+  scroll-snap-align: start;
+}
+
+.petTile {
+  display: grid;
+  justify-items: center;
+  align-content: start;
+  gap: 2px;
+  width: 96px;
+  min-height: 132px;
+  padding: 10px 6px 10px;
+  border: 0;
+  border-radius: var(--r-md);
+  background: var(--card);
+  box-shadow:
+    inset 0 0 0 1px var(--line),
+    var(--shadow-card);
+  color: var(--ink);
+  text-align: center;
+  cursor: pointer;
+  transition: transform var(--t-micro) var(--ease-out);
+}
+.petTile:active {
+  transform: translateY(1px);
+}
+.petTile:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.petArt {
+  display: grid;
+  place-items: center;
+  width: 72px;
+  height: 72px;
+  margin-bottom: 4px;
+  border-radius: 50%;
+  background: var(--bg-2);
+}
+
+.petName {
+  display: -webkit-box;
+  max-width: 100%;
+  overflow: hidden;
+  font-family: var(--font-display);
+  font-size: 0.9375rem;
+  line-height: 1.2;
+  overflow-wrap: break-word;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.petWhere {
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--ink-2);
+  font: 600 var(--fs-micro) / 1.3 var(--font-body);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* ---------- Field Guide ---------- */
+.guide {
+  margin-top: var(--s-8);
+}
+
+.guideHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-3);
+  margin-bottom: var(--s-3);
+}
+
+.guideHead .guideTitle {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: var(--fs-headline);
+  color: var(--ink);
+}
+
+.guideMeta {
+  color: var(--ink-2);
+  font: 700 var(--fs-caption) / 1.2 var(--font-body);
+  font-variant-numeric: tabular-nums;
+}
+
+.pageRow {
+  display: flex;
+  gap: var(--s-2);
+  margin: 0 -16px;
+  padding: 2px 16px 4px;
+  overflow-x: auto;
+  list-style: none;
+  scrollbar-width: none;
+}
+.pageRow::-webkit-scrollbar {
+  display: none;
+}
+.pageRow li {
+  flex: none;
+}
+
+.pageTile {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  width: 88px;
+  padding: 8px 4px 10px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--bg);
+  box-shadow: inset 0 0 0 1px var(--line);
+  color: var(--ink);
+  cursor: pointer;
+}
+.pageTile[data-complete] {
+  background: var(--sage-100);
+  box-shadow: inset 0 0 0 1px var(--sage-500);
+}
+.pageTile:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.pageArt {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+}
+
+.pageName {
+  font-family: var(--font-display);
+  font-size: 0.9375rem;
+  line-height: 1.2;
+}
+
+.pageCount {
+  color: var(--ink-2);
+  font: 700 var(--fs-micro) / 1.2 var(--font-body);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- places map ---------- */
 .map {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(156px, 1fr));
   gap: var(--s-3);
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
-.place {
+.placeCard {
   display: grid;
-  gap: var(--s-1);
+  grid-template-rows: auto 1fr;
   margin: 0;
+  padding: 6px;
+  border-radius: var(--r-md);
+  background: var(--card);
+  box-shadow:
+    inset 0 0 0 1px var(--line),
+    var(--shadow-card);
 }
 
-.name {
-  font: 700 var(--fs-caption) / 1.3 var(--font-body);
+.placeArt {
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.placeBody {
+  display: grid;
+  align-content: start;
+  justify-items: start;
+  gap: 6px;
+  padding: 10px 6px 6px;
+}
+
+.placeBody .placeName {
+  margin: 0;
   color: var(--ink);
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: 1.125rem;
+  line-height: 1.2;
 }
 
-.blurb {
-  font: var(--fs-micro) / 1.35 var(--font-body);
+.placeBlurb {
+  margin: 0;
   color: var(--ink-2);
+  font-size: var(--fs-caption);
+  line-height: 1.4;
+}
+
+.placeFacts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  margin: 2px 0 2px;
+  color: var(--ink-2);
+  font: 600 var(--fs-micro) / 1.3 var(--font-body);
+}
+
+.placesJar {
+  margin: calc(-1 * var(--s-1)) 0 var(--s-3);
+  color: var(--ink-2);
+  font-size: var(--fs-caption);
+  line-height: 1.4;
+}
+
+
+/* ---------- decor edit tray ---------- */
+.tray {
+  display: grid;
+  gap: var(--s-2);
+  margin: var(--s-2) var(--gutter) 0;
+  padding: 14px 14px 12px;
+  border-radius: var(--r-lg);
+  background: var(--card);
+  box-shadow:
+    inset 0 0 0 1px var(--line),
+    var(--shadow-float);
+}
+
+.trayHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+}
+
+.trayTitles {
+  display: grid;
+}
+
+.trayHead .trayTitle {
+  outline: none;
+  margin: 0;
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: var(--fs-headline);
+  line-height: 1.15;
+}
+
+.trayPlace {
+  color: var(--ink-2);
+  font: 700 var(--fs-micro) / 1.4 var(--font-body);
+  font-variant-numeric: tabular-nums;
+}
+
+.trayHint,
+.trayNote {
+  margin: 0;
+  color: var(--ink-2);
+  font-size: var(--fs-caption);
+  line-height: 1.4;
+}
+
+.selected {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 8px 8px 12px;
+  border-radius: var(--r-md);
+  background: var(--lavender-100);
+}
+
+.selectedName {
+  flex: 1 1 8em;
+  min-width: 0;
+  color: var(--ink);
+  font: 700 var(--fs-caption) / 1.3 var(--font-body);
+}
+
+.inventory {
+  display: flex;
+  gap: 8px;
+  margin: 0 -14px;
+  padding: 4px 14px 2px;
+  overflow-x: auto;
+  list-style: none;
+  scrollbar-width: none;
+}
+.inventory::-webkit-scrollbar {
+  display: none;
+}
+.inventory li {
+  flex: none;
+}
+
+.invTile {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  align-content: start;
+  gap: 4px;
+  width: 84px;
+  min-height: 96px;
+  padding: 8px 4px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--bg);
+  box-shadow: inset 0 0 0 1px var(--line);
+  color: var(--ink);
+  cursor: pointer;
+}
+.invTile:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+.invTile:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.invArt {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+}
+
+.invName {
+  display: -webkit-box;
+  max-width: 100%;
+  overflow: hidden;
+  font: 600 var(--fs-micro) / 1.25 var(--font-body);
+  text-align: center;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.invCount {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  color: var(--ink-2);
+  font: 800 var(--fs-micro) / 1 var(--font-body);
+}
+
+/* ---------- wide screens: the scene in a frame, the paper in two columns ---------- */
+@media (min-width: 900px) {
+  /* The sidebar's wallet shows the coins on wide screens. */
+  .coins {
+    display: none;
+  }
+
+  .stage {
+    margin: var(--s-4) var(--gutter) 0;
+    border-radius: var(--r-lg);
+    overflow: hidden;
+    box-shadow:
+      inset 0 0 0 1px var(--line),
+      var(--shadow-card);
+  }
+
+  .scene {
+    height: clamp(380px, 58vh, 540px);
+  }
+
+  .tools {
+    grid-template-columns: 1fr auto;
+    align-items: start;
+  }
+
+  /* Every opened place fits: the names wrap rather than hide past the edge. */
+  .placeNav {
+    min-width: 0;
+  }
+  .placeNav ul {
+    flex-wrap: wrap;
+    margin: 0;
+    padding: 2px;
+    overflow: visible;
+  }
+
+  .toolRow,
+  .toolRow[data-count='1'] {
+    grid-column: 2;
+    grid-template-columns: repeat(var(--tools, 2), auto);
+  }
+  .toolRow[data-count='1'] {
+    --tools: 1;
+  }
+
+  .petRow {
+    flex-wrap: wrap;
+    margin: 0;
+    padding: 4px 0 10px;
+    overflow: visible;
+  }
+
+  .map {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .petTile,
+  .placeChip {
+    transition: none;
+  }
 }

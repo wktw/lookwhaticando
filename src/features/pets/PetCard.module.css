@@ -1,0 +1,522 @@
+/* The Pet Card: an adoption profile on paper, with a portrait that answers back. */
+
+.sheet {
+  --pet-card-gap: var(--s-5);
+}
+
+.aside {
+  display: flex;
+  gap: 4px;
+}
+
+.card {
+  display: grid;
+  gap: var(--pet-card-gap, 20px);
+  padding-bottom: var(--s-6);
+}
+
+/* ---------- the portrait ---------- */
+.hero {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  text-align: center;
+}
+
+.portrait {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 188px;
+  height: 188px;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 50% 82%, color-mix(in srgb, var(--ink) 7%, transparent) 0 30%, transparent 31%),
+    var(--bg-2);
+  overflow: hidden;
+}
+
+/* A hop for "Say hello" and friends: a small lift, no overshoot (DESIGN §10.5). */
+.portrait[data-bounce='0'] > :first-child {
+  animation: hopA 420ms var(--ease-out);
+}
+.portrait[data-bounce='1'] > :first-child {
+  animation: hopB 420ms var(--ease-out);
+}
+@keyframes hopA {
+  40% {
+    transform: translateY(-8px);
+  }
+}
+@keyframes hopB {
+  40% {
+    transform: translateY(-8px);
+  }
+}
+.held > :first-child {
+  transform: translateY(-14px);
+}
+
+/* The small brass tag of best friends (DESIGN §8.2 L10). */
+.tag {
+  position: absolute;
+  right: 34px;
+  bottom: 30px;
+  width: 16px;
+  height: 20px;
+  border-radius: 3px 3px 8px 8px;
+  background: var(--coin);
+  box-shadow: inset 0 -3px 0 color-mix(in srgb, var(--butter-700) 35%, transparent);
+}
+
+.variant {
+  margin: 6px 0 0;
+  color: var(--ink);
+  font: 700 var(--fs-caption) / 1.3 var(--font-body);
+}
+
+.blurb {
+  max-width: 28em;
+  margin: 0;
+  color: var(--ink-2);
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: var(--fs-body);
+  line-height: 1.4;
+}
+
+.gestures {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  width: min(100%, 340px);
+  margin-top: 10px;
+}
+
+.caption {
+  box-sizing: border-box;
+  max-width: 30em;
+  min-height: calc(2 * 1.4em);
+  margin: 4px 0 0;
+  color: var(--ink-2);
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: var(--fs-body);
+  line-height: 1.4;
+  text-wrap: balance;
+}
+.caption:empty {
+  min-height: 0;
+}
+
+/* ---------- sections ---------- */
+.section {
+  display: grid;
+  gap: 10px;
+}
+
+.sectionTitle {
+  margin: 0;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--line);
+  color: var(--ink-2);
+  font: 800 var(--fs-micro) / 1.2 var(--font-body);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+}
+
+.subTitle {
+  margin: 6px 0 0;
+  color: var(--ink);
+  font: 700 var(--fs-caption) / 1.3 var(--font-body);
+}
+
+.note {
+  margin: 0;
+  color: var(--ink-2);
+  font-size: var(--fs-caption);
+  line-height: 1.45;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.actions:empty {
+  display: none;
+}
+
+/* ---------- friendship ---------- */
+.friendship {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+}
+
+.dots {
+  display: inline-flex;
+  gap: 5px;
+}
+
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1.5px var(--control-border);
+}
+.dot[data-on] {
+  background: var(--blush-500);
+  box-shadow: inset 0 0 0 1.5px var(--blush-700);
+}
+
+.levelName {
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-size: var(--fs-body-lg);
+}
+
+.levelLine {
+  margin: 0;
+  color: var(--ink-2);
+  font-size: var(--fs-caption);
+  line-height: 1.45;
+}
+
+/* ---------- about: an adoption profile ---------- */
+.about {
+  display: grid;
+  margin: 0;
+  padding: 4px 14px;
+  border-radius: var(--r-md);
+  background: var(--card);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+
+.aboutRow {
+  display: grid;
+  grid-template-columns: 7.5em minmax(0, 1fr);
+  gap: 12px;
+  align-items: baseline;
+  padding: 9px 0;
+}
+.about .aboutRow + .aboutRow {
+  border-top: 1px solid var(--line);
+}
+.aboutRow dt {
+  color: var(--ink-2);
+  font: 700 var(--fs-micro) / 1.4 var(--font-body);
+  letter-spacing: 0.02em;
+}
+.placeValue {
+  margin: 0;
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-size: var(--fs-headline);
+  line-height: 1.2;
+}
+.aboutRow dd {
+  margin: 0;
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-size: var(--fs-body);
+  line-height: 1.35;
+}
+
+/* ---------- chips (plants, places, names) ---------- */
+.chips,
+.ideas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: var(--card);
+  box-shadow: inset 0 0 0 1px var(--line);
+  color: var(--ink);
+  font: 700 var(--fs-caption) / 1.2 var(--font-body);
+  cursor: pointer;
+}
+.chip[aria-current='true'],
+.chip[aria-pressed='true'] {
+  background: var(--sage-100);
+  box-shadow: inset 0 0 0 1.5px var(--sage-700);
+}
+.chip:disabled {
+  color: var(--ink-disabled);
+  cursor: default;
+}
+.chip:focus-visible,
+.wear:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+.chipNote {
+  color: var(--ink-2);
+  font-weight: 600;
+  font-size: var(--fs-micro);
+}
+.reroll {
+  background: transparent;
+  color: var(--ink-2);
+}
+
+/* ---------- feed ---------- */
+/* One row, the favourite first; the rest are in "Basket and pantry". */
+.treats {
+  display: flex;
+  gap: 8px;
+  margin: 0 -4px;
+  padding: 2px 4px 4px;
+  overflow-x: auto;
+  list-style: none;
+  scroll-snap-type: x proximity;
+  scrollbar-width: none;
+}
+.treats::-webkit-scrollbar {
+  display: none;
+}
+
+.treatItem {
+  display: grid;
+  flex: none;
+  align-content: start;
+  justify-items: center;
+  gap: 4px;
+  width: 104px;
+  scroll-snap-align: start;
+}
+
+.bake {
+  width: 100%;
+  min-height: 44px;
+  padding-inline: 6px;
+  white-space: normal;
+  line-height: 1.2;
+  text-align: center;
+}
+
+.treat {
+  display: grid;
+  justify-items: center;
+  align-content: start;
+  gap: 2px;
+  width: 100%;
+  height: 100%;
+  min-height: 104px;
+  padding: 8px 4px 10px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--card);
+  box-shadow: inset 0 0 0 1px var(--line);
+  color: var(--ink);
+  cursor: pointer;
+}
+.treat[data-empty] {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+.treat[data-empty] .treatArt {
+  opacity: 0.55;
+}
+.treat:disabled {
+  color: var(--ink-2);
+  cursor: default;
+}
+.treat:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.treatArt {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+}
+
+.treatName {
+  display: -webkit-box;
+  max-width: 100%;
+  overflow: hidden;
+  font-family: var(--font-display);
+  font-size: 0.9375rem;
+  line-height: 1.2;
+  text-align: center;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.fav {
+  padding: 1px 8px;
+  border-radius: var(--r-pill);
+  background: var(--blush-100);
+  color: var(--blush-700);
+  font: 800 10px / 1.6 var(--font-body);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+}
+
+.treatMeta {
+  color: var(--ink-2);
+  font: 600 var(--fs-micro) / 1.35 var(--font-body);
+  text-align: center;
+}
+
+/* ---------- company ---------- */
+.company {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 14px;
+  border-radius: var(--r-md);
+  background: var(--sage-100);
+  box-shadow: inset 0 0 0 1px var(--sage-300);
+}
+
+.companyArt {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 60px;
+  height: 60px;
+}
+
+.companyText {
+  display: grid;
+  justify-items: start;
+  gap: 2px;
+  min-width: 0;
+}
+
+.companyText .companyTitle {
+  margin: 0;
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: var(--fs-body-lg);
+  line-height: 1.25;
+}
+
+.companyButton {
+  margin-left: -12px;
+}
+
+/* ---------- wardrobe ---------- */
+.wardrobe {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.wear {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  width: 100%;
+  min-height: 92px;
+  padding: 8px 4px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--card);
+  box-shadow: inset 0 0 0 1px var(--line);
+  color: var(--ink);
+  cursor: pointer;
+}
+.wear[data-on] {
+  background: var(--sage-100);
+}
+.wear[aria-pressed='true'] {
+  box-shadow: inset 0 0 0 2px var(--sage-700);
+}
+
+.wearName {
+  display: -webkit-box;
+  max-width: 100%;
+  overflow: hidden;
+  font: 600 var(--fs-micro) / 1.25 var(--font-body);
+  text-align: center;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+/* ---------- memories ---------- */
+.memories {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.memories li {
+  padding-left: 14px;
+  border-left: 2px solid var(--blush-300);
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-size: var(--fs-body);
+  line-height: 1.4;
+}
+
+.keepsakes {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.keepsakes li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--ink-2);
+  font-size: var(--fs-caption);
+  line-height: 1.4;
+}
+.keepsakeArt {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 12px;
+  background: var(--bg-2);
+}
+
+/* ---------- rename ---------- */
+.rename {
+  display: grid;
+  gap: 12px;
+  margin-bottom: var(--s-4);
+  padding: 14px;
+  border-radius: var(--r-md);
+  background: var(--card);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .portrait > :first-child {
+    animation: none !important;
+  }
+}
+
+/* Lamplight: a warm pool on the portrait, so a dark coat still reads (DESIGN §10.4). */
+:global(:root[data-theme='night']) .portrait {
+  background:
+    radial-gradient(circle at 72% 24%, color-mix(in srgb, var(--lamp) 26%, transparent), transparent 62%),
+    var(--card-2);
+}
