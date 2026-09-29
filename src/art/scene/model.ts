@@ -110,6 +110,8 @@ export interface SillExtras {
   note?: { kind: 'sundayNote' | 'herbarium' | 'anniversary' | 'story'; label?: string; onOpen: () => void };
   /** Her birthday: a tiny cake on the sill. */
   cake?: boolean;
+  /** This month's flowers (the Today band): a jam jar by the coin jar with a stem from each habit watered this month. */
+  monthJar?: { stems: readonly { habitId: string; plant: PlantSpeciesId }[] };
 }
 
 /** Where and how a pet is shown right now. */

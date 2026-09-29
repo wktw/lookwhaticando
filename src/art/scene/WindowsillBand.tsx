@@ -30,6 +30,7 @@ import { useWidthUnits, useWindowMoment } from './hooks';
 import { baseline, depthScale } from './room';
 import { OBJECT_BASE } from './props/shapes';
 import { CoinJar, pileTop } from './props/CoinJar';
+import { MonthJar } from '../progress';
 import { Coin } from './props/Coin';
 import { TableLamp } from './props/TableLamp';
 import { standAt } from './actors/stand';
@@ -276,6 +277,11 @@ export const WindowsillBand = forwardRef(function WindowsillBand(props: Windowsi
               ) : (
                 <Coin key={coin.n} class={b.coin} style={{ left: u(E.jar - 2.2), top: u(jarTop - 3), width: u(4.4), height: u(4.4) }} />
               ))}
+            {props.monthJar && props.monthJar.stems.length > 0 && (
+              <div class={s.prop} data-month-jar style={standAt(E.jar + 10.5, baseline(rows, jarDepth + 0.1), BAND_SPEC.scale.jar * 1.05, 92, 3, depthScale(jarDepth + 0.1))}>
+                <MonthJar stems={props.monthJar.stems} light={light} style={{ width: '100%', height: '100%', overflow: 'visible' }} />
+              </div>
+            )}
             <BandExtras extras={props} light={light} />
           </div>
         </div>
@@ -311,7 +317,7 @@ function BandExtras({ extras, light }: { extras: SillExtras; light: Parameters<t
   return (
     <>
       {extras.note && <SillNote x={BAND_END.jamb + 8} depth={1} size={pet * 0.62} rows={rows} light={light} note={extras.note} />}
-      {extras.cake && <SillThing kind="cake" x={BAND_END.jar + 12} depth={1} size={decorSize(DECOR_ENTRIES['decor-birthday-cake'], pet)} rows={rows} light={light} entry={DECOR_ENTRIES['decor-birthday-cake']!} />}
+      {extras.cake && <SillThing kind="cake" x={BAND_END.jar + (extras.monthJar?.stems.length ? 17 : 12)} depth={1} size={decorSize(DECOR_ENTRIES['decor-birthday-cake'], pet)} rows={rows} light={light} entry={DECOR_ENTRIES['decor-birthday-cake']!} />}
       {extras.found && (
         <SillThing kind="found" x={BAND_END.lamp + 9} depth={1} size={decorSize(foundFor(extras.found.seed), pet)} rows={rows} light={light} entry={foundFor(extras.found.seed)} label={extras.found.label ?? 'Something on the sill'} onTap={extras.found.onTap} />
       )}
