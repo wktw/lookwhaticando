@@ -1,0 +1,10 @@
+/* Locked medals are pale lavender-grey; on night surfaces they'd glow like silver, so soften them. */
+:global(:root[data-theme='night']) .locked {
+  opacity: 0.66;
+}
+
+@media (prefers-color-scheme: dark) {
+  :global(:root:not([data-theme='light'])) .locked {
+    opacity: 0.66;
+  }
+}
