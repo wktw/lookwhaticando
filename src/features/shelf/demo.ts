@@ -1,7 +1,9 @@
 /**
- * Demo Shelf until the screen is wired to the store: a few habit plants, a mixed household out (a
- * cat, a cow, a bunny and a dog in the first 390 px of the sill; DESIGN §1 Many animals), and two
- * places opened. Everything is catalog ids, so it renders with whatever art the modules ship.
+ * Demo Shelf until the screen is wired to the store: a few habit plants, a mixed household out, and
+ * two places opened. Everything is catalog ids, so it renders with whatever art the modules ship.
+ * The Sill opens scrolled to its last pot (`openScroll`), so the cat lives in the last pot (Yoga) and
+ * the cow, the bunny and the dog roam the lamp end: all four are in the first 390 px (DESIGN §1 Many
+ * animals), and at 1200 px too.
  */
 import type { PlaceId } from '@/catalog/types';
 import type { ShelfDecor, ShelfPet, SillPot } from '@/art/scene';
@@ -15,8 +17,8 @@ export const DEMO_POTS: SillPot[] = [
 ];
 
 export const DEMO_PETS: ShelfPet[] = [
-  { petId: 'pet-cat-grey', name: 'Earl', personality: 'sleepy', home: 'walk' },
-  { petId: 'pet-cow-highland', name: 'Tuppence', personality: 'gentle', home: 'water' },
+  { petId: 'pet-cat-grey', name: 'Earl', personality: 'sleepy', home: 'yoga' },
+  { petId: 'pet-cow-highland', name: 'Tuppence', personality: 'gentle' },
   { petId: 'pet-bunny-lop', name: 'Biscuit', personality: 'sunny' },
   { petId: 'pet-dog-shiba', name: 'Kinako', personality: 'dreamy' },
   { petId: 'pet-frog-tree', name: 'Fern', personality: 'curious', place: 'pond' },

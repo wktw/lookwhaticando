@@ -23,9 +23,10 @@ to the store. Each names the contract that is already in place.
    bookshelf). Map `shelfView.out` to `ShelfPet` as `{ key: pet.id, petId: pet.itemId, name, personality,
    outfit, home: companionOf, place: pet.place, favouriteSpot }`; a drop onto a place calls
    `store.setPetPlace(petId, place)` (`false` = refused, `null` = back to the Sill); decor goes through
-   `decorToScene` / `sceneToDecor`. The Sill opens scrolled to its last pot (`openScroll`), so with the
-   demo's five pots the first 390 px show the bunny and the dog; the cat and the cow sit in the first
-   two pots, one swipe to the left.
+   `decorToScene` / `sceneToDecor`. The Sill opens scrolled to its last pot (`openScroll`), so the demo
+   keeps the cat in the last pot and the cow, the bunny and the dog out on the lamp end: all four are in
+   the first 390 px. A real household's residents in its early pots will sit one swipe to the left;
+   when this is wired, check the opening frame still shows a pet (or open on the closest pet's pot).
 5. **The Field Guide** (You): "not yet" tiles use `<CollectibleArt muted size="100%" px={…} />` (35%
    saturation, no CSS filter); only a Secret is a "?". The lineup leaflet on the cabinet keeps its
    tiles in full colour on purpose (it is the printed lineup, not the Field Guide).
