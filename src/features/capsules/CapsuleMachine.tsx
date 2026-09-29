@@ -1,157 +1,187 @@
-import { useEffect, useId, useRef } from 'preact/hooks';
+import { useEffect, useId } from 'preact/hooks';
 import type { MachineDef } from '@/catalog/types';
+import type { Light } from '@/art/light';
 import { state } from '@/state/store';
-import { MachineArt } from '@/art/machines/MachineArt';
-import { DomeCapsules, capsuleTransforms } from '@/art/machines/DomeCapsules';
-import { CapsuleShell } from '@/art/machines/CapsuleArt';
-import { OUT_CAPSULE_R, REST, SLOT } from '@/art/machines/geometry';
-import { startIdleLife } from '@/art/machines/idleLife';
+import { CabinetArt } from '@/art/machines/CabinetArt';
+import { WindowCapsules, capsuleTransforms } from '@/art/machines/WindowCapsules';
+import { CAPSULE_R, CHUTE_CAPSULE_R, CHUTE_REST, SLOT } from '@/art/machines/geometry';
+import { lighting } from '@/art/machines/lighting';
+import { pillFace } from '@/art/machines/theme';
 import { CoinIcon, StarIcon, TicketIcon } from '@/art/icons';
-import { CandyButton, cx } from './ui/CandyButton';
-import { CrankHitArea, hitBox } from './HitAreas';
-import { usePull } from './usePull';
-import { currencyWord, machineCandy, nudgeText } from './copy';
-import { prefersReducedMotion } from './motion';
-import type { RevealData } from './reveal';
-import { RevealOverlay } from './RevealOverlay';
+import { PillButton, cx } from './ui/CandyButton';
+import { HandleControl, hitBox } from './HitAreas';
+import { usePull, type PullOptions } from './usePull';
+import { currencyWord, nudgeText } from './copy';
+import { RevealOverlay, type PlaceHandlers } from './RevealOverlay';
+import { useSceneLight } from './sceneLight';
 import { Token } from './Token';
 import s from './CapsuleMachine.module.css';
 
-export interface CapsuleMachineProps {
+export interface CapsuleMachineProps extends PlaceHandlers {
   machine: MachineDef;
-  /** Only the machine on screen runs physics, idle life and input; neighbors render at rest. */
+  /** Only the cabinet on screen runs physics and takes input; its neighbours render at rest. */
   active: boolean;
   /** Tells the carousel to hold still while a pull is in progress. */
   onBusyChange?: (busy: boolean) => void;
-}
-
-/** The capsule that came out, drawn at machine scale (it's animated by its wrapper). */
-function OutCapsule({ data, animated }: { data: RevealData | null; animated?: boolean }) {
-  if (!data) return null;
-  return (
-    <g transform={`scale(${OUT_CAPSULE_R / 40})`}>
-      <CapsuleShell rarity={data.rarity} color={data.shell.color} color2={data.shell.color2} stroke={6.2} animated={animated} />
-    </g>
-  );
+  /** The scene's light; defaults to the lamp at night and the real window by day. */
+  light?: Light;
+  /** The first capsule, on the house (onboarding). */
+  free?: PullOptions['free'];
+  /** Called once a reveal closes (e.g. onboarding moves on). */
+  onRevealClosed?: () => void;
+  /** Stands in for the store's pull (the dev gallery). */
+  pullWith?: PullOptions['pull'];
 }
 
 /**
- * The signature moment (DESIGN §9.3): insert → turn the crank → ka-chunk → a capsule
- * drops down the chute, rolls out and bounces → reveal. See usePull for the flow.
+ * The signature moment (DESIGN §7.2): the token into the slot → turn the handle → ka-chunk →
+ * a capsule sinks out of the window and drops into the chute → take it out and open it. See
+ * usePull for the flow.
  */
-export function CapsuleMachine({ machine, active, onBusyChange }: CapsuleMachineProps) {
+export function CapsuleMachine({
+  machine,
+  active,
+  onBusyChange,
+  light: lightProp,
+  free,
+  onRevealClosed,
+  onPlace,
+  onLetThemChoose,
+  pullWith,
+}: CapsuleMachineProps) {
   const app = state.value;
   const tickets = app.wallet.tickets;
   const uid = `cm${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`;
-  const svg = useRef<SVGSVGElement>(null);
-  const p = usePull(machine, active);
+  const sceneLight = useSceneLight();
+  const light = lightProp ?? sceneLight;
+  const L = lighting(light);
+  const p = usePull(machine, active, { free, pull: pullWith });
   const { phase, turnable, reveal, refs } = p;
   const busy = phase !== 'idle';
 
   useEffect(() => onBusyChange?.(busy), [busy]);
 
-  // Now and then a blink or a tail flick, only on the machine you're looking at, at rest.
-  useEffect(() => {
-    if (!active || busy || !svg.current) return;
-    return startIdleLife(svg.current, { enabled: () => !prefersReducedMotion() });
-  }, [active, busy]);
-
   const colors = machine.theme.capsules;
-  const domeLayer = (
+  const capsule = (tint: number) => (
+    <>
+      <use href={`#${uid}-shell-${tint % colors.length}`} />
+      <use href={`#${uid}-shade`} />
+      <use href={`#${uid}-glint`} />
+    </>
+  );
+  const windowLayer = (
     <g>
-      <DomeCapsules uid={uid} colors={colors} bodies={p.dome.bodies} register={active ? p.dome.register : undefined} />
+      <WindowCapsules uid={uid} colors={colors} bodies={p.dome.bodies} lighting={L} register={active ? p.dome.register : undefined} />
       {p.sinking && (
         <g ref={refs.sink}>
           <g transform={capsuleTransforms(p.sinking).root}>
             <use href={`#${uid}-shell-${p.sinking.tint % colors.length}`} transform={capsuleTransforms(p.sinking).shell} />
-            <use href={`#${uid}-shine`} />
+            <use href={`#${uid}-shade`} />
+            <use href={`#${uid}-glint`} />
           </g>
         </g>
       )}
     </g>
   );
 
-  const hintId = `${uid}-crank-hint`;
-  const candy = machineCandy(machine);
-  const priceIcon = machine.currency === 'stars' ? <StarIcon size={22} /> : <CoinIcon size={22} />;
-  const token = p.payment === 'ticket' ? 'ticket' : machine.currency === 'stars' ? 'star' : 'coin';
+  const hintId = `${uid}-handle-hint`;
+  const priceIcon = machine.currency === 'stars' ? <StarIcon size={20} /> : <CoinIcon size={20} />;
+  const hint =
+    phase === 'inserting' || turnable
+      ? 'Drag the handle round, or tap it'
+      : phase === 'waiting'
+        ? 'In the chute. Tap it to take it out'
+        : phase === 'dropping'
+          ? 'Here it comes'
+          : '';
 
   return (
-    <div class={s.machine} style={{ '--halo': machine.theme.trim } as Record<string, string>}>
+    <div class={s.machine}>
       <div ref={refs.stage} class={s.stage}>
-        <MachineArt
+        <CabinetArt
           machine={machine}
+          light={light}
           class={cx(s.art, turnable && 'is-ready')}
-          dome={domeLayer}
-          svgRef={svg}
-          crankRef={refs.crank}
+          capsules={windowLayer}
+          handleRef={refs.handle}
+          handleShadowRef={refs.handleShadow}
           slotRef={refs.slot}
           flapRef={refs.flap}
-          title={`${machine.name} capsule machine`}
+          title={`${machine.number ? `${machine.number}, ` : ''}${machine.name} capsule cabinet`}
           chute={
             <g ref={refs.chute} style={{ opacity: 0 }}>
-              <OutCapsule data={reveal} />
+              <g transform={`scale(${(CHUTE_CAPSULE_R / CAPSULE_R).toFixed(3)})`}>{capsule(p.chuteTint)}</g>
             </g>
           }
         >
           <g ref={refs.coin} class={s.token} style={{ opacity: 0 }}>
-            <Token kind={token} />
+            <Token kind={p.token} />
           </g>
-          <g ref={refs.out} class={s.out} style={{ opacity: 0 }}>
-            <g class={cx(phase === 'landed' && s.bob)}>
-              <OutCapsule data={reveal} animated={phase === 'landed'} />
-            </g>
-          </g>
-        </MachineArt>
+        </CabinetArt>
 
         {active && phase === 'idle' && (
           <button
             type="button"
             class={s.hit}
             style={hitBox(SLOT.cx, SLOT.cy, 26)}
-            onClick={() => void p.insert('price')}
-            aria-label={`Insert ${machine.price} ${currencyWord(machine)}`}
+            onClick={() => void p.insert(free ? 'free' : 'price')}
+            aria-label={free ? 'Insert the first coin' : `Insert ${machine.price} ${currencyWord(machine)}`}
             tabIndex={-1}
           />
         )}
-        {active && <CrankHitArea live={turnable} handlers={p.crank.handlers} buttonRef={refs.crankButton} hintId={hintId} />}
-        {active && phase === 'landed' && (
-          <button type="button" class={s.hit} style={hitBox(REST.x, REST.y, 26)} onClick={p.openReveal} aria-label="Open your capsule" />
-        )}
-        {phase === 'ready' && (
-          <div class={s.bubble} aria-hidden="true">
-            Turn me!
-          </div>
+        {active && <HandleControl live={turnable} percent={0} handlers={p.crank.handlers} buttonRef={refs.handleControl} hintId={hintId} />}
+        {active && phase === 'waiting' && (
+          <button
+            type="button"
+            class={s.hit}
+            style={hitBox(CHUTE_REST.x, CHUTE_REST.y, 26)}
+            onClick={p.openReveal}
+            aria-label="Take the capsule out of the chute"
+          />
         )}
         {p.nudging && phase === 'idle' && (
-          <div class={cx(s.bubble, s.bubbleSlot)} aria-hidden="true">
+          <p class={s.note} aria-hidden="true">
             {nudgeText(machine, true)}
-          </div>
+          </p>
         )}
       </div>
 
       <div class={s.controls}>
         {phase === 'idle' ? (
           <div class={s.buttons}>
-            <CandyButton buttonRef={refs.insertButton} size="lg" colors={candy} onClick={() => void p.insert('price')} disabled={!active}>
-              Insert {priceIcon}
-              <span class="num">{machine.price}</span>
-              <span class="sr-only"> {currencyWord(machine)}</span>
-            </CandyButton>
-            {tickets > 0 && (
-              <CandyButton variant="soft" onClick={() => void p.insert('ticket')} disabled={!active}>
+            <PillButton
+              buttonRef={refs.insertButton}
+              size="lg"
+              colors={{ face: pillFace(machine), ink: '#3B3236' }}
+              onClick={() => void p.insert(free ? 'free' : 'price')}
+              disabled={!active}
+            >
+              {free ? (
+                <>
+                  <CoinIcon size={20} /> Insert the first coin
+                </>
+              ) : (
+                <>
+                  Insert {priceIcon}
+                  <span class="num">{machine.price}</span>
+                  <span class="sr-only"> {currencyWord(machine)}</span>
+                </>
+              )}
+            </PillButton>
+            {!free && tickets > 0 && (
+              <PillButton variant="secondary" onClick={() => void p.insert('ticket')} disabled={!active}>
                 <TicketIcon size={20} /> Use a ticket
-              </CandyButton>
+              </PillButton>
             )}
           </div>
         ) : (
           <p id={hintId} class={s.hint}>
-            {phase === 'inserting' || turnable ? 'Drag the crank around, or just tap it' : 'Here it comes…'}
+            {hint}
           </p>
         )}
         {phase === 'idle' && (
           <span id={hintId} class="sr-only">
-            Insert first, then drag the crank in a circle or press it.
+            Insert first, then turn the handle: drag it round, press it, or use the arrow keys.
           </span>
         )}
         {p.notice && phase === 'idle' && (
@@ -176,7 +206,13 @@ export function CapsuleMachine({ machine, active, onBusyChange }: CapsuleMachine
           data={reveal}
           origin={p.origin}
           quickOpen={app.settings.quickOpen}
-          onClose={() => p.closeReveal()}
+          light={light}
+          onClose={() => {
+            p.closeReveal();
+            onRevealClosed?.();
+          }}
+          onPlace={onPlace}
+          onLetThemChoose={onLetThemChoose}
           pullAgain={p.again ? { pay: p.again, machine, onPull: () => p.closeReveal(p.again ?? undefined) } : undefined}
         />
       )}

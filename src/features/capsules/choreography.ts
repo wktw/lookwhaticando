@@ -1,24 +1,31 @@
 /**
- * Web Animations for the pull (DESIGN §9.3): coin into the slot, capsule sinking out of the
- * dome, down the chute behind the flap, then out over the tray lip, bouncing and rolling to
- * rest. Transform/opacity only. SVG coordinates: `px` in a CSS transform on an SVG element
+ * Web Animations for the pull (DESIGN §7.2): the token into the slot, a capsule sinking out of
+ * the window, dropping into the chute port and settling there behind the lifted flap.
+ * Transform and opacity only, unhurried, with no overshoot. In SVG, `px` in a CSS transform
  * means view-box units.
  */
-import { CHUTE, OUT_CAPSULE_R, REST, SLOT } from '@/art/machines/geometry';
+import { CHUTE, CHUTE_REST, SLOT } from '@/art/machines/geometry';
 import { done } from './motion';
+import type { TokenKind } from './Token';
 
 const at = (x: number, y: number, extra = '') => `translate(${x}px, ${y}px) ${extra}`.trim();
+const EASE = 'cubic-bezier(.2,.8,.2,1)';
 
-/** A coin (or star, or ticket) arcs up from below the machine and drops edge-on into the slot. */
-export function animateCoin(el: Element, reduced: boolean, onClink: () => void): Promise<void> {
-  const clink = setTimeout(onClink, reduced ? 120 : 560);
+/**
+ * The token arcs up from the counter and slides into the slot: a coin turns edge-on into the
+ * vertical slit, a stamp flattens into the horizontal one.
+ */
+export function animateCoin(el: Element, reduced: boolean, onClink: () => void, kind: TokenKind = 'coin'): Promise<void> {
+  const clink = setTimeout(onClink, reduced ? 120 : 600);
+  const slot = { x: SLOT.cx, y: SLOT.cy };
+  const into = kind === 'stamp' ? 'scale(1, 0.16)' : 'scale(0.16, 1)';
   if (reduced) {
     return done(
       el.animate(
         [
-          { transform: at(SLOT.cx, SLOT.slitY - 6), opacity: 0 },
-          { transform: at(SLOT.cx, SLOT.slitY - 6), opacity: 1, offset: 0.4 },
-          { transform: at(SLOT.cx, SLOT.slitY - 6), opacity: 0 },
+          { transform: at(slot.x, slot.y), opacity: 0 },
+          { transform: at(slot.x, slot.y), opacity: 1, offset: 0.4 },
+          { transform: at(slot.x, slot.y), opacity: 0 },
         ],
         { duration: 260, fill: 'forwards' },
       ),
@@ -27,136 +34,99 @@ export function animateCoin(el: Element, reduced: boolean, onClink: () => void):
   return done(
     el.animate(
       [
-        { transform: at(226, 344, 'rotate(0deg) scale(0.85)'), opacity: 0, easing: 'cubic-bezier(.2,.7,.4,1)' },
-        { transform: at(214, 300, 'rotate(-60deg) scale(1)'), opacity: 1, offset: 0.12, easing: 'cubic-bezier(.3,.8,.5,1)' },
-        { transform: at(190, 196, 'rotate(-250deg) scale(1.12)'), offset: 0.48, easing: 'cubic-bezier(.5,0,.8,.6)' },
-        { transform: at(SLOT.cx, SLOT.slitY - 20, 'rotate(-360deg) scale(1)'), offset: 0.74, easing: 'ease-in' },
-        { transform: at(SLOT.cx, SLOT.slitY - 3, 'rotate(-360deg) scale(0.22, 1)'), opacity: 1, offset: 0.88 },
-        { transform: at(SLOT.cx, SLOT.slitY + 6, 'rotate(-360deg) scale(0.18, 0.9)'), opacity: 0 },
+        { transform: at(224, 330, 'rotate(0deg) scale(0.9)'), opacity: 0, easing: EASE },
+        { transform: at(214, 296, 'rotate(-40deg) scale(1)'), opacity: 1, offset: 0.16, easing: 'cubic-bezier(.3,.7,.4,1)' },
+        { transform: at(196, 226, 'rotate(-150deg) scale(1.05)'), offset: 0.52, easing: 'cubic-bezier(.45,0,.7,.6)' },
+        { transform: at(slot.x, slot.y - 16, 'rotate(-180deg) scale(1)'), offset: 0.76, easing: 'ease-in' },
+        { transform: at(slot.x, slot.y - 2, `rotate(-180deg) ${into}`), opacity: 1, offset: 0.9 },
+        { transform: at(slot.x, slot.y + 4, `rotate(-180deg) ${into}`), opacity: 0 },
       ],
-      { duration: 720, fill: 'forwards' },
+      { duration: 760, fill: 'forwards' },
     ),
   );
 }
 
-/** The released capsule sinks through the dome floor, behind the collar. */
+/** The released capsule sinks through the window floor, behind the tin. */
 export function animateSink(el: Element, reduced: boolean): Promise<void> {
   if (reduced) return Promise.resolve();
   return done(
-    el.animate([{ transform: 'translateY(0)' }, { transform: 'translateY(48px)' }], {
-      duration: 320,
+    el.animate([{ transform: 'translateY(0)' }, { transform: 'translateY(40px)' }], {
+      duration: 300,
       easing: 'cubic-bezier(.55,0,.9,.5)',
       fill: 'forwards',
     }),
   );
 }
 
-/** Where the capsule noses out of the chute, and how small it looks back there. */
-const LIP = { x: CHUTE.cx, y: CHUTE.cy + 3, scale: 0.5 } as const;
-
 /**
- * Inside the chute (a layer clipped to the opening, under the flap): the capsule rolls down
- * behind the flap, the flap swings up, and the capsule comes forward to the tray lip.
- * The flap falls shut again once the capsule is out.
+ * Into the chute: the flap swings up, and the capsule drops into the port from behind the tin,
+ * settles on the port floor and stays there, waiting, while the flap stays lifted.
+ * `onLand(strength)` fires as it lands.
  */
-export function animateChute(capsule: Element, flap: Element | null, reduced: boolean): Promise<void> {
-  if (reduced) return Promise.resolve();
-  flap?.animate(
-    [
-      { transform: 'scaleY(1)' },
-      { transform: 'scaleY(0.14)', offset: 0.22 },
-      { transform: 'scaleY(0.14)', offset: 0.55 },
-      { transform: 'scaleY(1.1)', offset: 0.74 },
-      { transform: 'scaleY(0.96)', offset: 0.87 },
-      { transform: 'scaleY(1)' },
-    ],
-    { duration: 950, easing: 'ease-out' },
-  );
-  return done(
-    capsule.animate(
-      [
-        { transform: at(LIP.x, CHUTE.cy - 16, 'rotate(-30deg) scale(0.4)'), opacity: 1 },
-        { transform: at(LIP.x, CHUTE.cy + 1, 'rotate(0deg) scale(0.42)'), offset: 0.55, easing: 'cubic-bezier(.3,.7,.5,1)' },
-        { transform: at(LIP.x, LIP.y, `rotate(10deg) scale(${LIP.scale})`), opacity: 1 },
-      ],
-      { duration: 300, easing: 'cubic-bezier(.5,0,.9,.6)' },
-    ),
-  );
-}
-
-/** Rolling without slipping: degrees turned per view-box unit travelled. */
-const ROLL = 180 / Math.PI / OUT_CAPSULE_R;
-
-/**
- * Out in front: the capsule tips over the lip, drops to the ground, bounces twice and rolls
- * clear of the machine's foot to rest. `onImpact(strength)` fires on each landing.
- */
-export function animateDrop(capsule: Element, reduced: boolean, onImpact: (strength: number) => void): Promise<void> {
+export function animateChute(capsule: Element, flap: Element | null, reduced: boolean, onLand: (strength: number) => void): Promise<void> {
+  flap?.animate([{ transform: 'scaleY(1)' }, { transform: 'scaleY(0.18)' }], {
+    duration: reduced ? 1 : 260,
+    easing: EASE,
+    fill: 'forwards',
+  });
   if (reduced) {
-    onImpact(1);
+    onLand(1);
     return done(
       capsule.animate(
         [
-          { transform: at(REST.x, REST.y, 'rotate(0deg) scale(1)'), opacity: 0 },
-          { transform: at(REST.x, REST.y, 'rotate(0deg) scale(1)'), opacity: 1 },
+          { transform: at(CHUTE_REST.x, CHUTE_REST.y), opacity: 0 },
+          { transform: at(CHUTE_REST.x, CHUTE_REST.y), opacity: 1 },
         ],
         { duration: 200, fill: 'forwards' },
       ),
     );
   }
-  const duration = 1300;
-  const g = REST.y;
-  // On the ground it turns with the distance rolled, arriving upright at rest.
-  const roll = (x: number) => 360 - (REST.x - x) * ROLL;
-  const frame = (x: number, y: number, rot: number, sx: number, sy: number, offset: number, easing: string): Keyframe => ({
-    transform: `translate(${x}px, ${y}px) rotate(${rot.toFixed(1)}deg) scale(${sx}, ${sy})`,
-    offset,
-    easing,
-  });
-  const timers = [0.3, 0.52, 0.68].map((t, i) => setTimeout(() => onImpact([1, 0.45, 0.2][i]!), duration * t));
+  const timers = [0.62, 0.84].map((t, i) => setTimeout(() => onLand([1, 0.3][i]!), 560 * t));
   return done(
     capsule.animate(
       [
-        { ...frame(LIP.x, LIP.y, 10, LIP.scale, LIP.scale, 0, 'cubic-bezier(.4,0,.8,.5)'), opacity: 1 },
-        frame(LIP.x + 2, LIP.y + 6, 40, 0.72, 0.72, 0.1, 'cubic-bezier(.5,0,1,.6)'),
-        frame(LIP.x + 8, g, roll(LIP.x + 8), 1.08, 0.88, 0.3, 'cubic-bezier(0,.55,.45,1)'),
-        frame(LIP.x + 20, g - 13, roll(LIP.x + 20), 1, 1, 0.41, 'cubic-bezier(.55,0,1,.45)'),
-        frame(LIP.x + 32, g, roll(LIP.x + 32), 1.04, 0.95, 0.52, 'cubic-bezier(0,.55,.45,1)'),
-        frame(LIP.x + 40, g - 4, roll(LIP.x + 40), 1, 1, 0.6, 'cubic-bezier(.55,0,1,.45)'),
-        frame(LIP.x + 47, g, roll(LIP.x + 47), 1, 1, 0.68, 'cubic-bezier(.2,.6,.3,1)'),
-        frame(REST.x + 3, g, roll(REST.x + 3), 1, 1, 0.92, 'ease-in-out'),
-        { ...frame(REST.x, g, 360, 1, 1, 1, 'linear'), opacity: 1 },
+        { transform: at(CHUTE_REST.x - 6, CHUTE.y - 16, 'rotate(-40deg)'), opacity: 1, easing: 'cubic-bezier(.5,0,.9,.5)' },
+        { transform: at(CHUTE_REST.x - 1, CHUTE_REST.y, 'rotate(-6deg)'), offset: 0.62, easing: 'cubic-bezier(.2,.7,.4,1)' },
+        { transform: at(CHUTE_REST.x, CHUTE_REST.y - 2.5, 'rotate(0deg)'), offset: 0.74, easing: 'cubic-bezier(.5,0,.9,.5)' },
+        { transform: at(CHUTE_REST.x, CHUTE_REST.y, 'rotate(0deg)'), offset: 0.84, easing: EASE },
+        { transform: at(CHUTE_REST.x, CHUTE_REST.y, 'rotate(0deg)'), opacity: 1 },
       ],
-      { duration, fill: 'forwards' },
+      { duration: 560, fill: 'forwards' },
     ),
   ).then(() => timers.forEach(clearTimeout));
+}
+
+/** The capsule was taken: the flap falls shut again. */
+export function closeFlap(flap: Element | null): void {
+  for (const a of flap?.getAnimations?.() ?? []) a.cancel();
 }
 
 export type Jolt = 'chunk' | 'nope' | 'clink';
 
 const JOLTS: Record<Jolt, { frames: Keyframe[]; duration: number }> = {
-  // The whole machine squashes as the mechanism lets go.
+  // The mechanism lets go: the cabinet settles a fraction on its feet.
   chunk: {
+    frames: [{ transform: 'none' }, { transform: 'translateY(1.5px)', offset: 0.35 }, { transform: 'none' }],
+    duration: 260,
+  },
+  // A small shake of the head: not yet.
+  nope: {
     frames: [
       { transform: 'none' },
-      { transform: 'translateY(3px) scale(1.025, 0.965)', offset: 0.3 },
-      { transform: 'translateY(-2px) scale(0.99, 1.015)', offset: 0.65 },
+      { transform: 'translateX(-3px)' },
+      { transform: 'translateX(3px)' },
+      { transform: 'translateX(-1.5px)' },
       { transform: 'none' },
     ],
-    duration: 300,
-  },
-  // A gentle head-shake: "not quite yet".
-  nope: {
-    frames: [{ transform: 'none' }, { transform: 'rotate(-2.5deg)' }, { transform: 'rotate(2.5deg)' }, { transform: 'rotate(-1.5deg)' }, { transform: 'none' }],
-    duration: 420,
+    duration: 380,
   },
   clink: {
-    frames: [{ transform: 'none' }, { transform: 'translateY(1.5px)' }, { transform: 'none' }],
+    frames: [{ transform: 'none' }, { transform: 'translateY(1px)' }, { transform: 'none' }],
     duration: 140,
   },
 };
 
-/** A quick physical reaction of the whole machine (skipped with reduced motion). */
+/** A small physical reaction of the whole cabinet (skipped with reduced motion). */
 export function jolt(el: HTMLElement | null, kind: Jolt, reduced: boolean): void {
   if (!el || reduced) return;
   const { frames, duration } = JOLTS[kind];

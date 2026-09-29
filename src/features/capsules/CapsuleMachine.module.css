@@ -1,9 +1,9 @@
 .machine {
-  --machine-h: clamp(280px, 44dvh, 360px);
+  --machine-h: var(--cabinet-h, clamp(280px, 44dvh, 350px));
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   width: 100%;
 }
 
@@ -11,22 +11,6 @@
   position: relative;
   height: var(--machine-h);
   aspect-ratio: 240 / 350;
-  transform-origin: 50% 92%;
-}
-
-/* A soft shop-window spotlight in the series color. */
-.stage::before {
-  content: '';
-  position: absolute;
-  left: 50%;
-  top: 42%;
-  width: 150%;
-  aspect-ratio: 1;
-  border-radius: 50%;
-  background: radial-gradient(closest-side, var(--halo) 0%, var(--halo) 35%, transparent 100%);
-  opacity: 0.55;
-  transform: translate(-50%, -50%);
-  pointer-events: none;
 }
 
 .art {
@@ -35,98 +19,62 @@
   height: 100%;
 }
 
-/* Invisible hit areas laid over the art (the art itself is aria-hidden decoration). */
+/* Invisible hit areas laid over the art (the art itself is a labelled picture). */
 .hit {
   position: absolute;
   border-radius: 50%;
   background: transparent;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .hit:focus-visible {
-  outline: 3px solid var(--lavender-500);
+  outline: 3px solid var(--focus);
   outline-offset: -2px;
   border-radius: 50%;
 }
 
-.crank {
+.handle {
   cursor: default;
+  outline: none;
 }
 
-.crankLive {
+.handleLive {
   cursor: grab;
   touch-action: none;
 }
 
-.crankLive:active {
+.handleLive:active {
   cursor: grabbing;
 }
 
-.token,
-.out {
+.token {
   pointer-events: none;
 }
 
-.bob {
-  animation: bob 1.3s var(--ease-in-out) infinite;
-}
-
-@keyframes bob {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-3px);
-  }
-}
-
-/* "Turn me!" speech bubble, below-right of the crank, pointing up at it. */
-.bubble {
+/* "A coin first": a small printed note beside the slot (the cabinet never speaks). */
+.note {
   position: absolute;
-  left: 61%;
-  top: 75%;
-  padding: 5px 11px 6px;
-  border-radius: 4px 14px 14px 14px;
+  left: 60%;
+  top: 56%;
+  padding: 3px 10px 4px;
+  border-radius: var(--r-pill);
   background: var(--card);
-  color: var(--ink);
-  font-family: var(--font-display);
-  font-weight: 600;
-  font-size: var(--fs-caption);
-  white-space: nowrap;
   box-shadow:
-    0 0 0 2px var(--cocoa),
+    inset 0 0 0 1px var(--line),
     var(--shadow-sm);
-  transform-origin: 0 0;
-  animation:
-    bubble-in var(--t-slow) var(--ease-pop) both,
-    bubble-bounce 1.6s var(--ease-in-out) 0.5s infinite;
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-size: var(--fs-micro);
+  white-space: nowrap;
   pointer-events: none;
+  animation: note-in var(--t-std) var(--ease-pop) both;
 }
 
-/* "Coin first!" just above the coin plate, pointing down at it. */
-.bubbleSlot {
-  left: 63%;
-  top: auto;
-  bottom: 39%;
-  border-radius: 14px 14px 14px 4px;
-  transform-origin: 0 100%;
-  animation: bubble-in var(--t-slow) var(--ease-pop) both;
-}
-
-@keyframes bubble-in {
+@keyframes note-in {
   from {
-    transform: scale(0.4);
     opacity: 0;
-  }
-}
-
-@keyframes bubble-bounce {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-4px);
+    transform: translateY(3px);
   }
 }
 
@@ -135,7 +83,7 @@
   flex-direction: column;
   align-items: center;
   gap: 10px;
-  min-height: 68px;
+  min-height: 60px;
   width: 100%;
   padding: 0 var(--gutter);
 }
@@ -148,17 +96,17 @@
 }
 
 .buttons :global(.num) {
-  font-size: 1.3rem;
+  font-size: 1.125rem;
 }
 
 .hint {
   display: flex;
   align-items: center;
-  min-height: 56px;
-  font-family: var(--font-display);
-  font-weight: 500;
-  font-size: var(--fs-body-lg);
+  min-height: 54px;
   color: var(--ink-2);
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: var(--fs-body-lg);
   text-align: center;
 }
 
@@ -167,12 +115,12 @@
   padding: 10px 16px;
   border-radius: var(--r-md);
   background: var(--card);
-  box-shadow: var(--shadow-sm);
+  box-shadow: inset 0 0 0 1px var(--line);
   color: var(--ink-2);
   font-size: var(--fs-caption);
   font-weight: 600;
   text-align: center;
-  animation: notice-in var(--t-std) var(--ease-pop) both;
+  animation: note-in var(--t-std) var(--ease-pop) both;
 }
 
 .notice a {
@@ -181,26 +129,8 @@
   text-underline-offset: 3px;
 }
 
-@keyframes notice-in {
-  from {
-    transform: translateY(-6px) scale(0.96);
-    opacity: 0;
-  }
-}
-
 @media (min-width: 900px) {
   .machine {
-    --machine-h: clamp(340px, 60dvh, 470px);
-  }
-}
-
-/* Night: the spotlight becomes a faint glow instead of a lamp. */
-:global(:root[data-theme='night']) .stage::before {
-  opacity: 0.16;
-}
-
-@media (prefers-color-scheme: dark) {
-  :global(:root:not([data-theme='light']):not([data-theme='night'])) .stage::before {
-    opacity: 0.16;
+    --machine-h: var(--cabinet-h, clamp(360px, 58dvh, 470px));
   }
 }

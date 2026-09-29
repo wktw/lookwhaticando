@@ -1,0 +1,67 @@
+/* Capsule cabinet art. Lengths are in the cabinet's 240×350 view-box units. */
+.cabinet {
+  display: block;
+  overflow: visible;
+  flex: none;
+}
+
+.cabinet-plate-text,
+.cabinet-name {
+  font-family: var(--font-display);
+  font-weight: 400;
+}
+
+.cabinet-plate-text {
+  font-size: 12.5px;
+  text-anchor: middle;
+  letter-spacing: 0.02em;
+}
+
+.cabinet-name {
+  font-size: 17px;
+}
+
+.cabinet-price-text {
+  font-family: var(--font-body);
+  font-weight: 800;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.cabinet-tag-text {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: 8.4px;
+  text-anchor: middle;
+}
+
+.cabinet-flap {
+  transform-box: fill-box;
+  transform-origin: 50% 0;
+}
+
+.cabinet-slot {
+  transform-box: fill-box;
+  transform-origin: 50% 50%;
+}
+
+/* Ready to turn: the grip rocks twice, as if a hand had just tried it, then waits. */
+.cabinet.is-ready .cabinet-handle {
+  animation: cabinet-invite 1.4s var(--ease-in-out) 0.4s 2;
+  transform-box: view-box;
+  transform-origin: 90px 256px;
+}
+
+@keyframes cabinet-invite {
+  0%,
+  60%,
+  100% {
+    transform: rotate(0deg);
+  }
+  72% {
+    transform: rotate(-6deg);
+  }
+  86% {
+    transform: rotate(3deg);
+  }
+}

@@ -9,6 +9,8 @@ function focusables(root: HTMLElement): HTMLElement[] {
 
 export interface FocusTrapOptions {
   onEscape?: () => void;
+  /** Focus the container itself on open (a sheet), rather than its first control. */
+  focusRoot?: boolean;
   /** Where focus goes on close when the element that had it before is gone. */
   returnFocus?: () => HTMLElement | null | undefined;
 }
@@ -21,11 +23,17 @@ export interface FocusTrapOptions {
 export function useFocusTrap(ref: RefObject<HTMLElement>, active: boolean, options: FocusTrapOptions = {}) {
   const opts = useRef(options);
   opts.current = options;
+  // Whatever had focus as the trap turns on, read while rendering: by the time this hook's effect
+  // runs, a child (a reveal card's heading, say) may already have taken focus inside.
+  const opener = useRef<HTMLElement | null>(null);
+  const wasActive = useRef(false);
+  if (active && !wasActive.current && typeof document !== 'undefined') opener.current = document.activeElement as HTMLElement | null;
+  wasActive.current = active;
   useEffect(() => {
     const root = ref.current;
     if (!active || !root) return;
-    const previous = document.activeElement as HTMLElement | null;
-    if (!root.contains(document.activeElement)) (focusables(root)[0] ?? root).focus({ preventScroll: true });
+    const previous = opener.current && !root.contains(opener.current) ? opener.current : null;
+    if (!root.contains(document.activeElement)) ((opts.current.focusRoot ? null : focusables(root)[0]) ?? root).focus({ preventScroll: true });
 
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && opts.current.onEscape) {

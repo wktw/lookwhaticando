@@ -1,6 +1,6 @@
 import { useRef } from 'preact/hooks';
 import type { JSX } from 'preact';
-import { Ratchet, angleDelta } from './ratchet';
+import { Ratchet, TICK_DEG, angleDelta } from './ratchet';
 
 /** A press that moves less than this is a tap (auto-turn), not a drag. */
 const TAP_DEG = 10;
@@ -14,7 +14,7 @@ export interface CrankCallbacks {
   onAdvance: (progress: number, delta: number, dir: 1 | -1) => void;
   /** Tap, click, Enter or Space: turn it automatically. */
   onAutoTurn: () => void;
-  /** A tap while the crank can't turn yet (nothing paid). */
+  /** A tap or key while the handle can't turn yet (nothing paid). */
   onIdleTap?: () => void;
 }
 
@@ -36,9 +36,10 @@ function angleAt(d: Drag, x: number, y: number): number | null {
 }
 
 /**
- * Circular drag on the crank: angle via atan2 around the hub (pointer capture keeps the drag
- * even when the finger strays), fed through a ratchet that ignores jumps across the hub.
- * Returns handlers for the crank button.
+ * Circular drag on the handle: angle via atan2 around the hub (pointer capture keeps the drag
+ * even when the finger strays), fed through a ratchet that ignores jumps across the hub. The
+ * arrow keys step it round one ratchet click at a time; Enter and Space give it a whole turn.
+ * Returns handlers for the handle's slider.
  */
 export function useCrank(enabled: boolean, cb: CrankCallbacks) {
   const drag = useRef<Drag | null>(null);
@@ -51,7 +52,7 @@ export function useCrank(enabled: boolean, cb: CrankCallbacks) {
     if (moved > 0 && ratchet.dir !== 0) cbs.current.onAdvance(ratchet.progress, moved, ratchet.dir);
   };
 
-  const handlers: Pick<JSX.ButtonHTMLAttributes<HTMLButtonElement>, 'onPointerDown' | 'onPointerMove' | 'onPointerUp' | 'onPointerCancel' | 'onClick'> = {
+  const handlers: Pick<JSX.HTMLAttributes<HTMLElement>, 'onPointerDown' | 'onPointerMove' | 'onPointerUp' | 'onPointerCancel' | 'onClick' | 'onKeyDown'> = {
     onPointerDown: (e) => {
       if (!enabled || e.button !== 0) return;
       const el = e.currentTarget;
@@ -102,6 +103,27 @@ export function useCrank(enabled: boolean, cb: CrankCallbacks) {
       }
       if (enabled) cbs.current.onAutoTurn();
       else cbs.current.onIdleTap?.();
+    },
+    onKeyDown: (e) => {
+      const whole = e.key === 'Enter' || e.key === ' ' || e.key === 'End';
+      const step = e.key === 'ArrowRight' || e.key === 'ArrowUp' || e.key === 'ArrowLeft' || e.key === 'ArrowDown' || e.key === 'PageUp';
+      if (!whole && !step) return;
+      e.preventDefault();
+      // Keep the page (and the carousel) from taking the arrow keys too.
+      e.stopPropagation();
+      if (e.repeat && whole) return;
+      if (!enabled) {
+        cbs.current.onIdleTap?.();
+        return;
+      }
+      if (whole) {
+        cbs.current.onAutoTurn();
+        return;
+      }
+      const wasCommitted = ratchet.dir !== 0;
+      const moved = ratchet.push(e.key === 'PageUp' ? TICK_DEG * 3 : TICK_DEG);
+      if (!wasCommitted) cbs.current.onGrab();
+      report(moved);
     },
   };
 

@@ -1,5 +1,5 @@
 .screen {
-  max-width: 1080px;
+  max-width: 1120px;
   margin: 0 auto;
   padding: calc(var(--safe-top) + 16px) 0 calc(var(--s-10) + var(--safe-bottom));
 }
@@ -8,11 +8,16 @@
 .header {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
   padding: 0 var(--gutter);
 }
 
-.header h1 {
+/* Doubled class: outranks host-page heading styles (e.g. the dev gallery's). */
+.header .title {
+  margin: 0;
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-weight: 400;
   font-size: var(--fs-title);
 }
 
@@ -29,66 +34,37 @@
   display: inline-flex;
   flex: none;
   align-items: center;
-  gap: 6px;
+  gap: 7px;
   min-height: 40px;
-  padding: 6px 13px 6px 8px;
+  padding: 4px 14px 4px 7px;
   border-radius: var(--r-pill);
   background: var(--card);
-  box-shadow: var(--shadow-sm);
+  box-shadow: inset 0 0 0 1px var(--line);
 }
 
 .chipValue {
-  display: inline-block;
-  font-size: 1.0625rem;
-  font-weight: 600;
-  animation: bump 420ms var(--ease-pop);
+  display: inline-flex;
+  align-items: baseline;
+  font-weight: 800;
+  font-size: var(--fs-body);
 }
 
 .chipOf {
-  margin-left: 1px;
+  margin-left: 3px;
   color: var(--ink-2);
+  font-family: var(--font-body);
+  font-weight: 700;
   font-size: var(--fs-micro);
 }
 
-@keyframes bump {
-  40% {
-    transform: translateY(-3px) scale(1.12);
-  }
-}
-
-/* Small phones: the four chips tighten up to stay on one line. */
-@media (max-width: 359px) {
-  .wallet {
-    gap: 6px;
-  }
-
-  .chip {
-    gap: 4px;
-    min-height: 36px;
-    padding: 5px 10px 5px 6px;
-  }
-
-  .chip > svg {
-    width: 20px;
-    height: 20px;
-  }
-
-  .chipValue {
-    font-size: 1rem;
-  }
-}
-
-/* ---------- carousel ---------- */
+/* ---------- the counter: a cabinet and its leaflet per page ---------- */
 .carousel {
   position: relative;
-  margin-top: 6px;
+  margin-top: 4px;
 }
 
 .track {
   display: flex;
-  /* A horizontal scroller clips vertically too: pages carry padding for their shadows and
-     spotlight, and these margins give that room back to the layout. */
-  margin: -28px 0 -24px;
   overflow-x: auto;
   scroll-snap-type: x mandatory;
   overscroll-behavior-x: contain;
@@ -105,284 +81,251 @@
 }
 
 .page {
-  display: flex;
+  position: relative;
   flex: 0 0 100%;
-  justify-content: center;
-  padding: 36px 0 24px;
+  padding: 22px var(--gutter) 6px;
   scroll-snap-align: center;
   scroll-snap-stop: always;
+  container-type: inline-size;
+}
+
+/* Light, not decoration: a soft pool of window sun where the cabinet stands, or the lamp at night. */
+.page::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 0;
+  width: min(520px, 100%);
+  height: 78%;
+  background: radial-gradient(closest-side, var(--sun), transparent);
+  opacity: 0.8;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.pageNight::before {
+  background: radial-gradient(closest-side, rgba(255, 201, 138, 0.16), transparent);
+  opacity: 1;
+}
+
+.pageInner {
+  --leaflet-w: clamp(104px, 36cqi, 150px);
+  position: relative;
+  display: grid;
+  grid-template-columns: auto var(--leaflet-w);
+  justify-content: center;
+  align-items: start;
+  gap: 10px;
+}
+
+/* As tall as the screen allows, and never wider than the page leaves beside the leaflet. */
+.cabinetSlot {
+  --cabinet-h: min(clamp(270px, 44dvh, 340px), calc((100cqi - var(--leaflet-w) - 10px) * 1.458));
+}
+
+.leafletSlot {
+  margin-top: 28%;
 }
 
 .pagePlaceholder {
-  height: clamp(280px, 44dvh, 360px);
+  height: clamp(340px, 50dvh, 420px);
 }
 
-@media (min-width: 900px) {
-  .pagePlaceholder {
-    height: clamp(340px, 60dvh, 470px);
-  }
-
-  .arrow {
-    top: calc(8px + clamp(340px, 60dvh, 470px) * 0.38);
-  }
-
-  .arrowPrev {
-    left: max(6px, calc(50% - 240px));
-  }
-
-  .arrowNext {
-    right: max(6px, calc(50% - 240px));
-  }
+.pager {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 0 var(--gutter);
 }
 
 .arrow {
-  position: absolute;
-  top: calc(8px + clamp(280px, 44dvh, 360px) * 0.38);
   display: grid;
+  flex: none;
   place-items: center;
   width: 44px;
   height: 44px;
   border-radius: 50%;
-  background: var(--card);
   color: var(--ink-2);
-  box-shadow: var(--shadow-sm);
-  transform: translateY(-50%);
   transition:
     opacity var(--t-std) ease,
     transform var(--t-micro) var(--ease-out);
 }
 
 .arrow:active:not(:disabled) {
-  transform: translateY(-50%) scale(0.9);
+  transform: translateY(1px);
 }
 
 .arrow:disabled {
-  opacity: 0;
-  pointer-events: none;
+  opacity: 0.3;
 }
 
-.arrowPrev {
-  left: max(6px, calc(50% - 178px));
-}
-
-.arrowNext {
-  right: max(6px, calc(50% - 178px));
+.arrow:focus-visible,
+.dot:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: -4px;
+  border-radius: 50%;
 }
 
 .dots {
   display: flex;
   justify-content: center;
-  margin-top: 2px;
-  padding: 0 var(--gutter);
+  min-width: 0;
 }
 
-/* 44px targets; they only narrow if there are ever more machines than fit in one row. */
+/* 44 px targets; they only narrow if there are ever more cabinets than fit in one row. */
 .dot {
   display: grid;
   place-items: center;
-  width: min(44px, calc((100% - 1px) / var(--n, 7)));
+  width: min(34px, calc((100vw - 140px) / 9));
   height: 44px;
 }
 
 .dot span {
-  width: 9px;
-  height: 9px;
+  width: 8px;
+  height: 8px;
   border-radius: var(--r-pill);
-  background: var(--ink-3);
-  opacity: 0.45;
+  background: var(--control-border);
+  opacity: 0.55;
   transition:
     width var(--t-std) var(--ease-out),
     opacity var(--t-std) ease;
 }
 
 .dot[aria-current] span {
-  width: 24px;
+  width: 22px;
   opacity: 1;
   background: var(--dot);
-  box-shadow: 0 0 0 1.5px var(--cocoa);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--dot) 70%, #3b3236);
 }
 
 .dot:disabled {
   cursor: default;
 }
 
-/* ---------- machine info ---------- */
+/* ---------- the series info ---------- */
 .info {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  margin: 6px var(--gutter) 0;
-  padding: 20px;
-  border-radius: var(--r-lg);
+  margin: 10px var(--gutter) 0;
+  padding: 18px 18px 16px;
+  border-radius: var(--r-md);
   background: var(--card);
-  box-shadow: var(--shadow-md);
-  animation: info-in var(--t-std) var(--ease-out);
+  box-shadow:
+    inset 0 0 0 1px var(--line),
+    var(--shadow-sm);
 }
 
-@keyframes info-in {
-  from {
-    opacity: 0.4;
-    transform: translateY(4px);
-  }
-}
-
-.season {
-  align-self: flex-start;
-}
-
-.infoHead {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
+.infoKicker {
+  color: var(--ink-2);
+  font-weight: 800;
+  font-size: var(--fs-micro);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
 }
 
 /* Doubled class: outranks host-page heading styles (e.g. the dev gallery's). */
 .info .infoTitle {
-  flex: 1;
+  margin: -6px 0 0;
   color: var(--ink);
-  font-size: clamp(1.5rem, 6.2vw, var(--fs-title));
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: var(--fs-title);
+  line-height: 1.15;
 }
 
 .tagline {
   margin-top: -4px;
   color: var(--ink-2);
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: var(--fs-body-lg);
+  line-height: 1.35;
 }
 
 .facts {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
 }
 
 .series {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  margin-top: 2px;
 }
 
 .seriesHead {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  font-family: var(--font-display);
-  font-weight: 600;
+  color: var(--ink);
+  font-weight: 800;
   font-size: var(--fs-body);
 }
 
-.seriesHead b {
-  font-weight: 600;
-  font-size: 1.25rem;
-}
-
-.muted {
-  color: var(--ink-2);
-}
-
-.complete {
-  padding: 2px 10px;
-  border-radius: var(--r-pill);
-  background: var(--sage-100);
-  color: color-mix(in srgb, var(--sage-700) 75%, var(--ink));
-  font-size: var(--fs-caption);
-}
-
 .bar {
-  height: 10px;
+  height: 6px;
   border-radius: var(--r-pill);
   background: var(--bg-2);
+  box-shadow: inset 0 0 0 1px var(--line);
   overflow: hidden;
 }
 
 .bar span {
   display: block;
   height: 100%;
-  min-width: 10px;
+  min-width: 6px;
   border-radius: inherit;
-  background: var(--accent-theme, var(--blush-500));
   transition: width var(--t-slow) var(--ease-out);
 }
 
-.lineupButton {
+.promises {
   display: flex;
-  align-items: center;
-  gap: 12px;
-  min-height: 64px;
-  margin-top: 4px;
-  padding: 10px 12px 10px 18px;
-  border-radius: var(--r-md);
-  background: var(--bg-2);
-  color: var(--ink-2);
-  text-align: left;
-  transition: transform var(--t-micro) var(--ease-out);
-}
-
-.lineupButton:active,
-.oddsButton:active {
-  transform: scale(0.96);
-}
-
-.teasers {
-  display: flex;
-  flex: none;
-}
-
-.teaser {
-  display: grid;
-  place-items: center;
-  width: 36px;
-  height: 36px;
-  margin-left: -9px;
-  padding: 3px;
-  border-radius: 50%;
-  background: var(--card);
-  box-shadow: 0 0 0 2px var(--bg-2);
-  overflow: hidden;
-}
-
-.teaserSecret {
-  background: var(--holo);
-  color: #4a3540;
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 1.05rem;
-}
-
-.lineupText {
-  display: flex;
-  flex: 1;
   flex-direction: column;
-  min-width: 0;
-}
-
-.lineupText b {
-  color: var(--ink);
-  font-family: var(--font-display);
-  font-weight: 600;
-  font-size: var(--fs-body-lg);
-}
-
-.lineupText small {
-  font-size: var(--fs-caption);
-  font-weight: 600;
-  line-height: 1.25;
-}
-
-.oddsButton {
-  display: inline-flex;
-  flex: none;
-  align-items: center;
-  gap: 5px;
-  min-height: 44px;
-  margin: -6px -8px 0 0;
-  padding: 0 14px 0 10px;
-  border-radius: var(--r-pill);
-  background: var(--bg-2);
+  gap: 4px;
+  margin: 2px 0 0;
+  padding: 10px 0 0;
+  border-top: 1px solid var(--line);
+  list-style: none;
   color: var(--ink-2);
-  font-family: var(--font-display);
-  font-weight: 600;
+  font-weight: 700;
   font-size: var(--fs-caption);
-  transition: transform var(--t-micro) var(--ease-out);
+}
+
+.lucky {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.luckyDots {
+  display: inline-flex;
+  gap: 3px;
+}
+
+.dotOn,
+.dotOff {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.dotOn {
+  background: var(--ink-2);
+}
+
+.dotOff {
+  box-shadow: inset 0 0 0 1.5px var(--control-border);
+}
+
+.infoActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.infoActions > * {
+  flex: 1 1 auto;
 }
 
 .pastSeasons {
@@ -393,7 +336,7 @@
   text-align: center;
 }
 
-/* ---------- wide: machine and info side by side ---------- */
+/* ---------- wide: the counter and the series side by side ---------- */
 @media (min-width: 900px) {
   .header {
     flex-direction: row;
@@ -403,8 +346,8 @@
 
   .layout {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(320px, 400px);
-    gap: 28px;
+    grid-template-columns: minmax(0, 1fr) minmax(320px, 380px);
+    gap: 24px;
     align-items: start;
     padding: 0 var(--gutter);
   }
@@ -412,6 +355,16 @@
   .machineCol {
     position: sticky;
     top: 12px;
+    min-width: 0;
+  }
+
+  .pageInner {
+    --leaflet-w: clamp(150px, 30cqi, 200px);
+    gap: 22px;
+  }
+
+  .cabinetSlot {
+    --cabinet-h: min(clamp(380px, 60dvh, 480px), calc((100cqi - var(--leaflet-w) - 22px) * 1.458));
   }
 
   .info,
@@ -421,7 +374,7 @@
   }
 
   .info {
-    margin-top: 14px;
+    margin-top: 22px;
   }
 
   .pastSeasons {

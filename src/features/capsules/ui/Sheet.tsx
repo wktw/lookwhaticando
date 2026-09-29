@@ -45,7 +45,7 @@ export function Sheet({ open, title, onClose, aside, children, class: cls }: She
 
   useEffect(() => (mounted ? lockScroll() : undefined), [mounted]);
 
-  useFocusTrap(panel, mounted && !closing, { onEscape: onClose });
+  useFocusTrap(panel, mounted && !closing, { onEscape: onClose, focusRoot: true });
 
   if (!mounted) return null;
   return createPortal(

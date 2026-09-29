@@ -5,32 +5,40 @@ export function cx(...parts: (string | false | null | undefined)[]): string {
   return parts.filter(Boolean).join(' ');
 }
 
+/** A pill's own fill and label colours (e.g. a series' painted colour with a graphite label). */
 export interface CandyColors {
   face: string;
-  lip: string;
   ink: string;
+  /** Kept for older callers; the catkin pill has no lip. */
+  lip?: string;
 }
 
 type ButtonAttrs = Omit<JSX.ButtonHTMLAttributes<HTMLButtonElement>, 'size' | 'class'>;
 
-export interface CandyButtonProps extends ButtonAttrs {
-  variant?: 'candy' | 'soft' | 'plain';
+export interface PillButtonProps extends ButtonAttrs {
+  /** primary: a flat filled pill · secondary: card with a hairline · quiet: text only. */
+  variant?: 'primary' | 'secondary' | 'quiet' | 'candy' | 'soft' | 'plain';
   size?: 'sm' | 'md' | 'lg';
-  /** Theme colors (e.g. per machine); defaults to blush. */
+  /** Fill and label (e.g. per series); defaults to strawberry milk with a graphite label. */
   colors?: CandyColors;
   buttonRef?: Ref<HTMLButtonElement>;
   class?: string;
   children: ComponentChildren;
 }
 
-/** Toy-like button: a solid pastel face sitting on a 4px darker lip that squishes on press. */
-export function CandyButton({ variant = 'candy', size = 'md', colors, buttonRef, class: cls, style, children, type = 'button', ...rest }: CandyButtonProps) {
-  const vars = colors ? ({ '--face': colors.face, '--lip': colors.lip, '--ink': colors.ink } as JSX.CSSProperties) : undefined;
+const VARIANT = { primary: 'primary', candy: 'primary', secondary: 'secondary', soft: 'secondary', quiet: 'quiet', plain: 'quiet' } as const;
+
+/**
+ * The catkin pill button (DESIGN §10.3): a flat matte fill that sinks 1 px and deepens 6% when
+ * pressed. No glossy lip, no bounce.
+ */
+export function PillButton({ variant = 'primary', size = 'md', colors, buttonRef, class: cls, style, children, type = 'button', ...rest }: PillButtonProps) {
+  const vars = colors ? ({ '--face': colors.face, '--label': colors.ink } as JSX.CSSProperties) : undefined;
   return (
     <button
       ref={buttonRef}
       type={type}
-      class={cx(s.candy, variant !== 'candy' && s[variant], size !== 'md' && s[size], cls)}
+      class={cx(s.pill, s[VARIANT[variant]], size !== 'md' && s[size], cls)}
       style={{ ...vars, ...(typeof style === 'object' ? style : null) }}
       {...rest}
     >
@@ -39,11 +47,16 @@ export function CandyButton({ variant = 'candy', size = 'md', colors, buttonRef,
   );
 }
 
-export type PillTone = 'neutral' | 'common' | 'uncommon' | 'rare' | 'ultra' | 'butter' | 'blush';
+/** The old name, kept for callers. */
+export const CandyButton = PillButton;
+export type CandyButtonProps = PillButtonProps;
 
+export type PillTone = 'neutral' | 'common' | 'uncommon' | 'rare' | 'ultra' | 'secret' | 'butter' | 'blush' | 'sage' | 'lavender';
+
+/** A small printed chip. Tier chips carry their finish: matte, two-colour, foil edge, holographic. */
 export function Pill({ tone = 'neutral', class: cls, children, title }: { tone?: PillTone; class?: string; children: ComponentChildren; title?: string }) {
   return (
-    <span class={cx(s.pill, tone !== 'neutral' && s[tone], cls)} title={title}>
+    <span class={cx(s.chip, tone !== 'neutral' && s[`chip-${tone}`], cls)} title={title}>
       {children}
     </span>
   );

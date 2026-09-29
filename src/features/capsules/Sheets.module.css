@@ -1,147 +1,13 @@
+/* The Odds, Lineup and Special Order sheets: paper, hairlines, printed chips. */
 .lead {
   margin-bottom: 16px;
   color: var(--ink-2);
   font-weight: 600;
 }
 
-/* ---------- series lineup poster ---------- */
-.poster {
-  position: relative;
-  margin-bottom: 18px;
-  padding: 18px 20px 20px;
-  border-radius: var(--r-lg);
-  background:
-    radial-gradient(circle at 12px 12px, rgba(255, 255, 255, 0.55) 2px, transparent 2.5px) 0 0 / 22px 22px,
-    var(--poster);
-  box-shadow: inset 0 0 0 2px var(--poster-edge);
-  color: var(--poster-ink);
-  text-align: center;
-}
-
-.posterKicker {
-  font-family: var(--font-display);
-  font-weight: 600;
-  font-size: var(--fs-micro);
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-}
-
-.posterTitle {
-  margin-top: 2px;
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: var(--fs-title);
-  line-height: 1.1;
-}
-
-.posterCount {
-  display: inline-block;
-  margin-top: 8px;
-  padding: 3px 12px;
-  border-radius: var(--r-pill);
-  background: rgba(255, 255, 255, 0.75);
-  font-weight: 700;
-  font-size: var(--fs-caption);
-}
-
-.group + .group {
-  margin-top: 18px;
-}
-
-.groupHead {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 10px;
-  font-size: var(--fs-body);
-}
-
-.groupOdds {
+.muted {
   color: var(--ink-2);
-  font-family: var(--font-body);
-  font-weight: 700;
-  font-size: var(--fs-caption);
-}
-
-.lineup {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
-  gap: 10px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.tile {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  padding: 10px 6px 10px;
-  border-radius: var(--r-md);
-  text-align: center;
-}
-
-.owned {
-  background: var(--card);
-  box-shadow: var(--shadow-sm);
-}
-
-.missing {
-  background: var(--bg-2);
-}
-
-.tileArt {
-  display: grid;
-  place-items: center;
-  width: 68px;
-  height: 68px;
-}
-
-.tileName {
-  font-size: var(--fs-micro);
-  font-weight: 700;
-  line-height: 1.2;
-}
-
-.missing .tileName {
-  color: var(--ink-2);
-}
-
-.count {
-  position: absolute;
-  top: 6px;
-  right: 6px;
-  padding: 1px 7px;
-  border-radius: var(--r-pill);
-  background: var(--blush-100);
-  color: color-mix(in srgb, var(--blush-700) 75%, var(--ink));
-  font-family: var(--font-display);
   font-weight: 600;
-  font-size: var(--fs-micro);
-}
-
-.secretTile {
-  grid-column: span 2;
-  background:
-    linear-gradient(var(--card), var(--card)) padding-box,
-    var(--holo) border-box;
-  border: 3px solid transparent;
-}
-
-.secretMark {
-  display: grid;
-  place-items: center;
-  width: 60px;
-  height: 60px;
-  border-radius: 50%;
-  background: var(--holo);
-  color: #4a3540;
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 2rem;
-  box-shadow: inset 0 -4px 0 rgba(74, 53, 64, 0.12);
 }
 
 /* ---------- odds ---------- */
@@ -151,14 +17,14 @@
   border-spacing: 0;
   border-radius: var(--r-md);
   background: var(--card);
-  box-shadow: var(--shadow-sm);
+  box-shadow: inset 0 0 0 1px var(--line);
   overflow: hidden;
   font-size: var(--fs-caption);
 }
 
 .odds th,
 .odds td {
-  padding: 10px 14px;
+  padding: 10px 12px;
   text-align: left;
   font-weight: 700;
 }
@@ -167,7 +33,7 @@
   color: var(--ink-2);
   font-size: var(--fs-micro);
   font-weight: 800;
-  letter-spacing: 0.06em;
+  letter-spacing: var(--tracking-caps);
   text-transform: uppercase;
   background: var(--bg-2);
 }
@@ -180,39 +46,97 @@
   font-size: var(--fs-body-lg);
 }
 
+.kinds {
+  display: block;
+  margin-top: 4px;
+  color: var(--ink-2);
+  font-size: var(--fs-micro);
+  font-weight: 700;
+}
+
+.nowrap {
+  white-space: nowrap;
+}
+
+.footnote {
+  margin-top: 8px;
+  color: var(--ink-2);
+  font-size: var(--fs-micro);
+  font-weight: 600;
+}
+
 .promises {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 0;
   margin: 18px 0 0;
   padding: 0;
   list-style: none;
+  border-radius: var(--r-md);
+  background: var(--card);
+  box-shadow: inset 0 0 0 1px var(--line);
 }
 
 .promises li {
-  display: flex;
-  gap: 12px;
-  padding: 14px 16px;
-  border-radius: var(--r-md);
-  background: var(--card);
+  padding: 13px 16px;
   color: var(--ink-2);
   font-size: var(--fs-caption);
+  line-height: 1.45;
 }
 
-.promises li > span {
-  font-size: 1.25rem;
-  line-height: 1.2;
+.promises li + li {
+  border-top: 1px solid var(--line);
 }
 
 .promises b {
   color: var(--ink);
 }
 
-/* ---------- wishing well ---------- */
+/* ---------- the swap shelf ---------- */
+.shelf {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 16px;
+  padding: 14px 16px;
+  border-radius: var(--r-md);
+  background: var(--card);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+
+.shelfText {
+  flex: 1;
+  color: var(--ink-2);
+  font-size: var(--fs-caption);
+  font-weight: 600;
+}
+
+/* Doubled class: outranks host-page heading styles (e.g. the dev gallery's). */
+.shelfText .shelfTitle {
+  margin: 0 0 2px;
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: var(--fs-body-lg);
+}
+
+.shelfText b {
+  color: var(--ink);
+}
+
+.swapIn {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+  margin-top: 8px;
+}
+
+/* ---------- special order ---------- */
 .filters {
   display: flex;
-  gap: 8px;
-  margin: 0 calc(-1 * var(--gutter)) 10px;
+  gap: 6px;
+  margin: 0 calc(-1 * var(--gutter)) 8px;
   padding: 2px var(--gutter);
   overflow-x: auto;
   scrollbar-width: none;
@@ -229,19 +153,22 @@
   border-radius: var(--r-pill);
   background: var(--card);
   color: var(--ink-2);
-  font-family: var(--font-display);
-  font-weight: 600;
+  font-family: var(--font-body);
+  font-weight: 700;
   font-size: var(--fs-caption);
-  box-shadow: inset 0 0 0 1.5px var(--line);
-  transition:
-    background var(--t-micro) ease,
-    color var(--t-micro) ease;
+  box-shadow: inset 0 0 0 1px var(--line);
+  transition: background var(--t-micro) ease;
+}
+
+.chip:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 1px;
 }
 
 .chipOn {
-  background: var(--lavender-300);
-  color: var(--ink);
-  box-shadow: inset 0 0 0 1.5px var(--lavender-500);
+  background: var(--ink);
+  color: var(--bg);
+  box-shadow: none;
 }
 
 .empty {
@@ -251,17 +178,17 @@
   text-align: center;
 }
 
-.wishGrid {
+.orderGrid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-  gap: 10px;
-  margin: 6px 0 0;
+  gap: 8px;
+  margin: 8px 0 0;
   padding: 0;
   list-style: none;
 }
 
 /* Off-screen tiles skip layout and paint until scrolled near. */
-.wishGrid > li {
+.orderGrid > li {
   content-visibility: auto;
   contain-intrinsic-size: auto 136px;
 }
@@ -271,7 +198,7 @@
   height: 1px;
 }
 
-.wishTile {
+.orderTile {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -281,22 +208,30 @@
   padding: 10px 6px;
   border-radius: var(--r-md);
   background: var(--card);
-  box-shadow: var(--shadow-sm);
+  box-shadow: inset 0 0 0 1px var(--line);
   text-align: center;
   transition: transform var(--t-micro) var(--ease-out);
 }
 
-.wishTile:active {
-  transform: scale(0.96);
+.orderTile:active:not(:disabled) {
+  transform: translateY(1px);
 }
 
-.wishPicked {
-  box-shadow:
-    0 0 0 3px var(--lavender-500),
-    var(--shadow-sm);
+.orderTile:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 1px;
 }
 
-.wishArt,
+.orderPicked {
+  box-shadow: inset 0 0 0 2px var(--ink);
+}
+
+.orderAway {
+  background: var(--bg-2);
+  box-shadow: none;
+}
+
+.orderArt,
 .confirmArt {
   display: grid;
   place-items: center;
@@ -304,7 +239,24 @@
   height: 64px;
 }
 
-.wishPrice {
+.tileName {
+  font-size: var(--fs-micro);
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.orderAway .tileName,
+.orderAwayNote {
+  color: var(--ink-2);
+}
+
+.orderAwayNote {
+  margin-top: auto;
+  font-size: var(--fs-micro);
+  font-weight: 700;
+}
+
+.orderPrice {
   display: inline-flex;
   align-items: center;
   gap: 3px;
@@ -313,9 +265,20 @@
   border-radius: var(--r-pill);
   background: var(--butter-100);
   color: color-mix(in srgb, var(--butter-700) 75%, var(--ink));
+  font-weight: 800;
+  font-size: var(--fs-micro);
+}
+
+.secretMark {
+  display: grid;
+  place-items: center;
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  background: repeating-linear-gradient(115deg, #f5cdd6 0 8px, #f6e6b4 8px 16px, #cde6da 16px 24px, #d2e4f2 24px 32px, #ddd4f1 32px 40px);
+  color: #3b3236;
   font-family: var(--font-display);
-  font-weight: 600;
-  font-size: var(--fs-caption);
+  font-size: 1.75rem;
 }
 
 .confirm {
@@ -329,13 +292,14 @@
   padding: 14px var(--gutter) calc(14px + var(--safe-bottom));
   border-radius: var(--r-lg) var(--r-lg) 0 0;
   background: var(--card);
-  box-shadow: 0 -10px 30px -12px rgba(74, 53, 64, 0.35);
+  box-shadow:
+    0 -1px 0 var(--line),
+    0 -10px 30px -16px rgba(59, 50, 54, 0.35);
   animation: confirm-in var(--t-std) var(--ease-out);
 }
 
 .confirmTitle {
   font-family: var(--font-display);
-  font-weight: 600;
   font-size: var(--fs-body-lg);
 }
 
@@ -372,24 +336,7 @@
 
 @keyframes confirm-in {
   from {
-    transform: translateY(20px);
+    transform: translateY(16px);
     opacity: 0;
-  }
-}
-
-/* Night: dim the printed poster a touch so it doesn't glare (its ink stays AA: contrast.test.ts). */
-:global(:root[data-theme='night']) .poster {
-  background:
-    linear-gradient(rgba(34, 28, 48, 0.08), rgba(34, 28, 48, 0.08)),
-    radial-gradient(circle at 12px 12px, rgba(255, 255, 255, 0.4) 2px, transparent 2.5px) 0 0 / 22px 22px,
-    var(--poster);
-}
-
-@media (prefers-color-scheme: dark) {
-  :global(:root:not([data-theme='light']):not([data-theme='night'])) .poster {
-    background:
-      linear-gradient(rgba(34, 28, 48, 0.08), rgba(34, 28, 48, 0.08)),
-      radial-gradient(circle at 12px 12px, rgba(255, 255, 255, 0.4) 2px, transparent 2.5px) 0 0 / 22px 22px,
-      var(--poster);
   }
 }

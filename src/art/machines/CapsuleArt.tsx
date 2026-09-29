@@ -1,168 +1,195 @@
 import type { JSX } from 'preact';
-import { useId } from 'preact/hooks';
-import type { Rarity } from '@/catalog/types';
-import { OUTLINE } from './geometry';
-import { shade, tint } from './color';
+import type { MachineId, Rarity } from '@/catalog/types';
+import { DAY_LIGHT, type Light } from '@/art/light';
+import { lowerMoon } from './crescent';
+import { mix, richer } from './color';
+import { lighting, type Lighting } from './lighting';
+import { MOTIFS, MOTIF_ACCENT } from './labels';
+import { BRASS } from './theme';
 import './capsule.css';
 
 /**
- * Capsule shells (DESIGN §9.3 step 3): the shell hints at rarity before it opens.
- *   common   solid pastel halves
- *   uncommon two-tone halves with a sheen stripe
- *   rare     soft glowing aura with two orbiting sparkles, golden seam
- *   ultra    holographic rainbow shimmer and a gentle wobble (the series Secret)
- * Drawn on a 100×100 canvas centered on the origin (radius 40), so it can be placed inside
- * another SVG with a translate/scale, or stand alone via <CapsuleArt>.
+ * The capsule, close up (DESIGN §7.2): one clear half and one tinted half, with the folded
+ * paper insert showing through the clear one. The shell carries its tier's static print
+ * finish, which survives reduced motion:
+ *   classic  a matte tinted half
+ *   special  a two-colour tinted half
+ *   rare     a foil band at the seam, and a foil-edged insert
+ *   super    gold foil on pearl, and a holographic insert
+ *   secret   pearl with a blind-embossed "?", and a holographic band
+ * Drawn on a 100×100 canvas centred on the origin (radius 40). The top half turns with a twist
+ * (the `--twist` custom property) and lifts away when the capsule opens.
  */
 
-export type CapsuleState = 'closed' | 'open';
+export type CapsuleFinish = 'classic' | 'special' | 'rare' | 'super' | 'secret';
+
+export function finishOf(rarity: Rarity, secret = false): CapsuleFinish {
+  if (secret) return 'secret';
+  return rarity === 'common' ? 'classic' : rarity === 'uncommon' ? 'special' : rarity === 'rare' ? 'rare' : 'super';
+}
+
+/** Holographic foil as static printed bands (a gradient only ever means light). */
+export const HOLO_BANDS = ['#F5CDD6', '#F6E6B4', '#CDE6DA', '#D2E4F2', '#DDD4F1'] as const;
+export const PEARL = '#F4EEF1';
+/** Clear plastic: a cool, barely-there tint, so the clear half reads on white paper too. */
+export const CLEAR = { fill: '#E3EBF1', rim: '#D3DEE7' } as const;
+export const FOIL = { base: BRASS.base, light: BRASS.light, deep: BRASS.deep } as const;
+
+/** closed · parting (a still frame of the halves coming apart) · open (plays the opening, then gives way). */
+export type CapsuleState = 'closed' | 'parting' | 'open';
 
 export interface CapsuleShellProps {
-  rarity: Rarity;
-  /** Top-half color (a machine capsule tint). */
+  finish: CapsuleFinish;
+  /** The tinted half. */
   color: string;
-  /** Bottom-half color for two-tone shells (uncommon). */
+  /** The second print colour of a special finish. */
   color2?: string;
+  /** Prints this series' motif on the insert inside. */
+  machineId?: MachineId;
   state?: CapsuleState;
-  /** 0–3 cracks (ultra capsules take three taps). */
+  /** 0–3: how far a Secret's seam has cracked open, one step per tap. */
   cracks?: number;
-  /** Idle rarity effects: sheen sweep, glow pulse, orbiting sparkles, holo shimmer, wobble. */
-  animated?: boolean;
-  /** Outline width in canvas units (thicker when the shell is drawn small). */
-  stroke?: number;
+  light?: Light;
   class?: string;
 }
 
 const R = 40;
-const TOP_HALF = `M${-R} 0 A${R} ${R} 0 0 1 ${R} 0 Z`;
-const BOTTOM_HALF = `M${-R} 0 A${R} ${R} 0 0 0 ${R} 0 Z`;
-export const SPARKLE_PATH = 'M0 -5 C0.7 -1.3 1.3 -0.7 5 0 C1.3 0.7 0.7 1.3 0 5 C-0.7 1.3 -1.3 0.7 -5 0 C-1.3 -0.7 -0.7 -1.3 0 -5 Z';
-export const HOLO_STOPS = ['#FFB3C7', '#FFE593', '#B3E6D6', '#BBDCF6', '#D6C8F8'];
+const TOP = `M${-R} 0 A${R} ${R} 0 0 1 ${R} 0 Z`;
+const BOTTOM = `M${-R} 0 A${R} ${R} 0 0 0 ${R} 0 Z`;
+/** The right half of the bottom (the second colour of a two-colour print). */
+const BOTTOM_RIGHT = `M0 0 H${R} A${R} ${R} 0 0 1 0 ${R} Z`;
 
-/**
- * Eggshell cracks spreading from one impact point near the top: [level, path]. Each tap
- * (level) lengthens the cracks already there and adds a branch, until they reach the seam.
- */
-const CRACKS: [number, string][] = [
-  [1, 'M9 -27 L5 -22 L8 -18'],
-  [1, 'M9 -27 L14 -29 L17 -26'],
-  [1, 'M9 -27 L8 -33'],
-  [2, 'M8 -18 L3 -14 L5 -10'],
-  [2, 'M17 -26 L22 -22 L21 -17'],
-  [2, 'M8 -33 L4 -36.5'],
-  [2, 'M9 -27 L2 -30 L-3 -27'],
-  [3, 'M5 -10 L0 -6.5 L2 -3'],
-  [3, 'M21 -17 L27 -13 L26 -8 L31 -3'],
-  [3, 'M-3 -27 L-8 -21 L-6 -15 L-12 -10 L-10 -3'],
-  [3, 'M22 -22 L29 -24 L32 -20'],
-];
+/** A strip of the bottom half from the seam down to `depth`. */
+function seamBand(from: number, depth: number): string {
+  const x0 = Math.sqrt(R * R - from * from);
+  const x1 = Math.sqrt(R * R - depth * depth);
+  return `M${-x0} ${from} H${x0} A${R} ${R} 0 0 1 ${x1.toFixed(2)} ${depth} H${(-x1).toFixed(2)} A${R} ${R} 0 0 1 ${-x0} ${from} Z`;
+}
 
-export function CapsuleShell({ rarity, color, color2, state = 'closed', cracks = 0, animated, stroke = 2.4, class: cls }: CapsuleShellProps) {
-  const uid = `cap${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`;
-  const holo = rarity === 'ultra';
-  const top = holo ? `url(#${uid}-holo)` : color;
-  const bottom = holo ? `url(#${uid}-holo)` : rarity === 'uncommon' ? (color2 ?? tint(color, 0.5)) : tint(color, 0.62);
-  const seam = rarity === 'rare' ? '#FFD65C' : holo ? '#FFF7D9' : shade(color, 0.12);
-  const classes = ['capsule', `capsule-${rarity}`, animated ? 'is-animated' : '', state === 'open' ? 'is-open' : '', cls ?? ''].filter(Boolean).join(' ');
+const SEAM_FOIL = seamBand(1.6, 6.4);
+/** Ten stripes of holographic print across the seam, inside the rim. */
+const HOLO_EDGE = Math.sqrt(R * R - 7.4 * 7.4);
+const HOLO_STRIPES = Array.from({ length: 10 }, (_, i) => {
+  const w = (2 * HOLO_EDGE) / 10;
+  const x = -HOLO_EDGE + i * w;
+  return { d: `M${x.toFixed(2)} 1.6 H${(x + w + 0.05).toFixed(2)} V7.4 H${x.toFixed(2)} Z`, colour: HOLO_BANDS[i % HOLO_BANDS.length]! };
+});
 
+const f = (n: number) => n.toFixed(2);
+
+/** The shell parts, for embedding in another drawing. */
+export function CapsuleShell({ finish, color, color2, machineId, state = 'closed', cracks = 0, light = DAY_LIGHT, class: cls }: CapsuleShellProps) {
+  const L = lighting(light);
+  const tint = richer(color);
+  const pearl = finish === 'super' || finish === 'secret';
+  const base = L.lit(pearl ? PEARL : tint);
+  const lift = Math.min(3, cracks);
+  const classes = ['capsule', `capsule-${finish}`, state !== 'closed' ? `is-${state}` : '', cls ?? ''].filter(Boolean).join(' ');
   return (
     <g class={classes}>
-      <defs>
-        <clipPath id={`${uid}-clip`}>
-          <circle r={R} />
-        </clipPath>
-        {rarity === 'rare' && (
-          <radialGradient id={`${uid}-aura`}>
-            <stop offset="0.45" stop-color="#FFF4C2" stop-opacity="0.95" />
-            <stop offset="0.7" stop-color="#D6C8F8" stop-opacity="0.6" />
-            <stop offset="1" stop-color="#D6C8F8" stop-opacity="0" />
-          </radialGradient>
-        )}
-        {holo && (
+      <ellipse class="cap-contact" cx={2} cy={R + 3} rx={30} ry={3.6} style={{ fill: L.contact }} />
+      <g class="cap-bottom">
+        <path d={BOTTOM} fill={base} />
+        {finish === 'special' && <path d={BOTTOM_RIGHT} fill={L.lit(richer(color2 ?? mix(color, '#FFFFFF', 0.4)))} />}
+        {(finish === 'rare' || finish === 'super') && (
           <>
-            <linearGradient id={`${uid}-holo`} x1="0" y1="0" x2="1" y2="0.35" gradientUnits="objectBoundingBox" spreadMethod="reflect">
-              {HOLO_STOPS.map((c, i) => (
-                <stop key={c} offset={i / (HOLO_STOPS.length - 1)} stop-color={c} />
-              ))}
-            </linearGradient>
-            <radialGradient id={`${uid}-halo`}>
-              <stop offset="0.5" stop-color="#FFFFFF" stop-opacity="0.9" />
-              <stop offset="0.72" stop-color="#FFD9E4" stop-opacity="0.55" />
-              <stop offset="1" stop-color="#BBDCF6" stop-opacity="0" />
-            </radialGradient>
+            <path d={SEAM_FOIL} fill={L.lit(FOIL.base)} />
+            <path d={seamBand(1.6, 3)} fill={L.lit(FOIL.light)} />
           </>
         )}
-      </defs>
-
-      {rarity === 'rare' && <circle class="capsule-aura" r={R * 1.55} fill={`url(#${uid}-aura)`} />}
-      {holo && <circle class="capsule-aura" r={R * 1.5} fill={`url(#${uid}-halo)`} />}
-
-      <g class="capsule-body">
-        <g class="capsule-bottom">
-          <path d={BOTTOM_HALF} fill={bottom} />
-          <ellipse class="capsule-inside" cx={0} cy={0} rx={R - 3} ry={8} fill="#FFFDF8" stroke={OUTLINE} stroke-width={stroke * 0.7} />
-          <path d={BOTTOM_HALF} fill="none" stroke={OUTLINE} stroke-width={stroke} stroke-linejoin="round" />
-          <path
-            d={`M${-R * 0.72} ${R * 0.5} Q0 ${R * 1.02} ${R * 0.72} ${R * 0.5}`}
-            fill="none"
-            stroke={OUTLINE}
-            stroke-width={5}
-            opacity={0.07}
-            stroke-linecap="round"
-          />
-        </g>
-
-        <g class="capsule-top">
-          <path d={TOP_HALF} fill={top} />
-          <g clip-path={`url(#${uid}-clip)`}>
-            {holo && <HoloShimmer />}
-            {rarity === 'uncommon' && (
-              <g class="capsule-sheen">
-                <rect x={-16} y={-60} width={11} height={120} fill="#fff" opacity={0.55} transform="rotate(24)" />
-                <rect x={-1} y={-60} width={4} height={120} fill="#fff" opacity={0.45} transform="rotate(24)" />
-              </g>
-            )}
+        {finish === 'secret' && (
+          <g>
+            {HOLO_STRIPES.map((st) => (
+              <path key={st.d} d={st.d} fill={L.lit(st.colour)} />
+            ))}
+            <Embossed L={L} />
           </g>
-          <ellipse class="capsule-inside" cx={0} cy={0} rx={R - 3} ry={8} fill={shade(holo ? '#FFE9EF' : color, 0.18)} />
-          <path d={TOP_HALF} fill="none" stroke={OUTLINE} stroke-width={stroke} stroke-linejoin="round" />
-          <ellipse cx={-17} cy={-23} rx={10} ry={5.6} transform="rotate(-38 -17 -23)" fill="#fff" opacity={0.8} />
-          <circle cx={-4} cy={-31} r={2.6} fill="#fff" opacity={0.85} />
-          {cracks > 0 && <Cracks level={cracks} stroke={stroke} />}
-          {/* the top half's lip overlaps the bottom half */}
-          <rect class="capsule-seam" x={-R - 1.5} y={-3.4} width={2 * R + 3} height={6.8} rx={3.4} fill={seam} stroke={OUTLINE} stroke-width={stroke * 0.85} />
-        </g>
+        )}
+        <rect x={-R - 0.6} y={-1.8} width={2 * R + 1.2} height={3.6} rx={1.8} fill={L.lit(mix(pearl ? PEARL : tint, '#FFFFFF', 0.4))} />
       </g>
 
-      {rarity === 'rare' && (
-        <g class="capsule-orbit" fill="#FFE593" stroke="#fff" stroke-width={0.9}>
-          <path d={SPARKLE_PATH} transform={`translate(0 ${-R - 13}) scale(1.5)`} />
-          <path d={SPARKLE_PATH} transform={`translate(0 ${R + 13}) scale(1.1)`} />
+      <g class="cap-inside">
+        <Insert finish={finish} machineId={machineId} L={L} />
+      </g>
+
+      <g class="cap-top" transform={lift ? `translate(0 ${-lift * 1.3}) rotate(${-lift * 1.6})` : undefined}>
+        <path d={TOP} fill={L.lit(CLEAR.fill)} opacity={L.light.night ? 0.3 : 0.5} />
+        <path
+          d={`M${-R} 0 A${R} ${R} 0 0 1 ${R} 0 H${R - 2.6} A${R - 2.6} ${R - 2.6} 0 0 0 ${-R + 2.6} 0 Z`}
+          fill={L.lit(CLEAR.rim)}
+          opacity={L.light.night ? 0.5 : 0.9}
+        />
+        <rect x={-R - 0.8} y={-3.6} width={2 * R + 1.6} height={2.4} rx={1.2} fill={L.lit(CLEAR.rim)} />
+      </g>
+
+      {cracks > 0 && <rect class="cap-crack" x={-R + 2} y={-0.9 - lift * 0.9} width={2 * R - 4} height={1.8 + lift * 1.6} rx={1} fill={L.lit('#FFF3D2')} />}
+      <path class="cap-shade" d={lowerMoon(R, L.side, 9)} style={{ fill: L.shade }} />
+      <Glint L={L} />
+    </g>
+  );
+}
+
+/** The paper insert, folded in two and tucked in the capsule, printed with the series motif. */
+function Insert({ finish, machineId, L }: { finish: CapsuleFinish; machineId?: MachineId; L: Lighting }) {
+  const paper = L.lit('#FFFBF2');
+  const back = L.lit('#EFE7DA');
+  const Motif = machineId ? MOTIFS[machineId] : null;
+  const edge = finish === 'rare' ? L.lit(FOIL.base) : null;
+  const holo = finish === 'super' || finish === 'secret';
+  const fold = L.lit('#F1E8DA');
+  const line = L.lit('#CFC3B8');
+  return (
+    <g>
+      {/* The back leaf of the fold, then the front leaf, creased down the middle. */}
+      <path d="M-17 -2 L-13 -32 L15 -32 L21 -2 Z" fill={back} />
+      <path d="M-25 -2 L-21 -27 L0 -29 L0 -2 Z" fill={paper} />
+      <path d="M0 -2 L0 -29 L21 -27 L25 -2 Z" fill={fold} />
+      {edge && <path d="M-25 -2 L-21 -27 L0 -29 L21 -27 L25 -2 Z M-22.4 -4 L-18.9 -24.9 L0 -26.7 L18.9 -24.9 L22.4 -4 Z" fill={edge} fill-rule="evenodd" />}
+      {holo && (
+        <g>
+          {HOLO_BANDS.map((c, i) => (
+            <path key={c} d={`M${-20.6 + i * 8.2} ${-26.6 + i * 0.4} H${-12.4 + i * 8.2} V${-23.4 + i * 0.3} H${-20.9 + i * 8.2} Z`} fill={L.lit(c)} />
+          ))}
         </g>
       )}
+      {Motif && machineId && (
+        <g transform="translate(-19 -21) scale(0.56)">
+          <Motif ink={L.lit('#6F6065')} accent={L.lit(MOTIF_ACCENT[machineId])} paper={paper} />
+        </g>
+      )}
+      <rect x={4} y={-17} width={13} height={1.6} rx={0.8} fill={line} />
+      <rect x={4} y={-12.6} width={10} height={1.6} rx={0.8} fill={line} />
+      <rect x={4} y={-8.2} width={12} height={1.6} rx={0.8} fill={line} />
     </g>
   );
 }
 
-/** A wide band of rainbow sliding under the clip: transform-only, so it is cheap to animate. */
-function HoloShimmer() {
+/** A secret's "?", pressed into the pearl: a lit edge and a shaded edge, no ink. */
+function Embossed({ L }: { L: Lighting }) {
+  const d =
+    'M-4.6 12.6C-4.6 9.2-1.8 7.4 1.2 7.4 4.6 7.4 6.8 9.4 6.8 12.2 6.8 14.8 5 15.8 3.4 16.8 2 17.6 1.6 18.2 1.6 19.8V20.8H-1.4V19.6C-1.4 17.2-0.4 16.2 1.4 15 2.8 14.1 3.6 13.6 3.6 12.3 3.6 11 2.6 10.2 1.1 10.2-0.6 10.2-1.6 11.2-1.6 12.8ZM-1.6 23.4H1.8V26.8H-1.6Z';
+  const [tx, ty] = L.toward;
   return (
-    <g class="capsule-holo-band">
-      {[-2, -1, 0, 1, 2].map((i) => (
-        <rect key={i} x={-20 + i * 26} y={-60} width={9} height={120} fill="#fff" opacity={i === 0 ? 0.5 : 0.28} transform="rotate(28)" />
-      ))}
+    <g transform="translate(-1 2)">
+      <path d={d} transform={`translate(${f(tx * 0.7)} ${f(ty * 0.7)})`} fill="#FFFFFF" opacity={0.85} />
+      <path d={d} transform={`translate(${f(-tx * 0.7)} ${f(-ty * 0.7)})`} style={{ fill: L.shade }} />
+      <path d={d} fill={L.lit(PEARL)} />
     </g>
   );
 }
 
-function Cracks({ level, stroke }: { level: number; stroke: number }) {
-  const paths = CRACKS.filter(([l]) => l <= level).map(([, d]) => d);
+function Glint({ L }: { L: Lighting }) {
+  const [tx, ty] = L.toward;
+  const len = Math.hypot(tx, ty);
+  const ux = tx / len;
+  const uy = ty / len;
+  const a = (Math.atan2(uy, ux) * 180) / Math.PI;
+  const gx = ux * R * 0.66;
+  const gy = uy * R * 0.66 - 4;
   return (
-    <g class="capsule-cracks" fill="none" stroke-linecap="round" stroke-linejoin="round">
-      {/* at the last tap, light leaks through */}
-      {level >= 3 && paths.map((d) => <path key={`g${d}`} d={d} stroke="#FFFBEA" stroke-width={stroke * 2.4} />)}
-      {paths.map((d) => (
-        <path key={d} d={d} stroke={OUTLINE} stroke-width={stroke * 0.7} />
-      ))}
+    <g class="cap-glint" opacity={L.light.night ? 0.5 : 0.9}>
+      <ellipse cx={gx} cy={gy} rx={3.4} ry={8.5} transform={`rotate(${f(a)} ${f(gx)} ${f(gy)})`} fill="#FFFFFF" />
+      <circle cx={gx - uy * 9 * Math.sign(ux || 1)} cy={gy + ux * 9 * Math.sign(ux || 1) - 4} r={1.8} fill="#FFFFFF" />
     </g>
   );
 }
@@ -174,7 +201,7 @@ export interface CapsuleArtProps extends CapsuleShellProps {
   svgClass?: string;
 }
 
-/** Standalone capsule (reveal overlay, gallery). */
+/** A standalone capsule (the reveal, the gallery). */
 export function CapsuleArt({ size = 120, title, style, svgClass, ...shell }: CapsuleArtProps) {
   const px = typeof size === 'number' ? `${size}px` : size;
   return (
@@ -190,6 +217,47 @@ export function CapsuleArt({ size = 120, title, style, svgClass, ...shell }: Cap
       focusable="false"
     >
       <CapsuleShell {...shell} />
+    </svg>
+  );
+}
+
+/**
+ * The capsule after it has opened: the tinted half upright like a small bowl, and the clear
+ * half tipped on its side beside it (the reveal card sets them on the table).
+ */
+export function OpenCapsuleArt({
+  finish,
+  color,
+  color2,
+  light = DAY_LIGHT,
+  size = 120,
+}: Omit<CapsuleShellProps, 'state' | 'cracks' | 'machineId'> & { size?: number | string }) {
+  const L = lighting(light);
+  const pearl = finish === 'super' || finish === 'secret';
+  const tint = pearl ? PEARL : richer(color);
+  const px = typeof size === 'number' ? `${size}px` : size;
+  const r = 24;
+  const bowl = `M${-r} 0 A${r} ${r} 0 0 0 ${r} 0 Z`;
+  return (
+    <svg class="capsule-art" viewBox="-60 -34 120 68" width={px} height={px} aria-hidden="true" focusable="false">
+      <ellipse cx={0} cy={25.5} rx={52} ry={3.4} style={{ fill: L.contact }} />
+      <g transform="translate(-22 0)">
+        <path d={bowl} fill={L.lit(tint)} />
+        {finish === 'special' && <path d={`M0 0 H${r} A${r} ${r} 0 0 1 0 ${r} Z`} fill={L.lit(richer(color2 ?? mix(color, '#FFFFFF', 0.4)))} />}
+        {(finish === 'rare' || finish === 'super') && (
+          <path d={`M${-r} 0.5 H${r} A${r} ${r} 0 0 1 ${r - 0.9} 4.6 H${-r + 0.9} A${r} ${r} 0 0 1 ${-r} 0.5 Z`} fill={L.lit(FOIL.base)} />
+        )}
+        <ellipse cx={0} cy={0} rx={r} ry={5.4} fill={L.lit(mix(tint, '#FFFFFF', 0.35))} />
+        <ellipse cx={0} cy={0.6} rx={r - 3} ry={3.8} fill={L.lit(mix(tint, '#4B4060', 0.2))} />
+        <path d={lowerMoon(r, L.side, 6)} style={{ fill: L.shade }} />
+      </g>
+      <g transform="translate(26 6) rotate(-14)">
+        <path d={`M${-20} 0 A20 20 0 0 1 20 0 Z`} fill={L.lit(CLEAR.fill)} opacity={L.light.night ? 0.35 : 0.6} />
+        <path d="M-20 0 A20 20 0 0 1 20 0 H17.8 A17.8 17.8 0 0 0 -17.8 0 Z" fill={L.lit(CLEAR.rim)} />
+        <ellipse cx={0} cy={0} rx={20} ry={4.2} fill={L.lit(CLEAR.rim)} />
+        <ellipse cx={0} cy={0.3} rx={17.8} ry={3} fill={L.lit(CLEAR.fill)} />
+        <ellipse cx={-6} cy={-13.4} rx={6} ry={1.5} transform="rotate(-24 -6 -13.4)" fill="#FFFFFF" />
+      </g>
     </svg>
   );
 }

@@ -1,6 +1,7 @@
 /**
- * Capsule-dome physics (DESIGN §9.3): a tiny rigid-circle simulation inside a round glass
- * dome with an optional flat floor (the collar the globe sits in).
+ * Capsule physics (DESIGN §7.2): a tiny rigid-circle simulation of capsules tumbling inside a
+ * container: the rectangular glass window of a capsule cabinet (`box`), or a round glass dome
+ * with an optional flat floor.
  *
  * Semi-implicit Euler with warm-started sequential impulses (restitution for real impacts,
  * Coulomb friction that makes capsules roll), then positional correction. A fixed 120 Hz step
@@ -28,14 +29,15 @@ export interface DomeBody {
   readonly tint: number;
 }
 
-export interface DomeConfig {
-  /** Dome center. */
-  cx: number;
-  cy: number;
-  /** Inner radius of the glass. */
-  radius: number;
-  /** Optional flat floor: bodies rest on y = floor (the collar hides the globe's bottom). */
-  floor?: number;
+/** The inside of a cabinet window: capsules rest on `bottom`, between `left` and `right`. */
+export interface Box {
+  left: number;
+  top: number;
+  right: number;
+  bottom: number;
+}
+
+interface SimOptions {
   count: number;
   bodyRadius: number;
   /** ± relative size variation, 0..0.3. */
@@ -51,7 +53,25 @@ export interface DomeConfig {
   friction?: number;
   /** Linear damping, 1/s. */
   damping?: number;
+  /** Where capsules leave (removeOne prefers bodies low and near this x). Defaults to the center. */
+  exitX?: number;
 }
+
+export interface DomeConfig extends SimOptions {
+  /** Dome center. */
+  cx: number;
+  cy: number;
+  /** Inner radius of the glass. */
+  radius: number;
+  /** Optional flat floor: bodies rest on y = floor (the collar hides the globe's bottom). */
+  floor?: number;
+}
+
+export interface BoxConfig extends SimOptions {
+  box: Box;
+}
+
+export type CapsuleSimConfig = DomeConfig | BoxConfig;
 
 const STEP = 1 / 120;
 const MAX_FRAME = 1 / 15;
@@ -66,14 +86,15 @@ const WARM_START = 0.85;
 const SLEEP_SPEED = 5;
 const SLEEP_SPIN = 0.5;
 const SLEEP_AFTER = 0.4;
-/** Contact key for the glass / the floor (body ids stay far below this). */
-const GLASS = 1 << 20;
-const FLOOR = GLASS + 1;
+/** Pair contacts are keyed lo·PAIR + hi (body ids stay far below PAIR); wall contacts get negative keys. */
+const PAIR = 1 << 20;
+const WALL = { glass: 0, floor: 1, left: 2, right: 3, ceiling: 4 } as const;
+const wallKey = (id: number, wall: keyof typeof WALL) => -(id * 8 + WALL[wall] + 1);
 
 interface Contact {
   key: number;
   a: DomeBody;
-  /** null = the glass or the floor. */
+  /** null = the glass, a wall or the floor. */
   b: DomeBody | null;
   /** Unit normal from a toward b (or toward the wall). */
   nx: number;
@@ -100,12 +121,18 @@ export function mulberry32(seed: number): () => number {
   };
 }
 
-export class DomeSim {
+export class CapsuleSim {
   readonly bodies: DomeBody[] = [];
+  /** Container center. */
   readonly cx: number;
   readonly cy: number;
+  /** The dome's inner radius (Infinity for a box). */
   readonly radius: number;
+  /** Bodies rest on y = floor. */
   readonly floor: number;
+  /** The rectangular container, or null for a dome. */
+  readonly box: Box | null;
+  readonly exitX: number;
 
   private readonly rand: () => number;
   private readonly gravity: number;
@@ -121,11 +148,21 @@ export class DomeSim {
   private sleeping = false;
   private nextId = 0;
 
-  constructor(cfg: DomeConfig) {
-    this.cx = cfg.cx;
-    this.cy = cfg.cy;
-    this.radius = cfg.radius;
-    this.floor = cfg.floor ?? cfg.cy + cfg.radius;
+  constructor(cfg: CapsuleSimConfig) {
+    if ('box' in cfg) {
+      this.box = { ...cfg.box };
+      this.cx = (cfg.box.left + cfg.box.right) / 2;
+      this.cy = (cfg.box.top + cfg.box.bottom) / 2;
+      this.radius = Infinity;
+      this.floor = cfg.box.bottom;
+    } else {
+      this.box = null;
+      this.cx = cfg.cx;
+      this.cy = cfg.cy;
+      this.radius = cfg.radius;
+      this.floor = cfg.floor ?? cfg.cy + cfg.radius;
+    }
+    this.exitX = cfg.exitX ?? this.cx;
     this.rand = mulberry32(cfg.seed ?? 1);
     this.gravity = cfg.gravity ?? 1400;
     this.restitution = cfg.restitution ?? 0.35;
@@ -176,7 +213,7 @@ export class DomeSim {
   agitate(strength: number, swirl = 0): void {
     if (!(strength > 0) || this.bodies.length === 0) return;
     this.wake();
-    const top = this.cy - this.radius;
+    const top = this.top;
     const span = this.floor - top;
     for (const b of this.bodies) {
       const depth = Math.min(1, Math.max(0, (b.y - top) / span));
@@ -201,7 +238,7 @@ export class DomeSim {
    */
   removeOne(prefer?: (b: DomeBody) => boolean): DomeBody | null {
     if (this.bodies.length === 0) return null;
-    const exitScore = (b: DomeBody) => b.y - Math.abs(b.x - this.cx) * 0.35;
+    const exitScore = (b: DomeBody) => b.y - Math.abs(b.x - this.exitX) * 0.35;
     const bestOf = (ok: (b: DomeBody) => boolean) => {
       let best = -1;
       for (let i = 0; i < this.bodies.length; i++) {
@@ -222,9 +259,11 @@ export class DomeSim {
     return removed ?? null;
   }
 
-  /** Drop a fresh capsule in from the top of the dome. */
+  /** Drop a fresh capsule in from the top of the container. */
   addOne(): DomeBody {
-    const b = this.makeBody(this.cx + (this.rand() - 0.5) * this.radius * 0.5, this.cy - this.radius * 0.72);
+    const spread = this.box ? (this.box.right - this.box.left) * 0.5 : this.radius * 0.5;
+    const y = this.box ? this.box.top + this.bodyRadius * 1.2 : this.cy - this.radius * 0.72;
+    const b = this.makeBody(this.cx + (this.rand() - 0.5) * spread, y);
     b.vy = 60;
     this.bodies.push(b);
     this.wake();
@@ -232,6 +271,18 @@ export class DomeSim {
   }
 
   /* ------------------------------------------------------------------ */
+
+  /** The container's top edge. */
+  private get top(): number {
+    return this.box ? this.box.top : this.cy - this.radius;
+  }
+
+  /** Whether a pile slot at (x, y) keeps a body of radius r clear of the glass (the floor is the pile's own). */
+  private fits(x: number, y: number, r: number): boolean {
+    const b = this.box;
+    if (b) return x >= b.left + r && x <= b.right - r && y >= b.top + r;
+    return Math.hypot(x - this.cx, y - this.cy) <= this.radius - r;
+  }
 
   private makeBody(x: number, y: number): DomeBody {
     const r = this.bodyRadius * (1 + (this.rand() * 2 - 1) * this.sizeJitter);
@@ -255,11 +306,11 @@ export class DomeSim {
     const slots: { x: number; y: number }[] = [];
     for (let row = 0; slots.length < count * 3; row++) {
       const y = this.floor - this.bodyRadius - row * rowH;
-      if (y < this.cy - this.radius) break;
+      if (y < this.top) break;
       const offset = row % 2 ? d / 2 : 0;
       for (let k = -12; k <= 12; k++) {
         const x = this.cx + k * d + offset;
-        if (Math.hypot(x - this.cx, y - this.cy) <= this.radius - this.bodyRadius * 1.05) slots.push({ x, y });
+        if (this.fits(x, y, this.bodyRadius * 1.05)) slots.push({ x, y });
       }
     }
     slots.sort((a, b) => b.y - a.y || Math.abs(a.x - this.cx) - Math.abs(b.x - this.cx));
@@ -367,17 +418,24 @@ export class DomeSim {
         const d = Math.sqrt(d2);
         const lo = Math.min(a.id, b.id);
         const hi = Math.max(a.id, b.id);
-        add(lo * GLASS + hi, a, b, dx / d, dy / d);
+        add(lo * PAIR + hi, a, b, dx / d, dy / d);
       }
-      const dx = a.x - this.cx;
-      const dy = a.y - this.cy;
-      const limit = this.radius - a.r - 0.02;
-      const d2 = dx * dx + dy * dy;
-      if (d2 > limit * limit) {
-        const d = Math.sqrt(d2);
-        add(a.id * GLASS + GLASS, a, null, dx / d, dy / d);
+      const box = this.box;
+      if (box) {
+        if (a.x - a.r < box.left + 0.02) add(wallKey(a.id, 'left'), a, null, -1, 0);
+        if (a.x + a.r > box.right - 0.02) add(wallKey(a.id, 'right'), a, null, 1, 0);
+        if (a.y - a.r < box.top + 0.02) add(wallKey(a.id, 'ceiling'), a, null, 0, -1);
+      } else {
+        const dx = a.x - this.cx;
+        const dy = a.y - this.cy;
+        const limit = this.radius - a.r - 0.02;
+        const d2 = dx * dx + dy * dy;
+        if (d2 > limit * limit) {
+          const d = Math.sqrt(d2);
+          add(wallKey(a.id, 'glass'), a, null, dx / d, dy / d);
+        }
       }
-      if (a.y + a.r > this.floor - 0.02) add(a.id * GLASS + FLOOR, a, null, 0, 1);
+      if (a.y + a.r > this.floor - 0.02) add(wallKey(a.id, 'floor'), a, null, 0, 1);
     }
     this.contacts = next;
   }
@@ -418,8 +476,14 @@ export class DomeSim {
     }
   }
 
-  /** Project a body back inside the glass and above the floor. */
+  /** Project a body back inside the glass (or the box) and above the floor. */
   private contain(b: DomeBody): void {
+    const box = this.box;
+    if (box) {
+      b.x = clamp(b.x, box.left + b.r, box.right - b.r);
+      b.y = clamp(b.y, box.top + b.r, box.bottom - b.r);
+      return;
+    }
     const dx = b.x - this.cx;
     const dy = b.y - this.cy;
     const limit = this.radius - b.r;
@@ -453,6 +517,9 @@ function separate(a: DomeBody, b: DomeBody): void {
   b.x += nx * k * ib;
   b.y += ny * k * ib;
 }
+
+/** The round-dome sim's original name. */
+export { CapsuleSim as DomeSim };
 
 function clamp(v: number, lo: number, hi: number): number {
   return v < lo ? lo : v > hi ? hi : v;
