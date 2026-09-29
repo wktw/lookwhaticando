@@ -1,0 +1,34 @@
+/*
+ * Sticker backing: a second copy of an illustration, flattened to one silhouette in the backing
+ * color (the group's `color`) with the group's thick stroke, painted under the real drawing.
+ * CSS beats the copy's presentation attributes, so any drawing can be reused as-is.
+ */
+.backing * {
+  stroke: currentColor;
+  stroke-width: inherit;
+  stroke-dasharray: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill-opacity: 1;
+  opacity: 1;
+}
+
+.backing [fill]:not([fill='none']) {
+  fill: currentColor;
+}
+
+/* Automatic backings only show at night: an explicit night theme (on the root or any wrapper)
+   or the OS dark scheme while the app follows it. */
+.auto {
+  display: none;
+}
+
+:global([data-theme='night']) .auto {
+  display: inline;
+}
+
+@media (prefers-color-scheme: dark) {
+  :global(:root:not([data-theme='light'])) .auto {
+    display: inline;
+  }
+}
