@@ -29,11 +29,15 @@ export interface PlantSpeciesArt {
   render: (g: Growth) => PlantLayers;
   /** Seed coat color for stage 0. */
   seed: string;
+  /** Optional stripes on the seed coat (sunflower seeds). */
+  seedStripes?: string;
 }
 
 export interface PotArtDef {
   /** Draws the whole pot (body, rim, decorations). `uid` scopes clip paths; `sw` is the outline width. */
   render: (uid: string, sw: number) => JSX.Element;
-  /** Where the Evergreen charm's ribbon is tied (right side of the rim). */
+  /** Where the Evergreen gold bow is tied (clear of any face); the golden watering can dangles from it. */
   charm: { x: number; y: number };
+  /** The Evergreen gold ribbon band wrapped around the pot body (pots without a face). */
+  ribbon?: string;
 }

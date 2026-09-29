@@ -42,30 +42,36 @@ function Berry({ x, y, s = 1, rot = 0, ripe = 1 }: { x: number; y: number; s?: n
   );
 }
 
-/** Small green bud with white petals peeking (k 0 → 1). */
+/** Small green bud with white petals peeking (k 0 → 1); a finer line keeps it from turning into a dark knot. */
 function FlowerBud({ x, y, k }: { x: number; y: number; k: number }) {
   return (
-    <g stroke={OUTLINE} stroke-width={1.6} stroke-linejoin="round">
-      <circle cx={x} cy={f(y - 1.8)} r={f(lerp(2, 3.2, k))} fill="#fff" />
-      <path d={`M${f(x - 3.6)} ${f(y - 0.6)} L${f(x - 1.6)} ${f(y - 2.2)} L${x} ${f(y - 0.8)} L${f(x + 1.6)} ${f(y - 2.2)} L${f(x + 3.6)} ${f(y - 0.6)} C${f(x + 2.4)} ${f(y + 2.4)} ${f(x - 2.4)} ${f(y + 2.4)} ${f(x - 3.6)} ${f(y - 0.6)} Z`} fill={GREEN.leaf} />
+    <g stroke={OUTLINE} stroke-width={1.3} stroke-linejoin="round">
+      <circle cx={x} cy={f(y - 2)} r={f(lerp(2.6, 3.6, k))} fill="#fff" />
+      <path d={`M${f(x - 3.8)} ${f(y - 0.6)} L${f(x - 1.7)} ${f(y - 2.3)} L${x} ${f(y - 0.8)} L${f(x + 1.7)} ${f(y - 2.3)} L${f(x + 3.8)} ${f(y - 0.6)} C${f(x + 2.5)} ${f(y + 2.5)} ${f(x - 2.5)} ${f(y + 2.5)} ${f(x - 3.8)} ${f(y - 0.6)} Z`} fill={GREEN.leaf} />
     </g>
   );
 }
+
+type Fruit = { x: number; y: number; s: number; rot: number; ripe: number; stem: string };
 
 interface Plant {
   leaves: { x0: number; x: number; y: number; rot: number; s: number }[];
   buds: { x0: number; x: number; y: number; k: number }[];
   flowers: { x0: number; x: number; y: number; r: number }[];
-  berries: { x: number; y: number; s: number; rot: number; ripe: number; stem: string }[];
+  /** Berries hanging among the leaves. */
+  berries: Fruit[];
+  /** At most three berries spilling over the rim, at alternating heights, so no pot face gets covered. */
+  spill: Fruit[];
 }
 
-const EXTRA_BERRIES = [
-  { x: 42, y: 58, s: 0.8, rot: 8, ripe: 1, stem: 'M46 50 Q42 52 42 58' },
-  { x: 58, y: 57, s: 0.8, rot: -8, ripe: 1, stem: 'M55 49 Q58 51 58 57' },
-  { x: 20, y: 60, s: 0.72, rot: 20, ripe: 1, stem: 'M28 50 Q21 52 20 60' },
-  { x: 80, y: 58, s: 0.72, rot: -20, ripe: 1, stem: 'M72 48 Q79 50 80 58' },
-  { x: 35, y: 49, s: 0.7, rot: 12, ripe: 1, stem: 'M39 42 Q35 44 35 49' },
-  { x: 65, y: 48, s: 0.7, rot: -12, ripe: 1, stem: 'M61 41 Q65 43 65 48' },
+/** Extra berries after Evergreen, hanging from the leaf edges (never over the pot). */
+const EXTRA_BERRIES: Fruit[] = [
+  { x: 19, y: 49, s: 0.78, rot: 16, ripe: 1, stem: 'M25 42 Q20 44 19 49' },
+  { x: 81, y: 47, s: 0.78, rot: -16, ripe: 1, stem: 'M75 40 Q80 42 81 47' },
+  { x: 37, y: 42, s: 0.74, rot: 10, ripe: 1, stem: 'M40 36 Q37 38 37 42' },
+  { x: 63, y: 41, s: 0.74, rot: -10, ripe: 1, stem: 'M60 35 Q63 37 63 41' },
+  { x: 27, y: 32, s: 0.7, rot: 12, ripe: 1, stem: 'M31 26 Q27 28 27 32' },
+  { x: 73, y: 30, s: 0.7, rot: -12, ripe: 1, stem: 'M69 24 Q73 26 73 30' },
 ];
 
 /** A dome of leaves: back-center first, lower sides last. */
@@ -86,7 +92,7 @@ function plant(g: Growth): Plant {
   const ls = leaves(g);
   switch (g.stage) {
     case 3:
-      return { leaves: ls, buds: [], flowers: [], berries: [] };
+      return { leaves: ls, buds: [], flowers: [], berries: [], spill: [] };
     case 4:
       return {
         leaves: ls,
@@ -97,6 +103,7 @@ function plant(g: Growth): Plant {
         ],
         flowers: [],
         berries: [],
+        spill: [],
       };
     case 5:
       return {
@@ -106,7 +113,8 @@ function plant(g: Growth): Plant {
           { x0: 48, x: 36, y: 25, r: lerp(5.4, 6.4, p) },
           { x0: 52, x: 64, y: 24, r: lerp(5.4, 6.4, p) },
         ],
-        berries: p >= 0.5 ? [{ x: 72, y: 55, s: 0.7, rot: -14, ripe: 0, stem: 'M65 48 Q71 49 72 55' }] : [],
+        berries: [],
+        spill: p >= 0.5 ? [{ x: 73, y: 55, s: 0.72, rot: -14, ripe: 0, stem: 'M66 48 Q72 49 73 55' }] : [],
       };
     case 6:
       return {
@@ -117,10 +125,10 @@ function plant(g: Growth): Plant {
           { x0: 52, x: 64, y: 24, r: 6.2 },
           ...(p >= 0.5 ? [{ x0: 50, x: 50.5, y: 18, r: 5.4 }] : []),
         ],
-        berries: [
+        berries: [{ x: 58, y: 46, s: 0.8, rot: -6, ripe: lerp(0.4, 1, p), stem: 'M56 40 Q58 42 58 46' }],
+        spill: [
           { x: 27, y: 58, s: 0.95, rot: 16, ripe: 1, stem: 'M35 49 Q28 51 27 58' },
-          { x: 73, y: 57, s: 0.95, rot: -16, ripe: 1, stem: 'M65 48 Q72 50 73 57' },
-          { x: 57, y: 57, s: 0.8, rot: -6, ripe: lerp(0.4, 1, p), stem: 'M55 50 Q57 52 57 57' },
+          { x: 73, y: 56, s: 0.95, rot: -16, ripe: 1, stem: 'M66 48 Q72 50 73 56' },
         ],
       };
     default:
@@ -132,16 +140,25 @@ function plant(g: Growth): Plant {
           { x0: 52, x: 67, y: 23, r: 6.4 },
           { x0: 50, x: 50.5, y: 15, r: 6 },
         ],
-        berries: [
-          ...EXTRA_BERRIES.slice(0, g.blooms),
-          { x: 24, y: 58, s: 1, rot: 18, ripe: 1, stem: 'M33 48 Q25 50 24 58' },
-          { x: 76, y: 56, s: 1, rot: -18, ripe: 1, stem: 'M67 47 Q75 49 76 56' },
-          { x: 34, y: 64, s: 0.9, rot: 8, ripe: 1, stem: 'M40 52 Q35 56 34 64' },
-          { x: 66, y: 63, s: 0.9, rot: -8, ripe: 1, stem: 'M60 51 Q65 55 66 63' },
-          { x: 50, y: 59, s: 0.85, rot: 0, ripe: 1, stem: 'M50 51 Q50.6 54 50 59' },
+        berries: [{ x: 58, y: 46, s: 0.85, rot: -6, ripe: 1, stem: 'M56 40 Q58 42 58 46' }, ...EXTRA_BERRIES.slice(0, g.blooms)],
+        spill: [
+          { x: 25, y: 58, s: 1, rot: 18, ripe: 1, stem: 'M33 48 Q26 50 25 58' },
+          { x: 75, y: 56, s: 1, rot: -18, ripe: 1, stem: 'M67 47 Q74 49 75 56' },
+          { x: 41, y: 55, s: 0.88, rot: 8, ripe: 1, stem: 'M44 48 Q41 50 41 55' },
         ],
       };
   }
+}
+
+function Berries({ list }: { list: Fruit[] }) {
+  return (
+    <g>
+      <Stems paths={list.map((b) => b.stem)} w={1.6} line={1.6} />
+      {list.map((b, i) => (
+        <Berry key={i} x={b.x} y={b.y} s={b.s} rot={b.rot} ripe={b.ripe} />
+      ))}
+    </g>
+  );
 }
 
 export const strawberry: PlantSpeciesArt = {
@@ -163,16 +180,10 @@ export const strawberry: PlantSpeciesArt = {
           {pl.flowers.map((fl, i) => (
             <Blossom key={i} x={fl.x} y={fl.y} r={fl.r} petal="#FFFFFF" rot={i * 20} line={1.6} />
           ))}
+          {pl.berries.length > 0 && <Berries list={pl.berries} />}
         </g>
       ),
-      front: pl.berries.length ? (
-        <g>
-          <Stems paths={pl.berries.map((b) => b.stem)} w={1.6} line={1.6} />
-          {pl.berries.map((b, i) => (
-            <Berry key={i} x={b.x} y={b.y} s={b.s} rot={b.rot} ripe={b.ripe} />
-          ))}
-        </g>
-      ) : null,
+      front: pl.spill.length ? <Berries list={pl.spill} /> : null,
     };
   },
 };

@@ -1,6 +1,7 @@
 /** Small numeric helpers shared by the plant renderers. */
 
-export const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
+/** Clamps to 0..1; NaN becomes 0 so bad input can never leak into path data. */
+export const clamp01 = (v: number) => (v > 0 ? (v < 1 ? v : 1) : 0);
 export const lerp = (a: number, b: number, k: number) => a + (b - a) * k;
 /** 0 → 1 as `t` moves from `a` to `b` (clamped). */
 export const ramp = (t: number, a: number, b: number) => clamp01((t - a) / (b - a));

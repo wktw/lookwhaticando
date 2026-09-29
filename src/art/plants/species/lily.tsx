@@ -1,5 +1,5 @@
 import type { Growth, PlantSpeciesArt } from '../types';
-import { FINE, Leaf, OUTLINE, Stems, type LeafProps } from '../parts';
+import { FINE, Leaf, Moss, OUTLINE, Stems, type LeafProps } from '../parts';
 import { f, lerp, mix, ramp } from '../math';
 import { seedling, sprout } from '../early';
 
@@ -8,6 +8,7 @@ const LEAF_BACK = '#84C29E';
 const STEM = '#9FCB93';
 const BELL = '#FFFFFF';
 const BUD = '#CFE9C0';
+const SHEATH = '#D8EDCF';
 
 /** A little bell hanging from (x, y); `k` < 1 is a closed green-white bud. */
 function Bell({ x, y, s, k }: { x: number; y: number; s: number; k: number }) {
@@ -64,31 +65,56 @@ const TOP: Raceme = {
   ],
 };
 
-function racemes(g: Growth): { list: Raceme[]; k: number; count: number } {
+/** A low fourth arch that only an Evergreen plant has. */
+const LOW: Raceme = {
+  d: 'M49 66 C48 58 43 51 35.6 49 C29.6 47.6 24.6 49.4 23 54',
+  bells: [
+    [41, 50.4],
+    [36, 48.4],
+    [31, 48],
+    [26.6, 49.6],
+    [23.6, 53],
+  ],
+};
+
+interface Arch {
+  raceme: Raceme;
+  /** Bud ripeness: < 1 are closed buds, 1 is open bells. */
+  k: number;
+  count: number;
+}
+
+/** Arches appear one per stage: right (Budding), left (late Blooming), top (Flourishing), low (Evergreen). */
+function arches(g: Growth): Arch[] {
   const p = g.progress;
   switch (g.stage) {
     case 4:
-      return { list: [RIGHT], k: p * 0.5, count: 3 + Math.round(p * 2) };
+      return [{ raceme: RIGHT, k: p * 0.5, count: 3 + Math.round(p * 2) }];
     case 5:
-      return { list: p >= 0.5 ? [RIGHT, LEFT] : [RIGHT], k: 1, count: 5 };
+      return [
+        { raceme: RIGHT, k: 1, count: 3 + Math.round(p * 2) },
+        ...(p >= 0.5 ? [{ raceme: LEFT, k: lerp(0.2, 0.6, p), count: 3 }] : []),
+      ];
     case 6:
-      return { list: [RIGHT, LEFT], k: 1, count: 5 };
+      return [
+        { raceme: RIGHT, k: 1, count: 5 },
+        { raceme: LEFT, k: 1, count: 5 },
+        { raceme: TOP, k: p < 0.5 ? 0.6 : 1, count: 3 + Math.round(p * 2) },
+      ];
     case 7:
-      return { list: [RIGHT, LEFT, TOP], k: 1, count: 5 };
+      return [RIGHT, LEFT, TOP, LOW].map((raceme) => ({ raceme, k: 1, count: 5 }));
     default:
-      return { list: [], k: 0, count: 0 };
+      return [];
   }
 }
 
-/** Two or three broad, upright leaves that cup the stems. */
+/** Two broad, upright elliptic leaves rising from a pale sheath, tips leaning out; more join later. */
 function leaves(g: Growth): LeafProps[] {
-  const k = lerp(0.85, 1, ramp(g.t, 3, 5)) + ramp(g.t, 5, 7) * 0.12;
-  const list: LeafProps[] = [
-    { x: 48, y: 64, rot: -16, L: 30 * k, W: 7.4, bend: -0.12, fill: LEAF_BACK },
-    { x: 52, y: 64, rot: 14, L: 28 * k, W: 7.2, bend: 0.14, fill: LEAF },
-  ];
-  if (g.t >= 3.5) list.unshift({ x: 47, y: 64, rot: -38, L: 22 * k, W: 6.4, bend: -0.1, fill: LEAF_BACK });
-  if (g.stage >= 6) list.push({ x: 53, y: 64, rot: 40, L: 22 * k, W: 6.6, bend: 0.12, fill: LEAF });
+  const k = lerp(0.9, 1, ramp(g.t, 3, 5)) + ramp(g.t, 5, 7) * 0.08;
+  const list: LeafProps[] = [];
+  if (g.t >= 3.5) list.push({ x: 47, y: 62, rot: -32, L: 22 * k, W: 7.4, bend: -0.16, fill: LEAF_BACK });
+  if (g.stage >= 6) list.push({ x: 53, y: 62, rot: 32, L: 21 * k, W: 7.4, bend: 0.16, fill: LEAF_BACK });
+  list.push({ x: 48.8, y: 62, rot: -6, L: 37 * k, W: 9.2, bend: -0.2, fill: LEAF_BACK }, { x: 51.2, y: 62, rot: 7, L: 33 * k, W: 9, bend: 0.22, fill: LEAF });
   return list;
 }
 
@@ -99,7 +125,7 @@ const EXTRA: [number, number][] = [
   [66.6, 20],
   [38, 39],
   [61.4, 30.6],
-  [47.4, 27.6],
+  [21.6, 57.6],
 ];
 
 export const lily: PlantSpeciesArt = {
@@ -108,22 +134,26 @@ export const lily: PlantSpeciesArt = {
     if (g.stage === 1) return sprout(g, { leaf: LEAF });
     if (g.stage === 2) return seedling(g, { leaf: LEAF, shape: 'lance' });
     const ls = leaves(g);
-    const { list, k, count } = racemes(g);
-    const bells = list.flatMap((r) => r.bells.slice(0, count).map(([x, y], i) => ({ x, y: y + 2.4, s: lerp(1.15, 0.8, i / 4) })));
-    const extra = EXTRA.slice(0, g.blooms).map(([x, y]) => ({ x, y: y + 2.4, s: 0.8 }));
+    const list = arches(g);
+    const grow = g.stage >= 7 ? 1.12 : 1;
+    const bells = list.flatMap(({ raceme, k, count }) => raceme.bells.slice(0, count).map(([x, y], i) => ({ x, y: y + 2.4, s: lerp(1.15, 0.8, i / 4) * grow, k })));
+    const extra = EXTRA.slice(0, g.blooms).map(([x, y]) => ({ x, y: y + 2.4, s: 0.85, k: 1 }));
     return {
       back: (
         <g>
           {ls.slice(0, -1).map((l, i) => (
-            <Leaf key={i} shape="strap" {...l} />
+            <Leaf key={i} shape="oval" {...l} />
           ))}
-          <Stems paths={list.map((r) => r.d)} w={2} color={STEM} />
+          <Stems paths={list.map((a) => a.raceme.d)} w={2} color={STEM} />
           {[...bells, ...extra].map((b, i) => (
-            <Bell key={i} x={b.x} y={b.y} s={b.s} k={k} />
+            <Bell key={i} x={b.x} y={b.y} s={b.s} k={b.k} />
           ))}
-          <Leaf shape="strap" {...ls.at(-1)!} />
+          <Leaf shape="oval" {...ls.at(-1)!} />
+          <path d="M45 64 C44.8 57.6 46.4 52.4 49.2 48.4 Q50.4 51 51.4 48.6 C54 52.4 55.4 57.6 55.2 64 Z" fill={SHEATH} stroke={OUTLINE} stroke-width={FINE} stroke-linejoin="round" />
+          <path d="M47.6 58.6 Q48 54.4 49.4 51.8" fill="none" stroke="#fff" stroke-width={1.2} stroke-linecap="round" opacity={0.7} />
         </g>
       ),
+      ground: g.stage >= 7 ? <Moss w={15} h={4.6} /> : null,
     };
   },
 };

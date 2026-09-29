@@ -1,13 +1,14 @@
 import type { JSX } from 'preact';
-import { useId, useRef } from 'preact/hooks';
+import { useRef } from 'preact/hooks';
 import type { PlantSpeciesId, PotId } from '@/catalog/types';
 import type { Growth } from './types';
 import { OUTLINE, STROKE } from './parts';
 import { clamp01, f, hash01 } from './math';
-import { Seed } from './early';
+import { useInView, useUid, useWaterings } from './hooks';
+import { seed } from './early';
 import { POTS, Soil } from './pots';
 import { PLANT_SPECIES } from './species';
-import { EvergreenGlow, EvergreenSparkles, WaterFx, WateringCanCharm } from './extras';
+import { EvergreenGlow, EvergreenSparkles, Ribbon, WaterFx, WateringCanCharm } from './extras';
 import './plant.css';
 
 export interface PlantArtProps {
@@ -20,9 +21,9 @@ export interface PlantArtProps {
   blooms?: number;
   pot: PotId;
   size?: number | string;
-  /** Gentle idle sway. */
+  /** Gentle idle sway (paused automatically while the plant is off screen). */
   animated?: boolean;
-  /** Plays a one-shot "watered" wiggle when this number changes. */
+  /** Plays a one-shot "watered" wiggle each time this number goes up (e.g. a check-in counter). */
   pulse?: number;
   title?: string;
   class?: string;
@@ -35,43 +36,40 @@ export const PLANT_STAGE_NAMES = ['Seed', 'Sprout', 'Seedling', 'Leafy', 'Buddin
 export const MAX_BLOOMS = 6;
 
 /** Roughly the highest point of the plant per stage, for aiming the watering droplets. */
-const TOP_Y = [56, 48, 40, 32, 26, 20, 14, 10];
+const TOP_Y = [46, 38, 30, 26, 22, 16, 12, 8];
 
-function useUid(prefix: string): string {
-  return `${prefix}${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`;
-}
-
-/** Counts how many times `pulse` has changed since mount (0 = never watered here). */
-function useWaterings(pulse: number | undefined): number {
-  const last = useRef(pulse);
-  const count = useRef(0);
-  if (pulse !== last.current) {
-    last.current = pulse;
-    count.current++;
-  }
-  return count.current;
-}
+/** Below this rendered size, rewards and reactions are drawn larger and idle extras stay still. */
+const SMALL_PX = 64;
 
 function sizePx(size: number | string): string {
   return typeof size === 'number' ? `${size}px` : size;
+}
+
+/** Whole blooms in 0..MAX_BLOOMS; anything non-numeric counts as none. */
+function bloomCount(blooms: number | undefined): number {
+  const b = Math.floor(blooms ?? 0);
+  return b > 0 ? Math.min(MAX_BLOOMS, b) : 0;
 }
 
 /** A habit's potted plant at any growth moment (DESIGN §5.5, §13.1). */
 export function PlantArt(props: PlantArtProps) {
   const { species, pot, size = 64, animated = false, pulse, title } = props;
   const uid = useUid('plant');
+  const svg = useRef<SVGSVGElement>(null);
   const waterings = useWaterings(pulse);
+  const onScreen = useInView(svg, animated);
 
   const stage = Math.max(0, Math.min(7, Math.floor(props.stage) || 0));
   const progress = clamp01(props.progress ?? 0);
-  const blooms = stage === 7 ? Math.max(0, Math.min(MAX_BLOOMS, Math.floor(props.blooms ?? 0))) : 0;
+  const blooms = stage === 7 ? bloomCount(props.blooms) : 0;
   const g: Growth = { stage, progress, t: stage + progress, blooms };
 
   const art = PLANT_SPECIES[species];
-  const layers = stage === 0 ? { back: <Seed g={g} coat={art.seed} /> } : art.render(g);
+  const layers = stage === 0 ? seed(g, art.seed, art.seedStripes) : art.render(g);
   const potDef = POTS[pot];
   const evergreen = stage === 7;
   const capped = blooms >= MAX_BLOOMS;
+  const small = (typeof size === 'number' ? size : parseFloat(size)) < SMALL_PX;
 
   const r = hash01(uid);
   const timing = {
@@ -79,19 +77,19 @@ export function PlantArt(props: PlantArtProps) {
     '--plant-sway-delay': `${(-r * 4).toFixed(2)}s`,
   } as JSX.CSSProperties;
 
-  // Re-keying the wiggle groups restarts their CSS animation on every watering.
-  const wiggle = (layer: JSX.Element | null | undefined, name: string) =>
+  // Swapping between two identical keyframes restarts the wiggle on every watering without remounting the art.
+  const wiggle = waterings > 0 ? `plant-wiggle plant-wiggle-${waterings % 2}` : undefined;
+  const sway = (layer: JSX.Element | null | undefined) =>
     layer && (
       <g class="plant-sway">
-        <g key={`${name}${waterings}`} class={waterings > 0 ? 'plant-wiggle' : undefined}>
-          {layer}
-        </g>
+        <g class={wiggle}>{layer}</g>
       </g>
     );
 
-  const classes = ['plant-art', animated ? 'is-animated' : '', props.class ?? ''].filter(Boolean).join(' ');
+  const classes = ['plant-art', animated && onScreen ? 'is-animated' : '', props.class ?? ''].filter(Boolean).join(' ');
   return (
     <svg
+      ref={svg}
       class={classes}
       viewBox="0 0 100 100"
       width={sizePx(size)}
@@ -104,14 +102,15 @@ export function PlantArt(props: PlantArtProps) {
     >
       <ellipse cx={50} cy={95.8} rx={25} ry={2.8} fill={OUTLINE} opacity={0.12} />
       {evergreen && <EvergreenGlow uid={uid} gold={capped} />}
-      {wiggle(layers.back, 'b')}
+      {sway(layers.back)}
       <Soil sw={STROKE} />
-      {wiggle(layers.ground, 'g')}
+      {layers.ground}
       {potDef.render(uid, STROKE)}
-      {wiggle(layers.front, 'f')}
-      {evergreen && <WateringCanCharm {...potDef.charm} />}
-      {evergreen && <EvergreenSparkles gold={capped} />}
-      {waterings > 0 && <WaterFx key={waterings} top={TOP_Y[stage]!} />}
+      {sway(layers.front)}
+      {evergreen && potDef.ribbon && <Ribbon d={potDef.ribbon} />}
+      {evergreen && <WateringCanCharm {...potDef.charm} s={small ? 1.45 : 1.3} swing={!small} />}
+      {evergreen && <EvergreenSparkles gold={capped} twinkle={!small} s={small ? 1.3 : 1} />}
+      {waterings > 0 && <WaterFx key={waterings} top={TOP_Y[stage]!} s={small ? 1.6 : 1} />}
     </svg>
   );
 }

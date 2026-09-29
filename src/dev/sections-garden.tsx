@@ -44,26 +44,29 @@ function Matrix({ params }: { params: URLSearchParams }) {
   const size = Number(params.get('size')) || 88;
   const progress = Number(params.get('progress') ?? 0.35);
   const stages = params.get('stages')?.split(',').map(Number) ?? STAGES;
+  // Narrow columns only fit the stage number; the full names go in a legend underneath.
+  const compact = size < 80;
   return (
-    <div style={matrixStyle(stages.length, size + 8)}>
-      <span />
-      {stages.map((s) => (
-        <small key={s} style={{ ...label, textAlign: 'center' }}>
-          {s} · {PLANT_STAGE_NAMES[s]}
-        </small>
-      ))}
-      {speciesFrom(params).map((sp) => (
-        <Fragment key={sp}>
-          <b style={label}>
-            {speciesName(sp)}
-          </b>
-          {stages.map((s) => (
-            <div key={`${sp}${s}`} style={{ ...tile, padding: '4px' }}>
-              <PlantArt species={sp} stage={s} progress={progress} pot={pot} size={size} title={`${speciesName(sp)}, ${PLANT_STAGE_NAMES[s]}`} />
-            </div>
-          ))}
-        </Fragment>
-      ))}
+    <div>
+      <div style={matrixStyle(stages.length, size + 8)}>
+        <span />
+        {stages.map((s) => (
+          <small key={s} style={{ ...label, textAlign: 'center' }} title={PLANT_STAGE_NAMES[s]}>
+            {compact ? s : `${s} · ${PLANT_STAGE_NAMES[s]}`}
+          </small>
+        ))}
+        {speciesFrom(params).map((sp) => (
+          <Fragment key={sp}>
+            <b style={label}>{speciesName(sp)}</b>
+            {stages.map((s) => (
+              <div key={`${sp}${s}`} style={{ ...tile, padding: '4px' }}>
+                <PlantArt species={sp} stage={s} progress={progress} pot={pot} size={size} title={`${speciesName(sp)}, ${PLANT_STAGE_NAMES[s]}`} />
+              </div>
+            ))}
+          </Fragment>
+        ))}
+      </div>
+      {compact && <p style={{ ...label, marginTop: '8px' }}>{stages.map((s) => `${s} ${PLANT_STAGE_NAMES[s]}`).join(' · ')}</p>}
     </div>
   );
 }
@@ -73,22 +76,20 @@ const PROGRESS = [0, 0.5, 0.95];
 function ProgressDemo({ params }: { params: URLSearchParams }) {
   const pot = potFrom(params);
   return (
-    <div style={matrixStyle(7, 168)}>
+    <div style={matrixStyle(7, 156)}>
       <span />
       {STAGES.slice(0, 7).map((s) => (
         <small key={s} style={{ ...label, textAlign: 'center' }}>
-          {PLANT_STAGE_NAMES[s]} · 0 / .5 / .95
+          {PLANT_STAGE_NAMES[s]}
         </small>
       ))}
       {speciesFrom(params).map((sp) => (
         <Fragment key={sp}>
-          <b style={label}>
-            {speciesName(sp)}
-          </b>
+          <b style={label}>{speciesName(sp)}</b>
           {STAGES.slice(0, 7).map((s) => (
             <div key={`${sp}${s}`} style={{ ...tile, display: 'flex', justifyContent: 'center', padding: '2px' }}>
               {PROGRESS.map((p) => (
-                <PlantArt key={p} species={sp} stage={s} progress={p} pot={pot} size={54} />
+                <PlantArt key={p} species={sp} stage={s} progress={p} pot={pot} size={50} title={`${PLANT_STAGE_NAMES[s]} at ${p * 100}%`} />
               ))}
             </div>
           ))}
@@ -118,14 +119,16 @@ function BloomsDemo({ params }: { params: URLSearchParams }) {
   );
 }
 
-function PotsDemo() {
+function PotsDemo({ params }: { params: URLSearchParams }) {
+  const size = Number(params.get('size')) || 96;
   return (
-    <div class="gal-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))' }}>
+    <div class="gal-grid" style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${size * 3 + 72}px, 1fr))` }}>
       {POTS.map((p) => (
         <div class="gal-cell" key={p.id}>
-          <div class="gal-row" style={{ gap: '6px' }}>
-            <PotArt pot={p.pot} size={96} title={p.name} />
-            <PlantArt species="tulip" stage={5} progress={0.5} pot={p.pot} size={96} />
+          <div class="gal-row" style={{ gap: '6px', flexWrap: 'nowrap' }}>
+            <PotArt pot={p.pot} size={size} title={p.name} />
+            <PlantArt species="tulip" stage={5} progress={0.5} pot={p.pot} size={size} />
+            <PlantArt species="daisy" stage={7} pot={p.pot} size={size} title={`Evergreen daisy in the ${p.name}`} />
             <PotArt pot={p.pot} size={40} />
           </div>
           <b>{p.name}</b>
@@ -138,19 +141,20 @@ function PotsDemo() {
   );
 }
 
-const CARD_DEMO: { name: string; sub: string; species: PlantSpeciesId; stage: number; pot: PotId; done?: boolean }[] = [
-  { name: 'Drink water', sub: '5/8 glasses', species: 'monstera', stage: 3, pot: 'cream' },
-  { name: 'Take vitamins', sub: '26 of last 30 days', species: 'succulent', stage: 5, pot: 'blush', done: true },
-  { name: 'Go for a walk', sub: '12 days', species: 'sunflower', stage: 6, pot: 'terracotta', done: true },
-  { name: 'Stretch', sub: '4 of the last 7 days', species: 'tulip', stage: 1, pot: 'kitty' },
+/** Demo habits whose subtitles match their growth stage (DESIGN §5.5 thresholds for a daily habit). */
+const CARD_DEMO: { name: string; sub: string; species: PlantSpeciesId; stage: number; pot: PotId; blooms?: number; done?: boolean }[] = [
+  { name: 'Drink water', sub: '2 weeks', species: 'monstera', stage: 3, pot: 'cream' },
+  { name: 'Take vitamins', sub: '7 weeks', species: 'succulent', stage: 5, pot: 'blush', done: true },
+  { name: 'Go for a walk', sub: '3 months', species: 'sunflower', stage: 6, pot: 'terracotta', done: true },
+  { name: 'Stretch', sub: 'Day 2', species: 'tulip', stage: 1, pot: 'kitty' },
   { name: 'Yoga', sub: '1 of 2 this week', species: 'lavender', stage: 4, pot: 'sage' },
-  { name: 'In bed by 11', sub: '9 days', species: 'lily', stage: 5, pot: 'starlight' },
-  { name: 'Read', sub: '31 days', species: 'daisy', stage: 7, pot: 'cowprint', done: true },
+  { name: 'In bed by 11', sub: '8 weeks', species: 'lily', stage: 5, pot: 'starlight' },
+  { name: 'Read', sub: '7 months', species: 'daisy', stage: 7, blooms: 2, pot: 'cowprint', done: true },
   { name: 'Strength training', sub: '2 of 3 this week', species: 'cactus', stage: 2, pot: 'frog' },
   { name: 'Practice a hobby', sub: 'Just planted', species: 'strawberry', stage: 0, pot: 'heart' },
-  { name: 'Meal prep', sub: '3 weeks', species: 'lemon', stage: 6, pot: 'pumpkin' },
-  { name: 'Journal', sub: '18 days', species: 'sakura', stage: 5, pot: 'snowy' },
-  { name: 'Water the plants', sub: '6 weeks', species: 'mushroom', stage: 7, pot: 'terracotta' },
+  { name: 'Meal prep', sub: '4 months', species: 'lemon', stage: 6, pot: 'pumpkin' },
+  { name: 'Journal', sub: '9 weeks', species: 'sakura', stage: 5, pot: 'snowy' },
+  { name: 'Water the plants', sub: '6 months', species: 'mushroom', stage: 7, pot: 'kitty' },
 ];
 
 function HabitCards() {
@@ -158,7 +162,7 @@ function HabitCards() {
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '10px' }}>
       {CARD_DEMO.map((c) => (
         <div key={c.name} style={{ ...tile, display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', borderRadius: '22px' }}>
-          <PlantArt species={c.species} stage={c.stage} progress={0.4} pot={c.pot} size={40} animated />
+          <PlantArt species={c.species} stage={c.stage} progress={0.4} blooms={c.blooms} pot={c.pot} size={40} animated />
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontWeight: 700 }}>{c.name}</div>
             <div style={{ fontSize: '13px', color: 'var(--ink-2)' }}>
@@ -199,6 +203,11 @@ function WaterDemo() {
         ))}
         <PlantArt species="daisy" stage={0} progress={0.8} pot="kitty" size={140} pulse={pulse} animated />
       </div>
+      <div class="gal-row" style={{ width: '100%' }}>
+        {(['tulip', 'sunflower', 'succulent', 'lemon', 'mushroom', 'daisy'] as PlantSpeciesId[]).map((sp, i) => (
+          <PlantArt key={sp} species={sp} stage={i + 2} pot={POT_IDS[i + 4]!} size={40} pulse={pulse} animated />
+        ))}
+      </div>
     </div>
   );
 }
@@ -233,10 +242,10 @@ function TreatsDemo({ params }: { params: URLSearchParams }) {
 }
 
 export const SECTIONS: GallerySection[] = [
-  { id: 'garden-matrix', title: 'Garden: every species × every stage (88px)', render: (params) => <Matrix params={params} /> },
+  { id: 'garden-matrix', title: 'Garden: every species × every stage', render: (params) => <Matrix params={params} /> },
   { id: 'garden-progress', title: 'Garden: progress within a stage (0 / .5 / .95)', render: (params) => <ProgressDemo params={params} /> },
   { id: 'garden-blooms', title: 'Garden: Evergreen blooms (0 / 3 / 6)', render: (params) => <BloomsDemo params={params} /> },
-  { id: 'garden-pots', title: 'Garden: pots alone, with a Blooming tulip, and at 40px', render: () => <PotsDemo /> },
+  { id: 'garden-pots', title: 'Garden: pots alone, with a Blooming tulip, with an Evergreen daisy (ribbon + charm), and at 40px', render: (params) => <PotsDemo params={params} /> },
   { id: 'garden-cards', title: 'Garden: 40px habit-card row', render: () => <HabitCards /> },
   { id: 'garden-water', title: 'Garden: watering (tap to replay)', render: () => <WaterDemo /> },
   { id: 'garden-treats', title: 'Garden: treats at 96px and 40px', render: (params) => <TreatsDemo params={params} /> },

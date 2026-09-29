@@ -1,11 +1,12 @@
 import type { Growth, PlantSpeciesArt } from '../types';
-import { Blob, Blossom, FINE, Leaf, OUTLINE, Shine, Stems, type Circle } from '../parts';
+import { Blob, Blossom, FINE, Leaf, OUTLINE, Shine, Stems, leafD, type Circle } from '../parts';
 import { f, lerp, mix } from '../math';
 import { seedling, sprout } from '../early';
 
 const BARK = '#C49A86';
-const CANOPY = '#98CB82';
-const CANOPY_BACK = '#7FB86C';
+/** Glossy citrus green: a touch deeper than the other plants' leaves. */
+const CANOPY = '#8CC67A';
+const CANOPY_BACK = '#71AC61';
 const LEAF = '#9FD08A';
 const LEMON = '#FFE066';
 const UNRIPE = '#C9E79C';
@@ -25,15 +26,28 @@ function Lemon({ x, y, s = 1, rot = 0, ripe = 1 }: { x: number; y: number; s?: n
   );
 }
 
-/** A round, bumpy canopy of radius R with a darker back layer for depth. */
+/** Pointed lemon leaves poking out of the canopy edge: [angle° from the top, clockwise]. */
+const EDGE_LEAVES = [-118, 66, 118];
+
+/** A round, bumpy, glossy canopy of radius R with a darker back layer and pointed citrus leaves at the edge. */
 function Canopy({ x, y, R }: { x: number; y: number; R: number }) {
   const ring = (n: number, k: number, r: number, squash: number, lift = 0): Circle[] =>
     Array.from({ length: n }, (_, i) => {
       const a = ((360 / n) * i * Math.PI) / 180;
       return [x + Math.cos(a) * R * k, y + Math.sin(a) * R * k * squash - lift, R * r] as const;
     });
+  const edge = EDGE_LEAVES.map((deg) => {
+    const a = (deg * Math.PI) / 180;
+    const L = R * 0.88;
+    return { d: leafD('lance', L, L * 0.36, deg > 0 ? 0.12 : -0.12), transform: `translate(${f(x + Math.sin(a) * R * 0.5)} ${f(y - Math.cos(a) * R * 0.46)}) rotate(${deg})` };
+  });
   return (
     <g>
+      <g fill={CANOPY_BACK} stroke={OUTLINE} stroke-width={FINE} stroke-linejoin="round">
+        {edge.map((l, i) => (
+          <path key={i} d={l.d} transform={l.transform} />
+        ))}
+      </g>
       <Blob circles={ring(7, 0.6, 0.36, 0.8, R * 0.12)} fill={CANOPY_BACK} />
       <Blob circles={[[x, y, R * 0.64], ...ring(10, 0.66, 0.33, 0.82)]} fill={CANOPY} />
       <g fill="none" stroke={CANOPY_BACK} stroke-width={1.3} stroke-linecap="round">
@@ -41,7 +55,18 @@ function Canopy({ x, y, R }: { x: number; y: number; R: number }) {
         <path d={`M${f(x + R * 0.18)} ${f(y - R * 0.36)} q${f(R * 0.1)} ${f(R * 0.1)} ${f(R * 0.2)} 0`} />
         <path d={`M${f(x + R * 0.3)} ${f(y + R * 0.32)} q${f(R * 0.1)} ${f(R * 0.1)} ${f(R * 0.2)} 0`} />
       </g>
-      <Shine d={`M${f(x - R * 0.7)} ${f(y - R * 0.12)} Q${f(x - R * 0.6)} ${f(y - R * 0.52)} ${f(x - R * 0.22)} ${f(y - R * 0.68)}`} w={1.6} opacity={0.55} />
+      <Shine d={`M${f(x - R * 0.7)} ${f(y - R * 0.12)} Q${f(x - R * 0.6)} ${f(y - R * 0.52)} ${f(x - R * 0.22)} ${f(y - R * 0.68)}`} w={1.8} opacity={0.7} />
+      <circle cx={f(x - R * 0.2)} cy={f(y - R * 0.5)} r={f(R * 0.06)} fill="#fff" opacity={0.7} />
+    </g>
+  );
+}
+
+/** A young grafted trunk: thin, with the little graft knot a nursery tree has. */
+function Trunk({ top, w }: { top: number; w: number }) {
+  return (
+    <g>
+      <Stems paths={[`M50 66 C50 58 48.6 ${f(top + 14)} 50 ${f(top + 4)}`]} w={w} color={BARK} />
+      <ellipse cx={49.7} cy={56.6} rx={f(w * 0.5 + 1.5)} ry={1.9} fill={BARK} stroke={OUTLINE} stroke-width={1.5} />
     </g>
   );
 }
@@ -57,30 +82,30 @@ interface Tree {
 
 /** Lemons after Evergreen, tucked around the canopy. */
 const EXTRA: Tree['lemons'] = [
-  [37, 24, 0.8, -20],
-  [63, 20, 0.8, 16],
-  [29, 38, 0.78, -10],
-  [72, 36, 0.78, 12],
-  [48, 13, 0.72, 4],
-  [56, 42, 0.72, -8],
+  [37, 29, 0.8, -20],
+  [63, 25, 0.8, 16],
+  [29, 42, 0.78, -10],
+  [72, 40, 0.78, 12],
+  [47, 18, 0.72, 4],
+  [57, 46, 0.72, -8],
 ];
 
 function tree(g: Growth): Tree {
   const p = g.progress;
   switch (g.stage) {
     case 3:
-      return { top: lerp(42, 38, p), R: lerp(11, 13, p), buds: [], blossoms: [], lemons: [] };
+      return { top: lerp(42, 38, p), R: lerp(11.5, 13.5, p), buds: [], blossoms: [], lemons: [] };
     case 4:
       return {
-        top: 34,
+        top: 35,
         R: lerp(14, 15.5, p),
         buds: (
           [
-            [42, 30],
-            [58, 27],
-            [50, 40],
-            [39, 40],
-            [61, 38],
+            [42, 31],
+            [58, 28],
+            [50, 41],
+            [39, 41],
+            [61, 39],
           ] as [number, number][]
         ).slice(0, 2 + Math.round(p * 3)),
         blossoms: [],
@@ -88,51 +113,51 @@ function tree(g: Growth): Tree {
       };
     case 5:
       return {
-        top: 30,
-        R: 17,
-        buds: [[60, 38]],
+        top: 32,
+        R: 16.6,
+        buds: [[60, 40]],
         blossoms: [
-          [40, 27],
-          [58, 23],
-          [46, 38],
-          [64, 31],
+          [40, 29],
+          [58, 25],
+          [46, 40],
+          [64, 33],
         ],
-        lemons: p >= 0.5 ? [[40, 40, 0.62, -14, 0]] : [],
+        lemons: p >= 0.5 ? [[40, 42, 0.62, -14, 0]] : [],
       };
     case 6:
       return {
-        top: 27,
-        R: lerp(18.6, 19.6, p),
+        top: 32,
+        R: lerp(17.6, 18.2, p),
         buds: [],
         blossoms: [
-          [40, 20],
-          [61, 17],
-          [33, 33],
+          [40, 25],
+          [61, 22],
+          [33, 38],
         ],
         lemons: [
-          [44, 36, 0.95, -12],
-          [62, 32, 1, 10],
-          [53, 22, 0.85, 4],
-          ...(p >= 0.5 ? [[35, 42, 0.8, -8, 0.5] as Tree['lemons'][number]] : []),
+          [44, 41, 0.95, -12],
+          [62, 37, 1, 10],
+          [53, 27, 0.85, 4],
+          ...(p >= 0.5 ? [[35, 47, 0.8, -8, 0.5] as Tree['lemons'][number]] : []),
         ],
       };
     default:
       return {
-        top: 25,
-        R: 21,
+        top: 31,
+        R: 19,
         buds: [],
         blossoms: [
-          [37, 17],
-          [62, 13],
-          [30, 30],
-          [70, 27],
+          [37, 22],
+          [62, 18],
+          [30, 35],
+          [70, 32],
         ],
         lemons: [
-          [42, 33, 1, -14],
-          [60, 30, 1.05, 12],
-          [51, 19, 0.9, 4],
-          [33, 42, 0.9, -10],
-          [68, 40, 0.9, 10],
+          [42, 38, 1, -14],
+          [60, 35, 1.05, 12],
+          [51, 24, 0.9, 4],
+          [34, 47, 0.9, -10],
+          [67, 45, 0.9, 10],
           ...EXTRA.slice(0, g.blooms),
         ],
       };
@@ -146,11 +171,11 @@ export const lemon: PlantSpeciesArt = {
     if (g.stage === 2) return seedling(g, { leaf: LEAF });
     const t = tree(g);
     const cy = t.top + 2;
-    const trunkW = lerp(3.6, 5.4, (g.stage - 3) / 4);
+    const trunkW = lerp(2.8, 5, (g.stage - 3) / 4);
     return {
       back: (
         <g>
-          <Stems paths={[`M50 66 C50 58 48.6 ${f(cy + 14)} 50 ${f(cy + 4)}`]} w={trunkW} color={BARK} />
+          <Trunk top={cy} w={trunkW} />
           <Canopy x={50} y={cy - t.R * 0.3} R={t.R} />
           <g fill="#fff" stroke={OUTLINE} stroke-width={1.3}>
             {t.buds.map(([x, y], i) => (

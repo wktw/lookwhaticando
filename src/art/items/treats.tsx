@@ -5,13 +5,10 @@
  */
 import type { JSX } from 'preact';
 import type { ItemRenderer } from './types';
-import { OUTLINE, STROKE } from '../pets/geometry';
-import { Blob, Merged, SPARKLE_D, circleD, leafD, type Circle } from '../plants/parts';
-import { f } from '../plants/math';
+import { BLUSH, EYE, OUTLINE, STROKE } from '../pets/geometry';
+import { Blob, FINE, Merged, SPARKLE_D, Shine, circleD, leafD, type Circle } from '../plants/parts';
+import { f, lerp } from '../plants/math';
 
-const FINE = 2;
-const EYE = '#4A3540';
-const BLUSH = '#FF9FB8';
 const LEAF = '#9CCB86';
 const BERRY = '#FF7F93';
 const SEED = '#FFE9A8';
@@ -29,10 +26,6 @@ const SPRINKLES = ['#FFE593', '#BBDCF6', '#B3E6D6', '#D6C8F8', '#FFFFFF', '#FF9F
 
 function Shadow({ cx = 50, cy = 89, rx = 28 }: { cx?: number; cy?: number; rx?: number }) {
   return <ellipse cx={cx} cy={cy} rx={rx} ry={3.4} fill={OUTLINE} opacity={0.12} />;
-}
-
-function Shine({ d, w = 2.2, opacity = 0.75 }: { d: string; w?: number; opacity?: number }) {
-  return <path d={d} fill="none" stroke="#fff" stroke-width={w} stroke-linecap="round" opacity={opacity} />;
 }
 
 /** A tiny kawaii face: glossy eyes, blush and a little mouth. */
@@ -102,22 +95,65 @@ function Calyx({ x, y, s = 1 }: { x: number; y: number; s?: number }) {
 
 const HEART = 'M0 12 C-4 8 -16 1 -16 -8 C-16 -14 -11 -17 -7 -17 C-3.6 -17 -1.2 -15 0 -12.6 C1.2 -15 3.6 -17 7 -17 C11 -17 16 -14 16 -8 C16 1 4 8 0 12 Z';
 
+type Pt = [number, number];
+
 /**
- * A slice (cheese, pie, cake) seen from the front-left: a triangular top face and the cut face
- * below it. `bands` split the cut face top-to-bottom as [fromFraction, toFraction, fill].
+ * A closed polygon with softly rounded corners (radius `r`) and optionally bowed edges:
+ * `bow[i]` bends the edge from point i to i+1 outward (for clockwise points) by that much.
+ */
+function softPolygon(pts: Pt[], r: number, bow: number[] = []): string {
+  const n = pts.length;
+  const toward = (p: Pt, q: Pt): Pt => {
+    const len = Math.hypot(q[0] - p[0], q[1] - p[1]);
+    const k = Math.min(r, len / 2) / len;
+    return [p[0] + (q[0] - p[0]) * k, p[1] + (q[1] - p[1]) * k];
+  };
+  const corner = (i: number) => {
+    const p = pts[i % n]!;
+    return { p, into: toward(p, pts[(i + n - 1) % n]!), out: toward(p, pts[(i + 1) % n]!) };
+  };
+  const pt = ([x, y]: Pt) => `${f(x)} ${f(y)}`;
+  let d = `M${pt(corner(0).out)}`;
+  for (let i = 0; i < n; i++) {
+    const a = corner(i).out;
+    const next = corner(i + 1);
+    const b = bow[i] ?? 0;
+    if (b) {
+      const dx = next.into[0] - a[0];
+      const dy = next.into[1] - a[1];
+      const len = Math.hypot(dx, dy);
+      d += ` Q${pt([(a[0] + next.into[0]) / 2 + (dy / len) * b, (a[1] + next.into[1]) / 2 - (dx / len) * b])} ${pt(next.into)}`;
+    } else d += ` L${pt(next.into)}`;
+    d += ` Q${pt(next.p)} ${pt(next.out)}`;
+  }
+  return `${d} Z`;
+}
+
+/**
+ * A soft slice (cheese, pie, cake) seen from the front-left: a triangular top face behind the tip,
+ * its outer (crust) edge bowed like the rim of the round it was cut from, over a cut face with a
+ * slight belly. Corners are rounded so the slices sit with the other squishy treats.
  */
 interface Wedge {
-  tip: [number, number];
-  back: [number, number];
-  side: [number, number];
+  tip: Pt;
+  back: Pt;
+  side: Pt;
   depth: number;
 }
 
-function wedgeFaces({ tip, back, side, depth }: Wedge) {
-  const top = `M${tip[0]} ${tip[1]} L${back[0]} ${back[1]} L${side[0]} ${side[1]} Z`;
-  const band = (a: number, b: number) =>
-    `M${tip[0]} ${f(tip[1] + depth * a)} L${side[0]} ${f(side[1] + depth * a)} L${side[0]} ${f(side[1] + depth * b)} L${tip[0]} ${f(tip[1] + depth * b)} Z`;
-  return { top, band, front: band(0, 1) };
+function wedge({ tip, back, side, depth }: Wedge) {
+  const low = ([x, y]: Pt): Pt => [x, y + depth];
+  const r = 3.4;
+  /** A point on the tip→side edge (u 0..1), lowered by a fraction of the depth. */
+  const on = (u: number, down: number): Pt => [lerp(tip[0], side[0], u), lerp(tip[1], side[1], u) + depth * down];
+  return {
+    silhouette: softPolygon([tip, back, side, low(side), low(tip)], r, [0, 3.2, 0, 2, 0]),
+    top: softPolygon([tip, back, side], r, [0, 3.2, 0]),
+    /** A band across the cut face between depth fractions a and b, kept clear of the rounded corners. */
+    band: (a: number, b: number) => `M${[on(0.04, a), on(0.96, a), on(0.96, b), on(0.04, b)].map(([x, y]) => `${f(x)} ${f(y)}`).join(' L')} Z`,
+    /** A seam across the cut face at depth fraction a. */
+    seam: (a: number) => `M${f(on(0.02, a)[0])} ${f(on(0.02, a)[1])} L${f(on(0.98, a)[0])} ${f(on(0.98, a)[1])}`,
+  };
 }
 
 /* ------------------------------------------------------------------ */
@@ -129,7 +165,7 @@ const strawberry: ItemRenderer = () => (
     <Shadow rx={24} />
     <path d="M50 88 C36 86 20 71 21 53 C22 40 34 34 50 38 C66 34 78 40 79 53 C80 71 64 86 50 88 Z" fill={BERRY} stroke={OUTLINE} stroke-width={STROKE} />
     <Seeds at={[[32, 51], [44, 46], [57, 46], [68, 51], [27, 63], [73, 63], [40, 77], [60, 77], [50, 82]]} />
-    <Shine d="M27 49 Q28 44 33 42" />
+    <Shine d="M27 49 Q28 44 33 42" w={2.2} />
     <Face x={50} y={61} />
     <Calyx x={50} y={39} />
   </g>
@@ -186,7 +222,7 @@ const watermelon: ItemRenderer = () => (
           <path key={`${x}${y}`} d={`M${x} ${y! - 2.6} C${x! + 1.6} ${y! - 0.6} ${x! + 1.5} ${y! + 1.8} ${x} ${y! + 1.8} C${x! - 1.5} ${y! + 1.8} ${x! - 1.6} ${y! - 0.6} ${x} ${y! - 2.6} Z`} />
         ))}
       </g>
-      <Shine d="M44 26 Q40 32 37 38" />
+      <Shine d="M44 26 Q40 32 37 38" w={2.2} />
     </g>
   </g>
 );
@@ -236,7 +272,7 @@ const lettuce: ItemRenderer = () => (
     </g>
     <path d="M70 38 C72 41 73.6 43 73.6 44.8 A3.6 3.6 0 0 1 66.4 44.8 C66.4 43 68 41 70 38 Z" fill="#BBDCF6" stroke={OUTLINE} stroke-width={1.5} />
     <circle cx={68.8} cy={44.6} r={0.9} fill="#fff" />
-    <Shine d="M24 60 Q26 55 30 52" />
+    <Shine d="M24 60 Q26 55 30 52" w={2.2} />
   </g>
 );
 
@@ -291,7 +327,7 @@ const chocoStrawberry: ItemRenderer = () => (
       <path d="M-12 25 L-4 29 L4 23 L10 27" fill="none" stroke={CREAM} stroke-width={1.8} />
       <Sprinkles at={[[-16, 5, 30], [20, 10, -20], [6, 30, 60]]} offset={5} />
       <path d="M0 36 C-13 34 -27 17 -26 -2 C-25 -16 -13 -22 0 -18 C13 -22 25 -16 26 -2 C27 17 13 34 0 36 Z" fill="none" stroke={OUTLINE} stroke-width={STROKE} />
-      <Shine d="M-21 -6 Q-20 -12 -14 -15" />
+      <Shine d="M-21 -6 Q-20 -12 -14 -15" w={2.2} />
       <Calyx x={0} y={-18} s={1.05} />
     </g>
   </g>
@@ -315,7 +351,7 @@ const caramelApple: ItemRenderer = () => (
       <circle cx={68} cy={54} r={1.3} />
       <circle cx={47} cy={55} r={1} />
     </g>
-    <Shine d="M28 52 Q30 44 37 41" />
+    <Shine d="M28 52 Q30 44 37 41" w={2.2} />
     <Shine d="M30 72 Q31 76 34 79" w={1.8} opacity={0.5} />
     <g transform="translate(52 25)" fill={PINK} stroke={OUTLINE} stroke-width={1.6}>
       <path d="M0 0 C-3 -5 -10 -5 -10 -0.5 C-10 3.6 -3 3.4 0 0 Z" />
@@ -394,7 +430,7 @@ const pbCookie: ItemRenderer = () => (
       <path d="M31 43 L53 65 M36 37 L59 60 M42 32 L64 54" />
       <path d="M34 58 L56 35 M40 64 L62 41 M29 51 L48 32" opacity={0.75} />
     </g>
-    <Shine d="M25 40 Q28 32 36 28" />
+    <Shine d="M25 40 Q28 32 36 28" w={2.2} />
     <g transform="translate(79 79) rotate(-28)">
       <path d="M-10 0 C-10 -5 -6 -6.4 -3.4 -5 C-1.6 -4 1.6 -4 3.4 -5 C6 -6.4 10 -5 10 0 C10 5 6 6.4 3.4 5 C1.6 4 -1.6 4 -3.4 5 C-6 6.4 -10 5 -10 0 Z" fill="#F3D7A8" stroke={OUTLINE} stroke-width={FINE} />
       <g fill="none" stroke="#D9B07A" stroke-width={1.2}>
@@ -431,7 +467,7 @@ const cookie: ItemRenderer = () => (
       <circle cx={82} cy={33} r={2.2} />
       <circle cx={86.6} cy={40} r={1.5} />
     </g>
-    <Shine d="M25 50 Q27 40 35 34" />
+    <Shine d="M25 50 Q27 40 35 34" w={2.2} />
   </g>
 );
 
@@ -491,7 +527,7 @@ const heartCookies: ItemRenderer = () => {
       {cookie(63, 44, 16, 1.25, PINK, '#FFFFFF')}
       {cookie(39, 62, -12, 1.45, CREAM, '#FF9FB8')}
       <path d={HEART} transform="translate(39 61) rotate(-12) scale(0.26)" fill="#FF9FB8" />
-      <Sprinkles at={[[58, 36, 30], [69, 42, -20], [62, 50, 70]]} offset={4} />
+      <Sprinkles at={[[60, 38.6, 30], [68.4, 42.4, -20], [62.4, 47.4, 60]]} offset={4} />
       <Shine d="M23.4 51 Q24.6 46.6 28.6 45.2" w={1.8} />
     </g>
   );
@@ -527,7 +563,7 @@ const donut: ItemRenderer = () => {
           [42, 32, 60],
         ]}
       />
-      <Shine d="M29 44 Q32 36 39 32" />
+      <Shine d="M29 44 Q32 36 39 32" w={2.2} />
     </g>
   );
 };
@@ -580,6 +616,58 @@ const candyCorn: ItemRenderer = () => {
   );
 };
 
+/** The cane's centerline as cubics, from the foot up and around the hook. */
+const CANE: [Pt, Pt, Pt, Pt][] = [
+  [
+    [58, 86],
+    [58, 70],
+    [58, 52],
+    [58, 36],
+  ],
+  [
+    [58, 36],
+    [58, 23],
+    [49, 17],
+    [41, 17],
+  ],
+  [
+    [41, 17],
+    [32, 17],
+    [26, 24],
+    [26, 32],
+  ],
+];
+
+/**
+ * Diagonal candy stripes that follow the cane around its hook: each stripe is a slanted band from one
+ * edge of the tube to the other, so it sits exactly on the cane without needing a clip path.
+ */
+const CANE_STRIPES = (() => {
+  const cubic = ([a, b, c, d]: [Pt, Pt, Pt, Pt], t: number): Pt => {
+    const u = 1 - t;
+    return [u * u * u * a[0] + 3 * u * u * t * b[0] + 3 * u * t * t * c[0] + t * t * t * d[0], u * u * u * a[1] + 3 * u * u * t * b[1] + 3 * u * t * t * c[1] + t * t * t * d[1]];
+  };
+  const pts = CANE.flatMap((seg) => Array.from({ length: 40 }, (_, i) => cubic(seg, i / 40)));
+  pts.push(CANE.at(-1)![3]);
+  const lengths = pts.map((_, i) => (i ? Math.hypot(pts[i]![0] - pts[i - 1]![0], pts[i]![1] - pts[i - 1]![1]) : 0));
+  const total = lengths.reduce((a, b) => a + b, 0);
+  /** The tube's left/right edge (side ±1) at arc length s along the centerline. */
+  const edge = (s: number, side: number): Pt => {
+    let i = 1;
+    for (let run = lengths[1]!; run < s && i < pts.length - 1; run += lengths[++i]!);
+    const [x0, y0] = pts[i - 1]!;
+    const [x1, y1] = pts[i]!;
+    const len = Math.hypot(x1 - x0, y1 - y0);
+    return [x1 + ((y1 - y0) / len) * 6 * side, y1 - ((x1 - x0) / len) * 6 * side];
+  };
+  const bands: string[] = [];
+  for (let s = 2; s + 14 < total; s += 10.4) {
+    const quad = [edge(s, 1), edge(s + 4.2, 1), edge(s + 12.2, -1), edge(s + 8, -1)];
+    bands.push(`M${quad.map(([x, y]) => `${f(x)} ${f(y)}`).join(' L')} Z`);
+  }
+  return bands.join(' ');
+})();
+
 const candyCane: ItemRenderer = () => {
   const d = 'M58 86 L58 36 C58 23 49 17 41 17 C32 17 26 24 26 32';
   return (
@@ -587,7 +675,7 @@ const candyCane: ItemRenderer = () => {
       <Shadow cx={58} rx={14} />
       <path d={d} fill="none" stroke={OUTLINE} stroke-width={16.8} />
       <path d={d} fill="none" stroke="#FFFFFF" stroke-width={12} />
-      <path d={d} fill="none" stroke="#FF9FB8" stroke-width={12} stroke-dasharray="5.6 6.4" stroke-linecap="butt" />
+      <path d={CANE_STRIPES} fill="#FF9FB8" />
       <path d="M54 80 L54 44" fill="none" stroke="#fff" stroke-width={2} opacity={0.8} />
       <g transform="translate(58 58)" stroke={OUTLINE} stroke-width={1.6}>
         <path d="M-2 2 L-7 12 L-3.6 11 L-2 14 Z M2 2 L7 12 L3.6 11 L2 14 Z" fill="#8FCFB6" />
@@ -659,7 +747,7 @@ const chocolates: ItemRenderer = () => {
         <circle cx={33.6} cy={52.6} r={1.1} />
         <circle cx={61.6} cy={52.6} r={1.1} />
       </g>
-      <Shine d="M19.6 26 Q20.8 18.6 27 16.6" />
+      <Shine d="M19.6 26 Q20.8 18.6 27 16.6" w={2.2} />
       <path d={SPARKLE_D} transform="translate(84 18) scale(1.1)" fill="#FFE593" stroke="#fff" stroke-width={0.6} />
     </g>
   );
@@ -693,13 +781,13 @@ const pudding: ItemRenderer = () => (
     <path d="M52 30 C52.4 24 56 20.6 60 19.8" fill="none" stroke={OUTLINE} stroke-width={1.8} />
     <circle cx={51.4} cy={29.4} r={4.4} fill={BERRY} stroke={OUTLINE} stroke-width={FINE} />
     <circle cx={50} cy={27.8} r={1.1} fill="#fff" />
-    <Shine d="M32.6 72 Q33 62 35.6 56" />
+    <Shine d="M32.6 72 Q33 62 35.6 56" w={2.2} />
     <Face x={50} y={66.6} />
   </g>
 );
 
 const shortcake: ItemRenderer = () => {
-  const w = wedgeFaces({ tip: [13, 54], back: [52, 30], side: [86, 42], depth: 32 });
+  const w = wedge({ tip: [13, 54], back: [52, 30], side: [86, 42], depth: 32 });
   const slice = (x: number, y: number) => (
     <g transform={`translate(${x} ${y})`}>
       <path d="M-4.6 0 C-4.6 -3.4 -2 -4.6 0 -4.6 C2 -4.6 4.6 -3.4 4.6 0 Z" fill={BERRY} stroke={OUTLINE} stroke-width={1.3} />
@@ -709,20 +797,20 @@ const shortcake: ItemRenderer = () => {
   return (
     <g stroke-linejoin="round" stroke-linecap="round">
       <Shadow rx={36} />
-      <path d={w.front} fill="#FFE3A8" />
+      <path d={w.silhouette} fill="#FFE3A8" />
       <path d={w.band(0, 0.16)} fill={CREAM} />
       <path d={w.band(0.44, 0.64)} fill={CREAM} />
       {slice(28, 71)}
       {slice(46, 68.4)}
       {slice(64, 65.8)}
-      <path d={w.front} fill="none" stroke={OUTLINE} stroke-width={STROKE} />
+      <path d={w.silhouette} fill="none" stroke={OUTLINE} stroke-width={STROKE} />
       <path d={w.top} fill={CREAM} stroke={OUTLINE} stroke-width={STROKE} />
       <Blob
         circles={[
-          [58, 33.6, 3.6],
-          [65, 36, 3.6],
-          [72, 38.4, 3.6],
-          [79, 40.8, 3.6],
+          [58, 32.4, 3.6],
+          [65, 34.6, 3.6],
+          [72, 37, 3.6],
+          [79, 39.4, 3.6],
         ]}
         fill={CREAM}
         line={FINE}
@@ -733,26 +821,25 @@ const shortcake: ItemRenderer = () => {
         <Shine d="M-7.4 -1.4 Q-7 -4.4 -4 -5.4" w={1.6} />
         <Calyx x={0} y={-7} s={0.62} />
       </g>
-      <Shine d="M18 58 L44 50" w={1.6} opacity={0.6} />
+      <Shine d="M19 57 L43 49.6" w={1.6} opacity={0.6} />
     </g>
   );
 };
 
 const pumpkinPie: ItemRenderer = () => {
-  const w = wedgeFaces({ tip: [13, 58], back: [54, 34], side: [86, 46], depth: 20 });
+  const w = wedge({ tip: [13, 58], back: [54, 34], side: [86, 46], depth: 20 });
   return (
     <g stroke-linejoin="round" stroke-linecap="round">
       <Shadow rx={36} />
-      <path d={w.front} fill="#FFA468" />
-      <path d={w.band(0.62, 1)} fill={COOKIE} />
-      <path d={w.front} fill="none" stroke={OUTLINE} stroke-width={STROKE} />
-      <path d={w.band(0.62, 0.62)} fill="none" stroke={OUTLINE} stroke-width={1.4} />
+      <path d={w.silhouette} fill={COOKIE} />
+      <path d={w.band(0, 0.62)} fill="#FFA468" />
+      <path d={w.silhouette} fill="none" stroke={OUTLINE} stroke-width={STROKE} />
+      <path d={w.seam(0.62)} fill="none" stroke={OUTLINE} stroke-width={1.4} />
       <path d={w.top} fill="#FFB27A" stroke={OUTLINE} stroke-width={STROKE} />
-      <Blob
-        circles={Array.from({ length: 6 }, (_, i): Circle => [54 + i * 6.4, 35 + i * 2.3, 4.4])}
-        fill={COOKIE}
-        line={FINE}
-      />
+      <Blob circles={Array.from({ length: 6 }, (_, i): Circle => [54.6 + i * 6.3, 33.4 + i * 2.2 - Math.sin((i / 5) * Math.PI) * 1.6, 4.4])} fill={COOKIE} line={FINE} />
+      <g fill="none" stroke={COOKIE_DARK} stroke-width={1.1} opacity={0.7}>
+        <path d="M58 31.6 Q59.4 33 58.6 35 M70.4 34 Q71.8 35.4 71 37.4 M82.2 39.4 Q83.4 40.8 82.6 42.6" />
+      </g>
       <Blob
         circles={[
           [52, 44, 7],
@@ -769,16 +856,14 @@ const pumpkinPie: ItemRenderer = () => {
         <circle cx={30} cy={52} r={0.9} />
         <circle cx={38} cy={55} r={0.9} />
         <circle cx={66} cy={51} r={0.8} />
-        <circle cx={48} cy={43.4} r={0.7} />
-        <circle cx={55} cy={40} r={0.7} />
       </g>
-      <Shine d="M20 60 L38 55" w={1.8} opacity={0.6} />
+      <Shine d="M20 61 L38 56" w={1.8} opacity={0.6} />
     </g>
   );
 };
 
 const cheese: ItemRenderer = () => {
-  const w = wedgeFaces({ tip: [13, 56], back: [56, 32], side: [87, 45], depth: 26 });
+  const w = wedge({ tip: [13, 56], back: [56, 32], side: [87, 45], depth: 26 });
   const hole = (x: number, y: number, rx: number, ry: number) => (
     <g>
       <ellipse cx={x} cy={y} rx={rx} ry={ry} fill="#F2BE3A" stroke={OUTLINE} stroke-width={1.4} />
@@ -788,15 +873,15 @@ const cheese: ItemRenderer = () => {
   return (
     <g stroke-linejoin="round" stroke-linecap="round">
       <Shadow rx={36} />
-      <path d={w.front} fill="#FFD65C" stroke={OUTLINE} stroke-width={STROKE} />
+      <path d={w.silhouette} fill="#FFD65C" stroke={OUTLINE} stroke-width={STROKE} />
       <path d={w.top} fill="#FFE9A0" stroke={OUTLINE} stroke-width={STROKE} />
       {hole(30, 66, 4.6, 3.8)}
       {hole(52, 67, 3.4, 2.8)}
       {hole(70, 58, 5.2, 4.2)}
-      {hole(44, 77, 2.4, 2)}
+      {hole(44, 73, 2.4, 2)}
       {hole(62, 42, 4.2, 2.2)}
       {hole(40, 48, 2.8, 1.5)}
-      <Shine d="M20 56 L46 43" w={2} opacity={0.7} />
+      <Shine d="M21 55 L46 43" w={2} opacity={0.7} />
     </g>
   );
 };
@@ -852,7 +937,7 @@ const shaveIce: ItemRenderer = () => (
       <circle cx={40} cy={54} r={1.2} />
       <circle cx={69} cy={53} r={1.1} />
     </g>
-    <Shine d="M30 48 Q31 40 36 35" />
+    <Shine d="M30 48 Q31 40 36 35" w={2.2} />
     <path d="M27 59 L73 59 L68 87 Q67.4 90.6 63.6 90.6 L36.4 90.6 Q32.6 90.6 32 87 Z" fill="#FFFFFF" stroke={OUTLINE} stroke-width={STROKE} />
     <path d="M28.6 67 L71.4 67 L70.4 73 L29.6 73 Z" fill="#BBDCF6" />
     <path d="M27 59 L73 59 L68 87 Q67.4 90.6 63.6 90.6 L36.4 90.6 Q32.6 90.6 32 87 Z" fill="none" stroke={OUTLINE} stroke-width={STROKE} />

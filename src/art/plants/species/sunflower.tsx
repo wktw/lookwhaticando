@@ -47,17 +47,17 @@ function SunBud({ x, y, r, k }: { x: number; y: number; r: number; k: number }) 
   );
 }
 
-/** Pairs of big heart-ish leaves along the main stem, bottom to top. */
+/** Pairs of heart-ish leaves stepping up a tall main stem, smaller toward the top, stem showing between. */
 function leaves(g: Growth, top: number): LeafProps[] {
-  const k = lerp(0.85, 1, ramp(g.t, 3, 5)) + ramp(g.t, 5, 7) * 0.15;
+  const k = lerp(0.9, 1, ramp(g.t, 3, 5)) + ramp(g.t, 5, 7) * 0.12;
   const at = (fr: number) => lerp(62, top, fr);
   const list: LeafProps[] = [
-    { x: 49.5, y: at(0.12), rot: -74, L: 21 * k, W: 7.2 * k, bend: -0.1 },
-    { x: 50.5, y: at(0.17), rot: 72, L: 20 * k, W: 7 * k, bend: 0.1 },
-    { x: 49.5, y: at(0.42), rot: -58, L: 17 * k, W: 6.2 * k, bend: -0.08 },
-    { x: 50.5, y: at(0.47), rot: 60, L: 16.4 * k, W: 6 * k, bend: 0.08 },
+    { x: 49.5, y: at(0.12), rot: -68, L: 18.5 * k, W: 6.8 * k, bend: -0.1 },
+    { x: 50.5, y: at(0.2), rot: 66, L: 17.5 * k, W: 6.6 * k, bend: 0.1 },
+    { x: 49.5, y: at(0.44), rot: -56, L: 15 * k, W: 5.6 * k, bend: -0.08 },
+    { x: 50.5, y: at(0.52), rot: 58, L: 14.4 * k, W: 5.4 * k, bend: 0.08 },
   ];
-  if (g.t >= 3.5) list.push({ x: 49.6, y: at(0.7), rot: -42, L: 12 * k, W: 4.8 * k }, { x: 50.4, y: at(0.74), rot: 44, L: 11.4 * k, W: 4.6 * k });
+  if (g.t >= 3.5) list.push({ x: 49.6, y: at(0.74), rot: -42, L: 11 * k, W: 4.4 * k }, { x: 50.4, y: at(0.8), rot: 44, L: 10.4 * k, W: 4.2 * k });
   return list;
 }
 
@@ -72,8 +72,8 @@ interface Head {
 const EXTRA: Head[] = [
   { x: 36, y: 50, r: 5.6, stem: 'M49.6 57 Q42 55 36 50' },
   { x: 64, y: 49, r: 5.6, stem: 'M50.4 56 Q58 54 64 49' },
-  { x: 16, y: 34, r: 5.4, stem: 'M26 43 Q20 39 16 34' },
-  { x: 86, y: 28, r: 5.4, stem: 'M76 34 Q82 32 86 28' },
+  { x: 18, y: 35, r: 5.4, stem: 'M26 43 Q21 40 18 35' },
+  { x: 83, y: 29, r: 5.4, stem: 'M76 35 Q81 33 83 29' },
   { x: 38, y: 34, r: 5, stem: 'M49.6 40 Q43 38.6 38 34' },
   { x: 62, y: 44, r: 5, stem: 'M50.4 48 Q57 47.6 62 44' },
 ];
@@ -82,9 +82,9 @@ function heads(g: Growth): { top: number; list: Head[] } {
   const p = g.progress;
   switch (g.stage) {
     case 3:
-      return { top: lerp(40, 33, p), list: [] };
+      return { top: lerp(35, 30, p), list: [] };
     case 4:
-      return { top: lerp(30, 27, p), list: [] };
+      return { top: lerp(29, 27, p), list: [] };
     case 5:
       return { top: 27, list: [{ x: 50, y: 27, r: lerp(12, 13.6, p) }] };
     case 6:
@@ -97,19 +97,20 @@ function heads(g: Growth): { top: number; list: Head[] } {
       };
     default:
       return {
-        top: 21,
+        top: 23,
         list: [
           ...EXTRA.slice(0, g.blooms),
           { x: 26, y: 43, r: 9, stem: 'M49.6 54 Q34 53 26 43' },
-          { x: 74, y: 35, r: 10, stem: 'M50.4 49 Q67 47 74 35' },
-          { x: 48.5, y: 21, r: 15.6 },
+          { x: 74, y: 36, r: 10, stem: 'M50.4 50 Q67 48 74 36' },
+          { x: 48.5, y: 23, r: 15.6 },
         ],
       };
   }
 }
 
 export const sunflower: PlantSpeciesArt = {
-  seed: '#A99D98',
+  seed: '#9C8574',
+  seedStripes: '#F4E6CF',
   render: (g) => {
     if (g.stage === 1) return sprout(g);
     if (g.stage === 2) return seedling(g, { shape: 'spade' });

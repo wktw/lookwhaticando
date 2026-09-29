@@ -19,12 +19,12 @@ function DaisyHead({ x, y, r, rot = 0, petal = PETAL }: { x: number; y: number; 
   );
 }
 
-/** A green bud with white petal tips peeking out as it ripens (`k` 0 → 1). */
+/** A green bud with white petal tips peeking out as it ripens (`k` 0 → 1). A finer line keeps it from reading as a knot. */
 function DaisyBud({ x, y, k }: { x: number; y: number; k: number }) {
-  const r = 4.2;
+  const r = 4.4;
   return (
-    <g stroke={OUTLINE} stroke-width={FINE} stroke-linejoin="round">
-      <ellipse cx={f(x)} cy={f(y - r * 0.72)} rx={f(lerp(1.8, 3.6, k))} ry={f(lerp(1.3, 2.6, k))} fill={PETAL} />
+    <g stroke={OUTLINE} stroke-width={1.5} stroke-linejoin="round">
+      <ellipse cx={f(x)} cy={f(y - r * 0.72)} rx={f(lerp(2, 3.8, k))} ry={f(lerp(1.4, 2.8, k))} fill={PETAL} />
       <circle cx={f(x)} cy={f(y)} r={r} fill={GREEN.light} />
       <path d={`M${f(x - r * 0.6)} ${f(y + r * 0.2)} L${f(x)} ${f(y - r * 0.3)} L${f(x + r * 0.6)} ${f(y + r * 0.2)}`} fill="none" stroke={GREEN.vein} stroke-width={1.1} stroke-linecap="round" />
     </g>
@@ -79,35 +79,35 @@ function flowers(g: Growth): Flower[] {
         { x0: 54, x: 76, y: 41, r: 7.6 },
         { x0: 47, x: 33, y: 28, r: 9 },
         { x0: 53, x: 67, y: 26, r: 9 },
-        { x0: 50, x: 50.5, y: 17, r: 10.2 },
+        { x0: 50, x: 50.5, y: 18.5, r: 10.2 },
       ];
     default:
       return [];
   }
 }
 
-/** A mound of spoon-shaped leaves; fuller with every stage. */
-function leaves(g: Growth): LeafProps[] {
-  const k = lerp(0.82, 1, ramp(g.t, 3, 5)) + ramp(g.t, 5, 7) * 0.12;
-  const fan: [number, number][] = [
-    [-76, 16],
-    [-50, 21],
-    [-25, 25],
-    [2, 27],
-    [27, 24],
-    [52, 20],
-    [77, 15],
-  ];
-  if (g.t >= 3.5) fan.splice(3, 0, [-10, 22]);
-  return fan.map(([rot, L], i) => ({
-    x: 50 + rot * 0.05,
-    y: 63.5,
-    rot,
-    L: L * k,
-    W: 5.4,
-    bend: rot * 0.0012,
-    fill: i % 2 ? GREEN.back : GREEN.leaf,
-  }));
+/** Spoon leaves as [rotation, length, in the back row]; each keeps its row and color as the mound fills in. */
+const FAN: [number, number, boolean][] = [
+  [-76, 16, false],
+  [-50, 21, true],
+  [-25, 25, false],
+  [2, 27, true],
+  [27, 24, false],
+  [52, 20, true],
+  [77, 15, false],
+];
+/** The leaf that joins at progress .5 of Leafy, tucked into the back row. */
+const LATE_LEAF: [number, number, boolean] = [-10, 23, true];
+
+/** A mound of spoon-shaped leaves in two rows; fuller with every stage. */
+function leaves(g: Growth): { back: LeafProps[]; front: LeafProps[] } {
+  const k = lerp(1, 1.12, ramp(g.t, 3, 5)) + ramp(g.t, 5, 7) * 0.08;
+  const fan = g.t >= 3.5 ? [...FAN, LATE_LEAF] : FAN;
+  const rows = { back: [] as LeafProps[], front: [] as LeafProps[] };
+  for (const [rot, L, back] of fan) {
+    rows[back ? 'back' : 'front'].push({ x: 50 + rot * 0.05, y: 63.5, rot, L: L * k, W: 5.8, bend: rot * 0.0012, fill: back ? GREEN.back : GREEN.leaf });
+  }
+  return rows;
 }
 
 export const daisy: PlantSpeciesArt = {
@@ -115,10 +115,8 @@ export const daisy: PlantSpeciesArt = {
   render: (g) => {
     if (g.stage === 1) return sprout(g);
     if (g.stage === 2) return seedling(g, { shape: 'round' });
-    const ls = leaves(g);
+    const { back, front } = leaves(g);
     const fs = flowers(g);
-    const back = ls.filter((_, i) => i % 2);
-    const front = ls.filter((_, i) => !(i % 2));
     return {
       back: (
         <g>

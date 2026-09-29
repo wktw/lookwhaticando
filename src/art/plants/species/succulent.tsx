@@ -50,7 +50,7 @@ interface Stalk {
 const STALKS: Stalk[] = [
   { d: 'M53 54 C59 45 66 38 67 24', at: [[67, 23], [63.4, 28.6], [69.6, 29.4]] },
   { d: 'M47 54 C41 45 34 36 32 21', at: [[32, 20], [35.6, 25.8], [29, 26.4]] },
-  { d: 'M50 52 C50 38 51 24 52 9', at: [[52, 8], [48.6, 13.4], [55.2, 14.2], [51.4, 19]] },
+  { d: 'M50 52 C50 40 51 28 52 13', at: [[52, 12], [48.6, 17.4], [55.2, 18.2], [51.4, 23]] },
 ];
 
 function stalks(g: Growth): { list: Stalk[]; open: number } {
@@ -83,17 +83,19 @@ export const succulent: PlantSpeciesArt = {
   render: (g) => {
     const p = g.progress;
     if (g.stage === 1) {
-      const L = lerp(10, 13, p);
+      const L = lerp(12, 15, p);
       return {
         front: (
           <g>
-            <SucculentLeaf x={49.4} y={61} rot={-26} L={L} W={5.2} fill={LEAF} />
-            <SucculentLeaf x={50.6} y={61} rot={24} L={L * 0.95} W={5} fill={LEAF} />
+            {p >= 0.5 && <SucculentLeaf x={50} y={61} rot={0} L={L * 0.8} W={5.2} fill={LEAF_BACK} />}
+            <SucculentLeaf x={49.2} y={61.4} rot={-32} L={L} W={6} fill={LEAF} />
+            <SucculentLeaf x={50.8} y={61.4} rot={30} L={L * 0.95} W={5.8} fill={LEAF} />
           </g>
         ),
       };
     }
-    const s = g.stage === 2 ? lerp(0.74, 0.88, p) : [0, 0, 0, lerp(1, 1.12, p), lerp(1.16, 1.22, p), lerp(1.24, 1.28, p), lerp(1.3, 1.35, p), 1.38][g.stage]!;
+    // Seedling is a small rosette without its middle ring; Leafy fills the ring in, then it keeps swelling.
+    const s = g.stage === 2 ? lerp(0.86, 0.98, p) : [0, 0, 0, lerp(1.06, 1.14, p), lerp(1.18, 1.24, p), lerp(1.26, 1.3, p), lerp(1.32, 1.36, p), 1.4][g.stage]!;
     const { list, open } = stalks(g);
     const flowers = list.flatMap((st, i) => st.at.map(([x, y], j) => ({ x, y, open: i < open && j < 2 + (g.stage >= 6 ? 1 : 0) })));
     const extra = EXTRA.slice(0, g.blooms).map(([x, y]) => ({ x, y, open: true }));
@@ -114,7 +116,7 @@ export const succulent: PlantSpeciesArt = {
         <g>
           {g.stage >= 6 && <Rosette x={25} y={64.5} s={0.66} pup />}
           {(g.stage >= 7 || (g.stage === 6 && p >= 0.6)) && <Rosette x={75.5} y={64.8} s={g.stage >= 7 ? 0.7 : 0.56} pup />}
-          <Rosette x={50} y={58.5} s={s} />
+          <Rosette x={50} y={58.5} s={s} pup={g.stage === 2} />
         </g>
       ),
     };

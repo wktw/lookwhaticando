@@ -5,6 +5,7 @@
 import type { JSX } from 'preact';
 import type { PotId } from '@/catalog/types';
 import type { PotArtDef } from './types';
+import { BLUSH, EYE } from '../pets/geometry';
 import { OUTLINE, SOIL, SPARKLE_D } from './parts';
 
 const RIM = 'M27 69 Q27 66 30 66 L70 66 Q73 66 73 69 L73 72.5 Q73 75.5 70 75.5 L30 75.5 Q27 75.5 27 72.5 Z';
@@ -12,7 +13,9 @@ const BODY = 'M30.5 75 L69.5 75 L66.2 91.5 Q65.5 95 62 95 L38 95 Q34.5 95 33.8 9
 /** Round "face" bowl shared by the kitty and frog pots. */
 const BOWL = 'M27 67.5 Q27 66 28.5 66 L71.5 66 Q73 66 73 67.5 C73.5 84 66 95 50 95 C34 95 26.5 84 27 67.5 Z';
 
-const RIM_CHARM = { x: 67, y: 73 };
+/** Classic pots wear their Evergreen ribbon just under the rim, bow tied on the right. */
+const RIBBON = 'M30.8 76.6 L69.2 76.6 L68.4 80.6 L31.6 80.6 Z';
+const RIBBON_BOW = { x: 66.6, y: 78.6 };
 
 /** The soil mound peeking out of every pot. */
 export function Soil({ sw }: { sw: number }) {
@@ -24,7 +27,7 @@ export function Soil({ sw }: { sw: number }) {
         <circle cx={58.5} cy={63.6} r={0.8} />
         <circle cx={63} cy={65.4} r={0.7} />
       </g>
-      <path d="M36.5 63.6 Q41 61.8 45 61.6" fill="none" stroke="#fff" stroke-width={1.3} stroke-linecap="round" opacity={0.3} />
+      <path d="M37.6 65 Q41.4 63.4 45.4 63.1" fill="none" stroke="#fff" stroke-width={1.3} stroke-linecap="round" opacity={0.3} />
     </g>
   );
 }
@@ -89,7 +92,8 @@ function Classic({ uid, sw, body, rim, pattern, over }: ClassicProps) {
 /* ------------------------------------------------------------------ */
 
 const terracotta: PotArtDef = {
-  charm: RIM_CHARM,
+  charm: RIBBON_BOW,
+  ribbon: RIBBON,
   render: (uid, sw) => (
     <Classic
       uid={uid}
@@ -102,7 +106,8 @@ const terracotta: PotArtDef = {
 };
 
 const cream: PotArtDef = {
-  charm: RIM_CHARM,
+  charm: RIBBON_BOW,
+  ribbon: RIBBON,
   render: (uid, sw) => (
     <Classic
       uid={uid}
@@ -124,7 +129,8 @@ const cream: PotArtDef = {
 };
 
 const blush: PotArtDef = {
-  charm: RIM_CHARM,
+  charm: RIBBON_BOW,
+  ribbon: RIBBON,
   render: (uid, sw) => (
     <Classic
       uid={uid}
@@ -155,7 +161,8 @@ const GLAZE =
   'M20 74 L80 74 L80 79.5 Q71 79.4 70 81.5 Q68.8 86.5 66.8 86.3 Q64.8 86.1 64.6 82.2 Q64 80 60.2 80.4 Q57.6 80.7 57.2 84 Q56.6 89.6 54 89.4 Q51.6 89.2 51.4 84.6 Q51 81 47.6 81 Q44.6 81.2 44.2 83 Q43.6 85.4 41.8 85.2 Q40 85 39.6 82.6 Q39 80.6 35.4 80.8 Q31 81.2 20 81 Z';
 
 const sage: PotArtDef = {
-  charm: RIM_CHARM,
+  charm: RIBBON_BOW,
+  ribbon: RIBBON,
   render: (uid, sw) => (
     <Classic
       uid={uid}
@@ -173,7 +180,8 @@ const sage: PotArtDef = {
 };
 
 const cowprint: PotArtDef = {
-  charm: RIM_CHARM,
+  charm: RIBBON_BOW,
+  ribbon: RIBBON,
   render: (uid, sw) => (
     <Classic
       uid={uid}
@@ -194,7 +202,8 @@ const cowprint: PotArtDef = {
 };
 
 const starlight: PotArtDef = {
-  charm: RIM_CHARM,
+  charm: RIBBON_BOW,
+  ribbon: RIBBON,
   render: (uid, sw) => (
     <Classic
       uid={uid}
@@ -227,7 +236,9 @@ const SNOW_CAP =
   'M25.8 70.4 C25.2 65.6 28.6 63.8 32 64.4 C36 62.6 41 64.2 45 63.6 C50 62.6 54.6 64 58.6 63.4 C63 62.6 67.4 64 70 63.8 C73.6 63.8 75.2 66.6 74.4 70 C74.2 72.6 72.8 73.6 71.4 73 C70.8 76.4 67.4 77.2 66.4 74.4 C65.2 73.2 62.8 73.8 61.8 74.2 C58.6 75.4 55.8 74.4 54.8 73.8 C53 73 51.4 74.8 50.6 77 C49.6 79.6 46.2 79.4 45.8 76.4 C45.4 74 43 73.6 40.6 74.2 C37.6 75 35.8 73.8 35 73.4 C33.4 72.8 32.2 73.6 31.8 75.6 C31.2 78.4 27.4 78.4 27.4 75.2 C26 74.6 25.8 72.6 25.8 70.4 Z';
 
 const snowy: PotArtDef = {
-  charm: { x: 67, y: 75 },
+  // Just below the snow drips.
+  charm: { x: 66, y: 80.6 },
+  ribbon: 'M31.5 80 L68.5 80 L67.7 84 L32.3 84 Z',
   render: (uid, sw) => (
     <Classic
       uid={uid}
@@ -259,7 +270,7 @@ const snowy: PotArtDef = {
 
 function Blush({ y = 86, dx = 15.5 }: { y?: number; dx?: number }) {
   return (
-    <g fill="#FF9FB8" opacity={0.6}>
+    <g fill={BLUSH} opacity={0.6}>
       <ellipse cx={50 - dx} cy={y} rx={3.6} ry={2.1} />
       <ellipse cx={50 + dx} cy={y} rx={3.6} ry={2.1} />
     </g>
@@ -269,14 +280,14 @@ function Blush({ y = 86, dx = 15.5 }: { y?: number; dx?: number }) {
 function Eye({ x, y }: { x: number; y: number }) {
   return (
     <g>
-      <ellipse cx={x} cy={y} rx={2.3} ry={2.8} fill="#4A3540" />
+      <ellipse cx={x} cy={y} rx={2.3} ry={2.8} fill={EYE} />
       <circle cx={x + 0.8} cy={y - 1} r={0.85} fill="#fff" />
     </g>
   );
 }
 
 const kitty: PotArtDef = {
-  charm: { x: 69, y: 72 },
+  charm: { x: 69.4, y: 61 },
   render: (uid, sw) => (
     <g stroke-linejoin="round" stroke-linecap="round">
       {[false, true].map((m) => (
@@ -308,7 +319,7 @@ const kitty: PotArtDef = {
 };
 
 const frog: PotArtDef = {
-  charm: { x: 69, y: 73 },
+  charm: { x: 71, y: 69.6 },
   render: (uid, sw) => (
     <g stroke-linejoin="round" stroke-linecap="round">
       <g fill="#AEDB95" stroke={OUTLINE} stroke-width={sw}>
@@ -333,7 +344,7 @@ const frog: PotArtDef = {
         <circle cx={36.4} cy={65.6} r={4.3} />
         <circle cx={63.6} cy={65.6} r={4.3} />
       </g>
-      <g fill="#4A3540">
+      <g fill={EYE}>
         <circle cx={37} cy={66} r={2.4} />
         <circle cx={63} cy={66} r={2.4} />
       </g>
