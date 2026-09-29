@@ -76,6 +76,23 @@ function later(ms: number, fn: () => void): void {
   timers.add(t);
 }
 
+/** Runs `fn` in a task after the tap's frame (a partial tap's drop chime): the ring paints first. */
+function afterFrame(fn: () => void): void {
+  if (typeof requestAnimationFrame !== 'function') return fn();
+  requestAnimationFrame(() => {
+    const t = setTimeout(() => {
+      timers.delete(t);
+      fn();
+    }, 0);
+    timers.add(t);
+  });
+}
+
+/** What the note hears about: with Quiet rewards, no harvest aside (DESIGN §9.5: the tracker alone). */
+export function noteEvents(events: readonly GameEvent[], quiet: boolean): readonly GameEvent[] {
+  return quiet ? events.filter((e) => e.type !== 'harvest') : events;
+}
+
 /** Stops any choreography still scheduled (leaving the screen). The store has long committed. */
 export function cancelChoreography(): void {
   for (const t of timers) clearTimeout(t);
@@ -117,8 +134,9 @@ function play(result: CheckInResult, card: HabitCardVM, date: DateKey, ring: Ele
 
   if (!result.completed) {
     // A partial tap on a count habit: a ring tick, a small drop, and the count for screen readers.
-    if (stage.quiet) markCelebratedLocally(card.id);
-    celebrateCheckIn(result, card.id, rect);
+    markCelebratedLocally(card.id);
+    // No coin to reserve on a partial tap, so its drop and chime wait for the ring's frame.
+    afterFrame(() => celebrateCheckIn(result, card.id, rect));
     announce(fillLine(CHECKIN_TOASTS.progress, { count: num(checkin.count), target: num(checkin.target), unit: card.unit ?? '' }).trim());
     return;
   }
@@ -142,7 +160,7 @@ function play(result: CheckInResult, card: HabitCardVM, date: DateKey, ring: Ele
       coins: stage.quiet ? 0 : coins,
       tiny: checkin.tiny,
       ...(counting ? { count: checkin.count, ...(card.unit ? { unit: card.unit } : {}) } : {}),
-      events: result.events,
+      events: noteEvents(result.events, stage.quiet),
       onUndo: () => unwater(card, date, stage),
       onAddNote: () => stage.addNote(card.id, date),
     }),

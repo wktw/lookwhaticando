@@ -5,10 +5,15 @@
  * today have damp soil.
  *
  * The ring: a one-tap habit toggles; a count habit adds its step, and once full a tap opens the
- * inline stepper. A long press opens the number pad for a count habit, or logs the tiny version.
+ * inline stepper. A long press opens the number pad for a count habit, or logs the tiny version;
+ * a card with neither arms no hold at all, so a slow tap still waters. The ⋯ menu offers both.
+ *
+ * Reading order: the name, the ring (the card's main action), then ⋯, which sits visually at the
+ * top right of the words so the anchor and status lines keep the card's full width.
  */
 import { memo } from 'preact/compat';
 import { useEffect, useRef, useState } from 'preact/hooks';
+import { Icon } from '@/art/icons';
 import { CardPlant } from '@/art/plants/CardPlant';
 import { CHECKIN_TOASTS, LOOKS, TODAY_LINES, fillLine } from '@/catalog/lines';
 import { cardAriaLabel, forDayLabel, num, statusLine } from '@/catalog/format';
@@ -45,7 +50,19 @@ export interface HabitCardProps {
 }
 
 /** A long press is this long (DESIGN §5.2). */
-export const HOLD_MS = 450;
+export const HOLD_MS = 500;
+/** A press that travels further than this is a scroll or a drag, not a hold. */
+export const HOLD_SLOP_PX = 8;
+
+/** What a long press on the ring does: the number pad, the tiny version, or nothing at all. */
+export type HoldAction = 'pad' | 'tiny' | null;
+
+export function holdAction(card: Pick<HabitCardVM, 'rested' | 'flexible' | 'target' | 'tinyLabel' | 'canTiny'>): HoldAction {
+  if (card.rested) return null;
+  if (!card.flexible && card.target > 1) return 'pad';
+  if (card.tinyLabel && card.canTiny) return 'tiny';
+  return null;
+}
 
 /** The ring's state for a card: a moon, a sprout, a check, or water toward a count. */
 export function ringStateOf(card: Pick<HabitCardVM, 'rested' | 'tiny' | 'done' | 'flexible' | 'target'>): CheckRingState | undefined {
@@ -91,43 +108,76 @@ export function sameCard(a: HabitCardProps, b: HabitCardProps): boolean {
   return a.card === b.card || JSON.stringify(a.card) === JSON.stringify(b.card);
 }
 
-/**
- * Whether a card is near the view: a busy list draws the plants of the first cards at once and the
- * rest as they scroll near (the plant art is the heaviest thing on the card).
+/*
+ * Plants beyond the first screen draw a few at a time while the page is idle (the plant art is the
+ * heaviest thing on a card), never on a scroll event, so scrolling a busy list keeps its frames.
  */
-function useNear(eager: boolean) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [near, setNear] = useState(eager || typeof IntersectionObserver === 'undefined');
+type Idle = { timeRemaining(): number };
+const drawQueue: (() => void)[] = [];
+let drawScheduled = false;
+const ric: (cb: (d: Idle) => void) => void =
+  typeof requestIdleCallback === 'function' ? (cb) => void requestIdleCallback(cb, { timeout: 400 }) : (cb) => void setTimeout(() => cb({ timeRemaining: () => 8 }), 16);
+function pump(d: Idle) {
+  drawScheduled = false;
+  // At least one per idle slice, more while the slice lasts.
+  do drawQueue.shift()?.();
+  while (drawQueue.length > 0 && d.timeRemaining() > 6);
+  if (drawQueue.length > 0) scheduleDraw();
+}
+function scheduleDraw() {
+  if (drawScheduled) return;
+  drawScheduled = true;
+  ric(pump);
+}
+
+/** Whether the card's plant is drawn: at once for the first cards, else in an idle batch. */
+function useDrawn(eager: boolean): boolean {
+  const [drawn, setDrawn] = useState(eager || typeof window === 'undefined');
   useEffect(() => {
-    const el = ref.current;
-    if (near || !el) return;
-    const io = new IntersectionObserver((entries) => entries.some((e) => e.isIntersecting) && setNear(true), { rootMargin: '600px 0px' });
-    io.observe(el);
-    return () => io.disconnect();
-  }, [near]);
-  return [ref, near] as const;
+    if (drawn) return;
+    let live = true;
+    drawQueue.push(() => live && setDrawn(true));
+    scheduleDraw();
+    return () => {
+      live = false;
+    };
+  }, []);
+  return drawn;
 }
 
 export const HabitCard = memo(function HabitCard(props: HabitCardProps) {
   const { card, date, past, weekStart, compact, residentPetId, adjusting } = props;
   const ring = useRef<HTMLDivElement>(null);
-  const [plantBox, near] = useNear(props.eager ?? true);
-  const hold = useRef<{ timer: number; fired: boolean }>({ timer: 0, fired: false });
+  const near = useDrawn(props.eager ?? true);
+  const hold = useRef<{ timer: number; fired: boolean; x: number; y: number }>({ timer: 0, fired: false, x: 0, y: 0 });
   const status = statusLine(card.subtitle, weekStart);
   const anchor = card.after ? fillLine(LOOKS.stacking.after, { anchor: card.after.name }) : card.anchor;
   const counting = !card.flexible && card.target > 1;
+  const holds = holdAction(card);
   const ringEl = () => ring.current?.querySelector('button') ?? ring.current!;
 
-  const startHold = (e: PointerEvent) => {
-    if (e.button !== 0) return;
-    hold.current.fired = false;
+  // The hold cue is an attribute on the ring's wrapper (no render): the ring settles in a little and,
+  // for the tiny version, a faint sprout fades in, so a hold never arrives unannounced.
+  const endHold = () => {
     clearTimeout(hold.current.timer);
+    ring.current?.removeAttribute('data-holding');
+  };
+  const startHold = (e: PointerEvent) => {
+    hold.current.fired = false;
+    if (e.button !== 0 || !holds) return;
+    clearTimeout(hold.current.timer);
+    hold.current.x = e.clientX;
+    hold.current.y = e.clientY;
+    ring.current?.setAttribute('data-holding', holds);
     hold.current.timer = window.setTimeout(() => {
+      ring.current?.removeAttribute('data-holding');
       hold.current.fired = true;
       props.onHold(card, ringEl());
     }, HOLD_MS);
   };
-  const endHold = () => clearTimeout(hold.current.timer);
+  const moveHold = (e: PointerEvent) => {
+    if (Math.hypot(e.clientX - hold.current.x, e.clientY - hold.current.y) > HOLD_SLOP_PX) endHold();
+  };
   const onClick = () => {
     if (hold.current.fired) {
       hold.current.fired = false;
@@ -135,25 +185,26 @@ export const HabitCard = memo(function HabitCard(props: HabitCardProps) {
     }
     props.onRing(card, ringEl());
   };
+  useEffect(() => () => clearTimeout(hold.current.timer), []);
 
   return (
     <article class={cx(s.card, compact && s.compact, card.damp && s.watered, card.rested && s.rested)} data-habit={card.id} aria-label={cardAriaLabel(card)}>
       <div class={s.body} onClick={() => props.onOpen(card)}>
-        <div class={s.plant} aria-hidden="true" ref={plantBox}>
+        <div class={s.plant} aria-hidden="true">
           {near && (
             <CardPlant
-            species={card.plant.species}
-            stage={card.plant.displayStage}
-            progress={card.plant.progress}
-            {...(card.plant.blooms !== undefined ? { blooms: card.plant.blooms } : {})}
-            pot={card.plant.pot}
-            damp={card.damp}
-            {...(card.look ? { look: card.look } : {})}
-            {...(card.plant.flourishes > 0 ? { flourishes: card.plant.flourishes } : {})}
-            {...(residentPetId ? { residentPetId } : {})}
-            icon={card.icon}
-            tone={card.color}
-            size={compact ? 44 : 60}
+              species={card.plant.species}
+              stage={card.plant.displayStage}
+              progress={card.plant.progress}
+              {...(card.plant.blooms !== undefined ? { blooms: card.plant.blooms } : {})}
+              pot={card.plant.pot}
+              damp={card.damp}
+              {...(card.look ? { look: card.look } : {})}
+              {...(card.plant.flourishes > 0 ? { flourishes: card.plant.flourishes } : {})}
+              {...(residentPetId ? { residentPetId } : {})}
+              icon={card.icon}
+              tone={card.color}
+              size={compact ? 44 : 60}
               pulse={card.waterings}
             />
           )}
@@ -168,24 +219,32 @@ export const HabitCard = memo(function HabitCard(props: HabitCardProps) {
           )}
         </div>
       </div>
-      <div class={s.actions}>
-        <IconButton icon="more" label={fillLine(TODAY_COPY.more, { habit: past ? forDayLabel(card.name, date) : card.name })} class={s.more} onClick={(e) => props.onMore(card, e.currentTarget as HTMLElement)} aria-haspopup="menu" />
-        <div ref={ring} class={s.ring} onPointerDown={startHold} onPointerUp={endHold} onPointerLeave={endHold} onPointerCancel={endHold} onContextMenu={(e) => e.preventDefault()}>
-          <CheckRing
-            label={ringLabel(card, date, past)}
-            description={ringDescription(card, weekStart)}
-            state={ringStateOf(card)}
-            {...(counting && !card.rested && !card.tiny ? { count: card.count, target: card.target } : {})}
-            tone={card.color}
-            size={compact ? 44 : 48}
-            onClick={onClick}
-          />
-        </div>
+      <div
+        ref={ring}
+        class={s.ring}
+        onPointerDown={startHold}
+        onPointerMove={holds ? moveHold : undefined}
+        onPointerUp={endHold}
+        onPointerLeave={endHold}
+        onPointerCancel={endHold}
+        onContextMenu={(e) => holds && e.preventDefault()}
+      >
+        <CheckRing
+          label={ringLabel(card, date, past)}
+          description={ringDescription(card, weekStart)}
+          state={ringStateOf(card)}
+          {...(counting && !card.rested && !card.tiny ? { count: card.count, target: card.target } : {})}
+          tone={card.color}
+          size={compact ? 44 : 48}
+          onClick={onClick}
+        />
+        {holds === 'tiny' && <Icon name="sprout" size={18} class={s.holdSprout} />}
       </div>
+      <IconButton icon="more" size="sm" label={fillLine(TODAY_COPY.more, { habit: past ? forDayLabel(card.name, date) : card.name })} class={s.more} onClick={(e) => props.onMore(card, e.currentTarget as HTMLElement)} aria-haspopup="menu" />
       {adjusting && counting && (
         <div class={s.adjust}>
           <Stepper value={card.count} onChange={(v) => props.onCount(card, v)} label={fillLine(TODAY_COPY.howMany, { habit: card.name })} min={0} max={100_000} step={card.step} unit={card.unit ?? undefined} />
-          <Button variant="ghost" size="sm" onClick={props.onAdjusted}>
+          <Button variant="secondary" onClick={props.onAdjusted}>
             {TODAY_COPY.pad.done}
           </Button>
         </div>

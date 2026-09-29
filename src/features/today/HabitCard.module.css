@@ -4,13 +4,16 @@
  */
 
 .card {
+  /* The ring's column; ⋯ sits just left of it, over the top right of the words. */
+  --ring-col: 52px;
+  --pad: 10px;
   position: relative;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) var(--ring-col);
   align-items: center;
   column-gap: 4px;
   min-height: 84px;
-  padding: 10px 10px 10px 10px;
+  padding: var(--pad);
   border-radius: var(--r-md);
   background: var(--card);
   box-shadow: 0 0 0 1px var(--line), var(--shadow-card);
@@ -52,6 +55,11 @@
   padding: 2px 0;
 }
 
+/* The name leaves room for ⋯ on its first line; the anchor and status run the full width. */
+.text .name {
+  padding-right: 34px;
+}
+
 /* Doubled class: outranks host-page heading styles. */
 .text .name {
   margin: 0;
@@ -74,9 +82,11 @@
   font-style: italic;
   font-size: 0.9375rem;
   line-height: 1.25;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .status {
@@ -85,9 +95,8 @@
   font-size: var(--fs-caption);
   font-weight: 700;
   line-height: 1.3;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+  text-wrap: pretty;
   font-variant-numeric: tabular-nums;
 }
 
@@ -95,17 +104,19 @@
   color: var(--lavender-700);
 }
 
-.actions {
-  display: flex;
-  align-items: center;
-  gap: 0;
-}
-
+/* ⋯: a 44×44 target whose small glyph sits level with the name, just left of the ring. */
 .more {
+  position: absolute;
+  top: 6px;
+  right: calc(var(--pad) + var(--ring-col) - 2px);
+  z-index: 1;
   color: var(--ink-3);
 }
 
 .ring {
+  position: relative;
+  grid-column: 2;
+  grid-row: 1;
   display: grid;
   place-items: center;
   width: 52px;
@@ -114,6 +125,30 @@
   -webkit-touch-callout: none;
   -webkit-user-select: none;
   user-select: none;
+}
+
+.ring > :first-child {
+  transition: transform 250ms var(--ease-out);
+}
+
+/* A hold on its way: the ring settles in, and for the tiny version a faint sprout fades in. */
+.ring[data-holding] > :first-child {
+  transform: scale(0.94);
+  transition-delay: 120ms;
+}
+
+.holdSprout {
+  position: absolute;
+  top: -6px;
+  right: -4px;
+  color: var(--sage-700);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.ring[data-holding='tiny'] .holdSprout {
+  opacity: 0.85;
+  transition: opacity 200ms var(--ease-out) 250ms;
 }
 
 /* The inline stepper for a full count habit, tapped again. */
@@ -131,6 +166,8 @@
 /* ---------- Compact Today: smaller cards, more habits on screen ---------- */
 
 .compact {
+  --ring-col: 46px;
+  --pad: 8px;
   min-height: 60px;
   padding: 6px 8px 6px 8px;
   contain-intrinsic-size: auto 60px;
@@ -159,6 +196,17 @@
 .compact .ring {
   width: 46px;
   height: 46px;
+}
+
+.compact .more {
+  top: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ring > :first-child,
+  .ring[data-holding='tiny'] .holdSprout {
+    transition: none;
+  }
 }
 
 @media (max-width: 359px) {

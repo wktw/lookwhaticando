@@ -24,6 +24,7 @@ import { AnimatedNumber } from '@/ui/AnimatedNumber';
 import { cx } from '@/ui/cx';
 import { navigate } from '@/app/router';
 import { foundLine } from '@/fx/copy';
+import { prefersReducedMotion } from '@/fx/motion';
 import { openPetCard } from '@/features/habits/open';
 import { TODAY_COPY } from './copy';
 import s from './Band.module.css';
@@ -87,6 +88,29 @@ export function bandPets(vm: Pick<TodayVM, 'sill'>, pets: AppState['pets']): She
   return out;
 }
 
+/** How long a smooth scroll of the pot row takes to settle before the pour starts. */
+export const REVEAL_MS = 320;
+
+/**
+ * Scrolls the band's pot row so the habit's pot is in view (smoothly, or at once with reduced
+ * motion). Returns how long to wait before pouring: 0 when the pot was already in view.
+ */
+export function revealPot(root: HTMLElement, habitId: string): number {
+  const row = root.querySelector<HTMLElement>('[role="group"][aria-label]');
+  const pot = row?.querySelector<HTMLElement>(`[data-habit="${habitId.replace(/["\\]/g, "\\$&")}"]`);
+  if (!row || !pot) return 0;
+  const r = row.getBoundingClientRect();
+  const p = pot.getBoundingClientRect();
+  if (r.width === 0 || p.width === 0 || typeof row.scrollTo !== 'function') return 0;
+  // The chips cover the row's left end while the band is open; keep the pot clear of them.
+  const margin = Math.min(48, r.width / 6);
+  if (p.left >= r.left + margin && p.right <= r.right - 8) return 0;
+  const left = row.scrollLeft + (p.left + p.width / 2) - (r.left + r.width / 2);
+  const reduce = prefersReducedMotion();
+  row.scrollTo({ left: Math.max(0, left), behavior: reduce ? 'auto' : 'smooth' });
+  return reduce ? 0 : REVEAL_MS;
+}
+
 export const Band = forwardRef(function Band({ vm, state, coins, onOpenNote, onWallet }: BandProps, ref: Ref<BandHandle>) {
   const wrap = useRef<HTMLDivElement>(null);
   const band = useRef<WindowsillBandHandle>(null);
@@ -109,10 +133,16 @@ export const Band = forwardRef(function Band({ vm, state, coins, onOpenNote, onW
     () => ({
       pour(habitId) {
         if (!onBand.has(habitId)) return;
-        band.current?.pour(habitId);
-        setTagFor(habitId);
-        clearTimeout(tagTimer.current);
-        tagTimer.current = setTimeout(() => setTagFor(undefined), 2600);
+        const go = () => {
+          band.current?.pour(habitId);
+          setTagFor(habitId);
+          clearTimeout(tagTimer.current);
+          tagTimer.current = setTimeout(() => setTagFor(undefined), 2600);
+        };
+        // A pot scrolled out of the band's view comes into it first, so the pour is seen.
+        const wait = wrap.current ? revealPot(wrap.current, habitId) : 0;
+        if (wait > 0) setTimeout(go, wait);
+        else go();
       },
       react(habitId) {
         const pet = residentOf.get(habitId);
@@ -184,6 +214,13 @@ export const Band = forwardRef(function Band({ vm, state, coins, onOpenNote, onW
   return (
     <div ref={wrap} class={s.wrap} data-quiet={quiet ? '' : undefined}>
       <div class={s.clip} data-part="clip">
+        {/* The greeting comes first for screen readers and Tab (it floats over the band). */}
+        <div class={s.greeting} data-part="greeting">
+          <h1 class={s.hello} id="today-title" tabIndex={-1}>
+            {greeting}
+          </h1>
+          <p class={s.date}>{vm.dateLabel}</p>
+        </div>
         <WindowsillBand
           ref={band}
           class={s.band}
@@ -200,12 +237,6 @@ export const Band = forwardRef(function Band({ vm, state, coins, onOpenNote, onW
           {...(note ? { note } : {})}
           cake={vm.birthday !== null}
         />
-        <div class={s.greeting} data-part="greeting">
-          <h1 class={s.hello} id="today-title" tabIndex={-1}>
-            {greeting}
-          </h1>
-          <p class={s.date}>{vm.dateLabel}</p>
-        </div>
         <div class={s.mini} data-part="mini" aria-hidden="true">
           <span class={s.miniDate}>{vm.shortDate}</span>
           <MiniRing fraction={vm.progress.fraction} />
@@ -219,7 +250,7 @@ export const Band = forwardRef(function Band({ vm, state, coins, onOpenNote, onW
           <>
             <button type="button" class={s.wallet} data-wallet-target="coins" aria-label={walletLabel} onClick={onWallet}>
               <CoinIcon size={20} />
-              {coins > 0 && <AnimatedNumber value={coins} walletKind="coins" class={s.walletNum} />}
+              <AnimatedNumber value={coins} walletKind="coins" class={s.walletNum} />
             </button>
             <span class={s.jar} data-wallet-target="coins" aria-hidden="true" onAnimationStart={onJarBump} />
           </>

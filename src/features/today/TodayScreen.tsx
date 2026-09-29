@@ -19,20 +19,39 @@ import { ConfirmDialog } from '@/ui/ConfirmDialog';
 import { Toggle } from '@/ui/Toggle';
 import { cx } from '@/ui/cx';
 import { toast } from '@/ui/toast';
+import { sfx } from '@/fx/sound';
 import { openHabitDetail, openHabitEditor } from '@/features/habits/open';
 import { Band, type BandHandle } from './Band';
 import { CardMenu, type MenuItem } from './CardMenu';
 import { CountPad } from './CountPad';
-import { HabitCard } from './HabitCard';
+import { HabitCard, holdAction } from './HabitCard';
 import { HabitList } from './HabitList';
 import { NoteSheet, type NoteTarget } from './NoteSheet';
 import { Notices, type NoticesHandle } from './Notices';
 import { WalletSheet } from './WalletSheet';
 import { WeekStrip } from './WeekStrip';
 import { cancelChoreography, countTo, flipRest, tapAction, unwater, water, type Stage } from './checkin';
-import { HIDDEN_RESET_MS, cardsById, liveGroups, orderedIds, selectDay, selectedDay, snapshotGroups, structureKey, type GroupSnapshot } from './state';
+import { HIDDEN_RESET_MS, bandOrder, cardsById, liveGroups, selectDay, selectedDay, snapshotGroups, structureKey, type GroupSnapshot } from './state';
 import { TODAY_COPY } from './copy';
 import s from './TodayScreen.module.css';
+
+/** "Take today off?" as the title and the rest as the message, so the dialog never says it twice. */
+const OFF_ASK_SPLIT = TODAY_LINES.takeTodayOffConfirm.indexOf('? ') + 1;
+const offAskTitle = OFF_ASK_SPLIT > 0 ? TODAY_LINES.takeTodayOffConfirm.slice(0, OFF_ASK_SPLIT) : TODAY_LINES.takeTodayOff;
+const offAskMessage = OFF_ASK_SPLIT > 0 ? TODAY_LINES.takeTodayOffConfirm.slice(OFF_ASK_SPLIT + 1) : TODAY_LINES.takeTodayOffConfirm;
+
+/**
+ * Sound's engine is costly to start (about 75 ms): start it while the page is idle after Today first
+ * draws, so the first tap only resumes it. It stays suspended until that tap (autoplay rules).
+ */
+let soundWarmed = false;
+function warmSound(): void {
+  if (soundWarmed || typeof window === 'undefined') return;
+  soundWarmed = true;
+  const go = () => sfx.unlock();
+  if (typeof requestIdleCallback === 'function') requestIdleCallback(go, { timeout: 3000 });
+  else setTimeout(go, 1200);
+}
 
 export function TodayScreen() {
   const st = state.value;
@@ -66,6 +85,8 @@ export function TodayScreen() {
     };
   }, []);
 
+  useEffect(warmSound, []);
+
   // "N plants a habit" (src/app/shortcuts.ts).
   useEffect(() => {
     const onNew = () => openHabitEditor();
@@ -74,17 +95,20 @@ export function TodayScreen() {
   }, []);
 
   // Group membership: a snapshot taken on load and on a new day or a changed habit, never on a tap.
-  const snap = useRef<{ key: string; groups: GroupSnapshot[] } | null>(null);
+  const snap = useRef<{ key: string; groups: GroupSnapshot[]; band: string[] } | null>(null);
   const key = `${structureKey(st, date, t)}#${wake}`;
-  if (!snap.current || snap.current.key !== key) snap.current = { key, groups: snapshotGroups(vm) };
   const byId = cardsById(vm);
+  if (!snap.current || snap.current.key !== key) {
+    const groups = snapshotGroups(vm);
+    snap.current = { key, groups, band: bandOrder(liveGroups(groups, byId)) };
+  }
   const groups = liveGroups(snap.current.groups, byId);
-  const order = orderedIds(groups);
 
-  // The band follows the list's order, so a watered pot never jumps along the sill.
-  const orderKey = order.join('|');
+  // The band shows six pots: what is still to water when the snapshot was taken, in the list's order,
+  // so most taps pour onto a pot on the sill; like the list, it never reorders on a tap.
+  const orderKey = snap.current.band.join('|');
   const bandVm = useMemo(() => {
-    const at = new Map(order.map((id, i) => [id, i]));
+    const at = new Map(snap.current!.band.map((id, i) => [id, i]));
     const sill = [...vm.sill].sort((a, b) => (at.get(a.habitId) ?? 999) - (at.get(b.habitId) ?? 999));
     return { ...vm, sill };
   }, [vm, orderKey]);
@@ -133,8 +157,9 @@ export function TodayScreen() {
     }
   }, []);
   const onHold = useCallback((card: HabitCardVM, ring: HTMLElement) => {
-    if (!card.flexible && card.target > 1 && !card.rested) setPadId(card.id);
-    else if (card.tinyLabel && card.canTiny) water(card, dateRef.current, ring, stageRef.current, { tiny: true });
+    const action = holdAction(card);
+    if (action === 'pad') setPadId(card.id);
+    else if (action === 'tiny') water(card, dateRef.current, ring, stageRef.current, { tiny: true });
   }, []);
   const onMore = useCallback((card: HabitCardVM, anchor: HTMLElement) => setMenu((m) => (m?.id === card.id ? null : { id: card.id, anchor })), []);
   const onOpen = useCallback((card: HabitCardVM) => openHabitDetail(card.id), []);
@@ -147,6 +172,8 @@ export function TodayScreen() {
     if (c.tinyLabel && (c.canTiny || c.tiny)) {
       items.push({ id: 'tiny', label: TODAY_COPY.menu.tiny, hint: c.tinyLabel, icon: 'tiny', checked: c.tiny, onSelect: () => (c.tiny ? unwater(c, date, stage) : void water(c, date, ringOf(c.id), stage, { tiny: true })) });
     }
+    // The number pad's menu way in (DESIGN §11.2: every long press has a button).
+    if (holdAction(c) === 'pad') items.push({ id: 'count', label: TODAY_COPY.menu.howMany, icon: 'drop', onSelect: () => setPadId(c.id) });
     if (c.restAllowed || c.rested) items.push({ id: 'rest', label: TODAY_COPY.menu.rest, icon: 'rest', checked: c.rested, onSelect: () => flipRest(c, date) });
     items.push({ id: 'note', label: c.note ? TODAY_COPY.menu.editNote : TODAY_COPY.menu.note, icon: 'note', onSelect: () => stage.addNote(c.id, date) });
     items.push({ id: 'details', label: TODAY_COPY.menu.details, icon: 'info', onSelect: () => openHabitDetail(c.id) });
@@ -191,56 +218,63 @@ export function TodayScreen() {
     <section class={cx(s.screen, past && s.past, compact && s.compact)} aria-labelledby="today-title">
       <Band ref={band} vm={bandVm} state={st} coins={st.wallet.coins} onOpenNote={() => notices.current?.openSill()} onWallet={() => setWalletOpen(true)} />
 
+      <WeekStrip days={vm.weekStrip} onSelect={(d: DateKey) => selectDay(d, t)} />
+
+      {/* Under the strip, so choosing a day never moves the strip under her finger. */}
       {vm.backdating && (
         <div class={s.pastBanner} role="status">
           <span class={s.pastText}>{backdatingBanner(vm.backdating.date)}</span>
-          <Button size="sm" variant="secondary" onClick={() => selectDay(null, t)}>
+          <Button variant="secondary" onClick={() => selectDay(null, t)}>
             {TODAY_LINES.backToToday}
           </Button>
         </div>
       )}
 
-      <WeekStrip days={vm.weekStrip} onSelect={(d: DateKey) => selectDay(d, t)} />
 
       <div class={s.content}>
-        {vm.clockBehind && <p class={s.notice}>{TODAY_LINES.clockBehind}</p>}
-        {vm.offDay.isOff && <p class={cx(s.notice, s.offNotice)}>{CHECKIN_TOASTS.offDay}</p>}
+        <div class={s.main}>
+          {vm.clockBehind && <p class={s.notice}>{TODAY_LINES.clockBehind}</p>}
+          {vm.offDay.isOff && <p class={cx(s.notice, s.offNotice)}>{CHECKIN_TOASTS.offDay}</p>}
 
-        {vm.empty ? (
-          <section class={s.empty} aria-labelledby="today-empty">
-            <div class={s.emptyArt} aria-hidden="true">
-              <CardPlant species="pothos" stage={0} pot="terracotta" size={112} />
-            </div>
-            <h2 class={s.emptyTitle} id="today-empty">
-              {EMPTY.today.slice(0, EMPTY.today.indexOf('.') + 1)}
-            </h2>
-            <p class={s.emptyText}>{EMPTY.today.slice(EMPTY.today.indexOf('.') + 2)}</p>
-            <Button icon="plus" size="lg" onClick={() => openHabitEditor()}>
-              {EMPTY.addHabit}
-            </Button>
-          </section>
-        ) : (
-          <>
-            {nothingOn && <p class={s.quiet}>{EMPTY.nothingOn}</p>}
-            {allResting && !vm.offDay.isOff && <p class={s.quiet}>{EMPTY.allResting}</p>}
-            <HabitList key={snap.current.key} groups={groups} paused={vm.paused} renderCard={renderCard} onOpenHabit={openHabitDetail} />
-          </>
-        )}
-
-        <Notices ref={notices} vm={vm} />
-
-        {!vm.empty && (
-          <div class={s.footer}>
-            <Button variant="secondary" icon="plus" onClick={() => openHabitEditor()}>
-              {TODAY_COPY.addHabit}
-            </Button>
-            {off.canToggle && (off.isOff || off.remaining > 0) && (
-              <div class={s.offDay}>
-                <Toggle checked={off.isOff} onChange={setOff} label={TODAY_LINES.takeTodayOff} tone="lavender" description={offUsed > 0 ? fillLine(TODAY_LINES.offDayAllowance, { count: offUsed }) : undefined} />
+          {vm.empty ? (
+            <section class={s.empty} aria-labelledby="today-empty">
+              <div class={s.emptyArt} aria-hidden="true">
+                <CardPlant species="pothos" stage={0} pot="terracotta" size={112} />
               </div>
-            )}
-          </div>
-        )}
+              <h2 class={s.emptyTitle} id="today-empty">
+                {EMPTY.today.slice(0, EMPTY.today.indexOf('.') + 1)}
+              </h2>
+              <p class={s.emptyText}>{EMPTY.today.slice(EMPTY.today.indexOf('.') + 2)}</p>
+              <Button icon="plus" size="lg" onClick={() => openHabitEditor()}>
+                {EMPTY.addHabit}
+              </Button>
+            </section>
+          ) : (
+            <>
+              {nothingOn && <p class={s.quiet}>{EMPTY.nothingOn}</p>}
+              {allResting && !vm.offDay.isOff && <p class={s.quiet}>{EMPTY.allResting}</p>}
+              <HabitList key={snap.current.key} groups={groups} paused={vm.paused} renderCard={renderCard} onOpenHabit={openHabitDetail} />
+            </>
+          )}
+        </div>
+
+        {/* What arrives on the sill: under the list on a phone, a rail beside it on a wide screen. */}
+        <div class={s.rail}>
+          <Notices ref={notices} vm={vm} />
+
+          {!vm.empty && (
+            <div class={s.footer}>
+              <Button variant="secondary" icon="plus" onClick={() => openHabitEditor()}>
+                {TODAY_COPY.addHabit}
+              </Button>
+              {off.canToggle && (off.isOff || off.remaining > 0) && (
+                <div class={s.offDay}>
+                  <Toggle checked={off.isOff} onChange={setOff} label={TODAY_LINES.takeTodayOff} tone="lavender" description={offUsed > 0 ? fillLine(TODAY_LINES.offDayAllowance, { count: offUsed }) : undefined} />
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       {menu && menuCard && (
@@ -260,8 +294,8 @@ export function TodayScreen() {
       <WalletSheet open={walletOpen} onClose={() => setWalletOpen(false)} />
       <ConfirmDialog
         open={offAsk}
-        title={TODAY_LINES.takeTodayOff}
-        message={TODAY_LINES.takeTodayOffConfirm}
+        title={offAskTitle}
+        message={offAskMessage}
         confirmLabel={TODAY_LINES.takeTodayOff}
         cancelLabel={TODAY_LINES.notNow}
         onCancel={() => setOffAsk(false)}

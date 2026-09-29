@@ -36,7 +36,7 @@ export interface NoticesHandle {
  */
 const offerLatch = signal<{ day: DateKey; offer: CompanionOfferVM } | null>(null);
 
-function Notice({ art, title, children, actions, tone }: { art?: ComponentChildren; title: string; children?: ComponentChildren; actions?: ComponentChildren; tone?: 'butter' | 'lavender' | 'blush' | 'sage' }) {
+function Notice({ art, title, children, actions, below, tone }: { art?: ComponentChildren; title: string; children?: ComponentChildren; actions?: ComponentChildren; below?: ComponentChildren; tone?: 'butter' | 'lavender' | 'blush' | 'sage' }) {
   return (
     <section class={s.notice} data-tone={tone} aria-label={title}>
       {art && (
@@ -49,6 +49,7 @@ function Notice({ art, title, children, actions, tone }: { art?: ComponentChildr
         {children}
         {actions && <div class={s.actions}>{actions}</div>}
       </div>
+      {below && <div class={s.below}>{below}</div>}
     </section>
   );
 }
@@ -100,7 +101,7 @@ export const Notices = forwardRef(function Notices({ vm }: { vm: TodayVM }, ref:
           title={TODAY_LINES.letterWaiting[vm.letterWaiting.kind]}
           tone="butter"
           actions={
-            <Button size="sm" onClick={() => setLetter(vm.letterWaiting!.id)}>
+            <Button onClick={() => setLetter(vm.letterWaiting!.id)}>
               {TODAY_COPY.read}
             </Button>
           }
@@ -113,7 +114,7 @@ export const Notices = forwardRef(function Notices({ vm }: { vm: TodayVM }, ref:
           title={fillLine(TODAY_LINES.storyWaiting, { habit: storyHabit.name })}
           tone="blush"
           actions={
-            <Button size="sm" onClick={() => setStory(vm.storyWaiting)}>
+            <Button onClick={() => setStory(vm.storyWaiting)}>
               {TODAY_COPY.read}
             </Button>
           }
@@ -121,31 +122,38 @@ export const Notices = forwardRef(function Notices({ vm }: { vm: TodayVM }, ref:
       )}
 
       {offer && offerPet && freeHabits.length > 0 && (
-        <Notice art={<CollectibleArt id={offer.petId} size={64} />} title={fillLine(COMPANION.reveal.find, { name: offerPet.name })} tone="blush">
-          <div class={s.chips} role="group" aria-label={fillLine(TODAY_COPY.pickPlant, { name: offerPet.name })}>
-            {freeHabits.map((h) => (
-              <button key={h.id} type="button" class={s.chip} onClick={() => pair(h.id, false)}>
-                {h.name}
-              </button>
-            ))}
-          </div>
-          <div class={s.actions}>
-            {offer.suggested && (
-              <Button size="sm" onClick={() => pair(offer.suggested!, true)}>
-                {fillLine(COMPANION.reveal.choose, { name: offerPet.name })}
-              </Button>
-            )}
-            <Button
-              size="sm"
-              variant="quiet"
-              onClick={() => {
-                declineCompanionOffer();
-                closeOffer();
-              }}
-            >
-              {COMPANION.reveal.notNow}
-            </Button>
-          </div>
+        <Notice
+          art={<CollectibleArt id={offer.petId} size={64} />}
+          title={fillLine(COMPANION.reveal.find, { name: offerPet.name })}
+          tone="blush"
+          below={
+            <>
+              <div class={s.chips} role="group" aria-label={fillLine(TODAY_COPY.pickPlant, { name: offerPet.name })}>
+                {freeHabits.map((h) => (
+                  <button key={h.id} type="button" class={s.chip} onClick={() => pair(h.id, false)}>
+                    {h.name}
+                  </button>
+                ))}
+              </div>
+              <div class={s.actions}>
+                {offer.suggested && (
+                  <Button onClick={() => pair(offer.suggested!, true)}>
+                    {fillLine(COMPANION.reveal.choose, { name: offerPet.name })}
+                  </Button>
+                )}
+                <Button
+                  variant="quiet"
+                  onClick={() => {
+                    declineCompanionOffer();
+                    closeOffer();
+                  }}
+                >
+                  {COMPANION.reveal.notNow}
+                </Button>
+              </div>
+            </>
+          }
+        >
         </Notice>
       )}
 
@@ -165,7 +173,7 @@ export const Notices = forwardRef(function Notices({ vm }: { vm: TodayVM }, ref:
         st.pets[c.petId] ? (
           <Notice key={c.petId} art={<CollectibleArt id={c.petId} size={56} />} title={fillLine(plural(c.years, CAME_HOME.pet), { name: st.pets[c.petId]!.name, years: c.years })} tone="sage">
             <div class={s.actions}>
-              <Button size="sm" variant="secondary" onClick={() => openPetCard(c.petId)}>
+              <Button variant="secondary" onClick={() => openPetCard(c.petId)}>
                 {fillLine(PET_CARD.nameTag, { name: st.pets[c.petId]!.name })}
               </Button>
             </div>
@@ -179,7 +187,7 @@ export const Notices = forwardRef(function Notices({ vm }: { vm: TodayVM }, ref:
           title={TODAY_LINES.firstCapsuleWaiting}
           tone="butter"
           actions={
-            <Button size="sm" onClick={() => navigate('capsules')}>
+            <Button onClick={() => navigate('capsules')}>
               {TODAY_COPY.toCapsules}
             </Button>
           }

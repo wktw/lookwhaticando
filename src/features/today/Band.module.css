@@ -136,7 +136,7 @@
   align-items: center;
   gap: 6px;
   min-width: 44px;
-  height: 40px;
+  height: 44px;
   margin: 0;
   padding: 0 14px 0 10px;
   border: 0;
@@ -166,8 +166,11 @@
   min-width: 2ch;
 }
 
-.wallet:not(:has(.walletNum)) {
-  padding: 0 10px;
+/* On a Mac or PC the sidebar carries the wallet; the jar on the sill still takes the coins. */
+@media (min-width: 900px) {
+  .wallet {
+    display: none;
+  }
 }
 
 /* The vine chip on the sill ledge ("3 of 5 · +18 coins"). */

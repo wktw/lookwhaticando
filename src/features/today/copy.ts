@@ -17,7 +17,7 @@ export const TODAY_COPY = {
   week: 'The last 7 days',
   /** The ⋯ menu (DESIGN §9.1): Tiny version · Rest day · Add note · Details · Edit. */
   more: 'More for {habit}',
-  menu: { tiny: 'Tiny version', rest: 'Rest day', note: 'Add a note', editNote: 'Edit the note', details: 'Details', edit: 'Edit' },
+  menu: { tiny: 'Tiny version', howMany: 'How many…', rest: 'Rest day', note: 'Add a note', editNote: 'Edit the note', details: 'Details', edit: 'Edit' },
   /** A count habit's inline stepper and number pad. */
   howMany: 'How many for {habit}',
   pad: { done: 'Done', tiny: 'Tiny version' },

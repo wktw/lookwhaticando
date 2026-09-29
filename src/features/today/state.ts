@@ -87,3 +87,13 @@ export function liveGroups(snapshot: readonly GroupSnapshot[], byId: ReadonlyMap
 export function orderedIds(groups: readonly { cards: readonly HabitCardVM[] }[]): string[] {
   return groups.flatMap((g) => g.cards.map((c) => c.id));
 }
+
+/**
+ * The band's pot order, taken with the snapshot: the cards still to water first (in the list's order,
+ * so the current block leads), then the rest. The band shows the first six, so most taps pour onto
+ * a pot that is on the sill.
+ */
+export function bandOrder(groups: readonly { folded: boolean; cards: readonly HabitCardVM[] }[]): string[] {
+  const all = groups.flatMap((g) => g.cards.map((c) => ({ id: c.id, later: g.folded || cardSettled(c) })));
+  return [...all.filter((c) => !c.later), ...all.filter((c) => c.later)].map((c) => c.id);
+}
