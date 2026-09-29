@@ -28,8 +28,8 @@ Branch `m1/build`. It covers the build findings of the M1 triage. The requests b
    - It also sets `KNOWN_OVERAGE = null` in `scripts/size-budget.mjs`, so the 150 KB gate is strict from then on.
 
    Measured on this branch, the first-paint JavaScript is 301 KB gzipped without the patch and 94.8 KB with it. The
-   entry, pet-crescents and art-shade chunks all leave the modulepreload set. Tests pass with the patch applied: fx
-   62/62 and tsc 0. Until the patch lands, the gate allows up to 320 KB. After it lands, the gate fails if
+   entry, pet-crescents and art-shade chunks all leave the modulepreload set. Tests pass with the patch applied: tests/unit/fx
+   62/62, tests/unit/fx plus tests/unit/build 71/71, and tsc 0. Until the patch lands, the gate allows up to 320 KB. After it lands, the gate fails if
    `KNOWN_OVERAGE` has not been removed.
 2. **src/styles/fonts.css and tokens.css (ui): metric-matched fallbacks.** The preloads are already in the build. To stop
    the swap from moving the layout, add fallback faces that are sized to match. I measured these in Chromium against

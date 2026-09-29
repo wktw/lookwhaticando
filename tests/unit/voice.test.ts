@@ -257,19 +257,25 @@ function lint(text: string, opts: { prose?: boolean; pronouns?: RegExp | null } 
 /** CSS functions: a value like `var(--ink, #3B3236)` or `color-mix(in srgb, …)` is styling, not copy. */
 const CSS_VALUE = /^(var|color-mix|calc|min|max|clamp|rgba?|hsla?|oklch|url|(repeating-)?(linear|radial|conic)-gradient|cubic-bezier|steps|translate(3d|[XYZ])?|rotate|scale|matrix)\(/i;
 
+/** A CSS selector: `.cls`, `#id`, `.a:hover`, `.a > .b` (never a sentence fragment like `. Open the lineup.`). */
+const CSS_SELECTOR = /^[.#][A-Za-z_-][\w-]*(?=$|[\s:[{,>.#+~()])(?!.*(?:[!?]|[.,]\s+[A-Za-z]))/;
+
 /**
  * Ids, keys, CSS and colours are data, not copy: only the emoji checks apply to them. Data is:
- * a hex colour; a CSS value, selector or block (`var(`, `color-mix(`, `.cls`, `#id`, `{ …; }`);
- * a dotted key (`wallet.stardust`); anything with a camelCase word (`addDays offset`), since copy
- * never has one (`iPhone` and `macOS` are not camelCase by this rule).
+ * a hex colour; a hash route (`#/today`); a CSS value, selector or block (`var(`, `color-mix(`,
+ * `.cls`, `#id`, `{ …; }`); a dotted key (`wallet.stardust`); anything with a camelCase word
+ * (`addDays offset`), since copy never has one (`iPhone` and `macOS` are not camelCase by this rule).
+ * Copy slots (`{userName}`, `{Plant}`) are read as plain words first, so a slotted line is copy.
  */
 export function isProse(s: string): boolean {
   const t = s.trim();
   if (!/[A-Za-z]/.test(t)) return false;
-  if (CSS_VALUE.test(t) || /^[#.]/.test(t)) return false;
-  if (t.includes('{') && t.includes(';')) return false;
+  if (/^#[0-9a-f]{3,8}$/i.test(t) || /^#\//.test(t)) return false;
+  if (CSS_VALUE.test(t) || CSS_SELECTOR.test(t)) return false;
+  const bare = t.replace(/\{\w+\}/g, 'X');
+  if (bare.includes('{') && bare.includes(';')) return false;
   if (/^[a-z][\w-]*(\.[\w-]+)+$/i.test(t)) return false;
-  if (/\b[a-z]{2,}[A-Z][a-z]/.test(t)) return false;
+  if (/\b[a-z]{2,}[A-Z][a-z]/.test(bare)) return false;
   if (/^[MmLlHhVvCcSsQqTtAaZz0-9.,\s-]+$/.test(t) && /\d/.test(t)) return false; // SVG path data
   return /\s/.test(t) || /^[A-Z]/.test(t) || /[’'!?.,]/.test(t);
 }
@@ -544,12 +550,29 @@ describe('voice lint (DESIGN §12)', () => {
       '#/today',
       'wallet.stardust',
       'addDays offset',
+      '.a:hover',
+      '.cabinet > .glass',
       'translate(12px, 4px) rotate(3deg)',
     ])
       expect(isProse(data), data).toBe(false);
-    for (const copy of ['Walk, watered.', 'Put a coin in', 'Keep catkin on your iPhone', 'Works on macOS and iPadOS too', 'Water', '4 more waterings to Blooming'])
+    for (const copy of [
+      'Walk, watered.',
+      'Put a coin in',
+      'Keep catkin on your iPhone',
+      'Works on macOS and iPadOS too',
+      'Water',
+      '4 more waterings to Blooming',
+      // slotted lines and fragments after an interpolation are copy
+      'Happy birthday, {userName}.',
+      '{Plant} {stageEvent} on {weekday}.',
+      '. Open the lineup.',
+      'Morning, {userName}; the lamp’s still on.',
+    ])
       expect(isProse(copy), copy).toBe(true);
     expect(lint('var(--lavender-300, #DDD4F1)', { prose: isProse('var(--lavender-300, #DDD4F1)') })).toEqual([]);
+    // the data rules must not hide copy from the lint
+    for (const text of ['Great job, {userName}!', '. Keep up the streak!', "Morning, {userName}. Don't break your streak!", '{name} missed a day; {Plant} {stageEvent}.'])
+      expect(lint(text, { prose: isProse(text) }), text).not.toEqual([]);
   });
 
   it('every quoted line in docs/VOICE.md follows the voice', () => {
