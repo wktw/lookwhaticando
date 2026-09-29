@@ -169,10 +169,17 @@
   min-height: 1800px;
 }
 
-/* Below the fold: laid out and painted when scrolled near (a first paint that stays quick). */
+/* Below the fold (rendered a frame after the rest). */
 .later {
-  content-visibility: auto;
-  contain-intrinsic-size: auto 480px;
+  animation: later-in var(--t-std) var(--ease-out);
+}
+@keyframes later-in {
+  from {
+    opacity: 0;
+  }
+}
+:global(html[data-motion='reduced']) .later {
+  animation: none;
 }
 
 .sectionHead {
@@ -622,4 +629,10 @@
     width: 112px;
     height: 112px;
   }
+}
+
+.emptyTitle {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 400;
 }

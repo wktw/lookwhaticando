@@ -18,7 +18,7 @@ import { openHabitEditor } from '@/features/habits/open';
 import { ritualRequest } from '@/features/rituals/open';
 import { PlantArt } from '@/art/plants';
 import { Button } from '@/ui/Button';
-import { EmptyState } from '@/ui/EmptyState';
+import es from '@/ui/EmptyState.module.css';
 import { cx } from '@/ui/cx';
 import { Calendar } from './Calendar';
 import { Hero, RecentMonths } from './Hero';
@@ -122,11 +122,16 @@ export function ProgressScreen() {
       </header>
 
       {!hasHabits ? (
-        <EmptyState
-          title={EMPTY.progress}
-          art={<PlantArt species="pothos" stage={0} pot="terracotta" fit="icon" withPot size={104} animated={false} />}
-          action={<Button onClick={() => openHabitEditor()}>{EMPTY.addHabit}</Button>}
-        />
+        // The kit's empty state, with its line as a sentence rather than a heading (h1 → h3 would skip a level).
+        <div class={es.empty} data-empty="progress">
+          <div class={es.tile} aria-hidden="true">
+            <PlantArt species="pothos" stage={0} pot="terracotta" fit="icon" withPot size={104} animated={false} />
+          </div>
+          <p class={cx(es.title, s.emptyTitle)}>{EMPTY.progress}</p>
+          <div class={es.action}>
+            <Button onClick={() => openHabitEditor()}>{EMPTY.addHabit}</Button>
+          </div>
+        </div>
       ) : (
         <>
           <Hero vm={vm} />
