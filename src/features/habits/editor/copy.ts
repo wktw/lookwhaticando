@@ -25,6 +25,8 @@ export const EDITOR_COPY = {
   every: 'Every',
   days: 'Which days',
   follow: 'Or follow a habit',
+  /** Under the chips once one is picked: a follower sorts after its habit on Today, whatever the arrangement in You. */
+  followHelp: 'On Today, it comes just after {habit}.',
   tinyCount: 'Tiny amount',
   seasonHelp: 'Until {date}, then it goes to the balcony shelf with a ribbon.',
   whyPlaceholder: 'A line, just for you',

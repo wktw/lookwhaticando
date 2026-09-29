@@ -372,6 +372,9 @@ export function HabitEditor({ vm, onDone, formId, onDirty }: HabitEditorProps) {
                 onChange={(id) => set({ anchorHabitId: form.anchorHabitId === id ? undefined : id })}
                 options={followTiles}
               />
+              {form.anchorHabitId && followTiles.some((t) => t.value === form.anchorHabitId) && (
+                <p class={s.fieldHelp}>{fillLine(EDITOR_COPY.followHelp, { habit: followTiles.find((t) => t.value === form.anchorHabitId)!.label })}</p>
+              )}
             </>
           )}
         </Section>
