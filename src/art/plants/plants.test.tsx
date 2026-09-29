@@ -521,3 +521,20 @@ describe('PlantTag', () => {
     inspect(<PlantTag name="Read" size={22} />, (host) => expect((host.firstElementChild as HTMLElement).style.getPropertyValue('--tag-size')).toBe('22px'));
   });
 });
+
+describe('composed plants are remembered (NOTES-w2-today request 10)', () => {
+  it('the same plant twice in one tree, and again after a remount, draws the same', () => {
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    const one = (key: string) => <PlantArt key={key} species="monstera" stage={5} progress={0.4} pot="terracotta" size={64} seed="s" />;
+    render(<div>{one('a')}{one('b')}</div>, host);
+    const [a, b] = [...host.querySelectorAll('svg')].map((s) => s.innerHTML.replace(/plant-\d+/g, 'plant-N'));
+    expect(a).toBeTruthy();
+    expect(b).toBe(a);
+    render(null, host);
+    render(<div>{one('c')}</div>, host);
+    expect(host.querySelector('svg')!.innerHTML.replace(/plant-\d+/g, 'plant-N')).toBe(a);
+    render(null, host);
+    host.remove();
+  });
+});
