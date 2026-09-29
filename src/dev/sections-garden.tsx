@@ -73,7 +73,7 @@ const PROGRESS = [0, 0.5, 0.95];
 function ProgressDemo({ params }: { params: URLSearchParams }) {
   const pot = potFrom(params);
   return (
-    <div style={matrixStyle(7, 190)}>
+    <div style={matrixStyle(7, 168)}>
       <span />
       {STAGES.slice(0, 7).map((s) => (
         <small key={s} style={{ ...label, textAlign: 'center' }}>
@@ -88,7 +88,7 @@ function ProgressDemo({ params }: { params: URLSearchParams }) {
           {STAGES.slice(0, 7).map((s) => (
             <div key={`${sp}${s}`} style={{ ...tile, display: 'flex', justifyContent: 'center', padding: '2px' }}>
               {PROGRESS.map((p) => (
-                <PlantArt key={p} species={sp} stage={s} progress={p} pot={pot} size={62} />
+                <PlantArt key={p} species={sp} stage={s} progress={p} pot={pot} size={54} />
               ))}
             </div>
           ))}
@@ -100,13 +100,14 @@ function ProgressDemo({ params }: { params: URLSearchParams }) {
 
 function BloomsDemo({ params }: { params: URLSearchParams }) {
   const pot = potFrom(params, 'cream');
+  const size = Number(params.get('size')) || 104;
   return (
-    <div class="gal-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))' }}>
+    <div class="gal-grid" style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${size * 3 + 28}px, 1fr))` }}>
       {speciesFrom(params).map((sp) => (
         <div class="gal-cell" key={sp}>
           <div class="gal-row" style={{ gap: '4px' }}>
             {[0, 3, 6].map((b) => (
-              <PlantArt key={b} species={sp} stage={7} blooms={b} pot={pot} size={104} animated />
+              <PlantArt key={b} species={sp} stage={7} blooms={b} pot={pot} size={size} animated />
             ))}
           </div>
           <b>{speciesName(sp)}</b>
@@ -192,7 +193,7 @@ function WaterDemo() {
       >
         Water them ({pulse})
       </button>
-      <div class="gal-row">
+      <div class="gal-row" style={{ width: '100%' }}>
         {(['tulip', 'sunflower', 'succulent', 'lemon', 'mushroom'] as PlantSpeciesId[]).map((sp, i) => (
           <PlantArt key={sp} species={sp} stage={i + 3} pot={POT_IDS[i]!} size={140} pulse={pulse} animated />
         ))}

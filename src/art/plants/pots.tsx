@@ -199,7 +199,7 @@ const starlight: PotArtDef = {
     <Classic
       uid={uid}
       sw={sw}
-      body="#9B8FE0"
+      body="#A396E6"
       rim="#FFDC73"
       pattern={
         <g>
@@ -366,13 +366,12 @@ const pumpkin: PotArtDef = {
   ),
 };
 
-const HEART = 'M50 70.6 C46.2 64.4 39.6 62 33.6 63.2 C27.2 64.4 24.8 70.4 26 76 C27.6 84 38.4 89.2 50 94.6 C61.6 89.2 72.4 84 74 76 C75.2 70.4 72.8 64.4 66.4 63.2 C60.4 62 53.8 64.4 50 70.6 Z';
+const HEART = 'M50 70.6 C46.2 64.4 39.6 62 33.6 63.2 C27.2 64.4 24.8 70.4 26 76 C27.6 84 38 89 46 93.8 Q50 96.2 54 93.8 C62 89 72.4 84 74 76 C75.2 70.4 72.8 64.4 66.4 63.2 C60.4 62 53.8 64.4 50 70.6 Z';
 
 const heart: PotArtDef = {
   charm: { x: 70.5, y: 72 },
   render: (uid, sw) => (
     <g stroke-linejoin="round" stroke-linecap="round">
-      <path d="M43 92.4 L57 92.4 L58.4 95.4 Q58.6 96.6 57.4 96.6 L42.6 96.6 Q41.4 96.6 41.6 95.4 Z" fill="#F58CAA" stroke={OUTLINE} stroke-width={sw} />
       <path d={HEART} fill="#FFB3C7" />
       <clipPath id={`${uid}-heart`}>
         <path d={HEART} />

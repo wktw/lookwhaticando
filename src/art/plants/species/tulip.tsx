@@ -13,7 +13,7 @@ const BUTTER = '#FFE08A';
 const ROSE = '#FB98B4';
 
 /** A tulip cup: two side petals and a lighter front petal, based at (x, y). */
-export function TulipCup({ x, y, s = 1, rot = 0, color }: { x: number; y: number; s?: number; rot?: number; color: string }) {
+function TulipCup({ x, y, s = 1, rot = 0, color }: { x: number; y: number; s?: number; rot?: number; color: string }) {
   const a = 7.8;
   const h = 14.5;
   const cup = `M${-a} ${-h} C${f(-a * 1.2)} ${f(-h * 0.3)} ${f(-a * 0.7)} 0 0 0 C${f(a * 0.7)} 0 ${f(a * 1.2)} ${f(-h * 0.3)} ${a} ${-h} Q${f(a * 0.6)} ${f(-h * 0.74)} ${f(a * 0.36)} ${f(-h * 0.68)} Q${f(a * 0.26)} ${f(-h * 1.02)} 0 ${f(-h * 1.12)} Q${f(-a * 0.26)} ${f(-h * 1.02)} ${f(-a * 0.36)} ${f(-h * 0.68)} Q${f(-a * 0.6)} ${f(-h * 0.74)} ${-a} ${-h} Z`;
@@ -28,7 +28,7 @@ export function TulipCup({ x, y, s = 1, rot = 0, color }: { x: number; y: number
 }
 
 /** A closed bud: green sepals hug a pink bud and slip down as it ripens (`k` 0 → 1). */
-export function TulipBud({ x, y, s = 1, rot = 0, k }: { x: number; y: number; s?: number; rot?: number; k: number }) {
+function TulipBud({ x, y, s = 1, rot = 0, k }: { x: number; y: number; s?: number; rot?: number; k: number }) {
   const a = 5;
   const h = 12.5;
   const sh = h * lerp(0.9, 0.42, k);

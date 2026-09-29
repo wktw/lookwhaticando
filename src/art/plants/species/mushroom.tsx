@@ -100,10 +100,10 @@ interface Patch {
 const EXTRA: Shroom[] = [
   { x: 41, h: 9, r: 4.4, cap: TAN, spots: 2 },
   { x: 59.5, h: 8.6, r: 4.2, cap: PEACH, spots: 2 },
-  { x: 16, h: 7.6, r: 4.4, cap: HERO, spots: 2 },
-  { x: 84, h: 7.2, r: 4.2, cap: HERO, spots: 2 },
-  { x: 28, h: 17, r: 4, cap: PEACH },
-  { x: 72.5, h: 15, r: 4, cap: TAN },
+  { x: 30, h: 8, r: 4.2, cap: HERO, spots: 2 },
+  { x: 70.5, h: 7.6, r: 4, cap: HERO, spots: 2 },
+  { x: 43.5, h: 22, r: 3.8, cap: PEACH },
+  { x: 57, h: 19, r: 3.8, cap: TAN },
 ];
 
 function patch(g: Growth): Patch {
@@ -168,7 +168,8 @@ function patch(g: Growth): Patch {
           { x: 26, h: 9, r: 5.2, cap: TAN },
           { x: 34, h: 20, r: 9.2, cap: PEACH, spots: 3 },
           { x: 66.5, h: 17, r: 8.8, cap: LILAC, spots: 2 },
-          { x: 50, h: 33, r: 14.6, cap: HERO, spots: 5, face: true },
+          ...(p >= 0.5 ? [{ x: 59, h: 8, r: 4, cap: HERO, spots: 1, button: true }] : []),
+          { x: 50, h: lerp(31, 34, p), r: 14.6, cap: HERO, spots: 5, face: true },
         ],
         moss: 1.1,
         clover: true,

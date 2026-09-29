@@ -93,7 +93,7 @@ export const succulent: PlantSpeciesArt = {
         ),
       };
     }
-    const s = g.stage === 2 ? lerp(0.74, 0.88, p) : [0, 0, 0, lerp(1, 1.12, p), lerp(1.16, 1.22, p), 1.26, 1.32, 1.38][g.stage]!;
+    const s = g.stage === 2 ? lerp(0.74, 0.88, p) : [0, 0, 0, lerp(1, 1.12, p), lerp(1.16, 1.22, p), lerp(1.24, 1.28, p), lerp(1.3, 1.35, p), 1.38][g.stage]!;
     const { list, open } = stalks(g);
     const flowers = list.flatMap((st, i) => st.at.map(([x, y], j) => ({ x, y, open: i < open && j < 2 + (g.stage >= 6 ? 1 : 0) })));
     const extra = EXTRA.slice(0, g.blooms).map(([x, y]) => ({ x, y, open: true }));
@@ -113,7 +113,7 @@ export const succulent: PlantSpeciesArt = {
       front: (
         <g>
           {g.stage >= 6 && <Rosette x={25} y={64.5} s={0.66} pup />}
-          {g.stage >= 7 && <Rosette x={75.5} y={64.8} s={0.7} pup />}
+          {(g.stage >= 7 || (g.stage === 6 && p >= 0.6)) && <Rosette x={75.5} y={64.8} s={g.stage >= 7 ? 0.7 : 0.56} pup />}
           <Rosette x={50} y={58.5} s={s} />
         </g>
       ),

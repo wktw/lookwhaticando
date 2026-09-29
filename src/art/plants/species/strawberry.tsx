@@ -22,7 +22,7 @@ function Trifoliate({ x, y, rot, s = 1, fill = GREEN.leaf }: { x: number; y: num
 }
 
 /** A strawberry hanging from (x, y); `ripe` blends it from white-green to berry pink-red. */
-export function Berry({ x, y, s = 1, rot = 0, ripe = 1 }: { x: number; y: number; s?: number; rot?: number; ripe?: number }) {
+function Berry({ x, y, s = 1, rot = 0, ripe = 1 }: { x: number; y: number; s?: number; rot?: number; ripe?: number }) {
   const line = f(FINE / s);
   return (
     <g transform={`translate(${f(x)} ${f(y)}) rotate(${f(rot)}) scale(${f(s)})`} stroke={OUTLINE} stroke-linejoin="round" stroke-linecap="round">

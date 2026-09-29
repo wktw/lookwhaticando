@@ -11,7 +11,7 @@ const LEMON = '#FFE066';
 const UNRIPE = '#C9E79C';
 
 /** A plump lemon with little nubs at both ends; `ripe` goes from green to sunny yellow. */
-export function Lemon({ x, y, s = 1, rot = 0, ripe = 1 }: { x: number; y: number; s?: number; rot?: number; ripe?: number }) {
+function Lemon({ x, y, s = 1, rot = 0, ripe = 1 }: { x: number; y: number; s?: number; rot?: number; ripe?: number }) {
   return (
     <g transform={`translate(${f(x)} ${f(y)}) rotate(${f(rot)}) scale(${f(s)})`} stroke={OUTLINE} stroke-linejoin="round" stroke-linecap="round">
       <path
@@ -102,7 +102,7 @@ function tree(g: Growth): Tree {
     case 6:
       return {
         top: 27,
-        R: 19,
+        R: lerp(18.6, 19.6, p),
         buds: [],
         blossoms: [
           [40, 20],
@@ -113,6 +113,7 @@ function tree(g: Growth): Tree {
           [44, 36, 0.95, -12],
           [62, 32, 1, 10],
           [53, 22, 0.85, 4],
+          ...(p >= 0.5 ? [[35, 42, 0.8, -8, 0.5] as Tree['lemons'][number]] : []),
         ],
       };
     default:

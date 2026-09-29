@@ -3,7 +3,6 @@
  * Everything lives on the pets' 100×100 canvas and speaks the same outline language
  * (cocoa outline, round joins, pastel fills, one soft top-left highlight).
  */
-import type { JSX } from 'preact';
 import { OUTLINE, STROKE } from '../pets/geometry';
 import { f } from './math';
 
@@ -11,11 +10,8 @@ export { OUTLINE, STROKE };
 /** Outline for small parts (leaves, petals, thin stems), matching the pets' sprout and bows. */
 export const FINE = 2;
 
-/** Stems start here, tucked under the soil mound. */
-export const BASE_X = 50;
+/** Stems start here, tucked under the soil mound (which peaks at y≈60.5). */
 export const BASE_Y = 64;
-/** Peak of the soil mound. */
-export const SOIL_Y = 60.5;
 
 export const GREEN = {
   leaf: '#9CCB86',
@@ -91,18 +87,16 @@ export function Leaf({ x, y, rot, L, W, shape = 'oval', bend = 0, fill = GREEN.l
 /* ------------------------------------------------------------------ */
 
 /**
- * Stems as doubled strokes (outline underneath, color on top). All outlines are drawn
- * first, so branching stems merge into one clean shape.
+ * Stems as doubled strokes (outline underneath, color on top). All stems share one outline path
+ * and one color path, so branching stems merge into one clean shape and the DOM stays small.
  */
 export function Stems({ paths, w = 2.6, color = GREEN.stem, line = FINE }: { paths: string[]; w?: number; color?: string; line?: number }) {
+  if (!paths.length) return null;
+  const d = paths.join(' ');
   return (
     <g fill="none" stroke-linecap="round" stroke-linejoin="round">
-      {paths.map((d, i) => (
-        <path key={`o${i}`} d={d} stroke={OUTLINE} stroke-width={w + line * 2} />
-      ))}
-      {paths.map((d, i) => (
-        <path key={`c${i}`} d={d} stroke={color} stroke-width={w} />
-      ))}
+      <path d={d} stroke={OUTLINE} stroke-width={w + line * 2} />
+      <path d={d} stroke={color} stroke-width={w} />
     </g>
   );
 }
@@ -115,20 +109,16 @@ export function stemD(x0: number, x: number, y: number, curl = 0): string {
 
 export type Circle = readonly [cx: number, cy: number, r: number];
 
-/** A soft union of circles with a single outer outline (canopies, moss, clouds, whipped cream). */
+/** A circle as a path (two arcs), so many circles can share one <path>. */
+export const circleD = (cx: number, cy: number, r: number) =>
+  `M${f(cx - r)} ${f(cy)} a${f(r)} ${f(r)} 0 1 0 ${f(r * 2)} 0 a${f(r)} ${f(r)} 0 1 0 ${f(-r * 2)} 0 Z`;
+
+/** A soft union of circles with a single outer outline (canopies, moss, clouds, whipped cream). Two elements total. */
 export function Blob({ circles, fill, line = STROKE }: { circles: readonly Circle[]; fill: string; line?: number }) {
   return (
     <g>
-      <g fill={OUTLINE}>
-        {circles.map(([x, y, r], i) => (
-          <circle key={i} cx={f(x)} cy={f(y)} r={f(r + line)} />
-        ))}
-      </g>
-      <g fill={fill}>
-        {circles.map(([x, y, r], i) => (
-          <circle key={i} cx={f(x)} cy={f(y)} r={f(r)} />
-        ))}
-      </g>
+      {line > 0 && <path d={circles.map(([x, y, r]) => circleD(x, y, r + line)).join(' ')} fill={OUTLINE} />}
+      <path d={circles.map(([x, y, r]) => circleD(x, y, r)).join(' ')} fill={fill} />
     </g>
   );
 }
@@ -138,7 +128,10 @@ export interface Shape {
   transform?: string;
 }
 
-/** Any set of paths merged into one silhouette with a single outer outline. */
+/**
+ * Any set of paths merged into one silhouette with a single outer outline. Shapes stay separate
+ * elements so mixed winding directions can never punch holes in the union.
+ */
 export function Merged({ shapes, fill, line = FINE }: { shapes: readonly Shape[]; fill: string; line?: number }) {
   return (
     <g stroke-linejoin="round">
@@ -211,12 +204,30 @@ export function PetalRing({
   line?: number;
 }) {
   const len = r - inner;
-  const d = shape === 'round' ? `M0 0 C${f(width * 1.4)} 0 ${f(width * 1.4)} ${f(-len)} 0 ${f(-len)} C${f(-width * 1.4)} ${f(-len)} ${f(-width * 1.4)} 0 0 0 Z` : leafD(shape, len, width);
-  const shapes = Array.from({ length: n }, (_, i) => ({
-    d,
-    transform: `translate(${f(x)} ${f(y)}) rotate(${f(rot + (360 / n) * i)}) translate(0 ${f(-inner)})`,
-  }));
-  return <Merged shapes={shapes} fill={fill} line={line} />;
+  const petal = shape === 'round' ? `M0 0 C${f(width * 1.4)} 0 ${f(width * 1.4)} ${f(-len)} 0 ${f(-len)} C${f(-width * 1.4)} ${f(-len)} ${f(-width * 1.4)} 0 0 0 Z` : leafD(shape, len, width);
+  // Every petal is the same shape turned around the center, so they all share one path per layer.
+  const d = Array.from({ length: n }, (_, i) => {
+    const a = ((rot + (360 / n) * i) * Math.PI) / 180;
+    const cos = Math.cos(a);
+    const sin = Math.sin(a);
+    return mapPoints(petal, (px, py) => [x + px * cos - (py - inner) * sin, y + px * sin + (py - inner) * cos]);
+  }).join(' ');
+  return (
+    <g stroke-linejoin="round">
+      <path d={d} fill={OUTLINE} stroke={OUTLINE} stroke-width={line * 2} />
+      <path d={d} fill={fill} />
+    </g>
+  );
+}
+
+const POINT = /(-?\d*\.?\d+(?:e[-+]?\d+)?)[ ,]+(-?\d*\.?\d+(?:e[-+]?\d+)?)/g;
+
+/** Maps every point of a path written with absolute M/L/C/Q/Z commands. */
+function mapPoints(d: string, fn: (x: number, y: number) => [number, number]): string {
+  return d.replace(POINT, (_, x: string, y: string) => {
+    const [px, py] = fn(Number(x), Number(y));
+    return `${f(px)} ${f(py)}`;
+  });
 }
 
 /** Round-petalled blossom (sakura, strawberry, lemon) as one merged silhouette. */
@@ -266,13 +277,4 @@ export function Sparkle({ x, y, s = 1, fill = '#FFE593', cls }: { x: number; y: 
 /** Soft white highlight stroke (the "one top-left highlight" of the style guide). */
 export function Shine({ d, w = 1.6, opacity = 0.75 }: { d: string; w?: number; opacity?: number }) {
   return <path d={d} fill="none" stroke="#fff" stroke-width={w} stroke-linecap="round" opacity={opacity} />;
-}
-
-/** Groups children with a shared fine outline. */
-export function Lined({ children, line = FINE }: { children: JSX.Element | (JSX.Element | null | false)[]; line?: number }) {
-  return (
-    <g stroke={OUTLINE} stroke-width={line} stroke-linejoin="round" stroke-linecap="round">
-      {children}
-    </g>
-  );
 }

@@ -9,7 +9,7 @@ const CENTER = '#B98A6E';
 const STEM = '#8EC07C';
 
 /** A sunflower head with a sleepy-happy face on its seed disc (always facing the bright side). */
-export function SunHead({ x, y, r, face = true }: { x: number; y: number; r: number; face?: boolean }) {
+function SunHead({ x, y, r, face = true }: { x: number; y: number; r: number; face?: boolean }) {
   const c = r * 0.46;
   return (
     <g>

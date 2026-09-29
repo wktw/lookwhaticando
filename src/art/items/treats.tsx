@@ -6,7 +6,7 @@
 import type { JSX } from 'preact';
 import type { ItemRenderer } from './types';
 import { OUTLINE, STROKE } from '../pets/geometry';
-import { Blob, Merged, SPARKLE_D, leafD, type Circle } from '../plants/parts';
+import { Blob, Merged, SPARKLE_D, circleD, leafD, type Circle } from '../plants/parts';
 import { f } from '../plants/math';
 
 const FINE = 2;
@@ -99,8 +99,6 @@ function Calyx({ x, y, s = 1 }: { x: number; y: number; s?: number }) {
     </g>
   );
 }
-
-const circleD = (cx: number, cy: number, r: number) => `M${f(cx - r)} ${f(cy)} a${f(r)} ${f(r)} 0 1 0 ${f(r * 2)} 0 a${f(r)} ${f(r)} 0 1 0 ${f(-r * 2)} 0 Z`;
 
 const HEART = 'M0 12 C-4 8 -16 1 -16 -8 C-16 -14 -11 -17 -7 -17 C-3.6 -17 -1.2 -15 0 -12.6 C1.2 -15 3.6 -17 7 -17 C11 -17 16 -14 16 -8 C16 1 4 8 0 12 Z';
 

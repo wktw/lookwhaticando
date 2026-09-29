@@ -26,7 +26,7 @@ const leafCache = new Map<string, string>();
  * A heart-shaped monstera leaf (sinus at the origin, tip at −L) with `slits` fenestrations
  * cut into each side. Built as a fine polyline so the slits stay crisp at any size.
  */
-export function monsteraLeafD(L: number, W: number, slits: number): string {
+function monsteraLeafD(L: number, W: number, slits: number): string {
   const key = `${f(L)}|${f(W)}|${slits}`;
   const cached = leafCache.get(key);
   if (cached) return cached;

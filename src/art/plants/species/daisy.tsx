@@ -7,7 +7,7 @@ const PETAL = '#FFFFFF';
 const CENTER = '#FFD65C';
 
 /** Classic daisy: white petals around a butter-yellow button. */
-export function DaisyHead({ x, y, r, rot = 0, petal = PETAL }: { x: number; y: number; r: number; rot?: number; petal?: string }) {
+function DaisyHead({ x, y, r, rot = 0, petal = PETAL }: { x: number; y: number; r: number; rot?: number; petal?: string }) {
   const c = r * 0.36;
   return (
     <g>

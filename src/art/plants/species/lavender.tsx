@@ -1,6 +1,6 @@
 import type { Growth, PlantSpeciesArt } from '../types';
 import { Blob, Leaf, Stems, stemD, type Circle } from '../parts';
-import { f, lerp, mix, ramp } from '../math';
+import { f, lerp, ramp } from '../math';
 import { seedling, sprout } from '../early';
 
 const LEAF = '#BCD5AE';
@@ -10,23 +10,26 @@ const FLORET = '#B9A4EE';
 const FLORET_DARK = '#9C85E0';
 const BUD = '#BCD4AC';
 
-/** A flower spike: stacked florets tapering to a point, tinted from bud green to lavender by `k`. */
+/**
+ * A flower spike: stacked florets tapering to a point. While budding (`k` < 1) it stays green
+ * and lilac florets start to peek through; in bloom it turns fully lavender.
+ */
 function Spike({ x, y, len, k }: { x: number; y: number; len: number; k: number }) {
   const n = Math.max(3, Math.round(len / 2.3));
   const florets: Circle[] = Array.from({ length: n }, (_, i) => {
     const u = i / (n - 1);
     return [x + (i % 2 ? 0.7 : -0.7) * (1 - u), y - u * len, lerp(2.6, 1.4, u)] as const;
   });
+  const open = k >= 1;
+  const dots = open ? florets.slice(0, -1) : florets.slice(0, Math.round((n - 1) * k));
   return (
     <g>
-      <Blob circles={florets} fill={mix(BUD, FLORET, k)} line={1.6} />
-      {k > 0.5 && (
-        <g fill={FLORET_DARK}>
-          {florets.slice(0, -1).map(([cx, cy], i) => (
-            <circle key={i} cx={f(cx + (i % 2 ? -0.9 : 0.9))} cy={f(cy + 0.4)} r={0.75} />
-          ))}
-        </g>
-      )}
+      <Blob circles={florets} fill={open ? FLORET : BUD} line={1.6} />
+      <g fill={open ? FLORET_DARK : FLORET}>
+        {dots.map(([cx, cy], i) => (
+          <circle key={i} cx={f(cx + (i % 2 ? -0.9 : 0.9))} cy={f(cy + 0.4)} r={open ? 0.75 : 1.1} />
+        ))}
+      </g>
     </g>
   );
 }
@@ -76,7 +79,7 @@ function stalks(g: Growth): { list: Stalk[]; k: number } {
       };
     case 5:
       return {
-        k: lerp(0.75, 1, p),
+        k: 1,
         list: [
           { x0: 49, x: 40, y: 26, len: 11 },
           { x0: 50, x: 50.5, y: 20, len: 12 },
