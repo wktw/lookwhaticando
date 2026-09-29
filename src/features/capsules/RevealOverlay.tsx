@@ -74,7 +74,9 @@ const HINT: Record<number, string> = { 3: 'Something special… tap to crack it!
  */
 export function RevealOverlay({ data, origin, quickOpen, onClose, onPullAgain, initialStage, initialCracks = 0 }: RevealOverlayProps) {
   const reduced = prefersReducedMotion();
-  const [stage, setStage] = useState<RevealStage>(initialStage ?? (data.via === 'wish' ? 'open' : quickOpen ? 'card' : 'anticipate'));
+  // Pulls arrive in a capsule; so does a wished-for Secret (it stays a surprise). Other wishes just appear.
+  const inCapsule = data.via === 'pull' || data.rarity === 'ultra';
+  const [stage, setStage] = useState<RevealStage>(initialStage ?? (!inCapsule ? 'open' : quickOpen ? 'card' : 'anticipate'));
   const [cracks, setCracks] = useState(initialCracks);
   const [shake, setShake] = useState(0);
   const root = useRef<HTMLDivElement>(null);
@@ -173,41 +175,43 @@ export function RevealOverlay({ data, origin, quickOpen, onClose, onPullAgain, i
   return createPortal(
     <div ref={root} class={cx(s.overlay, s[data.rarity], reduced && s.reduced)} role="dialog" aria-modal="true" aria-label="Capsule reveal" tabIndex={-1}>
       <Twinkles />
-      <div ref={stageEl} class={cx(s.stage, stage === 'card' && s.withCard)}>
-        {opened && !reduced && <Rays rarity={data.rarity} class={s.rays} />}
-        <div class={cx(s.glow, !opened && s.dim)} aria-hidden="true" />
+      <div class={s.content}>
+        <div ref={stageEl} class={cx(s.stage, stage === 'card' && s.withCard)}>
+          {opened && !reduced && <Rays rarity={data.rarity} class={s.rays} />}
+          <div class={cx(s.glow, !opened && s.dim)} aria-hidden="true" />
 
-        {!opened ? (
-          <div ref={flyer} class={s.flyer}>
-            <button
-              ref={capsuleButton}
-              type="button"
-              class={cx(s.capsule, shake > 0 && (shake % 2 ? s.shakeA : s.shakeB))}
-              onClick={tap}
-              aria-label={left > 1 ? `Crack the capsule open, ${left} taps to go` : 'Open the capsule'}
-            >
-              <CapsuleArt rarity={data.rarity} color={data.shell.color} color2={data.shell.color2} cracks={cracks} size="100%" animated />
-            </button>
-            <p class={s.hint} aria-hidden="true">
-              {data.rarity === 'ultra' ? HINT[left] : 'Tap to open!'}
-            </p>
-          </div>
-        ) : (
-          <>
-            {data.via === 'pull' && !reduced && stage === 'open' && (
-              <div class={s.halves} aria-hidden="true">
-                <CapsuleArt rarity={data.rarity} color={data.shell.color} color2={data.shell.color2} cracks={cracks} size="100%" svgClass={s.popping} />
-              </div>
-            )}
-            {!reduced && stage === 'open' && <div class={s.flash} aria-hidden="true" />}
-            <div ref={itemEl} class={cx(s.item, quickOpen && stage === 'card' && s.itemQuick)}>
-              <CollectibleArt id={data.itemId} size="100%" animated />
+          {!opened ? (
+            <div ref={flyer} class={s.flyer}>
+              <button
+                ref={capsuleButton}
+                type="button"
+                class={cx(s.capsule, shake > 0 && (shake % 2 ? s.shakeA : s.shakeB))}
+                onClick={tap}
+                aria-label={left > 1 ? `Crack the capsule open, ${left} taps to go` : 'Open the capsule'}
+              >
+                <CapsuleArt rarity={data.rarity} color={data.shell.color} color2={data.shell.color2} cracks={cracks} size="100%" animated />
+              </button>
+              <p class={s.hint} aria-hidden="true">
+                {data.rarity === 'ultra' ? HINT[left] : 'Tap to open!'}
+              </p>
             </div>
-          </>
-        )}
-      </div>
+          ) : (
+            <>
+              {inCapsule && !reduced && stage === 'open' && (
+                <div class={s.halves} aria-hidden="true">
+                  <CapsuleArt rarity={data.rarity} color={data.shell.color} color2={data.shell.color2} cracks={cracks} size="100%" svgClass={s.popping} />
+                </div>
+              )}
+              {!reduced && stage === 'open' && <div class={s.flash} aria-hidden="true" />}
+              <div ref={itemEl} class={cx(s.item, quickOpen && stage === 'card' && s.itemQuick)}>
+                <CollectibleArt id={data.itemId} size="100%" animated />
+              </div>
+            </>
+          )}
+        </div>
 
-      {stage === 'card' && <RevealCard data={data} onClose={onClose} onPullAgain={onPullAgain} />}
+        {stage === 'card' && <RevealCard data={data} onClose={onClose} onPullAgain={onPullAgain} />}
+      </div>
     </div>,
     document.body,
   );

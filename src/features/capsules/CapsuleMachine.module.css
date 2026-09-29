@@ -182,3 +182,14 @@
     --machine-h: clamp(340px, 60dvh, 470px);
   }
 }
+
+/* Night: the spotlight becomes a faint glow instead of a lamp. */
+:global(:root[data-theme='night']) .stage::before {
+  opacity: 0.16;
+}
+
+@media (prefers-color-scheme: dark) {
+  :global(:root:not([data-theme='light']):not([data-theme='night'])) .stage::before {
+    opacity: 0.16;
+  }
+}

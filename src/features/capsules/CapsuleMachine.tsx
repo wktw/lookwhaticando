@@ -70,7 +70,7 @@ export function CapsuleMachine({ machine, active, onBusyChange }: CapsuleMachine
   const sinkEl = useRef<SVGGElement>(null);
   const crankButton = useRef<HTMLButtonElement>(null);
   const insertButton = useRef<HTMLButtonElement>(null);
-  const run = useRef({ ticks: 0, completing: false, autoTurning: false, refocus: false, anims: [] as Animation[] }).current;
+  const run = useRef({ ticks: 0, completing: false, autoTurning: false, refocus: false }).current;
 
   const token: TokenKind = payment === 'ticket' ? 'ticket' : machine.currency === 'stars' ? 'star' : 'coin';
   const busy = phase !== 'idle';
@@ -85,13 +85,13 @@ export function CapsuleMachine({ machine, active, onBusyChange }: CapsuleMachine
     onAdvance: (progress, delta, dir) => {
       setCrankAngle(CRANK_REST + dir * progress);
       // The wheel inside stirs the pile in proportion to how fast you turn.
-      dome.stir(Math.min(0.5, (delta / 360) * 2.4), dir * 0.8);
+      dome.stir(Math.min(0.5, (delta / 360) * 4), dir * 0.9);
       const ticks = Math.floor(progress / TICK_DEG);
       if (ticks > run.ticks) {
         run.ticks = ticks;
         sfx.play('ratchet', { pitch: 1 + ticks * 0.035 });
         haptic('tick');
-        dome.stir(0.1, dir);
+        dome.stir(0.12, dir);
       }
       if (progress >= TURN_TARGET) void complete(dir);
     },
@@ -218,8 +218,16 @@ export function CapsuleMachine({ machine, active, onBusyChange }: CapsuleMachine
       await anim;
     }
     setPhase('landed');
+    phaseNow.current = 'landed';
     setSay('A capsule rolled out!');
     await wait(reduced ? 250 : 520);
+    openReveal();
+  };
+
+  /** Lift the landed capsule into the reveal (after a beat, or right away if it's tapped). */
+  const openReveal = () => {
+    if (phaseNow.current !== 'landed') return;
+    phaseNow.current = 'revealing';
     setOrigin(outEl.current?.getBoundingClientRect() ?? null);
     setPhase('revealing');
   };
@@ -232,23 +240,22 @@ export function CapsuleMachine({ machine, active, onBusyChange }: CapsuleMachine
     run.completing = false;
     run.autoTurning = false;
     setCrankAngle(CRANK_REST);
+    phaseNow.current = 'idle';
     setPhase('idle');
   };
 
   /* ---------------- reveal ---------------- */
 
   const closeReveal = (again?: boolean) => {
-    const pay = payment;
     setReveal(null);
     setOrigin(null);
-    run.refocus = !again;
     resetMachine();
     // A fresh capsule tumbles in to take its place.
     setTimeout(() => dome.refill(), 260);
-    if (again) setTimeout(() => void insertAgain(pay), 420);
+    // Pull again goes straight into the next coin, so the carousel never unlocks in between.
+    if (again) void insert(payment === 'ticket' && state.value.wallet.tickets > 0 ? 'ticket' : 'price');
+    else run.refocus = true;
   };
-
-  const insertAgain = (pay: Payment) => insert(pay === 'ticket' && state.value.wallet.tickets > 0 ? 'ticket' : 'price');
 
   const canPullAgain = (payment === 'ticket' && tickets > 0) || machineStatus(machine.id).canAfford;
 
@@ -344,7 +351,7 @@ export function CapsuleMachine({ machine, active, onBusyChange }: CapsuleMachine
           />
         )}
         {active && phase === 'landed' && (
-          <button type="button" class={s.hit} style={box(REST.x, REST.y, 26)} onClick={() => setPhase('revealing')} aria-label="Open your capsule" />
+          <button type="button" class={s.hit} style={box(REST.x, REST.y, 26)} onClick={openReveal} aria-label="Open your capsule" />
         )}
         {phase === 'ready' && (
           <div class={s.bubble} aria-hidden="true">

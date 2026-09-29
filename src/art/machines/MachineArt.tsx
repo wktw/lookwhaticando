@@ -3,7 +3,6 @@ import { useId } from 'preact/hooks';
 import type { MachineDef } from '@/catalog/types';
 import type { DomeBody } from '@/fx/physics';
 import {
-  BODY,
   CAP,
   CHUTE,
   COLLAR,

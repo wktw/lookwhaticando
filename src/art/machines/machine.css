@@ -45,10 +45,6 @@
   animation: machine-blink 5.2s linear infinite;
 }
 
-.machine-glow {
-  animation: machine-glow-pulse 3.6s ease-in-out infinite;
-}
-
 .machine-twinkle {
   transform-box: fill-box;
   transform-origin: center;

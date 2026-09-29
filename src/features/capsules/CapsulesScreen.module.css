@@ -51,7 +51,7 @@
 
 .chipOf {
   margin-left: 1px;
-  color: var(--ink-3);
+  color: var(--ink-2);
   font-size: var(--fs-micro);
 }
 
@@ -151,16 +151,16 @@
 
 .dots {
   display: flex;
-  flex-wrap: wrap;
   justify-content: center;
   margin-top: 2px;
   padding: 0 var(--gutter);
 }
 
+/* 44px targets; they only narrow if there are ever more machines than fit in one row. */
 .dot {
   display: grid;
   place-items: center;
-  width: 30px;
+  width: min(44px, calc((100% - 1px) / var(--n, 7)));
   height: 44px;
 }
 
@@ -220,7 +220,7 @@
 .info .infoTitle {
   flex: 1;
   color: var(--ink);
-  font-size: var(--fs-title);
+  font-size: clamp(1.5rem, 6.2vw, var(--fs-title));
 }
 
 .tagline {

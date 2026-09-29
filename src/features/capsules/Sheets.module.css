@@ -285,7 +285,10 @@
     var(--shadow-sm);
 }
 
-.wishArt {
+.wishArt,
+.confirmArt {
+  display: grid;
+  place-items: center;
   width: 64px;
   height: 64px;
 }
@@ -317,11 +320,6 @@
   background: var(--card);
   box-shadow: 0 -10px 30px -12px rgba(74, 53, 64, 0.35);
   animation: confirm-in var(--t-std) var(--ease-out);
-}
-
-.confirmArt {
-  width: 64px;
-  height: 64px;
 }
 
 .confirmTitle {
@@ -365,5 +363,22 @@
   from {
     transform: translateY(20px);
     opacity: 0;
+  }
+}
+
+/* Night: dim the printed poster a touch so it doesn't glare. */
+:global(:root[data-theme='night']) .poster {
+  background:
+    linear-gradient(rgba(34, 28, 48, 0.28), rgba(34, 28, 48, 0.28)),
+    radial-gradient(circle at 12px 12px, rgba(255, 255, 255, 0.4) 2px, transparent 2.5px) 0 0 / 22px 22px,
+    var(--poster);
+}
+
+@media (prefers-color-scheme: dark) {
+  :global(:root:not([data-theme='light']):not([data-theme='night'])) .poster {
+    background:
+      linear-gradient(rgba(34, 28, 48, 0.28), rgba(34, 28, 48, 0.28)),
+      radial-gradient(circle at 12px 12px, rgba(255, 255, 255, 0.4) 2px, transparent 2.5px) 0 0 / 22px 22px,
+      var(--poster);
   }
 }

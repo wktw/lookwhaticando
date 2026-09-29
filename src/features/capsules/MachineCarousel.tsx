@@ -23,11 +23,16 @@ export interface MachineCarouselProps {
 export function MachineCarousel({ machines, index, onIndex, busy, onBusyChange }: MachineCarouselProps) {
   const track = useRef<HTMLDivElement>(null);
   const frame = useRef(0);
+  /** Focus was inside the outgoing page (which turns inert), so hand it to the new one. */
+  const carryFocus = useRef(false);
+  /** Page a programmatic smooth scroll is heading to; its in-between scroll events are ignored. */
+  const heading = useRef<number | null>(null);
   const n = machines.length;
 
   const scrollToIndex = (i: number, smooth: boolean) => {
     const el = track.current;
     if (!el) return;
+    heading.current = i;
     el.scrollTo({ left: i * el.clientWidth, behavior: smooth && !prefersReducedMotion() ? 'smooth' : 'auto' });
   };
 
@@ -45,10 +50,17 @@ export function MachineCarousel({ machines, index, onIndex, busy, onBusyChange }
     return () => window.removeEventListener('resize', onResize);
   }, [index]);
 
+  useEffect(() => {
+    if (!carryFocus.current) return;
+    carryFocus.current = false;
+    track.current?.children[index]?.querySelector<HTMLElement>('button:not([tabindex="-1"])')?.focus({ preventScroll: true });
+  }, [index]);
+
   const go = (i: number) => {
     if (busy) return;
     const next = Math.max(0, Math.min(n - 1, i));
     if (next === index) return;
+    carryFocus.current = !!track.current?.contains(document.activeElement);
     sfx.play('pop', { volume: 0.5 });
     scrollToIndex(next, true);
     onIndex(next);
@@ -60,7 +72,12 @@ export function MachineCarousel({ machines, index, onIndex, busy, onBusyChange }
       frame.current = 0;
       const el = track.current;
       if (!el) return;
-      const i = Math.round(el.scrollLeft / el.clientWidth);
+      const at = el.scrollLeft / el.clientWidth;
+      if (heading.current !== null) {
+        if (Math.abs(at - heading.current) > 0.01) return;
+        heading.current = null;
+      }
+      const i = Math.round(at);
       if (i !== index && i >= 0 && i < n) onIndex(i);
     });
   };
@@ -78,7 +95,14 @@ export function MachineCarousel({ machines, index, onIndex, busy, onBusyChange }
 
   return (
     <div class={s.carousel} role="region" aria-roledescription="carousel" aria-label="Capsule machines" onKeyDown={onKeyDown}>
-      <div ref={track} class={cx(s.track, busy && s.locked)} onScroll={onScroll}>
+      <div
+        ref={track}
+        class={cx(s.track, busy && s.locked)}
+        onScroll={onScroll}
+        // A touch or wheel takes over from any scroll we started.
+        onPointerDown={() => (heading.current = null)}
+        onWheel={() => (heading.current = null)}
+      >
         {machines.map((m, i) => {
           const current = i === index;
           return (
@@ -108,7 +132,7 @@ export function MachineCarousel({ machines, index, onIndex, busy, onBusyChange }
         <Icon name="chevron-right" size={24} />
       </button>
 
-      <div class={s.dots} role="group" aria-label="Choose a machine">
+      <div class={s.dots} role="group" aria-label="Choose a machine" style={{ '--n': n } as Record<string, number>}>
         {machines.map((m, i) => (
           <button
             key={m.id}

@@ -146,9 +146,9 @@ export function WishingWellSheet({ open, onClose, onGranted }: WishingWellSheetP
                 aria-pressed={picked?.id === item.id}
               >
                 <span class={s.wishArt}>
-                  <CollectibleArt id={item.id} size="100%" />
+                  <WishArt item={item} />
                 </span>
-                <span class={s.tileName}>{item.name}</span>
+                <span class={s.tileName}>{wishName(item)}</span>
                 <span class={s.wishPrice}>
                   <StarIcon size={16} />
                   <span class="num">{WISH_PRICE[item.rarity]}</span>
@@ -163,10 +163,10 @@ export function WishingWellSheet({ open, onClose, onGranted }: WishingWellSheetP
       {picked && (
         <div class={s.confirm} role="region" aria-label="Confirm your wish">
           <span class={s.confirmArt}>
-            <CollectibleArt id={picked.id} size="100%" />
+            <WishArt item={picked} />
           </span>
           <div class={s.confirmText}>
-            <p class={s.confirmTitle}>Wish for {picked.name}?</p>
+            <p class={s.confirmTitle}>Wish for {picked.rarity === 'ultra' ? `the ${wishName(picked)}` : picked.name}?</p>
             <p class={s.confirmMeta}>
               <Pill tone={picked.rarity}>{RARITY_LABEL[picked.rarity]}</Pill>
               <span>
@@ -198,6 +198,20 @@ export function WishingWellSheet({ open, onClose, onGranted }: WishingWellSheetP
       )}
     </Sheet>
   );
+}
+
+/** A series Secret stays a secret even in the well: you can wish for it, and it's still a surprise. */
+function WishArt({ item }: { item: CollectibleDef }) {
+  if (item.rarity !== 'ultra') return <CollectibleArt id={item.id} size="100%" />;
+  return (
+    <span class={s.secretMark} aria-hidden="true">
+      ?
+    </span>
+  );
+}
+
+function wishName(item: CollectibleDef): string {
+  return item.rarity === 'ultra' ? `${MACHINE_SHORT[item.source as MachineId]} Secret` : item.name;
 }
 
 function Chip({ on, onClick, children }: { on: boolean; onClick: () => void; children: ComponentChildren }) {

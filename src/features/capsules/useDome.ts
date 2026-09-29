@@ -3,6 +3,7 @@ import type { MachineDef, MachineId } from '@/catalog/types';
 import type { DomeBody, DomeSim } from '@/fx/physics';
 import { createMachineSim } from '@/art/machines/pile';
 import { capsuleTransforms, type CapsuleNodes } from '@/art/machines/DomeCapsules';
+import { prefersReducedMotion } from './motion';
 
 /** One sim per machine for the whole session, so a machine keeps its pile across swipes and tabs. */
 const sims = new Map<MachineId, DomeSim>();
@@ -57,6 +58,12 @@ export function useDome(machine: MachineDef, active: boolean): DomeController {
 
   const kick = () => {
     if (loop.raf || !active || document.hidden || !sim.awake) return;
+    // Reduced motion: jump straight to the resting pile instead of animating there.
+    if (prefersReducedMotion()) {
+      sim.settle();
+      write();
+      return;
+    }
     loop.last = performance.now();
     loop.raf = requestAnimationFrame(frame);
   };
@@ -82,6 +89,7 @@ export function useDome(machine: MachineDef, active: boolean): DomeController {
     bodies,
     register: (id, n) => (n ? nodes.set(id, n) : nodes.delete(id)),
     stir: (strength, swirl = 0) => {
+      if (prefersReducedMotion()) return;
       sim.agitate(strength, swirl);
       kick();
     },

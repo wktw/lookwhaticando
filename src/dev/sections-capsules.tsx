@@ -27,14 +27,23 @@ const DEMO_OWNED: Record<string, number> = {
   'pot-kitty': 1,
 };
 
-/** Dev helper: a wallet worth pulling with (once per page; peek() so the gallery doesn't subscribe). */
-function seedWallet() {
+/**
+ * Dev helper: a wallet worth pulling with (once per page; peek() so the gallery doesn't subscribe).
+ * URL overrides for trying edge cases: &coins=10 &tickets=0 &quick=1 (quick capsule open).
+ */
+function seedWallet(params: URLSearchParams) {
   if (seeded) return;
   seeded = true;
   const s = state.peek();
   const collection = { ...s.collection };
   for (const [id, count] of Object.entries(DEMO_OWNED)) collection[id] = { count, firstAt: 0 };
-  state.value = { ...s, collection, wallet: { coins: 500, stars: 20, stardust: 7, tickets: 2 } };
+  const num = (key: string, fallback: number) => Number(params.get(key) ?? fallback);
+  state.value = {
+    ...s,
+    collection,
+    settings: { ...s.settings, quickOpen: params.get('quick') === '1' },
+    wallet: { coins: num('coins', 500), stars: num('stars', 20), stardust: 7, tickets: num('tickets', 2) },
+  };
 }
 
 function Frame({ w, h, children }: { w: number; h: number; children: ComponentChildren }) {
@@ -131,48 +140,6 @@ function RevealDemos({ params }: { params: URLSearchParams }) {
 
 export const SECTIONS: GallerySection[] = [
   {
-    id: 'capsules-screen',
-    title: 'Capsules screen · phone (dev wallet: 500 coins, 20 stars, 2 tickets)',
-    render: () => {
-      seedWallet();
-      return (
-        <Frame w={390} h={844}>
-          <CapsulesScreen />
-        </Frame>
-      );
-    },
-  },
-  {
-    id: 'capsules-screen-wide',
-    title: 'Capsules screen · desktop',
-    render: () => {
-      seedWallet();
-      return (
-        <Frame w={1180} h={820}>
-          <CapsulesScreen />
-        </Frame>
-      );
-    },
-  },
-  {
-    id: 'capsules-reveal',
-    title: 'Reveal demos (?reveal=rare&stage=card)',
-    render: (params) => <RevealDemos params={params} />,
-  },
-  {
-    id: 'capsules-pull',
-    title: 'Interactive machine',
-    render: (params) => {
-      seedWallet();
-      const m = MACHINES.find((x) => x.id === (params.get('machine') ?? 'kitty')) ?? MACHINES[0]!;
-      return (
-        <div style={{ maxWidth: '390px', margin: '0 auto', padding: '12px 0 24px', background: 'var(--bg)' }}>
-          <CapsuleMachine machine={m} active />
-        </div>
-      );
-    },
-  },
-  {
     id: 'capsules-machines',
     title: 'Capsule machines (static, capsules settled)',
     render: () => (
@@ -210,5 +177,47 @@ export const SECTIONS: GallerySection[] = [
         ))}
       </div>
     ),
+  },
+  {
+    id: 'capsules-pull',
+    title: 'Interactive machine (&machine=moo &coins=10 &tickets=0 &quick=1)',
+    render: (params) => {
+      seedWallet(params);
+      const m = MACHINES.find((x) => x.id === (params.get('machine') ?? 'kitty')) ?? MACHINES[0]!;
+      return (
+        <div style={{ maxWidth: '390px', margin: '0 auto', padding: '12px 0 24px', background: 'var(--bg)' }}>
+          <CapsuleMachine machine={m} active />
+        </div>
+      );
+    },
+  },
+  {
+    id: 'capsules-reveal',
+    title: 'Reveal demos (?reveal=rare&stage=card)',
+    render: (params) => <RevealDemos params={params} />,
+  },
+  {
+    id: 'capsules-screen',
+    title: 'Capsules screen · phone (dev wallet: 500 coins, 20 stars, 2 tickets)',
+    render: (params) => {
+      seedWallet(params);
+      return (
+        <Frame w={390} h={844}>
+          <CapsulesScreen />
+        </Frame>
+      );
+    },
+  },
+  {
+    id: 'capsules-screen-wide',
+    title: 'Capsules screen · desktop',
+    render: (params) => {
+      seedWallet(params);
+      return (
+        <Frame w={1180} h={820}>
+          <CapsulesScreen />
+        </Frame>
+      );
+    },
   },
 ];

@@ -17,7 +17,7 @@ export interface RevealData {
   friendshipXp?: number;
   /** Shell colors of the capsule it arrived in. */
   shell: { color: string; color2: string };
-  /** 'wish' = granted by the Wishing Well: no capsule to open. */
+  /** 'wish' = granted by the Wishing Well: no capsule to open (except a Secret, which stays a surprise). */
   via: 'pull' | 'wish';
 }
 
