@@ -305,8 +305,10 @@ export function ShelfScreen() {
           places={opened}
           retired={sceneRetired.value}
           label={SHELF_COPY.sceneLabel}
-          onPet={onPet}
-          onOpenPet={onOpenPet}
+          // While she arranges things the pets are just there: the things are the buttons.
+          onPet={editing ? undefined : onPet}
+          onOpenPet={editing ? undefined : onOpenPet}
+          interactive={!editing}
           editDecor={editing ? edit : undefined}
           {...extras}
         />

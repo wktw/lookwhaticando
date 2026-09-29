@@ -160,10 +160,10 @@ function Page({ album }: { album: AlbumVM }) {
   const series = useMemo(() => mostCommon(items.map((i) => i.from)), [items]);
   return (
     <div class={s.page} role="tabpanel" id="guide-page" aria-labelledby={`guide-tab-${album.id}`} tabIndex={0}>
-      <header class={s.pageHead}>
+      <div class={s.pageHead}>
         <h3 class={s.pageTitle}>{album.name}</h3>
         <span class={s.pageMeta}>{fillLine(SHELF_COPY.fieldGuideSheet.of, { owned: album.owned, total: album.total })}</span>
-      </header>
+      </div>
       {series && <p class={s.pageFrom}>{series}</p>}
       {album.complete && (
         <div class={s.reward}>
