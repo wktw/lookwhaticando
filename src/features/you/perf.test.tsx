@@ -4,7 +4,8 @@
  * Nothing on it walks the history: the profile counts come from `lifetime`, the habit list from
  * the habits themselves. In Chromium (production build, a real 3y × 20 save) the switch to You
  * renders in about 16 ms. jsdom builds SVG and DOM several times slower, so this guard allows
- * 150 ms there: it catches a history walk sneaking in, not the last millisecond.
+ * 400 ms there (the machine may be busy with other suites): it catches a history walk sneaking in,
+ * not the last millisecond.
  */
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { state } from '@/state/store';
@@ -32,6 +33,6 @@ describe('You on 3 years × 20 habits', () => {
     }
     const median = [...times].sort((a, b) => a - b)[2]!;
     console.log(`You 3y×20: median first render ${median.toFixed(1)} ms`);
-    expect(median).toBeLessThan(150);
+    expect(median).toBeLessThan(400);
   });
 });

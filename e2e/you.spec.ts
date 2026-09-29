@@ -156,8 +156,29 @@ test('Start over asks twice, then onboarding starts again', async ({ page }) => 
   await section(page, 'Your data').getByRole('button', { name: 'Start over' }).click();
   await page.getByRole('alertdialog').filter({ hasText: 'Every habit, plant and pet' }).getByRole('button', { name: 'Start over' }).click();
   const again = page.getByRole('alertdialog').filter({ hasText: 'The daily copies stay on this device.' });
+  await expect(again).toBeVisible();
+  // The last "Start over" arms itself a moment after it appears.
+  await page.waitForTimeout(800);
   await again.getByRole('button', { name: 'Start over' }).click();
   await expect(page.locator('main h1')).toHaveText('New place. Which plants came with you?');
+});
+
+test('a quick double tap on Start over keeps everything', async ({ page }) => {
+  await openYou(page);
+  await section(page, 'Your data').getByRole('button', { name: 'Start over' }).click();
+  const first = page.getByRole('alertdialog').filter({ hasText: 'Every habit, plant and pet' }).getByRole('button', { name: 'Start over' });
+  await expect(first).toBeVisible();
+  await page.waitForTimeout(400);
+  const box = (await first.boundingBox())!;
+  const x = box.x + box.width / 2;
+  const y = box.y + box.height / 2;
+  await page.mouse.click(x, y);
+  await page.waitForTimeout(120);
+  await page.mouse.click(x, y);
+  await page.waitForTimeout(600);
+  await expect(page.locator('main h1')).toHaveText('You');
+  await expect(page.getByLabel('Your name')).toHaveValue('Sam');
+  await expect(page.getByRole('alertdialog')).toHaveCount(0);
 });
 
 test('seven taps on the version open Diagnostics', async ({ page }, info) => {

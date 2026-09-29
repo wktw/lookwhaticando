@@ -4,7 +4,7 @@
  * a preview and 24 hours of "Undo import", the daily copies, the CSV, the demo, and "Start over"
  * behind two confirmations.
  */
-import { useEffect, useState } from 'preact/hooks';
+import { useEffect, useId, useRef, useState } from 'preact/hooks';
 import { DATA, ERRORS, fillLine } from '@/catalog/lines';
 import { num } from '@/catalog/format';
 import { dayOf } from './when';
@@ -40,6 +40,7 @@ import { DATA_COPY, YOU } from './copy';
 import { copyText, downloadText, saveFile } from './files';
 import { ImportSheet } from './ImportSheet';
 import s from './You.module.css';
+import cs from '@/ui/ConfirmDialog.module.css';
 
 const DAY = 86_400_000;
 
@@ -147,6 +148,55 @@ function SnapshotsSheet({ open, onClose }: { open: boolean; onClose: () => void 
   );
 }
 
+/** How long the last "Start over" stays unarmed after it appears, so a double tap can't reach it. */
+export const FINAL_ARM_MS = 700;
+
+/**
+ * The second "Start over": the reverse of the first dialog. "Keep everything" stands where the
+ * first dialog's "Start over" was, and "Start over" (below it) only answers a tap that began
+ * after it had been on screen for a moment. Two quick taps on the first dialog keep everything.
+ */
+export function FinalStartOver({ open, onConfirm, onCancel }: { open: boolean; onConfirm: () => void; onCancel: () => void }) {
+  const messageId = useId();
+  const openedAt = useRef(0);
+  const armedPress = useRef(false);
+  if (open && openedAt.current === 0) openedAt.current = performance.now();
+  if (!open) openedAt.current = 0;
+  const armed = () => openedAt.current > 0 && performance.now() - openedAt.current >= FINAL_ARM_MS;
+  return (
+    <Sheet open={open} onClose={onCancel} title={DATA_COPY.startOverAgainTitle} hideTitle describedBy={messageId} size="sm" role="alertdialog" showClose={false} initialFocus="[data-cancel]">
+      <div class={cs.content}>
+        <p class={cs.title} aria-hidden="true">
+          {DATA_COPY.startOverAgainTitle}
+        </p>
+        <p class={cs.message} id={messageId}>
+          {DATA_COPY.startOverAgain}
+        </p>
+        <div class={cs.actions}>
+          <Button variant="primary" size="lg" block onClick={onCancel} data-cancel>
+            {DATA.keepEverything}
+          </Button>
+          <Button
+            variant="danger"
+            size="lg"
+            block
+            data-confirm
+            onPointerDown={() => (armedPress.current = armed())}
+            onClick={(e: MouseEvent) => {
+              // A pointer tap counts only if it began once the button was armed; a keyboard press (detail 0) is deliberate.
+              const ok = e.detail === 0 || armedPress.current;
+              armedPress.current = false;
+              if (ok) onConfirm();
+            }}
+          >
+            {DATA.startOver}
+          </Button>
+        </div>
+      </div>
+    </Sheet>
+  );
+}
+
 export function CopyByHand({ text, onClose }: { text: string | null; onClose: () => void }) {
   return (
     <Sheet open={text !== null} onClose={onClose} title={DATA_COPY.copyTitle} description={ERRORS.copy} size="md">
@@ -232,16 +282,7 @@ export function DataSection() {
         onConfirm={() => setResetStep(2)}
         onCancel={() => setResetStep(0)}
       />
-      <ConfirmDialog
-        open={resetStep === 2}
-        title={DATA_COPY.startOverAgainTitle}
-        message={DATA_COPY.startOverAgain}
-        confirmLabel={DATA.startOver}
-        cancelLabel={DATA.keepEverything}
-        tone="danger"
-        onConfirm={startOver}
-        onCancel={() => setResetStep(0)}
-      />
+      <FinalStartOver open={resetStep === 2} onConfirm={startOver} onCancel={() => setResetStep(0)} />
     </section>
   );
 }
