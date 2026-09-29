@@ -111,6 +111,51 @@ describe('Today', () => {
     await until(() => document.querySelector('[role="dialog"]')?.textContent?.includes('1 of 8 glasses'), 'the number pad');
   });
 
+  it('waters on a slow tap when the card has no hold, and a short press on one with a tiny version logs the whole thing', async () => {
+    state.value = seed(['vitamins', 'walk']);
+    view = mount(<TodayScreen />);
+    const press = async (name: string, ms: number) => {
+      const ring = ringIn(cardOf(name))!;
+      ring.parentElement!.dispatchEvent(new MouseEvent('pointerdown', { button: 0, bubbles: true }));
+      await new Promise((r) => setTimeout(r, ms));
+      ring.parentElement!.dispatchEvent(new MouseEvent('pointerup', { button: 0, bubbles: true }));
+      await click(ring, name);
+    };
+    // Take vitamins has no tiny version and no count: no hold is armed, so 650 ms is still a tap.
+    await press('Take vitamins', 650);
+    await until(() => ringIn(cardOf('Take vitamins'))?.getAttribute('aria-pressed') === 'true', 'vitamins watered');
+    // Walk has a tiny version: 300 ms is under the hold, so the whole habit is watered, not the tiny one.
+    const holder = ringIn(cardOf('Walk'))!.parentElement!;
+    holder.dispatchEvent(new MouseEvent('pointerdown', { button: 0, bubbles: true }));
+    expect(holder.getAttribute('data-holding')).toBe('tiny');
+    holder.dispatchEvent(new MouseEvent('pointerup', { button: 0, bubbles: true }));
+    expect(holder.hasAttribute('data-holding')).toBe(false);
+    await press('Walk', 300);
+    await until(() => ringIn(cardOf('Walk'))?.getAttribute('data-state') === 'done', 'walk watered in full');
+  });
+
+  it('offers the number pad from the ⋯ menu too (DESIGN §11.2)', async () => {
+    state.value = seed(['water']);
+    view = mount(<TodayScreen />);
+    await click(button('More for Drink water'), '⋯');
+    const menu = await until(() => document.querySelector('[role="menu"]'), 'the menu');
+    const item = Array.from(menu.querySelectorAll<HTMLElement>('[role^="menuitem"]')).find((b) => b.textContent?.startsWith('How many'));
+    expect(item).toBeTruthy();
+    await click(item!, 'How many…');
+    await until(() => document.querySelector('[role="dialog"]')?.textContent?.includes('of 8 glasses'), 'the number pad');
+  });
+
+  it('keeps the week strip where it is when a past day is picked', async () => {
+    state.value = seed(['walk']);
+    view = mount(<TodayScreen />);
+    const strip = document.querySelector('[role="radiogroup"]')!;
+    await click(Array.from(strip.querySelectorAll<HTMLElement>('[role="radio"]'))[4]!, 'a past day');
+    await until(() => document.body.textContent?.includes('Logging for'), 'the banner');
+    const banner = Array.from(document.querySelectorAll('[role="status"]')).find((e) => e.textContent?.includes('Logging for'))!;
+    // The banner follows the strip in the page, so the strip never moves down under her finger.
+    expect(strip.compareDocumentPosition(banner) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
   it('selects a past day from the strip with the arrow keys, says so, and goes back', async () => {
     state.value = seed(['walk']);
     view = mount(<TodayScreen />);
@@ -157,10 +202,33 @@ describe('the Habit Editor', () => {
     const plant = () => Array.from(document.querySelectorAll('button')).find((b) => b.textContent === 'Plant it')!;
     await click(plant(), 'Plant it');
     await until(() => dialog.textContent?.includes('Give it a name, up to 60 characters.'), 'the field note');
+    // Focus goes to the field that needs her, which reads its note.
+    await until(() => (document.activeElement as HTMLElement | null)?.getAttribute('aria-invalid') === 'true', 'focus on the name');
     await type(dialog.querySelector<HTMLInputElement>('input[type="text"]')!, 'Read a chapter');
     await click(plant(), 'Plant it');
     await until(() => state.value.habits.some((h) => h.name === 'Read a chapter'), 'the new habit');
     expect(state.value.habits.find((h) => h.name === 'Read a chapter')!.icon).toBe('book');
     await until(() => cardOf('Read a chapter'), 'its card on Today');
+  });
+
+  it('asks before closing a form with something typed in it, and Esc keeps editing', async () => {
+    state.value = seed(['walk']);
+    view = mount(
+      <>
+        <TodayScreen />
+        <SheetHosts />
+      </>,
+    );
+    await click(button('Add a habit'), 'Add a habit');
+    const dialog = await until(() => document.querySelector<HTMLElement>('[role="dialog"]'), 'the editor');
+    await until(() => dialog.querySelector('form'), 'the form');
+    await type(dialog.querySelector<HTMLInputElement>('input[type="text"]')!, 'Stretch a bit');
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    const ask = await until(() => document.querySelector<HTMLElement>('[role="alertdialog"]'), 'the question');
+    expect(ask.textContent).toMatch(/Keep editing/);
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    await until(() => !document.querySelector('[role="alertdialog"]'), 'the question gone');
+    expect(document.querySelector<HTMLInputElement>('[role="dialog"] input[type="text"]')?.value).toBe('Stretch a bit');
+    expect(habitEditorRequest.value).not.toBeNull();
   });
 });

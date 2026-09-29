@@ -13,16 +13,16 @@ import { appDayKey, addDays, runtimeLocalTime } from '@/domain/dates';
 import { todayVM, type HabitCardVM } from '@/state/selectors';
 import type { AppState } from '@/state/types';
 import type { HabitInput } from '@/state/api';
-import { cardsById, liveGroups, orderedIds, selectDay, selectedDay, snapshotGroups, structureKey } from './state';
-import { checkinCoins, refundedOf, tapAction } from './checkin';
+import { bandOrder, cardsById, liveGroups, orderedIds, selectDay, selectedDay, snapshotGroups, structureKey } from './state';
+import { checkinCoins, noteEvents, refundedOf, tapAction } from './checkin';
 import { bandPets, bandPots, greetingLine } from './Band';
-import { ringLabel, ringStateOf, unitFor } from './HabitCard';
-import { groupTitle } from './HabitList';
+import { holdAction, ringLabel, ringStateOf, unitFor } from './HabitCard';
+import { groupAriaLabel, groupTitle } from './HabitList';
 import { dayMark } from './WeekStrip';
 import { quickAdds } from './CountPad';
 import { amountHead } from './WalletSheet';
 import { highlightLine, sundayNoteText, timesWord } from './letterText';
-import { choicesFor, seasonPlantLine } from './SeasonReview';
+import { choicesFor, seasonPlantLine, seasonPlantLines } from './SeasonReview';
 import { cleanInput, issuesByField, maxTimes, patchOf, scheduleFor, toggleDay, touchesRule, withName, withSchedule, withUnitPreset } from '@/features/habits/editor/form';
 
 const NOON = Date.UTC(2026, 8, 29, 12, 0);
@@ -230,5 +230,50 @@ describe('dates stay honest', () => {
     const vm = todayVM(household(), viewEnv());
     expect(vm.weekStrip[0]!.date).toBe(addDays(vm.date, -6));
     expect(vm.weekStrip[6]!.isToday).toBe(true);
+  });
+});
+
+describe('review round 1', () => {
+  const card = (over: Partial<HabitCardVM>): HabitCardVM => ({ rested: false, flexible: false, target: 1, tinyLabel: null, canTiny: false, ...over }) as HabitCardVM;
+
+  it('arms a hold only when it does something: the pad for a count, the tiny version, else nothing', () => {
+    expect(holdAction(card({ target: 8 }))).toBe('pad');
+    expect(holdAction(card({ target: 8, rested: true }))).toBeNull();
+    expect(holdAction(card({ tinyLabel: 'Shoes on', canTiny: true }))).toBe('tiny');
+    expect(holdAction(card({ tinyLabel: 'Shoes on', canTiny: false }))).toBeNull();
+    // Phone-free bedtime: no tiny version, no count, so a slow tap is just a tap.
+    expect(holdAction(card({}))).toBeNull();
+    expect(holdAction(card({ flexible: true, target: 3 }))).toBeNull();
+  });
+
+  it('names folded rows in words, never "1/1"', () => {
+    const cards = [{ name: 'Take vitamins', done: true } as HabitCardVM];
+    const label = groupAriaLabel({ key: 'block:morning', cards, done: 1 });
+    expect(label).toBe('Morning, 1 of 1 watered: Take vitamins');
+    expect(label).not.toMatch(/\d\/\d/);
+    expect(groupAriaLabel({ key: 'block:morning', cards, done: 0 }, false)).toBe('Morning');
+    expect(groupAriaLabel({ key: 'thisMonth', cards, done: 0 })).toMatch(/: Take vitamins$/);
+  });
+
+  it('puts the cards still to water first on the band, in the list order', () => {
+    const c = (id: string, done: boolean) => ({ id, done, rested: false, restState: null }) as unknown as HabitCardVM;
+    const order = bandOrder([
+      { folded: false, cards: [c('a', true), c('b', false)] },
+      { folded: false, cards: [c('c', false)] },
+      { folded: true, cards: [c('d', false)] },
+    ]);
+    expect(order).toEqual(['b', 'c', 'a', 'd']);
+  });
+
+  it('leaves the harvest aside out of the note with Quiet rewards', () => {
+    const events = [{ type: 'harvest', habitId: 'w' }, { type: 'checkin', habitId: 'w' }] as never[];
+    expect(noteEvents(events, true)).toHaveLength(1);
+    expect(noteEvents(events, false)).toHaveLength(2);
+  });
+
+  it('words the Season Review caption in short lines', () => {
+    const lines = seasonPlantLines({ habitName: 'Drink water', fromStage: 0, toStage: 5, waterings: 76 });
+    expect(lines[0]).toBe('Drink water');
+    expect(lines.slice(1).join(' · ')).toBe(seasonPlantLine({ habitName: '', fromStage: 0, toStage: 5, waterings: 76 }).replace(/^ · /, ''));
   });
 });
