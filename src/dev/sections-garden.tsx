@@ -2,7 +2,8 @@
  * Garden module gallery: plants at every stage, progress & blooms, pots, habit-card sizes, treats.
  * View all with /gallery.html?only=garden, or one section with ?only=garden-<name>.
  * `&species=<id>[,<id>…]` narrows the plant sections; `&pot=<id>` changes their pot;
- * the matrix also takes `&size=<px>`, `&progress=<0..1>` and `&stages=4,5,6`.
+ * the matrix also takes `&size=<px>`, `&progress=<0..1>` and `&stages=4,5,6`;
+ * treats take `&size=<px>` and `&treats=cookie,donut`.
  */
 import { Fragment, type JSX } from 'preact';
 import { useState } from 'preact/hooks';
@@ -201,15 +202,18 @@ function WaterDemo() {
   );
 }
 
-function TreatsDemo() {
+function TreatsDemo({ params }: { params: URLSearchParams }) {
+  const size = Number(params.get('size')) || 96;
+  const picked = params.get('treats')?.split(',');
+  const treats = picked ? TREATS.filter((t) => picked.some((p) => t.id === `treat-${p}`)) : TREATS;
   return (
-    <div class="gal-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))' }}>
-      {TREATS.map((t) => {
+    <div class="gal-grid" style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${size + 64}px, 1fr))` }}>
+      {treats.map((t) => {
         const Art = TREAT_ART[t.id];
         return (
           <div class="gal-cell" key={t.id}>
             <div class="gal-row" style={{ gap: '6px' }}>
-              <svg viewBox="0 0 100 100" width={96} height={96} role="img" aria-label={t.name}>
+              <svg viewBox="0 0 100 100" width={size} height={size} role="img" aria-label={t.name}>
                 {Art ? <Art /> : null}
               </svg>
               <svg viewBox="0 0 100 100" width={40} height={40} aria-hidden>
@@ -234,5 +238,5 @@ export const SECTIONS: GallerySection[] = [
   { id: 'garden-pots', title: 'Garden: pots alone, with a Blooming tulip, and at 40px', render: () => <PotsDemo /> },
   { id: 'garden-cards', title: 'Garden: 40px habit-card row', render: () => <HabitCards /> },
   { id: 'garden-water', title: 'Garden: watering (tap to replay)', render: () => <WaterDemo /> },
-  { id: 'garden-treats', title: 'Garden: treats at 96px and 40px', render: () => <TreatsDemo /> },
+  { id: 'garden-treats', title: 'Garden: treats at 96px and 40px', render: (params) => <TreatsDemo params={params} /> },
 ];
