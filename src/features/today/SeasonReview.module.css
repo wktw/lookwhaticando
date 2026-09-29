@@ -84,8 +84,8 @@
 }
 
 .chip {
-  min-height: 36px;
-  padding: 6px 12px;
+  min-height: 44px;
+  padding: 6px 14px;
   border: 0;
   border-radius: var(--r-pill);
   background: var(--bg-2);
