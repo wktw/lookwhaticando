@@ -1,9 +1,11 @@
 /**
  * Records, Insights, Pins and the Memory shelf (DESIGN §9.2, §13; VOICE.md §6, §8, §12, §17).
  * Records and Insights are plain rows that leave out anything that would say 0. Pins are enamel
- * pins: earned ones in colour, the rest outline-only "not yet", and a pin that stays hidden until
- * it is earned isn't on the shelf at all; a tap says how each one is earned. The memory shelf keeps
- * every Sunday Note, Herbarium page and anniversary note, the retired plants and the past seasons.
+ * pins: earned ones in colour, then the four nearest "not yet" ones as outlines (the rest behind one
+ * quiet button, never a wall of what's undone), and a pin that stays hidden until it is earned isn't
+ * on the shelf at all; a tap says how each one is earned. The memory shelf keeps every Sunday Note,
+ * Herbarium page and anniversary note and the past seasons, and points to the balcony tier on
+ * Plants for the retired plants (drawn once, there).
  */
 import { useRef, useState } from 'preact/hooks';
 import { BadgeMedal } from '@/art/badges';

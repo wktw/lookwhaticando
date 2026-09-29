@@ -480,8 +480,10 @@
   color: var(--ink);
 }
 
+/* The coin over its amount, so eleven rungs fit a phone without the amounts running together. */
 .rungCoins {
   display: inline-flex;
+  flex-direction: column;
   align-items: center;
   gap: 1px;
   font-size: 11px;
