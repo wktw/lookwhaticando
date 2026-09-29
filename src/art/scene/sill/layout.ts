@@ -87,6 +87,12 @@ export interface SillLayout {
   pots: Placed[];
   jar: Placed;
   lamp: Placed;
+  /**
+   * The right end of the sill's own stretch: where the window would end if the sill had not grown to hold tall decor.
+   * The sun crosses the sill up to here and the lamp stands just past it, so both stay by the pots however much decor
+   * there is (the decor stretch runs on past the lamp).
+   */
+  homeX1: number;
 }
 
 /** Half a potted plant's footprint (pot and its lower leaves), as a share of the pot canvas. */
@@ -139,6 +145,8 @@ export function sillLayout(spec: SillSpec, pots: number, minWidth = 0, extraRoam
   const jarX = n > 0 ? potX(n - 1) + Math.max(jarGap, pitch * 0.78) : x0 + first;
   const contentRight = spec.jarInRow ? jarX + spec.scale.jar / 2 + roam : (n > 0 ? potX(n - 1) + pitch * 0.5 : x0) + roam;
   const width = Math.max(minWidth, contentRight + spec.tail);
+  // Without the tall-decor stretch: where the lamp stands and how far the sun crosses.
+  const homeWidth = Math.max(minWidth, contentRight - Math.max(0, extraRoam) + spec.tail);
   const x1 = width - spec.tail;
   const panes = Math.max(1, Math.round((x1 - x0) / SASH));
   const stiles = Array.from({ length: panes - 1 }, (_, i) => x0 + ((i + 1) * (x1 - x0)) / panes);
@@ -148,7 +156,8 @@ export function sillLayout(spec: SillSpec, pots: number, minWidth = 0, extraRoam
     window: { x0, x1, stiles, rail: Math.round(spec.rows.glassBottom * 0.28) },
     pots: Array.from({ length: n }, (_, i) => ({ x: potX(i), depth: spec.backRow })),
     jar: { x: jarX, depth: spec.backRow + 0.06 },
-    lamp: { x: width - spec.tail * 0.55, depth: spec.backRow * 0.5 },
+    lamp: { x: homeWidth - spec.tail * 0.55, depth: spec.backRow * 0.5 },
+    homeX1: homeWidth - spec.tail,
   };
 }
 

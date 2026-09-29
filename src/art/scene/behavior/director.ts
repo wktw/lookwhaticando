@@ -17,6 +17,8 @@ import { findVignette, vignetteById, type Vignette } from './vignettes';
 export interface DirectorPet {
   key: string;
   species: Species;
+  /** Which pet (sizes it on a pot rim). */
+  petId?: string;
   personality?: Personality;
   place: PlaceId;
   ground: Ground;
@@ -119,6 +121,7 @@ export class Director {
     const view = this.views.get(key)!;
     const { steps } = planAct({
       species: pet.species,
+      petId: pet.petId,
       personality: pet.personality,
       at: view.peek(),
       home: pet.home,
@@ -252,7 +255,7 @@ export class Director {
       const key = keys[this.turn++ % keys.length]!;
       const pet = this.pets.get(key)!;
       const view = this.views.get(key)!;
-      const { steps } = planAct({ species: pet.species, personality: pet.personality, at: view.peek(), home: pet.home, ground: pet.ground, hour: this.moment.hour, night: this.moment.light.night, taken: this.taken(key, pet.ground), perchesTaken: this.perchesTaken(key), rnd: this.rnd });
+      const { steps } = planAct({ species: pet.species, petId: pet.petId, personality: pet.personality, at: view.peek(), home: pet.home, ground: pet.ground, hour: this.moment.hour, night: this.moment.light.night, taken: this.taken(key, pet.ground), perchesTaken: this.perchesTaken(key), rnd: this.rnd });
       const last = steps[steps.length - 1]!;
       const el = this.opts.element?.(key);
       const place = () => {

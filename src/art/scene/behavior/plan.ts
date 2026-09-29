@@ -55,6 +55,8 @@ export interface Step {
 
 export interface PlanInput {
   species: Species;
+  /** Which pet (its look sizes it on a pot rim); the species' own pet when left out. */
+  petId?: string;
   personality?: Personality;
   /** Where it is now. */
   at: PetSpot;
@@ -96,7 +98,7 @@ export function planAct(input: PlanInput): { kind: ActKind; steps: Step[] } {
 
   // Where to go, if anywhere.
   const target = (): PetSpot => {
-    if (input.home && (kind === 'nap' || kind === 'sit') && rnd() < 0.45) return seatOn(g, input.home, species, rest, false, at.facing);
+    if (input.home && (kind === 'nap' || kind === 'sit') && rnd() < 0.45) return seatOn(g, input.home, species, rest, false, at.facing, input.petId);
     const liked = g.perches.filter((q) => q.kind !== 'rim' && q.likes?.includes(species) && !input.perchesTaken?.has(q.id) && q.id !== at.perchId);
     if (liked.length && (kind === 'nap' || kind === 'sit' || kind === 'idle') && rnd() < 0.5) return perchSpot(liked[Math.floor(rnd() * liked.length)]!, rest, false, at.facing);
     let want: number;

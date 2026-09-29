@@ -72,7 +72,9 @@ export interface ShelfDecor {
   place?: PlaceId;
   /**
    * Where it stands as the store keeps it: fractions of the place (0..1 across its floor, 0 back … 1 front). The
-   * scene resolves them against the place it draws (`decorToScene` fills this in). Wins over `x`/`depth`.
+   * scene resolves them against the place it draws (`decorToScene` fills this in). Wins over `x`/`depth`. On the Sill
+   * `x` is a share of the Sill's natural length for its pots (`sillFloor`), the same on any screen and whatever tall
+   * decor has lengthened the sill.
    */
   frac?: { x: number; y: number };
   /** Units from the place's left edge; omitted (and no `frac`) = a free default spot. */

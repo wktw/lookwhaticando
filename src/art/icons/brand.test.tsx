@@ -5,7 +5,7 @@ import type { VNode } from 'preact';
 import { CatkinSprig, Wordmark } from '@/art/icons';
 import { CATKIN_BODY, CATKIN_LIT, SPRIG_CATKINS } from '@/art/icons/brand';
 import { DAY_LIGHT, NIGHT_LIGHT, type LightFrom } from '@/art/light';
-import { AppIconArt, FAVICON_TILE, ICON_CALF, ICON_CAT, IconScene, WALL_SHADOW_OPACITY, squirclePath, type AppIconShape } from '@/art/icons/appIcon';
+import { AppIconArt, FAVICON_TILE, ICON_CALF, ICON_CAT, ICON_PLACE, IconScene, WALL_SHADOW_OPACITY, squirclePath, type AppIconShape } from '@/art/icons/appIcon';
 import { LaunchArt as SplashArt } from '@/art/icons/splash';
 import { poseBounds } from '@/art/pets/bounds';
 import { SPECIES_ART } from '@/art/pets/species';
@@ -14,6 +14,7 @@ import { GumballArt, CabinetMark } from '@/app/GumballArt';
 import { MATERIAL } from '@/art/icons/palette';
 import cabinetCss from '@/art/icons/cabinet.module.css';
 import { readFileSync } from 'node:fs';
+import { shapeBoxes } from '@/art/plants/svgBounds.testutil';
 
 function mount(node: VNode): HTMLElement {
   const host = document.createElement('div');
@@ -143,6 +144,30 @@ describe('app icon', () => {
     const svg = mount(<AppIconArt />).querySelector('svg')!;
     const rims = [...svg.querySelectorAll('path')].filter((p) => p.getAttribute('fill') === MATERIAL.terracottaRim);
     expect(rims).toHaveLength(1);
+  });
+
+  it('keeps both animals inside the maskable icon’s 80% safe circle', () => {
+    const host = mount(<AppIconArt shape="maskable" size={512} />);
+    // ICON_PLACE.maskable is translate(tx ty) scale(k) translate(mx my).
+    const [tx, ty, k, mx, my] = ICON_PLACE.maskable!.match(/-?[\d.]+/g)!.map(Number) as [number, number, number, number, number];
+    expect(ICON_PLACE.maskable).toMatch(/^translate\([^)]*\) scale\([^)]*\) translate\([^)]*\)$/);
+    let far = 0;
+    for (const a of [ICON_CAT, ICON_CALF]) {
+      // The picture's own animal (the second drawing; the first is its wall shadow).
+      const art = [...host.querySelectorAll(`[data-animal="${a.petId}"] svg.pet-art`)].find((el) => !el.classList.contains('is-silhouette'))!.cloneNode(true) as Element;
+      // The animal itself (its soft contact shadow on the sill may run under the mask's edge).
+      art.querySelectorAll('[fill="var(--contact)"]').forEach((el) => el.remove());
+      const top = a.feet - (a.size * 94) / 100;
+      for (const b of shapeBoxes(art, { sampled: true })) {
+        for (const [x, y] of [[b.x0, b.y0], [b.x1, b.y0], [b.x0, b.y1], [b.x1, b.y1]] as const) {
+          const ix = a.x - a.size / 2 + (x * a.size) / 100;
+          const iy = top + (y * a.size) / 100;
+          const d = Math.hypot(tx + (ix + mx) * k - 50, ty + (iy + my) * k - 50);
+          far = Math.max(far, d);
+        }
+      }
+    }
+    expect(far).toBeLessThanOrEqual(40);
   });
 
   it('gives each instance its own clip id', () => {

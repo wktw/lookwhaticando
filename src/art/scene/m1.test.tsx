@@ -36,6 +36,7 @@ import { FOUND_ART, foundFor } from './objects/found';
 import { vineReach } from './objects/cutting';
 import { classifyPress, gestureForKey, reactionFor, STROKE_PX } from './actors/touch';
 import { DecorItem } from './actors/DecorItem';
+import { actorSize } from './actors/PetActor';
 import { nudge } from './actors/DecorEdit';
 import { SillScene, type ShelfSceneHandle } from './SillScene';
 import { WindowsillBand, type WindowsillBandHandle } from './WindowsillBand';
@@ -73,15 +74,29 @@ function crownBox(world: SillWorld, i: number, pot: SillPot): Box {
 }
 
 /** A pet's drawn box in scene units at its spot (a loaf on a rim is drawn at the pet size). */
-function petBox(petId: string, spot: { x: number; y: number; depth: number; pose: string }, petSize: number): Box {
+function petBox(petId: string, spot: { x: number; y: number; depth: number; pose: string; perch?: string }, petSize: number): Box {
   const look = getLook(petId);
   const { id, rig } = SPECIES_ART[look.species].rigFor(look);
   const b = poseBounds(id, rig, spot.pose as 'loaf');
   const s = rig.scale * (look.scale ?? 1);
-  const A = petSize * depthScale(spot.depth);
+  const A = actorSize(petSize, look.species, spot.perch as 'rim', petId) * depthScale(spot.depth);
   const cx = (x: number) => spot.x + (((50 + (x - 50) * s) - 50) / 100) * A;
   const cy = (y: number) => spot.y + (((94 + (y - 94) * s) - 94) / 100) * A;
   return { x0: cx(b.x0), x1: cx(b.x1), y0: cy(b.y0), y1: cy(b.y1) };
+}
+
+/** A pet's contact shadow's x range in scene units at its spot (the part of it resting on what it sits on). */
+function contactBox(petId: string, spot: { x: number; depth: number; pose: string; facing: 'left' | 'right'; perch?: string }, petSize: number): [number, number] {
+  const look = getLook(petId);
+  const { rig } = SPECIES_ART[look.species].rigFor(look);
+  const c = rig.poses[spot.pose as 'loaf'].contact;
+  const s = rig.scale * (look.scale ?? 1);
+  const A = actorSize(petSize, look.species, spot.perch as 'rim', petId) * depthScale(spot.depth);
+  const dir = spot.facing === 'left' ? -1 : 1;
+  const at = (x: number) => spot.x + (dir * (x - 50) * s * A) / 100;
+  const a = at(c.cx - c.rx);
+  const b = at(c.cx + c.rx);
+  return [Math.min(a, b), Math.max(a, b)];
 }
 
 describe('residents among their plants (M1 art audit)', () => {
@@ -95,8 +110,8 @@ describe('residents among their plants (M1 art audit)', () => {
     ['violet', 'teacup', 5],
     ['calathea', 'gourd', 6],
   ];
-  for (const petId of ['pet-cat-grey', 'pet-cow-highland', 'pet-dog-beagle', 'pet-bunny-lop']) {
-    it(`never lets ${petId} cover more than 40% of its plant’s crown, on the Sill or in the band`, () => {
+  for (const petId of ['pet-cat-grey', 'pet-cat-mainecoon', 'pet-cow-highland', 'pet-cow-holstein', 'pet-dog-beagle', 'pet-dog-corgi', 'pet-bunny-lop', 'pet-bear-brown']) {
+    it(`never lets ${petId} cover more than 40% of its plant’s crown or sit in mid-air past its rim, on the Sill or in the band`, () => {
       for (const spec of [SILL_SPEC, BAND_SPEC]) {
         const pots: SillPot[] = combos.map(([species, pot, stage], i) => ({ habitId: `h${i}`, species, pot, stage }));
         const world = sillWorld(spec, pots, [], ROOM.day, 0.5, 200);
@@ -111,6 +126,12 @@ describe('residents among their plants (M1 art audit)', () => {
           const pet = petBox(petId, spot, spec.scale.pet);
           const share = area(overlap(pet, crown)) / area(crown);
           expect(share, `${p.species} in ${p.pot}`).toBeLessThanOrEqual(0.4);
+          // And sat on the rim, not in mid-air past it: at least 60% of its contact over the rim.
+          const place = world.pots[i]!;
+          const half = (place.metrics.rimW * place.size * place.scale) / 2;
+          const c = contactBox(petId, spot, spec.scale.pet);
+          const on = Math.max(0, Math.min(c[1], place.x + half) - Math.max(c[0], place.x - half)) / (c[1] - c[0]);
+          expect(on, `${petId} on the ${p.pot} rim`).toBeGreaterThanOrEqual(0.6);
         });
       }
     });
@@ -356,6 +377,51 @@ describe('light', () => {
       expect(Number(front.style.zIndex)).toBeGreaterThan(Number(pet.style.zIndex));
       expect(bed.y).toBeLessThan(world.decor[0]!.y);
     });
+  });
+
+  it('opens a busy Sill on its pots by day and by lamplight, whatever the decor', () => {
+    // The gallery's busiest Sill: twelve decor items, most of them tall enough to push the sill longer.
+    const ids = DECOR.map((d) => d.id).filter((id) => DECOR_ENTRIES[id]);
+    for (const id of Object.keys(DECOR_ENTRIES)) if (ids.length < 12 && !ids.includes(id)) ids.push(id);
+    const pots: SillPot[] = Array.from({ length: 5 }, (_, i) => ({ habitId: `h${i}`, species: 'pothos', stage: 5, pot: 'terracotta' }));
+    for (const count of [0, 3, 12]) {
+      const decor: ShelfDecor[] = ids.slice(0, count).map((itemId) => ({ itemId }));
+      for (const px of [390, 1200]) {
+        const view = (px / 300) * 100;
+        for (const [room, sun] of [[ROOM.day, 0.5], [ROOM.day, 0.1], [ROOM.day, 0.9], [ROOM.night, 1]] as const) {
+          const world = sillWorld(SILL_SPEC, pots, decor, room, sun, view);
+          const left = openScroll(world, view);
+          const inFrame = world.pots.filter((p) => p.x > left && p.x < left + view);
+          expect(inFrame.length, `${count} decor, ${px} px, ${room.night ? 'night' : `sun ${sun}`}`).toBeGreaterThanOrEqual(1);
+          // After dark on a wide screen, the lamp is in view too.
+          if (room.night && px >= 1200) expect(world.layout.lamp.x, `${count} decor`).toBeLessThan(left + view);
+          // The sun and the lamp keep to the sill's own stretch, by the pots.
+          if (world.beam) expect(world.beam.x1).toBeLessThanOrEqual(world.layout.homeX1 + 1e-6);
+        }
+      }
+    }
+  });
+
+  it('keeps a stored spot on the Sill where it was on any screen, and when tall decor joins it', () => {
+    const pots: SillPot[] = Array.from({ length: 4 }, (_, i) => ({ habitId: `h${i}`, species: 'pilea', stage: 4, pot: 'cream' }));
+    const duck: ShelfDecor = { key: 'duck', itemId: 'decor-rubber-duck', frac: { x: 0.62, y: 0.9 } };
+    const xOf = (w: SillWorld) => w.decor.find((d) => d.key === 'duck')!.x;
+    const phone = sillWorld(SILL_SPEC, pots, [duck], ROOM.day, 0.5, 130);
+    const desk = sillWorld(SILL_SPEC, pots, [duck], ROOM.day, 0.5, 480);
+    expect(Math.abs(xOf(desk) - xOf(phone))).toBeLessThan(1);
+    const tall = ['decor-window-seat', 'decor-reading-chair', 'decor-bookstack'].filter((id) => DECOR_ENTRIES[id]).map((itemId) => ({ itemId }));
+    expect(tall.length).toBeGreaterThan(0);
+    const busy = sillWorld(SILL_SPEC, pots, [duck, ...tall], ROOM.day, 0.5, 130);
+    expect(busy.layout.width).toBeGreaterThan(phone.layout.width);
+    expect(Math.abs(xOf(busy) - xOf(phone))).toBeLessThan(1);
+    // A new habit lengthens the Sill by a pot; the spot moves along by no more than that.
+    const more = sillWorld(SILL_SPEC, [...pots, { habitId: 'h9', species: 'pilea', stage: 4, pot: 'cream' }], [duck], ROOM.day, 0.5, 130);
+    expect(xOf(more) - xOf(phone)).toBeGreaterThanOrEqual(0);
+    expect(xOf(more) - xOf(phone)).toBeLessThanOrEqual(SILL_SPEC.pitch + 1e-6);
+    // And an edit round-trips through the same floor.
+    const at = fracToScene(phone.floor, duck.frac!);
+    expect(fracToScene(desk.floor, duck.frac!).x).toBeCloseTo(at.x, 6);
+    expect(sceneToFrac(desk.floor, at.x, at.depth).x).toBeCloseTo(0.62, 3);
   });
 
   it('opens after dark with the last pots in frame on a phone, and the lamp in view on a wide screen', () => {

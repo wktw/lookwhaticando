@@ -14,7 +14,7 @@ import type { Expression } from '@/art/pets/types';
 import type { Light } from '@/art/light';
 import type { Species } from '@/catalog/types';
 import { RIGS } from '@/art/pets/species/rigs';
-import { WORLD_SCALE } from '@/art/pets/world';
+import { rimFit, WORLD_SCALE } from '@/art/pets/world';
 import type { PetGesture, PetSpot } from '../model';
 import { depthScale, PET_BASELINE } from '../room';
 import { Pet, type PetPose } from './adapters';
@@ -92,13 +92,17 @@ const LIFT = 0.36;
 
 const CAT_SCALE = RIGS.cat!.scale;
 
-/** A pet's canvas in a scene: the pet size × its species' world scale (a cow on a pot rim keeps the rim's size). */
-export function actorSize(size: number, species: Species, perch: PetSpot['perch']): number {
-  return perch === 'rim' || perch === 'glass' ? size : size * WORLD_SCALE[species];
+/**
+ * A pet's canvas in a scene: the pet size × its species' world scale; on a pot rim or beside a cutting's glass it
+ * keeps the pot's size (a long or tall pet a little smaller on a rim, `rimFit`).
+ */
+export function actorSize(size: number, species: Species, perch: PetSpot['perch'], petId?: string): number {
+  if (perch === 'rim') return petId ? size * rimFit(petId) : size;
+  return perch === 'glass' ? size : size * WORLD_SCALE[species];
 }
 
 export function PetActor({ id, petId, species, view, size: baseSize, light, outfit, castColor, cast, animated = true, label, touch, reaction }: PetActorProps) {
-  const size = actorSize(baseSize, species, view.perch);
+  const size = actorSize(baseSize, species, view.perch, petId);
   const scale = depthScale(view.depth);
   const [carry, setCarry] = useState<{ dx: number; dy: number } | null>(null);
   const press = useRef<{ x: number; y: number; t: number; travel: number; at: { x: number; y: number }; timer?: ReturnType<typeof setTimeout>; lifted: boolean } | null>(null);

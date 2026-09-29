@@ -105,7 +105,7 @@ export const SillScene = forwardRef(function SillScene(props: SillSceneProps, re
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [world, pets, props.vignette, moment.time]);
   const cast = useMemo(
-    () => pets.map((p) => ({ key: petKey(p), species: speciesOf(p.petId), personality: p.personality, place: 'sill' as const, ground: world.ground, home: homePerch(world.ground, p.home) })),
+    () => pets.map((p) => ({ key: petKey(p), species: speciesOf(p.petId), petId: p.petId, personality: p.personality, place: 'sill' as const, ground: world.ground, home: homePerch(world.ground, p.home) })),
     [pets, world],
   );
   // A staged vignette holds its places, then plays out once the scene is live.

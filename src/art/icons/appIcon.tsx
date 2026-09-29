@@ -152,7 +152,7 @@ function Room() {
 export const ICON_PLACE: Record<AppIconShape, string | undefined> = {
   square: undefined,
   squircle: undefined,
-  maskable: 'translate(50 56) scale(0.74) translate(-50 -56)',
+  maskable: 'translate(48.5 54) scale(0.72) translate(-50 -56)',
   favicon: 'translate(50 52) scale(1.22) translate(-54 -58)',
 };
 

@@ -12,6 +12,8 @@ import type { Pose } from './types';
 import { RIGS } from './species/rigs';
 import { BASELINE, type SpeciesRig } from './rig';
 import { COW_RIG } from './species/cow.rig';
+import { SPECIES_ART } from './species';
+import { getLook } from './looks';
 import { CAT_RIG } from './species/cat.rig';
 
 /** A pet's canvas in a scene is the scene's pet size × this (1 for every species but the cow). */
@@ -66,4 +68,65 @@ export function reachBehind(species: Species, pose: Pose = 'loaf'): number {
     reaches.set(key, (r = ((50 - b.x0) * rig.scale) / 100));
   }
   return r;
+}
+
+
+/** A pet's drawing in a pose on its own canvas, its look's scale included, as shares of the canvas edge. */
+export interface DrawnReach {
+  /** How far it reaches behind the canvas centre (facing right: to the left). */
+  behind: number;
+  /** Its contact shadow (the part resting on the ground): [back, front] from the canvas centre, facing right. */
+  contact: readonly [number, number];
+  /** Its drawn length and height. */
+  len: number;
+  h: number;
+}
+
+const drawnCache = new Map<string, DrawnReach>();
+
+/** Where a pet's drawing reaches in a pose (see `DrawnReach`), for seating it on a pot rim. */
+export function drawnReach(petId: string, pose: Pose = 'loaf'): DrawnReach {
+  const key = `${petId}/${pose}`;
+  let r = drawnCache.get(key);
+  if (!r) {
+    const look = getLook(petId);
+    const { id, rig } = SPECIES_ART[look.species].rigFor(look);
+    const b = poseBounds(id, rig, pose);
+    const s = rig.scale * (look.scale ?? 1);
+    const sx = s * (look.stocky ?? 1);
+    const c = (rig.poses[pose] ?? rig.poses.loaf).contact;
+    r = {
+      behind: ((50 - b.x0) * sx) / 100,
+      contact: [((c.cx - c.rx - 50) * sx) / 100, ((c.cx + c.rx - 50) * sx) / 100],
+      len: ((b.x1 - b.x0) * sx) / 100,
+      h: ((b.y1 - b.y0) * s) / 100,
+    };
+    drawnCache.set(key, r);
+  }
+  return r;
+}
+
+/** A pet to stand for its species where only the species is known. */
+export const SPECIES_PET: Readonly<Record<Species, string>> = {
+  cat: 'pet-cat-grey',
+  cow: 'pet-cow-holstein',
+  dog: 'pet-dog-beagle',
+  bunny: 'pet-bunny-lop',
+  frog: 'pet-frog-tree',
+  bear: 'pet-bear-brown',
+  hamster: 'pet-hamster-syrian',
+  duck: 'pet-duck-pekin',
+};
+
+/**
+ * A pet's canvas on a pot rim, as a share of the scene's pet size, by species. A rim is sized for a loafing cat; a
+ * longer or taller pet (a cow, a dog with its head up, a bear) lies along it a little smaller, so its weight stays on
+ * the rim and its plant stays in view (the M1 audit: no more than 40% of the crown). A look drawn bigger than its
+ * species (a Maine Coon) comes back to its species' size. On the ground everyone keeps their true size.
+ */
+export const RIM_SIZE: Readonly<Partial<Record<Species, number>>> = { cow: 0.75, dog: 0.76, bear: 0.9 };
+
+export function rimFit(petId: string): number {
+  const look = getLook(petId);
+  return Math.min(1, (RIM_SIZE[look.species] ?? 1) / Math.max(1, look.scale ?? 1));
 }

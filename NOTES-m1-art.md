@@ -71,6 +71,27 @@ outside that, the exact request is under **Requests**.
   `FAVICON_TILE`, `WALL_SHADOW_OPACITY`, `AppIconShape`) and `src/art/icons/splash.tsx` (`LaunchArt`). The PNGs, the
   favicon and the startup images are regenerated from them.
 
+### Round 2 (M1 recheck)
+- **Busy Sill opens on its pots.** `SillLayout.homeX1` (new) is where the window would end without the room added for
+  tall decor. The sun crosses the sill only up to there and the lamp stands just past it (`lamp.x = home width - 22`),
+  so both stay by the pots. The decor stretch runs on past the lamp, in front of the glass. `openScroll` keeps the
+  last pot in frame by day as well as at night.
+- **Stored Sill decor (`PlacedDecor.x/y` on the Sill)** is measured against `sillFloor(spec, pots)`: the Sill's natural
+  length for its pots, from the window's left edge, with no room added for the screen or for tall decor. The same
+  stored spot is the same place on a phone and a desktop, and adding tall decor moves nothing. Adding a habit adds a
+  pot's length to the floor, so a placement moves along by at most one pot. `SillWorld.floor` is that floor (the edit
+  layer uses it). Pets still roam the whole sill (`ground.x0/x1`).
+- **Rim residents keep their weight on the rim.** `Perch.span` is a rim's x range. `seatDx`/`seatOn` keep at least
+  `RIM_CONTACT` (62%) of a resident's contact shadow over the rim. A long or tall pet lies a little smaller on a rim
+  (`RIM_SIZE` in `@/art/pets/world`: cow 0.75, dog 0.76, bear 0.9, and a look drawn bigger than its species comes back
+  to its species' size). `seatOn(..., petId?)`, `actorSize(..., petId?)`, `PlanInput.petId` and `DirectorPet.petId`
+  are optional additions. Pass the pet id where you have it.
+- **Maskable icon**: `ICON_PLACE.maskable` keeps both animals inside the 80% safe circle, and a test pins it.
+  `public/icons/icon-maskable-512.png` is regenerated. The other icons and splashes came out byte-identical.
+- **Correction:** round 1 said every place uses the Sill's table lamp. The Sill, the Bookshelf and the Quilt do. The
+  Balcony Box keeps its jam-jar lantern on the plant stand on purpose, because it is the one outdoor place (see
+  request 13).
+
 ## Requests (outside my area)
 
 1. **App icon / splash (#18)**: make `src/app/AppIconArt.tsx` `export * from '@/art/icons/appIcon';` and
@@ -104,3 +125,8 @@ outside that, the exact request is under **Requests**.
 11. **Blooms (#1, logic)**: see "Plants" above for the art contract.
 12. **Voice (not art)**: RevealCard still says "Find them a place" / "Let them choose" and "The secret one!" (seen in the
     capsule cards screenshot).
+13. **DESIGN §10.4 (one lamp design)**: record the Balcony Box as the one exception. It is outdoors, so its night light is
+    the jam-jar lantern on the plant stand (`BALCONY_PLACE.lampAt`), and the pool is anchored to the lantern. Every indoor
+    place uses the Sill's table lamp.
+14. **DESIGN §9.4 / model docs**: a Sill placement's `x` is a fraction of the Sill's natural length for its pots
+    (`sillFloor`), not of the visible sill. The store needs no change: fractions stay 0..1.

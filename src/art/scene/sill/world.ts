@@ -73,7 +73,12 @@ export interface SillWorld {
   decor: PlacedDecor[];
   pots: PotPlace[];
   ground: Ground;
-  /** The floor decor is placed on (`PlacedDecor.x/y` fractions are measured against it). */
+  /**
+   * The floor stored decor fractions (`PlacedDecor.x/y`) are measured against: the Sill's own length for its pots, from
+   * the window's left edge, whatever the screen's width and however far the sill grew for tall decor. The same stored
+   * spot is then the same place on a phone and a desktop. Adding a habit lengthens it by a pot, and placements stretch
+   * with it. Tall decor pushed past it (onto the decor stretch) keeps its spot there until it is moved.
+   */
   floor: DecorFloor;
   /** Glowing decor after dark: small warm pools on the sill under each (x, y, radius in units). */
   pools: { x: number; y: number; r: number }[];
@@ -152,7 +157,8 @@ export function sillWorld(spec: SillSpec, pots: readonly SillPot[], decor: reado
   const layout = sillLayout(spec, pots.length, minWidth, extraRoam);
   const light = lightAtSun(sun, room.night);
   const long = BEAM_BY_SEASON[season];
-  const beam = room.beam ? sunbeam(layout.window, rows, sun, BEAM_WIDTH * long) : null;
+  // The sun crosses the sill's own stretch (pots, jar, the free sill before the lamp), not the decor stretch past it.
+  const beam = room.beam ? sunbeam({ ...layout.window, x1: layout.homeX1 }, rows, sun, BEAM_WIDTH * long) : null;
   const [cx, cy] = castVector(sun);
   const cast = [cx * long, Math.min(0.4, cy * long)] as const;
   const casts: CastSpec[] = [];
@@ -177,7 +183,7 @@ export function sillWorld(spec: SillSpec, pots: readonly SillPot[], decor: reado
     if (stage >= 2) {
       casts.push({ x: p.x, y, foot: size * m.footW, top: rimW, height: potH, crown: { h: potH + CROWN[stage]! * size * 0.5, r: CROWN[stage]! * size * 0.5 } });
       const dir = facing === 'right' ? 1 : -1;
-      perches.push({ id: `rim:${pot.habitId}`, owner: pot.habitId, kind: 'rim', x: p.x + dir * rimW * RIM_SEAT, y: y - potH, depth: p.depth, z: depthZ(p.depth), w: rimW * 0.5, facing });
+      perches.push({ id: `rim:${pot.habitId}`, owner: pot.habitId, kind: 'rim', x: p.x + dir * rimW * RIM_SEAT, y: y - potH, depth: p.depth, z: depthZ(p.depth), w: rimW * 0.5, facing, span: [p.x - rimW / 2, p.x + rimW / 2] });
       blocked.push([p.x - rimW / 2 - 1.5, p.x + rimW / 2 + 1.5]);
     } else {
       casts.push({ x: p.x, y, foot: size * 0.18, top: size * 0.18, height: size * 0.4 });
@@ -211,7 +217,7 @@ export function sillWorld(spec: SillSpec, pots: readonly SillPot[], decor: reado
   const lampS = scale.lamp * depthScale(layout.lamp.depth);
   blocked.push([layout.lamp.x - lampS * 0.24, layout.lamp.x + lampS * 0.24]);
 
-  const floor: DecorFloor = { x0: layout.window.x0 + 2, x1: layout.width - 4, d0: DECOR_D[0], d1: DECOR_D[1] };
+  const floor = sillFloor(spec, pots.length);
   placed.push(...placeDecor(layout, decor, blocked, floor, typicalPotH));
 
   const obstacles: Obstacle[] = [];
@@ -235,8 +241,8 @@ export function sillWorld(spec: SillSpec, pots: readonly SillPot[], decor: reado
 
   const ground: Ground = {
     rows,
-    x0: floor.x0,
-    x1: floor.x1,
+    x0: layout.window.x0 + 2,
+    x1: layout.width - 4,
     d0: 0.42,
     d1: 0.96,
     surface: room.sill,
@@ -251,12 +257,24 @@ export function sillWorld(spec: SillSpec, pots: readonly SillPot[], decor: reado
 }
 
 /**
+ * The floor a Sill's stored decor fractions are measured against (see `SillWorld.floor`): its natural length for
+ * `pots` pots, with no room added for the screen or for tall decor.
+ */
+export function sillFloor(spec: SillSpec, pots: number): DecorFloor {
+  const natural = sillLayout(spec, pots, 0, 0);
+  return { x0: natural.window.x0 + 2, x1: natural.width - 4, d0: DECOR_D[0], d1: DECOR_D[1] };
+}
+
+/**
  * The user's decor on the Sill: hanging things along the window's meeting rail, standing things where she put them
  * (or spread along the free sill past the jar), then moved just far enough to keep tall things off the pots.
  */
 export function placeDecor(layout: SillLayout, decor: readonly ShelfDecor[], blockedIn: readonly Span[] = [], floor?: DecorFloor, potH = layout.spec.scale.pot * potMetrics('terracotta').height): PlacedDecor[] {
   const { rows, scale } = layout.spec;
-  const fl = floor ?? { x0: layout.window.x0 + 2, x1: layout.width - 4, d0: DECOR_D[0], d1: DECOR_D[1] };
+  const fl = floor ?? sillFloor(layout.spec, layout.pots.length);
+  // Tall decor may be moved anywhere along the sill, the decor stretch included.
+  const lo = layout.window.x0 + 2;
+  const hi = layout.width - 4;
   const blocked: Span[] = [...blockedIn];
   let hangers = 0;
   // Default spots start on the free sill past the jar and run right.
@@ -277,7 +295,7 @@ export function placeDecor(layout: SillLayout, decor: readonly ShelfDecor[], blo
     const hw = ((entry.bounds[1] - entry.bounds[0]) / 200) * size * depthScale(depth);
     let x = asked?.x ?? next + hw;
     if (tallDecor(entry, size * depthScale(depth), potH)) {
-      x = clearX(x, hw + 0.5, blocked, fl.x0, fl.x1) ?? x;
+      x = clearX(x, hw + 0.5, blocked, lo, hi) ?? x;
       blocked.push([x - hw, x + hw]);
     } else if (blocked.some((b) => overlaps([x - hw, x + hw], b))) {
       // Short things may stand in front of a pot, at the very front of the sill.
@@ -299,14 +317,16 @@ export function lightTarget(world: SillWorld): number {
 
 /**
  * Where a scene `view` units wide opens (its left edge, in units). By day, centred on the sunbeam. After dark, with the
- * lamp at the right of the view; on a narrow screen where the lamp and the pots cannot both fit, the last pot stays in
- * frame at the left and the lamp's pool, the moon and the pets gathered under it fill the rest (DESIGN §9.4).
+ * lamp at the right of the view. Either way the last pot stays in frame: on a narrow screen where the light and the
+ * pots cannot both fit, the last pot is at the left and the light (the beam, or the lamp's pool, the moon and the pets
+ * gathered under it) fills the rest (DESIGN §9.4). The lamp and the sun keep to the sill's own stretch, so on a busy
+ * Sill the decor stretch past the lamp is never where it opens.
  */
 export function openScroll(world: SillWorld, view: number): number {
   const max = Math.max(0, world.layout.width - view);
-  if (world.beam) return clamp(lightTarget(world) - view / 2, 0, max);
-  const lampRight = world.layout.lamp.x + world.layout.spec.scale.lamp * 0.3 + 3;
   const last = world.pots[world.pots.length - 1];
-  const lastLeft = last ? last.x - last.size * last.scale * POT_HALF - 3 : lampRight - view;
+  const lastLeft = last ? last.x - last.size * last.scale * POT_HALF - 3 : Infinity;
+  if (world.beam) return clamp(Math.min(lightTarget(world) - view / 2, lastLeft), 0, max);
+  const lampRight = world.layout.lamp.x + world.layout.spec.scale.lamp * 0.3 + 3;
   return clamp(Math.min(lampRight - view, lastLeft), 0, max);
 }

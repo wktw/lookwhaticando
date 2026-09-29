@@ -12,7 +12,7 @@ import { PERSONALITY_BY_ID } from '@/catalog/personalities';
 import { baseline, clamp, depthScale, depthZ, type RoomRows } from './room';
 import { inBeam, type Beam } from './sill/layout';
 import { seeded } from './sill/scenery';
-import { reachBehind } from '@/art/pets/world';
+import { drawnReach, rimFit, SPECIES_PET } from '@/art/pets/world';
 
 /** Somewhere raised a pet can sit: a pot rim, a shelf, a quilt. */
 export interface Perch {
@@ -37,6 +37,8 @@ export interface Perch {
   pose?: PetPose;
   /** The way a pet always faces here (a pot rim: head away from the plant tag). */
   facing?: 'left' | 'right';
+  /** A pot rim's own x range [left, right] in units: a pet seated here keeps most of its weight on it. */
+  span?: readonly [number, number];
 }
 
 /** Something standing on the ground that pets walk around. */
@@ -143,20 +145,41 @@ export function nearestFree(g: Ground, want: number, taken: readonly number[]): 
 }
 
 /**
- * Where a pet sits along a pot rim, relative to the perch: a rim perch marks where a loafing cat's middle goes, so a
- * longer pet (a cow, a beagle) slides out over the lip by the extra length behind it and a small one tucks in. Its
- * back edge then meets the plant where a cat's would, and the leaves stay in view (the M1 audit's 40% rule).
+ * How much of a rim resident's contact (the part of it resting on the rim) stays over the rim: nobody sits in mid-air
+ * past the pot's edge.
  */
-export function seatDx(g: Ground, p: Perch, species: Species, pose: PetPose): number {
+export const RIM_CONTACT = 0.62;
+
+/**
+ * Where a pet sits along a pot rim, relative to the perch: a rim perch marks where a loafing cat's middle goes, so a
+ * longer pet (a cow, a beagle) slides out toward the lip by the extra length behind it and a small one tucks in. Its
+ * back edge then meets the plant where a cat's would, and the leaves stay in view (the M1 audit's 40% rule). It
+ * slides no further than keeps `RIM_CONTACT` of its contact on the rim (`Perch.span`): a long pet's head may reach
+ * past the lip, its weight stays on the pot. A long or tall pet lies a little smaller on a rim (`rimFit`).
+ */
+export function seatDx(g: Ground, p: Perch, species: Species, pose: PetPose, petId: string = SPECIES_PET[species]): number {
   if (p.kind !== 'rim') return 0;
   const at = pose === 'sleep' || pose === 'sit' || pose === 'stand' ? pose : 'loaf';
-  const extra = (reachBehind(species, at) - reachBehind('cat', 'loaf')) * g.petSize * depthScale(p.depth);
-  return (p.facing === 'left' ? -1 : 1) * extra;
+  const unit = g.petSize * depthScale(p.depth);
+  const A = unit * rimFit(petId);
+  const me = drawnReach(petId, at);
+  const dir = p.facing === 'left' ? -1 : 1;
+  const dx = dir * (me.behind * A - drawnReach(SPECIES_PET.cat, 'loaf').behind * unit);
+  if (!p.span) return dx;
+  const [back, front] = me.contact;
+  // The contact's ends as offsets from the pet's x, facing this way.
+  const lo = (dir > 0 ? back : -front) * A;
+  const hi = (dir > 0 ? front : -back) * A;
+  const need = RIM_CONTACT * (hi - lo);
+  const xMin = p.span[0] + need - hi;
+  const xMax = p.span[1] - need - lo;
+  const x = xMin > xMax ? (xMin + xMax) / 2 : clamp(p.x + dx, xMin, xMax);
+  return x - p.x;
 }
 
-/** A pet on a perch, seated for its species (see `seatDx`). */
-export function seatOn(g: Ground, p: Perch, species: Species, pose: PetPose, asleep: boolean, facing: 'left' | 'right'): PetSpot {
-  return perchSpot(p, pose, asleep, facing, seatDx(g, p, species, p.pose && !asleep ? p.pose : pose));
+/** A pet on a perch, seated for its species and look (see `seatDx`). */
+export function seatOn(g: Ground, p: Perch, species: Species, pose: PetPose, asleep: boolean, facing: 'left' | 'right', petId?: string): PetSpot {
+  return perchSpot(p, pose, asleep, facing, seatDx(g, p, species, p.pose && !asleep ? p.pose : pose, petId));
 }
 
 /** A resident's own perch: its routine's object when one is out, else its pot's rim (or beside its cutting's glass). */
@@ -192,7 +215,7 @@ export function arrangePets(g: Ground, pets: readonly ShelfPet[], m: Moment): Ma
     if (!home) continue;
     const sp = speciesOf(p.petId);
     const asleep = routineOf(p) === 'sleep';
-    out.set(key, seatOn(g, home, sp, asleep ? 'sleep' : REST_POSE[sp], asleep, home.x > mid ? 'left' : 'right'));
+    out.set(key, seatOn(g, home, sp, asleep ? 'sleep' : REST_POSE[sp], asleep, home.x > mid ? 'left' : 'right', p.petId));
     perched.add(home.id);
   }
 
@@ -204,7 +227,7 @@ export function arrangePets(g: Ground, pets: readonly ShelfPet[], m: Moment): Ma
     if (!fav || perched.has(fav.id)) continue;
     const sp = speciesOf(p.petId);
     const asleep = routineOf(p) === 'sleep';
-    out.set(key, seatOn(g, fav, sp, asleep ? 'sleep' : REST_POSE[sp], asleep, fav.x > mid ? 'left' : 'right'));
+    out.set(key, seatOn(g, fav, sp, asleep ? 'sleep' : REST_POSE[sp], asleep, fav.x > mid ? 'left' : 'right', p.petId));
     perched.add(fav.id);
   }
 

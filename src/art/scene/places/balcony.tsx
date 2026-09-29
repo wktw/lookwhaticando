@@ -1,7 +1,8 @@
 /**
  * Balcony Box (DESIGN §8.4): out through the glass door, a window box of seasonal flowers hung on
  * the railing, the street and the weather beyond, and a slatted stand where retired plants live. Room to
- * roam on the tiles; at night a jam-jar lantern on the stand.
+ * roam on the tiles; at night a jam-jar lantern on the stand. The one place without the Sill's table lamp: it is
+ * outdoors, so its light is the lantern, and the pool is anchored to it (`lampAt`, DESIGN §10.4).
  */
 import type { Ground, Perch } from '../arrange';
 import { depthZ, type RoomRows } from '../room';
