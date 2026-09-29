@@ -155,13 +155,16 @@ export function FieldGuideSheet({ open, page, onPage, onClose }: FieldGuideSheet
 function Page({ album }: { album: AlbumVM }) {
   const pets = state.value.pets;
   const reward = rewardLine(album);
-  const items = useMemo(() => album.pets, [album]);
+  const items = album.pets;
+  // The page's own series is said once, in its header; a tile names its source only when it differs.
+  const series = useMemo(() => mostCommon(items.map((i) => i.from)), [items]);
   return (
     <div class={s.page} role="tabpanel" id="guide-page" aria-labelledby={`guide-tab-${album.id}`} tabIndex={0}>
       <header class={s.pageHead}>
         <h3 class={s.pageTitle}>{album.name}</h3>
         <span class={s.pageMeta}>{fillLine(SHELF_COPY.fieldGuideSheet.of, { owned: album.owned, total: album.total })}</span>
       </header>
+      {series && <p class={s.pageFrom}>{series}</p>}
       {album.complete && (
         <div class={s.reward}>
           {album.reward && (
@@ -176,7 +179,7 @@ function Page({ album }: { album: AlbumVM }) {
       <ul class={s.grid}>
         {items.map((item) => (
           <li key={item.id}>
-            <Tile item={item} name={pets[item.id]?.name ?? null} />
+            <Tile item={item} name={pets[item.id]?.name ?? null} series={series} />
           </li>
         ))}
       </ul>
@@ -184,9 +187,17 @@ function Page({ album }: { album: AlbumVM }) {
   );
 }
 
-function Tile({ item, name }: { item: BookItemVM; name: string | null }) {
+function mostCommon(xs: readonly string[]): string | null {
+  const n = new Map<string, number>();
+  for (const x of xs) n.set(x, (n.get(x) ?? 0) + 1);
+  let best: string | null = null;
+  for (const [x, c] of n) if (!best || c > n.get(best)!) best = x;
+  return best;
+}
+
+function Tile({ item, name, series }: { item: BookItemVM; name: string | null; series: string | null }) {
   const owned = item.owned > 0;
-  const where = [item.from, visitsLine(item.visits)].filter(Boolean).join(' · ');
+  const where = [item.from === series ? null : item.from, visitsLine(item.visits)].filter(Boolean).join(' · ');
   const body = (
     <>
       <span class={s.tileArt} aria-hidden="true">
@@ -200,7 +211,7 @@ function Tile({ item, name }: { item: BookItemVM; name: string | null }) {
         )}
       </span>
       <span class={s.tileName}>{item.hidden ? SHELF_COPY.fieldGuideSheet.secret : (name ?? item.name)}</span>
-      <span class={s.tileMeta}>{owned ? (name ? item.name : where) : SHELF_COPY.fieldGuideSheet.notYet}</span>
+      <span class={s.tileMeta}>{owned ? (name ? item.name : where || item.name) : SHELF_COPY.fieldGuideSheet.notYet}</span>
       {!owned && where && <span class={s.tileFrom}>{where}</span>}
     </>
   );
