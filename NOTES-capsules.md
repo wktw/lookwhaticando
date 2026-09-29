@@ -40,6 +40,10 @@ Requests for shared contracts / other modules (I did not change any of these fil
   look; scoping the rule to `.gal-section > h2` would fix it for every module.
 - **Art from other modules:** the reveal and lineup render `CollectibleArt`, so wearable icons, treats,
   decor and plants show placeholder gift boxes until those modules merge.
+- **Dev gallery:** `/gallery.html?only=capsules` (all), `?only=capsules-screen` (phone frame, seeds a
+  500-coin / 20-star / 2-ticket wallet), `?only=capsules-pull&machine=moo&coins=10&tickets=0&quick=1`
+  (one interactive machine, edge cases via URL), `?only=capsules-reveal&reveal=ultra|rare|…&stage=card`.
+  Viewing every section at once runs several copies of the Kitty machine on one shared pile, so use `only=`.
 - **Performance:** each machine's resting pile is computed once per session (a few ms on desktop) and cached;
   only the visible machine runs physics, and its rAF loop stops as soon as the pile sleeps or the page is
   hidden. The dome shows 20 capsules (bigger ones read better as capsules at phone size); the sim is tested with 24.
