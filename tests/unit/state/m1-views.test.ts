@@ -411,3 +411,12 @@ describe('the first-capsule card (VOICE §16 step 6)', () => {
     expect(todayVM(demo, demoEnv).firstCapsuleWaiting).toBe(false);
   });
 });
+
+describe('a one-day window says nothing (NOTES-w2-progress request 5)', () => {
+  it('never "1 of the last 1 days"', async () => {
+    const { showedUpLine, consistencyText } = await import('@/catalog/format');
+    expect(showedUpLine({ days: 1, span: 1 })).toBeNull();
+    expect(showedUpLine({ days: 2, span: 2 })).toBe('You showed up 2 of the last 2 days');
+    expect(consistencyText({ kind: 'days', achieved: 1, spanDays: 1, tiny: 0 } as never, 1)).toBeNull();
+  });
+});
