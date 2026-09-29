@@ -55,7 +55,7 @@ export const DATA_COPY = {
   pasteLabel: 'Or paste a backup here',
   pasteHelper: 'A backup starts with CK1, or it is a catkin backup file.',
   noUndoTitle: 'Import without an undo?',
-  noUndo: 'catkin couldn’t keep a copy of what’s here, so this import can’t be undone.',
+  noUndo: 'catkin couldn’t keep a copy of what’s here, so there is no Undo import this time.',
   importAnyway: 'Import anyway',
   cannotOpen: 'This browser can’t open that backup. Try the backup file instead.',
   readOnly: 'This window can’t change the save right now.',
