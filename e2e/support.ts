@@ -27,8 +27,16 @@ export function watchErrors(page: Page): string[] {
  */
 export async function openRoute(page: Page, tab: TabId, base = './'): Promise<void> {
   const url = `${base}#/${tab}`;
-  if (page.url() === 'about:blank') await page.goto(url);
-  else await page.evaluate((t) => (location.hash = `#/${t}`), tab);
+  if (page.url() === 'about:blank') {
+    // A first boot is onboarding now (and, in an iPhone Safari tab, the install gate first).
+    await page.goto(url);
+    const stay = page.getByRole('button', { name: 'Keep it in this tab' });
+    const skip = page.getByRole('button', { name: 'Skip' });
+    await expect(stay.or(skip).or(page.getByRole('navigation', { name: 'Main' }).first())).toBeVisible();
+    if (await stay.isVisible()) await stay.click();
+    while (await skip.isVisible()) await skip.click(); // sill → pick (nothing planted) → cabinets → Today
+    await page.evaluate((t) => (location.hash = `#/${t}`), tab);
+  } else await page.evaluate((t) => (location.hash = `#/${t}`), tab);
   await expect(page.locator('main h1')).toBeVisible();
   await expect(page).toHaveURL(new RegExp(`#/${tab}$`));
 }

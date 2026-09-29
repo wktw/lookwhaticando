@@ -71,7 +71,7 @@ export const MANIFEST: Partial<ManifestOptions> = {
  * runtime). public/ is not listed in `includeAssets`, which would bypass these ignores, and the
  * plugin's own manifest and manifest-icon entries are left off, since the glob already has them.
  */
-export const PRECACHE_GLOB: readonly string[] = ['**/*.{js,css,html,woff2,png,svg}'];
+export const PRECACHE_GLOB: readonly string[] = ['**/*.{js,css,html,woff2,png,svg,ics}'];
 export const PRECACHE_IGNORE: readonly string[] = ['splash/**', 'screenshots/**', 'assets/nunito-latin-ext-*.woff2'];
 
 /** The two big generated art tables get chunks of their own, so they cache apart from the code. */
@@ -152,6 +152,7 @@ export default defineConfig(({ mode }) => {
           globPatterns: [...PRECACHE_GLOB],
           globIgnores: [...PRECACHE_IGNORE],
           navigateFallback: 'index.html',
+          navigateFallbackDenylist: [/\/cal\/[^/]+\.ics$/],
           cleanupOutdatedCaches: true,
           runtimeCaching: [
             {

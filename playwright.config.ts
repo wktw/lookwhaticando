@@ -27,6 +27,7 @@ const BASE_URL = `http://127.0.0.1:${PORT}/`;
 const phone = { ...devices['iPhone 13'], browserName: 'chromium' as const, viewport: { width: 390, height: 844 }, deviceScaleFactor: 2 };
 const desktop = { ...devices['Desktop Chrome'], viewport: { width: 1280, height: 800 } };
 const routes = /routes\.spec\.ts$/;
+const screens = /(you|onboarding|today|progress|shelf|capsules)\.spec\.ts$/;
 
 const projects: Project[] = [
   { name: 'phone-light', testMatch: routes, use: { ...phone, colorScheme: 'light' } },
@@ -35,8 +36,17 @@ const projects: Project[] = [
   { name: 'desktop-dark', testMatch: routes, use: { ...desktop, colorScheme: 'dark' } },
   { name: 'phone-320', testMatch: /layout\.spec\.ts$/, use: { ...phone, viewport: { width: 320, height: 640 } } },
   { name: 'single-file', testMatch: /single-file\.spec\.ts$/, use: { ...phone } },
+  // The screens' own journeys (wave 2), phone and desktop, light and dark.
+  { name: 'screens-phone-light', testMatch: screens, use: { ...phone, colorScheme: 'light' } },
+  { name: 'screens-phone-dark', testMatch: screens, use: { ...phone, colorScheme: 'dark' } },
+  { name: 'screens-desktop-light', testMatch: screens, use: { ...desktop, colorScheme: 'light' } },
+  { name: 'screens-desktop-dark', testMatch: screens, use: { ...desktop, colorScheme: 'dark' } },
 ];
-if (TARGET === 'preview') projects.push({ name: 'pwa', testMatch: /pwa\.spec\.ts$/, use: { ...desktop, serviceWorkers: 'allow' } });
+if (TARGET === 'preview') {
+  projects.push({ name: 'pwa', testMatch: /pwa\.spec\.ts$/, use: { ...desktop, serviceWorkers: 'allow' } });
+  // Screen tests that need the service worker, tagged @pwa (You's static calendar files).
+  projects.push({ name: 'pwa-screens', testMatch: screens, grep: /@pwa/, use: { ...desktop, serviceWorkers: 'allow' } });
+}
 
 export default defineConfig({
   testDir: 'e2e',
