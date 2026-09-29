@@ -152,12 +152,16 @@ export interface HabitTemplate {
   icon: string;
   schedule:
     | { kind: 'daily' }
-    | { kind: 'weekdays'; days: number[] }
-    | { kind: 'weekly'; times: number }
-    | { kind: 'monthly'; times: number };
+    | { kind: 'days'; days: (0 | 1 | 2 | 3 | 4 | 5 | 6)[] }
+    | { kind: 'weekly'; times: number; every: 1 | 2 | 3 | 4 }
+    | { kind: 'monthly'; times: number; every: 1 | 2 | 3 | 6 | 12 };
   target: number;
+  step?: number;
   unit?: string;
-  effort: 'tiny' | 'steady' | 'big';
+  effort: 'light' | 'steady' | 'big';
+  timeOfDay: 'morning' | 'midday' | 'evening' | 'anytime';
+  tiny?: { label: string; count?: number };
+  polarity?: 'build' | 'avoid';
   plant: PlantSpeciesId;
   color: PastelKey;
 }

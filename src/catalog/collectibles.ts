@@ -103,25 +103,25 @@ const EXCLUSIVE: CollectibleDef[] = [
 const KITTY: CollectibleDef[] = [
   pet('cat-orange', 'cat', 'Orange Tabby', 'Marmalade', 'common', 'kitty', 'Professional sunbeam tester. Takes the job very seriously.'),
   pet('cat-grey', 'cat', 'Grey Kitty', 'Earl Grey', 'common', 'kitty', 'Steeped in calm. Best served with a nap.'),
-  pet('cat-tuxedo', 'cat', 'Tuxedo Cat', 'Sir Pounce', 'common', 'kitty', 'Always dressed for the occasion. The occasion is dinner.'),
+  pet('cat-tuxedo', 'cat', 'Tuxedo Cat', 'Sir Pounce', 'uncommon', 'kitty', 'Always dressed for the occasion. The occasion is dinner.'),
   pet('cat-cream', 'cat', 'Cream Puff', 'Custard', 'common', 'kitty', 'Mostly fluff. The rest is purr.'),
-  pet('cat-calico', 'cat', 'Calico', 'Patches', 'uncommon', 'kitty', 'Three colors, zero chill, all love.'),
+  pet('cat-calico', 'cat', 'Calico', 'Patches', 'rare', 'kitty', 'Three colors, zero chill, all love.'),
   pet('cat-black', 'cat', 'Black Cat', 'Pepper', 'uncommon', 'kitty', 'Brings good luck to anyone who pets her.'),
-  pet('cat-siamese', 'cat', 'Siamese', 'Mochaccino', 'uncommon', 'kitty', 'Has opinions. Will share them. Loudly.'),
-  pet('cat-strawberry', 'cat', 'Strawberry Cat', 'Berry', 'rare', 'kitty', 'Grew in a strawberry patch. Smells faintly of jam.'),
+  pet('cat-siamese', 'cat', 'Siamese', 'Mochaccino', 'rare', 'kitty', 'Has opinions. Will share them. Loudly.'),
+  pet('cat-strawberry', 'cat', 'Strawberry Cat', 'Berry', 'ultra', 'kitty', 'Grew in a strawberry patch. Smells faintly of jam.'),
   pet('cat-lucky', 'cat', 'Lucky Cat', 'Fortune', 'ultra', 'kitty', 'Waves hello to good things. They usually wave back.'),
   wear('pink-bow', 'head', 'Pink Bow', 'common', 'kitty', 'Instantly 30% more adorable. Science.'),
   wear('bell-collar', 'neck', 'Bell Collar', 'common', 'kitty', 'Jingles softly so friends know you are near.'),
   wear('paw-bandana', 'neck', 'Paw Bandana', 'common', 'kitty', 'Covered in tiny paw prints. Very official.'),
-  wear('fish-hat', 'head', 'Fish Hat', 'uncommon', 'kitty', 'A hat that is also a fish. Cats find this delicious.'),
+  wear('fish-hat', 'head', 'Fish Hat', 'rare', 'kitty', 'A hat that is also a fish. Cats find this delicious.'),
   wear('reading-glasses', 'face', 'Reading Glasses', 'uncommon', 'kitty', 'For reading. Or looking like you were reading.'),
-  wear('cozy-stripes', 'body', 'Cozy Stripes Sweater', 'uncommon', 'kitty', 'Knit with extra snuggle.'),
+  wear('cozy-stripes', 'body', 'Cozy Stripes Sweater', 'rare', 'kitty', 'Knit with extra snuggle.'),
   treat('fish-crackers', ['crunchy', 'savory'], 'Fishy Crackers', 'common', 'kitty', 'Tiny fish, big crunch.'),
   treat('salmon-sushi', ['savory', 'fresh'], 'Salmon Sushi', 'uncommon', 'kitty', 'Rolled with love (and rice).'),
   decor('cardboard-box', 'ground-left', 'Cardboard Box', 'common', 'kitty', 'The finest real estate in any meadow.'),
-  decor('yarn-basket', 'ground-right', 'Yarn Basket', 'common', 'kitty', 'Pastel skeins, mostly un-tangled.'),
-  decor('cat-tree', 'back-right', 'Cat Tree', 'rare', 'kitty', 'Three levels of lounging luxury.'),
-  pot('kitty', 'Kitty Pot', 'uncommon', 'kitty', 'Has little ears. Your plant looks thrilled.'),
+  decor('yarn-basket', 'ground-right', 'Yarn Basket', 'uncommon', 'kitty', 'Pastel skeins, mostly un-tangled.'),
+  decor('cat-tree', 'back-right', 'Cat Tree', 'ultra', 'kitty', 'Three levels of lounging luxury.'),
+  pot('kitty', 'Kitty Pot', 'rare', 'kitty', 'Has little ears. Your plant looks thrilled.'),
 ];
 
 /* ------------------------------------------------------------------------ */
@@ -132,24 +132,24 @@ const MOO: CollectibleDef[] = [
   pet('cow-holstein', 'cow', 'Classic Moo', 'Oreo', 'common', 'moo', 'Black and white and sweet all over.'),
   pet('cow-brown', 'cow', 'Chocolate Milk Cow', 'Cocoa', 'common', 'moo', 'Says "moo" in a voice like hot chocolate.'),
   pet('cow-blueberry', 'cow', 'Blueberry Milk Cow', 'Bluebell', 'common', 'moo', 'Somehow always smells like muffins.'),
-  pet('cow-strawberry', 'cow', 'Strawberry Milk Cow', 'Milkshake', 'uncommon', 'moo', 'Pink, polite, and extremely huggable.'),
+  pet('cow-strawberry', 'cow', 'Strawberry Milk Cow', 'Milkshake', 'rare', 'moo', 'Pink, polite, and extremely huggable.'),
   pet('cow-banana', 'cow', 'Banana Milk Cow', 'Nana', 'uncommon', 'moo', 'Sunny disposition. Pairs well with mornings.'),
   pet('cow-matcha', 'cow', 'Matcha Latte Cow', 'Matcha', 'uncommon', 'moo', 'Calm, grounded, gently caffeinated.'),
-  pet('cow-highland', 'cow', 'Highland Cow', 'Clementine', 'rare', 'moo', 'Cannot see through her bangs. Does not mind.'),
+  pet('cow-highland', 'cow', 'Highland Cow', 'Clementine', 'ultra', 'moo', 'Cannot see through her bangs. Does not mind.'),
   pet('cow-sprinkle', 'cow', 'Sprinkle Cow', 'Confetti', 'ultra', 'moo', 'Her spots are rainbow sprinkles. Every day is a party.'),
   wear('cowbell', 'neck', 'Cowbell', 'common', 'moo', 'More cowbell. Always more cowbell.'),
   wear('gingham-bandana', 'neck', 'Gingham Bandana', 'common', 'moo', 'Picnic-ready at all times.'),
   wear('milk-mustache', 'face', 'Milk Mustache', 'common', 'moo', 'Proof of a delicious decision.'),
-  wear('cowgirl-hat', 'head', 'Pink Cowgirl Hat', 'uncommon', 'moo', 'Yeehaw, but make it pastel.'),
+  wear('cowgirl-hat', 'head', 'Pink Cowgirl Hat', 'rare', 'moo', 'Yeehaw, but make it pastel.'),
   wear('overalls', 'body', 'Denim Overalls', 'uncommon', 'moo', 'Farm chic. Pockets for snacks.'),
   wear('milk-carton', 'head', 'Milk Carton Hat', 'rare', 'moo', 'Best before: never.'),
   treat('strawberry-milk', ['drink', 'sweet'], 'Strawberry Milk', 'common', 'moo', 'Pink milk is objectively the best milk.'),
   treat('clover', ['fresh', 'savory'], 'Fresh Clover', 'common', 'moo', 'Might be lucky. Definitely tasty.'),
   treat('cheese', ['savory'], 'Cheese Wedge', 'uncommon', 'moo', 'Aged to perfection (about a week).'),
-  decor('hay-bale', 'ground-right', 'Hay Bale', 'common', 'moo', 'Scratchy, cozy, perfect for sitting.'),
-  decor('picnic-blanket', 'ground-center', 'Picnic Blanket', 'uncommon', 'moo', 'Gingham, a basket, and nowhere to be.'),
-  decor('little-barn', 'back-left', 'Little Barn', 'rare', 'moo', 'A red barn with room for everyone.'),
-  pot('cowprint', 'Cow Print Pot', 'uncommon', 'moo', 'Spotted and proud.'),
+  decor('hay-bale', 'ground-right', 'Hay Bale', 'uncommon', 'moo', 'Scratchy, cozy, perfect for sitting.'),
+  decor('picnic-blanket', 'ground-center', 'Picnic Blanket', 'rare', 'moo', 'Gingham, a basket, and nowhere to be.'),
+  decor('little-barn', 'back-left', 'Little Barn', 'ultra', 'moo', 'A red barn with room for everyone.'),
+  pot('cowprint', 'Cow Print Pot', 'rare', 'moo', 'Spotted and proud.'),
 ];
 
 /* ------------------------------------------------------------------------ */
@@ -162,9 +162,9 @@ const PUPPY: CollectibleDef[] = [
   pet('dog-dachshund', 'dog', 'Dachshund', 'Frankie', 'common', 'puppy', 'Floppy ears, big heart, bigger opinions about squirrels.'),
   pet('dog-shiba', 'dog', 'Shiba Inu', 'Kinako', 'uncommon', 'puppy', 'Much cute. Very good. Wow.'),
   pet('dog-golden', 'dog', 'Golden Pup', 'Butter', 'uncommon', 'puppy', 'Believes every single person is their best friend.'),
-  pet('dog-dalmatian', 'dog', 'Dalmatian', 'Domino', 'uncommon', 'puppy', 'Counted her spots once. Got distracted by a ball.'),
+  pet('dog-dalmatian', 'dog', 'Dalmatian', 'Domino', 'rare', 'puppy', 'Counted her spots once. Got distracted by a ball.'),
   pet('dog-frenchie', 'dog', 'Frenchie', 'Brie', 'rare', 'puppy', 'Bat ears, snorty laugh, impeccable taste.'),
-  pet('dog-samoyed', 'dog', 'Samoyed', 'Snowpuff', 'rare', 'puppy', 'Smiles so hard her eyes disappear.'),
+  pet('dog-samoyed', 'dog', 'Samoyed', 'Snowpuff', 'ultra', 'puppy', 'Smiles so hard her eyes disappear.'),
   pet('dog-cottoncandy', 'dog', 'Cotton Candy Pom', 'Floss', 'ultra', 'puppy', 'Spun from pink and blue sugar. Barks in sparkles.'),
   wear('bow-tie', 'neck', 'Bow Tie', 'common', 'puppy', 'For very good boys, girls, and friends.'),
   wear('pom-beanie', 'head', 'Pom Beanie', 'common', 'puppy', 'Knit, cozy, crowned with a pom-pom.'),
@@ -187,9 +187,9 @@ const SAKURA: CollectibleDef[] = [
   pet('bunny-brown', 'bunny', 'Cocoa Bunny', 'Toffee', 'common', 'sakura', 'Hops first, thinks later.'),
   pet('frog-green', 'frog', 'Pond Frog', 'Lily', 'common', 'sakura', 'Ribbits in a major key.'),
   pet('bunny-lop', 'bunny', 'Lop Bunny', 'Biscuit', 'uncommon', 'sakura', 'Ears too heavy to stand up. Heart too full, probably.'),
-  pet('frog-mushroom', 'frog', 'Mushroom Frog', 'Morel', 'uncommon', 'sakura', 'Found a tiny mushroom and decided it was a hat.'),
+  pet('frog-mushroom', 'frog', 'Mushroom Frog', 'Morel', 'rare', 'sakura', 'Found a tiny mushroom and decided it was a hat.'),
   pet('cat-sakura', 'cat', 'Sakura Cat', 'Hanami', 'rare', 'sakura', 'Blooms once a year. Purrs all year round.'),
-  pet('bunny-sakura', 'bunny', 'Sakura Bunny', 'Blossom', 'rare', 'sakura', 'Leaves a trail of petals wherever she hops.'),
+  pet('bunny-sakura', 'bunny', 'Sakura Bunny', 'Blossom', 'ultra', 'sakura', 'Leaves a trail of petals wherever she hops.'),
   pet('frog-prince', 'frog', 'Frog Prince', 'Prince Ribbit', 'ultra', 'sakura', 'No kiss required. Already charming.'),
   wear('daisy-crown', 'head', 'Daisy Crown', 'common', 'sakura', 'Handmade, a little lopsided, perfect.'),
   wear('sakura-clip', 'head', 'Sakura Clip', 'common', 'sakura', 'A single blossom, worn just so.'),
@@ -200,9 +200,9 @@ const SAKURA: CollectibleDef[] = [
   plant('lily', 'Lily of the Valley', 'uncommon', 'sakura', 'Tiny bells that ring very, very quietly.'),
   plant('sakura', 'Sakura Bonsai', 'rare', 'sakura', 'A whole spring, small enough to hold.'),
   pot('sage', 'Sage Glaze Pot', 'common', 'sakura', 'Glazed the color of new leaves.'),
-  pot('frog', 'Frog Pot', 'uncommon', 'sakura', 'Your plant now lives in a frog. Lucky plant.'),
+  pot('frog', 'Frog Pot', 'rare', 'sakura', 'Your plant now lives in a frog. Lucky plant.'),
   decor('tulip-bed', 'ground-left', 'Tulip Bed', 'common', 'sakura', 'A tidy row of pastel tulips.'),
-  decor('cherry-tree', 'back-right', 'Cherry Blossom Tree', 'rare', 'sakura', 'Petals drift down all day.'),
+  decor('cherry-tree', 'back-right', 'Cherry Blossom Tree', 'ultra', 'sakura', 'Petals drift down all day.'),
 ];
 
 /* ------------------------------------------------------------------------ */
@@ -214,14 +214,14 @@ const SWEETS: CollectibleDef[] = [
   pet('hamster-white', 'hamster', 'Snowball Hamster', 'Onigiri', 'common', 'sweets', 'Round, white, and legally a rice ball.'),
   pet('bear-brown', 'bear', 'Honey Bear', 'Honey', 'common', 'sweets', 'Sticky paws, sweet soul.'),
   pet('hamster-choco', 'hamster', 'Choco Hamster', 'Brownie', 'uncommon', 'sweets', 'Half chocolate, half vanilla, fully snack-sized.'),
-  pet('bear-strawberry', 'bear', 'Strawberry Bear', 'Jam', 'uncommon', 'sweets', 'Spreads joy. Also spreads jam.'),
-  pet('bear-panda', 'bear', 'Panda', 'Dumpling', 'rare', 'sweets', 'Black, white, and bamboo-scented.'),
-  pet('hamster-daifuku', 'hamster', 'Daifuku Hamster', 'Mochi Jr.', 'rare', 'sweets', 'Squishy on the outside, sweet bean on the inside.'),
+  pet('bear-strawberry', 'bear', 'Strawberry Bear', 'Jam', 'rare', 'sweets', 'Spreads joy. Also spreads jam.'),
+  pet('bear-panda', 'bear', 'Panda', 'Dumpling', 'ultra', 'sweets', 'Black, white, and bamboo-scented.'),
+  pet('hamster-daifuku', 'hamster', 'Daifuku Hamster', 'Mochi Jr.', 'ultra', 'sweets', 'Squishy on the outside, sweet bean on the inside.'),
   pet('bear-cupcake', 'bear', 'Cupcake Bear', 'Frosting', 'ultra', 'sweets', 'Wears a frosting swirl. Refuses to share it.'),
   wear('bakers-hat', 'head', "Baker's Hat", 'common', 'sweets', 'Puffy, white, and full of recipes.'),
   wear('cherry-clips', 'head', 'Cherry Clips', 'common', 'sweets', 'Two cherries, one very cute hairdo.'),
   wear('strawberry-hat', 'head', 'Strawberry Hat', 'uncommon', 'sweets', 'You are now a strawberry. Congratulations.'),
-  wear('frilly-apron', 'body', 'Frilly Apron', 'uncommon', 'sweets', 'Ruffles make everything taste better.'),
+  wear('frilly-apron', 'body', 'Frilly Apron', 'rare', 'sweets', 'Ruffles make everything taste better.'),
   treat('cookie', ['sweet', 'crunchy'], 'Choc Chip Cookie', 'common', 'sweets', 'Warm from the oven, chips still melty.'),
   treat('pudding', ['sweet'], 'Custard Pudding', 'common', 'sweets', 'Wiggles when you look at it.'),
   treat('donut', ['sweet'], 'Sprinkle Donut', 'common', 'sweets', 'A circle of pure happiness.'),
@@ -239,20 +239,20 @@ const SWEETS: CollectibleDef[] = [
 const DREAMY: CollectibleDef[] = [
   pet('cat-cloud', 'cat', 'Cloud Kitty', 'Nimbus', 'common', 'dreamy', 'Floats a tiny bit when happy.'),
   pet('bear-sleepy', 'bear', 'Sleepy Bear', 'Snooze', 'common', 'dreamy', 'Five more minutes. Every time.'),
-  pet('cow-moon', 'cow', 'Moon Cow', 'Luna', 'uncommon', 'dreamy', 'Jumped over the moon once. Brought back a spot.'),
-  pet('bunny-star', 'bunny', 'Stargazer Bunny', 'Comet', 'uncommon', 'dreamy', 'Makes a wish on every star, just in case.'),
-  pet('cat-starry', 'cat', 'Starry Night Cat', 'Stella', 'rare', 'dreamy', 'Has a whole galaxy in her fur.'),
+  pet('cow-moon', 'cow', 'Moon Cow', 'Luna', 'rare', 'dreamy', 'Jumped over the moon once. Brought back a spot.'),
+  pet('bunny-star', 'bunny', 'Stargazer Bunny', 'Comet', 'rare', 'dreamy', 'Makes a wish on every star, just in case.'),
+  pet('cat-starry', 'cat', 'Starry Night Cat', 'Stella', 'ultra', 'dreamy', 'Has a whole galaxy in her fur.'),
   pet('cow-celestial', 'cow', 'Celestial Cow', 'Aurora', 'ultra', 'dreamy', 'Her spots are constellations. Moos in starlight.'),
   wear('nightcap', 'head', 'Sleepy Nightcap', 'common', 'dreamy', 'Comes with a pom-pom and a yawn.'),
   wear('sleep-mask', 'face', 'Sleep Mask', 'common', 'dreamy', 'Do not disturb: dreaming.'),
   wear('cloud-scarf', 'neck', 'Cloud Scarf', 'uncommon', 'dreamy', 'Knit from actual cloud. Probably.'),
   wear('crescent-clip', 'head', 'Crescent Clip', 'uncommon', 'dreamy', 'A sliver of moon, borrowed for the night.'),
-  wear('starry-pajamas', 'body', 'Starry Pajamas', 'uncommon', 'dreamy', 'Covered in stars. Guaranteed sweet dreams.'),
+  wear('starry-pajamas', 'body', 'Starry Pajamas', 'rare', 'dreamy', 'Covered in stars. Guaranteed sweet dreams.'),
   wear('halo', 'head', 'Little Halo', 'rare', 'dreamy', 'For the very, very good.'),
   treat('honey-milk', ['drink', 'sweet'], 'Warm Honey Milk', 'common', 'dreamy', 'Makes everyone a little sleepy.'),
   treat('konpeito', ['sweet', 'crunchy'], 'Star Candy', 'uncommon', 'dreamy', 'Tiny sugar stars that crunch like wishes.'),
   decor('moon-lamp', 'ground-right', 'Moon Lamp', 'uncommon', 'dreamy', 'A soft glow for night owls.'),
-  decor('fairy-lights', 'sky', 'Fairy Lights', 'rare', 'dreamy', 'Strung across the sky like little fireflies.'),
+  decor('fairy-lights', 'sky', 'Fairy Lights', 'ultra', 'dreamy', 'Strung across the sky like little fireflies.'),
   pot('starlight', 'Starlight Pot', 'rare', 'dreamy', 'Speckled with tiny golden stars.'),
 ];
 
@@ -264,15 +264,15 @@ const PUMPKIN: CollectibleDef[] = [
   pet('cow-pumpkin', 'cow', 'Pumpkin Spice Cow', 'Nutmeg', 'common', 'pumpkin', 'Basic? Maybe. Delicious? Definitely.'),
   pet('hamster-acorn', 'hamster', 'Acorn Hamster', 'Hazel', 'common', 'pumpkin', 'Hoarding acorns for a very cozy winter.'),
   pet('cat-witchy', 'cat', 'Witchy Cat', 'Salem', 'uncommon', 'pumpkin', 'Brews excellent tea. Hexes nobody.'),
-  pet('bunny-boo', 'bunny', 'Boo Bunny', 'Boo', 'uncommon', 'pumpkin', 'Wearing a sheet. Fooling no one. Adorable.'),
-  pet('cat-jack', 'cat', "Jack-o'-Kitty", 'Pumpkin', 'rare', 'pumpkin', 'Moved into a pumpkin. Refuses to leave.'),
+  pet('bunny-boo', 'bunny', 'Boo Bunny', 'Boo', 'rare', 'pumpkin', 'Wearing a sheet. Fooling no one. Adorable.'),
+  pet('cat-jack', 'cat', "Jack-o'-Kitty", 'Pumpkin', 'ultra', 'pumpkin', 'Moved into a pumpkin. Refuses to leave.'),
   pet('cow-ghost', 'cow', 'Boo-vine', 'Casper', 'ultra', 'pumpkin', 'A friendly ghost cow. Says "moooOOOoo".'),
   wear('witch-hat', 'head', 'Witch Hat', 'common', 'pumpkin', 'Pointy, purple, practically magic.'),
   wear('autumn-scarf', 'neck', 'Autumn Scarf', 'common', 'pumpkin', 'The color of falling leaves.'),
   wear('maple-crown', 'head', 'Maple Leaf Crown', 'uncommon', 'pumpkin', 'Autumn royalty.'),
-  wear('pumpkin-cardigan', 'body', 'Pumpkin Cardigan', 'uncommon', 'pumpkin', 'Oversized, as is tradition.'),
+  wear('pumpkin-cardigan', 'body', 'Pumpkin Cardigan', 'rare', 'pumpkin', 'Oversized, as is tradition.'),
   treat('candy-corn', ['sweet'], 'Candy Corn', 'common', 'pumpkin', 'Controversial. Beloved here.'),
-  treat('pumpkin-pie', ['sweet'], 'Pumpkin Pie', 'uncommon', 'pumpkin', 'With a swirl of whipped cream on top.'),
+  treat('pumpkin-pie', ['sweet'], 'Pumpkin Pie', 'common', 'pumpkin', 'With a swirl of whipped cream on top.'),
   treat('caramel-apple', ['fruity', 'sweet'], 'Caramel Apple', 'uncommon', 'pumpkin', 'Crunchy, gooey, festive.'),
   decor('pumpkin-pile', 'ground-left', 'Pumpkin Pile', 'common', 'pumpkin', 'Three pumpkins, perfectly imperfect.'),
   decor('jack-lantern', 'ground-right', "Jack-o'-Lantern", 'rare', 'pumpkin', 'Smiling a crooked, candlelit smile.'),
@@ -283,13 +283,13 @@ const SNOW: CollectibleDef[] = [
   pet('bear-polar', 'bear', 'Polar Bear', 'Snowdrop', 'common', 'snow', 'Loves snow, hot cocoa, and you.'),
   pet('bunny-snow', 'bunny', 'Snowdrift Bunny', 'Flurry', 'common', 'snow', 'Camouflaged in snow. Found by her giggles.'),
   pet('cat-jingle', 'cat', 'Jingle Cat', 'Holly', 'uncommon', 'snow', 'Wrapped herself in ribbon. Is the present.'),
-  pet('cow-reindeer', 'cow', 'Reindeer Cow', 'Rudy', 'uncommon', 'snow', 'Has antlers. Is not a reindeer. Do not tell her.'),
-  pet('hamster-gingerbread', 'hamster', 'Gingerbread Hamster', 'Ginger', 'rare', 'snow', 'Iced with care. Smells like cinnamon.'),
+  pet('cow-reindeer', 'cow', 'Reindeer Cow', 'Rudy', 'rare', 'snow', 'Has antlers. Is not a reindeer. Do not tell her.'),
+  pet('hamster-gingerbread', 'hamster', 'Gingerbread Hamster', 'Ginger', 'ultra', 'snow', 'Iced with care. Smells like cinnamon.'),
   pet('cow-candycane', 'cow', 'Candy Cane Cow', 'Peppermint', 'ultra', 'snow', 'Striped, sweet, and extremely festive.'),
   wear('santa-hat', 'head', 'Santa Hat', 'common', 'snow', 'Fluffy pom-pom included.'),
   wear('knit-scarf', 'neck', 'Knit Scarf', 'common', 'snow', 'Wrapped twice, tied with love.'),
   wear('earmuffs', 'head', 'Earmuffs', 'uncommon', 'snow', 'Keeps ears toasty. Every kind of ear.'),
-  wear('festive-sweater', 'body', 'Festive Sweater', 'uncommon', 'snow', 'Knit with snowflakes. Ugly? Never.'),
+  wear('festive-sweater', 'body', 'Festive Sweater', 'rare', 'snow', 'Knit with snowflakes. Ugly? Never.'),
   treat('hot-cocoa', ['drink', 'sweet'], 'Hot Cocoa', 'common', 'snow', 'Extra marshmallows, as requested.'),
   treat('gingerbread', ['sweet', 'crunchy'], 'Gingerbread Cookie', 'common', 'snow', 'Smiling back at you.'),
   treat('candy-cane', ['sweet', 'crunchy'], 'Candy Cane', 'uncommon', 'snow', 'Peppermint swirl. Snap!'),
@@ -302,19 +302,19 @@ const LOVE: CollectibleDef[] = [
   pet('cat-heart', 'cat', 'Sweetheart Cat', 'Valentina', 'common', 'love', 'Has a heart-shaped spot right on her back.'),
   pet('bear-hug', 'bear', 'Hug Bear', 'Cuddles', 'common', 'love', 'Specializes in long, squishy hugs.'),
   pet('cow-lovebug', 'cow', 'Lovebug Cow', 'Smooch', 'uncommon', 'love', 'Her spots are all little hearts.'),
-  pet('frog-kissy', 'frog', 'Kissy Frog', 'Romeo', 'uncommon', 'love', 'Puckered up and ready. Just in case.'),
-  pet('bunny-rose', 'bunny', 'Rose Bunny', 'Rosie', 'rare', 'love', 'Soft as a petal. Blushes constantly.'),
+  pet('frog-kissy', 'frog', 'Kissy Frog', 'Romeo', 'rare', 'love', 'Puckered up and ready. Just in case.'),
+  pet('bunny-rose', 'bunny', 'Rose Bunny', 'Rosie', 'ultra', 'love', 'Soft as a petal. Blushes constantly.'),
   pet('cat-cupid', 'cat', 'Cupid Kitty', 'Amour', 'ultra', 'love', 'Tiny wings, perfect aim.'),
   wear('heart-headband', 'head', 'Heart Headband', 'common', 'love', 'Two little hearts on springs. Boing.'),
   wear('heart-glasses', 'face', 'Heart Glasses', 'uncommon', 'love', 'Everything looks lovelier through these.'),
   wear('heart-locket', 'neck', 'Heart Locket', 'uncommon', 'love', 'A tiny picture of someone special inside.'),
   wear('rose-crown', 'head', 'Rose Crown', 'rare', 'love', 'A crown of pink roses. Swoon.'),
   treat('heart-cookies', ['sweet', 'crunchy'], 'Heart Cookies', 'common', 'love', 'Iced in pink with extra love.'),
-  treat('chocolates', ['sweet'], 'Box of Chocolates', 'uncommon', 'love', 'You never know what you are gonna get.'),
+  treat('chocolates', ['sweet'], 'Box of Chocolates', 'common', 'love', 'You never know what you are gonna get.'),
   treat('choco-strawberry', ['fruity', 'sweet'], 'Chocolate Strawberry', 'uncommon', 'love', 'Dipped, drizzled, divine.'),
   decor('heart-balloons', 'sky', 'Heart Balloons', 'common', 'love', 'Bobbing happily in the breeze.'),
-  decor('love-mailbox', 'ground-right', 'Love Mailbox', 'uncommon', 'love', 'Full of little notes that say "you did great".'),
-  pot('heart', 'Heart Pot', 'uncommon', 'love', 'Grow something with love.'),
+  decor('love-mailbox', 'ground-right', 'Love Mailbox', 'rare', 'love', 'Full of little notes that say "you did great".'),
+  pot('heart', 'Heart Pot', 'common', 'love', 'Grow something with love.'),
 ];
 
 const RAINY: CollectibleDef[] = [
@@ -322,12 +322,12 @@ const RAINY: CollectibleDef[] = [
   pet('duck-white', 'duck', 'Dumpling Duck', 'Dumpling', 'common', 'rainy', 'Round, white, and waddles with purpose.'),
   pet('frog-lilypad', 'frog', 'Lily Pad Frog', 'Pad', 'common', 'rainy', 'Wears a lily pad umbrella. Stays mostly dry.'),
   pet('duck-mallard', 'duck', 'Mallard', 'Jade', 'uncommon', 'rainy', 'Shimmery green head, very dapper.'),
-  pet('cat-drizzle', 'cat', 'Drizzle Cat', 'Misty', 'uncommon', 'rainy', 'Likes watching rain from a cozy window.'),
-  pet('frog-sunshower', 'frog', 'Sunshower Frog', 'Rainbow', 'rare', 'rainy', 'Appears when it rains and shines at once.'),
+  pet('cat-drizzle', 'cat', 'Drizzle Cat', 'Misty', 'rare', 'rainy', 'Likes watching rain from a cozy window.'),
+  pet('frog-sunshower', 'frog', 'Sunshower Frog', 'Rainbow', 'ultra', 'rainy', 'Appears when it rains and shines at once.'),
   pet('duck-rainbow', 'duck', 'Rainbow Duck', 'Prism', 'ultra', 'rainy', 'Waddled through a rainbow. Kept the colors.'),
   wear('raincoat', 'body', 'Yellow Raincoat', 'common', 'rainy', 'Splash-proof and sunshine-colored.'),
   wear('bucket-hat', 'head', 'Bucket Hat', 'common', 'rainy', 'Soft, floppy, and very in right now.'),
-  wear('frog-hat', 'head', 'Frog Bucket Hat', 'uncommon', 'rainy', 'A hat with eyes. It is watching. Lovingly.'),
+  wear('frog-hat', 'head', 'Frog Bucket Hat', 'rare', 'rainy', 'A hat with eyes. It is watching. Lovingly.'),
   wear('leaf-umbrella', 'head', 'Leaf Umbrella', 'uncommon', 'rainy', 'Nature provides.'),
   treat('lettuce', ['fresh'], 'Crunchy Lettuce', 'common', 'rainy', 'Fresh from the garden, dewdrops included.'),
   treat('blueberries', ['fruity', 'fresh'], 'Blueberries', 'common', 'rainy', 'Tiny, round, bursting.'),
@@ -341,13 +341,13 @@ const BEACH: CollectibleDef[] = [
   pet('cat-sandy', 'cat', 'Sandy Cat', 'Sandy', 'common', 'beach', 'Built a sandcastle. Sat in it.'),
   pet('hamster-sunny', 'hamster', 'Sunny Hamster', 'Sunny Side', 'common', 'beach', 'Sun-kissed cheeks, ice-cream dreams.'),
   pet('frog-tropical', 'frog', 'Tropical Frog', 'Mango', 'uncommon', 'beach', 'Bright, cheerful, vacation-mode always.'),
-  pet('cow-melon', 'cow', 'Watermelon Cow', 'Melon', 'uncommon', 'beach', 'Sweet, refreshing, and a little seedy.'),
-  pet('duck-sailor', 'duck', 'Sailor Duck', 'Captain', 'rare', 'beach', 'Ahoy! Navigates by snack.'),
+  pet('cow-melon', 'cow', 'Watermelon Cow', 'Melon', 'rare', 'beach', 'Sweet, refreshing, and a little seedy.'),
+  pet('duck-sailor', 'duck', 'Sailor Duck', 'Captain', 'ultra', 'beach', 'Ahoy! Navigates by snack.'),
   pet('cat-mermaid', 'cat', 'Mermaid Kitty', 'Marina', 'ultra', 'beach', 'Half kitty, half fish. Fully fabulous.'),
   wear('sun-hat', 'head', 'Sun Hat', 'common', 'beach', 'Wide brim, pink ribbon, beach ready.'),
   wear('flower-lei', 'neck', 'Flower Lei', 'common', 'beach', 'Aloha from the meadow.'),
   wear('heart-shades', 'face', 'Heart Shades', 'uncommon', 'beach', 'Sunny days, lovely views.'),
-  wear('duck-float', 'body', 'Duck Floatie', 'uncommon', 'beach', 'Safety first, cuteness always.'),
+  wear('duck-float', 'body', 'Duck Floatie', 'rare', 'beach', 'Safety first, cuteness always.'),
   treat('watermelon', ['fruity', 'fresh'], 'Watermelon Slice', 'common', 'beach', 'Juicy. Drippy. Perfect.'),
   treat('ice-cream', ['sweet'], 'Ice Cream Cone', 'common', 'beach', 'Eat it before it melts!'),
   treat('shave-ice', ['sweet', 'fruity'], 'Shave Ice', 'uncommon', 'beach', 'Rainbow syrup on a snowy mountain.'),
@@ -357,6 +357,21 @@ const BEACH: CollectibleDef[] = [
 ];
 
 /* ------------------------------------------------------------------------ */
+
+/** Each series has exactly one Secret (shown as a '?' on its lineup card until pulled). */
+export const SECRET_IDS: ReadonlySet<string> = new Set([
+  'pet-cat-lucky',
+  'pet-cow-sprinkle',
+  'pet-dog-cottoncandy',
+  'pet-frog-prince',
+  'pet-bear-cupcake',
+  'pet-cow-celestial',
+  'pet-cow-ghost',
+  'pet-cow-candycane',
+  'pet-cat-cupid',
+  'pet-duck-rainbow',
+  'pet-cat-mermaid',
+]);
 
 export const COLLECTIBLES: readonly CollectibleDef[] = [
   ...STARTER,
@@ -376,8 +391,31 @@ export const COLLECTIBLES: readonly CollectibleDef[] = [
 
 export const COLLECTIBLE_BY_ID: ReadonlyMap<string, CollectibleDef> = new Map(COLLECTIBLES.map((c) => [c.id, c]));
 
+export const MOONLIT_PREFIX = 'moonlit:';
+
+/** 'moonlit:pet-cat-calico' → 'pet-cat-calico' (or null if not a moonlit id). */
+export function moonlitBase(id: string): string | null {
+  return id.startsWith(MOONLIT_PREFIX) ? id.slice(MOONLIT_PREFIX.length) : null;
+}
+
+/**
+ * Resolves any collectible id, including code-drawn Moonlit pet variants
+ * ('moonlit:<petId>', rare, Dreamy Night pool; DESIGN §13.6).
+ */
 export function getCollectible(id: string): CollectibleDef | undefined {
-  return COLLECTIBLE_BY_ID.get(id);
+  const direct = COLLECTIBLE_BY_ID.get(id);
+  if (direct) return direct;
+  const base = moonlitBase(id);
+  const def = base ? COLLECTIBLE_BY_ID.get(base) : undefined;
+  if (!def || def.category !== 'pet') return undefined;
+  return {
+    ...def,
+    id,
+    name: `Moonlit ${def.name}`,
+    rarity: 'rare',
+    source: 'dreamy',
+    flavor: `${def.defaultName}, dressed in starlight. Only visits after dark.`,
+  };
 }
 
 export const PETS = COLLECTIBLES.filter((c): c is PetDef => c.category === 'pet');

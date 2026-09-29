@@ -27,3 +27,20 @@ describe('catalog integrity', () => {
     expect(new Set(BADGES.map((b) => b.id)).size).toBe(BADGES.length);
   });
 });
+
+import { SECRET_IDS, MACHINES as ALL_MACHINES, itemsInMachine as inMachine } from '@/catalog';
+
+describe('series tiers (M0 economy audit)', () => {
+  it('each machine has one ultra-rarity Secret and rarer tiers are smaller', () => {
+    for (const m of ALL_MACHINES) {
+      const items = inMachine(m.id);
+      const secrets = items.filter((i) => SECRET_IDS.has(i.id));
+      expect(secrets.length, m.id).toBe(1);
+      expect(secrets[0]!.rarity, m.id).toBe('ultra');
+      const n = (r: string) => items.filter((i) => i.rarity === r).length;
+      expect(n('common') >= n('uncommon'), m.id).toBe(true);
+      expect(n('ultra') <= n('rare'), m.id).toBe(true);
+      expect(n('ultra') >= 2, m.id).toBe(true);
+    }
+  });
+});

@@ -610,3 +610,216 @@ amendments **override** earlier sections wherever they conflict. (Full log in `A
 * **Today feels like the world.** Today's header is a **windowsill scene**: the time-of-day sky outside the window,
   the buddy lounging on the sill, and your most-grown habit plants in their pots. When a habit is checked, its plant on the
   sill gets watered and the buddy reacts right there.
+
+### 13.2 Habits & tracking (from the habit-science review, adopted)
+
+**Versioned rules.** A habit's schedule, target, step and tiny version live in `rules[]`, each with a `from`
+date. Every day and period is evaluated with the rule in effect then, so edits never rewrite history. An edit to a
+day-based habit applies from today. For a flexible habit the user chooses between *this period* and *next period*.
+When both rules are day-based, a streak continues across the edit. When the kind changes (day-based ↔ flexible), the
+old streak is kept as best and a new one starts, labelled "New rhythm" (never "0").
+
+**Schedules.** `daily` · `days` (on certain weekdays; UI label "On certain days") · `weekly {times, every 1–4}`
+(every 2 = biweekly) · `monthly {times, every 1|2|3|6|12}` (every 3 = quarterly). A period with `every > 1` starts
+at the start of the rule's `from` period. `expectedPerWeek` = 7, |days|, times/every, or times×12/52/every.
+`dueDay` on monthly habits is display-only.
+
+**Targets and taps.** `target` is 1–100 000 and `step` ≥ 1. If target = 1, a tap toggles. If target > 1, each tap adds
+`step` until done. After that, tapping opens an inline stepper instead of adding silently. A long-press opens a
+number pad with chips (+1, +step, +2×step, Done). Over-target values are allowed ("10 / 8") but earn no extra coins.
+Partial taps get a ring tick and a haptic but no coin chip and no celebration. Every completing check-in shows a
+4-second **Undo** snackbar. Unit presets: glasses 1, pages 5, minutes 5, steps 1000, km 1. Quantity-per-period for
+flexible habits is v2.
+
+**Tiny version.** The optional `tiny {label, count?}` on each rule is logged by long-press on the check button
+or from the actions menu ("Did the tiny version"), stored as `level:'tiny'`. It counts as **done** for streaks and
+consistency ("showed up"), and earns ⌈coins/2⌉ and 50% sunshine. Stats show the split openly: "26 of 30 days · 8
+tiny". A count habit that reached `tiny.count` but not the target is recorded as tiny at day end. **Graduation**: at
+≥85% over the last 28 days with ≤25% tiny, the habit detail *offers* "Ready to grow?" (+1★ on accept; new rule from
+tomorrow). Below 40% it gently offers "Make it tinier?". Neither is ever automatic.
+
+**Time of day & anchors.** Each habit has `timeOfDay` (morning / midday / evening / anytime) and an optional `anchor`
+("After I pour my coffee…", shown as the card's second line). Today groups habits by time block. The current block
+comes first, and completed earlier blocks collapse ("Morning 3/3"). Flexible habits sit in their block with a pace
+line ("1 more by Sun"). Once met, they fold into "Done for the week" and can still be tapped. `polarity:'avoid'`
+changes copy only ("Kept it up").
+
+**Day boundary.** `settings.dayStartsAt` (0–360 min, default 180 = 3:00 am). App day = local date of
+(now − dayStartsAt). `today` is monotonic (never earlier than `clock.maxDateKey`). If the device clock is > 36 h
+behind `clock.maxEpochMs`, a calm banner appears and no rewards are paid until it catches up. Early-bird and night-owl
+badges use wall-clock time from live `at` stamps only.
+
+**Rest, off days, pauses.**
+* Rest (day-based habits only) can be set for today, up to 14 days ahead, or within the 6-day window. Each habit has
+  a weekly allowance of `max(1, floor(scheduledDaysPerWeek / 3))` (daily = 2). Allowed rests are fully
+  transparent to streaks, consistency and rewards. Rests beyond the allowance still show the moon and are never red,
+  but they count as not-done in all math.
+* **Take today off** (global, max 4 per calendar month) is transparent for every habit. For flexible habits it
+  reduces active days.
+* Pauses may start today or later (for example "Back on Oct 6"). Resume sets end = yesterday. Overlapping pauses merge.
+  Today shows one collapsed row: "Resting: 2 habits · back Oct 6".
+* Restoring an archived habit adds a pause covering the archived stretch.
+* A `DayLog` is either `{kind:'log', count, level?, at?, note?}` or `{kind:'rest'}`, never both.
+
+**Backfill & history.** Rewards can come only from the 6-day window (today−6 … today), for days ≥ the habit's
+`createdAt` date, through the check-in path. Logging a day before `startedOn` asks "Start tracking Walk from
+Mon, Sep 22?", and accepting moves `startedOn` earlier (no rewards before `createdAt`). The Progress calendar edits
+older days as history only (done/not-done). Those edits never touch the wallet, sunshine or once-keys in either
+direction, and any rung they reach counts as reached but unpaid.
+
+**Notes & moments.** Each logged day may carry a note (≤ 280 chars). After a check-in, the snackbar offers "Add a
+note". Notes appear in Habit Detail as newest-first **Moments** and in the calendar day sheet, and the Weekly Letter
+quotes one.
+
+### 13.3 Consistency & streak math (exact)
+
+For a flexible period *p* (week or month, `every`-aware):
+`target_p = round(times × activeFrac_p)`, `achieved_p = min(times, checkinDays_p)`,
+`expected_p = max(target_p, achieved_p)`. Skip the period only if both are 0. For the **current** period:
+`expected_p = achieved_p + max(0, target_p − achieved_p − remainingActiveDays(T…end))`, so only a shortfall that can no
+longer be made up counts. Day-based: past scheduled active days count (done = 1); today counts only if done.
+
+* A period that spans two months belongs to the month containing its **last** day, even while it is current.
+* Percentages are hidden until the window has ≥ 10 expected occurrences ("4 of 4 so far").
+* Per-habit phrases: daily "N of the last 30 days"; days "N of your last 13 Mon/Wed/Fri"; weekly "N of the last 4
+  weeks"; monthly "N of the last 6 months". Aggregate: **"You showed up N of the last 30 days"** (days with ≥ 1
+  check-in), plus the occurrence-weighted % and "Weekly & monthly goals: 3 of 5 on track".
+* Month-to-date is compared with the **same elapsed span** of last month ("↑ 6 pts vs Sep 1–12"). Whole months are
+  compared only once they close. Lower numbers are never shown in red or with the word "down".
+* Streaks: day-based count consecutive done scheduled days (allowed rests, off days, pauses and unscheduled days are
+  transparent). Flexible count consecutive met periods (a period with target 0 and no check-ins is transparent). The
+  current period counts only if already met. Today pending never breaks anything.
+
+### 13.4 Growth (plants)
+
+Sunshine is a **ledger**, like coins. Each rewarded occurrence records `7 / expectedPerWeek(rule)` (tiny = 50%).
+Flexible check-ins beyond `times` give none. Only un-checking the same occurrence inside the refund window removes it.
+Stage = `min(stageFromSunshine, completedOccurrences)`, so each check-in advances at most one stage and a monthly
+habit can't jump from Seed to Budding. **Display stage = max(stage, bestStage)**, which means plants never shrink. After
+Evergreen, `blooms = min(6, floor((sunshine − 180) / 30))`. When one action crosses stages, stages animate in turn
+(~350 ms each) with at most one badge celebration.
+
+### 13.5 Economy v2 (from the economy review, adopted)
+
+* **Check-in pay**: light 4 · steady 5 · big 7 coins (at most 3 *big* habits active; a 4th shows "Big is for the heavy
+  lifts. You have 3 already."). Effort is picked by "About how long?" (<5 min / 5–30 / 30+). Tiny = ⌈pay/2⌉.
+* **Daily full-rate budget**: 40 coins from check-ins per *wall-clock action day* (not the log's date). Beyond it,
+  each check-in pays 1 coin.
+* The ledger stores the amount paid per (habit, date). Unchecking refunds it if the balance allows. A re-check pays
+  `min(original, current rate)`. Balances never go negative.
+* Flexible check-ins beyond `times`: 1 coin, no bonus, no sunshine.
+* **Period goal met**: +10 (weekly kinds) / +20 (monthly kinds), paid once per (habit, periodStart) when check-in days
+  first reach `max(1, target_p)`.
+* **Perfect day**: every scheduled day-based habit is done or allowed-rest, AND done ≥ max(2, ⌈⅔ × scheduled⌉)
+  (flexible check-ins that day count toward "done"). Pays 2 × done, clamped to 4–16.
+* **Welcome home** (replaces per-habit welcome back): the first check-in after ≥ 3 consecutive calendar days with
+  zero check-in actions grants 20 coins + 1 ticket, at most once per 14 days. Measured from `clock.lastCheckinAt`.
+  The copy never mentions the gap.
+* **Streak rungs (per habit, coins only)** at 3/7/14/21/30/45/60/90/120/180/365 pay 10/20/30/35/40/50/60/80/100/150/250.
+  Tier = the largest rung ≤ the occurrence-equivalent (day-based: streak count; flexible: streak periods × times).
+  Paid once per (habit, tier).
+* **Showing-up ladder (account level; the source of stars and tickets)**: `showUpDays` = distinct app days with ≥ 1
+  rewarded check-in. Rungs 7:1★ · 14:2★ · 21:2★+1🎟 · 30:3★+1🎟 · 45:3★ · 60:4★+1🎟 · 90:5★+1🎟 · 120:5★+1🎟 ·
+  180:6★+2🎟 · 250:8★+2🎟 · **365: 12★+3🎟 + Golden Mochi**, then 6★+1🎟 every +100 days forever. It can't be farmed by
+  adding habits, and rests can't inflate it.
+* **Evergreen Crown**: granted when the first plant reaches Evergreen.
+* **Weekly letter**: ≥50% 1★ · ≥75% 2★ · ≥90% 3★ (needs ≥ 5 expected). **Monthly bloom**: ≥50% 1★ · ≥70% 2★ · ≥85% 3★,
+  plus 1★ "Growing" when the month is ≥ 5 pts above the previous one (needs ≥ 10 expected). Both are granted on first
+  open, store the tier paid, and pay **upward differences** if a backfill inside the window raises the tier ("+1★
+  added. You logged Sunday! 🌿"). They never pay downward.
+
+### 13.6 Capsules v2
+
+* Tiers re-balanced so every individual rarer item is less likely than every individual commoner one: big series
+  8/5/5/3 (common/uncommon/rare/ultra), seasonal 7/4/3/2, Dreamy 5/4/5/3. Each series has exactly one **Secret**
+  (`SECRET_IDS`). The odds sheet shows tier odds *and* the per-item chance ("each Ultra ≈ 2.2%").
+* Pity: rare pity (10 pulls) forces the **rare** tier only; ultra pity (40) stays independent. A pity roll picks an
+  **unowned** item of that tier when one exists. A counter is hidden once its tier is fully owned.
+* **Lucky meter**: after 4 consecutive duplicates in a machine, the next pull is guaranteed new (if anything is
+  unowned). It shows as 4 pips: "●●●○ next one's new!".
+* New-first weighting 3× stays.
+* **Memories rule**: seasonal items become wishable only after that season has run once since the profile was
+  created ("Arrives Jun 1 · wishable after its first visit"). There's no FOMO, since they return every year.
+* **Moonlit variants**: once you own a pet, its code-drawn *Moonlit* night-palette variant (`moonlit:<petId>`, rare,
+  star-speckled) joins the Dreamy Night pool and the Wishing Well (8★). Stars stay meaningful for years, and the
+  concept's "color variants" arrive at almost no art cost.
+* **Completed machine**: pulling still works, and a one-tap **Sparkle exchange** turns 250🪙 into 40✦.
+* **Commit before animate**: a pull is decided and persisted immediately (`pendingReveal`). The reveal renders from it
+  and is cleared on Done, so a reload resumes the reveal instead of losing or re-rolling it.
+
+### 13.7 Pets, pantry & meadow v2
+
+* **Treats are recipes.** Each owned treat restocks 1 free serving every morning (up to 3 banked), so feeding never
+  costs anything and creates no obligation. "Bake a tray" makes 5 servings for 10🪙 (optional).
+* Friendship levels 1–10 at `0,10,25,45,70,100,140,190,250,320` XP, then cosmetic **bond levels** 11–15 at
+  `420,540,680,840,1000` (heart emote, name sparkle, a shared nap with the buddy). There is no decay and there are no needs. Petting
+  reactions are never capped (only the XP is). The Today buddy gains +1 XP per completing check-in (max 10/day).
+* **Meadow zones (the long-term coin goal)**, bought on a little map with prices always shown: Pond 400 · Orchard
+  700 · Cottage Porch 1,000 · Greenhouse 1,500 · Star Hill 2,500. Each zone is a new stretch of the scrolling meadow
+  and adds room for 2 more pets out (8 → 18). Decor is placed **freely** (drag anywhere; flip), not in fixed slots.
+* **Species albums**: the collection book has one page per species ("The Whole Herd", "Cat Café", "Pond Club" for
+  frogs and ducks…). Unowned pets are silhouettes labelled with where and when they visit. Completing an album
+  earns 5★ and an exclusive album decor.
+* Pets don't all sleep at dusk. Night has cozy activities (stargazing, chasing fireflies), and naps start after 23:00 for
+  Sleepy pets only.
+
+### 13.8 Platform & persistence (from the iOS/PWA review, adopted)
+
+* **Install-first gate** on iOS/iPadOS Safari and macOS Safari when not standalone and no save exists: a full-screen
+  "Plant Mochi on your Home Screen" page with illustrated steps per OS version. "Just peek" opens the **demo meadow**,
+  which lives in its own namespace (`mochi-meadow:demo:v1`), shows a visible "Demo meadow · your real meadow is safe"
+  pill, and has *Exit demo*.
+* **Handoff**: "Move my meadow into the app" copies `MM1:` + base64url(gzip(JSON)) to the clipboard. The installed app
+  offers "Paste my meadow". The same payload moves a meadow between devices (Universal Clipboard), with no server.
+* A save in a non-standalone Safari tab shows a calm permanent banner ("This copy lives in Safari and can be cleared
+  after 7 days away. Move it into the app").
+* **Storage**: localStorage is the synchronous primary under `mochi-meadow:v1`, with the envelope `{v, appVersion, rev,
+  savedAt, state}`. Every write is in try/catch. On QuotaExceeded the app compacts and retries, then shows a
+  non-dismissable "couldn't save, export a backup" banner. The ledger is compacted to the 7-day window. **Daily
+  snapshots** go to IndexedDB (7 daily + 4 weekly, only when `validateState` passes), with *Restore a snapshot* in
+  You › Data. Saves stamped with a newer schema (`v > SCHEMA_VERSION`) are opened read-only. A **single writer** is
+  enforced via Web Locks (another window shows "Mochi Meadow is open in another window · Use here"), and `storage` events
+  adopt a newer `rev`. Wallet-changing actions write immediately, and everything else is debounced (250 ms) and
+  flushed on pagehide/hidden. `persist()` is called only after onboarding in standalone mode. Reset removes only
+  `mochi-meadow:*` keys.
+* **Export/import**: a `File` is shared via `navigator.share({files})` when `canShare` allows it (Save to Files /
+  AirDrop on iOS), and `<a download>` is used otherwise, plus *Copy backup* (the MM1 payload). Import validates the
+  file, shows a preview ("12 habits, 1,284 check-ins, 23 friends, saved Sep 27"), snapshots first, replaces (never merges),
+  and offers *Undo import* for 24 h. The copy says "Each device grows its own meadow". A gentle backup nudge appears
+  30 days after the last export.
+* **Reminders**: optional Morning/Midday/Evening "meadow time" reminders. Static `.ics` files (`public/cal/meadow-
+  <block>-HHMM.ics`, one per 15-min slot, floating local time, `RRULE:FREQ=DAILY`, `VALARM` DISPLAY) are opened by a
+  real user tap on `<a target=_blank>`, which works from an iOS Home Screen app. Disabling a reminder reminds the user to
+  delete it from Calendar. Web Push would need a server and is out of scope.
+* **Updates**: a check on resume (> 30 min since the last one). A waiting worker is applied immediately on cold launch
+  before any input, otherwise on the next hide→show. It never interrupts a sheet, reveal or onboarding. You › About
+  has *Check for updates*, the build hash and *Reload app*.
+* **iOS layout**: the document scrolls (tap-status-bar-to-top works). Full-screen layers use `position:fixed; inset:0`
+  (never dvh). The tab bar is padded with `max(8px, env(safe-area-inset-bottom))`. The keyboard is tracked with
+  `visualViewport` → `--kb`. Inputs are ≥ 16px. Theme lives in its own key, and an inline head script sets `data-theme` before
+  first paint. Startup images come in light and dark. Dynamic Type is supported via `font: -apple-system-body`
+  on the root.
+* **Haptics**: iOS 26.5 closed the programmatic switch trick, so a `HapticTap` overlay (a real
+  `<input type=checkbox switch>` the finger actually hits, sitting over the real button) is used on discrete taps:
+  check, +1, capsule open taps, insert coin, tap-to-turn. Crank detents use audio plus a visual snap. **Sound and
+  haptics are garnish, and every moment must land with both off.**
+* **Audio**: `navigator.audioSession.type='ambient'` is set before the AudioContext is created. The context is created
+  lazily in a gesture and resumed in gestures.
+* **Performance**: dome capsules may be drawn on a `<canvas>` from pre-rasterized sprites (no SVG filters in any
+  animated path). Meadow pets are absolutely positioned elements moved with `translate3d`. All loops pause when hidden
+  or off-tab. An **auto-lite** mode kicks in when the median frame time is > 25 ms (Low Power Mode). Budget: p95 ≤ 16.7 ms.
+* **file:// build**: a "Test copy · saved only in this browser, for this file" ribbon. Install prompts and `persist()`
+  are hidden. First boot offers *Import a backup*. The build guard fails on dynamic imports or relative asset URLs.
+* **Diagnostics**: tapping the version 7× in About opens `#/diagnostics` (display-mode, storage persisted/estimate,
+  envelope size/rev, SW state, audio, canShare, switch support + a *Test haptic*, viewport and safe-area probes, frame
+  timing, UA) with *Copy report*.
+* **Touch**: callouts and selection are disabled on interactive art. Long-press (450 ms), double-tap and drag are
+  implemented with pointer events. Right-click/`contextmenu` maps to actions menus on Mac. Shortcuts are ignored while
+  typing or when a modifier key is held.
+
+### 13.9 Scope
+
+v1 includes everything above plus CSV export (`date,habit,count,target,level,rest,note`), an **Arrange** mode on Today,
+`manifest.shortcuts`, and **Quiet rewards** (hides coin chips, wallet and capsule prompts; the tracker alone must still
+be excellent). v2: Dye Studio (recolor wearables/decor/pots), quantity-per-period, limit habits, CSV import, timers,
+Web Push. Not possible in a PWA: iOS widgets, Lock Screen, Live Activities, HealthKit.

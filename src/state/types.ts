@@ -1,60 +1,97 @@
 /**
  * Persisted application state. Everything the user owns lives here, is serializable
  * as JSON, and is versioned (see SCHEMA_VERSION + state/migrate.ts).
- * See docs/DESIGN.md §5–§7 for semantics.
+ * Semantics: docs/DESIGN.md §5–§7 as amended by §13 (§13 wins on conflict).
  */
-import type { MachineId, PastelKey, Personality, PlantSpeciesId, PotId, WearableSlot, DecorSlot } from '@/catalog/types';
+import type { MachineId, PastelKey, Personality, PlantSpeciesId, PotId, WearableSlot } from '@/catalog/types';
 
 export const SCHEMA_VERSION = 1;
 
-/** Local calendar date, 'YYYY-MM-DD'. Never a UTC timestamp. */
+/** Local calendar date 'YYYY-MM-DD' in the user's *app day* (day starts at settings.dayStartsAt). */
 export type DateKey = string;
 /** 0 = Sunday … 6 = Saturday */
 export type Weekday = 0 | 1 | 2 | 3 | 4 | 5 | 6;
-export type Effort = 'tiny' | 'steady' | 'big';
+/** Chosen via "About how long?": light < 5 min · steady 5–30 min · big 30+ min (max 3 active big habits). */
+export type Effort = 'light' | 'steady' | 'big';
+export type TimeOfDay = 'morning' | 'midday' | 'evening' | 'anytime';
 
 export type Schedule =
   | { kind: 'daily' }
-  | { kind: 'weekdays'; days: Weekday[] }
-  | { kind: 'weekly'; times: number }
-  | { kind: 'monthly'; times: number };
+  /** On certain days of the week. */
+  | { kind: 'days'; days: Weekday[] }
+  /** Flexible: `times` check-in days per period of `every` weeks (every 2 = biweekly). */
+  | { kind: 'weekly'; times: number; every: 1 | 2 | 3 | 4 }
+  /** Flexible: `times` check-in days per period of `every` months (every 3 = quarterly). */
+  | { kind: 'monthly'; times: number; every: 1 | 2 | 3 | 6 | 12 };
+
+/**
+ * A versioned rule. Editing a habit's schedule/target/step/tiny appends a new rule with
+ * `from` = the day it starts applying; every day is evaluated with the rule in effect then,
+ * so edits never rewrite history (DESIGN §13.2).
+ */
+export interface HabitRule {
+  from: DateKey;
+  schedule: Schedule;
+  /** Day-based: amount needed per scheduled day (1..100000). Flexible: always 1. */
+  target: number;
+  /** Amount added per tap for count habits (default 1). */
+  step: number;
+  /** The "tiny version" that still counts as showing up (e.g. "Shoes on, step outside"). */
+  tiny?: { label: string; count?: number };
+}
 
 export interface Pause {
   start: DateKey;
-  /** Inclusive. Undefined = still paused. */
+  /** Inclusive. Undefined = open-ended. */
   end?: DateKey;
 }
 
 export interface Habit {
   id: string;
   name: string;
-  /** HabitIconId from catalog/habitIcons.ts (custom drawn icon). */
+  /** HabitIconId from catalog/habitIcons.ts. */
   icon: string;
   color: PastelKey;
   plant: PlantSpeciesId;
   pot: PotId;
-  schedule: Schedule;
-  /** Day-based habits: count needed per scheduled day (1..99). Flexible habits: always 1. */
-  target: number;
+  /** Sorted by `from`; rules[0].from === startedOn. */
+  rules: HabitRule[];
   unit?: string;
   effort: Effort;
-  createdOn: DateKey;
+  timeOfDay: TimeOfDay;
+  /** Implementation-intention anchor shown on the card, e.g. "After I pour my coffee". */
+  anchor?: string;
+  /** 'avoid' changes copy only ("Kept it up" instead of "Done"). */
+  polarity: 'build' | 'avoid';
+  /** Monthly habits: display-only hint "due around the 1st". */
+  dueDay?: number | 'last';
+  /** Immutable creation time (epoch ms). Rewards are never paid for app days before its date. */
+  createdAt: number;
+  /** First day that counts for stats (editable earlier via "Start tracking from…", without rewards). */
+  startedOn: DateKey;
   archivedOn?: DateKey;
   pauses: Pause[];
   order: number;
-  /** 'HH:MM' for calendar export. */
-  reminder?: string;
   notes?: string;
 }
 
-export interface DayLog {
-  /** Day-based: progress toward target. Flexible: 0 or 1. */
-  count: number;
-  /** Intentional rest day (skip). Excluded from consistency, transparent to streaks. */
-  rest?: true;
-  /** Minutes since local midnight of the most recent check-in (for insights / early-bird badges). */
-  t?: number;
-}
+/** A day's record for one habit. A day is either logged or rested, never both. */
+export type DayLog =
+  | {
+      kind: 'log';
+      /** Day-based: progress toward target. Flexible: 0 or 1. */
+      count: number;
+      /** Logged as the tiny version (counts as showing up; half rewards). */
+      level?: 'tiny';
+      /** Epoch ms of each LIVE check-in on the day itself (max 24). Never written by backfill/history edits. */
+      at?: number[];
+      /** A short reflection, max 280 chars. */
+      note?: string;
+    }
+  | {
+      kind: 'rest';
+      note?: string;
+    };
 
 export interface Wallet {
   coins: number;
@@ -70,6 +107,9 @@ export interface Lifetime {
   checkins: number;
   pulls: number;
   perfectDays: number;
+  /** Distinct app days with ≥1 rewarded check-in (drives the Showing-up ladder). Only goes up. */
+  showUpDays: number;
+  lastShowUpDay?: DateKey;
 }
 
 export interface Outfit {
@@ -81,12 +121,13 @@ export interface Outfit {
 export type OutfitSlot = WearableSlot;
 
 export interface PetState {
-  /** Collectible id, e.g. 'pet-cat-calico'. One PetState per owned pet species/variant. */
+  /** Collectible id, e.g. 'pet-cat-calico', or a variant id 'moonlit:pet-cat-calico'. */
   id: string;
   name: string;
   personality: Personality;
   favoriteTreat: string;
   favoriteKnown: boolean;
+  /** Friendship XP; levels 1–10 then cosmetic bond levels 11–15. Never decays. */
   xp: number;
   outfit: Outfit;
   inMeadow: boolean;
@@ -106,12 +147,29 @@ export interface PityCounter {
   sinceRare: number;
   /** Pulls since last ultra. */
   sinceUltra: number;
+  /** Consecutive duplicate pulls (lucky meter; 4 → next is guaranteed new). */
+  dupStreak: number;
   pulls: number;
 }
 
+/** A decor item placed freely in the meadow (ground coordinates 0..1 within a zone). */
+export interface PlacedDecor {
+  /** Unique placement id (the same item may be placed once per owned copy). */
+  id: string;
+  itemId: string;
+  zone: MeadowZoneId;
+  x: number;
+  y: number;
+  flip?: boolean;
+}
+
+export type MeadowZoneId = 'meadow' | 'pond' | 'orchard' | 'porch' | 'greenhouse' | 'starhill';
+
 export interface Settings {
-  /** 0 = Sunday, 1 = Monday */
+  /** 0 = Sunday, 1 = Monday. Changes apply from the next week. */
   weekStart: 0 | 1;
+  /** Minutes after midnight when a new app day begins (0–360, default 180 = 3:00 am). */
+  dayStartsAt: number;
   theme: 'auto' | 'light' | 'night';
   sound: boolean;
   /** 0..1 */
@@ -119,6 +177,10 @@ export interface Settings {
   haptics: boolean;
   reduceMotion: 'auto' | 'on' | 'off';
   quickOpen: boolean;
+  /** Hide coin chips, wallet and capsule prompts: the tracker on its own (principle 4). */
+  quietRewards: boolean;
+  /** Optional time-block reminders ('HH:MM', 15-minute slots) exported as calendar events. */
+  reminders: Partial<Record<Exclude<TimeOfDay, 'anytime'>, string>>;
 }
 
 export interface Profile {
@@ -127,6 +189,19 @@ export interface Profile {
   buddy: string | null;
   onboarded: boolean;
   createdAt: number;
+  /** Optional 'MM-DD' for a birthday surprise. */
+  birthday?: string;
+}
+
+/** Commit-before-animate: a decided pull the UI is still revealing (survives reloads). */
+export interface PendingReveal {
+  machineId: MachineId;
+  itemId: string;
+  isNew: boolean;
+  stardust: number;
+  fusedStars: number;
+  friendshipXp?: number;
+  at: number;
 }
 
 export interface AppState {
@@ -136,34 +211,48 @@ export interface AppState {
   habits: Habit[];
   /** logs[habitId][dateKey] */
   logs: Record<string, Record<DateKey, DayLog>>;
+  /** Global "Take today off" days (max 4 per calendar month): transparent for every habit. */
+  offDays: Record<DateKey, true>;
   wallet: Wallet;
   lifetime: Lifetime;
   /**
-   * Reward ledger (DESIGN §6.1 "Reward integrity").
-   * checkins: key `${habitId}|${dateKey}` → coins granted (0 = recorded as granted but refunded-not-possible).
-   *   Absent key = never granted (or refunded), so a (re)check grants.
-   * bonuses: any once-only grant key → true. Key formats:
-   *   'perfect|<date>' · 'period|<habitId>|<periodKey>' · 'welcome|<habitId>|<date>' ·
-   *   'milestone|<habitId>|<rung>' · 'weekly|<weekStartDate>' · 'monthly|<YYYY-MM>' · 'badge|<badgeId>' ·
-   *   'plant|<habitId>|<stage>' · 'exclusive|<collectibleId>'
+   * Reward ledger (DESIGN §13.3 "Reward integrity").
+   * - recent: per (habitId|date) grant for the refundable window only (today−7 … today);
+   *   older entries are folded into totals by compaction.
+   * - sunshine: per-habit lifetime sunshine total (monotone except refunds inside the window).
+   * - bestStage: per-habit highest plant stage ever reached (plants never shrink).
+   * - once: once-only grant keys → value (true, or the tier paid for upgradable grants). Key formats:
+   *   'perfect|<date>' · 'period|<habitId>|<periodStart>' · 'rung|<habitId>|<tierDays>' ·
+   *   'showup|<n>' · 'weekly|<weekStart>' (tier) · 'bloom|<YYYY-MM>' (tier) · 'badge|<id>' ·
+   *   'home|<gapStart>' · 'stage|<habitId>|<stage>' · 'exclusive|<collectibleId>' · 'birthday|<YYYY>'
+   * - daily: coins paid by check-ins per WALL-CLOCK action day (the 40-coin full-rate budget).
    */
-  rewards: {
-    checkins: Record<string, number>;
-    bonuses: Record<string, true>;
+  ledger: {
+    recent: Record<string, { coins: number; sunshine: number }>;
+    sunshine: Record<string, number>;
+    bestStage: Record<string, number>;
+    once: Record<string, number | true>;
+    daily: Record<DateKey, number>;
   };
-  /** collection[collectibleId] */
+  /** collection[collectibleId] (incl. 'moonlit:<petId>' variants) */
   collection: Record<string, OwnedItem>;
   pity: Partial<Record<MachineId, PityCounter>>;
   pets: Record<string, PetState>;
+  /** Treat servings. Each owned recipe restocks 1 free serving per morning (max 3 banked). */
+  pantry: Record<string, { servings: number; restockedOn: DateKey }>;
   meadow: {
-    decor: Partial<Record<DecorSlot, string>>;
+    zones: MeadowZoneId[];
+    decor: PlacedDecor[];
   };
   /** badges[badgeId] = epoch ms when earned */
   badges: Record<string, number>;
   /** Letters (weekly/monthly recaps) waiting to be shown. */
   inbox: Letter[];
-  /** True when the save was generated by "Load demo meadow". */
-  demo: boolean;
+  pendingReveal?: PendingReveal;
+  /** Clock guard: the latest app day / time ever observed (device clock rollback protection). */
+  clock: { maxDateKey: DateKey; maxEpochMs: number; lastCheckinAt: number };
+  /** Epoch ms of the last export/backup (for gentle backup nudges). */
+  lastBackupAt?: number;
 }
 
 export type Letter =
@@ -175,7 +264,12 @@ export type Letter =
       achieved: number;
       expected: number;
       stars: number;
+      showUpDays: number;
       bestHabitId?: string;
+      /** A note the user wrote that week, quoted back warmly. */
+      quote?: { habitId: string; date: DateKey; text: string };
+      newFriends: string[];
+      plantsGrown: string[];
     }
   | {
       kind: 'monthly';
@@ -186,4 +280,5 @@ export type Letter =
       expected: number;
       stars: number;
       previousPct?: number;
+      growingBonus: boolean;
     };
