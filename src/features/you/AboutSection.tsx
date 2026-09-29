@@ -16,7 +16,22 @@ import { Sheet } from '@/ui/Sheet';
 import { toast } from '@/ui/toast';
 import { announce } from '@/ui/announce';
 import { ABOUT_COPY, YOU } from './copy';
+import { cx } from '@/ui/cx';
+import { toneClass } from '@/ui/tone';
+import lr from '@/ui/ListRow.module.css';
 import s from './You.module.css';
+
+/** "Reload app": a round arrow in a lavender tile (the icon set has undo, not reload). */
+function ReloadTile() {
+  return (
+    <span class={cx(lr.tile, toneClass('lavender'), s.glyphTile)} aria-hidden="true">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M19 12.5a7 7 0 1 1-2.05-5.45" />
+        <path d="M18.6 3.8v4h-4" />
+      </svg>
+    </span>
+  );
+}
 
 /** Taps on the version that open Diagnostics, and how long a pause resets the count. */
 export const DIAGNOSTICS_TAPS = 7;
@@ -100,7 +115,7 @@ export function AboutSection() {
             onClick={() => (updateReady.value ? reloadApp() : void check())}
           />
         ) : null}
-        <ListRow leading="undo" leadingTone="lavender" title={INSTALL.reloadApp} chevron={false} onClick={reloadApp} />
+        <ListRow leading={<ReloadTile />} leadingTone="lavender" title={INSTALL.reloadApp} chevron={false} onClick={reloadApp} />
         <button type="button" class={`${s.row} ${s.inline} ${s.versionRow}`} onClick={tapVersion}>
           <span class={s.rowText}>
             <span class={`${s.label} ${s.version}`}>{version}</span>

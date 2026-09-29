@@ -6,6 +6,8 @@ import { clockBehind, demoMode, exitDemo, readOnly, saveStatus, useHere } from '
 import { openHabitEditor } from '@/features/habits/open';
 import { onboardingActive } from '@/features/onboarding/progress';
 import { Icon } from '@/art/icons';
+import { IconButton } from '@/ui/IconButton';
+import { signal } from '@preact/signals';
 import { currentTab } from './router';
 import { routeFor } from './routes';
 import { preloadAllWhenIdle } from './screens';
@@ -17,6 +19,24 @@ import { NEW_HABIT_EVENT } from './shortcuts';
 import { SHELL_COPY } from './copy';
 import s from './App.module.css';
 
+const CLOCK_SEEN = 'catkin-clock-note';
+function clockNoteAway(): boolean {
+  try {
+    return sessionStorage.getItem(CLOCK_SEEN) === '1';
+  } catch {
+    return false;
+  }
+}
+/** The clock note, once put away, stays away for this visit (it may be true for days). */
+const clockAway = signal(clockNoteAway());
+function putClockAway(): void {
+  clockAway.value = true;
+  try {
+    sessionStorage.setItem(CLOCK_SEEN, '1');
+  } catch {
+    /* for this page only, then */
+  }
+}
 
 /**
  * The calm notes above every screen (VOICE §18): another window owns the save ("Use here"), a
@@ -25,13 +45,13 @@ import s from './App.module.css';
  */
 export function ShellBanners() {
   const ro = readOnly.value;
-  const notes: { key: string; text: string; action?: { label: string; run: () => void } }[] = [];
+  const notes: { key: string; text: string; action?: { label: string; run: () => void }; close?: () => void }[] = [];
   if (ro === 'other-window') {
     const [text = SHELL_LINES.otherWindow] = SHELL_LINES.otherWindow.split(' · ');
     notes.push({ key: 'other-window', text, action: { label: SHELL_LINES.useHere, run: useHere } });
   } else if (ro === 'newer-version') notes.push({ key: 'newer', text: SHELL_LINES.newerSave });
   else if (ro === 'storage-full' || saveStatus.value.status === 'storage-full') notes.push({ key: 'save', text: SHELL_LINES.save });
-  if (clockBehind.value) notes.push({ key: 'clock', text: SHELL_LINES.clock });
+  if (clockBehind.value && !clockAway.value) notes.push({ key: 'clock', text: SHELL_LINES.clock, close: putClockAway });
   const demo = demoMode.value;
   if (!notes.length && !demo) return null;
   return (
@@ -39,7 +59,7 @@ export function ShellBanners() {
       {demo && (
         <div class={s.demo} role="status" data-demo-pill="">
           <span class={s.demoLabel}>
-            <Icon name="sparkle" size={16} />
+            <Icon name="sprout" size={16} />
             {SHELL_LINES.demoPill}
           </span>
           <button type="button" class={s.bannerButton} onClick={exitDemo}>
@@ -48,13 +68,14 @@ export function ShellBanners() {
         </div>
       )}
       {notes.map((n) => (
-        <div key={n.key} class={s.banner} role="status" data-banner={n.key}>
+        <div key={n.key} class={cx(s.banner, n.close && s.bannerQuiet)} role="status" data-banner={n.key}>
           <p class={s.bannerText}>{n.text}</p>
           {n.action && (
             <button type="button" class={s.bannerButton} onClick={n.action.run}>
               {n.action.label}
             </button>
           )}
+          {n.close && <IconButton icon="close" label={SHELL_LINES.close} size="sm" onClick={n.close} />}
         </div>
       ))}
     </div>
@@ -117,6 +138,7 @@ export function App() {
       <div class={s.shell}>
         {skip}
         <main id="main" class={s.onboarding} tabIndex={-1} aria-label={SHELL_COPY.appName}>
+          <ShellBanners />
           {Flow ? <Flow /> : failed ? <ScreenError onRetry={retry} /> : <ScreenLoading />}
         </main>
       </div>

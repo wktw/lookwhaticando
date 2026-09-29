@@ -74,19 +74,17 @@ export const DATA_COPY = {
 export const ABOUT_COPY = {
   principlesTitle: 'What catkin keeps to',
   principles: [
-    'Growth only adds. Nothing wilts, droops or goes brown.',
-    'Rest is part of the routine. Rest days and pauses count as rest.',
-    'Coming back is noticed kindly.',
+    'Growth only adds. A resting plant keeps every leaf.',
     'With Quiet rewards on, catkin is just the tracker.',
     'The odds are printed on every cabinet.',
-    'Sound and haptics are extra. Everything works without them.',
   ],
   how: [
-    { title: 'Your habits are plants', text: 'Each habit starts as a cutting in a glass of water. Watering it is how you mark it done, and the plant grows as you keep the habit: roots, a pot, leaves, buds, flowers.' },
+    { title: 'Your habits are plants', text: 'Each habit starts as a cutting in a glass of water. Watering it counts the day, and the plant grows as you keep the habit: roots, a pot, leaves, buds, flowers.' },
     { title: 'Showing up, over time', text: 'Progress reads as days you showed up, like 26 of the last 30. Rest days and paused habits count as rest.' },
     { title: 'Coins and capsules', text: 'Watering drops brass coins in the jar. The capsule cabinets take them, and each capsule holds a small animal, something to wear, a treat or a bit of decor.' },
-    { title: 'Pets and plants', text: 'A pet can keep a habit company and live in its plant. It waters with you on the sill, and its friendship grows as the habit does.' },
+    { title: 'Pets and plants', text: 'Pets keep habits company. Each pet moves into a plant and is there on the sill at every watering. The friendship grows with the habit.' },
     { title: 'Kept on this device', text: 'Your plants live in this browser or on your Home Screen. There is no account. Save a backup now and then.' },
+    { title: 'Sound and haptics', text: 'Both are extras. Everything works without them.' },
   ],
   credits: [
     { title: 'Drawn in code', text: 'Every plant, pot, pet and cabinet is drawn by hand as code, lit by one window.' },
@@ -123,11 +121,6 @@ export const ONBOARDING_COPY = {
   notice: 'Name',
   nameIdeas: 'Name ideas',
   anotherName: 'Another name',
-} as const;
-
-export const SHELL_BANNERS = {
-  leaveDemo: 'Leave the demo',
-  dismiss: 'Dismiss',
 } as const;
 
 /** "{habit}, 2 of 5." */

@@ -151,3 +151,14 @@
 :global([data-theme='night']) .demoLabel {
   color: var(--ink);
 }
+
+/* A note she can put away (the clock): one quiet line on paper, with a close button. */
+.bannerQuiet {
+  flex-wrap: nowrap;
+  padding: 8px 2px 8px 14px;
+  background: var(--card);
+}
+.bannerQuiet .bannerText {
+  flex: 1 1 auto;
+  color: var(--ink-2);
+}

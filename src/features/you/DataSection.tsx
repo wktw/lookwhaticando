@@ -264,7 +264,7 @@ export function DataSection() {
         <ListRow leading="calendar" leadingTone="lavender" title={DATA_COPY.snapshotsRow} onClick={() => setSnapshots(true)} />
         <ListRow leading="note" leadingTone="butter" title={DATA.csv} chevron={false} onClick={() => void csv()} />
         <ListRow
-          leading="sparkle"
+          leading="sprout"
           leadingTone="blush"
           title={inDemo ? DATA.leaveDemo : DATA.demo}
           subtitle={inDemo ? undefined : DATA_COPY.demoLine}

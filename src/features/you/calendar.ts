@@ -18,8 +18,6 @@ export const SLOT_RANGES: Readonly<Record<WateringSlot, readonly [number, number
   evening: [16 * 60, 23 * 60 + 45],
 };
 
-/** A sensible first time for each block when she turns one on. */
-export const SLOT_DEFAULTS: Readonly<Record<WateringSlot, string>> = { morning: '08:00', midday: '12:30', evening: '19:00' };
 
 const pad2 = (n: number) => String(n).padStart(2, '0');
 

@@ -701,3 +701,10 @@
     margin-top: var(--s-4);
   }
 }
+
+.glyphTile {
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+}

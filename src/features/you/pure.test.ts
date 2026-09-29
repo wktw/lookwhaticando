@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { DATA, ERRORS, INSTALL } from '@/catalog/lines';
 import { wateringTimeIcs } from '@/domain/profile';
 import { keyStep, moveBy, moveTo, slotAt } from './reorder';
-import { SLOT_DEFAULTS, WATERING_SLOTS, clockLabel, minutesLabel, slotTimes, staticCalPath, wantsStaticCal, isAppleTouch } from './calendar';
+import { WATERING_SLOTS, clockLabel, minutesLabel, slotTimes, staticCalPath, wantsStaticCal, isAppleTouch } from './calendar';
 import { STATIC_CAL } from './calendarStatic';
 import { SHELL_LINES } from './shellCopy';
 import { DATA_COPY, movedLine } from './copy';
@@ -48,11 +48,10 @@ describe('arranging habits', () => {
 });
 
 describe('watering time', () => {
-  it('offers 15-minute steps inside each block, and a default within them', () => {
+  it('offers 15-minute steps inside each block', () => {
     expect(slotTimes('morning')[0]).toBe('05:00');
     expect(slotTimes('morning').at(-1)).toBe('11:45');
     expect(slotTimes('evening').at(-1)).toBe('23:45');
-    for (const slot of WATERING_SLOTS) expect(slotTimes(slot)).toContain(SLOT_DEFAULTS[slot]);
   });
   it('words times the VOICE way: "7 am", "7:30 am", "12 pm"', () => {
     expect(clockLabel('07:00')).toBe('7 am');

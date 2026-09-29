@@ -13,6 +13,8 @@ export const SHELL_LINES = {
   leaveDemo: 'Leave the demo',
   /** INSTALL.updateReady: "A new version is ready · Reload". */
   updateReady: 'A new version is ready · Reload',
+  /** The kit's close label (Sheet), for putting the clock note away. */
+  close: 'Close',
   /** The demo pill's label (You › Data's DATA_COPY.demoPill). */
   demoPill: 'The demo',
 } as const;
