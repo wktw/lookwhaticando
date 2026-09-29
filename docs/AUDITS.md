@@ -75,3 +75,42 @@ shapes without outlines, and precomputed lavender shade crescents.
 - The meadow zones became Places on the Shelf.
 
 The catalog tests now enforce the voice, pronoun, pet-safety and real-breed rules, so a regression fails the build.
+
+## M1: integration audit (art coherence, logic, screen contracts, voice, build)
+
+**Method.** Once every module was merged, five independent auditors each checked the build from one angle:
+
+| Auditor | What it did |
+|---|---|
+| Art | Shot 60+ gallery screenshots and judged the modules as one world |
+| Logic | Ran the real store API end to end over 70 simulated days, a reload and a backup round trip |
+| Contracts | Mapped every screen element against the view models, store, art and copy |
+| Voice and brand | Ran the copy lint across all of `src`, grepped for old-brand leftovers and checked the "Many animals" rule |
+| Build | Checked PWA and single-file builds, bundle sizes, file:// launch, axe-core accessibility, keyboard, reduced motion and frame times |
+
+A triage lead then deduplicated about 95 raw findings down to 66, verified the key ones and assigned each one to a single fix area.
+
+**What held up.**
+- Every module speaks one art language, with the shade on the correct side for each light.
+- The economy runs at the pace DESIGN §6 intends: 24.7–30.8 coins a day, about one capsule a day. No invariant broke over 70 days.
+- A reload and the `CK1:` backup round trip restore the save exactly.
+- axe-core found 0 accessibility violations on 20 route, theme and width combinations.
+- The single file opens from `file://` with no console errors, and the service worker works offline.
+
+**What it caught: 7 blockers.**
+- The first pick worked only for Cats and Cows. Dogs and Pond were refused.
+- The logic and the art disagreed about what "blooms" means, so blooming plants lost their flowers.
+- Pets had no place, and the scenes had no way to tap or carry a pet.
+- The view models built English that VOICE.md bans, such as "2 more by Sun" and "Done for the week ✓".
+- Three routes were still placeholders.
+- DESIGN.md contradicted itself: two cabinets against four, a cat-only icon against "Many animals", and "Find them a place".
+
+**The majors clustered in six areas:**
+- scene geometry and occlusion (decor hiding the habit pots, a second window from the Window Seat, lamplight not coming from one lamp);
+- "Many animals" (the calf missing from the icon, the Shelf tab not showing your own pet, cat-heavy demo casts);
+- the celebration layer ignoring the new events;
+- first-paint bundle size (the art library loads at startup: 304 KB gzipped, and could be about 68% smaller);
+- an empty e2e harness;
+- a copy lint that only scanned `src/catalog`.
+
+**What changed.** The fixes run in four isolated fix areas (logic, art, UI and build), each with an adversarial recheck. The two screen-level findings go to the wave 2 screen builders, along with the contract map.
