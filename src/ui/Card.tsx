@@ -8,14 +8,14 @@ export interface CardProps extends JSX.HTMLAttributes<HTMLElement> {
   /** Pastel tint for the surface; 'plain' is the white card. */
   tone?: Tone | 'plain';
   padding?: 'none' | 'sm' | 'md' | 'lg';
-  /** Hover lift + press squish (use with as="button" or as="a"). */
+  /** Hover shadow + a 1px press (use with as="button" or as="a"). */
   interactive?: boolean;
-  /** Flat cards sit in wells without a shadow. */
+  /** Flat cards sit in wells: hairline only, no shadow. */
   flat?: boolean;
   children?: ComponentChildren;
 }
 
-/** The rounded 22px surface everything sits on. */
+/** A paper card: radius 14, a 1px hairline and a barely-there warm shadow (DESIGN §10.3). */
 export function Card({ as = 'div', tone = 'plain', padding = 'md', interactive, flat, class: cls, children, ...rest }: CardProps) {
   const Tag = as as 'div';
   return (

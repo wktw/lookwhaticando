@@ -4,19 +4,19 @@
   align-items: center;
   gap: 5px;
   flex: none;
-  height: 28px;
-  padding: 0 11px;
+  height: 26px;
+  padding: 0 10px;
   border-radius: var(--r-pill);
-  font-family: var(--font-display);
+  font-family: var(--font-body);
   font-size: var(--fs-caption);
-  font-weight: 600;
+  font-weight: 700;
   line-height: 1;
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
 
 .sm {
-  height: 22px;
+  height: 20px;
   padding: 0 8px;
   gap: 4px;
   font-size: var(--fs-micro);
@@ -31,71 +31,60 @@
   background: var(--t100);
   color: var(--ink);
 }
+:global([data-theme='night']) .soft {
+  background: var(--t300);
+}
 .solid {
   background: var(--t500);
-  color: var(--on-pastel);
+  color: var(--on-accent);
 }
 .neutral {
   background: var(--bg-2);
   color: var(--ink-2);
 }
+:global([data-theme='night']) .neutral {
+  background: var(--bg-2);
+}
 .neutral.solid {
   background: var(--card);
   color: var(--ink);
-  box-shadow: var(--shadow-sm);
+  box-shadow: inset 0 0 0 1px var(--line);
 }
 
-/* ---------- Rarity stickers (theme-invariant, like printed stickers) ---------- */
-.rarity {
-  color: var(--on-pastel);
-  box-shadow:
-    inset 0 1.5px 0 rgba(255, 255, 255, 0.45),
-    0 1px 0 rgba(74, 53, 64, 0.12);
-  overflow: hidden;
-  letter-spacing: 0.02em;
+/* ---------- Printed tier labels (theme-invariant, like the lineup leaflet) ---------- */
+.tier {
+  --paper: #fffdf9;
+  --hair: #e6dcd0;
+  color: #3b3236;
+  background: var(--paper);
+  box-shadow: inset 0 0 0 1px var(--hair);
+  letter-spacing: 0.01em;
 }
-.dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: #fff;
-  opacity: 0.85;
+
+/* Classic: matte paper. */
+.common {
+  background: var(--paper);
+}
+/* Special: a two-colour print, split clean down the middle. */
+.uncommon {
+  background: linear-gradient(90deg, #d2e4f2 0 50%, #d5e3c7 50% 100%);
+  box-shadow: none;
+}
+/* Rare: a foil-edged insert. */
+.rare {
+  background: #f1edf9;
+  box-shadow:
+    inset 0 0 0 1.5px #c8bae6,
+    inset 0 0 0 2.5px #fffdf9;
+}
+/* Super rare: holographic stripes (a static print, never animated). */
+.ultra {
+  background: repeating-linear-gradient(115deg, #f5cdd6 0 6px, #f6e6b4 6px 12px, #cde6da 12px 18px, #d2e4f2 18px 24px, #ddd4f1 24px 30px);
+  box-shadow: inset 0 0 0 1px rgba(59, 50, 54, 0.08);
+}
+.secret {
+  padding-left: 8px;
 }
 .sparkle {
-  color: #fff;
-}
-
-/* DESIGN §10.1 rarity colors, shared with Capsules and the Collection. */
-.common {
-  background: var(--rarity-common);
-}
-.uncommon {
-  background: var(--rarity-uncommon);
-}
-.rare {
-  background: var(--rarity-rare);
-}
-.ultra {
-  background: var(--holo);
-}
-/* A slow light sweep across the holographic foil. */
-.ultra::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(100deg, transparent 25%, rgba(255, 255, 255, 0.85) 50%, transparent 75%);
-  transform: translateX(-120%);
-  animation: foil 2.8s var(--ease-in-out) infinite;
-  pointer-events: none;
-}
-
-@keyframes foil {
-  0%,
-  35% {
-    transform: translateX(-120%);
-  }
-  75%,
-  100% {
-    transform: translateX(120%);
-  }
+  color: #3b3236;
 }

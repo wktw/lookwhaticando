@@ -10,13 +10,16 @@
 .art {
   display: grid;
   place-items: center;
-  margin-bottom: var(--s-1);
+  width: 96px;
+  height: 96px;
+  margin-bottom: var(--s-2);
+  border-radius: 20px;
+  background: var(--bg-2);
 }
 
 .title {
   font-family: var(--font-display);
   font-size: var(--fs-headline);
-  font-weight: 600;
   line-height: 1.2;
   color: var(--ink);
   text-wrap: balance;

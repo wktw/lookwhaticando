@@ -22,7 +22,7 @@ export interface SegmentedProps<T extends string> {
   class?: string;
 }
 
-/** A pill track with a sliding candy thumb. Radio-group semantics with arrow-key navigation. */
+/** A paper track with a sliding card thumb. Radio-group semantics with arrow-key navigation. */
 export function Segmented<T extends string>({ options, value, onChange, label, size = 'md', block, class: cls }: SegmentedProps<T>) {
   const groupRef = useRef<HTMLDivElement>(null);
   const index = Math.max(0, options.findIndex((o) => o.value === value));

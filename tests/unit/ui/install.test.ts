@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { detectInstallPlatform, safariMajor, type InstallEnv } from '@/app/installPrompt';
-import { guideFor } from '@/app/InstallGuide';
+import { guideFor, shouldGateInstall } from '@/app/InstallGuide';
 import { resolveTheme } from '@/app/theme';
 
 const UA = {
@@ -54,6 +54,15 @@ describe('which iOS Safari steps to show', () => {
     expect(guideFor('ios-safari', UA.iphoneSafari)).toBe('ios-safari-classic');
     expect(guideFor('ios-safari', 'unknown')).toBe('ios-safari');
     expect(guideFor('mac-safari', UA.macSafari)).toBe('mac-safari');
+  });
+});
+
+describe('the install-first gate (DESIGN §11.1)', () => {
+  it('comes first only in Safari tabs with nothing saved yet', () => {
+    expect(shouldGateInstall('ios-safari', false)).toBe(true);
+    expect(shouldGateInstall('mac-safari', false)).toBe(true);
+    expect(shouldGateInstall('ios-safari', true)).toBe(false);
+    for (const p of ['installed', 'ios-other', 'prompt', 'chromium', 'android', 'other'] as const) expect(shouldGateInstall(p, false)).toBe(false);
   });
 });
 

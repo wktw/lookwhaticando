@@ -1,6 +1,6 @@
-/* Global FX styles (elements created imperatively by src/fx/*). Prefixed mm-fx-. */
+/* Global FX styles (elements created imperatively by src/fx/*). Prefixed ck-fx-. */
 
-.mm-fx-layer {
+.ck-fx-layer {
   position: fixed;
   inset: 0;
   z-index: 300;
@@ -9,87 +9,62 @@
   contain: strict;
 }
 
-.mm-fx-sprite {
+.ck-fx-sprite {
   position: absolute;
   top: 0;
   left: 0;
-  width: 24px;
-  height: 24px;
-  margin: -12px 0 0 -12px;
+  width: 22px;
+  height: 22px;
+  margin: -11px 0 0 -11px;
   will-change: transform, opacity;
 }
-.mm-fx-sprite svg {
+.ck-fx-sprite svg {
   width: 100%;
   height: 100%;
 }
 
-.mm-fx-float {
+/* "+5": a small paper chip with a currency token, rising a little and fading. */
+.ck-fx-float {
   position: absolute;
   top: 0;
   left: 0;
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  height: 30px;
-  padding: 0 12px;
+  height: 28px;
+  padding: 0 11px 0 8px;
+  border: 1px solid var(--line);
   border-radius: 999px;
-  background: var(--chip-coin);
-  color: var(--on-pastel);
-  font-family: var(--font-display);
-  font-size: 1.0625rem;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-  box-shadow:
-    0 2px 0 var(--butter-lip),
-    0 8px 18px -8px rgba(74, 53, 64, 0.45);
-  will-change: transform, opacity;
-}
-.mm-fx-float[data-tone='star'] {
-  background: var(--chip-star);
-  box-shadow:
-    0 2px 0 var(--butter-lip),
-    0 8px 18px -8px rgba(74, 53, 64, 0.45);
-}
-.mm-fx-float[data-tone='heart'] {
-  background: var(--chip-heart);
-  box-shadow:
-    0 2px 0 var(--blush-lip),
-    0 8px 18px -8px rgba(74, 53, 64, 0.45);
-}
-.mm-fx-float[data-tone='sage'] {
-  background: var(--chip-sage);
-  box-shadow:
-    0 2px 0 var(--sage-lip),
-    0 8px 18px -8px rgba(74, 53, 64, 0.45);
-}
-.mm-fx-float[data-tone='ink'] {
   background: var(--card);
   color: var(--ink);
-  box-shadow: var(--shadow-md);
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  box-shadow: var(--kit-float-shadow, 0 8px 18px -12px rgba(59, 50, 54, 0.35));
+  will-change: transform, opacity;
 }
-.mm-fx-float svg {
-  width: 18px;
-  height: 18px;
-  margin-left: -4px;
+.ck-fx-float[data-tone='plain'] {
+  padding-left: 11px;
+}
+.ck-fx-float svg {
+  width: 16px;
+  height: 16px;
 }
 
-/* The wallet counter a coin just landed in. */
-.mm-wallet-bump {
-  animation: mm-wallet-bump 420ms cubic-bezier(0.34, 1.56, 0.64, 1);
+/* The wallet counter a coin just dropped into: a small settle, no bounce. */
+.ck-wallet-bump {
+  animation: ck-wallet-bump 320ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
-@keyframes mm-wallet-bump {
+@keyframes ck-wallet-bump {
   0% {
-    transform: scale(1);
+    transform: translateY(0);
   }
   35% {
-    transform: scale(1.16) rotate(-2deg);
-  }
-  70% {
-    transform: scale(0.97);
+    transform: translateY(1.5px) scale(1.04);
   }
   100% {
-    transform: scale(1);
+    transform: none;
   }
 }

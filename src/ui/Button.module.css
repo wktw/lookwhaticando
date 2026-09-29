@@ -1,0 +1,185 @@
+.btn {
+  --h: 46px;
+  --px: 20px;
+  /* A matte press deepens the face 6% toward graphite. */
+  --press-ink: #3b3236;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  vertical-align: middle;
+  flex: none;
+  max-width: 100%;
+  min-width: 0;
+  height: var(--h);
+  padding: 0 var(--px);
+  border-radius: var(--r-pill);
+  background: var(--face);
+  color: var(--text);
+  box-shadow: inset 0 0 0 1px var(--edge, transparent);
+  font-family: var(--font-body);
+  font-size: var(--fs-body);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.005em;
+  white-space: nowrap;
+  transition:
+    transform 120ms var(--ease-pop),
+    background-color 120ms var(--ease-pop);
+}
+/* At night the press deepens toward plum-black, never pure black. */
+:global([data-theme='night']) .btn {
+  --press-ink: #1e1a22;
+}
+
+.label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.icon {
+  display: inline-flex;
+  flex: none;
+  margin-left: -3px;
+}
+.label + .icon {
+  margin: 0 -3px 0 0;
+}
+
+.btn:is(:active, [data-pressed]):not(:disabled):not(.loading) {
+  transform: translateY(1px);
+  transition-duration: 40ms;
+}
+@supports (background: color-mix(in srgb, red 50%, blue)) {
+  /* [data-pressed] shows the press in galleries and tests. */
+  .btn:is(:active, [data-pressed]):not(:disabled):not(.loading) {
+    background: color-mix(in srgb, var(--face) 94%, var(--press-ink));
+  }
+}
+
+/* ---------- Variants ---------- */
+.primary {
+  --face: var(--t500);
+  --text: var(--on-accent);
+}
+
+.secondary {
+  --face: var(--card);
+  --text: var(--ink);
+  --edge: var(--control-border);
+}
+
+.tint {
+  --face: var(--t100);
+  --text: var(--ink);
+}
+:global([data-theme='night']) .tint {
+  --face: var(--t300);
+}
+/* Night butter-300 is too light under light text; a deeper gold keeps it AA. */
+:global([data-theme='night']) .tint:global(.ck-tone-butter) {
+  --face: var(--butter-soft-night);
+}
+
+.quiet {
+  --face: transparent;
+  --text: var(--t700);
+}
+@media (hover: hover) {
+  .quiet:hover:not(:disabled) {
+    --face: var(--bg-2);
+  }
+  .secondary:hover:not(:disabled) {
+    --face: var(--card-2);
+  }
+}
+.quiet:is(:active, [data-pressed]):not(:disabled):not(.loading) {
+  --face: var(--bg-2);
+}
+
+/* ---------- Sizes ---------- */
+.sm {
+  --h: 36px;
+  --px: 14px;
+  gap: 6px;
+  font-size: var(--fs-caption);
+}
+/* Invisible slop so the 36px small button still offers a 44px target. */
+.sm::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+}
+
+.lg {
+  --h: 54px;
+  --px: 26px;
+  font-size: var(--fs-body-lg);
+}
+
+.block {
+  display: flex;
+  width: 100%;
+}
+
+.iconOnly {
+  --px: 0px;
+  width: var(--h);
+}
+.iconOnly .icon {
+  margin: 0;
+}
+
+/* ---------- States ---------- */
+.btn:disabled {
+  --face: var(--bg-2);
+  --text: var(--ink-3);
+  --edge: transparent;
+  cursor: default;
+}
+.quiet:disabled {
+  --face: transparent;
+}
+
+.loading {
+  cursor: progress;
+}
+.loading .icon,
+.loading .label {
+  visibility: hidden;
+}
+
+.dots {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+}
+.dots i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.35;
+  animation: dot 1.1s var(--ease-in-out) infinite;
+}
+.dots i:nth-child(2) {
+  animation-delay: 160ms;
+}
+.dots i:nth-child(3) {
+  animation-delay: 320ms;
+}
+
+@keyframes dot {
+  0%,
+  70%,
+  100% {
+    opacity: 0.35;
+  }
+  35% {
+    opacity: 0.9;
+  }
+}

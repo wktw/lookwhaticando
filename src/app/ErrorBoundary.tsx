@@ -1,31 +1,23 @@
 import { Component, type ComponentChildren } from 'preact';
-import { PetArt } from '@/art/pets/PetArt';
-import { CandyButton } from '@/ui/CandyButton';
+import { Button } from '@/ui/Button';
 import { EmptyState } from '@/ui/EmptyState';
+import { themeLight, WateringCan } from '@/ui/art/objects';
+import { SCREEN_COPY } from './copy';
 
 interface State {
   error: unknown;
 }
 
-/** What a screen shows instead of crashing the app. */
+/** What a screen shows instead of crashing the app: a kind note and a way back. */
 export function ErrorFallback({ onRetry }: { onRetry: () => void }) {
   return (
-    <EmptyState
-      title="Oops, a little tangle"
-      tone="lavender"
-      art={<PetArt petId="pet-mochi" expression="surprised" size={104} />}
-      action={
-        <CandyButton tone="lavender" onClick={onRetry}>
-          Try again
-        </CandyButton>
-      }
-    >
-      Something on this page tripped over its own paws. Your data is safe.
+    <EmptyState title={SCREEN_COPY.crashTitle} art={<WateringCan size={104} light={themeLight()} />} action={<Button onClick={onRetry}>{SCREEN_COPY.retry}</Button>}>
+      {SCREEN_COPY.crashText}
     </EmptyState>
   );
 }
 
-/** Keeps one screen's bug from blanking the whole app: a friendly card with a retry. */
+/** Keeps one screen's bug from blanking the whole app. */
 export class ErrorBoundary extends Component<{ children: ComponentChildren }, State> {
   override state: State = { error: null };
 

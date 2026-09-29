@@ -1,7 +1,9 @@
 /**
- * Gallery sections for the fxui module: the UI kit (light + night panels), FX triggers,
- * sounds, celebrations, the install guide, and the app icon / splash stages that
- * scripts/generate-icons.mjs screenshots. View with /gallery.html?only=fxui.
+ * Gallery sections for the ui module: the catkin kit (day and Lamplight panels side by side),
+ * the water-fill check ring, the kit's small drawings, notes and celebrations, petals and the
+ * coin, sounds, the install guide, and the app shell at 390 px and 1200 px. The app icon and
+ * launch screen stages stay here because scripts/generate-icons.mjs screenshots them.
+ * View with /gallery.html?only=fxui (or one section id).
  */
 import type { ComponentChildren, JSX } from 'preact';
 import { useEffect, useLayoutEffect, useState } from 'preact/hooks';
@@ -10,12 +12,15 @@ import { state, wallet } from '@/state/store';
 import { emitGameEvents } from '@/state/events';
 import type { GameEvent } from '@/state/api';
 import type { Habit } from '@/state/types';
-import { PetArt } from '@/art/pets/PetArt';
-import { CoinIcon, StarIcon } from '@/art/icons';
+import { DAY_LIGHT, NIGHT_LIGHT, type Light } from '@/art/light';
+import { CoinIcon, StarIcon, TicketIcon } from '@/art/icons';
 import {
   AnimatedNumber,
-  CandyButton,
+  Button,
   Card,
+  CheckRing,
+  CheckRingArt,
+  CHECK_RING_MS,
   Chip,
   ConfirmDialog,
   EmptyState,
@@ -36,25 +41,33 @@ import {
   Toaster,
   Toggle,
   toast,
-  type CandyVariant,
+  type ButtonVariant,
+  type CheckRingMark,
 } from '@/ui';
+import { ToastNote } from '@/ui/Toaster';
+import { CuttingGlass, EmptyPot, ObjectArt, PaperNote, themeLight, WaterDrop, type ObjectName } from '@/ui/art/objects';
 import { PASTELS, RARITIES } from '@/catalog/types';
-import { burst } from '@/fx/confetti';
+import { COLLECTIBLES } from '@/catalog/collectibles';
+import { CollectibleArt } from '@/art/CollectibleArt';
+import { burst, PETAL_SHAPES } from '@/fx/confetti';
+import { petalAt, planPetals } from '@/fx/particles';
+import { petalMix, type PetalMix } from '@/fx/petalColours';
 import { flyCoins } from '@/fx/coinFly';
 import { floatText } from '@/fx/floatingText';
 import { haptic } from '@/fx/haptics';
-import { PET_VOICES, SFX_NAMES, sfx, type PetVoice } from '@/fx/sound';
-import { SparkleBurst } from '@/fx/SparkleBurst';
+import { PET_VOICES, SFX_NAMES, sfx } from '@/fx/sound';
+import { glintAt, SparkleBurst } from '@/fx/SparkleBurst';
 import { CelebrationHost } from '@/fx/celebrations';
+import { CELEBRATION_ANCHOR, RewardInline } from '@/fx/CelebrationBanner';
 import { walletDelta } from '@/fx/celebrationPlan';
-import { celebrateCheckIn } from '@/fx/checkin';
-import { InstallGuide, InstallSheet, type InstallGuideKey } from '@/app/InstallGuide';
+import { celebrateCheckIn, showCheckInNote } from '@/fx/checkin';
+import { restLine } from '@/fx/copy';
+import { InstallGate, InstallGuide, InstallSheet, type InstallGuideKey } from '@/app/InstallGuide';
 import { AppIconArt, type AppIconShape } from '@/app/AppIconArt';
 import { SplashArt } from '@/app/SplashArt';
 import { ScreenError, ScreenLoading } from '@/app/ScreenHost';
 import { ErrorFallback } from '@/app/ErrorBoundary';
 import { WalletSummary } from '@/app/WalletSummary';
-import { GumballArt } from '@/app/GumballArt';
 import type { InstallPlatform } from '@/app/installPrompt';
 
 /* ------------------------------------------------------------------------------------------ */
@@ -63,15 +76,34 @@ import type { InstallPlatform } from '@/app/installPrompt';
 
 const GALLERY_CSS = `
 .fxui-panels { display: flex; flex-wrap: wrap; gap: 16px; }
-.fxui-panel { flex: 1 1 380px; min-width: 0; padding: 18px; border-radius: 26px; background: var(--bg); color: var(--ink); box-shadow: 0 0 0 1px var(--line); }
-.fxui-panel > .fxui-cap { font: 700 12px var(--font-body); color: var(--ink-2); letter-spacing: .06em; text-transform: uppercase; margin-bottom: 12px; }
+.fxui-panel { flex: 1 1 380px; min-width: 0; padding: 18px; border-radius: 14px; background: var(--bg); color: var(--ink); border: 1px solid var(--line); }
+.fxui-panel > .fxui-cap { font: 800 11px/1 var(--font-body); color: var(--ink-2); letter-spacing: var(--tracking-caps); text-transform: uppercase; margin-bottom: 14px; }
 .fxui-stack { display: flex; flex-direction: column; gap: 14px; }
 .fxui-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
-.fxui-sub { font: 800 12px var(--font-body); color: var(--ink-2); margin: 6px 0 -4px; }
+.fxui-sub { font: 800 11px/1.2 var(--font-body); color: var(--ink-2); letter-spacing: var(--tracking-caps); text-transform: uppercase; margin: 8px 0 -2px; }
+.fxui-note { font: 600 12px/1.35 var(--font-body); color: var(--ink-2); }
 .fxui-wallet { position: fixed; top: 12px; right: 12px; z-index: 90; display: flex; gap: 8px; }
-.fxui-wallet > span { display: inline-flex; align-items: center; gap: 6px; height: 40px; padding: 0 14px 0 8px; border-radius: 999px; background: var(--card); box-shadow: var(--shadow-md); font: 600 17px var(--font-display); }
-.fxui-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
-.fxui-pressed > span:nth-of-type(2) { transform: translateY(3px); }
+.fxui-wallet > span { display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 12px 0 8px; border-radius: 999px; background: var(--card); border: 1px solid var(--line); font: 800 14px var(--font-body); font-variant-numeric: tabular-nums; }
+.fxui-frames { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-start; }
+.fxui-frame { display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 64px; }
+.fxui-frame small { font: 700 11px/1.2 var(--font-body); color: var(--ink-2); text-align: center; }
+.fxui-habit { display: flex; align-items: center; gap: 12px; padding: 10px 12px 10px 14px; border: 1px solid var(--line); border-radius: 14px; background: var(--card); box-shadow: var(--kit-card-shadow); }
+.fxui-habit b { display: block; font: 400 19px/1.15 var(--font-display); }
+.fxui-habit i { display: block; font: italic 400 14px/1.3 var(--font-display); color: var(--ink-2); }
+.fxui-habit span { display: block; font: 650 13px/1.3 var(--font-body); color: var(--ink-2); margin-top: 2px; }
+.fxui-habit > div { flex: 1; min-width: 0; }
+.fxui-art { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 10px; }
+.fxui-art > div { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 6px; border-radius: 12px; background: var(--bg-2); }
+.fxui-art small { font: 700 11px/1.2 var(--font-body); color: var(--ink-2); }
+.fxui-band { position: relative; height: 168px; border-radius: 14px; overflow: hidden; background: linear-gradient(#f3e2d6, #f3e2d6 60%, #e7d7c3 60%); border: 1px solid var(--line); }
+.fxui-band::before { content: ''; position: absolute; left: 24px; top: 16px; width: 150px; height: 84px; border-radius: 6px; background: linear-gradient(#cfe3f1, #eaf2f8); box-shadow: inset 0 0 0 5px #fffdf9; }
+.fxui-iframe { border: 1px solid var(--line); border-radius: 14px; background: var(--bg); box-shadow: var(--kit-card-shadow); display: block; }
+.fxui-shots { display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start; }
+.fxui-focused { outline: 2px solid var(--focus); outline-offset: 3px; }
+.fxui-scaled { overflow: hidden; border-radius: 14px; max-width: 100%; }
+.fxui-scaled > iframe { transform-origin: 0 0; }
+.fxui-petals { position: relative; overflow: hidden; height: 200px; border-radius: 14px; background: var(--bg-2); border: 1px solid var(--line); }
+.fxui-petals svg { position: absolute; inset: 0; width: 100%; height: 100%; }
 `;
 
 let tokensInstalled = false;
@@ -109,7 +141,8 @@ function installPanelTokens() {
     }
   }
   const el = document.createElement('style');
-  el.textContent = `.fxui-panel[data-theme="light"]{${light.join('')}}\n.fxui-panel[data-theme="night"]{${night.join('')}}`;
+  // Night gets the day rules first: aliases like --accent-ink: var(--blush-700) must resolve on the panel.
+  el.textContent = `.fxui-panel[data-theme="light"]{${light.join('')}}\n.fxui-panel[data-theme="night"]{${light.join('')}${night.join('')}}`;
   document.head.appendChild(el);
 }
 
@@ -128,13 +161,15 @@ function Panels({ children }: { children: (theme: Theme) => ComponentChildren })
     <div class="fxui-panels">
       {themes.map((t) => (
         <div key={t} class="fxui-panel" data-theme={t}>
-          <div class="fxui-cap">{t === 'light' ? 'Morning Meadow · light' : 'Moonlight Meadow · night'}</div>
+          <div class="fxui-cap">{t === 'light' ? 'Paper · day' : 'Lamplight · night'}</div>
           {children(t)}
         </div>
       ))}
     </div>
   );
 }
+
+const lightFor = (t: Theme): Light => (t === 'night' ? NIGHT_LIGHT : DAY_LIGHT);
 
 function Sub({ children }: { children: ComponentChildren }) {
   return <p class="fxui-sub">{children}</p>;
@@ -159,11 +194,11 @@ function FxHosts() {
     <>
       <div class="fxui-wallet" aria-label="Demo wallet">
         <span data-wallet-target="coins">
-          <CoinIcon size={26} />
+          <CoinIcon size={20} />
           <AnimatedNumber value={w.coins} walletKind="coins" />
         </span>
         <span data-wallet-target="stars">
-          <StarIcon size={24} />
+          <StarIcon size={20} />
           <AnimatedNumber value={w.stars} walletKind="stars" />
         </span>
       </div>
@@ -174,9 +209,10 @@ function FxHosts() {
 }
 
 const DEMO_HABITS: [string, string, Habit['plant'], Habit['pot'], Habit['color']][] = [
-  ['h-walk', 'Morning walk', 'sunflower', 'terracotta', 'sage'],
-  ['h-water', 'Drink water', 'monstera', 'cream', 'sky'],
+  ['h-walk', 'Walk', 'pothos', 'terracotta', 'sage'],
+  ['h-water', 'Drink water', 'pilea', 'cream', 'sky'],
   ['h-yoga', 'Yoga', 'lavender', 'blush', 'lavender'],
+  ['h-read', 'Read', 'begonia', 'cream', 'blush'],
 ];
 
 /** Gives the stub store a few habits and coins so celebrations have names to say. */
@@ -199,7 +235,7 @@ function seedDemoState() {
     pauses: [],
     order,
   }));
-  state.value = { ...s, habits, profile: { ...s.profile, name: 'Sam', buddy: 'pet-mochi' }, wallet: { coins: 120, stars: 6, tickets: 1, stardust: 4 } };
+  state.value = { ...s, habits, profile: { ...s.profile, name: 'Sam', buddy: 'pet-cat-orange' }, wallet: { coins: 124, stars: 6, tickets: 1, stardust: 4 } };
 }
 
 function addCoins(n: number) {
@@ -212,7 +248,7 @@ function addStars(n: number) {
   state.value = { ...s, wallet: { ...s.wallet, stars: s.wallet.stars + n } };
 }
 
-/** What the store does: commit the events' coins and stars, then emit them (same tick). */
+/** What the store does: commit the events' coins and stamps, then emit them (same tick). */
 function commitAndEmit(events: GameEvent[]) {
   for (const e of events) {
     const d = walletDelta(e);
@@ -225,14 +261,15 @@ function commitAndEmit(events: GameEvent[]) {
 const rectOf = (e: MouseEvent) => (e.currentTarget as HTMLElement).getBoundingClientRect();
 
 /* ------------------------------------------------------------------------------------------ */
-/* UI kit                                                                                      */
+/* Buttons                                                                                     */
 /* ------------------------------------------------------------------------------------------ */
 
-const VARIANTS: CandyVariant[] = ['primary', 'secondary', 'soft', 'ghost', 'danger'];
+const VARIANTS: ButtonVariant[] = ['primary', 'secondary', 'tint', 'quiet'];
+const LABEL: Record<string, string> = { primary: 'Water it', secondary: 'Add a note', tint: 'Tiny version', quiet: 'Not today' };
 
 function Buttons({ params }: { params: URLSearchParams }) {
   const [busy, setBusy] = useState(false);
-  // ?focus=1 shows the keyboard focus ring (programmatic focus on load counts as keyboard focus).
+  // ?focus=1 also moves real focus to the demo (programmatic focus on load counts as keyboard focus).
   useEffect(() => {
     if (params.get('focus')) document.querySelector<HTMLElement>('[data-demo-focus]')?.focus();
   }, []);
@@ -240,77 +277,86 @@ function Buttons({ params }: { params: URLSearchParams }) {
     <Panels>
       {(theme) => (
         <div class="fxui-stack">
-          <Sub>Variants</Sub>
+          <Sub>Variants · rest</Sub>
           <div class="fxui-row">
             {VARIANTS.map((v) => (
-              <CandyButton key={v} variant={v}>
-                {v[0]!.toUpperCase() + v.slice(1)}
-              </CandyButton>
+              <Button key={v} variant={v}>
+                {LABEL[v]}
+              </Button>
             ))}
           </div>
-          <Sub>Sizes, icons, loading, disabled</Sub>
+          <Sub>Pressed (sinks 1 px, deepens 6%)</Sub>
           <div class="fxui-row">
-            <CandyButton size="sm" icon="plus">
-              Small
-            </CandyButton>
-            <CandyButton size="md" icon="plus">
-              Add habit
-            </CandyButton>
-            <CandyButton size="lg" iconRight="chevron-right">
-              Large
-            </CandyButton>
+            {VARIANTS.map((v) => (
+              <Button key={v} variant={v} data-pressed="">
+                {LABEL[v]}
+              </Button>
+            ))}
           </div>
-          <Sub>States: loading · pressed · focus ring (?focus=1) · live loading</Sub>
+          <Sub>Focus · loading · disabled</Sub>
           <div class="fxui-row">
-            <CandyButton loading>Saving</CandyButton>
-            <CandyButton class="fxui-pressed">Pressed</CandyButton>
-            <CandyButton variant="secondary" class="fxui-pressed">
-              Pressed
-            </CandyButton>
-            <CandyButton variant="soft" tone="sky" {...(theme === 'light' ? { 'data-demo-focus': true } : {})}>
+            {/* Painted with the same ring :focus-visible draws, so it shows without a keyboard. */}
+            <Button variant="secondary" class="fxui-focused" {...(theme === 'light' ? { 'data-demo-focus': true } : {})}>
               Focused
-            </CandyButton>
-            <CandyButton loading={busy} variant="secondary" onClick={() => (setBusy(true), setTimeout(() => setBusy(false), 1600))}>
+            </Button>
+            <Button loading>Saving</Button>
+            <Button loading={busy} variant="secondary" onClick={() => (setBusy(true), setTimeout(() => setBusy(false), 1600))}>
               {busy ? 'Saving' : 'Tap to load'}
-            </CandyButton>
-          </div>
-          <div class="fxui-row">
-            <CandyButton disabled>Disabled</CandyButton>
-            <CandyButton variant="secondary" disabled>
+            </Button>
+            <Button disabled>Disabled</Button>
+            <Button variant="secondary" disabled>
               Disabled
-            </CandyButton>
-            <CandyButton icon={<CoinIcon size={20} />} tone="butter">
+            </Button>
+          </div>
+          <Sub>Sizes and icons</Sub>
+          <div class="fxui-row">
+            <Button size="sm" icon="plus">
+              Add habit
+            </Button>
+            <Button icon={<CoinIcon size={18} />} tone="butter">
               Insert 25
-            </CandyButton>
+            </Button>
+            <Button size="lg" iconRight="chevron-right" variant="secondary">
+              Continue
+            </Button>
+            <Button variant="danger">Delete habit</Button>
           </div>
-          <Sub>Tones (primary · soft)</Sub>
+          <Sub>Tones · primary</Sub>
           <div class="fxui-row">
             {PASTELS.map((t) => (
-              <CandyButton key={t} tone={t} size="sm">
+              <Button key={t} tone={t} size="sm">
                 {t}
-              </CandyButton>
+              </Button>
+            ))}
+          </div>
+          <Sub>Tones · tint and quiet</Sub>
+          <div class="fxui-row">
+            {PASTELS.map((t) => (
+              <Button key={t} tone={t} variant="tint" size="sm">
+                {t}
+              </Button>
             ))}
           </div>
           <div class="fxui-row">
             {PASTELS.map((t) => (
-              <CandyButton key={t} tone={t} variant="soft" size="sm">
+              <Button key={t} tone={t} variant="quiet" size="sm">
                 {t}
-              </CandyButton>
+              </Button>
             ))}
           </div>
-          <CandyButton size="lg" block icon="sparkle">
-            Block button
-          </CandyButton>
-          <Sub>IconButton: plain · soft · candy · card · pressed</Sub>
+          <Button size="lg" block>
+            Find them a plant
+          </Button>
+          <Sub>IconButton · plain · soft · filled · paper disc · pressed · disabled</Sub>
           <div class="fxui-row">
             <IconButton icon="more" label="More" />
-            <IconButton icon="edit" label="Edit" variant="soft" />
-            <IconButton icon="heart" label="Favorite" variant="soft" tone="blush" pressed />
+            <IconButton icon="edit" label="Edit" variant="soft" tone="sage" />
+            <IconButton icon="heart" label="Favourite" variant="soft" tone="blush" pressed />
             <IconButton icon="plus" label="Add" variant="candy" />
             <IconButton icon="plus" label="Add" variant="candy" tone="sage" size="lg" />
             <IconButton icon="camera" label="Photo" variant="card" />
-            <IconButton icon="close" label="Close" variant="soft" size="sm" tone="lavender" />
-            <IconButton icon="trash" label="Delete" variant="plain" disabled />
+            <IconButton icon="close" label="Close" variant="card" size="sm" />
+            <IconButton icon="trash" label="Delete" disabled />
           </div>
         </div>
       )}
@@ -318,22 +364,130 @@ function Buttons({ params }: { params: URLSearchParams }) {
   );
 }
 
+/* ------------------------------------------------------------------------------------------ */
+/* The water-fill check ring                                                                   */
+/* ------------------------------------------------------------------------------------------ */
+
+/** Frames of the check-in, drawn from the same values the live ring animates between. */
+function ringFrame(ms: number): { level: number; mark: CheckRingMark; p: number } {
+  const ease = (t: number) => 1 - (1 - t) ** 3;
+  const fill = Math.min(1, ms / CHECK_RING_MS.fill);
+  const check = Math.max(0, Math.min(1, (ms - CHECK_RING_MS.checkDelay) / CHECK_RING_MS.check));
+  return { level: ease(fill), mark: 'check', p: ease(check) };
+}
+
+const FRAMES = [0, 60, 120, 180, 240, 300, 420];
+
+function RingStates({ theme }: { theme: Theme }) {
+  const [walk, setWalk] = useState(false);
+  const [glasses, setGlasses] = useState(5);
+  const [tiny, setTiny] = useState(false);
+  return (
+    <div class="fxui-stack">
+      <Sub>The check-in, frame by frame (ms)</Sub>
+      <div class="fxui-frames">
+        {FRAMES.map((ms) => {
+          const f = ringFrame(ms);
+          return (
+            <div key={ms} class="fxui-frame">
+              <CheckRingArt still level={f.level} mark={f.mark} markProgress={f.p} full={f.level >= 0.999} />
+              <small>{ms}</small>
+            </div>
+          );
+        })}
+      </div>
+      <Sub>States</Sub>
+      <div class="fxui-frames">
+        {(
+          [
+            ['empty', <CheckRingArt still level={0} mark={null} />],
+            ['filling', <CheckRingArt still level={0.55} mark={null} />],
+            ['checked', <CheckRingArt still level={1} mark="check" />],
+            ['1/8', <CheckRingArt still level={1 / 8} mark={null} countLabel="1/8" />],
+            ['5/8', <CheckRingArt still level={5 / 8} mark={null} countLabel="5/8" />],
+            ['7/8', <CheckRingArt still level={7 / 8} mark={null} countLabel="7/8" />],
+            ['rest', <CheckRingArt still level={0} mark="moon" quiet />],
+            ['tiny', <CheckRingArt still level={1} mark="sprout" />],
+          ] as [string, JSX.Element][]
+        ).map(([label, art]) => (
+          <div key={label} class="fxui-frame">
+            {art}
+            <small>{label}</small>
+          </div>
+        ))}
+      </div>
+      <Sub>Up close (96 px)</Sub>
+      <div class="fxui-frames">
+        <CheckRingArt still size={96} level={5 / 8} mark={null} countLabel="5/8" />
+        <CheckRingArt still size={96} level={1} mark="check" />
+        <CheckRingArt still size={96} level={0} mark="moon" quiet />
+        <CheckRingArt still size={96} level={1} mark="sprout" />
+        <CheckRingArt still size={96} level={1} mark="check" tone="sage" />
+      </div>
+      <Sub>Live · tap them (reduced motion fills instantly)</Sub>
+      <div class="fxui-stack">
+        <div class="fxui-habit">
+          <div>
+            <b>Walk</b>
+            <i>after lunch</i>
+            <span>26 of the last 30 days</span>
+          </div>
+          <CheckRing label="Walk" state={walk ? 'done' : 'empty'} description="26 of the last 30 days" onClick={() => setWalk(!walk)} />
+        </div>
+        <div class="fxui-habit">
+          <div>
+            <b>Drink water</b>
+            <i>after coffee</i>
+            <span>{glasses} of 8 glasses</span>
+          </div>
+          <CheckRing label="Add 1 glass to Drink water" count={glasses} target={8} description={`${glasses} of 8 glasses`} onClick={() => setGlasses(glasses >= 8 ? 0 : glasses + 1)} />
+        </div>
+        <div class="fxui-habit">
+          <div>
+            <b>Stretch</b>
+            <i>after the alarm</i>
+            <span>{restLine('Stretch')}</span>
+          </div>
+          <CheckRing label="Stretch" state="rest" description="Resting today" />
+        </div>
+        <div class="fxui-habit">
+          <div>
+            <b>Read</b>
+            <i>before bed</i>
+            <span>{tiny ? 'Tiny version' : '12 days'}</span>
+          </div>
+          <CheckRing label="Read" state={tiny ? 'tiny' : 'empty'} description={tiny ? 'Tiny version logged' : '12 days'} onClick={() => setTiny(!tiny)} />
+        </div>
+      </div>
+      <p class="fxui-note">{theme === 'night' ? 'Water stays ramune blue at night; the paper inside the ring is the night card.' : 'Water rises with a meniscus in 240 ms, then a hairline check draws in 180 ms.'}</p>
+    </div>
+  );
+}
+
+function CheckRings() {
+  return <Panels>{(t) => <RingStates theme={t} />}</Panels>;
+}
+
+/* ------------------------------------------------------------------------------------------ */
+/* Controls & surfaces                                                                         */
+/* ------------------------------------------------------------------------------------------ */
+
 function ControlsPanel() {
   const [on, setOn] = useState(true);
   const [off, setOff] = useState(false);
   const [theme, setTheme] = useState<'auto' | 'light' | 'night'>('auto');
   const [week, setWeek] = useState<'mon' | 'sun'>('mon');
-  const [filters, setFilters] = useState<Record<string, boolean>>({ Cats: true, Cows: false, Bunnies: true, Treats: false });
+  const [filters, setFilters] = useState<Record<string, boolean>>({ Cats: true, Cows: false, Pond: false, Garden: true });
   const [count, setCount] = useState(8);
   const [name, setName] = useState('Drink water');
-  const [bad, setBad] = useState('');
+  const [time, setTime] = useState('');
   const [notes, setNotes] = useState('A glass with every meal, and one before bed.');
   return (
     <div class="fxui-stack">
       <Sub>Toggle</Sub>
-      <Card padding="sm" style={{ padding: '4px 16px' }}>
-        <Toggle checked={on} onChange={setOn} label="Sounds" description="Soft chimes and pet voices" />
-        <Toggle checked={off} onChange={setOff} label="Quick capsule open" />
+      <Card padding="none" style={{ padding: '4px 16px' }}>
+        <Toggle checked={on} onChange={setOn} label="Sounds" description="A drop of water when you check in" />
+        <Toggle checked={off} onChange={setOff} label="Quick open" />
         <Toggle checked disabled onChange={() => undefined} label="Disabled" />
       </Card>
       <Sub>Segmented</Sub>
@@ -344,8 +498,8 @@ function ControlsPanel() {
         onChange={setTheme}
         options={[
           { value: 'auto', label: 'Auto' },
-          { value: 'light', label: 'Light', icon: 'sun' },
-          { value: 'night', label: 'Night', icon: 'moon' },
+          { value: 'light', label: 'Paper', icon: 'sun' },
+          { value: 'night', label: 'Lamplight', icon: 'moon' },
         ]}
       />
       <Segmented
@@ -358,10 +512,10 @@ function ControlsPanel() {
           { value: 'sun', label: 'Sunday' },
         ]}
       />
-      <Sub>FilterChip · Chip</Sub>
+      <Sub>Filter chips · tags</Sub>
       <div class="fxui-row">
         {Object.entries(filters).map(([k, v], i) => (
-          <FilterChip key={k} selected={v} tone={PASTELS[i * 2]} onChange={(sel) => setFilters({ ...filters, [k]: sel })} count={[9, 8, 7, 12][i]}>
+          <FilterChip key={k} selected={v} tone={(['blush', 'sky', 'mint', 'sage'] as const)[i]} onChange={(sel) => setFilters({ ...filters, [k]: sel })} count={[9, 8, 7, 12][i]}>
             {k}
           </FilterChip>
         ))}
@@ -369,19 +523,19 @@ function ControlsPanel() {
       <div class="fxui-row">
         <Chip tone="sage">Daily</Chip>
         <Chip tone="sky" icon="calendar">
-          3× a week
+          3 times a week
         </Chip>
-        <Chip tone="lilac" onRemove={() => toast({ message: 'Removed 🌸' })} removeLabel="Remove Yoga">
+        <Chip tone="lilac" onRemove={() => toast({ message: 'Removed.' })} removeLabel="Remove Yoga">
           Yoga
         </Chip>
       </div>
       <Sub>Stepper</Sub>
-      <Stepper label="Glasses per day" showLabel value={count} onChange={setCount} min={1} max={20} unit="glasses" />
-      <Sub>TextField · TextArea</Sub>
-      <TextField label="Habit name" value={name} onValue={setName} maxLength={40} showCount placeholder="What do you want to grow?" />
-      <TextField label="Search" hideLabel icon="search" value="" onValue={() => undefined} placeholder="Search friends and treats" type="search" />
-      <TextField label="Reminder time" value={bad} onValue={setBad} error={bad ? undefined : 'Pick a time and we’ll add it to your calendar.'} placeholder="08:30" trailing="am" />
-      <TextArea label="Notes" hint="Only you can see this." value={notes} onValue={setNotes} rows={2} />
+      <Stepper label="Glasses a day" showLabel value={count} onChange={setCount} min={1} max={20} unit="glasses" />
+      <Sub>Text fields</Sub>
+      <TextField label="Habit name" value={name} onValue={setName} maxLength={40} showCount placeholder="What would you like to grow?" />
+      <TextField label="Search" hideLabel icon="search" value="" onValue={() => undefined} placeholder="Search the Field Guide" type="search" />
+      <TextField label="Watering time" value={time} onValue={setTime} error={time ? undefined : 'Choose a time, and it goes in your calendar.'} placeholder="08:30" trailing="am" />
+      <TextArea label="Note" hint="Only you can see this." value={notes} onValue={setNotes} rows={2} />
     </div>
   );
 }
@@ -393,49 +547,47 @@ function Controls() {
 function Surfaces() {
   return (
     <Panels>
-      {() => (
+      {(theme) => (
         <div class="fxui-stack">
-          <SectionHeader
-            title="This week"
-            subtitle="6 of 7 check-ins · 86%"
-            action={
-              <CandyButton variant="ghost" size="sm">
-                See all
-              </CandyButton>
-            }
-          />
+          <SectionHeader title="Today" meta="3 of 5 · +18 coins" />
+          <SectionHeader variant="display" title="This afternoon" meta="1 of 4 watered" />
           <div class="fxui-row" style={{ alignItems: 'stretch' }}>
             <Card style={{ flex: '1 1 140px' }}>
-              <b>Plain card</b>
-              <p style={{ color: 'var(--ink-2)', fontSize: '14px' }}>White, 22px corners, warm shadow.</p>
+              <b>Paper card</b>
+              <p style={{ color: 'var(--ink-2)', fontSize: '14px' }}>Radius 14, a hairline, a barely-there warm shadow.</p>
             </Card>
             <Card tone="butter" flat style={{ flex: '1 1 140px' }}>
-              <b>Tinted card</b>
+              <b>Tinted</b>
               <p style={{ color: 'var(--ink-2)', fontSize: '14px' }}>For wells and callouts.</p>
             </Card>
-            <Card as="button" interactive tone="lavender" style={{ flex: '1 1 140px' }} onClick={() => sfx.play('pop')}>
+            <Card as="button" interactive style={{ flex: '1 1 140px' }} onClick={() => sfx.play('pop')}>
               <b>Interactive</b>
-              <p style={{ color: 'var(--ink-2)', fontSize: '14px' }}>Lifts on hover, squishes on press.</p>
+              <p style={{ color: 'var(--ink-2)', fontSize: '14px' }}>A deeper shadow on hover, a 1 px press.</p>
             </Card>
           </div>
           <ListGroup title="Preferences" footer="Sounds follow your phone’s silent switch.">
             <ListRow leading="volume" leadingTone="peach" title="Sounds" trailing={<Toggle checked hideLabel label="Sounds" onChange={() => undefined} />} />
             <ListRow leading="moon" leadingTone="lavender" title="Theme" subtitle="Follows your device" trailing="Auto" onClick={() => undefined} />
             <ListRow leading="calendar" leadingTone="sky" title="Week starts on" trailing="Monday" onClick={() => undefined} />
-            <ListRow leading={<PetArt petId="pet-mochi" size={36} shadow={false} />} title="Buddy" subtitle="Mochi keeps you company on Today" onClick={() => undefined} />
-            <ListRow leading="trash" leadingTone="danger" title="Reset everything" destructive onClick={() => undefined} />
+            <ListRow leading={<WaterDrop size={26} light={lightFor(theme)} />} title="Watering times" subtitle="Morning, evening" onClick={() => undefined} />
+            <ListRow leading="trash" leadingTone="danger" title="Delete everything" destructive onClick={() => undefined} />
           </ListGroup>
           <Card padding="none">
             <EmptyState
-              title="Let’s plant your first habit!"
-              art={<PetArt petId="pet-mochi" expression="happy" size={112} animated />}
+              title="An empty sill"
+              art={<EmptyPot size={112} light={lightFor(theme)} />}
               action={
-                <CandyButton icon="plus" size="lg">
-                  Add a habit
-                </CandyButton>
+                <Button icon="plus" size="lg">
+                  Plant a habit
+                </Button>
               }
             >
-              Pick something tiny. Mochi will cheer for every check-in.
+              Plant one habit and it starts as a cutting.
+            </EmptyState>
+          </Card>
+          <Card padding="none">
+            <EmptyState compact title="No notes yet" art={<PaperNote size={88} light={lightFor(theme)} />}>
+              Notes you add to a watering show up here.
             </EmptyState>
           </Card>
         </div>
@@ -445,80 +597,147 @@ function Surfaces() {
 }
 
 function AnimatedDemo() {
-  const [n, setN] = useState(120);
+  const [n, setN] = useState(124);
   return (
     <div class="fxui-row">
-      <span style={{ font: '600 28px var(--font-display)', minWidth: '90px' }}>
+      <span style={{ font: '400 28px var(--font-display)', minWidth: '90px' }}>
         <AnimatedNumber value={n} />
       </span>
-      <CandyButton size="sm" variant="soft" tone="butter" onClick={() => setN(n + 25)}>
+      <Button size="sm" variant="tint" tone="butter" onClick={() => setN(n + 25)}>
         +25
-      </CandyButton>
-      <CandyButton size="sm" variant="soft" tone="sky" onClick={() => setN(Math.max(0, n - 25))}>
+      </Button>
+      <Button size="sm" variant="tint" tone="sky" onClick={() => setN(Math.max(0, n - 25))}>
         −25
-      </CandyButton>
+      </Button>
     </div>
   );
 }
 
 function Status() {
-  const [v, setV] = useState(0.62);
+  const [v, setV] = useState(26 / 30);
   return (
     <Panels>
       {() => (
         <div class="fxui-stack">
           <Sub>ProgressRing</Sub>
           <div class="fxui-row" style={{ gap: '18px' }}>
-            <ProgressRing value={0.26} label="26% this week" size={72} tone="sky">
-              <span class="num" style={{ fontSize: '18px', fontWeight: 600 }}>
-                26%
-              </span>
+            <ProgressRing value={3 / 5} label="3 of 5 today" valueText="3 of 5" size={64} tone="sky">
+              <span class="num" style={{ fontSize: '17px' }}>3/5</span>
             </ProgressRing>
-            <ProgressRing value={v} label={`${Math.round(v * 100)}% consistent this month`} size={112} tone="sage">
-              <span class="num" style={{ fontSize: '28px', fontWeight: 600 }}>
-                {Math.round(v * 100)}%
-              </span>
-              <small style={{ color: 'var(--ink-2)', fontWeight: 700, fontSize: '12px' }}>September</small>
+            <ProgressRing value={v} label="Showed up 26 of the last 30 days" size={112} tone="sage">
+              <span class="num" style={{ fontSize: '28px' }}>{Math.round(v * 30)}</span>
+              <small style={{ color: 'var(--ink-2)', fontWeight: 700, fontSize: '11px' }}>of 30 days</small>
             </ProgressRing>
-            <ProgressRing value={1} label="All done today" size={88} tone="blush">
-              <span class="num" style={{ fontSize: '20px', fontWeight: 600 }}>
-                5/5
-              </span>
+            <ProgressRing value={1} label="All watered today" size={80} tone="blush">
+              <span class="num" style={{ fontSize: '19px' }}>5/5</span>
             </ProgressRing>
-            <CandyButton size="sm" variant="soft" tone="sage" onClick={() => setV(Math.random())}>
+            <Button size="sm" variant="tint" tone="sage" onClick={() => setV(Math.random())}>
               Shuffle
-            </CandyButton>
+            </Button>
           </div>
           <Sub>ProgressBar</Sub>
-          <ProgressBar value={v} label="Set progress" valueText="7 of 18" tone="blush" />
+          <ProgressBar value={7 / 18} label="Field Guide: Cats" valueText="7 of 18" tone="blush" />
           <ProgressBar value={0.3} label="Friendship" tone="lavender" size="sm" />
-          <ProgressBar value={0.9} label="Sunshine to Blooming" tone="butter" size="lg" />
+          <ProgressBar value={0.9} label="Toward Blooming" tone="butter" size="lg" />
           <ProgressBar value={0} label="Empty" tone="sky" />
-          <Sub>Pill · RarityPill</Sub>
+          <Sub>Pills</Sub>
           <div class="fxui-row">
-            <Pill tone="butter" icon={<CoinIcon size={18} />}>
+            <Pill tone="butter" icon={<CoinIcon size={16} />}>
               25
             </Pill>
-            <Pill tone="lavender" icon={<StarIcon size={18} />} variant="solid">
+            <Pill tone="lavender" icon={<StarIcon size={16} />} variant="solid">
               3
             </Pill>
-            <Pill tone="sage">Set complete ✓</Pill>
+            <Pill tone="sage">Set complete</Pill>
             <Pill>Until Nov 10</Pill>
-            <Pill variant="solid">7 / 18</Pill>
+            <Pill variant="solid">7 of 18</Pill>
             <Pill tone="blush" size="sm" variant="solid">
-              NEW!
+              New
             </Pill>
           </div>
+          <Sub>Tier labels (printed finishes)</Sub>
           <div class="fxui-row">
             {RARITIES.map((r) => (
               <RarityPill key={r} rarity={r} />
             ))}
+            <RarityPill rarity="ultra" secret />
+          </div>
+          <div class="fxui-row">
             {RARITIES.map((r) => (
-              <RarityPill key={`${r}-sm`} rarity={r} size="sm" />
+              <RarityPill key={r} rarity={r} size="sm" />
             ))}
+            <RarityPill rarity="ultra" secret size="sm" />
           </div>
           <Sub>AnimatedNumber</Sub>
           <AnimatedDemo />
+        </div>
+      )}
+    </Panels>
+  );
+}
+
+/* ------------------------------------------------------------------------------------------ */
+/* The kit's small drawings                                                                    */
+/* ------------------------------------------------------------------------------------------ */
+
+const OBJECTS: ObjectName[] = ['pot', 'cutting', 'watering-can', 'note', 'drop'];
+const ROW_OBJECTS: ObjectName[] = ['pot', 'cutting', 'watering-can', 'note', 'drop'];
+const LIGHTS: [string, Light][] = [
+  ['window left', { from: 'left', night: false }],
+  ['noon, top', { from: 'top', night: false }],
+  ['window right', { from: 'right', night: false }],
+  ['lamplight', NIGHT_LIGHT],
+];
+
+/** Every lockable collectible, owned (colour) beside locked (the ink silhouette SeriesSheet and MachineInfo show). */
+const LOCKABLE = COLLECTIBLES.filter((c) => c.category !== 'pet');
+
+function Locked() {
+  return (
+    <Panels>
+      {() => (
+        <div class="fxui-art">
+          {LOCKABLE.map((c) => (
+            <div key={c.id}>
+              <div class="fxui-row" style={{ gap: '6px', flexWrap: 'nowrap' }}>
+                <CollectibleArt id={c.id} size={52} />
+                <CollectibleArt id={c.id} size={52} silhouette />
+              </div>
+              <small>{c.name}</small>
+            </div>
+          ))}
+        </div>
+      )}
+    </Panels>
+  );
+}
+
+function Objects() {
+  return (
+    <Panels>
+      {(theme) => (
+        <div class="fxui-stack">
+          {OBJECTS.map((name) => (
+            <div key={name} class="fxui-stack" style={{ gap: '6px' }}>
+              <Sub>{name}</Sub>
+              <div class="fxui-art">
+                {LIGHTS.map(([label, light]) => (
+                  <div key={label}>
+                    <ObjectArt name={name} size={96} light={light} />
+                    <small>{label}</small>
+                  </div>
+                ))}
+                <div>
+                  <div class="fxui-row" style={{ gap: '8px', alignItems: 'flex-end', minHeight: '96px' }}>
+                    <ObjectArt name={name} size={48} light={lightFor(theme)} />
+                    <ObjectArt name={name} size={32} light={lightFor(theme)} />
+                    <ObjectArt name={name} size={20} light={lightFor(theme)} />
+                  </div>
+                  <small>48 · 32 · 20</small>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       )}
     </Panels>
@@ -532,45 +751,62 @@ function Status() {
 function Sheets({ params }: { params: URLSearchParams }) {
   const [open, setOpen] = useState<string | null>(params.get('open'));
   const [inner, setInner] = useState(false);
-  const [name, setName] = useState('Morning walk');
+  const [name, setName] = useState('Walk');
   const [kind, setKind] = useState<'daily' | 'weekly' | 'monthly'>('daily');
   const [remind, setRemind] = useState(true);
   const close = () => setOpen(null);
+  // Framed (?open=…) the gallery shows one live sheet; otherwise two open sheets as phone frames.
+  const framed = params.has('open');
   return (
     <div class="fxui-stack">
       <FxHosts />
+      {!framed && (
+        <div class="fxui-shots">
+          {(
+            [
+              ['basic', 'A sheet with a form'],
+              ['confirm', 'The confirm dialog'],
+            ] as const
+          ).map(([key, label]) => (
+            <div key={key} class="fxui-stack" style={{ gap: '6px' }}>
+              <Sub>{label} · 390 px</Sub>
+              <ScaledFrame title={label} src={`/gallery.html?only=fxui-sheets&open=${key}`} width={390} height={720} max={0.62} />
+            </div>
+          ))}
+        </div>
+      )}
       <div class="fxui-row">
-        <CandyButton onClick={() => setOpen('basic')}>Habit editor sheet</CandyButton>
-        <CandyButton variant="secondary" onClick={() => setOpen('tall')}>
-          Tall sheet (medium ↔ large)
-        </CandyButton>
-        <CandyButton variant="secondary" onClick={() => setOpen('stack')}>
+        <Button onClick={() => setOpen('basic')}>Habit editor</Button>
+        <Button variant="secondary" onClick={() => setOpen('tall')}>
+          Tall sheet
+        </Button>
+        <Button variant="secondary" onClick={() => setOpen('stack')}>
           Stacked sheets
-        </CandyButton>
-        <CandyButton variant="soft" onClick={() => setOpen('peek')}>
-          Sheet with peeking pet
-        </CandyButton>
-        <CandyButton variant="danger" onClick={() => setOpen('confirm')}>
-          Confirm (danger)
-        </CandyButton>
-        <CandyButton variant="ghost" onClick={() => setOpen('sticky')}>
-          Non-dismissible
-        </CandyButton>
+        </Button>
+        <Button variant="tint" onClick={() => setOpen('peek')}>
+          Sheet with art
+        </Button>
+        <Button variant="danger" onClick={() => setOpen('confirm')}>
+          Confirm
+        </Button>
+        <Button variant="quiet" onClick={() => setOpen('sticky')}>
+          Waits for a choice
+        </Button>
       </div>
 
       <Sheet
         open={open === 'basic'}
         onClose={close}
         title="Edit habit"
-        description="Small and steady grows the best plants."
+        description="Changes apply from today. Earlier days keep their rules."
         footer={
           <>
-            <CandyButton variant="secondary" size="lg" onClick={close}>
+            <Button variant="secondary" size="lg" onClick={close}>
               Cancel
-            </CandyButton>
-            <CandyButton size="lg" onClick={() => (close(), toast({ message: 'Saved “Morning walk” 🌻', tone: 'sage' }))}>
+            </Button>
+            <Button size="lg" onClick={() => (close(), toast({ message: 'Walk is saved.', tone: 'sage' }))}>
               Save
-            </CandyButton>
+            </Button>
           </>
         }
       >
@@ -587,165 +823,232 @@ function Sheets({ params }: { params: URLSearchParams }) {
               { value: 'monthly', label: 'Monthly' },
             ]}
           />
-          <Toggle checked={remind} onChange={setRemind} label="Calendar reminder" description="Adds an event your phone reminds you about" />
+          <Toggle checked={remind} onChange={setRemind} label="Watering time" description="Adds a calendar event that reminds you" />
         </div>
       </Sheet>
 
-      <Sheet open={open === 'tall'} onClose={close} title="Collection book" detents={['medium', 'large']}>
+      <Sheet open={open === 'tall'} onClose={close} title="Field Guide" detents={['medium', 'large']}>
         <ListGroup>
           {Array.from({ length: 24 }, (_, i) => (
-            <ListRow key={i} leading="sparkle" leadingTone={PASTELS[i % PASTELS.length]} title={`Collectible #${i + 1}`} subtitle="Drag the sheet up to see more" />
+            <ListRow key={i} leading={<ObjectArt name={ROW_OBJECTS[i % ROW_OBJECTS.length]!} size={32} light={themeLight()} />} title={`Page ${i + 1}`} subtitle="Drag the sheet up to see more" />
           ))}
         </ListGroup>
       </Sheet>
 
-      <Sheet open={open === 'stack'} onClose={close} title="Pet sheet" description="Tap below to stack a second sheet.">
+      <Sheet open={open === 'stack'} onClose={close} title="Walk" description="Tap below to stack a second sheet.">
         <div class="fxui-stack">
           <div style={{ display: 'grid', placeItems: 'center' }}>
-            <PetArt petId="pet-mochi" size={120} animated />
+            <CuttingGlass size={110} />
           </div>
-          <CandyButton block onClick={() => setInner(true)}>
-            Open wardrobe
-          </CandyButton>
+          <Button block onClick={() => setInner(true)}>
+            Add a note
+          </Button>
         </div>
-        <Sheet open={inner} onClose={() => setInner(false)} title="Wardrobe" size="sm">
-          <p style={{ color: 'var(--ink-2)' }}>A second sheet on top. Esc closes just this one; focus returns to the button below.</p>
+        <Sheet open={inner} onClose={() => setInner(false)} title="Note" size="sm">
+          <p style={{ color: 'var(--ink-2)' }}>A second sheet on top. Esc closes only this one, and focus goes back to the button below.</p>
           <div style={{ marginTop: '16px' }}>
-            <CandyButton block variant="secondary" onClick={() => setInner(false)}>
+            <Button block variant="secondary" onClick={() => setInner(false)}>
               Done
-            </CandyButton>
+            </Button>
           </div>
         </Sheet>
       </Sheet>
 
-      <Sheet open={open === 'peek'} onClose={close} title="Mochi says hi" peek={<PetArt petId="pet-mochi" expression="happy" size={92} animated />}>
-        <p style={{ color: 'var(--ink-2)' }}>Sheets can carry a little friend peeking over the top edge.</p>
+      <Sheet open={open === 'peek'} onClose={close} title="Rooting" peek={<CuttingGlass size={96} />}>
+        <p style={{ color: 'var(--ink-2)' }}>White roots through the glass. Two more waterings and it moves into its pot.</p>
       </Sheet>
 
       <ConfirmDialog
         open={open === 'confirm'}
         tone="danger"
-        title="Delete “Morning walk”?"
-        message="Its plant and history go too. You can archive it instead to keep them."
-        art={<PetArt petId="pet-mochi" expression="surprised" size={96} />}
+        title="Delete Walk?"
+        message="Its plant and history go too. Archive it instead to keep them on the balcony shelf."
+        art={<EmptyPot size={80} />}
         confirmLabel="Delete habit"
         cancelLabel="Keep it"
-        onConfirm={() => (close(), toast({ message: 'Habit deleted', action: { label: 'Undo', onAction: () => toast({ message: 'Restored 🌱', tone: 'sage' }) } }))}
+        onConfirm={() => (close(), toast({ message: 'Walk is deleted.', action: { label: 'Undo', onAction: () => toast({ message: 'Walk is back.', tone: 'sage' }) } }))}
         onCancel={close}
       />
 
       <Sheet open={open === 'sticky'} onClose={close} title="Choose one" dismissible={false} size="sm">
-        <p style={{ color: 'var(--ink-2)', marginBottom: '16px' }}>No drag, scrim or Esc dismissal: this sheet waits for a choice.</p>
-        <CandyButton block onClick={close}>
-          Okay!
-        </CandyButton>
+        <p style={{ color: 'var(--ink-2)', marginBottom: '16px' }}>No drag, scrim or Esc: this sheet waits for a choice.</p>
+        <Button block onClick={close}>
+          Done
+        </Button>
       </Sheet>
     </div>
   );
 }
 
 /* ------------------------------------------------------------------------------------------ */
-/* FX                                                                                          */
+/* Notes (toasts)                                                                              */
 /* ------------------------------------------------------------------------------------------ */
 
-function Fx() {
-  const [spark, setSpark] = useState(0);
+const noop = () => undefined;
+
+function Notes({ params }: { params: URLSearchParams }) {
+  useEffect(() => {
+    seedDemoState();
+    if (params.get('live')) {
+      showCheckInNote({ habitId: 'h-walk', habitName: 'Walk', coins: 5, note: 'Pudding opened one eye.', onUndo: noop });
+      toast({ message: 'Everything kept. There’s a ticket on the sill.', art: <TicketIcon size={22} />, tone: 'blush', duration: 0 });
+    }
+  }, []);
+  const coin = (n: number) => (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', marginLeft: '6px', verticalAlign: '-2px' }}>
+      +{n}
+      <CoinIcon size={14} />
+    </span>
+  );
+  return (
+    <div class="fxui-stack">
+      <FxHosts />
+      <Panels>
+        {(theme) => (
+          <div class="fxui-stack" style={{ maxWidth: '420px' }}>
+            <Sub>Check-in (4 s, with Undo)</Sub>
+            <ToastNote
+              item={{ message: <>Walk, watered.{coin(5)}</>, note: 'Pudding opened one eye.', art: <WaterDrop size={22} light={lightFor(theme)} />, action: { label: 'Undo', onAction: noop }, version: 0 }}
+            />
+            <ToastNote item={{ message: <>Drink water, tiny version.{coin(3)}</>, art: <WaterDrop size={22} light={lightFor(theme)} />, action: { label: 'Undo', onAction: noop }, version: 0 }} />
+            <Sub>Small moments</Sub>
+            <ToastNote item={{ message: <>Everything kept. There’s a ticket on the sill. <RewardInline rewards={{ coins: 20, stars: 0, tickets: 1, stardust: 0 }} /></>, art: <TicketIcon size={22} />, version: 0 }} />
+            <ToastNote item={{ message: 'Your yoga plant is potted up.', art: <CuttingGlass size={30} light={lightFor(theme)} />, version: 0 }} />
+            <ToastNote item={{ message: 'There’s a note on the sill.', art: <PaperNote size={30} light={lightFor(theme)} />, version: 0 }} />
+            <ToastNote item={{ message: '+18 coins', art: <CoinIcon size={22} />, version: 0 }} />
+            <ToastNote item={{ message: 'A new version of catkin is ready.', action: { label: 'Refresh', onAction: noop }, version: 0 }} />
+          </div>
+        )}
+      </Panels>
+      <Sub>Live: the notes sit above the tab bar (?live=1)</Sub>
+      <div class="fxui-row">
+        <Button variant="secondary" onClick={() => showCheckInNote({ habitId: 'h-walk', habitName: 'Walk', coins: 5, note: 'Pudding opened one eye.', onUndo: () => toast({ message: 'Walk is back to unwatered.' }) })}>
+          Check-in note
+        </Button>
+        <Button variant="secondary" onClick={() => rapidCheckins()}>
+          Rapid coins (one note)
+        </Button>
+        <Button variant="secondary" onClick={() => toast({ key: 'sw-update', message: 'A new version of catkin is ready.', tone: 'sage', duration: 0, action: { label: 'Refresh', onAction: noop } })}>
+          Update ready
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+/** Five quick check-ins nobody celebrated locally: one calm, growing note. */
+function rapidCheckins() {
+  seedDemoState();
+  for (let i = 0; i < 5; i++) {
+    setTimeout(() => commitAndEmit([{ type: 'coins', amount: 5, reason: 'checkin', habitId: 'h-water' }]), i * 180);
+  }
+}
+
+/* ------------------------------------------------------------------------------------------ */
+/* FX: petals, the coin, the glint                                                            */
+/* ------------------------------------------------------------------------------------------ */
+
+function Fx({ params }: { params: URLSearchParams }) {
+  const [glint, setGlint] = useState(0);
   useEffect(seedDemoState, []);
+  // ?fx=petals|petals-point|coin|glint|checkin fires once after load (shoot with --motion and a --wait).
+  useEffect(() => {
+    const fx = params.get('fx');
+    if (!fx) return;
+    const t = setTimeout(() => {
+      const target = document.querySelector<HTMLElement>('[data-fx-origin]');
+      const r = target?.getBoundingClientRect() ?? new DOMRect(innerWidth / 2 - 40, innerHeight / 2, 80, 40);
+      if (fx === 'petals') burst({ intensity: 'big' });
+      if (fx === 'petals-point') burst({ x: r.left + r.width / 2, y: r.top, intensity: 'medium' });
+      if (fx === 'coin') (addCoins(5), void flyCoins({ from: r, amount: 5 }));
+      if (fx === 'glint') setGlint(1);
+      if (fx === 'checkin') target?.click();
+    }, 200);
+    return () => clearTimeout(t);
+  }, []);
   const checkIn = (e: MouseEvent) => {
     const el = e.currentTarget as HTMLElement;
     // Like a screen: checkIn() commits and emits, then the flourish claims its coins.
     const events: GameEvent[] = [{ type: 'coins', amount: 5, reason: 'checkin', habitId: 'h-walk' }];
     commitAndEmit(events);
     celebrateCheckIn({ events, coins: 5, completed: true, partial: false, rewarded: true }, 'h-walk', el);
+    showCheckInNote({ habitId: 'h-walk', habitName: 'Walk', coins: 5, note: 'Pudding opened one eye.', onUndo: noop });
   };
   return (
     <div class="fxui-stack">
       <FxHosts />
-      <Panels>{() => <FxTriggers spark={spark} setSpark={setSpark} checkIn={checkIn} />}</Panels>
+      <p class="fxui-note">Petals: at most 12, in the plants’ own colours, drifting down with a gentle turn. One brass coin at a time. One foil glint for a rare reveal.</p>
+      <div class="fxui-shots">
+        {PETAL_DEMOS.map(([label, mix]) => (
+          <div key={label} class="fxui-stack" style={{ gap: '6px', flex: '1 1 260px' }}>
+            <Sub>{label}</Sub>
+            <PetalFrame mix={mix} />
+          </div>
+        ))}
+      </div>
+      <div class="fxui-row" style={{ marginTop: '220px' }}>
+        <Button data-fx-origin="" onClick={checkIn}>
+          Check in (+5)
+        </Button>
+        <Button variant="tint" tone="blush" onClick={(e) => burst({ ...center(rectOf(e)), intensity: 'medium' })}>
+          Petals from here
+        </Button>
+        <Button variant="tint" tone="sage" onClick={() => burst({ intensity: 'big' })}>
+          Petals past the window
+        </Button>
+        <Button variant="secondary" icon={<CoinIcon size={18} />} onClick={(e) => (addCoins(25), void flyCoins({ from: rectOf(e), amount: 25 }))}>
+          One coin (+25)
+        </Button>
+        <Button variant="secondary" icon={<StarIcon size={18} />} onClick={(e) => (addStars(1), void flyCoins({ from: rectOf(e), amount: 1, kind: 'stars' }))}>
+          One stamp
+        </Button>
+        <Button variant="tint" tone="butter" onClick={(e) => floatText('+5', rectOf(e))}>
+          +5 chip
+        </Button>
+        <span style={{ position: 'relative', display: 'inline-flex' }}>
+          <Button variant="tint" tone="lavender" onClick={() => setGlint(glint + 1)}>
+            Foil glint
+          </Button>
+          <SparkleBurst trigger={glint} />
+        </span>
+        <Button variant="quiet" onClick={(e) => glintAt(rectOf(e))}>
+          Glint at a point
+        </Button>
+        <Button variant="quiet" onClick={() => haptic('tick')}>
+          Haptic tick
+        </Button>
+      </div>
     </div>
   );
 }
 
-function FxTriggers({ spark, setSpark, checkIn }: { spark: number; setSpark: (n: number) => void; checkIn: (e: MouseEvent) => void }) {
+const PETAL_DEMOS: [string, PetalMix][] = [
+  ['Perfect day · begonia, pothos, lavender', petalMix(['begonia', 'pothos', 'lavender'])],
+  ['Bloom · sunflower', petalMix(['sunflower'])],
+  ['Nothing in flower · leaves only', petalMix(['pothos', 'monstera'])],
+];
+
+/** A still frame of a perfect day's petals, a third of the way down (the live ones are the buttons below). */
+function PetalFrame({ mix }: { mix: PetalMix }) {
+  let seed = 11;
+  const rng = () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646;
+  const petals = planPetals({ width: 300, height: 420, intensity: 'big', ...mix, rng });
   return (
-    <div class="fxui-stack">
-      <Sub>Confetti (at the button · big & epic without an origin fire corner cannons)</Sub>
-      <div class="fxui-row">
-        {(['tiny', 'small', 'medium'] as const).map((i) => (
-          <CandyButton key={i} variant="soft" tone="blush" onClick={(e) => burst({ ...center(rectOf(e)), intensity: i })}>
-            {i}
-          </CandyButton>
-        ))}
-        <CandyButton variant="soft" tone="peach" onClick={() => burst({ intensity: 'big' })}>
-          big
-        </CandyButton>
-        <CandyButton tone="butter" onClick={() => burst({ intensity: 'epic' })}>
-          epic
-        </CandyButton>
-        <CandyButton variant="soft" tone="butter" onClick={(e) => burst({ ...center(rectOf(e)), intensity: 'medium', shapes: ['coin'] })}>
-          coins
-        </CandyButton>
-        <CandyButton variant="soft" tone="lilac" onClick={(e) => burst({ ...center(rectOf(e)), intensity: 'small', shapes: ['heart'], colors: ['#FFC4D3', '#F58CAA', '#FF9FB8'] })}>
-          hearts
-        </CandyButton>
-      </div>
-      <Sub>Coin flight → wallet (top right) · floating text · sparkle burst · haptics</Sub>
-      <div class="fxui-row">
-        <CandyButton icon="check" tone="sage" onClick={checkIn}>
-          Check in (+5)
-        </CandyButton>
-        <CandyButton variant="secondary" icon={<CoinIcon size={20} />} onClick={(e) => (addCoins(24), void flyCoins({ from: rectOf(e), amount: 24 }))}>
-          Fly 24 coins
-        </CandyButton>
-        <CandyButton variant="secondary" icon={<StarIcon size={20} />} onClick={(e) => (addStars(3), void flyCoins({ from: rectOf(e), amount: 3, kind: 'stars' }))}>
-          Fly 3 stars
-        </CandyButton>
-        <CandyButton variant="soft" tone="butter" onClick={(e) => floatText('+5', rectOf(e))}>
-          +5 float
-        </CandyButton>
-        <CandyButton variant="soft" tone="lavender" onClick={(e) => floatText('+1', rectOf(e), { tone: 'star' })}>
-          +1 star float
-        </CandyButton>
-        <CandyButton variant="soft" tone="blush" onClick={(e) => floatText('♥ +4', rectOf(e), { tone: 'heart' })}>
-          ♥ float
-        </CandyButton>
-        <span style={{ position: 'relative', display: 'inline-flex' }}>
-          <CandyButton variant="soft" tone="sky" onClick={() => setSpark(spark + 1)}>
-            Sparkle burst
-          </CandyButton>
-          <SparkleBurst trigger={spark} count={8} radius={44} />
-        </span>
-        <CandyButton variant="ghost" onClick={() => haptic('tick')}>
-          Haptic tick
-        </CandyButton>
-        <CandyButton variant="ghost" onClick={() => haptic('success')}>
-          Haptic success
-        </CandyButton>
-      </div>
-      <Sub>Toasts</Sub>
-      <div class="fxui-row">
-        <CandyButton variant="secondary" onClick={() => toast({ message: 'Saved 🌱', tone: 'sage' })}>
-          Simple
-        </CandyButton>
-        <CandyButton variant="secondary" onClick={() => toast({ message: 'Walk marked as a rest day', action: { label: 'Undo', onAction: () => toast({ message: 'Back on the list 🌼' }) } })}>
-          With Undo
-        </CandyButton>
-        <CandyButton
-          variant="secondary"
-          onClick={() => toast({ message: 'Patches loves Strawberry! 💕', art: <PetArt petId="pet-cat-calico" size={34} expression="love" shadow={false} />, tone: 'blush' })}
-        >
-          With pet art
-        </CandyButton>
-        <CandyButton variant="secondary" onClick={() => rapidCheckins()}>
-          Rapid coins (coalesced)
-        </CandyButton>
-        <CandyButton
-          variant="secondary"
-          onClick={() => toast({ key: 'sw-update', message: 'A fresh version is ready 🌱', tone: 'sage', duration: 0, action: { label: 'Refresh', onAction: () => undefined } })}
-        >
-          Update ready
-        </CandyButton>
-      </div>
+    <div class="fxui-petals" aria-hidden="true">
+      <svg viewBox="0 0 300 200" preserveAspectRatio="xMidYMid slice">
+        {petals.map((p, i) => {
+          const a = petalAt(p, 0.3);
+          const shape = PETAL_SHAPES[p.kind];
+          return (
+            <g key={i} transform={`translate(${(p.x + a.dx).toFixed(1)} ${(p.y + 70 + a.dy).toFixed(1)}) rotate(${a.rot.toFixed(0)}) scale(${((p.size / 20) * 1.2).toFixed(2)} ${((p.size / 20) * 1.2).toFixed(2)})`}>
+              <g transform={`scale(${a.flutter.toFixed(2)} 1)`}>
+                <path d={shape.body} fill={p.color} />
+                <path d={shape.shade} fill={p.shade} />
+              </g>
+            </g>
+          );
+        })}
+      </svg>
     </div>
   );
 }
@@ -754,23 +1057,17 @@ function center(r: DOMRect) {
   return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
 }
 
-/** Five quick check-ins nobody celebrated locally: one calm, growing toast. */
-function rapidCheckins() {
-  seedDemoState();
-  for (let i = 0; i < 5; i++) {
-    setTimeout(() => commitAndEmit([{ type: 'coins', amount: 5, reason: 'checkin', habitId: 'h-water' }]), i * 180);
-  }
-}
+/* ------------------------------------------------------------------------------------------ */
+/* Sounds                                                                                      */
+/* ------------------------------------------------------------------------------------------ */
 
-const VOICE_PET: Record<PetVoice, string> = {
-  mew: 'pet-mochi',
-  moo: 'pet-cow-holstein',
-  woof: 'pet-dog-corgi',
-  squeak: 'pet-bunny-white',
-  ribbit: 'pet-frog-green',
-  grr: 'pet-bear-brown',
-  peep: 'pet-hamster-golden',
-  quack: 'pet-duck-yellow',
+const SOUND_NOTE: Partial<Record<string, string>> = {
+  chime: 'check-in: a drop, then a rising glass chime',
+  coin: 'a brass coin into the jar',
+  whoosh: 'a sheet: paper rustle',
+  ratchet: 'the capsule handle',
+  pop: 'opening',
+  fanfare: 'wind chimes',
 };
 
 function Sounds() {
@@ -779,17 +1076,17 @@ function Sounds() {
       <Sub>Sound effects</Sub>
       <div class="fxui-row">
         {SFX_NAMES.map((n) => (
-          <CandyButton key={n} size="sm" variant="secondary" onClick={() => sfx.play(n)}>
+          <Button key={n} size="sm" variant="secondary" title={SOUND_NOTE[n]} onClick={() => sfx.play(n)}>
             {n}
-          </CandyButton>
+          </Button>
         ))}
       </div>
       <Sub>Pet voices</Sub>
       <div class="fxui-row">
         {PET_VOICES.map((v) => (
-          <CandyButton key={v} variant="soft" tone="peach" icon={<PetArt petId={VOICE_PET[v]} size={28} shadow={false} />} onClick={() => sfx.voice(v)}>
+          <Button key={v} size="sm" variant="tint" tone="peach" onClick={() => sfx.voice(v)}>
             {v}
-          </CandyButton>
+          </Button>
         ))}
       </div>
     </div>
@@ -808,90 +1105,79 @@ const CELEBRATIONS: Record<string, { label: string; events: GameEvent[] }> = {
       { type: 'coins', amount: 10, reason: 'perfect' },
     ],
   },
-  milestone: {
-    label: 'Streak rung (7 days)',
+  bloom: { label: 'Blooming', events: [{ type: 'plantStage', habitId: 'h-yoga', stage: 5, stageName: 'Blooming' }] },
+  evergreen: {
+    label: 'Evergreen + Laurel Sprig (epic)',
     events: [
-      { type: 'rung', habitId: 'h-walk', streak: 7, unit: 'days', tierDays: 7, coins: 20 },
-      { type: 'coins', amount: 20, reason: 'rung' },
+      { type: 'plantStage', habitId: 'h-walk', stage: 7, stageName: 'Evergreen' },
+      { type: 'exclusive', collectibleId: 'wear-laurel-sprig' },
     ],
   },
-  badge: {
-    label: 'Badge',
+  showUp: {
+    label: 'Showing up (30 days)',
+    events: [
+      { type: 'showUp', days: 30, stars: 3, tickets: 1 },
+      { type: 'stars', amount: 3, reason: 'showup' },
+      { type: 'tickets', amount: 1 },
+    ],
+  },
+  windowSeat: {
+    label: 'The Window Seat (epic)',
+    events: [
+      { type: 'showUp', days: 365, stars: 12, tickets: 3, exclusive: 'decor-window-seat' },
+      { type: 'stars', amount: 12, reason: 'showup' },
+      { type: 'tickets', amount: 3 },
+    ],
+  },
+  pin: {
+    label: 'A new pin',
     events: [
       { type: 'badge', badgeId: 'first-perfect-day', stars: 1 },
       { type: 'stars', amount: 1, reason: 'badge' },
     ],
   },
-  bloom: { label: 'Plant blooms', events: [{ type: 'plantStage', habitId: 'h-yoga', stage: 5, stageName: 'Blooming' }] },
-  evergreen: {
-    label: 'Plant evergreen',
-    events: [
-      { type: 'plantStage', habitId: 'h-walk', stage: 7, stageName: 'Evergreen' },
-      { type: 'badge', badgeId: 'first-evergreen', stars: 5 },
-      { type: 'stars', amount: 5, reason: 'badge' },
-    ],
-  },
   stacked: {
-    label: 'Stacked (perfect day + milestone + badge + goal)',
+    label: 'Stacked (one note)',
     events: [
       { type: 'perfectDay', date: '2026-09-29', coins: 12 },
       { type: 'coins', amount: 12, reason: 'perfect' },
       { type: 'rung', habitId: 'h-water', streak: 30, unit: 'days', tierDays: 30, coins: 40 },
       { type: 'coins', amount: 40, reason: 'rung' },
-      { type: 'showUp', days: 30, stars: 3, tickets: 1 },
-      { type: 'stars', amount: 3, reason: 'showup' },
-      { type: 'tickets', amount: 1 },
-      { type: 'badge', badgeId: 'checkins-50', stars: 2 },
       { type: 'periodGoal', habitId: 'h-yoga', period: 'week', coins: 10 },
     ],
   },
-  exclusive: {
-    label: 'Exclusive (epic)',
-    events: [
-      { type: 'showUp', days: 365, stars: 12, tickets: 3, exclusive: 'wear-blossom-sprout' },
-      { type: 'exclusive', collectibleId: 'wear-blossom-sprout' },
-      { type: 'stars', amount: 12, reason: 'showup' },
-    ],
-  },
-  bestFriends: { label: 'Best friends (pet L10)', events: [{ type: 'petLevel', petId: 'pet-mochi', level: 10 }] },
-  sprout: { label: 'Plant sprouted (toast)', events: [{ type: 'plantStage', habitId: 'h-water', stage: 2, stageName: 'Seedling' }] },
+  bestFriends: { label: 'Best friends', events: [{ type: 'petLevel', petId: 'pet-cat-orange', level: 10 }] },
+  potted: { label: 'Potted up (note)', events: [{ type: 'plantStage', habitId: 'h-read', stage: 2, stageName: 'Potted' }] },
   period: {
-    label: 'Weekly goal (toast)',
+    label: 'Done for the week (note)',
     events: [
       { type: 'periodGoal', habitId: 'h-yoga', period: 'week', coins: 10 },
       { type: 'coins', amount: 10, reason: 'period' },
     ],
   },
   welcome: {
-    label: 'Welcome home (toast)',
+    label: 'Welcome home (note)',
     events: [
       { type: 'welcomeHome', coins: 20, tickets: 1 },
       { type: 'coins', amount: 20, reason: 'home' },
+      { type: 'tickets', amount: 1 },
     ],
   },
-  petLevel: { label: 'Friendship level (toast)', events: [{ type: 'petLevel', petId: 'pet-mochi', level: 3 }] },
-  favorite: { label: 'Favorite found (toast)', events: [{ type: 'favoriteFound', petId: 'pet-mochi', treatId: 'treat-strawberry' }] },
-  fusion: {
-    label: 'Stardust fusion (toast)',
+  letter: { label: 'Note on the sill', events: [{ type: 'letter', letterId: 'w-2026-09-21' }] },
+  swaps: {
+    label: 'Swaps to a stamp (note)',
     events: [
       { type: 'stardust', amount: 8, fused: 1 },
       { type: 'stars', amount: 1, reason: 'fusion' },
     ],
   },
-  letter: { label: 'Letter (toast)', events: [{ type: 'letter', letterId: 'w-2026-09-21' }] },
 };
-
-/** A banner, a letter and a screen's Undo toast all at once: toasts must stay visible below it. */
-function collision() {
-  commitAndEmit([...CELEBRATIONS.perfectDay!.events, { type: 'letter', letterId: 'w-2026-09-28' }]);
-  toast({ message: 'Walk marked as a rest day', action: { label: 'Undo', onAction: () => toast({ message: 'Back on the list 🌼' }) } });
-}
 
 function Celebrations({ params }: { params: URLSearchParams }) {
   useEffect(() => {
     seedDemoState();
     const auto = params.get('celebrate');
-    const run = auto === 'collision' ? collision : auto && CELEBRATIONS[auto] ? () => commitAndEmit(CELEBRATIONS[auto]!.events) : null;
+    const run = auto && CELEBRATIONS[auto] ? () => commitAndEmit(CELEBRATIONS[auto]!.events) : null;
     if (run) {
       const t = setTimeout(run, 250);
       return () => clearTimeout(t);
@@ -901,40 +1187,48 @@ function Celebrations({ params }: { params: URLSearchParams }) {
   return (
     <div class="fxui-stack">
       <FxHosts />
+      <p class="fxui-note">A mock windowsill band marks where notes belong ({CELEBRATION_ANCHOR}); the note tucks over its lower edge.</p>
+      <div class="fxui-band" {...{ [CELEBRATION_ANCHOR]: '' }} />
       <div class="fxui-row">
         {Object.entries(CELEBRATIONS).map(([k, c]) => (
-          <CandyButton key={k} size="sm" variant={c.label.includes('toast') ? 'secondary' : 'soft'} tone={k === 'exclusive' ? 'butter' : 'blush'} onClick={() => commitAndEmit(c.events)}>
+          <Button key={k} size="sm" variant={c.label.includes('note') ? 'secondary' : 'tint'} tone={c.label.includes('epic') ? 'butter' : 'blush'} onClick={() => commitAndEmit(c.events)}>
             {c.label}
-          </CandyButton>
+          </Button>
         ))}
-        <CandyButton size="sm" variant="secondary" onClick={collision}>
-          Banner + letter + Undo (collision)
-        </CandyButton>
-        <CandyButton size="sm" variant="secondary" onClick={() => rapidCheckins()}>
-          Rapid check-ins (toast)
-        </CandyButton>
+        <Button size="sm" variant="secondary" onClick={() => rapidCheckins()}>
+          Rapid check-ins
+        </Button>
       </div>
     </div>
   );
 }
 
 /* ------------------------------------------------------------------------------------------ */
-/* Install, app icon, splash                                                                   */
+/* Install, shell, app                                                                         */
 /* ------------------------------------------------------------------------------------------ */
 
 const PLATFORMS: (InstallPlatform | InstallGuideKey)[] = ['ios-safari', 'ios-safari-classic', 'ios-other', 'mac-safari', 'prompt', 'chromium', 'android', 'other', 'installed'];
 
 function Install({ params }: { params: URLSearchParams }) {
   const [platform, setPlatform] = useState<InstallPlatform | InstallGuideKey | null>((params.get('install') as InstallPlatform | InstallGuideKey | null) ?? null);
+  const gate = params.get('gate') as InstallGuideKey | null;
   return (
     <div class="fxui-stack">
       <FxHosts />
       <Panels>{() => <InstallGuide />}</Panels>
       <div class="fxui-row">
         {PLATFORMS.map((p) => (
-          <CandyButton key={p} size="sm" variant="secondary" onClick={() => setPlatform(p)}>
+          <Button key={p} size="sm" variant="secondary" onClick={() => setPlatform(p)}>
             {p}
-          </CandyButton>
+          </Button>
+        ))}
+      </div>
+      <Sub>The install-first gate (?gate=ios-safari|mac-safari)</Sub>
+      <div class="fxui-row" style={{ alignItems: 'flex-start' }}>
+        {(gate ? [gate] : (['ios-safari', 'mac-safari'] as InstallGuideKey[])).map((p) => (
+          <Card key={p} padding="none" style={{ width: '390px', background: 'var(--bg)' }}>
+            <InstallGate platform={p} onPeek={() => toast({ message: 'Opening the demo sill.' })} />
+          </Card>
         ))}
       </div>
       <InstallSheet open={!!platform} platform={platform ?? 'ios-safari'} onClose={() => setPlatform(null)} />
@@ -951,21 +1245,55 @@ function Shell() {
             <ScreenLoading />
           </Card>
           <Card padding="none" style={{ flex: '1 1 260px' }}>
-            <ScreenError onRetry={() => toast({ message: 'Waking it up… 🌱' })} />
+            <ScreenError onRetry={() => toast({ message: 'Trying again.' })} />
           </Card>
           <Card padding="none" style={{ flex: '1 1 260px' }}>
-            <ErrorFallback onRetry={() => toast({ message: 'Trying again 🌱' })} />
+            <ErrorFallback onRetry={() => toast({ message: 'Trying again.' })} />
           </Card>
           <div class="fxui-stack" style={{ flex: '1 1 220px' }}>
             <WalletSummary />
-            <div class="fxui-row">
-              <GumballArt size={40} />
-              <GumballArt size={64} />
-            </div>
           </div>
         </div>
       )}
     </Panels>
+  );
+}
+
+/** Room the gallery page leaves for a frame (its side padding). */
+const FRAME_GUTTER = 48;
+
+/** A fixed-size page in a frame, scaled down (never up) to fit the gallery's width. */
+function ScaledFrame({ src, title, width, height, max = 1 }: { src: string; title: string; width: number; height: number; max?: number }) {
+  const fit = () => Math.min(max, (innerWidth - FRAME_GUTTER) / width);
+  const [scale, setScale] = useState(fit);
+  useEffect(() => {
+    const onResize = () => setScale(fit());
+    addEventListener('resize', onResize);
+    return () => removeEventListener('resize', onResize);
+  }, []);
+  return (
+    <div class="fxui-scaled" style={{ width: `${Math.round(width * scale)}px`, height: `${Math.round(height * scale)}px` }}>
+      <iframe class="fxui-iframe" title={title} src={src} width={width} height={height} style={{ transform: `scale(${scale})` }} />
+    </div>
+  );
+}
+
+/** The real app in frames: the phone with its tab bar, the desktop with its sidebar. */
+function AppShell({ params }: { params: URLSearchParams }) {
+  const route = params.get('route') ?? 'today';
+  // The frames run the app itself (it follows the OS theme, like the gallery).
+  const src = (w: number) => `/index.html?frame=${w}#/${route}`;
+  return (
+    <div class="fxui-shots">
+      <div class="fxui-stack" style={{ gap: '6px' }}>
+        <Sub>Phone · 390 px</Sub>
+        <ScaledFrame title="catkin at 390 px" src={src(390)} width={390} height={760} />
+      </div>
+      <div class="fxui-stack" style={{ gap: '6px' }}>
+        <Sub>Mac · 1200 px (scaled to fit)</Sub>
+        <ScaledFrame title="catkin at 1200 px" src={src(1200)} width={1200} height={760} max={0.7} />
+      </div>
+    </div>
   );
 }
 
@@ -991,19 +1319,8 @@ function AppIcon({ params }: { params: URLSearchParams }) {
               <AppIconArt size={s} shape={shape} title={`${shape} ${s}`} />
             </div>
           ))}
-          {shape === 'maskable' && (
-            <div style={{ borderRadius: '50%', overflow: 'hidden', lineHeight: 0 }} title="maskable, circle mask">
-              <AppIconArt size={96} shape={shape} />
-            </div>
-          )}
         </div>
       ))}
-      <div class="fxui-row">
-        <b style={{ width: '80px' }}>favicon</b>
-        <img src="/icons/favicon.svg" width={64} height={64} alt="favicon" />
-        <img src="/icons/favicon.svg" width={32} height={32} alt="" />
-        <img src="/icons/favicon.svg" width={16} height={16} alt="" />
-      </div>
     </div>
   );
 }
@@ -1031,16 +1348,21 @@ function Splash({ params }: { params: URLSearchParams }) {
 }
 
 export const SECTIONS: GallerySection[] = [
-  { id: 'fxui-buttons', title: 'UI kit · CandyButton & IconButton', render: (p) => <Buttons params={p} /> },
-  { id: 'fxui-controls', title: 'UI kit · Toggle, Segmented, Chips, Stepper, Fields', render: () => <Controls /> },
-  { id: 'fxui-surfaces', title: 'UI kit · Card, ListRow, SectionHeader, EmptyState', render: () => <Surfaces /> },
-  { id: 'fxui-status', title: 'UI kit · ProgressRing, ProgressBar, Pills, AnimatedNumber', render: () => <Status /> },
-  { id: 'fxui-sheets', title: 'UI kit · Sheet & ConfirmDialog', render: (p) => <Sheets params={p} /> },
-  { id: 'fxui-fx', title: 'FX · confetti, coin flight, floating text, sparkles, toasts', render: () => <Fx /> },
-  { id: 'fxui-sounds', title: 'FX · sounds & pet voices', render: () => <Sounds /> },
-  { id: 'fxui-celebrations', title: 'FX · celebrations (banners, epic moment, calm toasts)', render: (p) => <Celebrations params={p} /> },
-  { id: 'fxui-shell', title: 'App · loading, error & error-boundary states, wallet, gumball', render: () => <Shell /> },
-  { id: 'fxui-install', title: 'App · install guide', render: (p) => <Install params={p} /> },
-  { id: 'fxui-appicon', title: 'App · icon (square · squircle · maskable) & favicon', render: (p) => <AppIcon params={p} /> },
+  { id: 'fxui-buttons', title: 'UI kit · buttons and icon buttons', render: (p) => <Buttons params={p} /> },
+  { id: 'fxui-checkring', title: 'UI kit · the water-fill check ring', render: () => <CheckRings /> },
+  { id: 'fxui-controls', title: 'UI kit · toggle, segmented, chips, stepper, fields', render: () => <Controls /> },
+  { id: 'fxui-surfaces', title: 'UI kit · cards, section headers, list rows, empty states', render: () => <Surfaces /> },
+  { id: 'fxui-status', title: 'UI kit · progress, pills, tier labels, numbers', render: () => <Status /> },
+  { id: 'fxui-objects', title: 'UI kit · small drawings, under every light', render: () => <Objects /> },
+  { id: 'fxui-locked', title: 'UI kit · locked collectibles as ink silhouettes', render: () => <Locked /> },
+  { id: 'fxui-sheets', title: 'UI kit · sheets and the confirm dialog', render: (p) => <Sheets params={p} /> },
+  { id: 'fxui-notes', title: 'Notes (toasts)', render: (p) => <Notes params={p} /> },
+  { id: 'fxui-fx', title: 'FX · petals, the coin, the foil glint', render: (p) => <Fx params={p} /> },
+  { id: 'fxui-sounds', title: 'FX · sounds and pet voices', render: () => <Sounds /> },
+  { id: 'fxui-celebrations', title: 'FX · celebration notes and the epic moment', render: (p) => <Celebrations params={p} /> },
+  { id: 'fxui-shell', title: 'App · loading, error and error-boundary states, wallet', render: () => <Shell /> },
+  { id: 'fxui-app', title: 'App · the shell at 390 px and 1200 px', render: (p) => <AppShell params={p} /> },
+  { id: 'fxui-install', title: 'App · install guide and the install-first gate', render: (p) => <Install params={p} /> },
+  { id: 'fxui-appicon', title: 'App · icon (square · squircle · maskable)', render: (p) => <AppIcon params={p} /> },
   { id: 'fxui-splash', title: 'App · launch screen', render: (p) => <Splash params={p} /> },
 ];

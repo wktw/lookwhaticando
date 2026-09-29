@@ -7,6 +7,7 @@
  * so importing it would break `npm run build:single`.
  */
 import { toast } from '@/ui/toast';
+import { UPDATE_COPY } from './copy';
 
 export async function registerServiceWorker(): Promise<void> {
   if (__SINGLE_FILE__ || import.meta.env.DEV) return;
@@ -17,11 +18,11 @@ export async function registerServiceWorker(): Promise<void> {
     wb.addEventListener('waiting', () => {
       toast({
         key: 'sw-update',
-        message: 'A fresh version is ready 🌱',
+        message: UPDATE_COPY.ready,
         tone: 'sage',
         duration: 0,
         action: {
-          label: 'Refresh',
+          label: UPDATE_COPY.refresh,
           onAction: () => {
             wb.addEventListener('controlling', () => location.reload());
             wb.messageSkipWaiting();
@@ -30,7 +31,7 @@ export async function registerServiceWorker(): Promise<void> {
       });
     });
     wb.addEventListener('installed', (e) => {
-      if (!e.isUpdate) toast({ key: 'sw-offline', message: 'Mochi Meadow now works offline 🌿', tone: 'sage' });
+      if (!e.isUpdate) toast({ key: 'sw-offline', message: UPDATE_COPY.offline, tone: 'sage' });
     });
     await wb.register();
   } catch {

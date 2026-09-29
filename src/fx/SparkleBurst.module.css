@@ -1,39 +1,97 @@
-.burst {
+/* ---------- the foil glint: a pale-gold sheen crossing once ---------- */
+.foil {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  overflow: hidden;
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+/* A parent-wide track that slides the band from just off the left edge to just off the right. */
+.sheen {
+  position: absolute;
+  inset: 0;
+  transform: translateX(-70%);
+  opacity: 0;
+  /* An even slide (not the interface's fast-out ease): the light is seen the whole way across. */
+  animation: sheen 600ms var(--ease-in-out) both;
+}
+/* Two flat bands, a broad one and a hairline beside it: foil catching the window. */
+.sheen::before,
+.sheen::after {
+  content: '';
+  position: absolute;
+  top: -20%;
+  bottom: -20%;
+  background: #f5e2a6;
+  transform: skewX(-20deg);
+}
+.sheen::before {
+  left: 40%;
+  width: 16%;
+  opacity: 0.5;
+}
+.sheen::after {
+  left: 60%;
+  width: 4%;
+  opacity: 0.4;
+}
+
+@keyframes sheen {
+  0% {
+    transform: translateX(-70%);
+    opacity: 0;
+  }
+  15%,
+  85% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(70%);
+    opacity: 0;
+  }
+}
+
+/* ---------- a Secret's one sparkle ---------- */
+.secret {
   position: absolute;
   top: 50%;
   left: 50%;
+  z-index: 2;
   width: 0;
   height: 0;
   pointer-events: none;
-  z-index: 2;
 }
 
-.spark {
+.mark {
   position: absolute;
   top: calc(var(--size) / -2);
   left: calc(var(--size) / -2);
   width: var(--size);
   height: var(--size);
-  /* The burst box is 0×0; the global svg max-width would squash the sparks to nothing. */
+  /* The box is 0×0; the global svg max-width would squash it. */
   max-width: none;
   opacity: 0;
-  animation: spark 620ms var(--ease-out) var(--delay) both;
+  animation: sparkle 720ms var(--ease-pop) both;
 }
 
-@keyframes spark {
+.star {
+  fill: #e3be6a;
+}
+
+@keyframes sparkle {
   0% {
-    transform: translate(0, 0) scale(0.2) rotate(0deg);
+    transform: scale(0.4);
     opacity: 0;
   }
-  25% {
-    opacity: 1;
-  }
+  35%,
   60% {
-    transform: translate(var(--dx), var(--dy)) scale(1.1) rotate(var(--rot));
+    transform: scale(1);
     opacity: 1;
   }
   100% {
-    transform: translate(calc(var(--dx) * 1.15), calc(var(--dy) * 1.15)) scale(0) rotate(var(--rot));
+    transform: scale(1);
     opacity: 0;
   }
 }

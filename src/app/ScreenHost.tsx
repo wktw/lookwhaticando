@@ -1,15 +1,20 @@
 import type { ComponentType } from 'preact';
 import { useEffect, useLayoutEffect, useState } from 'preact/hooks';
-import { PetArt } from '@/art/pets/PetArt';
-import { CandyButton } from '@/ui/CandyButton';
+import { Button } from '@/ui/Button';
 import { EmptyState } from '@/ui/EmptyState';
+import { CuttingGlass, EmptyPot, themeLight } from '@/ui/art/objects';
 import { savedScroll, tabDirection } from './router';
 import { loadedScreen, loadScreen } from './screens';
 import { ErrorBoundary } from './ErrorBoundary';
+import { SCREEN_COPY } from './copy';
 import type { TabId } from './routes';
 import s from './ScreenHost.module.css';
 
-/** Renders the active tab's screen: lazy chunk, cute loading state, per-tab scroll, soft entrance. */
+/**
+ * Renders the current tab's screen: its lazy chunk, a quiet loading state, per-tab scroll, and a
+ * calm entrance (a short crossfade with an 8 px slide toward the tab's side; no overshoot).
+ * With reduced motion it only crossfades.
+ */
 export function ScreenHost({ tab }: { tab: TabId }) {
   const [, setVersion] = useState(0);
   const [error, setError] = useState<{ tab: TabId } | null>(null);
@@ -40,7 +45,7 @@ export function ScreenHost({ tab }: { tab: TabId }) {
   };
 
   return (
-    <div key={tab} class={s.screen} data-dir={tabDirection.value}>
+    <div key={tab} class={`${s.screen} ck-motion-safe`} data-dir={tabDirection.value}>
       {Screen ? (
         <ErrorBoundary key={tab}>
           <Screen />
@@ -54,38 +59,21 @@ export function ScreenHost({ tab }: { tab: TabId }) {
   );
 }
 
-/** Shown when a screen's chunk can't load (offline before it was cached, say). */
+/** Shown when a screen's chunk can't load (offline before it was ever cached, say). */
 export function ScreenError({ onRetry }: { onRetry: () => void }) {
   return (
-    <EmptyState
-      title="This page is still asleep"
-      art={<PetArt petId="pet-mochi" expression="sleep" size={104} />}
-      action={
-        <CandyButton icon="undo" onClick={onRetry}>
-          Wake it up
-        </CandyButton>
-      }
-    >
-      It couldn’t load just now. Check your connection and try again?
+    <EmptyState title={SCREEN_COPY.loadErrorTitle} art={<EmptyPot size={104} light={themeLight()} />} action={<Button onClick={onRetry}>{SCREEN_COPY.retry}</Button>}>
+      {SCREEN_COPY.loadErrorText}
     </EmptyState>
   );
 }
 
-/** The lazy-load placeholder: Mochi bobbing along. Fades in only if loading takes a moment. */
+/** The lazy-load placeholder: a cutting in a glass. It fades in only if loading takes a moment. */
 export function ScreenLoading() {
   return (
     <div class={s.loading} role="status">
-      <div class={s.bob}>
-        <PetArt petId="pet-mochi" size={84} animated />
-      </div>
-      <p class={s.loadingText}>
-        Tidying up the meadow
-        <span class={s.dots} aria-hidden="true">
-          <i />
-          <i />
-          <i />
-        </span>
-      </p>
+      <CuttingGlass size={84} light={themeLight()} />
+      <p class={s.loadingText}>{SCREEN_COPY.loading}</p>
     </div>
   );
 }

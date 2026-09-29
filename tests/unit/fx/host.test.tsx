@@ -10,8 +10,7 @@ import { pendingFor, reserve } from '@/fx/walletLedger';
 import { emitGameEvents } from '@/state/events';
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
-// jsdom has no canvas: confetti quietly skips itself.
-HTMLCanvasElement.prototype.getContext = () => null;
+// jsdom has no Element.animate: petals quietly skip themselves.
 
 let host: HTMLElement;
 
@@ -85,7 +84,7 @@ describe('CelebrationHost', () => {
     const banners = document.querySelectorAll('#overlay-root [role="group"]');
     expect(banners).toHaveLength(1);
     expect(banners[0]!.getAttribute('aria-label')).toContain('Perfect day');
-    expect(banners[0]!.textContent).toContain('Fifty & Flourishing badge');
+    expect(banners[0]!.textContent).toContain('Fifty & Flourishing pin');
   });
 
   it('reserves rewards the instant they arrive, and hands check-in coins to the screen’s own flourish', async () => {
@@ -102,5 +101,40 @@ describe('CelebrationHost', () => {
     await act(() => sleep(BATCH_MS + 30));
     // Only the unclaimed coins are toasted.
     expect(toasts.value.map((t) => t.label ?? t.message)).toEqual(['+3 coins']);
+  });
+});
+
+describe('check-in announcements (burst rule)', () => {
+  it('reads a burst of check-ins as one sentence', async () => {
+    const { settledCheckInLine } = await import('@/fx/checkin');
+    expect(settledCheckInLine([{ name: 'Walk', coins: 5, tiny: false, note: 'Pudding opened one eye.' }])).toBe('Walk, watered. Plus 5 coins. Pudding opened one eye. Undo available.');
+    expect(settledCheckInLine([{ name: 'Walk', coins: 0, tiny: true }])).toBe('Walk, tiny version. Undo available.');
+    expect(
+      settledCheckInLine([
+        { name: 'Walk', coins: 5, tiny: false },
+        { name: 'Read', coins: 5, tiny: false },
+        { name: 'Stretch', coins: 0, tiny: true },
+      ]),
+    ).toBe('Walk, Read and Stretch watered. Plus 10 coins. Undo available.');
+    expect(settledCheckInLine([])).toBe('');
+  });
+
+  it('keeps the pet and plant reactions in a multi-habit burst, the latest two distinct', async () => {
+    const { settledCheckInLine, MAX_SETTLED_NOTES } = await import('@/fx/checkin');
+    expect(MAX_SETTLED_NOTES).toBe(2);
+    expect(
+      settledCheckInLine([
+        { name: 'Walk', coins: 5, tiny: false, note: 'Pudding opened one eye.' },
+        { name: 'Read', coins: 5, tiny: false },
+      ]),
+    ).toBe('Walk and Read watered. Plus 10 coins. Pudding opened one eye. Undo available.');
+    expect(
+      settledCheckInLine([
+        { name: 'Walk', coins: 5, tiny: false, note: 'Pudding opened one eye.' },
+        { name: 'Read', coins: 0, tiny: false, note: 'The pothos put out a new leaf.' },
+        { name: 'Yoga', coins: 0, tiny: false, note: 'The pothos put out a new leaf.' },
+        { name: 'Water', coins: 0, tiny: false, note: 'Clover rolled into the sun.' },
+      ]),
+    ).toBe('Walk, Read, Yoga and Water watered. Plus 5 coins. The pothos put out a new leaf. Clover rolled into the sun. Undo available.');
   });
 });

@@ -14,7 +14,8 @@ import type { Settings } from '@/state/types';
 
 export type ResolvedTheme = 'light' | 'night';
 
-export const THEME_COLOR: Record<ResolvedTheme, string> = { light: '#FFF9F2', night: '#221C30' };
+/** Browser chrome follows the page: Paper by day, Lamplight's indigo paper at night (DESIGN §10.1). */
+export const THEME_COLOR: Record<ResolvedTheme, string> = { light: '#FAF6EF', night: '#1E1A22' };
 
 export function resolveTheme(pref: Settings['theme'], systemDark: boolean): ResolvedTheme {
   return pref === 'auto' ? (systemDark ? 'night' : 'light') : pref;

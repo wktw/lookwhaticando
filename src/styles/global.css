@@ -1,6 +1,11 @@
 @import './fonts.css';
 @import './tokens.css';
 
+/*
+ * catkin base styles: warm paper, graphite ink, Castoro for the voice and Nunito for the
+ * interface (DESIGN §10.1–§10.2). Components bring their own look; this file only sets the page.
+ */
+
 *,
 *::before,
 *::after {
@@ -38,6 +43,7 @@ body {
   min-height: 100dvh;
 }
 
+/* Castoro has one weight; it is the voice (greetings, names, notes), never bolded. */
 h1,
 h2,
 h3,
@@ -89,11 +95,10 @@ svg {
   outline: none;
 }
 
+/* One calm focus ring everywhere. It follows each element's own corners (no radius override). */
 :focus-visible {
-  outline: 3px solid var(--focus);
-  outline-offset: 2px;
-  box-shadow: 0 0 0 2px var(--card);
-  border-radius: 12px;
+  outline: 2px solid var(--focus);
+  outline-offset: 3px;
 }
 
 /* iOS Dynamic Type: the root follows the system text size (17px default). */
@@ -138,10 +143,16 @@ select {
   -webkit-touch-callout: none;
 }
 
+/*
+ * Reduced motion (DESIGN §10.5): everything holds still. An element marked .ck-motion-safe keeps
+ * its own animation (not its children's): a blink, breathing under 1.5%, a crossfade. Mark only
+ * motion that small, and give it its own reduced-motion version where it needs one.
+ * (.mm-motion-safe is the older name, still honoured.)
+ */
 @media (prefers-reduced-motion: reduce) {
-  :root:not([data-motion='full']) *,
-  :root:not([data-motion='full']) *::before,
-  :root:not([data-motion='full']) *::after {
+  :root:not([data-motion='full']) *:not(.ck-motion-safe):not(.mm-motion-safe),
+  :root:not([data-motion='full']) *:not(.ck-motion-safe):not(.mm-motion-safe)::before,
+  :root:not([data-motion='full']) *:not(.ck-motion-safe):not(.mm-motion-safe)::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
@@ -149,21 +160,42 @@ select {
   }
 }
 
-:root[data-motion='reduced'] *,
-:root[data-motion='reduced'] *::before,
-:root[data-motion='reduced'] *::after {
+:root[data-motion='reduced'] *:not(.ck-motion-safe):not(.mm-motion-safe),
+:root[data-motion='reduced'] *:not(.ck-motion-safe):not(.mm-motion-safe)::before,
+:root[data-motion='reduced'] *:not(.ck-motion-safe):not(.mm-motion-safe)::after {
   animation-duration: 0.01ms !important;
   animation-iteration-count: 1 !important;
   transition-duration: 0.01ms !important;
   scroll-behavior: auto !important;
 }
 
-/* Unowned collectibles (non-pet) */
+/*
+ * Unowned collectibles (non-pet): a flat ink silhouette, drawn by repainting every shape in ink
+ * (no CSS filter on art, DESIGN §10.4). The wrapper's opacity flattens the overlaps into one shape.
+ */
 .collectible-silhouette {
-  filter: brightness(0);
   opacity: 0.13;
 }
-:root[data-theme='night'] .collectible-silhouette {
-  filter: brightness(0) invert(1);
+/*
+ * CollectibleArt puts the class on a wrapper span (plants, pots) or on the root <svg> itself
+ * (wearables, treats, decor), so both placements are matched. The root is inked, every painted
+ * shape is inked, and shapes without a fill of their own inherit, so anything meant to stay
+ * unpainted (fill="none", or inside a fill="none" group) stays unpainted.
+ */
+:is(svg.collectible-silhouette, .collectible-silhouette svg),
+:is(svg.collectible-silhouette, .collectible-silhouette svg) [fill]:not([fill='none']) {
+  fill: var(--ink) !important;
+}
+:is(svg.collectible-silhouette, .collectible-silhouette svg) :not([fill]) {
+  fill: inherit !important;
+}
+:is(svg.collectible-silhouette, .collectible-silhouette svg) [stroke]:not([stroke='none']) {
+  stroke: var(--ink) !important;
+}
+:is(svg.collectible-silhouette, .collectible-silhouette svg) * {
+  fill-opacity: 1 !important;
+  stroke-opacity: 1 !important;
+}
+[data-theme='night'] .collectible-silhouette {
   opacity: 0.16;
 }

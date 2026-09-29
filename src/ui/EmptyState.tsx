@@ -1,32 +1,29 @@
 import type { ComponentChildren } from 'preact';
 import { cx } from './cx';
 import { toneClass, type Tone } from './tone';
-import { Sparkle } from './Sparkle';
 import s from './EmptyState.module.css';
 
 export interface EmptyStateProps {
-  /** Illustration (a pet, a plant…), shown on a soft pastel blob. */
+  /** A small drawing (an empty pot, a cutting in a glass), shown on a paper tile. */
   art?: ComponentChildren;
   title: string;
   children?: ComponentChildren;
-  /** Call to action, usually a CandyButton. */
+  /** One action, usually a Button. */
   action?: ComponentChildren;
+  /** Tints the art tile with a pastel family (default: plain oat paper). */
   tone?: Tone;
   /** Tighter spacing for use inside cards. */
   compact?: boolean;
   class?: string;
 }
 
-/** Friendly "nothing here yet" moment: art, a warm title, one line, one action. */
-export function EmptyState({ art, title, children, action, tone = 'blush', compact, class: cls }: EmptyStateProps) {
+/** A quiet "nothing here yet": a drawing, a Castoro title, one plain line, one action. */
+export function EmptyState({ art, title, children, action, tone, compact, class: cls }: EmptyStateProps) {
   return (
-    <div class={cx(s.empty, compact && s.compact, toneClass(tone), cls)}>
+    <div class={cx(s.empty, compact && s.compact, tone && s.toned, tone && toneClass(tone), cls)}>
       {art && (
-        <div class={s.stage}>
-          <span class={s.blob} aria-hidden="true" />
-          <Sparkle size={14} class={cx(s.spark, s.spark1)} />
-          <Sparkle size={10} class={cx(s.spark, s.spark2)} />
-          <div class={s.art}>{art}</div>
+        <div class={s.tile} aria-hidden="true">
+          {art}
         </div>
       )}
       <h3 class={s.title}>{title}</h3>

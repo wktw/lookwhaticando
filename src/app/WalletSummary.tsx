@@ -2,40 +2,57 @@ import { wallet } from '@/state/store';
 import { CoinIcon, StarIcon, TicketIcon, StardustIcon } from '@/art/icons';
 import { AnimatedNumber } from '@/ui/AnimatedNumber';
 import { cx } from '@/ui/cx';
+import { SHELL_COPY } from './copy';
 import s from './WalletSummary.module.css';
 
-/** The sidebar wallet. Its counters are coin/star flight targets and count up as sprites land. */
+/**
+ * The sidebar wallet on a paper card: coins (brass, in the jar), stamps, tickets and swaps
+ * (DESIGN §6 display names). Its counters are coin and stamp flight targets, and roll as they land.
+ */
 export function WalletSummary({ class: cls }: { class?: string }) {
   const w = wallet.value;
   return (
-    <section class={cx(s.wallet, cls)} aria-label="Wallet">
+    <section class={cx(s.wallet, cls)} aria-label={SHELL_COPY.wallet}>
+      <p class={s.caption} aria-hidden="true">
+        {SHELL_COPY.wallet}
+      </p>
       <div class={s.coins} data-wallet-target="coins">
-        <CoinIcon size={30} />
+        <CoinIcon size={26} />
         <span class={s.big}>
           <AnimatedNumber value={w.coins} walletKind="coins" />
         </span>
         <span class={s.unit}>coins</span>
       </div>
-      <div class={s.row}>
-        <span class={s.mini} data-wallet-target="stars">
-          <StarIcon size={20} />
-          <AnimatedNumber value={w.stars} walletKind="stars" />
-          <span class="sr-only">stars</span>
-        </span>
-        <span class={s.mini}>
-          <TicketIcon size={20} />
-          <AnimatedNumber value={w.tickets} />
-          <span class="sr-only">tickets</span>
-        </span>
-        <span class={s.mini} title="Stardust: every 10 becomes a star">
-          <StardustIcon size={20} />
-          <span>
+      <dl class={s.row}>
+        <div class={s.mini} data-wallet-target="stars">
+          <dt>
+            <StarIcon size={18} />
+            <span class="sr-only">Stamps</span>
+          </dt>
+          <dd>
+            <AnimatedNumber value={w.stars} walletKind="stars" />
+          </dd>
+        </div>
+        <div class={s.mini}>
+          <dt>
+            <TicketIcon size={18} />
+            <span class="sr-only">Tickets</span>
+          </dt>
+          <dd>
+            <AnimatedNumber value={w.tickets} />
+          </dd>
+        </div>
+        <div class={s.mini} title={SHELL_COPY.swapsHint}>
+          <dt>
+            <StardustIcon size={18} level={Math.min(1, w.stardust / 10)} />
+            <span class="sr-only">Swaps, every 10 become a stamp</span>
+          </dt>
+          <dd>
             {w.stardust}
             <small>/10</small>
-          </span>
-          <span class="sr-only">stardust</span>
-        </span>
-      </div>
+          </dd>
+        </div>
+      </dl>
     </section>
   );
 }

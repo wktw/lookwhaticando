@@ -4,12 +4,12 @@
  */
 import { effect, signal } from '@preact/signals';
 import { prefersReducedMotion } from '@/fx/motion';
-import { formatHash, parseHash, type TabId } from './routes';
+import { formatHash, parseHash, TAB_IDS, type TabId } from './routes';
 
 const initial = typeof location === 'undefined' ? parseHash('') : parseHash(location.hash);
 
 export const currentTab = signal<TabId>(initial.tab);
-/** Extra hash segments after the tab ('#/meadow/pet-x' → ['pet-x']) for screens that deep-link. */
+/** Extra hash segments after the tab ('#/shelf/pet-x' → ['pet-x']) for screens that deep-link. */
 export const routeRest = signal<string[]>(initial.rest);
 /** +1 when the last switch moved right in the tab order, −1 when left (drives the slide). */
 export const tabDirection = signal<1 | -1>(1);
@@ -20,7 +20,7 @@ export function savedScroll(tab: TabId): number {
   return scrollByTab.get(tab) ?? 0;
 }
 
-const ORDER: TabId[] = ['today', 'progress', 'capsules', 'meadow', 'you'];
+const ORDER: readonly TabId[] = TAB_IDS;
 
 function setTab(tab: TabId, rest: string[]) {
   const prev = currentTab.value;
@@ -42,7 +42,10 @@ export function navigate(tab: TabId, rest: string[] = []): void {
   location.hash = formatHash(tab, rest);
 }
 
-/** Start syncing. Normalizes an empty/unknown hash to '#/today' without adding history. */
+/**
+ * Start syncing. Normalizes an empty/unknown hash to '#/today', and an old one ('#/meadow') to
+ * its new name ('#/shelf'), without adding history.
+ */
 export function startRouter(): () => void {
   if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
   const normalize = () => {

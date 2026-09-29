@@ -11,50 +11,29 @@
   padding: var(--s-5) var(--s-4);
 }
 
-.stage {
-  position: relative;
+.tile {
   display: grid;
   place-items: center;
-  width: 148px;
+  width: 132px;
   height: 132px;
-  margin-bottom: var(--s-2);
+  margin-bottom: var(--s-3);
+  overflow: hidden;
+  border-radius: 22px;
+  background: var(--bg-2);
 }
-.compact .stage {
-  width: 112px;
-  height: 100px;
-}
-
-.blob {
-  position: absolute;
-  inset: 12px 6px 4px;
-  border-radius: 52% 48% 46% 54% / 56% 50% 50% 44%;
+.toned .tile {
   background: var(--t100);
 }
-
-.art {
-  position: relative;
-  display: grid;
-  place-items: center;
-}
-
-.spark {
-  position: absolute;
-  color: var(--butter-500);
-  animation: twinkle 2.4s var(--ease-in-out) infinite;
-}
-.spark1 {
-  top: 8px;
-  right: 10px;
-}
-.spark2 {
-  bottom: 22px;
-  left: 4px;
-  animation-delay: -1.2s;
+.compact .tile {
+  width: 104px;
+  height: 104px;
+  border-radius: 18px;
 }
 
 .title {
   font-size: var(--fs-headline);
   color: var(--ink);
+  text-wrap: balance;
 }
 .compact .title {
   font-size: var(--fs-body-lg);
@@ -68,16 +47,4 @@
 
 .action {
   margin-top: var(--s-3);
-}
-
-@keyframes twinkle {
-  0%,
-  100% {
-    transform: scale(0.7);
-    opacity: 0.6;
-  }
-  50% {
-    transform: scale(1.1) rotate(20deg);
-    opacity: 1;
-  }
 }

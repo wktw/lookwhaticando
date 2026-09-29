@@ -1,5 +1,6 @@
 /**
- * Synthesized sound effects (WebAudio, no files). All UI code plays sounds ONLY through this API.
+ * Synthesized sound effects (WebAudio, no files): soft, real-ish things heard in a sunny room.
+ * All UI code plays sounds ONLY through this API.
  *
  * Signal chain: voices → bus → (dry + a soft delay "room") → gentle compressor → master volume.
  * The context is created lazily inside a user gesture (iOS), follows settings.sound/volume,
@@ -10,21 +11,21 @@ import { createVoice, type Voice } from './synth';
 import { SFX, VOICES } from './soundRecipes';
 
 export type SfxName =
-  | 'pop' // generic tap
-  | 'chime' // habit check-in (two notes)
-  | 'coin' // coin gained / inserted
-  | 'ratchet' // crank tick
-  | 'thunk' // capsule drops
-  | 'crack' // capsule crack (ultra taps)
+  | 'pop' // a soft pop: opening a capsule, switching tabs
+  | 'chime' // check-in: a drop into water, then a rising two-note glass chime
+  | 'coin' // a brass coin clinking into the jar
+  | 'ratchet' // one tick of the capsule handle
+  | 'thunk' // the capsule lands in the tray
+  | 'crack' // the capsule's shell giving a little
   | 'reveal-common'
   | 'reveal-uncommon'
   | 'reveal-rare'
   | 'reveal-ultra'
-  | 'fanfare' // perfect day / milestone
-  | 'whoosh' // sheet / transition
-  | 'sparkle' // stardust / star fusion
-  | 'munch' // pet eats
-  | 'undo';
+  | 'fanfare' // perfect day, milestones: wind chimes in the window (the older name is kept)
+  | 'whoosh' // a sheet: a rustle of paper (the older name is kept)
+  | 'sparkle' // a glint of glass: swaps becoming a stamp
+  | 'munch' // a pet eats
+  | 'undo'; // the drop, falling back
 
 export type PetVoice = 'mew' | 'moo' | 'woof' | 'squeak' | 'ribbit' | 'grr' | 'peep' | 'quack';
 

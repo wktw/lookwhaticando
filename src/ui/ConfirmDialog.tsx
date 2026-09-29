@@ -1,6 +1,6 @@
 import type { ComponentChildren } from 'preact';
 import { useId } from 'preact/hooks';
-import { CandyButton } from './CandyButton';
+import { Button } from './Button';
 import { Sheet } from './Sheet';
 import s from './ConfirmDialog.module.css';
 
@@ -8,11 +8,11 @@ export interface ConfirmDialogProps {
   open: boolean;
   title: string;
   message?: ComponentChildren;
-  /** Optional art above the title (a worried-but-cute pet, a plant). */
+  /** Optional small drawing above the title (a plant, an object). */
   art?: ComponentChildren;
   confirmLabel?: string;
   cancelLabel?: string;
-  /** danger = gentle coral confirm button; the cancel button gets initial focus. */
+  /** danger = a terracotta confirm button, and the cancel button gets initial focus. */
   tone?: 'primary' | 'danger';
   /** Shows loading dots on the confirm button. */
   busy?: boolean;
@@ -20,7 +20,7 @@ export interface ConfirmDialogProps {
   onCancel: () => void;
 }
 
-/** "Are you sure?" as a compact sheet (phones) or small dialog (wide). Uses alertdialog semantics. */
+/** "Are you sure?" as a compact paper sheet (phones) or small dialog (wide). Uses alertdialog semantics. */
 export function ConfirmDialog({ open, title, message, art, confirmLabel = 'Yes', cancelLabel = 'Never mind', tone = 'primary', busy, onConfirm, onCancel }: ConfirmDialogProps) {
   const messageId = useId();
   return (
@@ -46,12 +46,12 @@ export function ConfirmDialog({ open, title, message, art, confirmLabel = 'Yes',
           </p>
         )}
         <div class={s.actions}>
-          <CandyButton variant={tone === 'danger' ? 'danger' : 'primary'} size="lg" block loading={busy} onClick={onConfirm} data-confirm>
+          <Button variant={tone === 'danger' ? 'danger' : 'primary'} size="lg" block loading={busy} onClick={onConfirm} data-confirm>
             {confirmLabel}
-          </CandyButton>
-          <CandyButton variant="secondary" size="lg" block onClick={onCancel} data-cancel>
+          </Button>
+          <Button variant="secondary" size="lg" block onClick={onCancel} data-cancel>
             {cancelLabel}
-          </CandyButton>
+          </Button>
         </div>
       </div>
     </Sheet>
