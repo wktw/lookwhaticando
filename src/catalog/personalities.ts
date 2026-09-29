@@ -98,3 +98,22 @@ export const BUDDY_LINES = {
   welcomeBack: ['You\'re back! I missed you 💕', 'Welcome back, {you}! Every return counts.'],
   checkIn: ['Yay!', 'Nice one!', 'Go {you}!', 'So proud!', 'Look at that!', 'Woohoo!', 'Growing!'],
 };
+
+/** Mochi is the narrator: fixed personality and favorite, name locked, always in the meadow (DESIGN §13.10). */
+export const MOCHI_PROFILE = {
+  personality: 'sunny' as Personality,
+  favoriteTreat: 'treat-strawberry-milk',
+  nameLocked: true,
+} as const;
+
+/** Name suggestions for new pets (plus a reroll), per species. */
+export const NAME_SUGGESTIONS: Record<Species, string[]> = {
+  cat: ['Tofu', 'Miso', 'Biscuit', 'Pudding', 'Bean', 'Noodle', 'Sesame', 'Butterbean', 'Clover', 'Peaches'],
+  cow: ['Oat Milk', 'Moolan', 'Butterscotch', 'Dumpling', 'Mocha', 'Marshmallow', 'Buttercup', 'Latte', 'Daisy', 'Pancake'],
+  dog: ['Waffles', 'Pretzel', 'Nugget', 'Maple', 'Biscotti', 'Toast', 'Honey', 'Scone', 'Bagel', 'Pickles'],
+  bunny: ['Cotton', 'Bun Bun', 'Mallow', 'Petal', 'Truffle', 'Juniper', 'Pip', 'Snowdrop', 'Carrot Cake', 'Sprinkle'],
+  frog: ['Lily', 'Ribbit', 'Moss', 'Kiwi', 'Pickle', 'Fern', 'Basil', 'Puddle', 'Matcha', 'Bean Sprout'],
+  bear: ['Honey', 'Cocoa', 'Teddy', 'Hazel', 'Brownie', 'Maple', 'Caramel', 'Bramble', 'Sundae', 'Pudding'],
+  hamster: ['Mochi Jr.', 'Peanut', 'Sesame', 'Dumpling', 'Crumb', 'Tater Tot', 'Chickpea', 'Button', 'Poppy', 'Nibbles'],
+  duck: ['Waddles', 'Custard', 'Sunny', 'Puddles', 'Lemon', 'Quackers', 'Noodle', 'Butter', 'Dandelion', 'Pip'],
+};

@@ -37,7 +37,9 @@ export const BADGES: readonly BadgeDef[] = [
   { id: 'first-outfit', name: 'Dress Up', description: 'Put an outfit on a friend.', stars: 1, emoji: '🎀', color: 'lilac' },
   { id: 'best-friends', name: 'Best Friends', description: 'Reach max friendship with a friend.', stars: 3, emoji: '💞', color: 'blush' },
   { id: 'early-bird', name: 'Early Bird', description: 'Check in before 7:00 am.', stars: 1, emoji: '🐤', color: 'butter' },
-  { id: 'night-owl', name: 'Night Owl', description: 'Check in after 10:00 pm.', stars: 1, emoji: '🦉', color: 'lavender' },
+  { id: 'wind-down', name: 'Wind-Down', description: 'Three evening check-ins between 7 and 10 pm.', stars: 1, emoji: '🕯️', color: 'lavender' },
+  { id: 'album-complete', name: 'Album Complete', description: 'Complete a species album in the collection book.', stars: 5, emoji: '📖', color: 'peach' },
+  { id: 'first-harvest', name: 'First Harvest', description: 'Harvest a treat from a blooming plant.', stars: 1, emoji: '🧺', color: 'sage' },
   { id: 'steady-month', name: 'Steady Month', description: 'Be at least 80% consistent for a whole month.', stars: 3, emoji: '📅', color: 'mint' },
 ];
 

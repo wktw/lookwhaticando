@@ -92,8 +92,26 @@ const STARTER: CollectibleDef[] = [
 ];
 
 const EXCLUSIVE: CollectibleDef[] = [
-  pet('golden-mochi', 'cat', 'Golden Mochi', 'Goldie', 'ultra', 'exclusive', 'Earned by a whole year of showing up. Glows a little.'),
-  wear('evergreen-crown', 'head', 'Evergreen Crown', 'ultra', 'exclusive', 'Woven from ninety days of care. Never wilts.'),
+  wear('blossom-sprout', 'head', 'Blossom Sprout', 'ultra', 'exclusive', "A whole year of showing up. Mochi's sprout grew into a tiny tree."),
+  wear('evergreen-crown', 'head', 'Evergreen Crown', 'ultra', 'exclusive', 'Woven by your first Evergreen plant. Never wilts.'),
+  wear('party-hat', 'head', 'Party Hat', 'rare', 'exclusive', 'For birthdays. Yours, specifically.'),
+  decor('birthday-cake', 'ground-center', 'Birthday Cake', 'rare', 'exclusive', 'Three tiers, one candle, lots of love.'),
+  decor('cat-cafe', 'back-left', 'Cat Café', 'ultra', 'exclusive', 'Awarded for completing the Cat Café album. Espresso not included.'),
+  decor('cowprint-fence', 'back-right', 'Cow-Print Fence', 'ultra', 'exclusive', 'Awarded for gathering the whole herd.'),
+  decor('lily-pond', 'ground-center', 'Lily Pond', 'ultra', 'exclusive', 'Awarded to the Pond Club. Ribbit and quack.'),
+];
+
+/**
+ * Harvest treats (DESIGN §13.10): a check-in on a Blooming-or-later plant drops a serving of
+ * its harvest into the meadow basket. Owned once first harvested; never from machines.
+ */
+const GARDEN: CollectibleDef[] = [
+  treat('petal-tea', ['drink', 'fresh'], 'Petal Tea', 'common', 'garden', 'Brewed from your own blooms. Floral, warm, calming.'),
+  treat('sunflower-seeds', ['crunchy', 'savory'], 'Sunflower Seeds', 'common', 'garden', 'A hamster favorite. Crack, crunch, joy.'),
+  treat('lemonade', ['drink', 'fruity'], 'Pink Lemonade', 'common', 'garden', 'Squeezed from your lemon tree. Tart and sunny.'),
+  treat('lavender-cookie', ['sweet', 'crunchy'], 'Lavender Cookie', 'common', 'garden', 'Buttery, floral, and a little fancy.'),
+  treat('garden-greens', ['fresh'], 'Garden Greens', 'common', 'garden', 'Crisp leaves, picked this morning.'),
+  treat('toasted-mushroom', ['savory'], 'Toasted Mushroom', 'common', 'garden', 'Foraged, toasted, adorable.'),
 ];
 
 /* ------------------------------------------------------------------------ */
@@ -376,6 +394,7 @@ export const SECRET_IDS: ReadonlySet<string> = new Set([
 export const COLLECTIBLES: readonly CollectibleDef[] = [
   ...STARTER,
   ...EXCLUSIVE,
+  ...GARDEN,
   ...KITTY,
   ...MOO,
   ...PUPPY,
@@ -425,12 +444,51 @@ export const DECOR = COLLECTIBLES.filter((c): c is DecorDef => c.category === 'd
 export const PLANTS = COLLECTIBLES.filter((c): c is PlantDef => c.category === 'plant');
 export const POTS = COLLECTIBLES.filter((c): c is PotDef => c.category === 'pot');
 
+/** Which harvest treat each plant species yields once Blooming (DESIGN §13.10). */
+export const HARVEST_BY_PLANT: Readonly<Record<string, string>> = {
+  tulip: 'treat-petal-tea',
+  daisy: 'treat-petal-tea',
+  lily: 'treat-petal-tea',
+  sakura: 'treat-petal-tea',
+  sunflower: 'treat-sunflower-seeds',
+  strawberry: 'treat-strawberry',
+  lemon: 'treat-lemonade',
+  lavender: 'treat-lavender-cookie',
+  succulent: 'treat-garden-greens',
+  monstera: 'treat-garden-greens',
+  cactus: 'treat-garden-greens',
+  mushroom: 'treat-toasted-mushroom',
+};
+
+/** Decor pets can play with (Playful/Curious pets wander over; DESIGN §13.10). */
+export const TOY_IDS: ReadonlySet<string> = new Set([
+  'decor-cardboard-box',
+  'decor-yarn-basket',
+  'decor-tennis-balls',
+  'decor-puddle',
+  'decor-sandcastle',
+  'decor-hay-bale',
+]);
+
+/** Species albums in the collection book, with their completion reward (DESIGN §13.7). */
+export const ALBUMS = [
+  { id: 'cats', name: 'Cat Café', species: ['cat'], reward: 'decor-cat-cafe' },
+  { id: 'cows', name: 'The Whole Herd', species: ['cow'], reward: 'decor-cowprint-fence' },
+  { id: 'dogs', name: 'Puppy Pack', species: ['dog'], reward: null },
+  { id: 'bunnies', name: 'Bunny Burrow', species: ['bunny'], reward: null },
+  { id: 'pond', name: 'Pond Club', species: ['frog', 'duck'], reward: 'decor-lily-pond' },
+  { id: 'bears', name: 'Teddy Den', species: ['bear'], reward: null },
+  { id: 'hamsters', name: 'Hamster Hideout', species: ['hamster'], reward: null },
+] as const;
+
 /** Items every save owns from the start. */
 export const STARTER_IDS: readonly string[] = STARTER.map((c) => c.id);
 
 /** The mascot, given during onboarding. */
 export const MOCHI_ID = 'pet-mochi';
-export const GOLDEN_MOCHI_ID = 'pet-golden-mochi';
+export const BLOSSOM_SPROUT_ID = 'wear-blossom-sprout';
+export const PARTY_HAT_ID = 'wear-party-hat';
+export const BIRTHDAY_CAKE_ID = 'decor-birthday-cake';
 export const EVERGREEN_CROWN_ID = 'wear-evergreen-crown';
 
 export function itemsInMachine(machine: string): CollectibleDef[] {

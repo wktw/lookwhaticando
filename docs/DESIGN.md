@@ -823,3 +823,101 @@ v1 includes everything above plus CSV export (`date,habit,count,target,level,res
 `manifest.shortcuts`, and **Quiet rewards** (hides coin chips, wallet and capsule prompts; the tracker alone must still
 be excellent). v2: Dye Studio (recolor wearables/decor/pots), quantity-per-period, limit habits, CSV import, timers,
 Web Push. Not possible in a PWA: iOS widgets, Lock Screen, Live Activities, HealthKit.
+
+### 13.10 Delight, character & rituals (from the delight review, adopted; overrides 13.5/13.7 where noted)
+
+**Mochi, the character.** Mochi is the narrator and appears in no machine. She is unique (never duplicated, always
+in the meadow, never "napping in the cottage"). Her personality is fixed as **Sunny**, and her favorite treat is fixed as
+**Strawberry Milk**, known from day one: she teaches the favorites mechanic, and it's a reason to visit the Moo Moo Milk
+Bar. Her **name is locked**; every other pet can be renamed. She wears a signature **cowbell collar** in its own layer
+under any neck wear, and a soft pink **cow-muzzle patch** around her ω mouth so she reads as part-cow even at 40 px.
+Her two-note jingle (E6→B5) is the audio logo. Her **sprout is a whole-meadow gauge**. It grows through the 8 stage
+names driven by *lifetime sunshine across all habits* (thresholds 0/5/20/50/105/210/450/900), and at stage 5 it blooms
+in the color of her most-checked habit. The 365-day Showing-up reward is no longer a second Mochi. It is the **Blossom
+Sprout**, a Mochi look in which her sprout becomes a tiny blossoming tree with fairy lights.
+
+**Onboarding earns the first capsule.** No 50-coin gift. After picking ≤ 3 habits: *"Anything already done
+today?"* lists them with live check buttons. The first check-in ever plays the full choreography and pays a one-time
+**First Sprout** top-up that brings the wallet to exactly 25🪙, with the counter visibly rolling up. Mochi hops toward
+Capsules. The user picks **Kitty Capsule or Moo Moo Milk Bar**, inserts the coin and turns the crank; the result is a
+guaranteed Classic or Special **pet** from that series. If she chooses "Not yet, I'll earn it", Today shows a pinned card, "Your
+first capsule: check in anything ✨", which pays the same top-up on the first real check-in. Every new pet gets a
+**first hello**: it walks into the meadow and nose-boops Mochi. Naming offers 5 species-specific suggestions plus a 🎲
+reroll (`NAME_SUGGESTIONS`). Onboarding also asks (optionally) "Night owl? Your day can end at 3 am" and "Birthday? (for
+cake 🎂)".
+
+**Blind-box language.** Display tiers are **Classic · Special · Rare · Super rare**, plus the series **Secret** (a
+sparkling "?" on the lineup card). Lineup cards look like gashapon leaflets, with checkmarks on owned items.
+
+**Species are species** (pairs with 13.1). Meadow scale: hamster 0.65× · frog 0.8× · duck 0.85× · bunny 0.9× · cat 1.0× ·
+dog 1.05× · cow 1.25× · bear 1.3×. Signature idles: cats loaf and knead on soft decor and do zoomies at golden hour; cows
+graze with a chewing jaw, lie in a "cow loaf", swish their tails and jingle as they walk; bunnies binky and flop; frogs
+sit on lily pads and catch fireflies at night; ducks waddle, and other ducks fall in line behind them; hamsters inflate
+their cheeks when fed and pop out of planter pots; bears scratch their backs on the big tree; dogs wag, fetch tennis balls
+and roll over. **Cross-pet vignettes** (when two idle pets are close; 20% per idle tick; 60 s cooldown): a cat naps on a
+cow's back; a nap pile at night; a duck parade; a bunny nibbles a planter leaf, which grows back with a sparkle (plants
+are never damaged). **Toys** (`TOY_IDS`): Playful and Curious pets walk over and play. Voices are Animal-Crossing-style
+blips (60–90 ms syllables at a species base pitch: hamster 880 Hz, bunny 740, cat 660 with an upward bend, duck 520 nasal,
+frog 330 double pulse, cow 196 low-passed with 5 Hz vibrato, bear 165, dog 440 with a quick "arf" envelope), shaped by
+personality. No realism. Acceptance: every species is identifiable as a flat silhouette at 32 px.
+
+**Touch vocabulary** (Meadow): *tap* → bounce + hearts; *stroke* (drag ≥ 40 px across the body) → a happy squint and
+purr (a cow leans in and rings its bell), with hearts along the finger path; *boop* (tap in the top 30% face zone) → a cat
+blep, a cow nose-lick, a bunny ear flop; *carry* (300 ms long-press) → lift the pet, feet dangling on a springy pendulum,
+then a squash on drop, and it stays where you put it; *gaze* → pupils follow the finger or pointer within 150 px. Stroke and boop
+share the 5 XP/day petting cap, but the reactions are unlimited. The Pet Sheet opens from a **name tag** that floats up
+after any tap. **Evenings are cozy**: 20:00–23:00 pets gather by a lantern, wear owned pajamas (an optional preference) and
+stargaze. Sleep is 23:00–06:00. Tapping a sleeping pet gets a yawn, a stretch and a slow blink, never grumpiness.
+
+**Friendship (overrides 13.7 thresholds).** Levels 1–10 at `0, 20, 50, 100, 170, 260, 380, 540, 750, 1000` XP, then
+bond levels 11–15 at `1300, 1650, 2050, 2500, 3000`. Levels change behavior: L2 waves · L3 uses your name · L4 claims a
+favorite spot · L5 twirls · **L6 leaves a small gift under the tree** on days you check in (a clover, 1 stardust, or a flower;
+gifts never expire and never pile up as a chore) · L7 heart-eyes · L8 naps next to the buddy · L10 Best Friends crown. After
+L10, every 150 XP adds a dated **Memory** polaroid generated from real events ("The day we met, Sep 29"). Only the first
+favorite treat each day pays +12.
+
+**Pantry & harvest (refines 13.7).** Each owned treat recipe restocks **2 free servings every morning (bank up to 5)**.
+**Harvest**: a completing check-in on a Blooming-or-later plant drops one serving of that plant's harvest treat
+(`HARVEST_BY_PLANT`) into the basket by the tree (at most 1 per plant per day), which ties the garden to the pets. Favorite
+hints can point at plants ("Loves something from a lemon tree 🍋"). *Bake a tray* (5 servings for 10🪙) stays optional.
+
+**Plants keep living** (pairs with 13.1/13.4). Multi-stage jumps play as a quick time-lapse (150 ms per stage). After
+Evergreen, **Flourishes** arrive every +60 sunshine, one of 8 permanent visitors: ladybug, bee, butterfly, snail in a tiny hat,
+fairy lights, birdhouse, seasonal blossoms, rainbow ribbon. An archived habit's plant moves to a **Greenhouse shelf** as a
+permanent trophy, and Delete asks "Keep the plant in the greenhouse?" (default yes).
+
+**Windowsill (Today header).** A 168 px scene band that collapses to 64 px on scroll (sticky, scroll-linked). The buddy
+sits on the sill beside today's habit pots (up to 6, with more in a horizontal scroll). After a check-in, without blocking taps,
+the buddy hops to that pot and tips a tiny watering can. The pot drips and grows one step. Rapid check-ins coalesce: only
+the latest pot is watered and the others sparkle. On a perfect day every pot blooms at once and the buddy dances. Tapping
+the window zooms into the Meadow (View Transitions where supported, else a crossfade). The habit's icon sits on a little
+**garden-stake marker** in its pot, so each card has one combined visual. **Compact Today** (a preference) hides the band.
+
+**Rituals (override 13.5 letter/bloom stars).**
+* **Weekly Letter**, written by the buddy in its personality voice, arrives as an envelope sealed with wax stamped with
+  its paw print (a hoof for cows); tapping it unfolds the letter (600 ms). Contents: a greeting, two data highlights (top habit
+  by check-ins, a plant stage-up, a new friend), a quoted note if one exists, and a P.S. with a doodle of the buddy doing
+  your top habit (12 activity doodles). The letter never shows a percentage on its face. Stars: **1★ for any check-in that
+  week, +1★ at ≥ 60%, +1★ at ≥ 85%** (the bonus tiers need ≥ 5 expected; upward top-ups as in 13.5). Letters are kept forever
+  in a **Letterbox** in Progress.
+* **Monthly Bouquet** (always given, no threshold): on the first open of a new month, every habit with ≥ 1 check-in adds
+  `clamp(round(checkIns/4), 1, 7)` stems of its plant species. Non-flowering species add a sprig instead. The stems are wrapped in paper in that month's color
+  and placed on a **Bouquet Shelf** in Progress (12 per year). Stars: **1★ for showing up, +1★ ≥ 70%, +1★ ≥ 85%, +1★
+  Growing** (≥ 5 pts above the previous month); the bonus tiers need ≥ 10 expected.
+* **Birthday** (optional): on the day, every meadow pet wears a party hat, a cake decor appears, each pet leaves a
+  one-line card, and she gets 1 ticket plus the exclusive Party Hat and Birthday Cake. Each pet's "gotcha day" gets a bow and a
+  line. The install anniversary brings a "Meadow-versary" letter from Mochi.
+* A lower month shows its **best fact** instead ("62 check-ins in September. Walks were your steadiest 🌿"). It never
+  prints the higher previous number.
+* The Night owl badge is replaced by **Wind-Down** (3 check-ins between 19:00 and 22:00), because late-night phone use isn't
+  something to reward. "Date night" is renamed **Quality time** (partner, friends, or just you).
+
+**Creativity.** Decor is freeform: drag anywhere, flip, depth-sorted with pets, up to 24 per zone, with sky decor on its
+own layer. **Seasonal meadow skins** follow the season table: falling leaves and pumpkins; snow; sakura petals; rain and
+puddles (ducks splash); summer fireflies. **Photo Studio** (stretch): choose up to 4 pets, "Say cheese", 5 frames, stickers
+and a caption, output 9:16, 4:5 or 1:1, saved to a Scrapbook in IndexedDB. Postcards that send a visiting pet to a friend are v2.
+
+**Voice & copy.** `docs/VOICE.md` is the copy deck and `src/catalog/lines.ts` is the line matrix (10 personalities × 12
+contexts × ≥ 4 lines, 60 Mochi lines, 30 data-aware templates; no line repeats within the last 5 used in a context).
+The register is warm and dry, like a millennial group chat. Currency and rarity symbols are inline SVG tokens (`{coin}`,
+`{star}`, `{dust}`, `{ticket}`), never 🪙 in copy. Decorative emoji: at most one per string, from Emoji ≤ 12.0.

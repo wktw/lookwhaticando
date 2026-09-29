@@ -32,7 +32,7 @@ export const TEMPLATES: readonly HabitTemplate[] = [
   { id: 'family', group: 'heart', name: 'Call family', icon: 'phone', schedule: { kind: 'weekly', times: 1, every: 1 }, target: 1, effort: 'steady', timeOfDay: 'anytime', tiny: { label: 'Send a sweet text' }, plant: 'tulip', color: 'blush' },
   { id: 'skincare', group: 'heart', name: 'Skincare', icon: 'skincare', schedule: { kind: 'daily' }, target: 1, effort: 'light', timeOfDay: 'evening', tiny: { label: 'Just moisturizer' }, plant: 'daisy', color: 'blush' },
   { id: 'budget', group: 'heart', name: 'Review budget', icon: 'piggy-bank', schedule: { kind: 'monthly', times: 1, every: 1 }, target: 1, effort: 'steady', timeOfDay: 'anytime', plant: 'succulent', color: 'butter' },
-  { id: 'datenight', group: 'heart', name: 'Date night', icon: 'heart-date', schedule: { kind: 'monthly', times: 2, every: 1 }, target: 1, effort: 'steady', timeOfDay: 'evening', plant: 'tulip', color: 'lilac' },
+  { id: 'qualitytime', group: 'heart', name: 'Quality time', icon: 'heart-date', schedule: { kind: 'monthly', times: 2, every: 1 }, target: 1, effort: 'steady', timeOfDay: 'evening', plant: 'tulip', color: 'lilac' },
   { id: 'creative', group: 'heart', name: 'Make something', icon: 'yarn', schedule: { kind: 'weekly', times: 2, every: 1 }, target: 1, effort: 'steady', timeOfDay: 'anytime', tiny: { label: 'Ten stitches' }, plant: 'sunflower', color: 'lilac' },
   // Gentle "avoid" habits (copy says "Kept it up")
   { id: 'nospend', group: 'heart', name: 'No-spend day', icon: 'piggy-bank', schedule: { kind: 'days', days: [1, 2, 3, 4] }, target: 1, effort: 'light', timeOfDay: 'evening', polarity: 'avoid', plant: 'succulent', color: 'mint' },

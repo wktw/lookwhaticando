@@ -5,6 +5,8 @@
  */
 
 export type Rarity = 'common' | 'uncommon' | 'rare' | 'ultra';
+/** Blind-box display labels (internal ids stay common/uncommon/rare/ultra). The series Secret shows 'Secret'. */
+export const RARITY_LABEL: Record<Rarity, string> = { common: 'Classic', uncommon: 'Special', rare: 'Rare', ultra: 'Super rare' };
 export const RARITIES: readonly Rarity[] = ['common', 'uncommon', 'rare', 'ultra'] as const;
 
 export type Species = 'cat' | 'cow' | 'dog' | 'bunny' | 'frog' | 'bear' | 'hamster' | 'duck';
@@ -32,7 +34,7 @@ export type SeasonalMachineId = 'pumpkin' | 'snow' | 'love' | 'rainy' | 'beach';
 export type MachineId = StandardMachineId | SeasonalMachineId;
 
 /** Items that come from no machine. */
-export type Source = MachineId | 'starter' | 'exclusive';
+export type Source = MachineId | 'starter' | 'exclusive' | 'garden';
 
 export type PlantSpeciesId =
   | 'tulip'
