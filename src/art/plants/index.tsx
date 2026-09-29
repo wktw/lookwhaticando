@@ -11,7 +11,8 @@ export { PETAL_INKS, PASTEL_HEX, lookInk, type PlantLookArt } from './looks';
 export { FLOURISHES, MAX_FLOURISHES, type Flourish } from './flourishes';
 export { iconFrame, ICON_FRAMES, SCENE_FRAME } from './iconFrames';
 export { PlantTag, type PlantTagProps } from './PlantTag';
-export { CardPlant, CARD_RESIDENT_MAX_PX, cardFrame, type CardPlantProps } from './CardPlant';
+// CardPlant (the habit card's plant, with its resident and the icon on a stake) lives at '@/art/plants/CardPlant', so
+// importing the plants alone never pulls in the pets' and the habit icons' drawings.
 export { POT_GEOMETRY, tagAnchor, type PotGeometry } from './geometry';
 
 /** Registries used by the coverage test. */

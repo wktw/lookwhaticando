@@ -4,7 +4,7 @@ import type { Light } from './light';
 import { PetArt } from './pets/PetArt';
 import { WEARABLE_ART } from './wearables';
 import { TREAT_ART, DECOR_ART, PlaceholderItem } from './items';
-import { PlantArt, PotArt } from './plants';
+import { PlantArt, PotArt } from './plants/PlantArt';
 import { muteTree } from './muted';
 import { useArtLight } from './scene/moment';
 

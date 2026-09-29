@@ -8,7 +8,8 @@ import { CollectibleArt } from '@/art/CollectibleArt';
 import { artBounds } from '@/art/plants/svgBounds.testutil';
 import { mutedInk, muteTree } from '@/art/muted';
 import { SHADE_WHITE_DAY } from '@/art/shade';
-import { CardPlant, CARD_RESIDENT_MAX_PX, cardFrame, iconFrame } from '@/art/plants';
+import { iconFrame } from '@/art/plants';
+import { CardPlant, CARD_RESIDENT_MAX_PX, cardFrame } from '@/art/plants/CardPlant';
 
 function html(node: JSX.Element, read?: (host: HTMLElement) => void): string {
   const host = document.createElement('div');
