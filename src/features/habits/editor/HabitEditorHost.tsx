@@ -8,6 +8,7 @@ import { SETTINGS, fillLine } from '@/catalog/lines';
 import { selectHabitEditor } from '@/state/selectors';
 import { Sheet } from '@/ui/Sheet';
 import { Button } from '@/ui/Button';
+import { ConfirmDialog } from '@/ui/ConfirmDialog';
 import { closeHabitEditor, habitEditorRequest, type HabitEditorRequest } from '../open';
 import { HabitEditor } from './HabitEditor';
 import { EDITOR_COPY } from './copy';
@@ -25,13 +26,26 @@ export default function HabitEditorHost() {
       setShown(req);
     }
   }, [req]);
+  // A form with something in it asks before closing ("Keep editing" is the default, and Esc).
+  const dirty = useRef(false);
+  const [leaving, setLeaving] = useState(false);
+  useEffect(() => {
+    if (!req) setLeaving(false);
+  }, [req]);
+  const close = () => {
+    if (dirty.current) setLeaving(true);
+    else closeHabitEditor();
+  };
   const vm = shown ? selectHabitEditor(shown.id ?? null, shown.templateId).value : null;
   const title = vm?.mode === 'edit' ? fillLine(EDITOR_COPY.editTitle, { habit: vm.input.name }) : EDITOR_COPY.newTitle;
   return (
     <Sheet
       open={req !== null && vm !== null}
-      onClose={closeHabitEditor}
-      onClosed={() => setShown(null)}
+      onClose={close}
+      onClosed={() => {
+        dirty.current = false;
+        setShown(null);
+      }}
       title={title}
       detents={['large']}
       size="lg"
@@ -42,7 +56,32 @@ export default function HabitEditorHost() {
         </Button>
       }
     >
-      {vm && <HabitEditor key={`${opened.current}-${shown?.id ?? ''}-${shown?.templateId ?? ''}`} vm={vm} formId={FORM_ID} onDone={() => closeHabitEditor()} />}
+      {vm && (
+        <HabitEditor
+          key={`${opened.current}-${shown?.id ?? ''}-${shown?.templateId ?? ''}`}
+          vm={vm}
+          formId={FORM_ID}
+          onDirty={(d) => (dirty.current = d)}
+          onDone={() => {
+            dirty.current = false;
+            closeHabitEditor();
+          }}
+        />
+      )}
+      <ConfirmDialog
+        open={leaving}
+        title={EDITOR_COPY.leaveTitle}
+        message={vm?.mode === 'edit' ? EDITOR_COPY.leaveEdit : EDITOR_COPY.leaveNew}
+        tone="danger"
+        confirmLabel={EDITOR_COPY.leave}
+        cancelLabel={EDITOR_COPY.keepEditing}
+        onCancel={() => setLeaving(false)}
+        onConfirm={() => {
+          setLeaving(false);
+          dirty.current = false;
+          closeHabitEditor();
+        }}
+      />
     </Sheet>
   );
 }

@@ -5,7 +5,7 @@
  */
 import { useEffect, useState } from 'preact/hooks';
 import { NoteCard, Pressing } from '@/art/progress';
-import { STORIES, capitalise, fillLine, numberWord, plantPhrase } from '@/catalog/lines';
+import { PROGRESS_LINES, STORIES, capitalise, fillLine, numberWord, plantPhrase } from '@/catalog/lines';
 import { monthDayLabel } from '@/domain/dates';
 import type { StoryId } from '@/state/types';
 import { memoryShelfView, selectHabitDetail } from '@/state/selectors';
@@ -13,6 +13,7 @@ import { answerWhy, dismissLetter, readStory, state } from '@/state/store';
 import { Sheet } from '@/ui/Sheet';
 import { Button } from '@/ui/Button';
 import { TextArea } from '@/ui/TextField';
+import { toast } from '@/ui/toast';
 import { letterText } from './letterText';
 import { TODAY_COPY } from './copy';
 import s from './TodaySheets.module.css';
@@ -24,7 +25,10 @@ export function LetterSheet({ id, onClose }: { id: string | null; onClose: () =>
   const v = id ? memoryShelfView.value.items.find((x) => x.id === id) : undefined;
   const text = v ? letterText(state.value, v) : null;
   const close = () => {
-    if (id) dismissLetter(id);
+    if (id) {
+      dismissLetter(id);
+      toast({ key: 'letter-filed', message: fillLine(TODAY_COPY.filed, { shelf: PROGRESS_LINES.memoryShelf }), tone: 'butter' });
+    }
     onClose();
   };
   return (
@@ -32,18 +36,19 @@ export function LetterSheet({ id, onClose }: { id: string | null; onClose: () =>
       open={!!v}
       onClose={close}
       title={text?.title ?? ''}
-      hideTitle
       detents={['content']}
       size="md"
-      peek={v ? <NoteCard kind={v.kind} size={84} {...(text?.pressings ? { pressings: text.pressings.slice(0, 3) } : {})} /> : undefined}
       footer={
         <Button block size="lg" onClick={close}>
           {TODAY_COPY.putAway}
         </Button>
       }
     >
-      {text && (
+      {text && v && (
         <article class={s.letter}>
+          <div class={s.letterArt} aria-hidden="true">
+            <NoteCard kind={v.kind} size={72} {...(text.pressings ? { pressings: text.pressings.slice(0, 3) } : {})} />
+          </div>
           <div class={s.letterBody}>
             {text.pressings && text.pressings.length > 0 && (
               <ul class={s.pressings}>
@@ -94,6 +99,8 @@ export function StorySheet({ target, onClose }: { target: StoryTarget | null; on
     else body = (c.askWhy || asking || !habit.why) ? fillLine(STORIES.why.ask, base) : fillLine(STORIES.why.kept, { why: habit.why });
   }
   // Asked once; while nothing is kept yet, the field stays (a "Not now" earlier doesn't close the story).
+  // Closing the sheet any other way (Esc, a swipe, the backdrop) leaves the question waiting; only
+  // "Not now" answers it.
   const askNow = target?.story === 'why' && !!c && (c.askWhy || !habit?.why);
   const answer = (text: string | null) => {
     if (target) answerWhy(target.habitId, text);
@@ -103,11 +110,10 @@ export function StorySheet({ target, onClose }: { target: StoryTarget | null; on
   return (
     <Sheet
       open={!!target && !!body}
-      onClose={() => (askNow ? answer(null) : onClose())}
+      onClose={onClose}
       title={target ? STORIES.titles[target.story] : ''}
       detents={['content']}
       size="sm"
-      peek={<NoteCard kind="story" size={76} />}
       footer={
         askNow ? (
           <div class={s.actions}>
@@ -124,6 +130,9 @@ export function StorySheet({ target, onClose }: { target: StoryTarget | null; on
       }
     >
       <article class={s.letter}>
+        <div class={s.letterArt} aria-hidden="true">
+          <NoteCard kind="story" size={64} />
+        </div>
         <div class={s.letterBody}>
           <p>{body}</p>
         </div>

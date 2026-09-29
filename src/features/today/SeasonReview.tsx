@@ -11,12 +11,12 @@ import { num, plural } from '@/catalog/format';
 import { monthDayLabel } from '@/domain/dates';
 import type { FreshStartChoice, FreshStartInput } from '@/domain/seasonReview';
 import { tuneView, type SeasonReviewVM, type FreshStartVM } from '@/state/selectors';
-import { resolveSeasonReview } from '@/state/store';
+import { resolveSeasonReview, today } from '@/state/store';
 import { Button } from '@/ui/Button';
 import { toast } from '@/ui/toast';
 import { cx } from '@/ui/cx';
 import { prefersReducedMotion } from '@/fx/motion';
-import { SETTINGS_SAVE } from './copy';
+import { SEASON_ASK_LATER, SETTINGS_SAVE } from './copy';
 import s from './SeasonReview.module.css';
 
 /** The chips a habit can take (Tinier and Grow only when there is a smaller or bigger version). */
@@ -43,12 +43,24 @@ function useTimeLapse(from: number, to: number): number {
   return stage;
 }
 
+/** The caption in short lines: the habit, then "Cutting to Blooming", then "76 waterings". */
+export function seasonPlantLines(p: { habitName: string | null; fromStage: number; toStage: number; waterings: number }): string[] {
+  const rest = seasonPlantLine({ ...p, habitName: '' }).replace(/^ · /, '');
+  return [p.habitName ?? '', ...rest.split(' · ')].filter(Boolean);
+}
+
 function SeasonPlant({ p }: { p: SeasonReviewVM['plants'][number] }) {
   const stage = useTimeLapse(p.fromStage, p.toStage);
+  const [name, ...rest] = seasonPlantLines(p);
   return (
-    <li class={s.plant}>
+    <li class={s.plant} aria-label={seasonPlantLine(p)}>
       <CardPlant species={p.plant} stage={stage} pot="terracotta" size={56} {...(p.petId ? { residentPetId: p.petId } : {})} {...(p.icon ? { icon: p.icon } : {})} />
-      <span class={s.caption}>{seasonPlantLine(p)}</span>
+      <span class={s.caption} aria-hidden="true">
+        <span class={s.captionName}>{name}</span>
+        {rest.map((l) => (
+          <span key={l}>{l}</span>
+        ))}
+      </span>
     </li>
   );
 }
@@ -82,17 +94,23 @@ export function SeasonReviewCard({ review }: { review: SeasonReviewVM }) {
       )}
       {tune.chips.length > 0 && (
         <>
-          <p class={s.ask}>{fillLine(SEASON_REVIEW.ask, { Season: capitalise(next) })}</p>
+          <p class={s.ask}>{fillLine(today.value > review.next.start ? SEASON_ASK_LATER : SEASON_REVIEW.ask, { Season: capitalise(next) })}</p>
           <ul class={s.habits}>
             {tune.chips.map((o) => {
               const choice = picked[o.habitId] ?? 'keep';
               return (
                 <li key={o.habitId} class={s.habit}>
-                  <button type="button" class={s.habitRow} aria-expanded={open === o.habitId} onClick={() => setOpen((x) => (x === o.habitId ? null : o.habitId))}>
+                  <button
+                    type="button"
+                    class={s.habitRow}
+                    aria-expanded={open === o.habitId}
+                    aria-label={`${o.habitName}: ${SEASON_REVIEW.chips[choice]}`}
+                    onClick={() => setOpen((x) => (x === o.habitId ? null : o.habitId))}
+                  >
                     <span class={s.habitName} id={`fresh-${o.habitId}`}>
                       {o.habitName}
                     </span>
-                    <span class={cx(s.pill, choice !== 'keep' && s.pillChanged)}>{SEASON_REVIEW.chips[choice]}</span>
+                    {open !== o.habitId && <span class={cx(s.pill, choice !== 'keep' && s.pillChanged)}>{SEASON_REVIEW.chips[choice]}</span>}
                   </button>
                   {open === o.habitId && (
                     <>

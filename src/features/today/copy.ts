@@ -9,6 +9,9 @@ import { SETTINGS } from '@/catalog/lines';
 /** "Save" (the Habit Editor's button), for the Season Review's changed chips. */
 export const SETTINGS_SAVE = SETTINGS.editor.save;
 
+/** The Season Review's ask once the new season is under way (the deck's ask says "starts today"). */
+export const SEASON_ASK_LATER = '{Season} is here. How should each habit go on?';
+
 export const TODAY_COPY = {
   /** The day's progressbar name. */
   today: 'Today',
@@ -31,6 +34,8 @@ export const TODAY_COPY = {
   read: 'Read it',
   close: 'Close',
   putAway: 'Put it on the shelf',
+  /** After a letter is put away: where it went (the Progress tab's Memory shelf). */
+  filed: 'It’s on the {shelf} now, in Progress.',
   toCapsules: 'Go to Capsules',
   /** The Keeping Company offer's habit chips. */
   pickPlant: 'Pick a plant for {name}',

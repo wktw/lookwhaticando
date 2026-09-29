@@ -8,8 +8,9 @@
  * Field notes come from HABIT_ISSUES (what to do, never "invalid").
  */
 import type { ComponentChildren } from 'preact';
-import { useMemo, useRef, useState } from 'preact/hooks';
+import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { HabitIcon } from '@/art/habit-icons';
+import { Icon } from '@/art/icons';
 import { CollectibleArt } from '@/art/CollectibleArt';
 import { HABIT_ICONS } from '@/catalog/habitIcons';
 import { MACHINE_BY_ID, seriesLabel } from '@/catalog/machines';
@@ -35,7 +36,7 @@ import { Toggle } from '@/ui/Toggle';
 import { toast } from '@/ui/toast';
 import { cx } from '@/ui/cx';
 import { RadioTiles, type RadioTile } from './RadioTiles';
-import { MONTHLY_EVERY, UNIT_PRESETS, WEEKLY_EVERY, cleanInput, isFlexibleKind, issuesByField, maxTimes, patchOf, scheduleFor, toggleDay, touchesRule, withName, withSchedule, withUnitPreset, type ScheduleKind } from './form';
+import { MONTHLY_EVERY, UNIT_PRESETS, WEEKLY_EVERY, cleanInput, fieldOf, isFlexibleKind, issuesByField, maxTimes, patchOf, scheduleFor, toggleDay, touchesRule, withName, withSchedule, withUnitPreset, type ScheduleKind } from './form';
 import { EDITOR_COPY } from './copy';
 import s from './HabitEditor.module.css';
 
@@ -47,6 +48,8 @@ export interface HabitEditorProps {
   onDone: (habitId: string | null) => void;
   /** The form's primary button lives in the sheet's footer: it submits this form. */
   formId: string;
+  /** Told whether the form holds anything that closing would lose (the host asks before discarding). */
+  onDirty?: (dirty: boolean) => void;
 }
 
 function Section({ id, title, children, note, class: cls }: { id: string; title: string; children: ComponentChildren; note?: string; class?: string }) {
@@ -65,13 +68,16 @@ function Section({ id, title, children, note, class: cls }: { id: string; title:
   );
 }
 
+/** Fields shown before "More" (a note on any other field opens it). */
+const EARLY_FIELDS = new Set<string>(['name', 'icon', 'schedule']);
+
 /** The locked teaser's series: "In No. 05 · Garden". */
 function seriesOf(source: string): string | undefined {
   const m = MACHINE_BY_ID.get(source as MachineId);
   return m ? fillLine(EDITOR_COPY.locked, { series: seriesLabel(m) }) : undefined;
 }
 
-export function HabitEditor({ vm, onDone, formId }: HabitEditorProps) {
+export function HabitEditor({ vm, onDone, formId, onDirty }: HabitEditorProps) {
   const [form, setForm] = useState<HabitInput>(() => ({ ...vm.input }));
   const [iconChosen, setIconChosen] = useState(vm.mode === 'edit');
   const [template, setTemplate] = useState<string | null>(null);
@@ -83,6 +89,10 @@ export function HabitEditor({ vm, onDone, formId }: HabitEditorProps) {
   const [shown, setShown] = useState(false);
   const [confirm, setConfirm] = useState<'archive' | 'delete' | null>(null);
   const nameRef = useRef<HTMLDivElement>(null);
+  // "More": everything past the name, ideas, how often and when. Open from the start for an edit.
+  const [more, setMore] = useState(vm.mode === 'edit');
+  // Bumped on a submit with something to fix: focus moves to the first field that needs it.
+  const [fix, setFix] = useState(0);
   const weekStart = state.value.settings.weekStart;
 
   const set = (patch: Partial<HabitInput>) => setForm((f) => ({ ...f, ...patch }));
@@ -93,6 +103,21 @@ export function HabitEditor({ vm, onDone, formId }: HabitEditorProps) {
   const ruleEdit = vm.mode === 'edit' && touchesRule(patch);
   const flexible = isFlexibleKind(form.schedule.kind);
   const counting = !flexible && form.target > 1;
+
+  // Anything typed or chosen is worth a question before it is thrown away.
+  const dirty = vm.mode === 'edit' ? Object.keys(patch).length > 0 || companion !== vm.companion : form.name.trim().length > 0 || template !== null;
+  useEffect(() => onDirty?.(dirty), [dirty]);
+
+  useEffect(() => {
+    if (!fix) return;
+    const root = document.getElementById(formId);
+    const field = root?.querySelector<HTMLElement>('[aria-invalid="true"]');
+    const alert = root?.querySelector<HTMLElement>('[role="alert"]');
+    const target = field ?? alert?.closest('section')?.querySelector<HTMLElement>('input, textarea, button:not([disabled]), [tabindex="0"]') ?? null;
+    if (!target) return;
+    target.focus({ preventScroll: true });
+    target.scrollIntoView?.({ block: 'center', behavior: 'smooth' });
+  }, [fix]);
 
   const pickTemplate = (id: string) => {
     const t = TEMPLATES.find((x) => x.id === id);
@@ -108,7 +133,8 @@ export function HabitEditor({ vm, onDone, formId }: HabitEditorProps) {
     e.preventDefault();
     setShown(true);
     if (issues.length > 0) {
-      requestAnimationFrame(() => document.querySelector<HTMLElement>(`#${formId} [role="alert"]`)?.scrollIntoView({ block: 'center', behavior: 'smooth' }));
+      if (issues.some((i) => !EARLY_FIELDS.has(fieldOf(i)))) setMore(true);
+      setFix((n) => n + 1);
       return;
     }
     if (vm.mode === 'new') {
@@ -196,7 +222,7 @@ export function HabitEditor({ vm, onDone, formId }: HabitEditorProps) {
         {vm.mode === 'new' && (
           <Section id="ideas" title={EDITOR_COPY.ideas}>
             <div class={s.ideas}>
-              <Segmented<string> label={EDITOR_COPY.ideas} block size="sm" value={group} onChange={setGroup} options={TEMPLATE_GROUPS.map((g) => ({ value: g.id, label: g.label }))} />
+              <RadioTiles<string> label={EDITOR_COPY.ideaGroups} variant="chip" value={group} onChange={setGroup} options={TEMPLATE_GROUPS.map((g) => ({ value: g.id, label: g.label }))} class={s.groups} />
               <RadioTiles
                 label={TEMPLATE_GROUPS.find((g) => g.id === group)?.label ?? EDITOR_COPY.ideas}
                 variant="chip"
@@ -229,23 +255,11 @@ export function HabitEditor({ vm, onDone, formId }: HabitEditorProps) {
           </Section>
         )}
 
-        <Section id="colour" title={E.colour}>
-          <RadioTiles label={E.colour} variant="swatch" hideLabels value={form.color} onChange={(color) => set({ color })} options={colourTiles} />
-        </Section>
-
-        <Section id="plant" title={E.plant} note={note('plant')}>
-          <RadioTiles label={E.plant} variant="tile" value={form.plant} onChange={(plant) => set({ plant })} options={plantTiles} class={s.scroller} />
-          <h3 class={s.subTitle} id="pot-t">
-            {E.pot}
-          </h3>
-          <RadioTiles label={E.pot} labelledBy="pot-t" variant="tile" value={form.pot} onChange={(pot) => set({ pot })} options={potTiles} class={s.scroller} />
-        </Section>
-
         <Section id="often" title={E.howOften.label} note={note('schedule')}>
-          <Segmented<ScheduleKind>
+          <RadioTiles<ScheduleKind>
             label={E.howOften.label}
-            block
-            size="sm"
+            labelledBy="often-t"
+            variant="chip"
             value={form.schedule.kind}
             onChange={(k) => setForm((f) => withSchedule(f, scheduleFor(k, f.schedule)))}
             options={(['daily', 'days', 'weekly', 'monthly'] as const).map((k) => ({ value: k, label: kinds[k] }))}
@@ -288,6 +302,30 @@ export function HabitEditor({ vm, onDone, formId }: HabitEditorProps) {
           <p class={s.summary}>{scheduleText(form.schedule, weekStart)}</p>
         </Section>
 
+        <Section id="when" title={E.when.label}>
+          <Segmented<TimeOfDay> label={E.when.label} block size="sm" value={form.timeOfDay} onChange={(timeOfDay) => set({ timeOfDay })} options={(['morning', 'midday', 'evening', 'anytime'] as const).map((k) => ({ value: k, label: E.when.options[k] }))} />
+        </Section>
+
+        <button type="button" class={s.more} aria-expanded={more} aria-controls="editor-more" onClick={() => setMore((m) => !m)}>
+          <span>{EDITOR_COPY.more}</span>
+          <Icon name="chevron-down" size={18} class={s.moreChevron} />
+        </button>
+
+        <div id="editor-more" class={s.moreBody} hidden={!more}>
+          {more && (
+            <>
+        <Section id="colour" title={E.colour}>
+          <RadioTiles label={E.colour} variant="swatch" hideLabels value={form.color} onChange={(color) => set({ color })} options={colourTiles} />
+        </Section>
+
+        <Section id="plant" title={E.plant} note={note('plant')}>
+          <RadioTiles label={E.plant} variant="tile" value={form.plant} onChange={(plant) => set({ plant })} options={plantTiles} class={s.scroller} />
+          <h3 class={s.subTitle} id="pot-t">
+            {E.pot}
+          </h3>
+          <RadioTiles label={E.pot} labelledBy="pot-t" variant="tile" value={form.pot} onChange={(pot) => set({ pot })} options={potTiles} class={s.scroller} />
+        </Section>
+
         {!flexible && (
           <Section id="amount" title={E.howMuch} note={note('amount')}>
             <div class={s.amount}>
@@ -301,7 +339,7 @@ export function HabitEditor({ vm, onDone, formId }: HabitEditorProps) {
                 </button>
               ))}
             </div>
-            <TextField label={EDITOR_COPY.unit} value={form.unit ?? ''} onValue={(unit) => set({ unit })} maxLength={LIMITS.unit} placeholder={EDITOR_COPY.unitPlaceholder} />
+            <TextField label={EDITOR_COPY.unit} value={form.unit ?? ''} onValue={(unit) => set({ unit })} maxLength={LIMITS.unit} />
           </Section>
         )}
 
@@ -317,10 +355,6 @@ export function HabitEditor({ vm, onDone, formId }: HabitEditorProps) {
           {counting && form.tiny && (
             <Stepper label={EDITOR_COPY.tinyCount} showLabel value={form.tiny.count ?? Math.max(1, Math.floor(form.target / 2))} min={1} max={Math.max(1, form.target - 1)} unit={form.unit} onChange={(count) => set({ tiny: { ...form.tiny!, count } })} />
           )}
-        </Section>
-
-        <Section id="when" title={E.when.label}>
-          <Segmented<TimeOfDay> label={E.when.label} block size="sm" value={form.timeOfDay} onChange={(timeOfDay) => set({ timeOfDay })} options={(['morning', 'midday', 'evening', 'anytime'] as const).map((k) => ({ value: k, label: E.when.options[k] }))} />
         </Section>
 
         <Section id="after" title={E.anchor.label} note={note('anchor')}>
@@ -347,22 +381,26 @@ export function HabitEditor({ vm, onDone, formId }: HabitEditorProps) {
         </Section>
 
         <Section id="effort" title={E.effort.label} note={note('effort') ?? (vm.bigAtLimit && form.effort !== 'big' && vm.input.effort !== 'big' ? fillLine(HABIT_ISSUES['too-many-big'], { max: MAX_BIG_HABITS }) : undefined)}>
-          <Segmented<Effort> label={E.effort.label} block size="sm" value={form.effort} onChange={(effort) => set({ effort })} options={(['light', 'steady', 'big'] as const).map((k) => ({ value: k, label: E.effort.options[k] }))} />
+          <RadioTiles<Effort> label={E.effort.label} labelledBy="effort-t" variant="chip" value={form.effort} onChange={(effort) => set({ effort })} options={(['light', 'steady', 'big'] as const).map((k) => ({ value: k, label: E.effort.options[k] }))} />
         </Section>
 
         <Section id="why" title={E.why} note={note('why')}>
           <TextArea label={E.why} hideLabel value={form.why ?? ''} placeholder={EDITOR_COPY.whyPlaceholder} maxLength={LIMITS.why} showCount rows={2} onValue={(why) => set({ why })} />
         </Section>
 
-        <Section id="season" title={E.season} note={note('endsOn')}>
+        <div class={s.section}>
           <Toggle
             label={E.season}
-            hideLabel
             checked={form.endsOn !== undefined}
             onChange={(on) => set({ endsOn: on ? vm.seasonEnds : undefined })}
             description={fillLine(EDITOR_COPY.seasonHelp, { date: monthDayLabel(form.endsOn ?? vm.seasonEnds) })}
           />
-        </Section>
+          {note('endsOn') && (
+            <p class={s.fieldNote} role="alert">
+              {note('endsOn')}
+            </p>
+          )}
+        </div>
 
         {vm.companions.length > 0 && state.value.settings.showCompanions !== false && (
           <Section id="company" title={COMPANION.editor.title}>
@@ -370,12 +408,16 @@ export function HabitEditor({ vm, onDone, formId }: HabitEditorProps) {
           </Section>
         )}
 
+            </>
+          )}
+        </div>
+
         {ruleEdit && (
           <Section id="apply" title={EDITOR_COPY.applyFrom}>
-            <Segmented<RuleEditTiming>
+            <RadioTiles<RuleEditTiming>
               label={EDITOR_COPY.applyFrom}
-              block
-              size="sm"
+              labelledBy="apply-t"
+              variant="chip"
               value={applyFrom}
               onChange={setApplyFrom}
               options={(['today', 'next-period', 'tomorrow'] as const).map((k) => ({
