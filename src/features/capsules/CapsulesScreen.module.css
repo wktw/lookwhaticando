@@ -262,6 +262,16 @@
   gap: 6px;
 }
 
+/* A sentence, not a price: it wraps on a narrow phone instead of running out of the card. */
+.facts .freePill {
+  flex: 0 1 auto;
+  height: auto;
+  min-height: 26px;
+  padding-block: 5px;
+  line-height: 1.25;
+  white-space: normal;
+}
+
 .series {
   display: flex;
   flex-direction: column;

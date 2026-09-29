@@ -37,7 +37,7 @@ export function MachineInfo({ machine, onLineup, onOdds, onOrder }: MachineInfoP
 
       <div class={s.facts}>
         {card?.free ? (
-          <Pill tone="sage" icon={<CoinIcon size={16} />}>
+          <Pill tone="sage" class={s.freePill} icon={<CoinIcon size={16} />}>
             Your first capsule is on the house
           </Pill>
         ) : (
