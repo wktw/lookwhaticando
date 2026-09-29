@@ -171,7 +171,7 @@ const CARD_DEMO: { name: string; note: string; line: string; species: PlantSpeci
   { name: 'Skincare', note: 'before bed', line: 'First bud showing', species: 'tulip', stage: 4, pot: 'rosy' },
   { name: 'Water the plants', note: 'Saturdays', line: '5 of the last 6 weeks', species: 'lavender', stage: 5, pot: 'speckled' },
   { name: 'Tidy for 10 min', note: 'after dinner', line: '12 in a row', species: 'catnip', stage: 5, pot: 'tincan' },
-  { name: 'No-spend day', note: 'weekdays', line: 'Kept it up 8 days', species: 'xmascactus', stage: 5, pot: 'gourd' },
+  { name: 'No-spend day', note: 'weekdays', line: 'Held off 8 days', species: 'xmascactus', stage: 5, pot: 'gourd' },
   { name: 'Go outside', note: 'at noon', line: '20 of the last 30 days', species: 'sunflower', stage: 5, pot: 'eggshell' },
 ];
 

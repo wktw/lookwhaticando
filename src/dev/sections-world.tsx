@@ -201,7 +201,7 @@ SECTIONS.push(
   },
   {
     id: 'shelf-choreography',
-    title: 'Check-in choreography (tap the buttons)',
+    title: 'Watering choreography (tap the buttons)',
     render: () => <Choreography />,
   },
 );

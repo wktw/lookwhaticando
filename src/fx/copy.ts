@@ -8,7 +8,8 @@
  */
 import type { PlantSpeciesId, Species } from '@/catalog/types';
 import { MONTH_NAMES, WEEKDAY_NAMES, parseDateKey, weekday } from '@/domain/dates';
-import { STAGE_NAMES } from '@/domain/growth';
+
+import type { RitualKind } from '@/state/api';
 import type { BloomColour, BloomShape, DateKey, KeepsakeKind, SeasonName } from '@/state/types';
 import {
   BLOOM_LINES,
@@ -20,6 +21,8 @@ import {
   FRIENDSHIP_LEVELS,
   HARVEST_LINES,
   STAGE_LINES,
+  STAGE_NAMES,
+  TODAY_LINES,
   capitalise,
   fillLine,
   fits,
@@ -28,7 +31,7 @@ import {
   withArticle,
 } from '@/catalog/lines';
 
-/** Plant stages (DESIGN §5.5), the domain's one list. */
+/** Plant stages (DESIGN §5.5): the one list, in lines.ts. */
 export { STAGE_NAMES };
 
 /** Blooming and Evergreen are celebrations; the other stages are notes. */
@@ -166,7 +169,9 @@ export function welcomeHomeLine(tickets: number): string {
   return tickets > 0 ? 'Everything kept. There’s a ticket on the sill.' : 'Everything kept.';
 }
 
-export const NOTE_ON_SILL = 'There’s a note on the sill.';
+/** A ritual on the sill (lines.ts TODAY_LINES.letterWaiting): "There’s a note on the sill." · "There’s a page on the sill." */
+export const noteOnSillLine = (kind: RitualKind = 'sundayNote') => TODAY_LINES.letterWaiting[kind];
+export const NOTE_ON_SILL = noteOnSillLine();
 
 const RUNG_UNITS = { days: ['day', 'days'], times: ['', ''], weeks: ['week', 'weeks'], months: ['month', 'months'] } as const;
 

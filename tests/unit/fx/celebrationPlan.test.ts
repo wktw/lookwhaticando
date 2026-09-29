@@ -92,7 +92,7 @@ describe('planCelebration', () => {
   it('the Laurel Sprig says what it was for', () => {
     const plan = planCelebration(
       [
-        { type: 'plantStage', habitId: 'h-walk', stage: 7, stageName: 'Evergreen' },
+        { type: 'plantStage', habitId: 'h-walk', stage: 7 },
         { type: 'exclusive', collectibleId: 'wear-laurel-sprig' },
       ],
       ctx(),
@@ -103,35 +103,35 @@ describe('planCelebration', () => {
   });
 
   it('only Blooming and Evergreen plants get notes in the band; other stages are small notes', () => {
-    expect(planCelebration([{ type: 'plantStage', habitId: 'h-yoga', stage: 5, stageName: 'Blooming' }], ctx()).banner?.kind).toBe('plant');
-    const small = planCelebration([{ type: 'plantStage', habitId: 'h-yoga', stage: 2, stageName: 'Potted' }], ctx());
+    expect(planCelebration([{ type: 'plantStage', habitId: 'h-yoga', stage: 5 }], ctx()).banner?.kind).toBe('plant');
+    const small = planCelebration([{ type: 'plantStage', habitId: 'h-yoga', stage: 2 }], ctx());
     expect(small.banner).toBeNull();
     expect(small.toasts[0]?.message).toBe('The Yoga plant is potted up.');
   });
 
   it('every growth stage reads as a plain sentence, using the stage names', () => {
-    const say = (stage: number, stageName: string) => {
-      const plan = planCelebration([{ type: 'plantStage', habitId: 'h-yoga', stage, stageName }], ctx());
+    const say = (stage: number) => {
+      const plan = planCelebration([{ type: 'plantStage', habitId: 'h-yoga', stage }], ctx());
       return plan.banner?.title ?? plan.toasts[0]?.message;
     };
-    expect(say(1, 'Rooting')).toBe('White roots are showing in the glass. The Yoga plant is rooting.');
-    expect(say(2, 'Potted')).toBe('The Yoga plant is potted up.');
-    expect(say(3, 'Leafy')).toBe('The Yoga plant has put out new leaves.');
-    expect(say(4, 'Budding')).toBe('There’s a bud on the Yoga plant, still closed tight.');
-    expect(say(5, 'Blooming')).toBe('The Yoga plant is Blooming');
-    expect(say(6, 'Flourishing')).toBe('The Yoga plant is spilling over the rim of the pot.');
-    expect(say(7, 'Evergreen')).toBe('The Yoga plant is Evergreen');
+    expect(say(1)).toBe('White roots are showing in the glass. The Yoga plant is rooting.');
+    expect(say(2)).toBe('The Yoga plant is potted up.');
+    expect(say(3)).toBe('The Yoga plant has put out new leaves.');
+    expect(say(4)).toBe('There’s a bud on the Yoga plant, still closed tight.');
+    expect(say(5)).toBe('The Yoga plant is Blooming');
+    expect(say(6)).toBe('The Yoga plant is spilling over the rim of the pot.');
+    expect(say(7)).toBe('The Yoga plant is Evergreen');
   });
 
   it('a bloom is described the way that species blooms', () => {
-    const bloom = (habitId: string) => planCelebration([{ type: 'plantStage', habitId, stage: 5, stageName: 'Blooming' }], ctx()).banner;
+    const bloom = (habitId: string) => planCelebration([{ type: 'plantStage', habitId, stage: 5 }], ctx()).banner;
     expect(bloom('h-yoga')).toMatchObject({ eyebrow: 'Blooming', text: 'The Yoga plant has purple spikes, and the sill smells of lavender.' });
     expect(bloom('h-walk')?.text).toBe('The Walk plant is trailing past the edge of the sill.');
-    expect(planCelebration([{ type: 'plantStage', habitId: 'h-walk', stage: 7, stageName: 'Evergreen' }], ctx()).banner?.text).toBe('There’s a small brass watering can on the pot now.');
+    expect(planCelebration([{ type: 'plantStage', habitId: 'h-walk', stage: 7 }], ctx()).banner?.text).toBe('There’s a small brass watering can on the pot now.');
   });
 
   it('a bloom lets fall its own flowers; a perfect day, the flowers and leaves on the sill', () => {
-    const bloom = planCelebration([{ type: 'plantStage', habitId: 'h-yoga', stage: 5, stageName: 'Blooming' }], ctx()).banner;
+    const bloom = planCelebration([{ type: 'plantStage', habitId: 'h-yoga', stage: 5 }], ctx()).banner;
     expect(bloom?.petals).toMatchObject({ colors: [...SPECIES_COLOURS.lavender.flowers], shapes: ['petal', 'leaf'] });
     const sill = { ...ctx(), sill: () => ['pothos', 'sunflower'] as const };
     const perfect = planCelebration([{ type: 'perfectDay', date: '2026-09-29', coins: 10 }], sill).banner;
@@ -143,7 +143,7 @@ describe('planCelebration', () => {
   });
 
   it('a small growth step without a known habit shows the pot once it is potted up', () => {
-    const art = (stage: number) => planCelebration([{ type: 'plantStage', habitId: 'h-gone', stage, stageName: 'x' }], ctx()).toasts[0]?.art;
+    const art = (stage: number) => planCelebration([{ type: 'plantStage', habitId: 'h-gone', stage }], ctx()).toasts[0]?.art;
     expect(art(1)).toEqual({ type: 'object', name: 'cutting' });
     expect(art(2)).toEqual({ type: 'object', name: 'pot' });
   });
@@ -167,7 +167,7 @@ describe('planCelebration', () => {
       [
         { type: 'welcomeHome', coins: 3, tickets: 0 },
         { type: 'coins', amount: 3, reason: 'home' },
-        { type: 'letter', letterId: 'w1' },
+        { type: 'letter', letterId: 'w1', kind: 'sundayNote' },
       ],
       ctx(),
     );
@@ -179,7 +179,7 @@ describe('planCelebration', () => {
     const plan = planCelebration(
       [
         { type: 'badge', badgeId: 'first-checkin', stars: 1 },
-        { type: 'letter', letterId: 'w1' },
+        { type: 'letter', letterId: 'w1', kind: 'sundayNote' },
       ],
       ctx(),
     );
@@ -200,7 +200,8 @@ describe('planCelebration', () => {
   });
 
   it('notes on the sill, goals and rungs say it plainly', () => {
-    expect(planCelebration([{ type: 'letter', letterId: 'w1' }], ctx()).toasts[0]?.message).toBe('There’s a note on the sill.');
+    expect(planCelebration([{ type: 'letter', letterId: 'w1', kind: 'sundayNote' }], ctx()).toasts[0]?.message).toBe('There’s a note on the sill.');
+    expect(planCelebration([{ type: 'letter', letterId: 'h1', kind: 'herbarium' }], ctx()).toasts[0]?.message).toBe('There’s a page on the sill.');
     expect(planCelebration([{ type: 'periodGoal', habitId: 'h-yoga', period: 'week', coins: 10 }], ctx()).toasts[0]?.message).toBe('Yoga, watered for the week.');
     expect(planCelebration([{ type: 'rung', habitId: 'h-walk', streak: 14, unit: 'days', tierDays: 14, coins: 30 }], ctx()).toasts[0]?.message).toBe('Walk: 14 days in a row.');
     expect(planCelebration([{ type: 'rung', habitId: 'h-snooze', streak: 14, unit: 'days', tierDays: 14, coins: 30 }], ctx()).toasts[0]?.message).toBe('No snooze: held off 14 days.');
@@ -226,6 +227,16 @@ describe('planCelebration', () => {
     );
     expect(swapIn.wallet).toEqual({ coins: 25, stars: 0, tickets: 0, stardust: 40 });
     expect(planCelebration([{ type: 'stars', amount: -3, reason: 'badge' }], ctx()).wallet).toEqual(EMPTY_TALLY);
+    // A paid pull, a Night capsule or a Special Order is spending: no "-25 coins" bonus, ever.
+    const paid = planCelebration(
+      [
+        { type: 'coins', amount: -25, reason: 'spend' },
+        { type: 'stars', amount: -3, reason: 'spend' },
+        { type: 'coins', amount: 0, reason: 'checkin' },
+      ],
+      ctx(),
+    );
+    expect(paid).toEqual({ banner: null, toasts: [], wallet: EMPTY_TALLY });
   });
 
   it('copy never uses guilt words', () => {
@@ -233,7 +244,7 @@ describe('planCelebration', () => {
       { type: 'perfectDay', date: 'x', coins: 5 },
       { type: 'welcomeHome', coins: 20, tickets: 1 },
       { type: 'rung', habitId: 'h-walk', streak: 7, unit: 'days', tierDays: 7, coins: 20 },
-      { type: 'plantStage', habitId: 'h-walk', stage: 7, stageName: 'Evergreen' },
+      { type: 'plantStage', habitId: 'h-walk', stage: 7 },
     ];
     const plan = planCelebration(everything, ctx());
     const text = JSON.stringify(plan).toLowerCase();
@@ -247,7 +258,7 @@ describe('every event the domain emits gets its moment (VOICE, DESIGN §9.1)', (
   it('a new look and a keepsake are lines under the plant banner', () => {
     const plan = planCelebration(
       [
-        { type: 'plantStage', habitId: 'h-yoga', stage: 5, stageName: 'Blooming' },
+        { type: 'plantStage', habitId: 'h-yoga', stage: 5 },
         { type: 'look', habitId: 'h-yoga', colour: 'twilight', shape: 'classic', read: 'bloom' },
         { type: 'keepsake', keepsakeId: 'k-h-yoga-5', petId: 'pet-cat-orange', habitId: 'h-yoga', stage: 5, kind: 'mind' },
       ],
@@ -268,7 +279,7 @@ describe('every event the domain emits gets its moment (VOICE, DESIGN §9.1)', (
     const page = planCelebration(
       [
         { type: 'album', albumId: 'dogs', stars: 5 },
-        { type: 'stars', amount: 5, reason: 'gift' },
+        { type: 'stars', amount: 5, reason: 'album' },
       ],
       ctx(),
     );
@@ -333,10 +344,10 @@ describe('event helpers (used in the gesture, before planning)', () => {
 
   it('weighs moments like the plan does: banners are big, toasts small, coins silent', () => {
     expect(eventWeight({ type: 'perfectDay', date: 'x', coins: 5 })).toBe('big');
-    expect(eventWeight({ type: 'plantStage', habitId: 'h', stage: 5, stageName: 'Blooming' })).toBe('big');
-    expect(eventWeight({ type: 'plantStage', habitId: 'h', stage: 3, stageName: 'Leafy' })).toBe('small');
+    expect(eventWeight({ type: 'plantStage', habitId: 'h', stage: 5 })).toBe('big');
+    expect(eventWeight({ type: 'plantStage', habitId: 'h', stage: 3 })).toBe('small');
     expect(eventWeight({ type: 'petLevel', petId: 'p', level: 10 })).toBe('big');
-    expect(eventWeight({ type: 'letter', letterId: 'w' })).toBe('small');
+    expect(eventWeight({ type: 'letter', letterId: 'w', kind: 'sundayNote' })).toBe('small');
     expect(eventWeight({ type: 'album', albumId: 'dogs', stars: 5 })).toBe('big');
     expect(eventWeight({ type: 'petLevel', petId: 'p', level: 12 })).toBe('small');
     expect(eventWeight({ type: 'harvest', habitId: 'h', treatId: 't', firstTime: true })).toBe('small');

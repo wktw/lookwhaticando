@@ -152,7 +152,7 @@ export const SECTIONS: GallerySection[] = [
   },
   {
     id: 'items-shelf',
-    title: "Decor at true relative size, beside a 16-unit box: a sitting cat's height",
+    title: 'Decor at true relative size, beside a 16-unit box: a sitting cat’s height',
     render: (params) => {
       const unit = Number(params.get('unit')) || 7;
       const night = params.get('night') === '1';

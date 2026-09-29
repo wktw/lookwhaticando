@@ -32,7 +32,7 @@ import {
   longDate,
   lookLine,
   majorStageTitle,
-  NOTE_ON_SILL,
+  noteOnSillLine,
   PERFECT_DAY,
   periodGoalLine,
   PIN,
@@ -443,9 +443,11 @@ export function planCelebration(events: readonly GameEvent[], ctx: CelebrationCo
         moments.push({ priority: PRIORITY.period, line: asAlso(line), toast: { key: `period-${e.habitId}`, message: line, tone: 'sage', art: { type: 'currency', kind: 'coins' }, sound: 'chime' } });
         break;
       }
-      case 'letter':
-        moments.push({ priority: PRIORITY.note, line: asAlso(NOTE_ON_SILL), points: true, toast: { key: 'letter', message: NOTE_ON_SILL, tone: 'lilac', art: { type: 'object', name: 'note' }, sound: 'pop' } });
+      case 'letter': {
+        const line = noteOnSillLine(e.kind);
+        moments.push({ priority: PRIORITY.note, line: asAlso(line), points: true, toast: { key: 'letter', message: line, tone: 'lilac', art: { type: 'object', name: 'note' }, sound: 'pop' } });
         break;
+      }
       case 'keepsake': {
         const line = keepsakeLine(ctx.petName(e.petId), e.kind);
         moments.push({ priority: PRIORITY.keepsake, line: asAlso(line), toast: { key: `keepsake-${e.keepsakeId}`, message: line, tone: 'butter', art: petArt(e.petId), sound: 'sparkle' } });

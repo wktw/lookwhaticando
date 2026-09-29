@@ -1117,11 +1117,11 @@ const CELEBRATIONS: Record<string, { label: string; events: GameEvent[] }> = {
       { type: 'coins', amount: 10, reason: 'perfect' },
     ],
   },
-  bloom: { label: 'Blooming', events: [{ type: 'plantStage', habitId: 'h-yoga', stage: 5, stageName: 'Blooming' }] },
+  bloom: { label: 'Blooming', events: [{ type: 'plantStage', habitId: 'h-yoga', stage: 5 }] },
   evergreen: {
     label: 'Evergreen + Laurel Sprig (epic)',
     events: [
-      { type: 'plantStage', habitId: 'h-walk', stage: 7, stageName: 'Evergreen' },
+      { type: 'plantStage', habitId: 'h-walk', stage: 7 },
       { type: 'exclusive', collectibleId: 'wear-laurel-sprig' },
     ],
   },
@@ -1162,7 +1162,7 @@ const CELEBRATIONS: Record<string, { label: string; events: GameEvent[] }> = {
   bloomLook: {
     label: 'Blooming, a new look and a keepsake',
     events: [
-      { type: 'plantStage', habitId: 'h-read', stage: 5, stageName: 'Blooming' },
+      { type: 'plantStage', habitId: 'h-read', stage: 5 },
       { type: 'look', habitId: 'h-read', colour: 'twilight', shape: 'classic', read: 'bloom' },
       { type: 'keepsake', keepsakeId: 'k-h-read-5', petId: 'pet-dog-shiba', habitId: 'h-read', stage: 5, kind: 'read' },
     ],
@@ -1171,7 +1171,7 @@ const CELEBRATIONS: Record<string, { label: string; events: GameEvent[] }> = {
     label: 'A full Field Guide page',
     events: [
       { type: 'album', albumId: 'dogs', stars: 5 },
-      { type: 'stars', amount: 5, reason: 'gift' },
+      { type: 'stars', amount: 5, reason: 'album' },
     ],
   },
   harvest: { label: 'First harvest (note)', events: [{ type: 'harvest', habitId: 'h-yoga', treatId: 'treat-lavender', firstTime: true }] },
@@ -1185,7 +1185,7 @@ const CELEBRATIONS: Record<string, { label: string; events: GameEvent[] }> = {
   },
   story: { label: 'A story on the tag (note)', events: [{ type: 'story', petId: 'pet-bunny-lop', habitId: 'h-walk', story: 'start' }] },
   season: { label: 'Season review (note)', events: [{ type: 'seasonReview', season: 'summer', key: '2026-09-22' }] },
-  potted: { label: 'Potted up (note)', events: [{ type: 'plantStage', habitId: 'h-read', stage: 2, stageName: 'Potted' }] },
+  potted: { label: 'Potted up (note)', events: [{ type: 'plantStage', habitId: 'h-read', stage: 2 }] },
   period: {
     label: 'Watered for the week (note)',
     events: [
@@ -1201,7 +1201,7 @@ const CELEBRATIONS: Record<string, { label: string; events: GameEvent[] }> = {
       { type: 'tickets', amount: 1 },
     ],
   },
-  letter: { label: 'Note on the sill', events: [{ type: 'letter', letterId: 'w-2026-09-21' }] },
+  letter: { label: 'Note on the sill', events: [{ type: 'letter', letterId: 'w-2026-09-21', kind: 'sundayNote' }] },
   swaps: {
     label: 'Swaps to a stamp (note)',
     events: [

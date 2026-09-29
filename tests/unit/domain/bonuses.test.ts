@@ -173,7 +173,7 @@ describe('plants: one stage per check-in, stage events, the Laurel Sprig, harves
     expect(stages).toEqual([1, 2, 3, 4, 5, 6, 7]);
     const reached = g.allOf('plantStage').filter((e) => e.habitId === m);
     expect(reached.map((e) => STAGE_NAMES[e.stage])).toEqual(['Rooting', 'Potted', 'Leafy', 'Budding', 'Blooming', 'Flourishing', 'Evergreen']);
-    expect(reached.every((e) => e.stageName === undefined)).toBe(true); // no display text in events
+    expect(reached.every((e) => !('stageName' in e))).toBe(true); // no display text in events
     expect(g.state.ledger.bestStage[m]).toBe(7);
     expect(g.state.ledger.bestStage[n]).toBe(7); // a second Evergreen plant…
     expect(g.allOf('exclusive').filter((e) => e.collectibleId === LAUREL_SPRIG_ID)).toHaveLength(1); // …grants nothing more

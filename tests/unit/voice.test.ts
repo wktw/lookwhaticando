@@ -76,44 +76,12 @@ import {
 export const VOICE_SCAN_DIRS: readonly string[] = ['src'];
 
 /**
- * Known exceptions, as `file#propertyKey`. machines.ts keeps a seasonal `emoji` field that is not
- * ours to change (NOTES-voice.md asks for it to be emptied); remove the entry once it is.
+ * Copy that breaks a rule today, waiting on its owner. Each entry is `file → exact string`. The
+ * lint skips these; the "known exceptions are still real" test fails once a string is fixed or
+ * moved, so delete its entry in the same change. Empty since M1: keep it that way, and give any
+ * new entry a reason and an owner.
  */
-const KNOWN_EXCEPTIONS: ReadonlySet<string> = new Set(['src/catalog/machines.ts#emoji']);
-
-/**
- * Copy that breaks a rule today, in files the lint's owner doesn't own, waiting on their owners.
- * Each entry is `file → exact string`. The lint skips these; the "known exceptions are still
- * real" test fails once a string is fixed or moved, so delete its entry in the same change.
- */
-const KNOWN_TEXT_EXCEPTIONS: ReadonlyMap<string, ReadonlySet<string>> = new Map([
-  // Catalog copy (NOTES-voice.md, requests).
-  [
-    'src/catalog/collectibles.ts',
-    new Set([
-      "A yellow sou'wester with the brim turned down.", // straight apostrophe
-      "Jack-o'-lantern", // straight apostrophe
-      "Robin's Nest", // straight apostrophe
-    ]),
-  ],
-  // TODO(m1 logic): the view-model copy below (VOICE §3: "watered", not "checked in"; no "kept it up").
-  ['src/state/views/common.ts', new Set(['Kept it up 1', ', kept it up'])],
-  ['src/state/views/today.ts', new Set(['1 checked in'])],
-  // TODO(m1 ui): gallery labels (developer-facing; they can take a `// voice-ignore` comment or say "watering").
-  [
-    'src/dev/sections-capsules.tsx',
-    new Set([
-      'Cabinets: every series, window light from the left and the right, and lamplight (&machine=cats)', // URL param
-      'Interactive cabinet (&machine=cows &coins=10 &tickets=0 &quick=1)', // URL param
-    ]),
-  ],
-  ['src/dev/sections-garden.tsx', new Set(['Kept it up 8 days'])],
-  ['src/dev/sections-items.tsx', new Set(["Decor at true relative size, beside a 16-unit box: a sitting cat's height"])], // straight apostrophe
-  ['src/dev/sections-world.tsx', new Set(['Check-in choreography (tap the buttons)'])],
-]);
-
-/** Pet flavor text waiting on the lead (collectibles.ts is not ours): a pronoun, and a hand and a hello. */
-const KNOWN_FLAVOR_EXCEPTIONS: ReadonlySet<string> = new Set(['pet-frog-peeper', 'pet-frog-golden']);
+const KNOWN_TEXT_EXCEPTIONS: ReadonlyMap<string, ReadonlySet<string>> = new Map();
 
 const VOICE_MD = 'docs/VOICE.md';
 
@@ -332,7 +300,7 @@ function uiStrings(): Found[] {
 /** Whether a found string is on a known-exception list. */
 function isKnownException(f: Found): boolean {
   const file = f.where.replace(/:\d+$/, '');
-  return KNOWN_EXCEPTIONS.has(`${file}#${f.key}`) || !!KNOWN_TEXT_EXCEPTIONS.get(file)?.has(f.text);
+  return !!KNOWN_TEXT_EXCEPTIONS.get(file)?.has(f.text);
 }
 
 /**
@@ -484,15 +452,6 @@ describe('voice lint (DESIGN §12)', () => {
         else if (hits.every((f) => lint(f.text, { prose: isProse(f.text) }).length === 0)) stale.push(`${file}  ${JSON.stringify(text)}: passes now`);
       }
     }
-    for (const entry of KNOWN_EXCEPTIONS) {
-      const [file, key] = entry.split('#');
-      const hits = found.filter((f) => f.where.startsWith(`${file}:`) && f.key === key);
-      if (!hits.some((f) => lint(f.text, { prose: isProse(f.text) }).length > 0)) stale.push(`${entry}: passes now`);
-    }
-    for (const id of KNOWN_FLAVOR_EXCEPTIONS) {
-      const pet = PETS.find((p) => p.id === id);
-      if (!pet || flavorProblems(pet).length === 0) stale.push(`flavor ${id}: passes now`);
-    }
     expect(stale, `Stale voice-lint exceptions; delete them from tests/unit/voice.test.ts:\n${stale.join('\n')}`).toEqual([]);
   });
 
@@ -571,8 +530,7 @@ describe('voice lint (DESIGN §12)', () => {
   });
 
   it('pet flavor text in the catalog gives no pet a pronoun, a hand or a hello', () => {
-    const bad = PETS.filter((p) => !KNOWN_FLAVOR_EXCEPTIONS.has(p.id))
-      .map((p) => ({ where: `flavor ${p.id}`, text: p.flavor, problems: flavorProblems(p) }))
+    const bad = PETS.map((p) => ({ where: `flavor ${p.id}`, text: p.flavor, problems: flavorProblems(p) }))
       .filter((f) => f.problems.length > 0);
     expect(bad, report(bad)).toEqual([]);
   });

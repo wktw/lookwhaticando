@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { WISH_PRICE } from '@/catalog/machines';
 import { state, today, wish } from '@/state/store';
 import { CapsulesScreen, availableCabinets } from './CapsulesScreen';
 import { button, buttonWithText, click, installDom, key, mount, pause, revealDialog, until } from './testing';
@@ -122,6 +123,6 @@ describe('Special Order', () => {
     await click(orderSheet()!.querySelector('ul li button'), 'a tile');
     await click(button('Order'), 'Order');
     const alert = await until(() => document.querySelector('[role="alert"]'), 'the notice');
-    expect(alert.textContent).toMatch(/^A Classic is 2 stamps at the counter\. There are 30 on the card\.$/);
+    expect(alert.textContent).toBe(`A Classic is ${WISH_PRICE.common} stamps at the counter. There are 30 on the card.`);
   });
 });

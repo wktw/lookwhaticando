@@ -96,7 +96,7 @@ describe('CelebrationHost', () => {
     await loadCelebrationArt();
     mountHost();
     act(() => pushLayer('reveal-test', { moment: true }));
-    act(() => emitGameEvents([{ type: 'badge', badgeId: 'checkins-50', stars: 2 }, { type: 'letter', letterId: 'w1' }]));
+    act(() => emitGameEvents([{ type: 'badge', badgeId: 'checkins-50', stars: 2 }, { type: 'letter', letterId: 'w1', kind: 'sundayNote' }]));
     await act(() => sleep(BATCH_MS + 30));
     expect(document.querySelectorAll('#overlay-root [role="group"]')).toHaveLength(0);
     // The note on the sill waits too: queued, not drawn over the reveal.

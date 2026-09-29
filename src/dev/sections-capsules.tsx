@@ -312,7 +312,7 @@ function SheetDemo({ id, params, children }: { id: string; params: URLSearchPara
 export const SECTIONS: GallerySection[] = [
   {
     id: 'capsules-cabinets',
-    title: 'Cabinets: every series, window light from the left and the right, and lamplight (&machine=cats)',
+    title: 'Cabinets: every series, window light from the left and the right, and lamplight (&machine=cats)', // voice-ignore: URL parameter
     render: (params) => {
       const only = params.get('machine');
       const ms = only ? MACHINES.filter((m) => m.id === only) : MACHINES;
@@ -499,7 +499,7 @@ export const SECTIONS: GallerySection[] = [
   },
   {
     id: 'capsules-pull',
-    title: 'Interactive cabinet (&machine=pond &coins=10 &tickets=0 &quick=1)',
+    title: 'Interactive cabinet (&machine=pond &coins=10 &tickets=0 &quick=1)', // voice-ignore: URL parameters
     render: (params) => {
       seedWallet(params);
       const m = MACHINES.find((x) => x.id === (params.get('machine') ?? 'pond')) ?? MACHINES[0]!;

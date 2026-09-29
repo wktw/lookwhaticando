@@ -47,21 +47,14 @@ export type GameEvent =
   | { type: 'rung'; habitId: string; streak: number; unit: 'days' | 'times' | 'weeks' | 'months'; tierDays: number; coins: number }
   /** Account-level Showing-up ladder (stars/tickets/exclusives). */
   | { type: 'showUp'; days: number; stars: number; tickets: number; exclusive?: string }
-  /**
-   * A plant reached a stage: word it from `stage` (STAGE_NAMES / STAGE_LINES in lines.ts).
-   * @deprecated `stageName` is no longer sent (no display text in events); it stays optional only
-   * until the gallery fixtures drop it.
-   */
-  | { type: 'plantStage'; habitId: string; stage: number; stageName?: string }
+  /** A plant reached a stage: word it from `stage` (STAGE_NAMES / STAGE_LINES in lines.ts). */
+  | { type: 'plantStage'; habitId: string; stage: number }
   | { type: 'badge'; badgeId: string; stars: number }
   | { type: 'exclusive'; collectibleId: string }
   | { type: 'petLevel'; petId: string; level: number }
   | { type: 'favoriteFound'; petId: string; treatId: string }
-  /**
-   * A ritual arrived on the sill: "There’s a note on the sill." / "There’s a page on the sill."
-   * `kind` is always sent (optional in the type only until the gallery fixtures add it).
-   */
-  | { type: 'letter'; letterId: string; kind?: RitualKind }
+  /** A ritual arrived on the sill: "There’s a note on the sill." / "There’s a page on the sill." */
+  | { type: 'letter'; letterId: string; kind: RitualKind }
   | { type: 'restock'; treats: number }
   /** A check-in on a Blooming+ edible plant dropped a harvest treat into the basket (DESIGN §8.2). */
   | { type: 'harvest'; habitId: string; treatId: string; firstTime: boolean }
