@@ -1,27 +1,29 @@
+import { signal } from '@preact/signals';
 import { useEffect, useState } from 'preact/hooks';
 import { RitualReader } from './RitualReader';
 import { ritualRequest } from './open';
 
-/** Only the first mounted host draws the reader, so the shell and a screen can both mount one. */
-let owner: symbol | null = null;
+/** The mounted host that draws the reader: only one does, so the shell and a screen can both mount one. */
+const owner = signal<symbol | null>(null);
 
 /**
  * The ritual reader's host (default export, loaded lazily): renders the note or page asked for by
- * `openRitual` / `openSeason` (./open.ts).
+ * `openRitual` / `openSeason` (./open.ts). When the drawing host unmounts, another mounted host
+ * takes over.
  */
 export default function RitualReaderHost() {
   const [me] = useState(() => Symbol('ritual-reader'));
-  const [, setTick] = useState(0);
+  const current = owner.value;
   useEffect(() => {
-    if (owner === null) {
-      owner = me;
-      setTick((t) => t + 1);
-    }
-    return () => {
-      if (owner === me) owner = null;
-    };
-  }, []);
+    if (current === null) owner.value = me;
+  }, [current]);
+  useEffect(
+    () => () => {
+      if (owner.peek() === me) owner.value = null;
+    },
+    [],
+  );
   const request = ritualRequest.value;
-  if (owner !== me) return null;
+  if (current !== me) return null;
   return <RitualReader request={request} />;
 }
