@@ -1,80 +1,128 @@
 /**
- * Every decor item: its art and how it stands in the Meadow.
- * `size` is the edge of the item's 100×100 canvas in decor units (see `DECOR_UNIT_CSS` in
- * layout.ts; 1% of the scene height on most screens) before depth scaling. For comparison a
- * pet is PET_UNITS (16) tall.
+ * Every catalog decor item: its art and how it stands on the Shelf (DESIGN §8.3, §8.4).
+ *
+ * `size` is the edge of the item's 100×100 canvas in decor units, where a sitting cat is
+ * PET_UNITS (16) tall, so things keep their real proportions at capsule scale: a matchbox bed is
+ * one cat wide, a tennis ball is about the size of a dog's head, the Window Seat is a whole alcove.
  */
 import type { DecorRenderer } from './kit';
-import { BALLOON_KNOT } from './love';
-import { cardboardBox, catTree, yarnBasket } from './kitty';
-import { hayBale, littleBarn, picnicBlanket } from './moo';
-import { dogHouse, tennisBalls } from './puppy';
-import { cherryTree, tulipBed } from './sakura';
-import { teaParty } from './sweets';
-import { fairyLights, moonLamp } from './dreamy';
-import { jackLantern, pumpkinPile } from './pumpkin';
-import { snowman, twinklyTree } from './snow';
-import { heartBalloons, loveMailbox } from './love';
-import { mushroomHouse, puddle, rainbow } from './rainy';
-import { beachUmbrella, sandcastle } from './beach';
+import { cardboardBox, matchboxBed, spoolScratcher, windowHammock, yarnBall } from './cats';
+import { hayBale, milkCan, milkCrate } from './cows';
+import { dogBed, enamelBowl, tennisBall } from './dogs';
+import { lilyPad, rubberDuck, wateringCan } from './pond';
+import { seedPacket, stackedPots } from './garden';
+import { breadBasket, copperKettle, jamJar, teacupBath } from './pantry';
+import { hotWaterBottle, moonNightlight, readingLamp } from './night';
+import {
+  beachUmbrella,
+  budVase,
+  jackLantern,
+  leafPile,
+  loveLetter,
+  miniPumpkin,
+  oddMitten,
+  paperStar,
+  paperUmbrella,
+  robinNest,
+  sandcastle,
+  seashell,
+  seedTray,
+  snowman,
+  tinyBouquet,
+} from './seasonal';
+import { birthdayCake, pastureFence, readingChair, steppingStones, windowSeat } from './exclusive';
 
 export type { DecorArtOptions, DecorRenderer } from './kit';
 
 export interface DecorEntry {
+  /** (opts?: { night?, light?, line? }) => JSX.Element, on the 100×100 canvas. */
   art: DecorRenderer;
+  /** Canvas edge in decor units; a sitting cat is PET_UNITS (16) tall. */
   size: number;
   /** Left and right edges of the drawing on its canvas (0…100): keeps it in frame and maps its footprint. */
   bounds: readonly [number, number];
   /** How far back its base reaches from where it stands, in canvas units (for the pets' map). */
   deep: number;
-  /** Lies flat on the ground, so pets always stand on top of it. */
+  /** Lies flat (lily pad, stepping stones): pets stand on it. */
   flat?: boolean;
-  /** Floats on a string tied down at this canvas point, swaying about it. */
-  tied?: readonly [number, number];
-  /** Warm light cast at night: [cx, cy, r] on the art canvas. */
+  /** Warm light at night: [cx, cy, r] on the art canvas. */
   glow?: readonly [number, number, number];
-  /**
-   * Where sky decor hangs by default: draped over the big tree's canopy, tied to the tip of its
-   * swing branch, or rising from behind the far hills (drawn behind them).
-   */
-  sky?: 'canopy' | 'branch' | 'hills';
-  /**
-   * catkin: hangs instead of standing, from the window frame (a window hammock, a paper star, a moon night-light).
-   * Replaces `sky` and `tied`, which are Meadow-era and will be removed by the catkin restyle.
-   */
+  /** Hangs from the window frame instead of standing (the top of its canvas meets the frame). */
   hang?: 'window';
 }
 
-export const DECOR_ENTRIES: Record<string, DecorEntry> = {
-  'decor-cardboard-box': { art: cardboardBox, size: 15, bounds: [4, 96], deep: 14 },
-  'decor-yarn-basket': { art: yarnBasket, size: 12, bounds: [10, 85], deep: 10 },
-  'decor-cat-tree': { art: catTree, size: 26, bounds: [16, 83], deep: 10 },
-  'decor-hay-bale': { art: hayBale, size: 16, bounds: [5, 89], deep: 14 },
-  'decor-picnic-blanket': { art: picnicBlanket, size: 28, bounds: [5, 95], deep: 29, flat: true },
-  'decor-little-barn': { art: littleBarn, size: 34, bounds: [10, 90], deep: 16, glow: [50, 64, 56] },
-  'decor-tennis-balls': { art: tennisBalls, size: 9, bounds: [16, 82], deep: 12 },
-  'decor-dog-house': { art: dogHouse, size: 22, bounds: [10, 92], deep: 14 },
-  'decor-tulip-bed': { art: tulipBed, size: 22, bounds: [6, 94], deep: 12 },
-  'decor-cherry-tree': { art: cherryTree, size: 40, bounds: [11, 90], deep: 10 },
-  'decor-tea-party': { art: teaParty, size: 21, bounds: [16, 84], deep: 14 },
-  'decor-moon-lamp': { art: moonLamp, size: 20, bounds: [36, 90], deep: 6, glow: [68, 42, 44] },
-  'decor-fairy-lights': { art: fairyLights, size: 28, bounds: [0, 100], deep: 0, glow: [50, 50, 60], sky: 'canopy' },
-  'decor-pumpkin-pile': { art: pumpkinPile, size: 16, bounds: [10, 88], deep: 14 },
-  'decor-jack-lantern': { art: jackLantern, size: 12, bounds: [14, 86], deep: 12, glow: [50, 68, 56] },
-  'decor-snowman': { art: snowman, size: 20, bounds: [19, 81], deep: 8 },
-  'decor-twinkly-tree': { art: twinklyTree, size: 28, bounds: [16, 82], deep: 10, glow: [50, 50, 60] },
-  'decor-heart-balloons': { art: heartBalloons, size: 22, bounds: [22, 80], deep: 0, tied: BALLOON_KNOT, sky: 'branch' },
-  'decor-love-mailbox': { art: loveMailbox, size: 18, bounds: [14, 94], deep: 8 },
-  'decor-puddle': { art: puddle, size: 26, bounds: [5, 95], deep: 38, flat: true },
-  'decor-rainbow': { art: rainbow, size: 40, bounds: [4, 96], deep: 0, sky: 'hills' },
-  'decor-mushroom-house': { art: mushroomHouse, size: 30, bounds: [8, 92], deep: 14, glow: [50, 74, 50] },
-  'decor-beach-umbrella': { art: beachUmbrella, size: 28, bounds: [7, 90], deep: 10 },
-  'decor-sandcastle': { art: sandcastle, size: 18, bounds: [5, 95], deep: 14 },
+/**
+ * @deprecated Meadow-era placement hints. Never set; typed here only so the Meadow keeps compiling
+ * until the shelf module deletes it.
+ */
+interface MeadowLegacy {
+  sky?: 'canopy' | 'branch' | 'hills';
+  tied?: readonly [number, number];
+}
+
+export const DECOR_ENTRIES: Record<string, DecorEntry & MeadowLegacy> = {
+  // Exclusive
+  'decor-window-seat': { art: windowSeat, size: 60, bounds: [0, 100], deep: 22 },
+  'decor-birthday-cake': { art: birthdayCake, size: 17, bounds: [0, 100], deep: 14, glow: [50, 22, 30] },
+  'decor-reading-chair': { art: readingChair, size: 34, bounds: [0, 100], deep: 24 },
+  'decor-pasture-fence': { art: pastureFence, size: 30, bounds: [0, 100], deep: 6 },
+  'decor-stepping-stones': { art: steppingStones, size: 34, bounds: [4, 89], deep: 38, flat: true },
+  // No. 01 Cats
+  'decor-cardboard-box': { art: cardboardBox, size: 26, bounds: [3, 96], deep: 16 },
+  'decor-yarn-ball': { art: yarnBall, size: 15, bounds: [11, 98], deep: 20 },
+  'decor-matchbox-bed': { art: matchboxBed, size: 24, bounds: [0, 100], deep: 16 },
+  'decor-spool-scratcher': { art: spoolScratcher, size: 22, bounds: [9, 91], deep: 14 },
+  'decor-window-hammock': { art: windowHammock, size: 26, bounds: [7, 93], deep: 0, hang: 'window' },
+  // No. 02 Cows
+  'decor-hay-bale': { art: hayBale, size: 22, bounds: [2, 98], deep: 18 },
+  'decor-milk-crate': { art: milkCrate, size: 24, bounds: [0, 100], deep: 20 },
+  'decor-milk-can': { art: milkCan, size: 21, bounds: [22, 78], deep: 12 },
+  // No. 03 Dogs
+  'decor-tennis-ball': { art: tennisBall, size: 9, bounds: [16, 84], deep: 30 },
+  'decor-dog-bed': { art: dogBed, size: 30, bounds: [0, 100], deep: 30 },
+  'decor-enamel-bowl': { art: enamelBowl, size: 14, bounds: [8, 92], deep: 20 },
+  // No. 04 Pond
+  'decor-lily-pad': { art: lilyPad, size: 26, bounds: [0, 100], deep: 30, flat: true },
+  'decor-watering-can': { art: wateringCan, size: 20, bounds: [18, 95], deep: 12 },
+  'decor-rubber-duck': { art: rubberDuck, size: 12, bounds: [5, 93], deep: 20 },
+  // No. 05 Garden
+  'decor-seed-packet': { art: seedPacket, size: 15, bounds: [16, 88], deep: 6 },
+  'decor-stacked-pots': { art: stackedPots, size: 18, bounds: [18, 82], deep: 18 },
+  // No. 06 Pantry
+  'decor-teacup-bath': { art: teacupBath, size: 15, bounds: [2, 98], deep: 12 },
+  'decor-jam-jar': { art: jamJar, size: 14, bounds: [20, 80], deep: 14, glow: [50, 66, 44] },
+  'decor-bread-basket': { art: breadBasket, size: 22, bounds: [2, 98], deep: 22 },
+  'decor-copper-kettle': { art: copperKettle, size: 22, bounds: [9, 97], deep: 16 },
+  // No. 07 Night
+  'decor-hot-water-bottle': { art: hotWaterBottle, size: 20, bounds: [20, 87], deep: 14 },
+  'decor-reading-lamp': { art: readingLamp, size: 30, bounds: [15, 85], deep: 10, glow: [50, 56, 48] },
+  'decor-moon-nightlight': { art: moonNightlight, size: 16, bounds: [12, 74], deep: 0, glow: [44, 58, 46], hang: 'window' },
+  // Autumn
+  'decor-mini-pumpkin': { art: miniPumpkin, size: 13, bounds: [3, 97], deep: 24 },
+  'decor-leaf-pile': { art: leafPile, size: 24, bounds: [0, 100], deep: 22 },
+  'decor-jack-lantern': { art: jackLantern, size: 15, bounds: [3, 97], deep: 22, glow: [50, 64, 44] },
+  // Winter
+  'decor-snowman': { art: snowman, size: 22, bounds: [20, 86], deep: 16 },
+  'decor-odd-mitten': { art: oddMitten, size: 20, bounds: [0, 100], deep: 18 },
+  'decor-paper-star': { art: paperStar, size: 16, bounds: [17, 83], deep: 0, glow: [50, 54, 46], hang: 'window' },
+  // Valentine
+  'decor-love-letter': { art: loveLetter, size: 15, bounds: [9, 91], deep: 6 },
+  'decor-bud-vase': { art: budVase, size: 18, bounds: [27, 73], deep: 10 },
+  'decor-tiny-bouquet': { art: tinyBouquet, size: 20, bounds: [15, 74], deep: 8 },
+  // Spring
+  'decor-paper-umbrella': { art: paperUmbrella, size: 26, bounds: [0, 80], deep: 20 },
+  'decor-robin-nest': { art: robinNest, size: 16, bounds: [5, 96], deep: 22 },
+  'decor-seed-tray': { art: seedTray, size: 28, bounds: [0, 100], deep: 28 },
+  // Summer
+  'decor-sandcastle': { art: sandcastle, size: 20, bounds: [5, 95], deep: 16 },
+  'decor-beach-umbrella': { art: beachUmbrella, size: 36, bounds: [6, 99], deep: 10 },
+  'decor-seashell': { art: seashell, size: 14, bounds: [9, 91], deep: 14 },
 };
 
+/** A mid size for an id that has no entry (never a catalog id; the tests make sure of that). */
 const FALLBACK_SIZE = 16;
 
-/** How big an item stands in the Meadow: its canvas edge in decor units. Unknown ids get a mid size. */
+/** How big an item stands on the Shelf: its canvas edge in decor units. */
 export function decorFootprint(itemId: string): number {
   return DECOR_ENTRIES[itemId]?.size ?? FALLBACK_SIZE;
 }
