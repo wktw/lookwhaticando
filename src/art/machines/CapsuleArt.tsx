@@ -3,14 +3,15 @@ import type { MachineId, Rarity } from '@/catalog/types';
 import { DAY_LIGHT, type Light } from '@/art/light';
 import { lowerMoon } from './crescent';
 import { mix, richer } from './color';
-import { lighting, type Lighting } from './lighting';
+import { LAMP, lighting, type Lighting } from './lighting';
 import { MOTIFS, MOTIF_ACCENT } from './labels';
 import { BRASS } from './theme';
 import './capsule.css';
 
 /**
- * The capsule, close up (DESIGN §7.2): one clear half and one tinted half, with the folded
- * paper insert showing through the clear one. The shell carries its tier's static print
+ * The capsule, close up (DESIGN §7.2): one clear half and one tinted half. Through the clear
+ * one you see the figure's silhouette standing on its folded paper insert (or, for a Secret,
+ * the insert alone). The shell carries its tier's static print
  * finish, which survives reduced motion:
  *   classic  a matte tinted half
  *   special  a two-colour tinted half
@@ -49,6 +50,13 @@ export interface CapsuleShellProps {
   state?: CapsuleState;
   /** 0–3: how far a Secret's seam has cracked open, one step per tap. */
   cracks?: number;
+  /**
+   * The figure inside, seen through the clear half: art on a 0–100 canvas, feet at about y = 94
+   * (a `CollectibleArt`). It prints as a flat silhouette in `figureInk`, standing on the insert.
+   */
+  figure?: JSX.Element;
+  /** The silhouette's ink (the series ink); graphite by default. */
+  figureInk?: string;
   light?: Light;
   class?: string;
 }
@@ -66,7 +74,7 @@ function seamBand(from: number, depth: number): string {
   return `M${-x0} ${from} H${x0} A${R} ${R} 0 0 1 ${x1.toFixed(2)} ${depth} H${(-x1).toFixed(2)} A${R} ${R} 0 0 1 ${-x0} ${from} Z`;
 }
 
-const SEAM_FOIL = seamBand(1.6, 6.4);
+const SEAM_FOIL = seamBand(1.8, 6.4);
 /** Ten stripes of holographic print across the seam, inside the rim. */
 const HOLO_EDGE = Math.sqrt(R * R - 7.4 * 7.4);
 const HOLO_STRIPES = Array.from({ length: 10 }, (_, i) => {
@@ -78,11 +86,45 @@ const HOLO_STRIPES = Array.from({ length: 10 }, (_, i) => {
 const f = (n: number) => n.toFixed(2);
 
 /** The shell parts, for embedding in another drawing. */
-export function CapsuleShell({ finish, color, color2, machineId, state = 'closed', cracks = 0, light = DAY_LIGHT, class: cls }: CapsuleShellProps) {
+/** The figure's canvas inside the shell: 42 units square, feet on the insert just above the seam. */
+const FIGURE = { size: 42, x: -21, y: -42 } as const;
+
+/** The lit-side highlight on the clear dome: a thin arc along its edge. */
+function domeHighlight(toward: readonly [number, number]): { rim: string } {
+  const lit = toward[0] < 0 ? -1 : toward[0] > 0 ? 1 : 0;
+  // Angles on screen (y down): the upper-left quarter for light from the left, mirrored for the right,
+  // the crown for light from above.
+  const [a0, a1] = lit < 0 ? [186, 256] : lit > 0 ? [284, 354] : [236, 304];
+  const pt = (deg: number, r: number) => [Math.cos((deg * Math.PI) / 180) * r, Math.sin((deg * Math.PI) / 180) * r] as const;
+  const arc = (from: number, to: number, r: number) => {
+    const [x0, y0] = pt(from, r);
+    const [x1, y1] = pt(to, r);
+    return `M${f(x0)} ${f(y0)} A${r} ${r} 0 0 1 ${f(x1)} ${f(y1)}`;
+  };
+  return { rim: arc(a0, a1, R - 0.7) };
+}
+
+export function CapsuleShell({
+  finish,
+  color,
+  color2,
+  machineId,
+  state = 'closed',
+  cracks = 0,
+  light = DAY_LIGHT,
+  figure,
+  figureInk = '#3B3236',
+  class: cls,
+}: CapsuleShellProps) {
   const L = lighting(light);
+  const night = L.light.night;
   const tint = richer(color);
   const pearl = finish === 'super' || finish === 'secret';
-  const base = L.lit(pearl ? PEARL : tint);
+  const base = pearl ? L.lit(PEARL) : L.tint(tint);
+  const seam = pearl ? L.lit(mix(PEARL, '#FFFFFF', 0.4)) : L.tint(mix(tint, '#FFFFFF', 0.4));
+  // Clear plastic at night keeps most of its body and catches the lamp, rather than going grey.
+  const clearRim = night ? mix(CLEAR.rim, LAMP, 0.2) : CLEAR.rim;
+  const hi = domeHighlight(L.toward);
   const lift = Math.min(3, cracks);
   const classes = ['capsule', `capsule-${finish}`, state !== 'closed' ? `is-${state}` : '', cls ?? ''].filter(Boolean).join(' ');
   return (
@@ -90,11 +132,11 @@ export function CapsuleShell({ finish, color, color2, machineId, state = 'closed
       <ellipse class="cap-contact" cx={2} cy={R + 3} rx={30} ry={3.6} style={{ fill: L.contact }} />
       <g class="cap-bottom">
         <path d={BOTTOM} fill={base} />
-        {finish === 'special' && <path d={BOTTOM_RIGHT} fill={L.lit(richer(color2 ?? mix(color, '#FFFFFF', 0.4)))} />}
+        {finish === 'special' && <path d={BOTTOM_RIGHT} fill={L.tint(richer(color2 ?? mix(color, '#FFFFFF', 0.4)))} />}
         {(finish === 'rare' || finish === 'super') && (
           <>
             <path d={SEAM_FOIL} fill={L.lit(FOIL.base)} />
-            <path d={seamBand(1.6, 3)} fill={L.lit(FOIL.light)} />
+            <path d={seamBand(1.8, 3)} fill={L.lit(FOIL.light)} />
           </>
         )}
         {finish === 'secret' && (
@@ -105,25 +147,34 @@ export function CapsuleShell({ finish, color, color2, machineId, state = 'closed
             <Embossed L={L} />
           </g>
         )}
-        <rect x={-R - 0.6} y={-1.8} width={2 * R + 1.2} height={3.6} rx={1.8} fill={L.lit(mix(pearl ? PEARL : tint, '#FFFFFF', 0.4))} />
+        <rect x={-R - 0.6} y={-1.8} width={2 * R + 1.2} height={3.6} rx={1.8} fill={seam} />
       </g>
 
       <g class="cap-inside">
-        <Insert finish={finish} machineId={machineId} L={L} />
+        {figure ? <FlatInsert finish={finish} L={L} /> : <Insert finish={finish} machineId={machineId} L={L} />}
+        {figure && (
+          <g
+            class="cap-figure"
+            opacity={night ? 0.75 : 0.45}
+            // By day a shadow of the series ink; at night the figure catches the lamp through the plastic.
+            style={{ '--cap-figure-ink': night ? mix(figureInk, LAMP, 0.55) : figureInk } as JSX.CSSProperties}
+            transform={`translate(${FIGURE.x} ${FIGURE.y}) scale(${FIGURE.size / 100})`}
+          >
+            {figure}
+          </g>
+        )}
       </g>
 
       <g class="cap-top" transform={lift ? `translate(0 ${-lift * 1.3}) rotate(${-lift * 1.6})` : undefined}>
-        <path d={TOP} fill={L.lit(CLEAR.fill)} opacity={L.light.night ? 0.3 : 0.5} />
-        <path
-          d={`M${-R} 0 A${R} ${R} 0 0 1 ${R} 0 H${R - 2.6} A${R - 2.6} ${R - 2.6} 0 0 0 ${-R + 2.6} 0 Z`}
-          fill={L.lit(CLEAR.rim)}
-          opacity={L.light.night ? 0.5 : 0.9}
-        />
-        <rect x={-R - 0.8} y={-3.6} width={2 * R + 1.6} height={2.4} rx={1.2} fill={L.lit(CLEAR.rim)} />
+        {/* At night the clear plastic is nearly invisible against the room, faintly warmed by the lamp. */}
+        <path d={TOP} fill={night ? LAMP : CLEAR.fill} opacity={night ? 0.16 : 0.5} />
+        {/* No rim all round (that would read as an outline): a thin highlight on the lit side only. */}
+        <path d={hi.rim} fill="none" stroke="#FFFFFF" stroke-width={0.9} stroke-opacity={night ? 0.4 : 0.7} />
+        <rect x={-R - 0.6} y={-3.6} width={2 * R + 1.2} height={2.4} rx={1.2} fill={clearRim} />
       </g>
 
       {cracks > 0 && <rect class="cap-crack" x={-R + 2} y={-0.9 - lift * 0.9} width={2 * R - 4} height={1.8 + lift * 1.6} rx={1} fill={L.lit('#FFF3D2')} />}
-      <path class="cap-shade" d={lowerMoon(R, L.side, 9)} style={{ fill: L.shade }} />
+      <path class="cap-shade" d={lowerMoon(R, L.side, 9, 1.8)} style={{ fill: L.shade }} />
       <Glint L={L} />
     </g>
   );
@@ -137,7 +188,6 @@ function Insert({ finish, machineId, L }: { finish: CapsuleFinish; machineId?: M
   const edge = finish === 'rare' ? L.lit(FOIL.base) : null;
   const holo = finish === 'super' || finish === 'secret';
   const fold = L.lit('#F1E8DA');
-  const line = L.lit('#CFC3B8');
   return (
     <g>
       {/* The back leaf of the fold, then the front leaf, creased down the middle. */}
@@ -153,13 +203,28 @@ function Insert({ finish, machineId, L }: { finish: CapsuleFinish; machineId?: M
         </g>
       )}
       {Motif && machineId && (
-        <g transform="translate(-19 -21) scale(0.56)">
+        <g transform="translate(-19.5 -24) scale(0.62)">
           <Motif ink={L.lit('#6F6065')} accent={L.lit(MOTIF_ACCENT[machineId])} paper={paper} />
         </g>
       )}
-      <rect x={4} y={-17} width={13} height={1.6} rx={0.8} fill={line} />
-      <rect x={4} y={-12.6} width={10} height={1.6} rx={0.8} fill={line} />
-      <rect x={4} y={-8.2} width={12} height={1.6} rx={0.8} fill={line} />
+    </g>
+  );
+}
+
+/**
+ * The insert as the figure's floor: the paper folded in two and laid flat at the seam, seen a
+ * little from above, with its tier's edge (foil for Rare, a holographic strip for Super rare).
+ */
+function FlatInsert({ finish, L }: { finish: CapsuleFinish; L: Lighting }) {
+  const far = L.lit('#EFE7DA');
+  const near = L.lit('#FFFBF2');
+  return (
+    <g>
+      <path d="M-24 -2.2 L-19.5 -9.4 H19.5 L24 -2.2 Z" fill={near} />
+      <path d="M-21.6 -6 L-19.5 -9.4 H19.5 L21.6 -6 Z" fill={far} />
+      {finish === 'rare' && <path d="M-24 -2.2 H24 L23.3 -3.3 H-23.3 Z" fill={L.lit(FOIL.base)} />}
+      {(finish === 'super' || finish === 'secret') &&
+        HOLO_BANDS.map((c, i) => <path key={c} d={`M${f(-22 + i * 8.8)} -3.4 H${f(-13.2 + i * 8.8)} V-2.2 H${f(-22 + i * 8.8)} Z`} fill={L.lit(c)} />)}
     </g>
   );
 }
@@ -179,7 +244,8 @@ function Embossed({ L }: { L: Lighting }) {
 }
 
 function Glint({ L }: { L: Lighting }) {
-  const [tx, ty] = L.toward;
+  // Light from straight above still glints a little off the crown, not dead centre (where the figure's head is).
+  const [tx, ty] = L.toward[0] === 0 ? [-0.55, -1] : L.toward;
   const len = Math.hypot(tx, ty);
   const ux = tx / len;
   const uy = ty / len;

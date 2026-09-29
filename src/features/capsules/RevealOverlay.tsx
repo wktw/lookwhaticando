@@ -5,6 +5,7 @@ import { MACHINE_BY_ID, seriesLabel } from '@/catalog/machines';
 import { DAY_LIGHT, type Light } from '@/art/light';
 import { CollectibleArt } from '@/art/CollectibleArt';
 import { CapsuleArt } from '@/art/machines/CapsuleArt';
+import { CapsuleFigure } from './CapsuleFigure';
 import { sfx } from '@/fx/sound';
 import { haptic } from '@/fx/haptics';
 import { cx } from './ui/CandyButton';
@@ -92,6 +93,9 @@ export function RevealOverlay({
   const machine = data.machineId ? MACHINE_BY_ID.get(data.machineId) : undefined;
   const finish = finishFor(data);
   const stepsLeft = STEPS(data.secret) - cracks;
+  // What's inside shows through the clear half as a silhouette; a Secret keeps its secret.
+  const figure = data.secret ? undefined : <CapsuleFigure id={data.itemId} />;
+  const figureInk = machine?.theme.ink;
 
   // Esc during the anticipation opens it straight away (the item is already yours, so closing
   // unseen would throw the moment away); once it's open, Esc closes.
@@ -249,6 +253,8 @@ export function RevealOverlay({
                   machineId={data.machineId}
                   cracks={cracks}
                   light={light}
+                  figure={figure}
+                  figureInk={figureInk}
                   size="100%"
                 />
               </div>

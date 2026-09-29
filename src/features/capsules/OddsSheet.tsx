@@ -24,6 +24,9 @@ export function OddsSheet({ machine, open, onClose }: OddsSheetProps) {
   const status = machineStatus(machine.id);
   const items = itemsInMachine(machine.id);
   const now = pityLines(status.rareIn, status.ultraIn);
+  // "Right now" only says something when a counter has moved off its fresh value.
+  const moved = (status.rareIn !== null && status.rareIn !== PITY_RARE) || (status.ultraIn !== null && status.ultraIn !== PITY_ULTRA);
+  const allOwned = status.rareIn === null && status.ultraIn === null;
   const unit = machine.currency === 'stars' ? 'stamps' : 'coins';
   return (
     <Sheet open={open} title="Odds" onClose={onClose}>
@@ -65,10 +68,11 @@ export function OddsSheet({ machine, open, onClose }: OddsSheetProps) {
       <ul class={s.promises}>
         <li>
           <b>
-            Rare or better within {PITY_RARE} capsules, and Super rare within {PITY_ULTRA}
+            A Rare within {PITY_RARE} capsules, and a Super rare within {PITY_ULTRA}
           </b>
-          , on every series. A guaranteed pull picks something you don't have yet whenever it can.{' '}
-          {now.length ? `Right now: ${now.join('; ')}.` : 'Every Rare and Super rare here is already yours.'}
+          , on every series, each counted on its own. A guaranteed pull picks something you don't have yet whenever it can.
+          {moved && now.length ? ` Right now: ${now.join('; ')}.` : ''}
+          {allOwned ? ' Every Rare and Super rare here is already yours.' : ''}
         </li>
         <li>
           <b>New things first.</b> Anything you don't have yet is {NEW_ITEM_WEIGHT}× as likely as a repeat of the same tier, and after four repeats in a row the

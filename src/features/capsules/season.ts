@@ -49,9 +49,15 @@ export function seasonHasVisited(machine: MachineDef, from: string, to: string):
   return false;
 }
 
-/** The app-day key of an epoch time, in local time. */
-export function dayKeyOf(epochMs: number): string {
+/**
+ * The app-day key of an epoch time, in local time. The app day begins at `dayStartsAt`
+ * minutes after midnight (settings.dayStartsAt, DESIGN §5.3), so 1 am on the 11th still
+ * belongs to the 10th when the day starts at 3 am, the same as the store's `today`.
+ */
+export function dayKeyOf(epochMs: number, dayStartsAt = 0): string {
   const d = new Date(epochMs);
+  // Step back by the day-start offset on the local clock (setMinutes handles DST and month ends).
+  d.setMinutes(d.getMinutes() - dayStartsAt);
   const pad = (n: number) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }

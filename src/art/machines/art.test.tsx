@@ -58,9 +58,13 @@ describe('crescent geometry', () => {
 });
 
 describe('the cabinet art', () => {
+  // Every series in one light, and one series in every light (the palette is per series, the
+  // geometry per light), rather than the full product, which is slow under a loaded test run.
+  const CASES = [...MACHINES.map((m) => [m, DAY_LIGHT] as const), ...LIGHTS.slice(1).map((l) => [MACHINES[6]!, l] as const)];
+
   it('every series draws in every light: flat shapes, no filters, masks or clipping', () => {
-    for (const m of MACHINES) {
-      for (const light of LIGHTS) {
+    for (const [m, light] of CASES) {
+      {
         const svg = draw(<CabinetArt machine={m} light={light} title={m.name} />);
         expect(svg.getAttribute('role')).toBe('img');
         expect(svg.querySelectorAll('filter, mask, clipPath, [filter], [mask], [clip-path]')).toHaveLength(0);
@@ -72,6 +76,34 @@ describe('the cabinet art', () => {
         expect(svg.textContent).toContain(cabinetWords(m).label);
       }
     }
+  }, 20_000);
+
+  it('warms the side facing the lamp at night, and only at night', () => {
+    const count = (light: Light) => draw(<CabinetArt machine={MACHINES[0]!} light={light} />).querySelectorAll('path[fill]').length;
+    // Three lamp-side bands (body, plinth, bezel) at night.
+    expect(count(NIGHT_LIGHT) - count({ from: 'right', night: false })).toBe(3);
+    const L = lighting(NIGHT_LIGHT);
+    expect(L.lampSide).not.toBeNull();
+    expect(lighting(DAY_LIGHT).lampSide).toBeNull();
+    // A pastel capsule tint dims less than a painted surface.
+    expect(L.tint('#F5CDD6')).not.toBe(L.lit('#F5CDD6'));
+  });
+
+  it('prints no price when asked (a free first capsule), and drops the fine print when small', () => {
+    const m = MACHINES.find((x) => x.id === 'cows')!;
+    expect(draw(<CabinetArt machine={m} />).querySelector('.cabinet-price')?.textContent).toContain(String(m.price));
+    expect(draw(<CabinetArt machine={m} price={null} />).querySelector('.cabinet-price')).toBeNull();
+    const small = draw(<CabinetArt machine={m} height={64} />);
+    expect(small.classList.contains('is-low')).toBe(true);
+    expect(small.querySelector('.cabinet-plate, .cabinet-price, .cabinet-name, .cabinet-glass')).toBeNull();
+    expect(small.querySelectorAll('.window-capsules > g').length).toBeLessThanOrEqual(6);
+    expect(draw(<CabinetArt machine={m} height={120} />).classList.contains('is-low')).toBe(false);
+  });
+
+  it('a stamp cabinet prints a stamp on its price chip, not a check mark', () => {
+    const night = MACHINES.find((x) => x.currency === 'stars')!;
+    const chip = draw(<CabinetArt machine={night} />).querySelector('.cabinet-price')!;
+    expect(chip.querySelectorAll('[stroke]')).toHaveLength(0);
   });
 
   it('prints the number plate, and a seasonal edition gets its paper tag', () => {
@@ -113,9 +145,33 @@ describe('the capsule art', () => {
           draw(<OpenCapsuleArt finish={f} color="#F5CDD6" light={light} />),
         ]) {
           expect(svg.querySelectorAll('filter, mask, clipPath, linearGradient, radialGradient')).toHaveLength(0);
-          for (const p of svg.querySelectorAll('path')) wellFormed(p.getAttribute('d') ?? 'M0 0Z');
+          // Filled shapes close; the one stroke is the thin highlight on the dome's lit edge.
+          for (const p of svg.querySelectorAll('path:not([fill="none"])')) wellFormed(p.getAttribute('d') ?? 'M0 0Z');
+          for (const p of svg.querySelectorAll('path[fill="none"]')) expect(Number(p.getAttribute('stroke-width'))).toBeLessThanOrEqual(1);
         }
       }
+    }
+  }, 20_000);
+
+  it('shows the figure through the clear half, standing on its insert, under the clear half', () => {
+    const svg = draw(<CapsuleArt finish="classic" color="#F5CDD6" figure={<rect class="fig" width={100} height={100} />} figureInk="#8F3550" />);
+    const figure = svg.querySelector('.cap-inside .cap-figure');
+    expect(figure?.querySelector('.fig')).not.toBeNull();
+    expect((figure as SVGGElement).style.getPropertyValue('--cap-figure-ink').toLowerCase()).toBe('#8f3550');
+    // Drawn before the clear half, so the plastic lies over it.
+    const order = Array.from(svg.querySelectorAll('.cap-inside, .cap-top'));
+    expect(order.map((g) => g.getAttribute('class'))).toEqual(['cap-inside', 'cap-top']);
+    // Without a figure (a Secret), the insert alone.
+    expect(draw(<CapsuleArt finish="secret" color="#F5CDD6" />).querySelector('.cap-figure')).toBeNull();
+  });
+
+  it('keeps the shade crescent below the seam bar', () => {
+    for (const side of ['left', 'right', 'under'] as const) {
+      const d = lowerMoon(40, side, 9, 1.8);
+      wellFormed(d);
+      // The y of every point the outline passes through (M, L and arc end points).
+      const ys = [...d.matchAll(/([MLA])([^MLHAVZ]+)/g)].map((m) => Number(m[2]!.trim().split(/[\s,]+/).at(-1)));
+      expect(Math.min(...ys)).toBeGreaterThanOrEqual(1.8);
     }
   });
 

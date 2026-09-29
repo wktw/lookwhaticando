@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { MACHINES } from '@/catalog/machines';
 import { contrast, mix } from '@/art/machines/color';
+import { specialBandVars } from './RevealCard';
 
 /**
  * Text contrast for the capsules screens in both themes (WCAG AA: 4.5:1, 3:1 for large text),
@@ -44,19 +45,35 @@ describe.each(Object.entries(THEMES))('%s theme contrast', (_name, t) => {
 });
 
 describe('lineup leaflets', () => {
-  // Leaflet.module.css: the series paper (theme.trim) in its ink (theme.ink); at night the paper
-  // is dimmed 8% toward the Lamplight wall. A collected cell prints the paper out of the ink.
-  it('the ink reads on its paper for every series, day and night', () => {
-    for (const m of MACHINES) {
-      const night = mix(m.theme.trim, '#221C30', 0.08);
-      for (const bg of [m.theme.trim, night]) expect(contrast(m.theme.ink, bg), m.id).toBeGreaterThanOrEqual(4.5);
-    }
+  // Leaflet.module.css: by day the series paper (theme.trim) in its ink (theme.ink); a collected
+  // cell prints the paper out of the ink. At night the sheet is the series colour let down 28% into
+  // the Lamplight card and warmed 6% by the lamp, with the print reversed out in the paper colour.
+  const nightPaper = (m: (typeof MACHINES)[number]) => mix(mix('#2D2733', m.theme.body, 0.28), '#FFC98A', 0.06);
+
+  it('the ink reads on its paper for every series, by day', () => {
+    for (const m of MACHINES) expect(contrast(m.theme.ink, m.theme.trim), m.id).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it('the reversed print reads on the lamplit sheet for every series, at night', () => {
+    for (const m of MACHINES) expect(contrast(m.theme.trim, nightPaper(m)), m.id).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it('the night sheet stays well below the glare of day paper', () => {
+    for (const m of MACHINES) expect(contrast(nightPaper(m), '#2D2733'), m.id).toBeLessThan(2.5);
   });
 });
 
 describe('reveal cards', () => {
-  // RevealCard.tsx: a Special print's band is the series colour let down 55% with paper.
-  it('the series ink reads on the Special band for every series', () => {
-    for (const m of MACHINES) expect(contrast(m.theme.ink, mix(m.theme.body, '#FFFFFF', 0.55)), m.id).toBeGreaterThanOrEqual(4.5);
+  // RevealCard.tsx specialBandVars: a Special print's band is the series colour let down 55% with
+  // paper by day, and 68% into the night card under lamplight, printed in the light ink.
+  it('the series ink reads on the Special band for every series, by day', () => {
+    for (const m of MACHINES) expect(contrast(m.theme.ink, specialBandVars(m.theme)['--series-band']!), m.id).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it('the light ink reads on the night Special band for every series', () => {
+    for (const m of MACHINES) {
+      const v = specialBandVars(m.theme);
+      expect(contrast(v['--series-ink-night']!, v['--series-band-night']!), m.id).toBeGreaterThanOrEqual(4.5);
+    }
   });
 });

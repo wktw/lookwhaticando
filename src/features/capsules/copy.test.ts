@@ -50,8 +50,8 @@ describe('capsules copy', () => {
   it('formats dates, counts, pity and the lucky meter plainly', () => {
     expect(monthDay({ month: 11, day: 10 })).toBe('Nov 10');
     expect(collectedLabel(7, 19)).toBe('7 of 19 collected');
-    expect(pityLines(10, 40)).toEqual(['Rare or better within 10', 'Super rare within 40']);
-    expect(pityLines(1, null)).toEqual(['The next one is Rare or better']);
+    expect(pityLines(10, 40)).toEqual(['A Rare within 10', 'Super rare within 40']);
+    expect(pityLines(1, null)).toEqual(['The next one is a Rare']);
     expect(pityLines(null, null)).toEqual([]);
     expect(luckyLabel(4)).toBe('The next one is new');
     for (const n of [0, 1, 2, 3, 4]) voiceOk(luckyLabel(n));

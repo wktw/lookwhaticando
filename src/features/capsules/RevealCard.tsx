@@ -55,6 +55,21 @@ function PullAgainButton({ offer }: { offer: PullAgainOffer }) {
   );
 }
 
+/** Night paper for the Special band: the series colour let down into the Lamplight card. */
+export const NIGHT_CARD = '#2D2733';
+export const NIGHT_INK = '#F4EDE6';
+
+/** The Special print's band and its ink, by day and under lamplight (RevealOverlay.module.css picks). */
+export function specialBandVars(theme: MachineDef['theme']): Record<string, string> {
+  return {
+    '--series-band': mix(theme.body, '#FFFFFF', 0.55),
+    '--series-ink': theme.ink,
+    '--series-band-night': mix(theme.body, NIGHT_CARD, 0.68),
+    '--series-ink-night': NIGHT_INK,
+    '--series': theme.body,
+  };
+}
+
 /** One four-point sparkle: the Secret's, and only the Secret's. */
 function Sparkle() {
   return (
@@ -104,10 +119,9 @@ export function RevealCard({ data, light, onClose, pullAgain, onPlace, onLetThem
   const inCapsule = data.via === 'pull' || data.secret;
   const cameHome = data.pet?.obtainedAt || Date.now();
   const theme = machine?.theme;
-  // The Special print's band: the series colour let down with paper (its ink stays AA on it: contrast.test.ts).
-  const vars = theme
-    ? ({ '--series-band': mix(theme.body, '#FFFFFF', 0.55), '--series-ink': theme.ink, '--series': theme.body } as JSX.CSSProperties)
-    : undefined;
+  // The Special print's band: the series colour let down with paper by day, and with the night card
+  // under lamplight, where the light ink prints on it (both AA: contrast.test.ts).
+  const vars = theme ? (specialBandVars(theme) as JSX.CSSProperties) : undefined;
 
   const stopNaming = () => {
     setNaming(false);
@@ -143,7 +157,9 @@ export function RevealCard({ data, light, onClose, pullAgain, onPlace, onLetThem
     onLetThemChoose?.(def.id);
   };
 
-  const placeable = isPet || def.category === 'decor';
+  // Only something new needs a place: a repeat pet is already home, and a repeat decor already has a spot.
+  const placeable = data.isNew && (isPet || def.category === 'decor');
+  const visit = !data.isNew && isPet && !!onPlace;
 
   return (
     <div class={s.scene} data-finish={finish} style={vars}>
@@ -164,7 +180,7 @@ export function RevealCard({ data, light, onClose, pullAgain, onPlace, onLetThem
         <header class={s.cardHead}>
           <p class={s.series}>
             {machine ? seriesLabel(machine) : 'Special Order'}
-            {data.secret && <span class={s.secretOne}>, the secret one!</span>}
+            {data.secret && <span class={s.secretOne}>The secret one!</span>}
           </p>
           {status && (
             <p class={s.count}>
@@ -251,12 +267,17 @@ export function RevealCard({ data, light, onClose, pullAgain, onPlace, onLetThem
         )}
 
         <div class={s.actions}>
+          {visit && (
+            <PillButton variant="quiet" onClick={place}>
+              Visit {petName}
+            </PillButton>
+          )}
           {placeable && (
             <PillButton colors={machine ? { face: pillFace(machine), ink: '#3B3236' } : undefined} onClick={place}>
               {isPet ? 'Find them a place' : 'Find it a place'}
             </PillButton>
           )}
-          {isPet && (
+          {newPet && (
             <PillButton variant="secondary" onClick={letThemChoose}>
               Let them choose
             </PillButton>

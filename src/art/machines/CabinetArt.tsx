@@ -30,7 +30,7 @@ import { mix } from './color';
 import { BRASS } from './theme';
 import { MOTIFS, MOTIF_ACCENT } from './labels';
 import { WindowCapsules } from './WindowCapsules';
-import { settledPile } from './pile';
+import { lowPile, settledPile } from './pile';
 import './cabinet.css';
 
 export interface CabinetArtProps {
@@ -58,6 +58,13 @@ export interface CabinetArtProps {
   flapOpen?: boolean;
   /** The seasonal paper tag ("until Nov 10"); defaults to the edition's end date, null hides it. */
   tag?: string | null;
+  /** The printed price chip's number; defaults to the series price, null hides the chip (a free first capsule). */
+  price?: string | number | null;
+  /**
+   * `low` keeps only what reads at thumbnail size: the body, plinth, motif, a window of a few big
+   * capsules, the dial and the chute. Chosen automatically below 90 px tall.
+   */
+  detail?: 'full' | 'low';
   /** Accessible label; decorative when omitted. */
   title?: string;
   class?: string;
@@ -160,6 +167,8 @@ export function CabinetArt(props: CabinetArtProps) {
   const px = typeof height === 'number' ? `${height}px` : height;
   const tag = props.tag === undefined ? untilLabel(machine) : props.tag;
   const words = cabinetWords(machine);
+  const low = (props.detail ?? (typeof height === 'number' && height < 90 ? 'low' : 'full')) === 'low';
+  const price = props.price === undefined ? machine.price : props.price;
   const Motif = MOTIFS[machine.id];
   const toward = L.toward;
   const away: [number, number] = [-toward[0], -toward[1]];
@@ -168,7 +177,7 @@ export function CabinetArt(props: CabinetArtProps) {
   return (
     <svg
       ref={props.svgRef}
-      class={['cabinet', `cabinet-${machine.id}`, L.light.night ? 'is-night' : '', props.class ?? ''].filter(Boolean).join(' ')}
+      class={['cabinet', `cabinet-${machine.id}`, L.light.night ? 'is-night' : '', low ? 'is-low' : '', props.class ?? ''].filter(Boolean).join(' ')}
       viewBox={VIEWBOX}
       width={px ? undefined : '100%'}
       height={px}
@@ -186,13 +195,14 @@ export function CabinetArt(props: CabinetArtProps) {
       <path d={rectPath(PLINTH)} fill={p.plinth} />
       <rect x={PLINTH.x + 2} y={PLINTH.y} width={PLINTH.w - 4} height={3.2} fill={p.plinthTop} />
       <path d={band(PLINTH, L.side, 7)} style={{ fill: L.shade }} />
+      {L.lampSide && <path d={band(PLINTH, litSide(L.side), 12)} fill={L.lampSide(p.plinth)} />}
 
       {/* Behind the body's openings: the window's back wall, the capsules, the chute port. */}
       <path d={rectPath(GLASS)} fill={p.glassBack} />
       <rect x={GLASS.x} y={GLASS.y + GLASS.h - 2.5} width={GLASS.w} height={2.5} style={{ fill: L.contact }} />
-      {props.capsules ?? <WindowCapsules uid={uid} colors={machine.theme.capsules} bodies={settledPile(machine)} lighting={L} />}
+      {props.capsules ?? <WindowCapsules uid={uid} colors={machine.theme.capsules} bodies={low ? lowPile(machine) : settledPile(machine)} lighting={L} />}
       <path d={band(GLASS, litSide(L.side), 7)} style={{ fill: L.shade }} />
-      <Reflections L={L} />
+      {!low && <Reflections L={L} />}
 
       <path d={rectPath(CHUTE)} fill={p.port} />
       <rect x={CHUTE.x + 2} y={CHUTE.y + CHUTE.h - 5} width={CHUTE.w - 4} height={5} rx={2} fill={p.portFloor} />
@@ -201,24 +211,45 @@ export function CabinetArt(props: CabinetArtProps) {
       {/* The painted tin, with its openings, and its side in shade. */}
       <path d={`${rectPath(BODY)} ${rectPath(GLASS)} ${rectPath(CHUTE)}`} fill={p.body} fill-rule="evenodd" />
       <path d={band(BODY, L.side, 7)} style={{ fill: L.shade }} />
+      {/* At night the side facing the lamp is warmed: the lamp pool, not a dimmer switch. */}
+      {L.lampSide && <path d={band(BODY, litSide(L.side), 11)} fill={L.lampSide(p.body)} />}
       {L.rim && <path d={band(inset(BODY, 0), litSide(L.side), 1.6)} style={{ fill: L.rim }} />}
 
       <path d={`${rectPath(BEZEL)} ${rectPath(GLASS)}`} fill={p.bezel} fill-rule="evenodd" />
       <path d={band(BEZEL, L.side, 3)} style={{ fill: L.shade }} />
+      {/* The bezel's frame is 5 units wide, so this band stops at the glass. */}
+      {L.lampSide && <path d={band(BEZEL, litSide(L.side), 5)} fill={L.lampSide(p.bezel)} />}
 
-      <Plate p={p} L={L} text={words.plate} />
+      {!low && <Plate p={p} L={L} text={words.plate} />}
       <g class="cabinet-label">
         <path d={rectPath(LABEL)} fill={p.paper} />
         <rect x={LABEL.x} y={LABEL.y} width={LABEL.w} height={2.4} style={{ fill: L.shade }} />
-        <g transform={`translate(${MOTIF.x} ${MOTIF.y})`}>
-          <Motif ink={p.ink} accent={p.accent} paper={p.paper} />
-        </g>
-        <text class="cabinet-name" x={MOTIF.x + MOTIF.size + 7} y={LABEL.y + 24.5} fill={p.ink}>
-          {words.label}
-        </text>
+        {low ? (
+          // Small: the motif alone, printed larger in the middle of the label.
+          <g transform={`translate(${LABEL.x + LABEL.w / 2 - 16} ${LABEL.y + 2}) scale(${32 / MOTIF.size})`}>
+            <Motif ink={p.ink} accent={p.accent} paper={p.paper} />
+          </g>
+        ) : (
+          <>
+            <g transform={`translate(${MOTIF.x} ${MOTIF.y})`}>
+              <Motif ink={p.ink} accent={p.accent} paper={p.paper} />
+            </g>
+            <text class="cabinet-name" x={MOTIF.x + MOTIF.size + 7} y={LABEL.y + 24.5} fill={p.ink}>
+              {words.label}
+            </text>
+          </>
+        )}
       </g>
 
-      <Handle p={p} L={L} away={away} angle={props.handleAngle ?? HANDLE_REST} handleRef={props.handleRef} shadowRef={props.handleShadowRef} />
+      <Handle
+        p={p}
+        L={L}
+        away={away}
+        angle={props.handleAngle ?? HANDLE_REST}
+        handleRef={props.handleRef}
+        shadowRef={props.handleShadowRef}
+        arrow={!low}
+      />
 
       <g class="cabinet-slot" ref={props.slotRef}>
         <path d={rectPath(SLOT)} fill={p.brass} />
@@ -229,24 +260,27 @@ export function CabinetArt(props: CabinetArtProps) {
           <rect x={SLOT.cx - 1.8} y={SLOT.cy - 9} width={3.6} height={18} rx={1.8} fill={p.slit} />
         )}
       </g>
-      <g class="cabinet-price">
-        <path d={rectPath(PRICE)} fill={p.chip} />
-        {machine.currency === 'stars' ? (
-          <g transform={`translate(${PRICE.x + 9} ${PRICE.y + PRICE.h / 2})`}>
-            <circle r={5} fill={p.stamp} />
-            <path d="M-2.2 0.1 -0.6 1.8 2.4-1.8" fill="none" stroke={p.chip} stroke-width={1.2} stroke-linecap="round" stroke-linejoin="round" />
-          </g>
-        ) : (
-          <g transform={`translate(${PRICE.x + 9} ${PRICE.y + PRICE.h / 2})`}>
-            <circle r={5} fill={p.brassDeep} />
-            <circle r={3.7} fill={p.brass} />
-            <path d="M-1.4 1.6C-1.6-0.4-0.4-1.8 1.6-2 1.8 0 0.6 1.4-1.4 1.6Z" fill={p.brassDeep} />
-          </g>
-        )}
-        <text class="cabinet-price-text" x={PRICE.x + 17} y={PRICE.y + 11.6} fill={p.chipInk}>
-          {machine.price}
-        </text>
-      </g>
+      {!low && price !== null && (
+        <g class="cabinet-price">
+          <path d={rectPath(PRICE)} fill={p.chip} />
+          {machine.currency === 'stars' ? (
+            // A loyalty stamp, inked: a scalloped disc with a paw knocked out of it.
+            <g transform={`translate(${PRICE.x + 9} ${PRICE.y + PRICE.h / 2})`}>
+              <path d={STAMP_SCALLOP} fill={p.stamp} />
+              <path d={STAMP_PAW} fill={p.chip} />
+            </g>
+          ) : (
+            <g transform={`translate(${PRICE.x + 9} ${PRICE.y + PRICE.h / 2})`}>
+              <circle r={5} fill={p.brassDeep} />
+              <circle r={3.7} fill={p.brass} />
+              <path d="M-1.4 1.6C-1.6-0.4-0.4-1.8 1.6-2 1.8 0 0.6 1.4-1.4 1.6Z" fill={p.brassDeep} />
+            </g>
+          )}
+          <text class="cabinet-price-text" x={PRICE.x + 17} y={PRICE.y + 11.6} fill={p.chipInk}>
+            {price}
+          </text>
+        </g>
+      )}
 
       <path d={`${rectPath(CHUTE_LIP)} ${rectPath(CHUTE)}`} fill={p.lip} fill-rule="evenodd" />
       <path d={band(CHUTE_LIP, L.side, 3)} style={{ fill: L.shade }} />
@@ -254,10 +288,10 @@ export function CabinetArt(props: CabinetArtProps) {
         {/* Smoky clear plastic, hinged at the top, with a small tab to push. */}
         <path d={rectPath({ x: CHUTE.x, y: CHUTE.y, w: CHUTE.w, h: FLAP_H, r: [8, 8, 2, 2] })} fill={p.flap} opacity={0.9} />
         <path d={band({ x: CHUTE.x, y: CHUTE.y, w: CHUTE.w, h: FLAP_H, r: [8, 8, 2, 2] }, 'over', 2.2)} fill={p.flapEdge} opacity={0.55} />
-        <rect x={CHUTE.x + CHUTE.w / 2 - 7} y={CHUTE.y + FLAP_H - 4.2} width={14} height={3} rx={1.5} fill={p.flapEdge} opacity={0.8} />
+        {!low && <rect x={CHUTE.x + CHUTE.w / 2 - 7} y={CHUTE.y + FLAP_H - 4.2} width={14} height={3} rx={1.5} fill={p.flapEdge} opacity={0.8} />}
       </g>
 
-      {tag && <SeasonTag p={p} L={L} text={tag} />}
+      {tag && !low && <SeasonTag p={p} L={L} text={tag} />}
       {props.children}
     </svg>
   );
@@ -266,6 +300,22 @@ export function CabinetArt(props: CabinetArtProps) {
 /** The old name, kept for any importer. */
 export { CabinetArt as MachineArt };
 export type { CabinetArtProps as MachineArtProps };
+
+/** A scalloped stamp disc (radius about 5.4) and the paw printed out of it: memoised path data. */
+const STAMP_SCALLOP = (() => {
+  const n = 12;
+  const pts: string[] = [];
+  for (let i = 0; i <= n; i++) {
+    const a = (i / n) * Math.PI * 2;
+    const x = Math.cos(a) * 5.4;
+    const y = Math.sin(a) * 5.4;
+    pts.push(i === 0 ? `M${x.toFixed(2)} ${y.toFixed(2)}` : `A0.95 0.95 0 0 1 ${x.toFixed(2)} ${y.toFixed(2)}`);
+  }
+  return `${pts.join(' ')} Z`;
+})();
+const STAMP_PAW =
+  'M-1.9 1.9C-1.9 0.5-0.9-0.3 0-0.3 0.9-0.3 1.9 0.5 1.9 1.9 1.9 2.8 1.1 3.1 0 2.7-1.1 3.1-1.9 2.8-1.9 1.9Z' +
+  'M-2.6-0.6a0.8 1 0 1 0 0.01 0Z M-0.9-2.4a0.8 1 0 1 0 0.01 0Z M0.9-2.4a0.8 1 0 1 0 0.01 0Z M2.6-0.6a0.8 1 0 1 0 0.01 0Z';
 
 /** Pale glints on the glass, on the side the light comes from. */
 function Reflections({ L }: { L: Lighting }) {
@@ -326,6 +376,7 @@ function Handle({
   angle,
   handleRef,
   shadowRef,
+  arrow = true,
 }: {
   p: Palette;
   L: Lighting;
@@ -333,6 +384,7 @@ function Handle({
   angle: number;
   handleRef?: Ref<SVGGElement>;
   shadowRef?: Ref<SVGGElement>;
+  arrow?: boolean;
 }) {
   const { cx, cy, dish, dial, gripW, gripH } = HANDLE;
   const len = Math.hypot(away[0], away[1]);
@@ -342,8 +394,12 @@ function Handle({
   return (
     <g class="cabinet-handle">
       {/* The printed arrow that says which way it turns. */}
-      <path d={TURN_ARROW} fill="none" stroke={p.print} stroke-width={1.5} stroke-linecap="round" />
-      <path d={TURN_HEAD} fill={p.print} />
+      {arrow && (
+        <>
+          <path d={TURN_ARROW} fill="none" stroke={p.print} stroke-width={1.5} stroke-linecap="round" />
+          <path d={TURN_HEAD} fill={p.print} />
+        </>
+      )}
       {/* A dish pressed into the tin: its shadow sits on the side the light comes from. */}
       <circle cx={cx} cy={cy} r={dish} fill={p.dish} />
       <path d={moon(cx, cy, dish, away, 4)} style={{ fill: L.shade }} />

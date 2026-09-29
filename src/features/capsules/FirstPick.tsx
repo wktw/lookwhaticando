@@ -50,8 +50,9 @@ export function FirstPick({ onDone, onPlace, onLetThemChoose }: FirstPickProps) 
           const m = getMachine(id);
           return (
             <button key={id} type="button" class={s.cabinet} onClick={() => setPicked(id)} aria-label={`${seriesLabel(m)}. ${m.tagline}`}>
-              <CabinetArt machine={m} light={light} />
-              <span class={s.name}>{m.name}</span>
+              {/* The first capsule is on the house, so no price is printed on the cabinet. */}
+              <CabinetArt machine={m} light={light} price={null} />
+              <span class={s.tagline}>{m.tagline}</span>
             </button>
           );
         })}

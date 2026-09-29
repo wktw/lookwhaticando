@@ -18,6 +18,25 @@ function Tick({ on }: { on: boolean }) {
   );
 }
 
+/** A small tick on a paper disc, for the corner of a collected cell. */
+function CellTick() {
+  return (
+    <svg class={s.cellTick} viewBox="0 0 12 12" aria-hidden="true" focusable="false">
+      <circle cx={6} cy={6} r={6} style={{ fill: 'var(--paper)' }} />
+      <path d="M3.2 6.2 5.1 8.1 8.9 3.9" fill="none" style={{ stroke: 'var(--print)' }} stroke-width={1.7} stroke-linecap="round" stroke-linejoin="round" />
+    </svg>
+  );
+}
+
+/** The Secret's one four-point sparkle (the same mark as the reveal card's). */
+export function LeafletSparkle() {
+  return (
+    <svg class={s.sparkle} viewBox="-10 -10 20 20" aria-hidden="true" focusable="false">
+      <path d="M0 -9C0.8 -2.4 2.4 -0.8 9 0 2.4 0.8 0.8 2.4 0 9-0.8 2.4-2.4 0.8-9 0-2.4-0.8-0.8-2.4 0-9Z" fill="currentColor" />
+    </svg>
+  );
+}
+
 function paperVars(machine: MachineDef): JSX.CSSProperties {
   return { '--leaf-paper': machine.theme.trim, '--leaf-ink': machine.theme.ink, '--leaf-accent': machine.theme.body } as JSX.CSSProperties;
 }
@@ -53,6 +72,8 @@ export function LeafletCard({ machine, onOpen }: { machine: MachineDef; onOpen: 
             {g.entries.map((e) => (
               <span key={e.item.id} class={cx(s.cell, e.count > 0 && s.cellOn, e.hidden && s.cellSecret)}>
                 {e.hidden ? '?' : e.number}
+                {e.hidden && <LeafletSparkle />}
+                {e.count > 0 && <CellTick />}
               </span>
             ))}
           </span>
@@ -82,7 +103,12 @@ export function LeafletFull({ machine }: { machine: MachineDef }) {
             {g.entries.map((e) => (
               <li key={e.item.id} class={cx(s.item, e.count > 0 && s.itemOn)} aria-label={entryLabel(e)}>
                 <span class={s.itemArt} aria-hidden="true">
-                  {e.hidden ? <span class={s.secretMark}>?</span> : <CollectibleArt id={e.item.id} size="100%" />}
+                  {e.hidden ? (
+                    <span class={s.secretMark}>
+                      ?
+                      <LeafletSparkle />
+                    </span>
+                  ) : <CollectibleArt id={e.item.id} size="100%" />}
                 </span>
                 <span class={s.itemText} aria-hidden="true">
                   <span class={s.itemNo}>{e.number}</span>

@@ -187,6 +187,8 @@
     inset 0 0 0 1px var(--line),
     var(--shadow-md);
   overflow: hidden;
+  /* Its own stacking context, so the Secret's emboss can sit under the print but over the paper. */
+  isolation: isolate;
   animation: card-up 420ms var(--ease-pop) both;
 }
 
@@ -210,6 +212,25 @@
   color: var(--series-ink, var(--ink));
 }
 
+/* Under lamplight the band is the series colour let down into the night card, printed in the light ink. */
+:global(:root[data-theme='night']) .scene[data-finish='special'] .cardHead {
+  background: var(--series-band-night, var(--blush-100));
+}
+
+:global(:root[data-theme='night']) .scene[data-finish='special'] :is(.series, .count) {
+  color: var(--series-ink-night, var(--ink));
+}
+
+@media (prefers-color-scheme: dark) {
+  :global(:root:not([data-theme='light']):not([data-theme='night'])) .scene[data-finish='special'] .cardHead {
+    background: var(--series-band-night, var(--blush-100));
+  }
+
+  :global(:root:not([data-theme='light']):not([data-theme='night'])) .scene[data-finish='special'] :is(.series, .count) {
+    color: var(--series-ink-night, var(--ink));
+  }
+}
+
 /* Rare and up: a foil edge. */
 .scene[data-finish='rare'] .card,
 .scene[data-finish='super'] .card,
@@ -230,20 +251,36 @@
   background: repeating-linear-gradient(115deg, #f5cdd6 0 12px, #f6e6b4 12px 24px, #cde6da 24px 36px, #d2e4f2 36px 48px, #ddd4f1 48px 60px);
 }
 
-/* The Secret's "?" is blind-embossed into the paper: a lit edge and a shaded edge, no ink. */
+/* The Secret's "?" is blind-embossed into the paper, low in the card and under everything
+   printed on it: a lit edge and a shaded edge, no ink. */
 .scene[data-finish='secret'] .card::after {
   content: '?';
   position: absolute;
-  top: 34px;
-  right: 18px;
+  right: 16px;
+  bottom: 12px;
+  z-index: -1;
   color: var(--card);
   font-family: var(--font-display);
-  font-size: 96px;
+  font-size: 72px;
   line-height: 1;
   text-shadow:
     -1px -1px 0 rgba(255, 255, 255, 0.7),
     1px 1px 0 rgba(94, 76, 154, 0.12);
   pointer-events: none;
+}
+
+:global(:root[data-theme='night']) .scene[data-finish='secret'] .card::after {
+  text-shadow:
+    -1px -1px 0 rgba(255, 201, 138, 0.1),
+    1px 1px 0 rgba(0, 0, 0, 0.25);
+}
+
+@media (prefers-color-scheme: dark) {
+  :global(:root:not([data-theme='light']):not([data-theme='night'])) .scene[data-finish='secret'] .card::after {
+    text-shadow:
+      -1px -1px 0 rgba(255, 201, 138, 0.1),
+      1px 1px 0 rgba(0, 0, 0, 0.25);
+  }
 }
 
 /* One foil glint, once. */
@@ -302,9 +339,17 @@
   text-transform: none;
 }
 
+/* "The secret one!" on its own line under the kicker, in the display italic. */
 .secretOne {
-  text-transform: none;
+  display: block;
+  margin-top: 2px;
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 400;
+  font-size: var(--fs-body-lg);
   letter-spacing: 0;
+  text-transform: none;
 }
 
 /* Doubled class: outranks host-page heading styles (e.g. the dev gallery's). */

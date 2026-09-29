@@ -24,6 +24,30 @@ export function createMachineSim(machine: MachineDef): CapsuleSim {
 }
 
 const cache = new Map<string, readonly DomeBody[]>();
+const lowCache = new Map<string, readonly DomeBody[]>();
+
+/** Capsules in a small cabinet's window: a few big ones read where twenty would smear. */
+export const LOW_COUNT = 6;
+export const LOW_R = 21;
+
+/** The resting pile for a small (low-detail) cabinet: six large capsules. */
+export function lowPile(machine: MachineDef): readonly DomeBody[] {
+  let pile = lowCache.get(machine.id);
+  if (!pile) {
+    const sim = new CapsuleSim({
+      box: WINDOW_BOX,
+      count: LOW_COUNT,
+      bodyRadius: LOW_R,
+      tints: machine.theme.capsules.length,
+      seed: machineSeed(machine.id),
+      exitX: EXIT_X,
+    });
+    sim.settle();
+    pile = sim.bodies.map((b) => ({ ...b }));
+    lowCache.set(machine.id, pile);
+  }
+  return pile;
+}
 
 /** The settled capsule pile for static renders (computed once per series). */
 export function settledPile(machine: MachineDef): readonly DomeBody[] {

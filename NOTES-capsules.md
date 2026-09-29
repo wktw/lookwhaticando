@@ -19,7 +19,7 @@ outside my ownership. Requests for shared contracts and other modules are below.
      `finishReveal()` whenever a reveal closes, and on mount it resumes a `pendingReveal` for the
      cabinet on screen (commit before animate).
    - `PullResult.secret` and `machineId` filled in: the insert prints the series motif, and a
-     Secret gets its three-twist opening, its sparkle and "the secret one!".
+     Secret gets its three-twist opening, its sparkle and "The secret one!".
 2. **Domain: `machineStatus(id).available` should honour season windows.** The screen already
    filters with `inSeason(machine, today)` (`src/features/capsules/season.ts`), so only the
    edition in season stands on the counter even with the stub.
@@ -27,17 +27,32 @@ outside my ownership. Requests for shared contracts and other modules are below.
    seasonal lineup until its season has visited, computed from `profile.createdAt` and `today`
    (`seasonHasVisited`). A domain field (for example `machineStatus().orderable` or a
    `seasonsSeen` list) would make this exact across time zones and imports, and `wish()` should
-   return `season-not-visited` by the same rule.
+   return `season-not-visited` by the same rule. Until then, the profile's start day is keyed by
+   the app day (`dayKeyOf(createdAt, settings.dayStartsAt)`), the same boundary as `today`.
 4. **Icons: a stamp token.** Stamps (internally `stars`) are drawn with `StarIcon`, and swaps
    with `StardustIcon`, because those are the existing exports. DESIGN §6 draws a stamp as a
    loyalty-card stamp. If the icons module adds `StampIcon` / `SwapIcon`, swap the imports in
    `WalletStrip.tsx`, `SwapRing.tsx`, `SpecialOrder.tsx`, `RevealCard.tsx`, `MachineInfo.tsx`
-   and `CapsuleMachine.tsx`.
+   and `CapsuleMachine.tsx`. Meanwhile No. 07's price chip on the cabinet is drawn locally as an
+   inked loyalty stamp (a scalloped disc with a paw knocked out, `CabinetArt.tsx`); when
+   `StampIcon` lands, the cabinet chip can print it instead.
 5. **Tokens (optional): darken three light-theme `-700`s** (`src/styles/tokens.css`). On their
    own 100 fills `sage-700` is 4.22:1, `butter-700` 4.09:1 and `blush-700` 4.32:1. My chips mix
    25% `--ink` into the 700 (`color-mix(in srgb, var(--x-700) 75%, var(--ink))`, checked in
    `contrast.test.ts`). Fixing the tokens would let every module drop the mix.
-6. **Optional sfx: `'kachunk'`.** The handle's ka-chunk plays `sfx.play('ratchet', { pitch: 0.55,
+6. **Pets: an `aura` switch, or no aura at all** (`src/art/pets/PetArt.tsx`, `src/art/CollectibleArt.tsx`).
+   `PetArt` draws `Aura` (a rainbow halo ring) and `Sparkles` (3–4 sparkles) unconditionally for
+   Super rare and Secret pets. On the capsule surfaces that doubles up with the capsule module's
+   own finish: DESIGN §10.4 allows a Rare+ reveal one foil glint and a Secret one sparkle, and
+   the reveal card, the Lineup sheet and Special Order already print those. Please either remove
+   `Aura` and `Sparkles` from the catkin pets, or add `aura?: boolean` (default true) to `PetArt`
+   and pass it through `CollectibleArt`. Once the prop exists I'll pass `aura={false}` from
+   `RevealCard.tsx`, `Leaflet.tsx` (`LeafletFull`) and `SpecialOrder.tsx`.
+   Also: the capsule close-up prints the figure as a flat silhouette through the clear half by
+   reprinting `CollectibleArt` in one ink (`capsule.css`, `.cap-figure`), and switches off the
+   pets' `.is-silhouette` CSS `filter: brightness(0)`. If the pets module keeps a silhouette
+   mode, flat fills rather than a filter would let me drop that override.
+7. **Optional sfx: `'kachunk'`.** The handle's ka-chunk plays `sfx.play('ratchet', { pitch: 0.55,
    volume: 1 })`. Sounds used: `coin` (the token in the slot), `ratchet` (a tick per 30°, pitch
    rising over the turn), `thunk` (the capsule landing in the chute, volume = impact), `pop`
    (opening), `crack` (a Secret's seam, pitch rising per step), `reveal-<rarity>`, `sparkle`
@@ -80,13 +95,15 @@ outside my ownership. Requests for shared contracts and other modules are below.
   1 px sink, 6% deepen, focus ring in `--focus`). They can move to `src/ui` at merge.
 - **Art from other modules:** reveal cards, the Lineup sheet and Special Order render
   `CollectibleArt`, so pets, wearables, treats and decor show the pre-catkin art (and placeholder
-  gift boxes) until those modules merge. Pets bring their own sparkles today; the catkin pets
-  should not.
+  gift boxes) until those modules merge. Pets bring their own halo and sparkles today (request 6).
 - **Gallery CSS leak:** `.gal-section h2` (`src/dev/gallery.css`) restyles every `h2` inside a
   section, including screens previewed there. My headings use doubled class selectors; scoping
   the rule to `.gal-section > h2` would fix it for every module.
+- **Cabinet props added:** `price` (null hides the chip; `FirstPick` passes null, the first
+  capsule being free) and `detail` (`'low'` below 90 px tall: body, plinth, motif, five big
+  capsules, dial, slot and chute, no fine print).
 - **Dev gallery:** `?only=capsules` shows everything; sections: `capsules-cabinets`
-  (`&machine=cats`), `capsules-small`, `capsules-sequence`, `capsules-capsule`, `capsules-cards`,
+  (`&machine=cats`; window left, above, right, and the lamp), `capsules-small`, `capsules-sequence`, `capsules-capsule`, `capsules-cards`,
   `capsules-swap`, `capsules-leaflets`, `capsules-sheet-order`, `capsules-sheet-odds`,
   `capsules-sheet-lineup` (each sheet opens only under its own `only=`), `capsules-pull`
   (interactive, with a demo pull because the store's is a stub; `&machine=`, `&coins=`,

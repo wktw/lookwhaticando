@@ -36,15 +36,17 @@ export function capsuleTransforms(b: Pick<DomeBody, 'x' | 'y' | 'angle'>): { roo
 /** A capsule shell in its own turning frame: tinted half below, clear half above, insert inside. */
 export function ShellSymbol({ id, r, color, lighting }: { id: string; r: number; color: string; lighting: Lighting }) {
   const lit = lighting.lit;
-  const clear = lighting.light.night ? 0.22 : 0.38;
+  const night = lighting.light.night;
+  // Clear plastic keeps its body at night; the pastel tints dim least (lighting.tint).
+  const clear = night ? 0.32 : 0.38;
   const tint = richer(color);
   return (
     <symbol id={id} overflow="visible">
-      <path d={`M${-r} 0 A${r} ${r} 0 0 0 ${r} 0 Z`} fill={lit(tint)} />
+      <path d={`M${-r} 0 A${r} ${r} 0 0 0 ${r} 0 Z`} fill={lighting.tint(tint)} />
       {/* The folded insert, seen through the clear half. */}
       <path d={`M${-r * 0.56} -0.6 L${-r * 0.44} ${-r * 0.5} L${r * 0.46} ${-r * 0.58} L${r * 0.58} -0.6 Z`} fill={lit('#FFFBF2')} opacity={0.9} />
-      <path d={`M${-r} 0 A${r} ${r} 0 0 1 ${r} 0 Z`} fill={lit('#FFFFFF')} opacity={clear} />
-      <rect x={-r - 0.4} y={-1.3} width={2 * r + 0.8} height={2.6} rx={1.3} fill={lit(mix(tint, '#FFFFFF', 0.3))} />
+      <path d={`M${-r} 0 A${r} ${r} 0 0 1 ${r} 0 Z`} fill={night ? '#F3E6DA' : '#FFFFFF'} opacity={clear} />
+      <rect x={-r - 0.4} y={-1.3} width={2 * r + 0.8} height={2.6} rx={1.3} fill={lighting.tint(mix(tint, '#FFFFFF', 0.3))} />
     </symbol>
   );
 }

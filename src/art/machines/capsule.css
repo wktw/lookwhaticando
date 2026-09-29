@@ -103,3 +103,23 @@
     opacity: 0;
   }
 }
+
+/* The figure inside, seen through the clear half: one flat silhouette in the series ink.
+   The art arrives as another module's drawing, so every shape is reprinted in one ink here,
+   and that module's own silhouette filter (brightness) is switched off: plain fills only. */
+.capsule .cap-figure svg {
+  overflow: visible;
+  filter: none !important;
+  opacity: 1 !important;
+  animation: none !important;
+}
+
+.capsule .cap-figure :is(path, ellipse, circle, rect, polygon):not([fill='none']) {
+  fill: var(--cap-figure-ink) !important;
+  stroke: none !important;
+}
+
+.capsule .cap-figure [fill='none'],
+.capsule .cap-figure .pet-shadow {
+  display: none;
+}

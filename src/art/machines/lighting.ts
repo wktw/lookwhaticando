@@ -1,8 +1,10 @@
 /**
  * How the capsule art takes the scene's Windowlight (DESIGN §10.4). By day the window lights
  * each part from `light.from` and a lavender-ink crescent sits on the far side. At night the
- * lamp is the source: surfaces dim toward the indigo room and warm slightly toward the lamp,
- * and the shade deepens. Everything here is plain colour, never a filter.
+ * lamp is the source: surfaces dim a little toward the indigo room and warm toward the lamp,
+ * the side facing the lamp takes a warm band, and the shade deepens. Pastel capsule tints dim
+ * least, so pink, blue and butter survive the night. Everything here is plain colour, never a
+ * filter.
  */
 import { DAY_LIGHT, shadeSide, type Light } from '@/art/light';
 import { mix } from './color';
@@ -10,7 +12,7 @@ import type { ShadeSide } from './crescent';
 
 /** The lamp (tokens.css --lamp) and the Lamplight wall the room falls back to at night. */
 export const LAMP = '#FFC98A';
-const NIGHT_ROOM = '#2B2536';
+export const NIGHT_ROOM = '#2B2536';
 
 export interface Lighting {
   light: Light;
@@ -20,6 +22,10 @@ export interface Lighting {
   toward: readonly [number, number];
   /** A surface colour as this light shows it. */
   lit: (hex: string) => string;
+  /** A pastel capsule tint as this light shows it (dims less than a painted surface at night). */
+  tint: (hex: string) => string;
+  /** The warm band on the side facing the lamp, for an already-lit colour; null by day. */
+  lampSide: ((litHex: string) => string) | null;
   /** Crescent ink (translucent, laid over the part). */
   shade: string;
   /** Flat contact shadow on the surface below. */
@@ -36,8 +42,18 @@ const TOWARD: Record<ShadeSide, readonly [number, number]> = {
 };
 
 function nightTone(hex: string): string {
-  return mix(mix(hex, NIGHT_ROOM, 0.3), LAMP, 0.1);
+  return mix(mix(hex, NIGHT_ROOM, 0.17), LAMP, 0.1);
 }
+
+function nightTint(hex: string): string {
+  return mix(mix(hex, NIGHT_ROOM, 0.15), LAMP, 0.06);
+}
+
+function lampWarm(hex: string): string {
+  return mix(hex, LAMP, 0.22);
+}
+
+const same = (hex: string) => hex;
 
 const cache = new Map<string, Lighting>();
 
@@ -50,7 +66,9 @@ export function lighting(light: Light = DAY_LIGHT): Lighting {
     light,
     side,
     toward: TOWARD[side],
-    lit: light.night ? nightTone : (hex) => hex,
+    lit: light.night ? nightTone : same,
+    tint: light.night ? nightTint : same,
+    lampSide: light.night ? lampWarm : null,
     // The night values mirror tokens.css so night art also reads correctly on a light page (the gallery).
     shade: light.night ? 'rgba(12, 9, 26, 0.34)' : 'var(--shade, rgba(94, 76, 154, 0.16))',
     contact: light.night ? 'rgba(0, 0, 0, 0.24)' : 'var(--contact, rgba(59, 50, 54, 0.08))',

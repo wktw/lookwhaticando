@@ -1,22 +1,26 @@
 /* The lineup leaflet: the series' own paper (theme.trim) printed in its own ink (theme.ink),
-   which the catalog keeps at AA. At night the paper sits in lamplight: dimmed by 8% at most
-   (contrast.test.ts checks the ink still reads). */
+   which the catalog keeps at AA. At night the sheet sits in lamplight: a dim sheet of the series
+   colour, warmed by the lamp, with the print reversed out in the paper colour, so it never
+   glares on the indigo page (contrast.test.ts checks every series, both ways). */
 .card,
 .full {
   --paper: var(--leaf-paper);
+  --print: var(--leaf-ink);
   background: var(--paper);
-  color: var(--leaf-ink);
+  color: var(--print);
 }
 
 :global(:root[data-theme='night']) .card,
 :global(:root[data-theme='night']) .full {
-  --paper: color-mix(in srgb, var(--leaf-paper) 92%, #221c30);
+  --paper: color-mix(in srgb, color-mix(in srgb, var(--leaf-accent) 28%, #2d2733) 94%, #ffc98a);
+  --print: var(--leaf-paper);
 }
 
 @media (prefers-color-scheme: dark) {
   :global(:root:not([data-theme='light']):not([data-theme='night'])) .card,
   :global(:root:not([data-theme='light']):not([data-theme='night'])) .full {
-    --paper: color-mix(in srgb, var(--leaf-paper) 92%, #221c30);
+    --paper: color-mix(in srgb, color-mix(in srgb, var(--leaf-accent) 28%, #2d2733) 94%, #ffc98a);
+    --print: var(--leaf-paper);
   }
 }
 
@@ -89,11 +93,12 @@
 }
 
 .cell {
+  position: relative;
   display: grid;
   place-items: center;
   height: 19px;
   border-radius: 3px;
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--leaf-ink) 35%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--print) 35%, transparent);
   font-family: var(--font-body);
   font-weight: 700;
   font-size: 0.5625rem;
@@ -102,7 +107,7 @@
 
 /* Collected: the box is inked in, the number knocked out of it. */
 .cellOn {
-  background: var(--leaf-ink);
+  background: var(--print);
   color: var(--paper);
   box-shadow: none;
 }
@@ -112,16 +117,52 @@
   font-size: 0.8125rem;
 }
 
+/* A collected cell also carries a tick in its corner, so the state isn't told by fill alone. */
+.cellTick {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  width: 9px;
+  height: 9px;
+}
+
+/* The Secret's one sparkle, beside its "?" (DESIGN §7.1). */
+.sparkle {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  width: 8px;
+  height: 8px;
+  color: var(--butter-700);
+}
+
+:global(:root[data-theme='night']) .sparkle {
+  color: var(--butter-500);
+}
+
+@media (prefers-color-scheme: dark) {
+  :global(:root:not([data-theme='light']):not([data-theme='night'])) .sparkle {
+    color: var(--butter-500);
+  }
+}
+
+.secretMark .sparkle {
+  top: -2px;
+  right: -4px;
+  width: 13px;
+  height: 13px;
+}
+
 /* ---------- the full leaflet in the Lineup sheet ---------- */
 .full {
   padding: 18px 16px 8px;
   border-radius: 4px;
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--leaf-ink) 18%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--print) 18%, transparent);
 }
 
 .fullHead {
   padding-bottom: 12px;
-  border-bottom: 1px dashed color-mix(in srgb, var(--leaf-ink) 35%, transparent);
+  border-bottom: 1px dashed color-mix(in srgb, var(--print) 35%, transparent);
 }
 
 .fullName {
@@ -142,7 +183,7 @@
 }
 
 .fullGroup + .fullGroup {
-  border-top: 1px dashed color-mix(in srgb, var(--leaf-ink) 25%, transparent);
+  border-top: 1px dashed color-mix(in srgb, var(--print) 25%, transparent);
 }
 
 /* Doubled class: outranks host-page heading styles (e.g. the dev gallery's). */
@@ -151,7 +192,7 @@
   align-items: baseline;
   justify-content: space-between;
   margin: 0 0 8px;
-  color: var(--leaf-ink);
+  color: var(--print);
   font-family: var(--font-body);
   font-weight: 800;
   font-size: var(--fs-micro);
@@ -181,7 +222,7 @@
   gap: 2px;
   padding: 8px 4px 8px;
   border-radius: 4px;
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--leaf-ink) 16%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--print) 16%, transparent);
   text-align: center;
 }
 
@@ -193,12 +234,13 @@
 }
 
 .secretMark {
+  position: relative;
   display: grid;
   place-items: center;
   width: 46px;
   height: 46px;
   border-radius: 50%;
-  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--leaf-ink) 45%, transparent);
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--print) 45%, transparent);
   font-family: var(--font-display);
   font-size: 1.75rem;
 }

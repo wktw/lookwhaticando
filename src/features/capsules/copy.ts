@@ -110,10 +110,13 @@ export function collectedLabel(owned: number, total: number): string {
   return `${owned} of ${total} collected`;
 }
 
-/** The pity counters in plain words; a counter hides once its tier is fully owned (null). */
+/**
+ * The pity counters in plain words; a counter hides once its tier is fully owned (null). The
+ * rare counter forces the Rare tier only (DESIGN §7.1), so it never promises "or better".
+ */
 export function pityLines(rareIn: number | null, ultraIn: number | null): string[] {
   const lines: string[] = [];
-  if (rareIn !== null) lines.push(rareIn <= 1 ? 'The next one is Rare or better' : `Rare or better within ${rareIn}`);
+  if (rareIn !== null) lines.push(rareIn <= 1 ? 'The next one is a Rare' : `A Rare within ${rareIn}`);
   if (ultraIn !== null) lines.push(ultraIn <= 1 ? 'The next one is Super rare' : `Super rare within ${ultraIn}`);
   return lines;
 }

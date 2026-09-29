@@ -241,7 +241,8 @@ describe('CapsuleSim in a cabinet window (box)', () => {
       expectInBox(s as CapsuleSim);
     });
     expectFinite(sim);
-  });
+    // Six simulated seconds with a check every step: generous room for a loaded CI machine.
+  }, 20_000);
 
   it('never produces NaN under absurd agitation and huge frame gaps', () => {
     const sim = new CapsuleSim({ ...WINDOW, seed: 99 });

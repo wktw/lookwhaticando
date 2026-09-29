@@ -31,7 +31,7 @@ function orderable(collection: Record<string, unknown>): CollectibleDef[] {
 
 /** Series whose season has visited since the profile began (the Memories rule): orderable. */
 function visitedSeries(): Set<MachineId> {
-  const from = dayKeyOf(state.value.profile.createdAt || Date.now());
+  const from = dayKeyOf(state.value.profile.createdAt || Date.now(), state.value.settings.dayStartsAt);
   const to = today.value;
   return new Set(MACHINES.filter((m) => seasonHasVisited(m, from, to)).map((m) => m.id));
 }

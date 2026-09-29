@@ -296,7 +296,15 @@ describe('twist to open', () => {
     expect(capsule().getAttribute('aria-label')).not.toMatch(/more times/);
     await click(capsule(), 'capsule');
     await until(() => document.activeElement?.tagName === 'H2', 'the card');
-    expect(document.body.textContent).toMatch(/the secret one!/);
+    expect(document.body.textContent).toMatch(/The secret one!/);
+  });
+
+  it('shows the figure as a silhouette through the clear half, except a Secret, which keeps its secret', async () => {
+    view = mount(<RevealOverlay data={{ ...secret, itemId: common.id, rarity: 'common', secret: false }} onClose={() => {}} />);
+    expect(capsule().querySelector('.cap-figure svg')).not.toBeNull();
+    view.unmount();
+    view = mount(<RevealOverlay data={secret} onClose={() => {}} />);
+    expect(capsule().querySelector('.cap-figure')).toBeNull();
   });
 });
 
@@ -365,5 +373,24 @@ describe('the reveal card', () => {
     view = mount(<RevealOverlay data={{ ...newPet, isNew: false, stardust: 2, friendshipXp: 20 }} initialStage="card" onClose={() => {}} />);
     expect(revealDialog()!.textContent).toMatch(/Onto the swap shelf · \+2 swaps/);
     expect(revealDialog()!.textContent).toMatch(/Pudding is already home\. \+20 friendship/);
+  });
+
+  it('a repeat pet is already home: no "Find them a place", Done leads, and a quiet visit', async () => {
+    const onPlace = vi.fn();
+    view = mount(<RevealOverlay data={{ ...newPet, isNew: false, stardust: 2, friendshipXp: 20 }} initialStage="card" onClose={() => {}} onPlace={onPlace} />);
+    expect(buttonWithText('Find them a place')).toBeFalsy();
+    expect(buttonWithText('Let them choose')).toBeFalsy();
+    expect(button('Done')).toBeTruthy();
+    await click(button('Visit Pudding'), 'Visit Pudding');
+    expect(onPlace).toHaveBeenCalledWith('pet-cat-orange');
+  });
+
+  it('a repeat decor already has its spot: no "Find it a place"', async () => {
+    const decor = itemsInMachine('cats').find((i) => i.category === 'decor')!;
+    view = mount(<RevealOverlay data={{ ...newPet, itemId: decor.id, rarity: decor.rarity, isNew: false, stardust: 2 }} initialStage="card" onClose={() => {}} />);
+    expect(buttonWithText('Find it a place')).toBeFalsy();
+    view.unmount();
+    view = mount(<RevealOverlay data={{ ...newPet, itemId: decor.id, rarity: decor.rarity }} initialStage="card" onClose={() => {}} />);
+    expect(buttonWithText('Find it a place')).toBeTruthy();
   });
 });

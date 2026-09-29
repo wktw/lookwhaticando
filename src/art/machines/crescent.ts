@@ -122,25 +122,32 @@ const lowerCache = new Map<string, string>();
 
 /**
  * The shade crescent of the lower half of a circle (a capsule's opaque tinted half, whose
- * clear upper half takes no shade): the half-disc y ≥ 0 around the origin minus the disc
- * moved `depth` toward the light, which comes straight from the side or from above.
+ * clear upper half takes no shade): the part of the disc below y = `top` (default the seam,
+ * y = 0) minus the disc moved `depth` toward the light, which comes straight from the side or
+ * from above. A `top` just below a seam bar keeps the crescent from peeking above it.
  */
-export function lowerMoon(r: number, side: ShadeSide, depth: number): string {
-  const key = `${r},${side},${depth}`;
+export function lowerMoon(r: number, side: ShadeSide, depth: number, top = 0): string {
+  const key = `${r},${side},${depth},${top}`;
   const hit = lowerCache.get(key);
   if (hit) return hit;
   const d = Math.min(Math.max(depth, 0.01), r * 0.9);
   let path: string;
+  const t = Math.min(Math.max(top, 0), r * 0.5);
   if (side === 'under') {
-    const s = Math.sqrt(r * r - d * d);
-    path = `M${f(-r)} 0 A${f(r)} ${f(r)} 0 0 0 ${f(r)} 0 H${f(s)} A${f(r)} ${f(r)} 0 0 1 ${f(-s)} 0 Z`;
+    // The disc minus the same disc raised by d: the strip between the two lower arcs, below y = t.
+    const w = Math.sqrt(r * r - t * t);
+    const wi = Math.sqrt(Math.max(0, r * r - (t + d) * (t + d)));
+    path = `M${f(-w)} ${f(t)} A${f(r)} ${f(r)} 0 0 0 ${f(w)} ${f(t)} H${f(wi)} A${f(r)} ${f(r)} 0 0 1 ${f(-wi)} ${f(t)} Z`;
   } else {
     const k = side === 'right' ? 1 : -1;
     const h = Math.sqrt(r * r - (d * d) / 4);
+    // The outer circle and the light-shifted circle, each cut at y = t.
+    const xo = Math.sqrt(r * r - t * t);
+    const xi = Math.sqrt(r * r - t * t) - d;
     // Mirrored for a left-hand crescent, which flips both sweeps.
     const outer = k > 0 ? 1 : 0;
     const inner = k > 0 ? 0 : 1;
-    path = `M${f(k * (r - d))} 0 H${f(k * r)} A${f(r)} ${f(r)} 0 0 ${outer} ${f((-k * d) / 2)} ${f(h)} A${f(r)} ${f(r)} 0 0 ${inner} ${f(k * (r - d))} 0 Z`;
+    path = `M${f(k * xi)} ${f(t)} H${f(k * xo)} A${f(r)} ${f(r)} 0 0 ${outer} ${f((-k * d) / 2)} ${f(h)} A${f(r)} ${f(r)} 0 0 ${inner} ${f(k * xi)} ${f(t)} Z`;
   }
   lowerCache.set(key, path);
   return path;

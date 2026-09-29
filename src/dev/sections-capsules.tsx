@@ -23,6 +23,7 @@ import { SwapRing } from '@/features/capsules/SwapRing';
 import { WalletStrip } from '@/features/capsules/WalletStrip';
 import { LeafletCard } from '@/features/capsules/Leaflet';
 import { Token } from '@/features/capsules/Token';
+import { CapsuleFigure } from '@/features/capsules/CapsuleFigure';
 import type { RevealData } from '@/features/capsules/reveal';
 import type { Payment } from '@/features/capsules/payment';
 import { state } from '@/state/store';
@@ -31,6 +32,7 @@ import type { GallerySection } from './sections';
 
 const LIGHTS: [string, Light][] = [
   ['day · window left', DAY_LIGHT],
+  ['day · window above', { from: 'top', night: false }],
   ['day · window right', { from: 'right', night: false }],
   ['night · the lamp', NIGHT_LIGHT],
 ];
@@ -160,12 +162,20 @@ const DEMOS: Record<string, RevealData> = {
 };
 
 const FINISHES: CapsuleFinish[] = ['classic', 'special', 'rare', 'super', 'secret'];
+const FIGURE_OF: Record<CapsuleFinish, string> = {
+  classic: 'pet-cow-holstein',
+  special: 'pet-cow-beltie',
+  rare: 'pet-cat-siamese',
+  super: 'pet-cat-oddeyed',
+  secret: 'pet-cow-highland',
+};
 
 /** The pull as still frames on one cabinet: insert, turning, in the chute, close up, twisting, parting. */
 function Sequence({ machine, light }: { machine: MachineDef; light: Light }) {
   const L = lighting(light);
   const uid = `seq${machine.id}${light.night ? 'n' : 'd'}`;
   const colors = machine.theme.capsules;
+  const inside = machine.id === 'night' ? 'pet-cat-smoke' : 'pet-cow-beltie';
   const pile = settledPile(machine);
   const shaken = pile.map((b, i) => ({ ...b, y: b.y - (i % 3 === 0 ? 10 : i % 3 === 1 ? 4 : 0), angle: b.angle + i * 0.6 }));
   const window = (bodies: typeof pile, key: string) => <WindowCapsules uid={`${uid}${key}`} colors={colors} bodies={bodies} lighting={L} />;
@@ -201,21 +211,48 @@ function Sequence({ machine, light }: { machine: MachineDef; light: Light }) {
         '3 · in the chute',
         <CabinetArt machine={machine} light={light} height={260} capsules={window(pile.slice(1), 'c')} chute={chuteCapsule} flapOpen />,
       )}
-      {cell('4 · close up', <CapsuleArt finish="special" color={colors[0]!} color2={colors[2]!} machineId={machine.id} light={light} size={170} />)}
+      {cell(
+        '4 · close up: the figure through the clear half',
+        <CapsuleArt
+          finish="special"
+          color={colors[0]!}
+          color2={colors[2]!}
+          machineId={machine.id}
+          light={light}
+          size={170}
+          figure={<CapsuleFigure id={inside} />}
+          figureInk={machine.theme.ink}
+        />,
+      )}
       {cell(
         '5 · twisting',
-        <div style={{ '--twist': '-10deg' } as JSX.CSSProperties}>
-          <CapsuleArt finish="special" color={colors[0]!} color2={colors[2]!} machineId={machine.id} light={light} size={170} />
+        <div style={{ '--twist': '-12deg', position: 'relative' } as JSX.CSSProperties}>
+          {/* A twist turns the lid about the capsule's own axis, which a flat drawing can only hint at:
+              the printed turn arrow (the cabinet's) says which way it goes. */}
+          <svg viewBox="-50 -50 100 100" width={170} height={170} style={{ position: 'absolute', inset: 0 }} aria-hidden="true">
+            <path d="M-30 -44 A34 12 0 0 0 26 -45" fill="none" stroke={light.night ? '#F4EDE6' : '#6F6065'} stroke-width={1.6} stroke-linecap="round" />
+            <path d="M31 -46.5 L23.6 -49.6 L24.8 -41.8 Z" fill={light.night ? '#F4EDE6' : '#6F6065'} />
+          </svg>
+          <CapsuleArt
+            finish="special"
+            color={colors[0]!}
+            color2={colors[2]!}
+            machineId={machine.id}
+            light={light}
+            size={170}
+            figure={<CapsuleFigure id={inside} />}
+            figureInk={machine.theme.ink}
+          />
         </div>,
       )}
       {cell(
         '6 · the halves part, and out it steps',
-        <div style={{ display: 'grid', placeItems: 'center', width: '170px', height: '170px' }}>
+        <div style={{ display: 'grid', placeItems: 'center', width: '170px', height: '170px', paddingTop: '28px', boxSizing: 'content-box' }}>
           <div style={{ gridArea: '1 / 1', width: '170px', height: '170px' }}>
             <CapsuleArt finish="special" color={colors[0]!} color2={colors[2]!} machineId={machine.id} state="parting" light={light} size="100%" />
           </div>
           <div style={{ gridArea: '1 / 1', width: '104px', height: '104px', transform: 'translateY(-14px)' }}>
-            <CollectibleArt id={machine.id === 'night' ? 'pet-cat-smoke' : 'pet-cow-beltie'} size="100%" />
+            <CollectibleArt id={inside} size="100%" />
           </div>
         </div>,
       )}
@@ -320,13 +357,35 @@ export const SECTIONS: GallerySection[] = [
       <div class="gal-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))' }}>
         {FINISHES.map((f) => (
           <div class="gal-cell" key={f}>
-            <CapsuleArt finish={f} color="#F5CDD6" color2="#D2E4F2" machineId="cows" size={130} />
-            <small>{f}</small>
+            <CapsuleArt
+              finish={f}
+              color="#F5CDD6"
+              color2="#D2E4F2"
+              machineId="cows"
+              size={130}
+              figure={f === 'secret' ? undefined : <CapsuleFigure id={FIGURE_OF[f]} />}
+              figureInk={getMachine('cows').theme.ink}
+            />
+            <small>{f === 'secret' ? 'secret · insert only' : f}</small>
           </div>
         ))}
-        {[...LIGHTS, ['day · window above', { from: 'top', night: false }] as [string, Light]].map(([name, light]) => (
+        {(['decor-matchbox-bed', 'plant-pothos', 'wear-cowbell'] as const).map((id) => (
+          <div class="gal-cell" key={id}>
+            <CapsuleArt finish="classic" color="#F6E6B4" machineId="cows" size={130} figure={<CapsuleFigure id={id} />} figureInk={getMachine('cows').theme.ink} />
+            <small>{id}</small>
+          </div>
+        ))}
+        {LIGHTS.map(([name, light]) => (
           <div class="gal-cell" key={name} style={light.night ? NIGHT_CELL : undefined}>
-            <CapsuleArt finish="classic" color="#D5E3C7" machineId="garden" light={light} size={130} />
+            <CapsuleArt
+              finish="classic"
+              color="#D5E3C7"
+              machineId="garden"
+              light={light}
+              size={130}
+              figure={<CapsuleFigure id="pet-cat-orange" />}
+              figureInk={getMachine('garden').theme.ink}
+            />
             <small>{name}</small>
           </div>
         ))}
@@ -336,7 +395,7 @@ export const SECTIONS: GallerySection[] = [
             <small>secret · {c} of 3</small>
           </div>
         ))}
-        <div class="gal-cell">
+        <div class="gal-cell" style={{ paddingTop: '30px' }}>
           <CapsuleArt finish="rare" color="#DDD4F1" machineId="night" state="parting" size={130} />
           <small>parting</small>
         </div>
