@@ -105,12 +105,8 @@ export const SHELF = {
   stack: [rrect(69, 52.2, 22, 3.8, 0.5), rrect(70.5, 48.8, 19, 3.4, 0.5), rrect(69.6, 45.6, 20.6, 3.2, 0.5)],
   stackColors: ['#B3D1E8', '#EFB4C1', '#F2D98A'],
   pothosPot: trapezoid(19.5, 35.5, 12.5, 21.5, 33.5, 23, 1),
-  lamp: {
-    base: ellipse(122, 21.6, 4.6, 1.5),
-    stem: rrect(121.4, 8.5, 1.2, 13, 0.4),
-    shade: trapezoid(117.2, 126.8, 2.8, 114.4, 129.6, 10.8, 0.8),
-    bulb: [122, 9.5] as const,
-  },
+  /** The reading lamp on top of the case: the Sill's own table lamp (its foot, and its canvas edge). */
+  lamp: { x: 122, y: 22.8, size: 26 },
 } as const;
 
 /* ── Balcony Box: outside the glass, a window box on the railing and a shelf of retired plants ── */
@@ -213,7 +209,6 @@ export const PLACE_CRESCENTS: Record<string, CrescentSpec> = {
   'shelf.stack1': { parts: [SHELF.stack[1]], k: 1 },
   'shelf.stack2': { parts: [SHELF.stack[2]], k: 1 },
   'shelf.pothosPot': { parts: [SHELF.pothosPot], k: 1.6 },
-  'shelf.lampShade': { parts: [SHELF.lamp.shade], k: 1.3 },
   'balcony.box': { parts: [BALCONY.box], k: 2.2 },
   'balcony.shelves': { parts: BALCONY.standShelves, k: 1 },
   'balcony.lantern': { parts: [BALCONY.lantern.body], k: 1.4 },

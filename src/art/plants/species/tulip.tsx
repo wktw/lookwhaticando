@@ -90,7 +90,7 @@ const FRONT_PETAL = 'M0 1.2C-3.2 1.2 -4.4 -2 -4 -5.4C-3.6 -8.2 -1.6 -10.4 0 -11.
 
 function bloom(k: Kit, top: Pt, open: number, bud: number) {
   const [x, y] = top;
-  const s = lerp(0.55, 1, bud);
+  const s = lerp(0.55, 1, bud) * k.bloom;
   // A bud is green, blushing pink from the tip; open, the cup widens a little.
   const pink = ramp(bud, 0.4, 1);
   const front = open > 0 ? k.lit(PETAL[0]!) : mix('#B9CF9F', PETAL[0]!, pink);

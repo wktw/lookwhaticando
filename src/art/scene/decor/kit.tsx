@@ -23,6 +23,8 @@ import { useId } from 'preact/hooks';
 import { DAY_LIGHT, NIGHT_LIGHT, type Light, type LightFrom } from '@/art/light';
 import { SHADE } from './shade.gen';
 import { heart } from './geo';
+import { CONTACT_LAMP, SHADE_LAMP, SHADE_WHITE_DAY } from '@/art/shade';
+import { keepPaint } from '@/art/muted';
 
 export interface DecorArtOptions {
   /** Lamplight: surfaces dim and warm, dark shapes get a rim light, light sources glow. Defaults to `light.night`. */
@@ -111,9 +113,9 @@ export function nightTone(hex: string): string {
 
 /** By day the shade and contact inks follow the theme tokens; in Lamplight they are the lamp room's own. */
 const SHADE_DAY = 'var(--shade)';
-const SHADE_NIGHT = 'rgba(10, 8, 22, 0.3)';
+const SHADE_NIGHT = SHADE_LAMP;
 const CONTACT_DAY = 'var(--contact)';
-const CONTACT_NIGHT = 'rgba(8, 6, 16, 0.24)';
+const CONTACT_NIGHT = CONTACT_LAMP;
 const RIM = 'rgba(255, 201, 138, 0.62)';
 /** The lamp-side warm band on every solid shape at night. */
 const WARM_OPACITY = 0.25;
@@ -134,11 +136,14 @@ export interface Paint {
   shade: string;
   contact: string;
   rim: string;
-  /**
-   * @deprecated Meadow-era outline preset, kept only so an existing shelf test compiles; catkin art
-   * never outlines. Use `thin()` for genuinely thin things.
-   */
-  ink: { stroke: string; 'stroke-width': number; 'stroke-linejoin': 'round'; 'stroke-linecap': 'round' };
+}
+
+/**
+ * The style for a white subject's group (a snowman): by day its `var(--shade)` crescents become the firmer lavender
+ * (`SHADE_WHITE_DAY`), so it keeps an edge on a cream card at 32–48 px. In Lamplight the plain lamp shade already reads.
+ */
+export function pale(p: Paint): JSX.CSSProperties | undefined {
+  return p.night ? undefined : ({ '--shade': SHADE_WHITE_DAY } as JSX.CSSProperties);
 }
 
 /** The light as the art sees it: mirrored art sees left and right swapped. */
@@ -164,7 +169,6 @@ export function paint({ night, light, line = 1, facing }: DecorArtOptions = {}):
     shade: isNight ? SHADE_NIGHT : SHADE_DAY,
     contact: isNight ? CONTACT_NIGHT : CONTACT_DAY,
     rim: RIM,
-    ink: { stroke: INK, 'stroke-width': w(2.4), 'stroke-linejoin': 'round', 'stroke-linecap': 'round' },
   };
 }
 
@@ -319,6 +323,8 @@ export function Glow({ cx, cy, r, color = LAMP, strength = 0.55 }: { cx: number;
     </>
   );
 }
+// A light source keeps its colour when muted, and it uses a hook (its gradient id).
+keepPaint(Glow);
 
 /** A plump heart centred on 0,0 about 12 wide; place it with a transform. */
 export const HEART = heart(0, 0, 12);

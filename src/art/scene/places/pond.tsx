@@ -142,5 +142,7 @@ export const POND_PLACE: PlaceScene = {
   front: Front,
   frontZ: depthZ(FRONT_DEPTH),
   ground,
+  // The Sill's table lamp on a little side table by the door: the night's light, its pool anchored to its shade.
+  lamp: { x: 141, y: 47, size: 22, table: 18 },
   crop: [18, 22, 117, 78],
 };

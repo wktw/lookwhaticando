@@ -8,6 +8,9 @@
  * Things standing on a surface are placed by their feet: `baseline(depth)` is the y of the feet,
  * nearer things are drawn a little larger and in front (`depthScale`, `depthZ`).
  */
+import type { PotId } from '@/catalog/types';
+import { BASELINE } from '@/art/pets/rig';
+import { POT_GEOMETRY } from '@/art/plants/geometry';
 
 /** The horizontal bands of a room segment, top to bottom, in units. */
 export interface RoomRows {
@@ -23,7 +26,7 @@ export interface RoomRows {
 
 /** How big things are in a scene, in units: art canvases are square. */
 export interface RoomScale {
-  /** A potted plant's canvas edge (PlantArt: the pot fills y 66…95 of its 100 canvas). */
+  /** A potted plant's canvas edge (PlantArt: the pot's foot is on y 95 of its 100 canvas, see `potMetrics`). */
   pot: number;
   /** A pet's canvas edge (a sitting cat on it is a decor's 16 "pet units" tall). */
   pet: number;
@@ -34,15 +37,40 @@ export interface RoomScale {
 /** A sitting cat is this many decor units tall (DecorEntry.size is measured in them). */
 export const PET_UNITS = 16;
 
-/** Where art stands on its 100 canvas (y of the feet / base). TODO(integration): take these from the art modules. */
-export const PET_BASELINE = 94;
-export const PLANT_BASELINE = 95;
-export const DECOR_BASELINE = 93;
-/** The rim of a pot on the PlantArt canvas (plants: "opening around y≈66" for every pot). */
-export const POT_RIM = { y: 66, x0: 27, x1: 73 } as const;
-/** Pot body width at the base and at the rim, as a share of the plant canvas (for cast shadows). */
-export const POT_FOOT_W = 0.34;
-export const POT_RIM_W = 0.46;
+/** The pets stand on the rig's feet line (y 94 of their 100 canvas). */
+export const PET_BASELINE = BASELINE;
+/** Standing decor rests on y 92 of its canvas (the items module's contact line). */
+export const DECOR_BASELINE = 92;
+
+/**
+ * A pot on the PlantArt canvas, from the plants module's own geometry (`POT_GEOMETRY`): its rim (where a
+ * resident sits), its soil line, its foot, and its widths as shares of the canvas (for cast shadows and perches).
+ */
+export interface PotMetrics {
+  /** y of the rim's top, and its ends (canvas units). */
+  rim: { y: number; x0: number; x1: number };
+  /** The soil line (y) and the opening's half-width. */
+  mouth: { y: number; hw: number };
+  /** The line the pot stands on (y 95 for every pot). */
+  foot: number;
+  /** Rim and foot widths as shares of the canvas edge. */
+  rimW: number;
+  footW: number;
+  /** The pot's height from foot to rim, as a share of the canvas edge. */
+  height: number;
+}
+
+export function potMetrics(pot: PotId): PotMetrics {
+  const g = POT_GEOMETRY[pot] ?? POT_GEOMETRY.terracotta;
+  return {
+    rim: g.rim,
+    mouth: { y: g.mouth.y, hw: g.mouth.hw },
+    foot: g.foot.y,
+    rimW: (g.rim.x1 - g.rim.x0) / 100,
+    footW: (g.foot.hw * 2) / 100,
+    height: (g.foot.y - g.rim.y) / 100,
+  };
+}
 
 const BACK_SCALE = 0.9;
 

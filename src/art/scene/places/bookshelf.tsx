@@ -6,7 +6,6 @@
 import type { Ground, Perch } from '../arrange';
 import { depthZ, type RoomRows } from '../room';
 import type { RoomPalette } from '../palette';
-import { LAMP_COLORS } from '../palette';
 import { seeded } from '../sill/scenery';
 import { painter, pothosLeaf, Solid, oval } from './kit';
 import { SHELF, SHELF_W } from './shapes';
@@ -69,7 +68,6 @@ function Back({ room, light }: PlaceDrawProps) {
   const p = painter(room.time, light);
   const s = SHELF;
   const w = s.x1 - s.x0;
-  const lampOn = room.night;
   return (
     <g>
       <rect width={SHELF_W} height={100} fill={room.wall} />
@@ -103,13 +101,7 @@ function Back({ room, light }: PlaceDrawProps) {
       <path d={VINES.leaves[1]} fill={p.c(C.leaves[1])} />
       <Solid d={s.pothosPot} fill={p.c(C.pot)} crescent={p.shade('shelf.pothosPot')} />
       <rect x={18.8} y={11.6} width={17.4} height={2.2} rx={0.8} fill={p.c(C.potRim)} />
-      {/* the reading lamp */}
-      <path d={oval(122, 22.6, 7, 0.9)} fill="var(--contact)" />
-      <path d={s.lamp.stem} fill={p.c(C.brass)} />
-      <path d={s.lamp.base} fill={p.c(C.brass)} />
-      <path d={s.lamp.shade} fill={lampOn ? LAMP_COLORS.shadeLit : p.c(C.shade)} />
-      {!lampOn && <path d={p.shade('shelf.lampShade')} fill="var(--shade)" />}
-      <path d={oval(122, 10.7, 7.6, 0.8)} fill={lampOn ? LAMP_COLORS.rimLit : p.c('#EADAC0')} />
+      {/* the reading lamp on top is the Sill's own table lamp (PlaceScene.lamp; the segment draws it) */}
     </g>
   );
 }
@@ -128,6 +120,6 @@ export const BOOKSHELF_PLACE: PlaceScene = {
   width: SHELF_W,
   back: Back,
   ground,
-  lampAt: SHELF.lamp.bulb,
+  lamp: SHELF.lamp,
   crop: [4, 2, 144, 96],
 };

@@ -51,17 +51,26 @@ export function ShellSymbol({ id, r, color, lighting }: { id: string; r: number;
   );
 }
 
-/** The crescent and glint every capsule shares (fixed to the room, not the capsule). */
+/**
+ * The crescent and highlight every capsule shares (fixed to the room, not the capsule). A capsule in the pile gets only
+ * a thin lit-side arc along its clear dome (matte plastic, like the jar's streak); the white specular glint is the
+ * foil-and-glint language of a reveal (DESIGN §10.5), so it is a separate symbol, `-glint-close`, for the one capsule
+ * in the chute or in close-up.
+ */
 export function CapsuleLightSymbols({ uid, r, lighting }: { uid: string; r: number; lighting: Lighting }) {
   const [tx, ty] = lighting.toward;
   const len = Math.hypot(tx, ty);
   const a = (Math.atan2(ty, tx) * 180) / Math.PI;
+  const night = lighting.light.night;
   return (
     <>
       <symbol id={`${uid}-shade`} overflow="visible">
         <path d={moon(0, 0, r, lighting.toward, r * 0.46)} fill={lighting.shade} />
       </symbol>
       <symbol id={`${uid}-glint`} overflow="visible">
+        <path d={rimArc(lighting.toward, r - 0.5)} fill="none" stroke="#FFFFFF" stroke-width={Math.max(0.5, r * 0.06)} stroke-linecap="round" stroke-opacity={night ? 0.35 : 0.6} />
+      </symbol>
+      <symbol id={`${uid}-glint-close`} overflow="visible">
         <ellipse
           cx={(tx / len) * r * 0.58}
           cy={(ty / len) * r * 0.58}
@@ -69,11 +78,21 @@ export function CapsuleLightSymbols({ uid, r, lighting }: { uid: string; r: numb
           ry={r * 0.3}
           transform={`rotate(${a.toFixed(1)} ${((tx / len) * r * 0.58).toFixed(2)} ${((ty / len) * r * 0.58).toFixed(2)})`}
           fill="#FFFFFF"
-          opacity={lighting.light.night ? 0.45 : 0.85}
+          opacity={night ? 0.45 : 0.85}
         />
       </symbol>
     </>
   );
+}
+
+/** A thin arc along the upper, lit edge of a dome of radius `r` (the clear half's catch-light). */
+export function rimArc(toward: readonly [number, number], r: number): string {
+  const lit = toward[0] < 0 ? -1 : toward[0] > 0 ? 1 : 0;
+  const [a0, a1] = lit < 0 ? [190, 250] : lit > 0 ? [290, 350] : [240, 300];
+  const pt = (deg: number) => [Math.cos((deg * Math.PI) / 180) * r, Math.sin((deg * Math.PI) / 180) * r] as const;
+  const [x0, y0] = pt(a0);
+  const [x1, y1] = pt(a1);
+  return `M${x0.toFixed(2)} ${y0.toFixed(2)} A${r.toFixed(2)} ${r.toFixed(2)} 0 0 1 ${x1.toFixed(2)} ${y1.toFixed(2)}`;
 }
 
 export function WindowCapsules({ uid, colors, bodies, lighting, register }: WindowCapsulesProps) {

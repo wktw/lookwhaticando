@@ -7,6 +7,7 @@
  */
 import { circlePath, roundRectPath } from './shapes';
 import { LINE, SOFT, type Glyph, type GlyphState } from './glyphs';
+import type { Species } from '@/catalog/types';
 import css from './tabs.module.css';
 
 const mass = (s: GlyphState) => (s.filled ? { class: css.mass } : SOFT);
@@ -63,28 +64,93 @@ const capsules: Glyph = (s) => (
   </g>
 );
 
-/* ---------- Shelf: a cat loafing on a pot rim, tail over the side ---------- */
+/* ---------- Shelf: your closest pet loafing on a pot rim (DESIGN §1: "the silhouette of your closest pet") ---------- */
 /*
- * The cat is three separate shapes (head, ears, body) rather than one compound path: overlapping
- * subpaths that wind in opposite directions would cancel under the nonzero rule and punch holes.
+ * Each animal is separate shapes (head, ears, body…) rather than one compound path: overlapping subpaths that wind in
+ * opposite directions would cancel under the nonzero rule and punch holes. All eight sit on the same rim (y 13.2),
+ * head to the left, and read as their species from the outline alone at 20 px: ears, horns, a snout, a beak.
  */
 const CAT_HEAD = circlePath(8.9, 9.6, 3.3);
 const CAT_EARS = 'M6 8.4l-.3-3.7c0-.5.5-.8.9-.5l2.6 2.1zM9.6 6.1l2.4-2c.4-.3 1 0 .9.5l-.3 3.6z';
 const CAT_BODY = 'M8.4 13.2c-.6-3.2 1.7-5.2 5.4-5.2 3.2 0 5.3 1.7 5.3 4v1.2z';
 /** Every piece of the Shelf cat, for tests: each must be its own element. */
 export const SHELF_CAT_PARTS = [CAT_HEAD, CAT_EARS, CAT_BODY] as const;
-const shelf: Glyph = (s) => (
-  <g>
-    <rect x={5.2} y={13.2} width={13.6} height={2.6} rx={1} {...mass(s)} />
-    <path d="M6.1 16.4h11.8l-.9 5.1a1.1 1.1 0 0 1-1.1.9H8.1a1.1 1.1 0 0 1-1.1-.9z" {...mass(s)} />
-    <g {...structure(s)}>
-      <path d={CAT_BODY} />
-      <path d={CAT_HEAD} />
-      <path d={CAT_EARS} />
-    </g>
-    <path d="M18.6 12c1.4.7 1.8 2.3 1.3 3.9-.3 1-.2 1.9.5 2.3" {...line(s)} stroke-width={s.sw * 0.7} />
-  </g>
-);
+
+/** One animal on the rim: its solid parts, and a tail drawn as a line (or none). */
+interface RimPet {
+  parts: readonly string[];
+  tail?: string;
+}
+
+const LOAF = 'M8.8 13.2c-.5-3.1 1.7-5 5.2-5 3.1 0 5.2 1.6 5.2 3.9v1.1z';
+
+/** The eight species' rim silhouettes (exported for tests and the gallery). */
+export const SHELF_PETS: Readonly<Record<Species, RimPet>> = {
+  cat: { parts: SHELF_CAT_PARTS, tail: 'M18.6 12c1.4.7 1.8 2.3 1.3 3.9-.3 1-.2 1.9.5 2.3' },
+  cow: {
+    parts: [
+      'M9.2 13.2c-.4-3.3 2-5 5.1-5 3.1 0 5.2 1.6 5.2 3.9v1.1z',
+      `${circlePath(8.6, 9.3, 2.9)}`,
+      'M6 11.2c0-1.1 1.2-1.9 2.6-1.9s2.6.8 2.6 1.9-1.2 1.9-2.6 1.9S6 12.3 6 11.2z',
+      'M5.9 8.4l-2.5-.3c-.5 0-.6.6-.2.8l2.4 1.1zM11.3 8.4l2.5-.3c.5 0 .6.6.2.8l-2.4 1.1z',
+      'M7.1 6.8l-.8-1.9c-.2-.4.3-.7.6-.4l1.4 1.6zM10.1 6.8l.8-1.9c.2-.4-.3-.7-.6-.4l-1.4 1.6z',
+    ],
+    tail: 'M19.2 11.6c.6 1.3.6 2.9.2 4.6',
+  },
+  dog: {
+    parts: [LOAF, circlePath(8.9, 9.7, 3.1), 'M6.3 11.4c0-1 1.1-1.6 2.3-1.6s1.9.6 1.9 1.4-.9 1.6-2.1 1.6-2.1-.5-2.1-1.4z', 'M6.2 7.2c-1.3.2-2.1 1.6-1.9 3.4.1.9.9 1.1 1.4.5l1-2.6zM11.6 7.2c1.3.2 2.1 1.6 1.9 3.4-.1.9-.9 1.1-1.4.5l-1-2.6z'],
+    tail: 'M19 11.4c.9-.6 1.2-1.9.8-3.1',
+  },
+  bunny: {
+    parts: ['M8.9 13.2c-.3-3 1.8-4.6 4.6-4.6 2.8 0 4.8 1.6 4.8 3.6v1z', circlePath(8.8, 10.2, 3), 'M7 7.8l-1-4.6c-.2-1 1.1-1.4 1.5-.4l1.4 4.6zM9.4 7.5l.5-4.7c.1-1 1.5-.9 1.5.1l-.4 4.8z', circlePath(18.8, 11.7, 1.2)],
+  },
+  frog: {
+    parts: ['M5.2 13.2c0-3.3 3-5.4 6.8-5.4s6.8 2.1 6.8 5.4z', circlePath(8.9, 8.1, 1.9), circlePath(15.1, 8.1, 1.9)],
+  },
+  duck: {
+    parts: ['M8.2 13.2c-.2-2.8 1.8-4.3 4.9-4.3 2.5 0 4.4 1 5.4 2.6l1.3-.9c.4 1.5-.3 2.6-1.3 2.6z', circlePath(8.7, 8.4, 2.7), 'M6.2 8.5l-2.6.4c-.5.1-.5.8 0 .9l2.8.4z'],
+  },
+  bear: {
+    parts: ['M8.6 13.2c-.5-3.3 1.9-5.4 5.5-5.4 3.3 0 5.4 1.8 5.4 4.2v1.2z', circlePath(8.9, 9.8, 3.3), circlePath(6.4, 6.9, 1.4), circlePath(11.4, 6.9, 1.4)],
+  },
+  hamster: {
+    parts: ['M7 13.2c-.5-3.2 1.9-5.3 5.3-5.3 3.3 0 5.6 2 5.3 5.3z', circlePath(9, 8.1, 1.1), circlePath(13.4, 7.8, 1.1)],
+  },
+};
+
+/** No pets yet: the pot waits with a sprig in it. */
+const SPRIG_STEM = 'M12 13V9.6';
+const SPRIG_LEAVES = 'M11.6 10.4C9 10.9 6.6 9.6 6.2 6.8c2.8-.5 5.2.9 5.4 3.6zM12.4 9.4c.2-3 2.4-5 5.4-4.8 0 3-2.3 5-5.4 4.8z';
+
+const shelfFor =
+  (species: Species | null | undefined): Glyph =>
+  (s) => {
+    const pet = species === null ? null : SHELF_PETS[species ?? 'cat'];
+    return (
+      <g data-species={species === null ? 'none' : (species ?? 'cat')}>
+        <rect x={5.2} y={13.2} width={13.6} height={2.6} rx={1} {...mass(s)} />
+        <path d="M6.1 16.4h11.8l-.9 5.1a1.1 1.1 0 0 1-1.1.9H8.1a1.1 1.1 0 0 1-1.1-.9z" {...mass(s)} />
+        {pet ? (
+          <>
+            <g {...structure(s)}>
+              {pet.parts.map((d) => (
+                <path key={d} d={d} />
+              ))}
+            </g>
+            {pet.tail && <path d={pet.tail} {...line(s)} stroke-width={s.sw * 0.7} />}
+          </>
+        ) : (
+          <g {...structure(s)}>
+            <path d={SPRIG_STEM} {...line(s)} stroke-width={s.sw * 0.72} />
+            <path d={SPRIG_LEAVES} />
+          </g>
+        )}
+      </g>
+    );
+  };
+
+/** The Shelf tab: the closest pet's silhouette when the state names one (`GlyphState.species`), else the cat. */
+const shelf: Glyph = (s) => shelfFor(s.species)(s);
 
 /* ---------- You: a catkin sprig ---------- */
 const CATKINS: [number, number, number][] = [

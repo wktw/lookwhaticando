@@ -320,13 +320,17 @@ describe('PlantArt: icon framing for cards', () => {
     expect(cropped).toEqual([]);
   }, 60_000);
 
-  it('stands the empty pot beside a cutting only when asked, and never in a card', () => {
+  it('stands the empty pot beside a cutting only when asked, in a scene or a card (the M1 audit: a card cutting has its pot too)', () => {
     const emptyPot = (props: Partial<PlantArtProps>) => markup(plant(props)).includes('data-empty-pot="blush"');
     expect(emptyPot({ stage: 0, pot: 'blush' })).toBe(false);
     expect(emptyPot({ stage: 0, pot: 'blush', withPot: true })).toBe(true);
     expect(emptyPot({ stage: 1, pot: 'blush', withPot: true })).toBe(true);
     expect(emptyPot({ stage: 3, pot: 'blush', withPot: true })).toBe(false);
-    expect(emptyPot({ stage: 0, pot: 'blush', withPot: true, fit: 'icon' })).toBe(false);
+    expect(emptyPot({ stage: 0, pot: 'blush', fit: 'icon' })).toBe(false);
+    expect(emptyPot({ stage: 0, pot: 'blush', withPot: true, fit: 'icon' })).toBe(true);
+    // The card's frame widens to hold the glass and the pot.
+    const side = (withPot: boolean) => Number(markup(plant({ stage: 0, pot: 'blush', withPot, fit: 'icon' })).match(/viewBox="[\d.-]+ [\d.-]+ ([\d.]+)/)![1]);
+    expect(side(true)).toBeGreaterThan(side(false));
     // It stands on the shade side, behind the glass.
     const potX = (light: Light) => inspect(plant({ stage: 0, pot: 'blush', withPot: true, light }), (host) => {
       const b = artBounds(host.querySelector('[data-empty-pot]')!);

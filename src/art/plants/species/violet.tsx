@@ -56,7 +56,7 @@ const FLOWER_LOW = `${ell(-2.2, 0.6, 1.7, 1.5)}${ell(2.2, 0.6, 1.7, 1.5)}${ell(0
 
 function flower(k: Kit, x: number, y: number, s: number, key: string | number) {
   return (
-    <g key={key} transform={`translate(${f(x)} ${f(y)}) scale(${f(s)})`}>
+    <g key={key} transform={`translate(${f(x)} ${f(y)}) scale(${f(s * k.bloom)})`}>
       <path d={FLOWER_UP} fill={k.lit(PETALS[1]!)} />
       <path d={FLOWER_LOW} fill={k.lit(PETALS[0]!)} />
       <path d={`${ell(-0.5, 0, 0.55)}${ell(0.5, 0, 0.55)}`} fill={ANTHERS} />

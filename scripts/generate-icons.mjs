@@ -3,9 +3,9 @@
  * App icons, favicon and iOS launch screens, rendered from the real art with Playwright.
  *   npm run icons
  * Starts a Vite dev server and screenshots the bare stages in src/dev/sections-icons.tsx:
- *  - icons-appicon&stage=<shape>&size=<px>  → public/icons/*.png (AppIconArt)
+ *  - icons-appicon&stage=<shape>&size=<px>  → public/icons/*.png (AppIconArt, src/art/icons/appIcon.tsx)
  *  - icons-appicon&stage=favicon             → public/icons/favicon.svg (the cropped SVG, serialized)
- *  - icons-splash&splash=<theme>&w&h          → public/splash/*.png (SplashArt: paper, sprig, wordmark)
+ *  - icons-splash&splash=<theme>&w&h          → public/splash/*.png (LaunchArt: paper, the icon's cat and calf, wordmark)
  * Then rewrites index.html between the <!--favicon--> markers (the favicon inlined as a data: URI, so
  * the single-file build carries it) and the <!--startup-images--> markers.
  *
@@ -228,11 +228,11 @@ try {
     console.log(`  ${icon.file} (${icon.size}×${icon.size}, ${icon.shape})`);
   }
 
-  // The favicon is the icon's own SVG at its favicon stage (cropped to the cat and pot on a deeper tile,
+  // The favicon is the icon's own SVG at its favicon stage (cropped to the cat and the calf's head on a deeper tile,
   // squircle with transparent corners), serialized from the page.
   {
     const page = await open(iconCtx, '/gallery.html?only=icons-appicon&stage=favicon&size=64');
-    const svg = await page.locator('#icon-stage svg').evaluate((el) => {
+    const svg = await page.locator('#icon-stage > svg').evaluate((el) => {
       const copy = el.cloneNode(true);
       for (const a of ['width', 'height', 'class', 'aria-hidden', 'focusable', 'role', 'aria-label']) copy.removeAttribute(a);
       const title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
@@ -240,9 +240,11 @@ try {
       copy.insertBefore(title, copy.firstChild);
       return new XMLSerializer().serializeToString(copy);
     });
-    writeFileSync('public/icons/favicon.svg', `${svg}\n`);
+    // One decimal is plenty on a 100-unit canvas shown at 16–64 px, and keeps the inlined data: URI small.
+    const compact = svg.replace(/(\d\.\d)\d+/g, '$1').replace(/ (style|class)="[^"]*"/g, (m, name) => (name === 'style' && /--(shade|contact|lamp|ink-disabled)/.test(m) ? m : ''));
+    writeFileSync('public/icons/favicon.svg', `${compact}\n`);
     await page.close();
-    console.log(`  public/icons/favicon.svg (${svg.length} bytes)`);
+    console.log(`  public/icons/favicon.svg (${compact.length} bytes)`);
   }
 
   const links = [];

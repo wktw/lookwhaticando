@@ -93,48 +93,61 @@ export const hotWaterBottle: DecorRenderer = (o) => {
   );
 };
 
-/* ---------------- Reading lamp: a green-shaded banker's lamp, makes a small warm room anywhere ---------------- */
+/* ---------------- Reading lamp: the Sill's own lamp shade on a brass reading stand ---------------- */
 
+/** The house lamp's paper (DESIGN §10.4: one lamp design in the whole room), on a brass stand. */
 const LAMPART = {
-  shade: '#5E9467',
-  shadeTop: '#77AC7F',
-  lip: '#4B7D54',
+  shade: '#FBF1DE',
+  pleat: '#F0E2C8',
+  rim: '#EADAC0',
+  shadeLit: '#FFE3A8',
+  pleatLit: '#FFD690',
+  rimLit: '#FFF4D6',
   brass: '#D9B45A',
   brassTop: '#E8CB82',
-  opal: '#EFE9DA',
   chain: '#B89A52',
 };
 
 /**
- * A long, shallow half-cylinder of green glass seen from the front, held at one end by a brass
- * stem that rises from the middle of a low brass plinth. The pull chain hangs from the far end.
+ * A pleated cream paper shade, the same as the table lamp's, hung from the arm of a brass reading stand that rises
+ * from a low brass plinth. The pull chain hangs from the shade's rim.
  */
 const lamp = shapes('decor-reading-lamp', {
   base: 'M38 85V89.2C38 90.8 39.2 92 40.8 92H83.2C84.8 92 86 90.8 86 89.2V85Z',
   baseTop: { d: rect(39, 81.6, 46, 4, 1.6), k: 0 },
-  stem: { d: rect(60.2, 44, 4.2, 38.4), k: 0.5 },
-  collar: { d: rect(57.4, 43, 9.8, 4.4, 1.6), k: 0.5 },
-  shade: rect(10, 29, 66, 16, [8, 8, 1.4, 1.4]),
-  top: { d: rect(8, 26, 70, 8.4), k: 0, clip: 'shade' },
-  lip: { d: rect(8, 42, 70, 4), k: 0, clip: 'shade' },
-  finial: { d: ell(43, 28.6, 3.2, 2), k: 0.5 },
+  stem: { d: rect(62.2, 30, 4.2, 52.4), k: 0.5 },
+  arm: { d: rect(44, 26.6, 22.4, 3.6, 1.2), k: 0.4 },
+  shade: 'M34 30L58 30L68.6 52.4Q69.4 54 67.6 54L24.4 54Q22.6 54 23.4 52.4Z',
+  collar: { d: rect(41.6, 26, 8.8, 5.2, 1.6), k: 0.5 },
 });
+
+const PLEATS = 'M40 30.6L33.4 53.4M46 30.6L44.6 53.4M52 30.6L55.4 53.4M57.4 31L65 53.2';
 
 export const readingLamp: DecorRenderer = (o) => {
   const p = paint(o);
+  const on = p.night;
   return (
     <g>
-      {p.night && <Glow cx={43} cy={56} r={48} strength={0.55} />}
+      {on && <Glow cx={46} cy={46} r={48} strength={0.55} />}
       {contact(p, 62, 92.2, 26, 2.4)}
       {solid(p, lamp.base, LAMPART.brass)}
       {flat(p, lamp.baseTop, LAMPART.brassTop)}
       {solid(p, lamp.stem, LAMPART.brass)}
-      <path d={ell(43, 45.4, 30, 2.6)} fill={lit(p, p.c(LAMPART.opal), '#FFEBC2')} />
+      {solid(p, lamp.arm, LAMPART.brass)}
+      {on && <path d={ell(46, 54.4, 21, 2.2)} fill={LAMPART.rimLit} opacity={0.7} />}
+      {on ? (
+        <>
+          {/* lit from within: no shade crescent on the paper */}
+          <path d={lamp.shade.d} fill={LAMPART.shadeLit} />
+          {thin(p, PLEATS, LAMPART.pleatLit, 1.1, undefined, true)}
+        </>
+      ) : (
+        solid(p, lamp.shade, LAMPART.shade, thin(p, PLEATS, LAMPART.pleat, 1.1))
+      )}
+      <path d={ell(46, 53.8, 22.6, 1.6)} fill={on ? LAMPART.rimLit : p.c(LAMPART.rim)} />
       {solid(p, lamp.collar, LAMPART.brass)}
-      {solid(p, lamp.finial, LAMPART.brass)}
-      {solid(p, lamp.shade, LAMPART.shade, [flat(p, lamp.top, LAMPART.shadeTop), flat(p, lamp.lip, LAMPART.lip)])}
-      {thin(p, 'M20 46V59', LAMPART.chain, 0.9)}
-      <circle cx={20} cy={60.4} r={1.7} fill={p.c(LAMPART.chain)} />
+      {thin(p, 'M28 54.6V66', LAMPART.chain, 0.9)}
+      <circle cx={28} cy={67.4} r={1.7} fill={p.c(LAMPART.chain)} />
     </g>
   );
 };

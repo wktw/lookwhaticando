@@ -2,36 +2,42 @@
  * The Shelf (DESIGN §8.4, §9.4): one horizontally scrolling room at pet eye level. It starts at the
  * Sill and continues into each opened place — Saucer Pond, Cat-grass Tray, Bookshelf, Balcony Box,
  * The Quilt — all lit by the same window by day and by lamps after dark. Pets live where they are
- * out and roam by personality and hour; it opens scrolled to wherever the light is.
+ * out (`ShelfPet.place`) and roam by personality and hour; it opens scrolled to wherever the light is.
+ *
+ * Touch and editing as the Sill (`SceneTouchProps`): pets are buttons with a name tag after a tap, decor has an
+ * edit mode, and a ref (`ShelfSceneHandle`) lets the screen play a reaction or find a pet on screen.
  */
-import type { JSX } from 'preact';
-import { useLayoutEffect, useMemo, useRef } from 'preact/hooks';
+import type { JSX, Ref } from 'preact';
+import { forwardRef } from 'preact/compat';
+import { useImperativeHandle, useLayoutEffect, useMemo, useRef } from 'preact/hooks';
 import type { Hemisphere } from '@/art/light';
 import type { PlaceId } from '@/catalog/types';
 import { PLACES } from '@/catalog/places';
-import type { ShelfDecor, ShelfPet, SillPot } from './model';
+import type { ShelfDecor, ShelfPet, SillExtras, SillPot } from './model';
 import { petKey, speciesOf } from './model';
 import type { Moment } from './time';
 import { outsidePalette, ROOM } from './palette';
 import { childLight } from './lighting';
-import { arrangePets, type Ground } from './arrange';
+import { arrangePets, homePerch, type Ground } from './arrange';
 import { SILL_SPEC } from './sill/layout';
-import { lightTarget, sillWorld } from './sill/world';
+import { openScroll, sillWorld } from './sill/world';
 import { SillSegment } from './sill/SillSegment';
 import { PLACE_SCENES, type RoomPlaceId } from './places';
-import { PlaceSegment, placeOnGround } from './places/PlaceSegment';
+import { PlaceSegment, placeLampAt, placeOnGround } from './places/PlaceSegment';
 import { PetLayer } from './actors/PetLayer';
+import { usePetTouch } from './actors/usePetTouch';
+import { DecorEditLayer } from './actors/DecorEdit';
 import { u } from './actors/stand';
 import { useWidthUnits, useWindowMoment } from './hooks';
 import { useShelfLife } from './behavior/useShelfLife';
 import type { DirectorPet } from './behavior/director';
 import { stageVignette } from './behavior/stage';
-import { sceneTokens } from './SillScene';
+import { petRect, sceneTokens, type SceneTouchProps, type ShelfSceneHandle } from './SillScene';
 import { useUid } from './uid';
 import { ScrollFrame } from './ScrollFrame';
 import s from './shelf.module.css';
 
-export interface ShelfSceneProps {
+export interface ShelfSceneProps extends SceneTouchProps, SillExtras {
   pots: readonly SillPot[];
   pets?: readonly ShelfPet[];
   decor?: readonly ShelfDecor[];
@@ -63,11 +69,11 @@ interface Segment {
 
 const ORDER = PLACES.map((p) => p.id);
 
-export function ShelfScene(props: ShelfSceneProps) {
+export const ShelfScene = forwardRef(function ShelfScene(props: ShelfSceneProps, ref: Ref<ShelfSceneHandle>) {
   const { pots, pets = [], decor = [], coins = 0, places = [], retired = [], tags = true, live = true, label } = props;
-  const ref = useRef<HTMLDivElement>(null);
+  const sceneRef = useRef<HTMLDivElement>(null);
   const uid = useUid('shelf');
-  const widthU = useWidthUnits(ref, 130);
+  const widthU = useWidthUnits(sceneRef, 130);
   const moment = useWindowMoment(props);
   const room = ROOM[moment.time];
   const view = outsidePalette(moment.time, moment.season);
@@ -82,12 +88,15 @@ export function ShelfScene(props: ShelfSceneProps) {
     let x = world.layout.width;
     for (const id of opened) {
       const place = PLACE_SCENES[id];
-      out.push({ id, x, width: place.width, ground: place.ground(room, SILL_SPEC.scale.pet) });
+      const lamp = placeLampAt(place);
+      // Pets gather under the place's own lamp after dark.
+      out.push({ id, x, width: place.width, ground: { ...place.ground(room, SILL_SPEC.scale.pet), lampX: lamp?.[0] } });
       x += place.width;
     }
     return out;
   }, [world, opened, room]);
   const total = segments.reduce((w, seg) => w + seg.width, 0);
+  const placed = useMemo(() => new Map(segments.filter((seg) => seg.id !== 'sill').map((seg) => [seg.id, placeOnGround(seg.ground, decor.filter((d) => d.place === seg.id), seg.id)])), [segments, decor]);
 
   const where = (p: ShelfPet): PlaceId => (p.place && segments.some((seg) => seg.id === p.place) ? p.place : 'sill');
   const byPlace = useMemo(() => {
@@ -101,9 +110,9 @@ export function ShelfScene(props: ShelfSceneProps) {
     const spots = new Map();
     for (const seg of segments) {
       const here = byPlace.get(seg.id) ?? [];
-      let placed = arrangePets(seg.ground, here, moment);
-      if (props.vignette?.place === seg.id) placed = stageVignette(props.vignette.id, seg.id, seg.ground, moment, here, placed);
-      for (const [k, v] of placed) spots.set(k, v);
+      let placedPets = arrangePets(seg.ground, here, moment);
+      if (props.vignette?.place === seg.id) placedPets = stageVignette(props.vignette.id, seg.id, seg.ground, moment, here, placedPets);
+      for (const [k, v] of placedPets) spots.set(k, v);
     }
     return spots;
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -113,36 +122,45 @@ export function ShelfScene(props: ShelfSceneProps) {
     () =>
       pets.map((p) => {
         const seg = segments.find((x) => x.id === where(p))!;
-        return { key: petKey(p), species: speciesOf(p.petId), personality: p.personality, place: seg.id, ground: seg.ground, home: seg.ground.perches.find((q) => q.owner && q.owner === p.home) };
+        return { key: petKey(p), species: speciesOf(p.petId), petId: p.petId, personality: p.personality, place: seg.id, ground: seg.ground, home: homePerch(seg.ground, p.home) };
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [pets, segments],
   );
   // A staged vignette holds its places, then plays out once the scene is live (ducks walk on).
-  const views = useShelfLife(cast, start, { moment, live, sceneRef: ref, vignettes: !props.vignette, opening: props.vignette?.id });
+  const { views, director } = useShelfLife(cast, start, { moment, live, sceneRef, vignettes: !props.vignette, opening: props.vignette?.id });
+  const groundOf = (key: string) => cast.find((c) => c.key === key)?.ground;
+  const touch = usePetTouch({ pets, views, sceneRef, groundOf, onPet: props.onPet, onOpenPet: props.onOpenPet, interactive: props.interactive, hold: (k) => director.hold(k), release: (k, at) => director.release(k, at) });
+  useImperativeHandle(ref, () => ({ react: (k, e) => touch.react(k, e), spotOf: (k) => petRect(sceneRef.current, k) }), [touch]);
 
   // Open where the light is: the sunbeam by day, the lamp at night (or a place, or the start).
   const open = props.open ?? 'light';
   useLayoutEffect(() => {
-    const el = ref.current;
+    const el = sceneRef.current;
     if (!el || open === 'start') return;
     const unit = el.clientHeight / 100;
-    let target: number;
-    if (open === 'light') target = lightTarget(world);
+    if (!unit) return;
+    const viewU = el.clientWidth / unit;
+    let left: number;
+    if (open === 'light') left = openScroll(world, viewU);
     else {
       const seg = segments.find((x) => x.id === open);
       if (!seg) return;
-      target = seg.x + seg.width / 2;
+      const lamp = placeLampAt(PLACE_SCENES[seg.id as RoomPlaceId]);
+      // By day its middle; after dark, far enough right that its lamp is in view too.
+      left = seg.x + seg.width / 2 - viewU / 2;
+      if (room.night && lamp) left = Math.max(left, seg.x + Math.min(seg.width, lamp[0] + 14) - viewU);
     }
-    el.scrollLeft = Math.max(0, target * unit - el.clientWidth / 2);
+    el.scrollLeft = Math.max(0, left * unit);
     // Only on first layout and when asked to open somewhere else.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, total]);
 
+  const extras: SillExtras = { cutting: props.cutting, found: props.found, note: props.note, cake: props.cake };
   const draw = { room, view, light, moment };
   return (
     <ScrollFrame
-      sceneRef={ref}
+      sceneRef={sceneRef}
       wall={room.wall}
       step={SILL_SPEC.pitch}
       label={label ?? 'The Shelf'}
@@ -155,24 +173,18 @@ export function ShelfScene(props: ShelfSceneProps) {
         {segments.map((seg) => {
           const here = byPlace.get(seg.id) ?? [];
           const layer = (
-            <PetLayer pets={here} views={views} size={SILL_SPEC.scale.pet} light={light} castColor={seg.id === 'sill' ? room.sill : undefined} cast={world.cast} animated={live} />
+            <PetLayer pets={here} views={views} size={SILL_SPEC.scale.pet} light={light} castColor={seg.id === 'sill' ? room.sill : undefined} cast={world.cast} animated={live} touch={touch} />
           );
           return (
             <div key={seg.id} class={s.segment} style={{ left: u(seg.x), width: u(seg.width) }} data-place={seg.id}>
               {seg.id === 'sill' ? (
-                <SillSegment world={world} room={room} view={view} light={light} pots={pots} coins={coins} uid={`${uid}-sill`} tags={tags} animated={live}>
+                <SillSegment world={world} room={room} view={view} light={light} pots={pots} coins={coins} uid={`${uid}-sill`} tags={tags} animated={live} extras={extras} edit={props.editDecor ? { decor: props.editDecor, sceneRef } : undefined}>
                   {layer}
                 </SillSegment>
               ) : (
-                <PlaceSegment
-                  {...draw}
-                  uid={`${uid}-${seg.id}`}
-                  place={PLACE_SCENES[seg.id as RoomPlaceId]}
-                  decor={placeOnGround(seg.ground, decor.filter((d) => d.place === seg.id))}
-                  petSize={SILL_SPEC.scale.pet}
-                  retired={retired}
-                >
+                <PlaceSegment {...draw} uid={`${uid}-${seg.id}`} place={PLACE_SCENES[seg.id as RoomPlaceId]} decor={placed.get(seg.id) ?? []} retired={retired}>
                   {layer}
+                  {props.editDecor && <DecorEditLayer decor={placed.get(seg.id) ?? []} floor={seg.ground} rows={seg.ground.rows} place={seg.id} edit={props.editDecor} sceneRef={sceneRef} />}
                 </PlaceSegment>
               )}
             </div>
@@ -181,4 +193,4 @@ export function ShelfScene(props: ShelfSceneProps) {
       </div>
     </ScrollFrame>
   );
-}
+});

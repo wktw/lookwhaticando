@@ -5,7 +5,7 @@
  * Standing items rest on y = 92 of the 100×100 canvas; the paper star hangs from the window.
  */
 import type { JSX } from 'preact';
-import { Glow, contact, crescentOf, flat, lit, paint, shapes, solid, thin, type DecorRenderer, type Paint } from './kit';
+import { Glow, contact, crescentOf, flat, lit, paint, pale, shapes, solid, thin, type DecorRenderer, type Paint } from './kit';
 import { dots, ell, ellPts, heart, leaf, n, poly, rect, rotate, smooth, star, type Pt } from './geo';
 
 const closed = (pts: readonly Pt[]) => `${smooth(pts, false)}Z`;
@@ -176,7 +176,8 @@ const snow = shapes('decor-snowman', {
 export const snowman: DecorRenderer = (o) => {
   const p = paint(o);
   return (
-    <g>
+    // A white subject: the firmer day crescent keeps its edge on a cream card.
+    <g style={pale(p)}>
       {contact(p, 50, 92.2, 26, 2.6)}
       {thin(p, 'M63.6 42L80.6 30.6M74.6 34.6L78.4 26.2M77.4 32.8L85 31.6', SNOW.twig, 1.8)}
       {solid(p, snow.base, SNOW.snow)}

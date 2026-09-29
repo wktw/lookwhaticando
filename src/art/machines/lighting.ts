@@ -9,6 +9,7 @@
 import { DAY_LIGHT, shadeSide, type Light } from '@/art/light';
 import { mix } from './color';
 import type { ShadeSide } from './crescent';
+import { CONTACT_DAY, CONTACT_LAMP, SHADE_DAY, SHADE_LAMP } from '@/art/shade';
 
 /** The lamp (tokens.css --lamp) and the Lamplight wall the room falls back to at night. */
 export const LAMP = '#FFC98A';
@@ -69,9 +70,9 @@ export function lighting(light: Light = DAY_LIGHT): Lighting {
     lit: light.night ? nightTone : same,
     tint: light.night ? nightTint : same,
     lampSide: light.night ? lampWarm : null,
-    // The night values mirror tokens.css so night art also reads correctly on a light page (the gallery).
-    shade: light.night ? 'rgba(12, 9, 26, 0.34)' : 'var(--shade, rgba(94, 76, 154, 0.16))',
-    contact: light.night ? 'rgba(0, 0, 0, 0.24)' : 'var(--contact, rgba(59, 50, 54, 0.08))',
+    // The night values are tokens.css's Lamplight ones (@/art/shade) so night art also reads correctly on a light page (the gallery).
+    shade: light.night ? SHADE_LAMP : `var(--shade, ${SHADE_DAY})`,
+    contact: light.night ? CONTACT_LAMP : `var(--contact, ${CONTACT_DAY})`,
     rim: light.night ? 'rgba(255, 201, 138, 0.42)' : null,
   };
   cache.set(key, result);

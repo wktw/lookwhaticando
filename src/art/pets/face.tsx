@@ -71,7 +71,7 @@ export function Eyes({ f, y, y2 = y, left, right, r, r2 = r }: { f: FaceCtx; y: 
   const mid = (y + y2) / 2;
   return (
     <g transform={`translate(0 ${fmt(mid)})`}>
-      <g class={f.expr === 'blink' ? 'pet-slowblink' : 'pet-blink'}>
+      <g class={f.expr === 'blink' ? 'pet-slowblink ck-motion-safe' : 'pet-blink ck-motion-safe'}>
         <g transform={`translate(0 ${fmt(-mid)})`}>
           {t.ring && <path d={all((x, yy, rr) => circle(x, yy, rr * (iris ? 1.5 : 1.36)))} fill={t.ring} />}
           {iris &&

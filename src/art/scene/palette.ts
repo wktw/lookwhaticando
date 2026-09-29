@@ -4,7 +4,9 @@
  * Paint goes on as SVG attributes so any layer can be serialised on its own (photo mode).
  */
 import { mix } from './color';
+import { channels, fromHsl, toHsl } from '@/art/plants/math';
 import type { Season, TimeOfDay } from './time';
+import { CONTACT_DAY, CONTACT_LAMP, SHADE_DAY, SHADE_LAMP } from '@/art/shade';
 
 export interface RoomPalette {
   time: TimeOfDay;
@@ -43,7 +45,7 @@ const DAY: RoomPalette = {
   floor: '#E3D0B6',
   floorSeam: '#D6C0A3',
   beam: { color: '#FFF0C6', opacity: 0.95 },
-  tokens: { shade: 'rgba(94, 76, 154, 0.16)', contact: 'rgba(59, 50, 54, 0.08)', sun: 'rgba(255, 231, 168, 0.55)' },
+  tokens: { shade: SHADE_DAY, contact: CONTACT_DAY, sun: 'rgba(255, 231, 168, 0.55)' },
 };
 
 /** Morning: cooler and softer, the beam pale. */
@@ -99,7 +101,7 @@ const NIGHT: RoomPalette = {
   floor: '#342E52',
   floorSeam: '#2B2646',
   beam: null,
-  tokens: { shade: 'rgba(10, 8, 22, 0.3)', contact: 'rgba(0, 0, 0, 0.22)', sun: 'rgba(255, 201, 138, 0.18)' },
+  tokens: { shade: SHADE_LAMP, contact: CONTACT_LAMP, sun: 'rgba(255, 201, 138, 0.18)' },
 };
 
 /**
@@ -290,6 +292,23 @@ const TONE: Record<TimeOfDay, readonly [string, number] | null> = {
 };
 
 const toned = new Map<string, string>();
+
+/**
+ * Like `tone`, but a living green keeps its colour after dark: the lightness of the toned colour, a hue turned a
+ * little toward the lamplit indigo room, and at least 45% of its own saturation (never the grey a plain mix makes).
+ */
+export function toneChroma(time: TimeOfDay, hex: string): string {
+  const out = tone(time, hex);
+  if (!TONE[time] || time !== 'night') return out;
+  const key = `c${time}${hex}`;
+  let hit = toned.get(key);
+  if (!hit) {
+    const [h, s] = toHsl(channels(hex));
+    const [, s2, l2] = toHsl(channels(out));
+    toned.set(key, (hit = fromHsl(h + (200 - h) * 0.28, Math.max(s2, s * 0.45), l2)));
+  }
+  return hit;
+}
 
 /** `hex` as it looks at this time of day (memoised). */
 export function tone(time: TimeOfDay, hex: string): string {

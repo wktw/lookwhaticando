@@ -4,6 +4,7 @@ import type { Light } from '@/art/light';
 import type { ShelfPet } from '../model';
 import { petKey, speciesOf } from '../model';
 import { PetActor, type ActorView, type PetActorProps } from './PetActor';
+import type { PetTouchLayer } from './usePetTouch';
 
 export interface PetLayerProps {
   pets: readonly ShelfPet[];
@@ -15,9 +16,11 @@ export interface PetLayerProps {
   animated?: boolean;
   /** Passing reactions (the Today band's look-up), by pet key. */
   expressions?: Readonly<Record<string, ActorView['expression']>>;
+  /** Touch: buttons, answers and name tags (usePetTouch). */
+  touch?: PetTouchLayer;
 }
 
-export function PetLayer({ pets, views, size, light, castColor, cast, animated, expressions }: PetLayerProps) {
+export function PetLayer({ pets, views, size, light, castColor, cast, animated, expressions, touch }: PetLayerProps) {
   return (
     <>
       {pets.map((p) => {
@@ -39,6 +42,8 @@ export function PetLayer({ pets, views, size, light, castColor, cast, animated, 
             animated={animated}
             label={p.name}
             expression={expressions?.[key]}
+            touch={touch?.touchFor(p)}
+            reaction={touch?.reactions[key]}
           />
         );
       })}

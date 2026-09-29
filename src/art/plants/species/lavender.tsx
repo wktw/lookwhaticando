@@ -57,10 +57,10 @@ function spike(k: Kit, x: number, y: number, a: number, open: number, key: numbe
   const d = [0, 1].map(() => '') as [string, string];
   for (let i = 0; i < n; i++) {
     const kk = i / (n - 1);
-    const px = x + Math.sin(r) * kk * 10;
-    const py = y - Math.cos(r) * kk * 10;
-    const rw = lerp(1.9, 0.9, kk) * lerp(0.75, 1, open);
-    d[i % 2] += ell(px, py, rw, lerp(1.4, 0.9, kk));
+    const px = x + Math.sin(r) * kk * 10 * k.bloom;
+    const py = y - Math.cos(r) * kk * 10 * k.bloom;
+    const rw = lerp(1.9, 0.9, kk) * lerp(0.75, 1, open) * k.bloom;
+    d[i % 2] += ell(px, py, rw, lerp(1.4, 0.9, kk) * k.bloom);
   }
   return (
     <g key={key}>

@@ -7,7 +7,8 @@
 import type { PlaceId, Species } from '@/catalog/types';
 import type { PetSpot } from '../model';
 import { groundSpot, nearestFree, routineAt, type Ground } from '../arrange';
-import { baseline, depthZ } from '../room';
+import { baseline, depthScale, depthZ } from '../room';
+import { COW_BACK, WORLD_SCALE } from '@/art/pets/world';
 import type { Moment } from '../time';
 
 export interface VignetteActor {
@@ -43,14 +44,14 @@ export interface Vignette {
   stagger?: number;
 }
 
-/** A lying cow's back, as a share of the pet canvas above its feet. TODO(integration): a pose anchor from the pets module. */
-export const COW_BACK = 0.24;
-
 /**
- * Whether the pets module's lying cow (a long, low body a cat can sleep on) has landed. With the
- * old round cow a cat on its back hides it, so the vignette waits. TODO(integration): flip to true.
+ * A lying cow's back, as shares of its canvas (the pets module's anchor, read from the cow rig's loaf): `y` above its
+ * feet, `x` from its middle toward its tail. The scene's cow canvas is the pet size × WORLD_SCALE.cow.
  */
-export const LYING_COW_READY = false;
+export { COW_BACK } from '@/art/pets/world';
+
+/** The pets module's long, low lying cow has landed: a cat can sleep on its back without hiding it. */
+export const LYING_COW_READY = true;
 
 /** A duck's body length, as a share of the pet canvas. */
 const DUCK_BODY = 0.5;
@@ -76,8 +77,10 @@ const catOnCow: Vignette = {
     const x = nearestFree(g, want, []);
     const depth = Math.max(g.d0 + 0.2, Math.min(g.d1 - 0.1, cow.spot.depth));
     const cowSpot = groundSpot(g, x, depth, 'loaf', asleep(ctx), x < (g.x0 + g.x1) / 2 ? 'right' : 'left');
-    const back = cowSpot.y - COW_BACK * g.petSize;
-    const catSpot: PetSpot = { x: x + (cowSpot.facing === 'right' ? -1 : 1) * g.petSize * 0.12, depth, y: back, pose: 'sleep', facing: cowSpot.facing, asleep: true, perch: 'back', z: (cowSpot.z ?? depthZ(depth)) + 1 };
+    const cowSize = g.petSize * WORLD_SCALE.cow * depthScale(depth);
+    const back = cowSpot.y - COW_BACK.y * cowSize;
+    // Curled up over the middle of its back, toward the tail, clear of its head.
+    const catSpot: PetSpot = { x: x - (cowSpot.facing === 'right' ? 1 : -1) * COW_BACK.x * cowSize, depth, y: back, pose: 'sleep', facing: cowSpot.facing, asleep: true, perch: 'back', z: (cowSpot.z ?? depthZ(depth)) + 1 };
     return new Map([
       [cowKey!, cowSpot],
       [catKey!, catSpot],

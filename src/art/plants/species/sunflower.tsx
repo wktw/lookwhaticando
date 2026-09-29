@@ -64,7 +64,8 @@ const SEEDS = Array.from({ length: 14 }, (_, i) => {
  * The head at (x, y), `size` 1 about 20 across, turned toward the light: square on from above, in three-quarter
  * view from the side (squashed across, the green back of the head showing behind).
  */
-function head(k: Kit, x: number, y: number, size: number, bud: number, open: number, key: string | number) {
+function head(k: Kit, x: number, y: number, headSize: number, bud: number, open: number, key: string | number) {
+  const size = headSize * k.bloom;
   const turn = k.away === 0 ? 0 : -k.away;
   const sx = turn === 0 ? 0.92 : 0.6;
   const tilt = turn * -8;

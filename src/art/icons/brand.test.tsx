@@ -5,12 +5,16 @@ import type { VNode } from 'preact';
 import { CatkinSprig, Wordmark } from '@/art/icons';
 import { CATKIN_BODY, CATKIN_LIT, SPRIG_CATKINS } from '@/art/icons/brand';
 import { DAY_LIGHT, NIGHT_LIGHT, type LightFrom } from '@/art/light';
-import { AppIconArt, FAVICON_TILE, WALL_SHADOW_OPACITY, squirclePath, type AppIconShape } from '@/app/AppIconArt';
-import { SplashArt } from '@/app/SplashArt';
+import { AppIconArt, FAVICON_TILE, ICON_CALF, ICON_CAT, ICON_PLACE, IconScene, WALL_SHADOW_OPACITY, squirclePath, type AppIconShape } from '@/art/icons/appIcon';
+import { LaunchArt as SplashArt } from '@/art/icons/splash';
+import { poseBounds } from '@/art/pets/bounds';
+import { SPECIES_ART } from '@/art/pets/species';
+import { getLook } from '@/art/pets/looks';
 import { GumballArt, CabinetMark } from '@/app/GumballArt';
 import { MATERIAL } from '@/art/icons/palette';
 import cabinetCss from '@/art/icons/cabinet.module.css';
 import { readFileSync } from 'node:fs';
+import { shapeBoxes } from '@/art/plants/svgBounds.testutil';
 
 function mount(node: VNode): HTMLElement {
   const host = document.createElement('div');
@@ -92,12 +96,37 @@ describe('app icon', () => {
     }
   });
 
-  it('shows a plum-black cat with gold eyes on a terracotta pot', () => {
-    const html = mount(<AppIconArt />).innerHTML;
-    expect(html).toContain(MATERIAL.plum);
-    expect(html).toContain(MATERIAL.catEye);
+  it('shows the app’s own black cat on a terracotta pot, with a Holstein calf beside it (DESIGN §1 "Many animals")', () => {
+    const host = mount(<AppIconArt />);
+    const html = host.innerHTML;
     expect(html).toContain(MATERIAL.terracotta);
     expect(html).not.toMatch(/#000000|"black"/i);
+    // PetArt's own drawings, not a separate icon cat: in the picture and in its wall shadow.
+    expect(host.querySelectorAll('[data-animal="pet-cat-black"] svg.pet-art')).toHaveLength(2);
+    expect(host.querySelectorAll('[data-animal="pet-cow-holstein"] svg.pet-art')).toHaveLength(2);
+    expect(host.querySelectorAll('svg.pet-art.is-silhouette')).toHaveLength(2);
+  });
+
+  it('keeps the cat at least 35% of the icon’s width, and the calf about 55–60% of the cat’s height', () => {
+    const drawn = (petId: string, pose: 'loaf' | 'sit', size: number) => {
+      const look = getLook(petId);
+      const { id, rig } = SPECIES_ART[look.species].rigFor(look);
+      const b = poseBounds(id, rig, pose);
+      const s = rig.scale * (look.scale ?? 1);
+      return { w: ((b.x1 - b.x0) * s * size) / 100, h: ((94 - b.y0) * s * size) / 100 };
+    };
+    const cat = drawn(ICON_CAT.petId, 'loaf', ICON_CAT.size);
+    const calf = drawn(ICON_CALF.petId, 'sit', ICON_CALF.size);
+    expect(cat.w).toBeGreaterThanOrEqual(35);
+    expect(calf.h / cat.h).toBeGreaterThan(0.5);
+    expect(calf.h / cat.h).toBeLessThan(0.65);
+  });
+
+  it('lights the launch screen’s scene by the lamp at night', () => {
+    const day = mount(<IconScene />).innerHTML;
+    const night = mount(<IconScene night />).innerHTML;
+    expect(night).not.toBe(day);
+    expect(day).toContain(MATERIAL.terracotta);
   });
 
   it('crops the favicon to the cat and pot on a deeper tile, without the beam or cast shadow', () => {
@@ -115,6 +144,30 @@ describe('app icon', () => {
     const svg = mount(<AppIconArt />).querySelector('svg')!;
     const rims = [...svg.querySelectorAll('path')].filter((p) => p.getAttribute('fill') === MATERIAL.terracottaRim);
     expect(rims).toHaveLength(1);
+  });
+
+  it('keeps both animals inside the maskable icon’s 80% safe circle', () => {
+    const host = mount(<AppIconArt shape="maskable" size={512} />);
+    // ICON_PLACE.maskable is translate(tx ty) scale(k) translate(mx my).
+    const [tx, ty, k, mx, my] = ICON_PLACE.maskable!.match(/-?[\d.]+/g)!.map(Number) as [number, number, number, number, number];
+    expect(ICON_PLACE.maskable).toMatch(/^translate\([^)]*\) scale\([^)]*\) translate\([^)]*\)$/);
+    let far = 0;
+    for (const a of [ICON_CAT, ICON_CALF]) {
+      // The picture's own animal (the second drawing; the first is its wall shadow).
+      const art = [...host.querySelectorAll(`[data-animal="${a.petId}"] svg.pet-art`)].find((el) => !el.classList.contains('is-silhouette'))!.cloneNode(true) as Element;
+      // The animal itself (its soft contact shadow on the sill may run under the mask's edge).
+      art.querySelectorAll('[fill="var(--contact)"]').forEach((el) => el.remove());
+      const top = a.feet - (a.size * 94) / 100;
+      for (const b of shapeBoxes(art, { sampled: true })) {
+        for (const [x, y] of [[b.x0, b.y0], [b.x1, b.y0], [b.x0, b.y1], [b.x1, b.y1]] as const) {
+          const ix = a.x - a.size / 2 + (x * a.size) / 100;
+          const iy = top + (y * a.size) / 100;
+          const d = Math.hypot(tx + (ix + mx) * k - 50, ty + (iy + my) * k - 50);
+          far = Math.max(far, d);
+        }
+      }
+    }
+    expect(far).toBeLessThanOrEqual(40);
   });
 
   it('gives each instance its own clip id', () => {
@@ -135,10 +188,12 @@ describe('app icon', () => {
 });
 
 describe('launch screen and cabinet mark', () => {
-  it('puts the wordmark on paper in both themes', () => {
+  it('puts the icon’s cat and calf over the wordmark on paper in both themes', () => {
     for (const theme of ['light', 'night'] as const) {
       const host = mount(<SplashArt theme={theme} width={390} height={844} />);
       expect(host.textContent).toBe('catkin');
+      expect(host.querySelector('[data-animal="pet-cat-black"]')).not.toBeNull();
+      expect(host.querySelector('[data-animal="pet-cow-holstein"]')).not.toBeNull();
       expect(host.querySelector('[data-splash]')!.getAttribute('data-splash')).toBe(theme);
     }
   });

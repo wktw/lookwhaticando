@@ -3,14 +3,17 @@ import { useMemo, useRef } from 'preact/hooks';
 import type { PlantSpeciesId, PotId } from '@/catalog/types';
 import { DAY_LIGHT, type Light } from '../light';
 import { ell } from './geom';
-import { CONTACT, kitFor, type Kit } from './kit';
+import { CONTACT, kitFor, kitWithBloom, type Kit } from './kit';
 import { clamp01, f, hash01 } from './math';
 import { useInView, useUid, useWaterings } from './hooks';
 import { FOOT_Y, POTS } from './pots';
 import { PLANT_SPECIES } from './species';
 import { waterGlass } from './vessels';
-import { iconFrame, SCENE_FRAME } from './iconFrames';
+import { ICON_FRAMES, iconFrame, SCENE_FRAME } from './iconFrames';
 import { WateringCanCharm } from './charm';
+import { Bee, petalMap, PETITE_BLOOM, repaint, type PlantLookArt } from './looks';
+import { flourishLayers } from './flourishes';
+import { keepPaint, muteTree } from '../muted';
 import type { Composed, Growth } from './types';
 import './plant.css';
 
@@ -43,15 +46,34 @@ export interface PlantArtProps {
   fit?: PlantFit;
   /**
    * Stages 0–1 (and the tulip): stand the habit's chosen pot, still empty, behind the glass on the shade side
-   * (DESIGN §5.5, "a cutting in a water glass beside its empty pot"). For scenes and detail views; ignored by `icon`.
+   * (DESIGN §5.5, "a cutting in a water glass beside its empty pot"). With `icon`, the frame widens to hold both (a
+   * habit card's cutting stands by its pot too).
    */
   withPot?: boolean;
+  /**
+   * Blooms Like You (DESIGN §14.2): the look she chose. Recolours the flowers (Dawn, Sunlit, Twilight, Wildflower),
+   * draws them smaller (Petite), or takes the partner habit's card colour and brings a bee (Paired). Left out: Classic.
+   */
+  look?: PlantLookArt;
+  /** Flourishes after Evergreen (0–8 permanent visitors, DESIGN §5.5): a ladybird, a bee, a snail… */
+  flourishes?: number;
+  /**
+   * Which part to draw. `all` (default); a scene that seats a resident on the rim draws `back` (the vessel and the
+   * foliage behind it) under the pet and `front` (the foliage that spills over the rim) over it. Both parts share one
+   * canvas, so stacked at the same place they make the whole plant.
+   */
+  layer?: PlantLayer;
+  /** Field Guide "not yet": the same drawing at 35% saturation (a repaint, never a CSS filter). */
+  muted?: boolean;
+  /** Desynchronises the idle sway; give both layers of one plant the same seed so they sway together. */
+  seed?: string;
   title?: string;
   class?: string;
   style?: JSX.CSSProperties;
 }
 
 export type PlantFit = 'scene' | 'icon';
+export type PlantLayer = 'all' | 'back' | 'front';
 
 export const PLANT_STAGE_NAMES = ['Cutting', 'Rooting', 'Potted', 'Leafy', 'Budding', 'Blooming', 'Flourishing', 'Evergreen'] as const;
 
@@ -77,8 +99,44 @@ export function growthOf(stage: number, progress: number | undefined, blooms: nu
   return { stage: s, progress: p, t: s + p, blooms: bloomCount(s, p, blooms) };
 }
 
-/** Lays out one plant: its vessel (a glass, a dish or a pot) and the plant in and around it. */
-export function composePlant(species: PlantSpeciesId, g: Growth, pot: PotId, k: Kit, damp: boolean): Composed {
+/**
+ * Lays out one plant: its vessel (a glass, a dish or a pot) and the plant in and around it, in its look (from
+ * Blooming) and with its flourishes (after Evergreen).
+ */
+export function composePlant(species: PlantSpeciesId, g: Growth, pot: PotId, k: Kit, damp: boolean, look?: PlantLookArt, flourishes = 0): Composed {
+  const lk = look && g.stage >= 5 ? look : undefined;
+  const c = composeBase(species, g, pot, lk?.shape === 'petite' ? kitWithBloom(k, PETITE_BLOOM) : k, damp);
+  const map = lk ? petalMap(species, lk, k) : null;
+  const fl = c.kind === 'pot' && g.stage === 7 ? flourishLayers(flourishes, species, pot, k) : { back: null, front: null };
+  const bee = lk?.shape === 'paired' && !(fl.front && flourishes >= 2) ? <PairedBee species={species} k={k} /> : null;
+  if (!map && !fl.back && !fl.front && !bee) return c;
+  const paint = (el: JSX.Element | null | undefined) => (el && map ? (repaint(el, map) as JSX.Element) : el);
+  return {
+    ...c,
+    back: (
+      <>
+        {fl.back}
+        {paint(c.back)}
+      </>
+    ),
+    front: (
+      <>
+        {paint(c.front)}
+        {fl.front}
+        {bee}
+      </>
+    ),
+  };
+}
+
+/** A Paired look's bee, hovering on the lit side near the top of the plant. */
+function PairedBee({ species, k }: { species: PlantSpeciesId; k: Kit }) {
+  const fr = ICON_FRAMES[species]?.[6] ?? [10, 10, 80];
+  const lit = k.away === 0 ? -1 : -k.away;
+  return <Bee x={50 + lit * fr[2] * 0.4} y={fr[1] + fr[2] * 0.2} k={k} s={0.9} />;
+}
+
+function composeBase(species: PlantSpeciesId, g: Growth, pot: PotId, k: Kit, damp: boolean): Composed {
   const art = PLANT_SPECIES[species] ?? PLANT_SPECIES.pothos;
   const potDef = POTS[pot] ?? POTS.terracotta;
   if (art.own) return art.own(g, k, pot);
@@ -110,7 +168,7 @@ function contactD(foot: number, k: Kit, tight = false): string {
 
 /** A habit's plant at any moment of its life (DESIGN §5.5, §10.4). */
 export function PlantArt(props: PlantArtProps) {
-  const { species, pot, size = 64, animated = false, pulse, title } = props;
+  const { species, pot, size = 64, animated = false, pulse, title, layer = 'all', look, flourishes = 0 } = props;
   const uid = useUid('plant');
   const svg = useRef<SVGSVGElement>(null);
   const waterings = useWaterings(pulse);
@@ -120,13 +178,19 @@ export function PlantArt(props: PlantArtProps) {
   const g = growthOf(props.stage, props.progress, props.blooms);
   const damp = !!props.damp || waterings > 0;
 
-  const c = useMemo(() => composePlant(species, g, pot, k, damp), [species, g.stage, g.progress, g.blooms, pot, k, damp]);
+  const lookKey = look ? `${look.colour}/${look.shape}/${look.partnerColour ?? ''}` : '';
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const c = useMemo(() => composePlant(species, g, pot, k, damp, look, flourishes), [species, g.stage, g.progress, g.blooms, pot, k, damp, lookKey, flourishes]);
 
   const icon = props.fit === 'icon';
-  const box = icon ? iconFrame(species, g.stage) : SCENE_FRAME;
-  const emptyPot = !icon && props.withPot && c.kind !== 'pot' ? <EmptyPot pot={pot} k={k} /> : null;
+  const besidePot = !!props.withPot && c.kind !== 'pot';
+  const box = icon ? (besidePot ? iconFrameWithPot(species, g.stage, pot, k.away) : iconFrame(species, g.stage)) : SCENE_FRAME;
+  const mute = (el: JSX.Element | null | undefined) => (props.muted && el ? (muteTree(el) as JSX.Element) : el);
+  const emptyPot = besidePot ? mute(<g>{EmptyPot({ pot, k })}</g>) : null;
+  const back = layer !== 'front';
+  const front = layer !== 'back';
 
-  const r = hash01(uid);
+  const r = hash01(props.seed ?? uid);
   const origin = `${f(c.pivot[0])}px ${f(c.pivot[1])}px`;
   const timing = {
     '--plant-sway-dur': `${(4.2 + r * 1.6).toFixed(2)}s`,
@@ -158,12 +222,12 @@ export function PlantArt(props: PlantArtProps) {
       aria-hidden={title ? undefined : true}
       focusable="false"
     >
-      <path d={contactD(c.foot, k, icon)} class={CONTACT} />
-      {emptyPot}
-      {sway(c.back)}
-      {c.vessel}
-      {sway(c.front)}
-      {waterings > 0 && <path key={waterings} class="plant-glint" d={ell(c.pivot[0] - c.surface * 0.34, c.pivot[1] + 0.2, Math.max(2.4, c.surface * 0.3), 0.8)} fill="#FFFFFF" />}
+      {back && <path d={contactD(c.foot, k, icon)} class={CONTACT} />}
+      {back && emptyPot}
+      {back && sway(mute(c.back))}
+      {back && mute(c.vessel)}
+      {front && sway(mute(c.front))}
+      {front && waterings > 0 && <path key={waterings} class="plant-glint" d={ell(c.pivot[0] - c.surface * 0.34, c.pivot[1] + 0.2, Math.max(2.4, c.surface * 0.3), 0.8)} fill="#FFFFFF" />}
     </svg>
   );
 }
@@ -187,6 +251,28 @@ function EmptyPot({ pot, k }: { pot: PotId; k: Kit }) {
   );
 }
 
+/** Where the empty pot beside a cutting lands on the canvas: its box [x0, y0, x1, y1]. */
+export function emptyPotBox(pot: PotId, away: number): readonly [number, number, number, number] {
+  const def = POTS[pot] ?? POTS.terracotta;
+  const s = EMPTY_POT.scale;
+  const tx = 50 + (away || 1) * EMPTY_POT.dx - 50 * s;
+  const ty = FOOT_Y - EMPTY_POT.back - FOOT_Y * s;
+  const hw = def.mouth.hw + 1.6;
+  return [tx + s * (50 - hw), ty + s * (def.mouth.y - 1), tx + s * (50 + hw), ty + s * (FOOT_Y + 2)];
+}
+
+/** The icon frame for a cutting and its empty pot together: the glass's own frame widened to take in the pot, square. */
+export function iconFrameWithPot(species: PlantSpeciesId, stage: number, pot: PotId, away: number): string {
+  const fr = ICON_FRAMES[species]?.[stage] ?? [0, 0, 100];
+  const [px0, py0, px1, py1] = emptyPotBox(pot, away);
+  const x0 = Math.min(fr[0], px0 - 1.5);
+  const x1 = Math.max(fr[0] + fr[2], px1 + 1.5);
+  const y0 = Math.min(fr[1], py0 - 1.5);
+  const y1 = Math.max(fr[1] + fr[2], py1);
+  const side = Math.max(x1 - x0, y1 - y0);
+  return `${f((x0 + x1) / 2 - side / 2)} ${f(y1 - side)} ${f(side)} ${f(side)}`;
+}
+
 /** A lone pot is cropped to this square so it fills the icon like other collectibles. */
 const POT_CROP = { x: 20, y: 47, size: 60 };
 
@@ -195,13 +281,15 @@ export interface PotArtProps {
   size?: number | string;
   light?: Light;
   damp?: boolean;
+  /** Field Guide "not yet" (35% saturation). */
+  muted?: boolean;
   title?: string;
   class?: string;
   style?: JSX.CSSProperties;
 }
 
 /** A standalone pot with its soil (collection book, pot picker, the empty pot beside a cutting). */
-export function PotArt({ pot, size = 64, light, damp = false, title, class: cls, style }: PotArtProps) {
+export function PotArt({ pot, size = 64, light, damp = false, muted = false, title, class: cls, style }: PotArtProps) {
   const k = kitFor(light ?? DAY_LIGHT);
   const def = POTS[pot] ?? POTS.terracotta;
   return (
@@ -218,8 +306,11 @@ export function PotArt({ pot, size = 64, light, damp = false, title, class: cls,
     >
       <path d={contactD(def.foot, k)} class={CONTACT} />
       <g data-vessel="pot" data-pot={pot}>
-        {def.render(k, damp)}
+        {muted ? muteTree(def.render(k, damp)) : def.render(k, damp)}
       </g>
     </svg>
   );
 }
+
+// It uses hooks and has its own `muted`: a repaint never expands it.
+keepPaint(PlantArt);

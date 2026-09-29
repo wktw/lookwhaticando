@@ -78,7 +78,7 @@ const FLOWER_SHADE = { left: ell(1.9, 1.2, 1.5), right: ell(-1.9, 1.2, 1.5), top
 
 function flower(k: Kit, x: number, y: number, s: number, key: string | number) {
   return (
-    <g key={key} transform={`translate(${f(x)} ${f(y)}) scale(${f(s)})`}>
+    <g key={key} transform={`translate(${f(x)} ${f(y)}) scale(${f(s * k.bloom)})`}>
       <path d={FLOWER} fill={k.lit(PETAL)} />
       <path d={FLOWER_SHADE[k.light.from]} class={SHADE} />
       <path d={ell(0, 0, 1.3)} fill={HEART} />

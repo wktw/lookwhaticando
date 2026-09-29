@@ -59,7 +59,7 @@ const FLOWER_LIP = 'M0 0.4C1.4 0.4 1.8 2 1.2 3.2C0.8 4 -0.8 4 -1.2 3.2C-1.8 2 -1
 
 function flower(k: Kit, x: number, y: number, s: number, key: number) {
   return (
-    <g key={key} transform={`translate(${f(x)} ${f(y)}) scale(${f(s)})`}>
+    <g key={key} transform={`translate(${f(x)} ${f(y)}) scale(${f(s * k.bloom)})`}>
       <path d={FLOWER} fill={k.lit(PETAL)} />
       <path d={FLOWER_HEART} fill={k.lit('#EEBFCD')} />
       <path d={FLOWER_LIP} fill={LIP} />
