@@ -6,7 +6,7 @@ export default defineConfig({
   cacheDir: '.vite-cache',
   plugins: [preact()],
   resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
-  define: { __SINGLE_FILE__: 'false', __APP_VERSION__: '"test"' },
+  define: { __SINGLE_FILE__: 'false', __APP_VERSION__: '"test"', __BUILD_ID__: '"test"' },
   test: {
     include: ['tests/unit/**/*.test.ts', 'tests/unit/**/*.test.tsx', 'src/**/*.test.ts', 'src/**/*.test.tsx'],
     environment: 'node',

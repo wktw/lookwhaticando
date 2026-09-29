@@ -52,6 +52,7 @@ export function readDiagnostics(): Rows {
   const vv = window.visualViewport;
   return [
     ['Version', `${__APP_VERSION__} · ${buildLabel()}`],
+    ['Build', typeof __BUILD_ID__ === 'string' ? __BUILD_ID__ : 'dev'],
     ['Display mode', `${mode}${nav.standalone ? ' · iOS standalone' : ''} · ${currentInstallPlatform()}`],
     ['User agent', navigator.userAgent],
     ['Save', envelope],

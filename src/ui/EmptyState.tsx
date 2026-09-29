@@ -14,11 +14,13 @@ export interface EmptyStateProps {
   tone?: Tone;
   /** Tighter spacing for use inside cards. */
   compact?: boolean;
+  /** The title's heading level (default h3): h2 directly under a screen's h1, so headings never skip a level. */
+  as?: 'h2' | 'h3' | 'h4';
   class?: string;
 }
 
 /** A quiet "nothing here yet": a drawing, a Castoro title, one plain line, one action. */
-export function EmptyState({ art, title, children, action, tone, compact, class: cls }: EmptyStateProps) {
+export function EmptyState({ art, title, children, action, tone, compact, as: Heading = 'h3', class: cls }: EmptyStateProps) {
   return (
     <div class={cx(s.empty, compact && s.compact, tone && s.toned, tone && toneClass(tone), cls)}>
       {art && (
@@ -26,7 +28,7 @@ export function EmptyState({ art, title, children, action, tone, compact, class:
           {art}
         </div>
       )}
-      <h3 class={s.title}>{title}</h3>
+      <Heading class={s.title}>{title}</Heading>
       {children && <p class={s.text}>{children}</p>}
       {action && <div class={s.action}>{action}</div>}
     </div>

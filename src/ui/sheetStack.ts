@@ -87,6 +87,25 @@ export function anyLayerOpen(): boolean {
   return stack.length > 0;
 }
 
+let holds = 0;
+
+/**
+ * Holds celebration banners and toasts back (as a moment does) without a layer: no inert, no scroll
+ * lock, no focus. Onboarding holds its pins' celebrations until Today. Returns the release.
+ */
+export function holdMoments(): () => void {
+  const id = `hold:${++holds}`;
+  moments.add(id);
+  notify();
+  let released = false;
+  return () => {
+    if (released) return;
+    released = true;
+    moments.delete(id);
+    notify();
+  };
+}
+
 /** A full-screen moment is open (the capsule reveal, the epic card), optionally ignoring one of them. */
 export function momentOpen(except?: string): boolean {
   for (const id of moments) if (id !== except) return true;

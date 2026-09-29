@@ -3,6 +3,7 @@ import preact from '@preact/preset-vite';
 import { VitePWA, type ManifestOptions } from 'vite-plugin-pwa';
 import { viteSingleFile } from 'vite-plugin-singlefile';
 import { readFileSync } from 'node:fs';
+import { execSync } from 'node:child_process';
 import { fileURLToPath, URL } from 'node:url';
 
 /**
@@ -134,6 +135,17 @@ export function singleFileHtml(publicDir: string): Plugin {
   };
 }
 
+/** The build's id for Diagnostics: the commit and the day it was built ("7d16f11 · 2026-09-29"), or just the day outside git. */
+export function buildId(now = new Date()): string {
+  const day = now.toISOString().slice(0, 10);
+  try {
+    const sha = execSync('git rev-parse --short HEAD', { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim();
+    return sha ? `${sha} · ${day}` : day;
+  } catch {
+    return day;
+  }
+}
+
 export default defineConfig(({ mode }) => {
   const single = mode === 'single';
   const plugins: PluginOption[] = [preact()];
@@ -179,6 +191,7 @@ export default defineConfig(({ mode }) => {
     define: {
       __SINGLE_FILE__: JSON.stringify(single),
       __APP_VERSION__: JSON.stringify(process.env.npm_package_version ?? '1.0.0'),
+      __BUILD_ID__: JSON.stringify(buildId()),
     },
     build: {
       outDir: single ? 'dist-single' : 'dist',

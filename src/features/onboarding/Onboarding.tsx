@@ -28,7 +28,7 @@ import { currentInstallPlatform } from '@/app/installPrompt';
 import { Button } from '@/ui/Button';
 import { announce } from '@/ui/announce';
 import { dismissToast, findToast } from '@/ui/toast';
-import { layerDepth, onLayersChange, pushLayer, removeLayer } from '@/ui/sheetStack';
+import { holdMoments } from '@/ui/sheetStack';
 import { checkInKey, uncheckKey } from '@/fx/checkin';
 import { cx } from '@/ui/cx';
 import { ImportSheet } from '@/features/you/ImportSheet';
@@ -88,35 +88,14 @@ function useCapsuleSteps(): CapsuleSteps | null {
   return mod;
 }
 
-const HOLD = 'onboarding-hold';
-
 /**
  * From the first watering to the end of onboarding, celebration banners and notes wait for Today
  * (the "First watering" and "First capsule" pins would otherwise cover the sill as the water
- * lands, then step 4's heading and Skip). It is held as a full-screen *moment* in the layer stack,
- * which is what banners and the Toaster wait for; a moment layer also makes the page inert and
- * locks its scroll, which onboarding (the page itself) gives back straight away, and takes again
- * only while a sheet or the reveal is above it. (NOTES-w2-you: a `holdMoments()` in the kit.)
+ * lands, then step 4's heading and Skip): `holdMoments()` holds them the way a full-screen moment
+ * does, without making the page inert or locking its scroll.
  */
 function useHoldCelebrations(on: boolean): void {
-  useEffect(() => {
-    if (!on) return;
-    const body = document.body;
-    const style = body.getAttribute('style');
-    const app = document.getElementById('app');
-    const wasInert = app?.inert ?? false;
-    pushLayer(HOLD, { moment: true });
-    if (app) app.inert = wasInert;
-    if (style === null) body.removeAttribute('style');
-    else body.setAttribute('style', style);
-    const off = onLayersChange(() => {
-      if (app) app.inert = layerDepth(HOLD) > 0;
-    });
-    return () => {
-      off();
-      removeLayer(HOLD);
-    };
-  }, [on]);
+  useEffect(() => (on ? holdMoments() : undefined), [on]);
 }
 
 export function Onboarding() {

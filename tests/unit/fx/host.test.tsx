@@ -86,7 +86,7 @@ describe('CelebrationHost', () => {
     await sleep(BATCH_MS / 2);
     act(() => emitGameEvents([{ type: 'badge', badgeId: 'checkins-50', stars: 2 }]));
     await act(() => sleep(BATCH_MS + 30));
-    const banners = document.querySelectorAll('#overlay-root [role="group"]');
+    const banners = document.querySelectorAll('#overlay-root [role="region"]');
     expect(banners).toHaveLength(1);
     expect(banners[0]!.getAttribute('aria-label')).toContain('Everything’s watered');
     expect(banners[0]!.textContent).toContain('Fifty waterings, a new pin');
@@ -98,13 +98,13 @@ describe('CelebrationHost', () => {
     act(() => pushLayer('reveal-test', { moment: true }));
     act(() => emitGameEvents([{ type: 'badge', badgeId: 'checkins-50', stars: 2 }, { type: 'letter', letterId: 'w1', kind: 'sundayNote' }]));
     await act(() => sleep(BATCH_MS + 30));
-    expect(document.querySelectorAll('#overlay-root [role="group"]')).toHaveLength(0);
+    expect(document.querySelectorAll('#overlay-root [role="region"]')).toHaveLength(0);
     // The note on the sill waits too: queued, not drawn over the reveal.
     expect(toasts.value.map((t) => t.key)).toEqual(['letter']);
     expect(document.querySelector('[data-toast-id]')).toBeNull();
     act(() => removeLayer('reveal-test'));
     await act(() => sleep(10));
-    expect(document.querySelectorAll('#overlay-root [role="group"]')).toHaveLength(1);
+    expect(document.querySelectorAll('#overlay-root [role="region"]')).toHaveLength(1);
     expect(document.querySelector('[data-toast-id]')).not.toBeNull();
   });
 

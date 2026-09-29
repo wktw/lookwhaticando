@@ -65,7 +65,8 @@ export function consistencyText(p: HabitPhrase, weekStart: WeekStart): string | 
   let text: string;
   switch (p.kind) {
     case 'days':
-      if (p.achieved < 1 || p.spanDays < 1) return null;
+      // A one-day window says nothing worth a line ("1 of the last 1 day").
+      if (p.achieved < 1 || p.spanDays < 2) return null;
       text = fillLine(plural(p.spanDays, CONSISTENCY_LINES.days), { count: num(p.achieved), span: num(p.spanDays) });
       break;
     case 'weekdays':

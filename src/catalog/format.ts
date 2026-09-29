@@ -196,9 +196,9 @@ export const forDayLabel = (habit: string, date: DateKey): string => fillLine(TO
 /* Progress (VOICE.md §6)                                              */
 /* ------------------------------------------------------------------ */
 
-/** "You showed up 26 of the last 30 days" (null before the first day showing up). */
+/** "You showed up 26 of the last 30 days" (null before the first day showing up, and on day one: never "1 of the last 1 days"). */
 export function showedUpLine(p: { days: number; span: number }): string | null {
-  return p.days > 0 && p.span > 0 ? fillLine(PROGRESS_LINES.showedUp, { days: num(p.days), span: num(p.span) }) : null;
+  return p.days > 0 && p.span > 1 ? fillLine(PROGRESS_LINES.showedUp, { days: num(p.days), span: num(p.span) }) : null;
 }
 
 /** "September so far: 22 of 29 days". */

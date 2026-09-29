@@ -146,12 +146,11 @@ export function CelebrationBanner({ spec, payouts = [], onDone }: { spec: Banner
   }, []);
 
   return (
-    <div class={cx(s.anchor, place && s.placed)} ref={anchorRef} style={place}>
+    // A landmark of its own (axe: all content in a region), named for the moment.
+    <div class={cx(s.anchor, place && s.placed)} ref={anchorRef} style={place} role="region" aria-label={`${spec.eyebrow}: ${spec.title}`}>
       <div
         ref={cardRef}
         class={cx(s.note, leaving && s.leaving, toneClass(spec.tone))}
-        role="group"
-        aria-label={`${spec.eyebrow}: ${spec.title}`}
         onPointerEnter={(e) => e.pointerType === 'mouse' && setPaused(true)}
         onPointerLeave={(e) => e.pointerType === 'mouse' && setPaused(false)}
         onFocusIn={() => setPaused(true)}
