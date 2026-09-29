@@ -145,9 +145,10 @@ export function roomIn(place: PlaceId, out: readonly Pick<PetSummaryVM, 'id' | '
  */
 export function placeInView(segments: readonly { id: PlaceId; left: number; width: number }[], scrollLeft: number, viewWidth: number): PlaceId {
   const mid = scrollLeft + viewWidth / 2;
-  let best: PlaceId = segments[0]?.id ?? 'sill';
-  for (const seg of segments) if (mid >= seg.left) best = seg.id;
-  return best;
+  const hit = segments.find((seg) => mid >= seg.left && mid < seg.left + seg.width);
+  if (hit) return hit.id;
+  const last = segments[segments.length - 1];
+  return last && last.width > 0 && mid >= last.left + last.width ? last.id : (segments[0]?.id ?? 'sill');
 }
 
 /** Where to scroll to show a segment: centred, or its start when it is wider than the view. */

@@ -22,7 +22,9 @@ export default function PetCardHost() {
       setRenaming(false);
     }
   }, [requested]);
-  const pet = shown ? selectPet(shown).value : null;
+  // The card asked for now, else the one sliding away.
+  const id = requested ?? shown;
+  const pet = id ? selectPet(id).value : null;
   useEffect(() => {
     if (requested && !pet) closePetCard();
   }, [requested, pet]);
