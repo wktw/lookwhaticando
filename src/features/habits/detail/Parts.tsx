@@ -127,12 +127,16 @@ export function Journal({ vm }: { vm: HabitDetailVM }) {
 export function Stats({ vm }: { vm: HabitDetailVM }) {
   const st = vm.stats;
   const weekStart = state.value.settings.weekStart;
-  const phrase = st.phrase ? consistencyText(st.phrase, weekStart) : null;
+  // "Lately" needs a little history (a day-one "1 of the last 1 day" says nothing), and a run
+  // shows from 3 in a row, as on the card (§9.1.1).
+  const young = st.phrase?.kind === 'days' ? st.phrase.spanDays < 7 : st.phrase?.kind === 'weekdays' ? st.phrase.expected < 3 : false;
+  const phrase = st.phrase && !young ? consistencyText(st.phrase, weekStart) : null;
   const tiles: { label: string; value: string; note?: string | null }[] = [];
   if (phrase) tiles.push({ label: D.stats.lately, value: phrase });
-  if (st.current) tiles.push({ label: D.stats.now, value: runText(st.current, 'long') });
+  const current = st.current && st.current.length >= 3 ? st.current : null;
+  if (current) tiles.push({ label: D.stats.now, value: runText(current, 'long') });
   else if (st.newRhythm) tiles.push({ label: D.stats.now, value: D.stats.newRhythm });
-  if (st.best && (!st.current || st.best.length > st.current.length)) tiles.push({ label: D.stats.longest, value: runText(st.best, 'long') });
+  if (st.best && st.best.length >= 3 && (!current || st.best.length > current.length)) tiles.push({ label: D.stats.longest, value: runText(st.best, 'long') });
   if (st.total.checkins > 0) tiles.push({ label: D.stats.waterings, value: wateringsText(st.total.checkins), note: st.total.tiny > 0 ? fillLine(D.stats.tiny, { count: num(st.total.tiny) }) : fillLine(D.stats.since, { date: monthDayLabel(vm.habit.startedOn) }) });
   if (tiles.length === 0) return null;
   return (
@@ -214,7 +218,7 @@ export function Ladder({ vm }: { vm: HabitDetailVM }) {
   if (!best && vm.ladder.bestOccurrences < 1) return null;
   return (
     <DetailSection id="ladder" title={D.sections.ladder}>
-      {best && <p class={s.ladderLine}>{fillLine(D.stats.longestLine, { run: runText(best, 'long') })}</p>}
+      {best && best.length >= 3 && <p class={s.ladderLine}>{fillLine(D.stats.longestLine, { run: runText(best, 'long') })}</p>}
       <ol class={s.ladder} aria-hidden="true">
         {vm.ladder.rungs.map((r) => (
           <li key={r.tier} class={cx(s.rung, r.reached && s.rungOn)}>

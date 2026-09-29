@@ -33,7 +33,7 @@ export function Hero({ vm }: { vm: ProgressVM }) {
   return (
     <div class={s.hero} data-hero>
       <div class={s.heroTop}>
-        {showed ? <p class={s.heroLine}>{showed}</p> : <span />}
+        <p class={cx(s.heroLine, !showed && s.heroLineQuiet)}>{showed ?? EMPTY.progress}</p>
         {/* This month's flowers: a stem from each habit watered so far (DESIGN §13). */}
         <MonthJar stems={monthJarStems(state.value, today.value)} size={88} class={s.jar} />
       </div>

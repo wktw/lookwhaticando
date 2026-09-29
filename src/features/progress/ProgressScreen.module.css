@@ -69,6 +69,7 @@
   text-wrap: balance;
 }
 
+.heroLineQuiet,
 .heroEmpty .heroLine {
   max-width: none;
   font-size: var(--fs-headline);
