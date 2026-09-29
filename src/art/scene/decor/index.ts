@@ -9,7 +9,7 @@ import type { DecorRenderer } from './kit';
 import { cardboardBox, matchboxBed, spoolScratcher, windowHammock, yarnBall } from './cats';
 import { hayBale, milkCan, milkCrate } from './cows';
 import { dogBed, enamelBowl, tennisBall } from './dogs';
-import { lilyPad, rubberDuck, wateringCan } from './pond';
+import { glassFloat, lilyPad, rubberDuck, wateringCan } from './pond';
 import { seedPacket, stackedPots } from './garden';
 import { breadBasket, copperKettle, jamJar, teacupBath } from './pantry';
 import { hotWaterBottle, moonNightlight, readingLamp } from './night';
@@ -85,6 +85,7 @@ export const DECOR_ENTRIES: Record<string, DecorEntry & MeadowLegacy> = {
   'decor-lily-pad': { art: lilyPad, size: 26, bounds: [0, 100], deep: 30, flat: true },
   'decor-watering-can': { art: wateringCan, size: 20, bounds: [18, 95], deep: 12 },
   'decor-rubber-duck': { art: rubberDuck, size: 12, bounds: [5, 93], deep: 20 },
+  'decor-glass-float': { art: glassFloat, size: 13, bounds: [11.5, 88.5], deep: 22 },
   // No. 05 Garden
   'decor-seed-packet': { art: seedPacket, size: 15, bounds: [16, 88], deep: 6 },
   'decor-stacked-pots': { art: stackedPots, size: 18, bounds: [18, 82], deep: 18 },

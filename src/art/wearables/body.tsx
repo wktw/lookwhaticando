@@ -345,3 +345,41 @@ export const clearRaincoat = item({
     </g>
   ),
 });
+
+/** Duffle coat: camel wool, wooden toggles on rope loops, and the hood up behind the head. */
+const CAMEL = { coat: '#C9A273', deep: '#A9824F', toggle: '#8A6A4A', rope: '#F0E1C6' } as const;
+
+export const duffleCoat = item({
+  slot: 'body',
+  hideIn: ['sleep'],
+  hood: hood(CAMEL.coat, CAMEL.deep),
+  draw: () => (
+    <g>
+      <path d="M30 -12H112V112H30Z" fill={CAMEL.coat} />
+      <path d="M30 -12H35V112H30Z" fill={CAMEL.deep} />
+      {[36, 56, 76].map((y) => (
+        <g key={y}>
+          <path d={rrect(88, y - 1.6, 14, 3.2, 1.6)} fill={CAMEL.rope} />
+          <path d={rrect(92, y - 5, 3.4, 10, 1.7)} fill={CAMEL.toggle} />
+        </g>
+      ))}
+    </g>
+  ),
+  icon: () => (
+    <g>
+      <path d="M36 22C36 9 64 9 64 22Z" fill={CAMEL.deep} />
+      {garmentIcon(
+        CAMEL.coat,
+        <g>
+          {[40, 54, 68].map((y) => (
+            <g key={y}>
+              <path d={rrect(43, y - 1.2, 14, 2.4, 1.2)} fill={CAMEL.rope} />
+              <path d={rrect(48.4, y - 4, 3.2, 8, 1.6)} fill={CAMEL.toggle} />
+            </g>
+          ))}
+        </g>,
+        CAMEL.deep,
+      )}
+    </g>
+  ),
+});

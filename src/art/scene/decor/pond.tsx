@@ -137,3 +137,38 @@ export const rubberDuck: DecorRenderer = (o) => {
     </g>
   );
 };
+
+/* ---------------- Glass float: a green glass fishing float in its net ---------------- */
+
+const FLOAT = { glass: '#9CC7A8', deep: '#7FAF8E', caustic: '#C9E3D0', rope: '#D9C193', ropeDeep: '#B89E6C' };
+
+const float = shapes('decor-glass-float', {
+  coil: { d: ell(50, 88.6, 30, 4.6), k: 0.3 },
+  ball: ell(50, 58, 28, 28),
+  knot: { d: ell(50, 29.4, 4.4, 3.2), k: 0.4 },
+});
+
+export const glassFloat: DecorRenderer = (o) => {
+  const p = paint(o);
+  // The net: meridians from the knot to the base, and two rings of knots round the middle.
+  const net = [
+    'M50 30.5C33 34 26 50 28 64C29.6 75 38 84 50 86',
+    'M50 30.5C67 34 74 50 72 64C70.4 75 62 84 50 86',
+    'M50 30.5C42 38 39.6 52 40.4 64C41 75 44.6 82 50 86',
+    'M50 30.5C58 38 60.4 52 59.6 64C59 75 55.4 82 50 86',
+    'M23.8 50Q50 58 76.2 50',
+    'M24.4 68Q50 76 75.6 68',
+  ].join('');
+  return (
+    <g>
+      {contact(p, 50, 92.4, 34, 2.4)}
+      {solid(p, float.coil, FLOAT.rope)}
+      {solid(p, float.ball, FLOAT.glass, [
+        <path d="M30 70C36 80 44 83.6 50 84C58 83.6 66 79 70 70C62 76 38 76 30 70Z" fill={p.c(FLOAT.caustic)} opacity={0.8} />,
+        <ellipse cx={50} cy={86} rx={10} ry={1.6} fill={p.c(FLOAT.deep)} opacity={0.6} />,
+      ])}
+      {thin(p, net, FLOAT.ropeDeep, 1.3)}
+      {solid(p, float.knot, FLOAT.rope)}
+    </g>
+  );
+};

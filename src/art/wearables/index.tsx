@@ -2,7 +2,7 @@ import type { WearableArt } from '../pets/types';
 import { blossomClip, blossomCrown, crescentPin, daisyChain, earmuffs, flowerCrown, knitBeret, knitCap, laurelSprig, leafUmbrella, nightcap, partyHat, pompomHat, rainHat, ribbonBow, roseClip, strawHat, sunHat, thimbleHat, witchHat } from './head';
 import { heartShades, sleepMask } from './face';
 import { bellCollar, cowbell, dogBandana, flowerLei, ginghamBandana, heartLocket, knitScarf, leafScarf, petalCollar, tagCollar, winterScarf } from './neck';
-import { clearRaincoat, dogRaincoat, fairisleSweater, heartKnit, heatherShawl, knitSweater, linenApron, pumpkinCardigan, starryPajamas, stripedTee, woolRug } from './body';
+import { clearRaincoat, dogRaincoat, duffleCoat, fairisleSweater, heartKnit, heatherShawl, knitSweater, linenApron, pumpkinCardigan, starryPajamas, stripedTee, woolRug } from './body';
 
 /**
  * Wearable art by collectible id (DESIGN §8.3): small real things, fitted to every species and
@@ -49,6 +49,7 @@ export const WEARABLE_ART: Record<string, WearableArt> = {
   'wear-knit-sweater': knitSweater,
   'wear-wool-rug': woolRug,
   'wear-dog-raincoat': dogRaincoat,
+  'wear-duffle-coat': duffleCoat,
   'wear-clear-raincoat': clearRaincoat,
   'wear-linen-apron': linenApron,
   'wear-starry-pajamas': starryPajamas,
