@@ -74,7 +74,7 @@ export const DETAIL_UI = {
     company: 'Keeping company',
     actions: 'Look after it',
   },
-  stats: { lately: 'Lately', now: 'Now', longest: 'Longest run', waterings: 'Waterings', newRhythm: 'New rhythm', since: 'Since {date}', tiny: 'Tiny versions: {count}' },
+  stats: { lately: 'Lately', now: 'Now', longest: 'Longest run', longestLine: 'Longest run: {run}', waterings: 'Waterings', newRhythm: 'New rhythm', since: 'Since {date}', tiny: 'Tiny versions: {count}' },
   star: 'Star this note',
   starred: 'Starred for the Sunday Note',
   quoteHelp: 'Only notes you’ve starred are quoted in the Sunday Note.',

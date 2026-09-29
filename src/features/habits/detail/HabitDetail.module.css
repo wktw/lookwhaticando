@@ -1,0 +1,697 @@
+.sheet {
+  --paper-tag: #fffbf3;
+}
+:global(html[data-theme='night']) .sheet {
+  --paper-tag: #332c35;
+}
+
+.detail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  padding-bottom: var(--s-6);
+}
+
+/* ---------- the plant and its name ---------- */
+.hero {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--s-4);
+  margin-top: var(--s-2);
+}
+
+.heroArt {
+  position: relative;
+  flex: none;
+  display: grid;
+  justify-items: center;
+}
+
+/* The sill the pot stands on: a lit top edge and its front. */
+.sill {
+  display: block;
+  width: calc(100% + 28px);
+  height: 7px;
+  margin-top: -10px;
+  border-radius: 2px;
+  background: var(--bg-2);
+  box-shadow: 0 5px 0 0 var(--line);
+}
+
+.heroText {
+  min-width: 0;
+  padding-bottom: var(--s-4);
+}
+
+.eyebrow {
+  margin: 0;
+  font-size: var(--fs-micro);
+  font-weight: 800;
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--sage-700);
+}
+
+.name {
+  margin: 2px 0 0;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: var(--fs-title);
+  line-height: 1.1;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.anchor {
+  margin: 2px 0 0;
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: var(--fs-body);
+  color: var(--ink-2);
+}
+
+.schedule {
+  margin: var(--s-2) 0 0;
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  color: var(--ink-2);
+}
+
+.status {
+  display: inline-block;
+  margin: var(--s-2) 0 0;
+  padding: 3px 10px;
+  border-radius: var(--r-pill);
+  background: var(--lavender-100);
+  box-shadow: inset 0 0 0 1px var(--lavender-300);
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  color: var(--lavender-700);
+}
+
+@media (max-width: 380px) {
+  .hero {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+  .heroText {
+    padding-bottom: 0;
+  }
+}
+
+.forecast {
+  display: grid;
+  gap: 2px;
+  padding: var(--s-3) 0 0;
+}
+
+.stageLine {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--fs-body-lg);
+  line-height: 1.4;
+  color: var(--ink);
+}
+
+.forecastLine {
+  margin: 0;
+  font-size: var(--fs-body);
+  font-weight: 800;
+  color: var(--sage-700);
+}
+
+/* ---------- sections ---------- */
+.section {
+  margin-top: var(--s-5);
+}
+
+.sectionTitle {
+  margin: 0 0 var(--s-3);
+  padding: 0 2px 6px;
+  border-bottom: 1px solid var(--line);
+  font-family: var(--font-body);
+  font-size: var(--fs-micro);
+  font-weight: 800;
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+
+.quiet {
+  margin: 0;
+  font-size: var(--fs-caption);
+  color: var(--ink-2);
+}
+
+.help {
+  margin: var(--s-2) 0 0;
+  font-size: var(--fs-caption);
+  color: var(--ink-2);
+}
+
+/* ---------- the plant tag ---------- */
+.tag {
+  position: relative;
+  padding: var(--s-4) var(--s-4) var(--s-3) var(--s-6);
+  border-radius: 6px 14px 14px 6px;
+  background: var(--paper-tag);
+  box-shadow:
+    inset 0 0 0 1px var(--line),
+    var(--shadow-sm);
+}
+
+.tagHole {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  width: 7px;
+  height: 7px;
+  margin-top: -3.5px;
+  border-radius: 50%;
+  background: var(--bg);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+
+.tagLook {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--fs-headline);
+  color: var(--ink);
+}
+
+.tagWhy {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--fs-body-lg);
+  line-height: 1.4;
+  color: var(--ink);
+}
+
+.looks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  margin-top: var(--s-3);
+}
+
+.look {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 48px;
+  padding: 2px 14px 2px 4px;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: var(--card);
+  box-shadow: inset 0 0 0 1px var(--line);
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.look:focus-visible,
+.chip:focus-visible,
+.star:focus-visible,
+.storyHead:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.lookOn {
+  background: var(--sage-300);
+  box-shadow: inset 0 0 0 1.5px var(--sage-700);
+}
+
+.lookArt {
+  display: inline-block;
+  width: 44px;
+  height: 44px;
+}
+
+/* ---------- offers and nudges ---------- */
+.offer {
+  margin-top: var(--s-4);
+  padding: var(--s-4);
+  border-radius: var(--r-md);
+  background: var(--sky-100);
+  box-shadow: inset 0 0 0 1px var(--sky-300);
+}
+
+.offerGrow {
+  background: var(--sage-100);
+  box-shadow: inset 0 0 0 1px var(--sage-300);
+}
+
+.offerTitle {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--fs-headline);
+  color: var(--ink);
+}
+
+.offerText {
+  margin: 4px 0 0;
+  font-size: var(--fs-body);
+  line-height: 1.45;
+  color: var(--ink);
+}
+
+.offerButtons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  margin-top: var(--s-3);
+}
+
+/* ---------- the Garden Journal ---------- */
+.journal {
+  display: grid;
+  gap: var(--s-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ink,
+.pencil {
+  font-family: var(--font-display);
+  font-size: var(--fs-body);
+  line-height: 1.45;
+}
+
+.ink {
+  color: var(--ink);
+}
+
+/* Pencil: grey, italic, a dotted rule under it like a line waiting to be written on. */
+.pencil {
+  margin: 0;
+  font-style: italic;
+  color: var(--ink-3);
+  text-decoration: underline dotted var(--control-border);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 5px;
+}
+
+/* ---------- stat tiles ---------- */
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s-2);
+  margin: 0;
+}
+
+.tile {
+  padding: var(--s-3);
+  border-radius: var(--r-md);
+  background: var(--card-2);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+
+.tile dt {
+  font-size: var(--fs-micro);
+  font-weight: 800;
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+
+.tile dd {
+  display: grid;
+  gap: 2px;
+  margin: 4px 0 0;
+}
+
+.tileValue {
+  font-family: var(--font-display);
+  font-size: var(--fs-body-lg);
+  line-height: 1.25;
+  color: var(--ink);
+}
+
+.tileNote {
+  font-size: var(--fs-micro);
+  font-weight: 700;
+  color: var(--ink-2);
+}
+
+/* ---------- why, moments ---------- */
+.why {
+  margin: 0;
+  padding: var(--s-1) 0 var(--s-1) var(--s-4);
+  border-left: 3px solid var(--blush-300);
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: var(--fs-body-lg);
+  line-height: 1.45;
+  color: var(--ink);
+}
+
+.moments {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.moment {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-3);
+  padding: var(--s-2) 0;
+  border-bottom: 1px dashed var(--line);
+}
+
+.moment:last-child {
+  border-bottom: 0;
+}
+
+.momentBody {
+  flex: 1;
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.momentDate {
+  font-size: var(--fs-micro);
+  font-weight: 800;
+  color: var(--ink-2);
+}
+
+.momentText {
+  font-family: var(--font-display);
+  font-size: var(--fs-body);
+  line-height: 1.4;
+  color: var(--ink);
+  quotes: '‘' '’';
+}
+
+.star {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  margin: -6px -8px 0 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  cursor: pointer;
+}
+
+.star path {
+  fill: none;
+  stroke: var(--control-border);
+  stroke-width: 1.6;
+  stroke-linejoin: round;
+}
+
+.starOn path {
+  fill: var(--butter-500);
+  stroke: var(--butter-700);
+}
+
+/* ---------- history ---------- */
+.calendarCard {
+  padding: var(--s-3);
+  border-radius: var(--r-md);
+  background: var(--card);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+
+/* ---------- the rung ladder ---------- */
+.ladderLine {
+  margin: 0 0 var(--s-3);
+  font-family: var(--font-display);
+  font-size: var(--fs-body);
+  color: var(--ink);
+}
+
+.ladder {
+  display: grid;
+  grid-template-columns: repeat(11, minmax(0, 1fr));
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  position: relative;
+}
+
+.ladder::before {
+  content: '';
+  position: absolute;
+  left: 4%;
+  right: 4%;
+  top: 6px;
+  height: 2px;
+  background: var(--line);
+}
+
+.rung {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 3px;
+}
+
+.rungDot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--card);
+  box-shadow: inset 0 0 0 1.5px var(--control-border);
+}
+
+.rungOn .rungDot {
+  background: var(--sage-500);
+  box-shadow: inset 0 0 0 1.5px var(--sage-700);
+}
+
+.rungTier {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.rungOn .rungTier {
+  color: var(--ink);
+}
+
+.rungCoins {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--coin-ink);
+}
+
+/* ---------- company ---------- */
+.company {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+}
+
+.companyName {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--fs-headline);
+  color: var(--ink);
+}
+
+.companyLine {
+  margin: 0;
+  font-size: var(--fs-caption);
+  color: var(--ink-2);
+}
+
+.stories {
+  display: grid;
+  gap: var(--s-2);
+  margin: var(--s-3) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.story {
+  padding: var(--s-2) var(--s-3);
+  border-radius: var(--r-md);
+  background: var(--card-2);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+
+.storyWaiting {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--line);
+  border: 0;
+}
+
+.storyHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 40px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+div.storyHead {
+  cursor: default;
+}
+
+.storyTitle {
+  flex: 1;
+  font-family: var(--font-display);
+  font-size: var(--fs-body-lg);
+}
+
+.chev {
+  flex: none;
+  margin-left: var(--s-2);
+  color: var(--ink-2);
+  transition: transform var(--t-std) var(--ease-out);
+}
+
+[aria-expanded='true'] > .chev {
+  transform: rotate(180deg);
+}
+
+.storyNew {
+  padding: 1px 10px;
+  border-radius: var(--r-pill);
+  background: var(--blush-100);
+  box-shadow: inset 0 0 0 1px var(--blush-300);
+  font-size: var(--fs-micro);
+  font-weight: 800;
+  color: var(--blush-700);
+}
+
+.storyText {
+  margin: 4px 0 var(--s-2);
+  font-family: var(--font-display);
+  font-size: var(--fs-body);
+  line-height: 1.5;
+  color: var(--ink);
+}
+
+.whyForm {
+  margin: var(--s-2) 0;
+}
+
+/* ---------- actions ---------- */
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+}
+
+.quietActions {
+  margin-top: var(--s-4);
+  padding-top: var(--s-3);
+  border-top: 1px solid var(--line);
+}
+
+.panel {
+  display: grid;
+  gap: var(--s-2);
+  margin-top: var(--s-3);
+  padding: var(--s-4);
+  border-radius: var(--r-md);
+  background: var(--card-2);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+
+.field {
+  display: grid;
+  gap: 4px;
+}
+
+.fieldLabel {
+  font-size: var(--fs-caption);
+  font-weight: 800;
+  color: var(--ink);
+}
+
+.date {
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid var(--control-border);
+  border-radius: var(--r-sm);
+  background: var(--card);
+  color: var(--ink);
+  font: inherit;
+  font-size: 16px;
+  color-scheme: light dark;
+}
+
+.date:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-height: 44px;
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.check input {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--sage-700);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+}
+
+.chip {
+  min-height: 40px;
+  padding: 6px 14px;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: var(--card);
+  box-shadow: inset 0 0 0 1px var(--line);
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.chipOn {
+  background: var(--sage-300);
+  box-shadow: inset 0 0 0 1.5px var(--sage-700);
+}
+
+.keep {
+  display: grid;
+  gap: var(--s-2);
+  padding-bottom: var(--s-2);
+}
+
+.keepTitle {
+  margin: 0 0 var(--s-2);
+  font-family: var(--font-display);
+  font-size: var(--fs-headline);
+  text-align: center;
+  color: var(--ink);
+}
+
+.tagSection {
+  margin-top: var(--s-4);
+}
