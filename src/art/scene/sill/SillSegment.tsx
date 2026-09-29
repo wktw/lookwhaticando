@@ -41,6 +41,12 @@ export interface SillSegmentProps {
   children?: ComponentChildren;
 }
 
+/** A pot's tag goes on the side away from its resident's head (the rim's fixed facing). */
+function tagSideFor(world: SillWorld, habitId: string): 'left' | 'right' {
+  const rim = world.ground.perches.find((q) => q.owner === habitId && q.kind === 'rim');
+  return rim?.facing === 'right' ? 'left' : 'right';
+}
+
 export function SillSegment({ world, room, view, light, pots, coins, uid, tags, animated, damp, pulses, potRef, jarRef, potClass, pinned, children }: SillSegmentProps) {
   const { layout, beam, casts, cast, decor } = world;
   const { rows, scale } = layout.spec;
@@ -67,6 +73,7 @@ export function SillSegment({ world, room, view, light, pots, coins, uid, tags, 
             z={depthZ(p.depth)}
             light={light}
             tag={tags}
+            tagSide={tagSideFor(world, pot.habitId)}
             animated={animated}
             damp={damp?.has(pot.habitId) || undefined}
             pulse={pulses?.[pot.habitId]}
@@ -91,14 +98,6 @@ export function SillSegment({ world, room, view, light, pots, coins, uid, tags, 
           <DecorItem key={d.key} itemId={d.itemId} x={d.x} y={d.y} z={d.z} petSize={scale.pet} light={light} flip={d.flip} scale={d.scale} />
         ))}
       {children}
-      {room.night && !pinned && (
-        <div
-          class={s.dusk}
-          style={{
-            background: `radial-gradient(circle at ${((lamp.x / layout.width) * 100).toFixed(1)}% ${rows.sillBack - 22}%, rgba(26, 22, 48, 0) 18%, rgba(26, 22, 48, 0.44) 78%)`,
-          }}
-        />
-      )}
     </>
   );
 }

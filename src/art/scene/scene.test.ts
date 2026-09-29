@@ -6,19 +6,26 @@ import { describe, expect, it } from 'vitest';
 import { NIGHT_LIGHT, windowLight } from '@/art/light';
 import { PLACES } from '@/catalog/places';
 import type { PlaceId } from '@/catalog/types';
-import { baseline, byDepth, depthOf, depthScale, depthZ, PLANT_BASELINE } from './room';
-import { BAND_MAX_POTS, BAND_SPEC, SILL_SPEC, beamQuad, castVector, inBeam, sillLayout, sunbeam } from './sill/layout';
-import { sillWorld } from './sill/world';
-import { FACADE_PAINTS, skyFor, starCount, streetFor, terraceFor } from './sill/scenery';
+import { baseline, byDepth, depthOf, depthScale, depthZ, PLANT_BASELINE, POT_RIM } from './room';
+import { BAND_MAX_POTS, BAND_SPEC, SILL_SPEC, beamQuad, castVector, inBeam, potCut, sillLayout, sunbeam } from './sill/layout';
+import { BEAM_BY_SEASON, lightTarget, sillWorld } from './sill/world';
+import { nightMoonX } from './sill/Backdrop';
+import { boughsFor, FACADE_PAINTS, skyFor, starCount, streetFor, terraceFor } from './sill/scenery';
 import { childLight, lightAtSun } from './lighting';
 import { mirrored } from './fit';
 import { momentAt, seasonAt, skyTime, type Moment } from './time';
-import { ROOM, outsidePalette } from './palette';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { ROOM, outsidePalette, type RoomPalette } from './palette';
+import { msToNextQuarter } from './hooks';
+import { tagBox, tagStake } from './actors/PotSlot';
+import { scrollKeyTarget } from './ScrollFrame';
+import { SEASONS } from './time';
 import { bandCollapse, BAND_CLOSED_PX, BAND_OPEN_PX } from './band';
 import { POND } from './places/shapes';
 import { jarLevel, JAR_LEVELS } from './props/CoinJar';
 import { PLACE_SCENES, type RoomPlaceId } from './places';
-import { arrangePets } from './arrange';
+import { arrangePets, headBox } from './arrange';
 import type { ShelfPet, SillPot } from './model';
 
 const pot = (i: number, stage = 4): SillPot => ({ habitId: `h${i}`, name: `Habit ${i}`, species: 'pothos', stage, pot: 'terracotta' });
@@ -189,14 +196,18 @@ describe('the Today band framing', () => {
     expect(BAND_SPEC.rows.glassBottom).toBeGreaterThanOrEqual(50);
   });
 
-  it('still shows the pots when collapsed to 64 px', () => {
+  it('keeps the pot rims and the residents’ heads in the lower 40 px when collapsed to 64 px', () => {
     const c = bandCollapse(1);
     const px = (units: number) => (units / 100) * BAND_OPEN_PX;
-    const foot = px(baseline(BAND_SPEC.rows, BAND_SPEC.backRow));
+    const s = depthScale(BAND_SPEC.backRow);
+    const foot = baseline(BAND_SPEC.rows, BAND_SPEC.backRow);
+    const rim = px(foot - ((PLANT_BASELINE - POT_RIM.y) / 100) * BAND_SPEC.scale.pot * s);
+    // A resident loafing on the rim: its head rises about a third of its canvas above the rim.
+    const head = rim - px(0.36 * BAND_SPEC.scale.pet);
     // Visible band content spans [clip - follow, clip - follow + 64] in the band's own pixels.
     const from = c.clip - c.follow;
-    expect(foot).toBeGreaterThan(from);
-    expect(foot).toBeLessThanOrEqual(from + BAND_CLOSED_PX);
+    expect(head).toBeGreaterThanOrEqual(from + BAND_CLOSED_PX - 40 - 2);
+    expect(rim).toBeLessThanOrEqual(from + BAND_CLOSED_PX - 8);
   });
 });
 
@@ -301,5 +312,126 @@ describe('the coin jar', () => {
     expect(levels).toEqual([...levels].sort((a, b) => a - b));
     expect(jarLevel(1_000_000)).toBe(JAR_LEVELS);
     expect(jarLevel(Number.NaN)).toBe(0);
+  });
+});
+
+describe('the Today band’s pinned end', () => {
+  it('never slices a pot at the start of the row, whatever the screen width', () => {
+    for (const n of [4, 5, 6]) {
+      for (let view = 140; view <= 300; view += 1) {
+        const l = sillLayout(BAND_SPEC, n, view);
+        for (const p of l.pots) expect(potCut(BAND_SPEC, p.x, view), `${n} pots, ${view} units, pot at ${p.x}`).toBe(false);
+      }
+    }
+  });
+});
+
+describe('the night sky', () => {
+  it('hangs the moon where the scene opens after dark (a phone, 390×300)', () => {
+    const viewU = (390 / 300) * 100;
+    for (const pots of [1, 3, 6, 9]) {
+      const world = sillWorld(SILL_SPEC, POTS.slice(0, pots).concat(Array.from({ length: Math.max(0, pots - 6) }, (_, i) => pot(10 + i))), [], ROOM.night, 1, pots <= 3 ? viewU : 0);
+      const left = Math.max(0, lightTarget(world) - viewU / 2);
+      const win = world.layout.window;
+      const sky = skyFor(win.x0, win.x1, SILL_SPEC.rows.glassBottom, 3, nightMoonX(world.layout));
+      expect(sky.moon.x - sky.moon.r, `${pots} pots`).toBeGreaterThanOrEqual(left);
+      expect(sky.moon.x + sky.moon.r, `${pots} pots`).toBeLessThanOrEqual(left + viewU);
+      expect(starCount(sky)).toBeLessThanOrEqual(12);
+    }
+  });
+
+  it('keeps the tree’s boughs off the moon', () => {
+    const b = boughsFor(0, 400, 60, 11, 300);
+    const xs = [...b.wood.matchAll(/[ML](-?[\d.]+) (-?[\d.]+)/g)].map((m) => Number(m[1]));
+    for (const x of xs) expect(Math.abs(x - 300)).toBeGreaterThan(8);
+  });
+});
+
+describe('the seasons through the glass', () => {
+  it('paints the view differently in every season, and a bare tree in winter', () => {
+    const noon = SEASONS.map((season) => outsidePalette('day', season));
+    expect(new Set(noon.map((v) => v.sky.join())).size).toBe(4);
+    expect(new Set(noon.map((v) => JSON.stringify(v.bough))).size).toBe(4);
+    expect(outsidePalette('day', 'winter').bough).toMatchObject({ leaf: null, snow: expect.any(String) });
+    expect(outsidePalette('day', 'spring').bough.dots).toBeTruthy();
+    expect(boughsFor(0, 300, 60).wood.length).toBeGreaterThan(0);
+  });
+
+  it('throws a long low patch of sun in winter and a short one in summer', () => {
+    expect(BEAM_BY_SEASON.winter).toBeGreaterThan(BEAM_BY_SEASON.spring);
+    expect(BEAM_BY_SEASON.summer).toBeLessThan(BEAM_BY_SEASON.spring);
+    const w = sillWorld(SILL_SPEC, POTS, [], ROOM.day, 0.5, 0, 'winter').beam!;
+    const su = sillWorld(SILL_SPEC, POTS, [], ROOM.day, 0.5, 0, 'summer').beam!;
+    expect(w.x1 - w.x0).toBeGreaterThan(su.x1 - su.x0);
+  });
+});
+
+describe('the clock', () => {
+  it('re-reads the window at the next quarter hour', () => {
+    expect(msToNextQuarter(new Date(2026, 8, 29, 10, 0, 0))).toBe(15 * 60000);
+    expect(msToNextQuarter(new Date(2026, 8, 29, 10, 14, 30))).toBe(30000);
+    expect(msToNextQuarter(new Date(2026, 8, 29, 23, 59, 59, 500))).toBe(1000);
+  });
+});
+
+describe('plant tags', () => {
+  it('never cover a resident’s head, day or night', () => {
+    const pets: ShelfPet[] = POTS.map((p, i) => ({ petId: i % 2 ? 'pet-cow-highland' : 'pet-cat-grey', home: p.habitId }));
+    const named = POTS.map((p) => ({ ...p, name: 'Drink water', note: 'after coffee' }));
+    for (const [room, m] of [
+      [ROOM.day, at(0.5)],
+      [ROOM.night, at(1, true)],
+    ] as const) {
+      const world = sillWorld(SILL_SPEC, named, [], room, m.light.sun, 130);
+      const spots = arrangePets(world.ground, pets, m);
+      world.layout.pots.forEach((p, i) => {
+        const rim = world.ground.perches.find((q) => q.owner === named[i]!.habitId)!;
+        const side = rim.facing === 'right' ? 'left' : 'right';
+        const tag = tagBox(tagStake(p.x, baseline(SILL_SPEC.rows, p.depth), SILL_SPEC.scale.pot, depthScale(p.depth), side), side, 'Drink water', 'after coffee', 300);
+        for (const spot of spots.values()) {
+          const [a, b, c, d] = headBox(spot, SILL_SPEC.scale.pet);
+          const overlap = tag[0] < c && a < tag[2] && tag[1] < d && b < tag[3];
+          expect(overlap, `tag ${i} over a head at ${spot.x}`).toBe(false);
+        }
+      });
+    }
+  });
+
+  it('use legible type and leave the note off a short scene rather than cut it', () => {
+    const tall = tagBox({ x: 50, y: 60 }, 'right', 'Read', 'before bed', 300);
+    const short = tagBox({ x: 50, y: 60 }, 'right', 'Read', 'before bed', 168);
+    expect(short[3] - short[1]).toBeLessThan(tall[3] - tall[1]);
+    // The name alone is at least 11 px tall on a 168 px scene.
+    expect(((short[3] - short[1]) * 168) / 100).toBeGreaterThanOrEqual(11);
+  });
+});
+
+describe('scrolling the Shelf from the keyboard', () => {
+  it('steps with the arrows and jumps with Home and End, inside the range', () => {
+    expect(scrollKeyTarget('ArrowRight', 0, 500, 120)).toBe(120);
+    expect(scrollKeyTarget('ArrowRight', 450, 500, 120)).toBe(500);
+    expect(scrollKeyTarget('ArrowLeft', 60, 500, 120)).toBe(0);
+    expect(scrollKeyTarget('Home', 300, 500, 120)).toBe(0);
+    expect(scrollKeyTarget('End', 0, 500, 120)).toBe(500);
+    expect(scrollKeyTarget('a', 0, 500, 120)).toBeNull();
+  });
+});
+
+describe('the scene’s art tokens', () => {
+  const css = readFileSync(fileURLToPath(new URL('../../styles/tokens.css', import.meta.url)), 'utf8');
+  const block = (selector: string) => css.slice(css.indexOf(selector), css.indexOf('}', css.indexOf(selector)));
+  const token = (text: string, name: string) => text.match(new RegExp(`${name}:\\s*([^;]+);`))?.[1]?.trim();
+  const norm = (v?: string) => v?.replace(/\s+/g, '').toLowerCase();
+
+  it('match tokens.css by day and by lamplight, so they cannot drift', () => {
+    const day = block(':root {');
+    const night = block(":root[data-theme='night']");
+    const check = (room: RoomPalette, text: string) => {
+      expect(norm(room.tokens.shade)).toBe(norm(token(text, '--shade')));
+      expect(norm(room.tokens.contact)).toBe(norm(token(text, '--contact')));
+      expect(norm(room.tokens.sun)).toBe(norm(token(text, '--sun')));
+    };
+    for (const t of ['dawn', 'day', 'golden'] as const) check(ROOM[t], day);
+    check(ROOM.night, night);
   });
 });

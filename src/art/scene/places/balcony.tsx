@@ -1,16 +1,16 @@
 /**
- * Balcony Box (DESIGN §8.4): out through the glass door, a window box of seasonal flowers on the
- * railing, the street and the weather beyond, and a slatted stand where retired plants live. Room to
+ * Balcony Box (DESIGN §8.4): out through the glass door, a window box of seasonal flowers hung on
+ * the railing, the street and the weather beyond, and a slatted stand where retired plants live. Room to
  * roam on the tiles; at night a jam-jar lantern on the stand.
  */
 import type { Ground, Perch } from '../arrange';
 import { depthZ, type RoomRows } from '../room';
 import type { RoomPalette } from '../palette';
 import { JAR_COLORS } from '../palette';
-import { seeded, skyFor, streetFor } from '../sill/scenery';
-import { CRESCENT } from '../paths';
+import { seeded } from '../sill/scenery';
+import { WindowView } from '../sill/Backdrop';
 import { Plant } from '../actors/adapters';
-import type { Season } from '../time';
+import { fallenLeaf, plantingFor, PLANTING_PAINT } from './windowbox';
 import { painter, Solid, disc, oval } from './kit';
 import { BALCONY, BALCONY_W } from './shapes';
 import type { PlaceDrawProps, PlaceScene } from './types';
@@ -44,44 +44,14 @@ const TILES = (() => {
   return courses + joints.join('');
 })();
 
-/** The window box's planting, by season: tulips, geraniums, heather and chrysanthemums, evergreen. */
-function planting(season: Season): { leaves: string; flowers: string; flower: string; centre?: string; stems?: string } {
-  const r = seeded(season.length * 7);
-  const leaves: string[] = [];
-  const flowers: string[] = [];
-  const centres: string[] = [];
-  const stems: string[] = [];
-  for (let x = 38; x < 107; x += 4.2 + r() * 1.6) leaves.push(oval(x, 35 - r() * 2.6, 3.2 + r(), 2.2 + r() * 0.8));
-  for (let x = 41; x < 105; x += 7 + r() * 5) {
-    const y = 26 + r() * 5;
-    if (season === 'spring') {
-      stems.push(`M${f(x)} 36Q${f(x + 0.5)} ${f(y + 5)} ${f(x)} ${f(y + 1.6)}`);
-      flowers.push(`M${f(x - 2)} ${f(y - 1.6)}Q${f(x - 2.2)} ${f(y + 2)} ${f(x)} ${f(y + 2.2)}Q${f(x + 2.2)} ${f(y + 2)} ${f(x + 2)} ${f(y - 1.6)}L${f(x + 1)} ${f(y - 0.2)}L${f(x)} ${f(y - 2)}L${f(x - 1)} ${f(y - 0.2)}Z`);
-    } else if (season === 'summer') {
-      for (let k = 0; k < 5; k++) flowers.push(disc(x + Math.cos(k * 1.26) * 1.6, y + 3 + Math.sin(k * 1.26) * 1.3, 1.25));
-    } else if (season === 'autumn') {
-      if (r() < 0.5) flowers.push(`M${f(x - 0.9)} 34L${f(x - 0.5)} ${f(y - 1)}L${f(x + 0.5)} ${f(y - 1)}L${f(x + 0.9)} 34Z`);
-      else {
-        flowers.push(disc(x, y + 4, 2));
-        centres.push(disc(x, y + 4, 0.7));
-      }
-    } else {
-      stems.push(`M${f(x)} 36L${f(x + (r() - 0.5) * 4)} ${f(y)}`);
-      flowers.push(disc(x + 1.2, y + 3, 0.7), disc(x - 0.6, y + 4.2, 0.6));
-    }
-  }
-  const flower = season === 'spring' ? '#F2A7B6' : season === 'summer' ? '#EE9A95' : season === 'autumn' ? '#C9A3D9' : '#D9786E';
-  return { leaves: leaves.join(''), flowers: flowers.join(''), flower, centre: centres.length ? centres.join('') : undefined, stems: stems.join('') || undefined };
-}
-
 function Back({ room, view, light, moment, uid, retired = [] }: PlaceDrawProps) {
   const p = painter(room.time, light);
   const night = room.night;
-  const sky = skyFor(0, BALCONY_W, 64, 5);
-  const street = streetFor(-10, BALCONY_W + 10, 64, 13);
-  const plant = planting(moment.season);
   const b = BALCONY;
-  const snow = moment.season === 'winter';
+  const season = moment.season;
+  const plant = plantingFor(season, 37, 107, b.soil);
+  const paint = PLANTING_PAINT[season];
+  const snow = season === 'winter';
   const lanternOn = night;
   return (
     <g>
@@ -91,37 +61,37 @@ function Back({ room, view, light, moment, uid, retired = [] }: PlaceDrawProps) 
           <stop offset="1" stop-color={view.sky[1]} />
         </linearGradient>
       </defs>
-      <rect width={BALCONY_W} height={64} fill={`url(#${uid}-bsky)`} />
-      {view.cloud && <path d={sky.clouds} fill={view.cloud} opacity={0.85} />}
-      {view.star && <path d={sky.stars} fill={view.star} opacity={0.85} />}
-      {view.moon && <path d={CRESCENT} fill={view.moon} transform={`translate(${f(sky.moon.x - 50 * (sky.moon.r / 20))} ${f(sky.moon.y - 50 * (sky.moon.r / 20))}) scale(${f(sky.moon.r / 20)})`} />}
-      <path d={street.houses} fill={view.house} />
-      <path d={street.roofs} fill={view.roof} />
-      {view.snow && <path d={street.snow} fill={view.accent ?? '#FFFFFF'} opacity={0.9} />}
-      {view.litWindow && <path d={street.windows} fill={view.litWindow} opacity={0.85} />}
-      <path d={street.treesDeep} fill={view.treeDeep} />
-      <path d={street.trees} fill={view.tree} />
+      {/* the street beyond the railing: the same terrace and trees the Sill's window looks onto */}
+      <WindowView x0={0} x1={BALCONY_W} bottom={64} view={view} fill={`url(#${uid}-bsky)`} seed={13} />
       {snow && !night && <path d={seededFlakes()} fill="#FFFFFF" opacity={0.85} />}
       {/* the tiled floor */}
       <rect y={64} width={BALCONY_W} height={36} fill={p.c(C.tile)} />
       <path d={TILES} fill={p.c(C.grout)} />
-      {moment.season === 'autumn' && <path d={[oval(40, 88, 1.8, 0.8), oval(118, 79, 1.6, 0.7), oval(66, 94, 1.9, 0.8)].join('')} fill={p.c('#D9A15E')} />}
+      {season === 'autumn' && (
+        <g>
+          <path d={LEAVES.map((l) => l[0]).join('')} fill={p.c('#DDA05C')} />
+          <path d={LEAVES.map((l) => l[1]).join('')} fill="none" stroke={p.c('#B97F45')} stroke-width={0.3} stroke-linecap="round" />
+        </g>
+      )}
       {/* the railing along the far edge */}
       <path d={railings()} fill={p.c(C.rail)} />
       <rect x={b.door} y={b.rail.top} width={BALCONY_W - b.door} height={b.rail.h} fill={p.c(C.rail)} />
       <rect x={b.door} y={b.rail.top + b.rail.h - 0.7} width={BALCONY_W - b.door} height={0.7} fill={p.c(C.railShade)} />
       <rect x={b.door} y={b.rail.bottom - 1.6} width={BALCONY_W - b.door} height={1.6} fill={p.c(C.rail)} />
       {snow && <rect x={b.door} y={b.rail.top - 0.9} width={BALCONY_W - b.door} height={1.1} rx={0.5} fill="#FFFFFF" />}
-      {/* the window box and its planting */}
-      {plant.stems && <path d={plant.stems} fill="none" stroke={p.c(C.leafDeep)} stroke-width={0.5} />}
-      <path d={plant.leaves} fill={p.c(moment.season === 'winter' ? '#6F9468' : C.leaf)} />
-      <path d={plant.flowers} fill={p.c(plant.flower)} />
-      {plant.centre && <path d={plant.centre} fill={p.c('#F2D98A')} />}
-      {/* the box hangs on the top rail by two iron hooks */}
-      <path d={`M44 ${b.rail.top - 0.6}h2.2v4.2h-2.2ZM98 ${b.rail.top - 0.6}h2.2v4.2h-2.2Z`} fill={p.c('#8E8A93')} />
+      {/* the window box hangs on the top rail by two iron brackets, and shades the balusters under it */}
+      <path d={BOX_SHADOW} fill="var(--contact)" />
+      <path d={b.hooks.map((x) => hook(x, b.rail.top, 43)).join('')} fill={p.c('#7E7A86')} />
+      {plant.stems && <path d={plant.stems} fill="none" stroke={p.c(paint.stem)} stroke-width={0.45} stroke-linecap="round" />}
+      <path d={plant.leavesDeep} fill={p.c(paint.leafDeep)} />
+      <path d={plant.leaves} fill={p.c(paint.leaf)} />
+      {plant.marks && <path d={plant.marks} fill={p.c(paint.leafDeep)} fill-rule="evenodd" />}
+      <path d={plant.flowers} fill={p.c(paint.flower)} />
+      {plant.accents && <path d={plant.accents} fill={p.c(paint.accent)} />}
+      {plant.snow && <path d={plant.snow} fill="#FFFFFF" opacity={0.95} />}
       <Solid d={b.box} fill={p.c(C.box)} crescent={p.shade('balcony.box')} />
       <path d={b.boxLip} fill={p.c(C.boxLip)} />
-      {snow && <rect x={33} y={34.2} width={78} height={1.2} rx={0.6} fill="#FFFFFF" />}
+      {snow && <rect x={33} y={40.2} width={78} height={1.2} rx={0.6} fill="#FFFFFF" />}
       {/* the slatted stand where retired plants live */}
       <path d={`M${b.stand.x0 + 1} 40h1.6v${b.stand.foot - 40}h-1.6ZM${b.stand.x1 - 2.6} 40h1.6v${b.stand.foot - 40}h-1.6Z`} fill={p.c(C.stand)} />
       <path d={oval((b.stand.x0 + b.stand.x1) / 2, b.stand.foot, 19, 1.3)} fill="var(--contact)" />
@@ -150,6 +120,21 @@ function Back({ room, view, light, moment, uid, retired = [] }: PlaceDrawProps) 
   );
 }
 
+/** An iron bracket: a strap up from the box's back, hooked over the top rail. */
+function hook(x: number, rail: number, lip: number): string {
+  return `M${x} ${lip}V${rail - 0.2}Q${x} ${rail - 1.6} ${x + 1.3} ${rail - 1.6}Q${x + 2.6} ${rail - 1.6} ${x + 2.6} ${rail - 0.2}V${rail + 1.4}H${x + 1.8}V${rail - 0.1}Q${x + 1.8} ${rail - 0.8} ${x + 1.3} ${rail - 0.8}Q${x + 0.8} ${rail - 0.8} ${x + 0.8} ${rail - 0.1}V${lip}Z`;
+}
+
+/** The box's shadow on the balusters just under it. */
+const BOX_SHADOW = (() => {
+  const out: string[] = [];
+  for (let x = BALCONY.door + 3; x < BALCONY_W; x += 5.4) if (x > 35 && x < 108) out.push(`M${f(x)} 53h1.1v3.2h-1.1Z`);
+  return out.join('');
+})();
+
+/** Three fallen leaves on the tiles (autumn). */
+const LEAVES = [fallenLeaf(38, 88, 20, 5), fallenLeaf(116, 78.6, 160, 4.4), fallenLeaf(64, 94.4, -30, 5.2), fallenLeaf(92, 84, 200, 4)];
+
 function railings(): string {
   const out: string[] = [];
   for (let x = BALCONY.door + 3; x < BALCONY_W; x += 5.4) out.push(`M${f(x)} ${BALCONY.rail.top}h1.1V${BALCONY.rail.bottom}h-1.1Z`);
@@ -164,7 +149,7 @@ function seededFlakes(): string {
 }
 
 function ground(room: RoomPalette, petSize: number): Ground {
-  const perches: Perch[] = [{ id: 'balcony:box', kind: 'shelf', x: 70, y: 36.2, depth: 0.05, z: depthZ(0) - 6, w: 60, likes: ['cat', 'bunny'] }];
+  const perches: Perch[] = [{ id: 'balcony:box', kind: 'shelf', x: 70, y: 41.2, depth: 0.05, z: depthZ(0) - 6, w: 60, likes: ['cat', 'bunny'] }];
   return { rows: ROWS, x0: BALCONY.door + 8, x1: BALCONY_W - 6, d0: 0.3, d1: 1, surface: room.floor, beam: null, perches, obstacles: [{ x0: BALCONY.stand.x0, x1: BALCONY.stand.x1 }], petSize };
 }
 

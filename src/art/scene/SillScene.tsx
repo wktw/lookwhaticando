@@ -12,19 +12,20 @@ import { useLayoutEffect, useMemo, useRef } from 'preact/hooks';
 import type { Hemisphere } from '@/art/light';
 import type { ShelfDecor, ShelfPet, SillPot } from './model';
 import { petKey, speciesOf } from './model';
-import { momentAt, type Moment } from './time';
+import type { Moment } from './time';
 import { outsidePalette, ROOM } from './palette';
 import { childLight } from './lighting';
 import { arrangePets } from './arrange';
 import { SILL_SPEC } from './sill/layout';
-import { sillWorld } from './sill/world';
+import { lightTarget, sillWorld } from './sill/world';
 import { SillSegment } from './sill/SillSegment';
 import { PetLayer } from './actors/PetLayer';
 import { u } from './actors/stand';
-import { useWidthUnits } from './hooks';
+import { useWidthUnits, useWindowMoment } from './hooks';
 import { useShelfLife } from './behavior/useShelfLife';
 import { stageVignette } from './behavior/stage';
 import { useUid } from './uid';
+import { ScrollFrame } from './ScrollFrame';
 import s from './shelf.module.css';
 
 export interface SillSceneProps {
@@ -59,12 +60,12 @@ export function SillScene(props: SillSceneProps) {
   const ref = useRef<HTMLDivElement>(null);
   const uid = useUid('sill');
   const widthU = useWidthUnits(ref, 130);
-  const moment = props.moment ?? momentAt(props.now ?? new Date(), props.hemisphere);
+  const moment = useWindowMoment(props);
   const room = ROOM[moment.time];
   const view = outsidePalette(moment.time, moment.season);
   const light = childLight(moment.light);
 
-  const world = useMemo(() => sillWorld(SILL_SPEC, pots, decor, room, moment.light.sun, widthU), [pots, decor, room, moment.light.sun, widthU]);
+  const world = useMemo(() => sillWorld(SILL_SPEC, pots, decor, room, moment.light.sun, widthU, moment.season), [pots, decor, room, moment.light.sun, widthU, moment.season]);
   const start = useMemo(() => {
     const spots = arrangePets(world.ground, pets, moment);
     return props.vignette ? stageVignette(props.vignette, 'sill', world.ground, moment, pets, spots) : spots;
@@ -75,34 +76,36 @@ export function SillScene(props: SillSceneProps) {
     () => pets.map((p) => ({ key: petKey(p), species: speciesOf(p.petId), personality: p.personality, place: 'sill' as const, ground: world.ground, home: world.ground.perches.find((q) => q.owner === p.home) })),
     [pets, world],
   );
-  const views = useShelfLife(cast, start, { moment, live: live && !props.vignette, sceneRef: ref });
+  // A staged vignette holds its places, then plays out once the scene is live.
+  const views = useShelfLife(cast, start, { moment, live, sceneRef: ref, vignettes: !props.vignette, opening: props.vignette });
 
   // Open where the light is: the sunbeam by day, the lamp after dark.
   useLayoutEffect(() => {
     const el = ref.current;
     if (!el) return;
     const unit = el.clientHeight / 100;
-    const b = world.beam;
-    const target = b ? (b.x0 + b.x1) / 2 + b.slant / 2 : world.layout.lamp.x - 30;
+    const target = lightTarget(world);
     el.scrollLeft = Math.max(0, target * unit - el.clientWidth / 2);
     // Only when the light moves to another place on the sill.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [world.layout.width, moment.time]);
 
   return (
-    <div
-      ref={ref}
-      class={[s.scene, room.night ? s.night : '', props.class].filter(Boolean).join(' ')}
+    <ScrollFrame
+      sceneRef={ref}
+      wall={room.wall}
+      step={SILL_SPEC.pitch}
+      label={label ?? 'The Sill'}
+      night={room.night}
+      time={moment.time}
+      class={props.class}
       style={{ ...sceneTokens(room.tokens), background: room.wall, ...props.style }}
-      role={label ? 'group' : undefined}
-      aria-label={label}
-      data-time={moment.time}
     >
       <div class={s.track} style={{ width: u(world.layout.width) }}>
         <SillSegment world={world} room={room} view={view} light={light} pots={pots} coins={coins} uid={uid} tags={tags} animated={live}>
           <PetLayer pets={pets} views={views} size={SILL_SPEC.scale.pet} light={light} castColor={room.sill} cast={world.cast} animated={live} />
         </SillSegment>
       </div>
-    </div>
+    </ScrollFrame>
   );
 }

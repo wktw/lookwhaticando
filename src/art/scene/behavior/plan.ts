@@ -84,11 +84,13 @@ export function planAct(input: PlanInput): { kind: ActKind; steps: Step[] } {
     const dist = Math.hypot(to.x - at.x, (to.y - at.y) * 2);
     const hop = !!to.perch !== !!at.perch || (to.perch === 'rim' && at.perch === 'rim');
     const facing = to.x < at.x - 0.5 ? 'left' : to.x > at.x + 0.5 ? 'right' : at.facing;
-    if (dist < 1.5) return [{ spot: { ...to, pose, asleep, facing: at.facing }, move: 0, walk: false, hop: false, hold }];
+    // A pot rim keeps its resident's head away from the plant tag; elsewhere a pet may turn round.
+    const settle = (f: 'left' | 'right') => (to.perch === 'rim' ? to.facing : f);
+    if (dist < 1.5) return [{ spot: { ...to, pose, asleep, facing: settle(at.facing) }, move: 0, walk: false, hop: false, hold }];
     const move = hop ? 620 : Math.max(700, (dist / PACE[species]) * 1000);
     return [
       { spot: { ...to, pose: hop ? awake : 'walk', asleep: false, facing }, move, walk: !hop, hop, hold: 0 },
-      { spot: { ...to, pose, asleep, facing: rnd() < 0.3 ? (facing === 'left' ? 'right' : 'left') : facing }, move: 0, walk: false, hop: false, hold },
+      { spot: { ...to, pose, asleep, facing: settle(rnd() < 0.3 ? (facing === 'left' ? 'right' : 'left') : facing) }, move: 0, walk: false, hop: false, hold },
     ];
   };
 

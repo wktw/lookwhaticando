@@ -1,7 +1,7 @@
 /*
- * The Today band (DESIGN §9.1). It keeps its 168 px of layout; collapsing crops the top with a clip
- * and slides the band up (transform), while the sill inside slides down a little to keep the pots in
- * view. Nothing re-lays out while it collapses.
+ * The Today band (DESIGN §9.1). It keeps its 168 px of layout and a fixed overflow clip; collapsing
+ * slides the band up inside it (a transform on its own layer), while the sill inside slides down a
+ * little to keep the pots in view. Nothing re-lays out or repaints while it collapses.
  */
 
 .band {
@@ -9,8 +9,13 @@
   height: var(--band-h, 168px);
   overflow: hidden;
   contain: layout paint;
+}
+
+.slide {
+  position: absolute;
+  inset: 0;
   transform: translateY(calc(-1 * var(--band-clip, 0px)));
-  clip-path: inset(var(--band-clip, 0px) 0 0 0);
+  will-change: transform;
 }
 
 .follow {
@@ -33,7 +38,6 @@
 .pool {
   position: absolute;
   border-radius: 50%;
-  background: radial-gradient(closest-side, rgba(255, 201, 138, 0.5), rgba(255, 201, 138, 0.16) 45%, rgba(255, 201, 138, 0));
 }
 
 .scroll {
@@ -66,17 +70,42 @@
   border-radius: 6px;
 }
 
-/* A thin stream of water onto a pot, a splash, then it is gone (≤ 700 ms). */
+/* A thin stream of water from a watering can's spout onto a pot, a splash, then it is gone (≤ 700 ms). */
 .stream {
   position: absolute;
   z-index: 700;
   pointer-events: none;
-  border-radius: 0 0 1cqh 1cqh;
-  /* flat water: denim wash with a paler core, no gradient */
+  border-radius: 1cqh 1cqh 1cqh 1cqh;
+  /* flat water: denim wash with a narrow paler core, no gradient */
   background: #a9cbe7;
-  box-shadow: inset calc(0.45 * 1cqh) 0 0 #d8e9f5;
+  box-shadow: inset calc(0.8 * 1cqh) 0 0 #a9cbe7, inset calc(1.6 * 1cqh) 0 0 #d8e9f5;
   transform-origin: 50% 0;
   animation: pour 0.68s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.spout {
+  position: absolute;
+  z-index: 701;
+  pointer-events: none;
+  overflow: visible;
+  transform-origin: 85% 80%;
+  animation: spout 0.68s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+@keyframes spout {
+  0% {
+    opacity: 0;
+    transform: rotate(-10deg);
+  }
+  18%,
+  72% {
+    opacity: 1;
+    transform: rotate(0deg);
+  }
+  100% {
+    opacity: 0;
+    transform: rotate(-10deg);
+  }
 }
 
 @keyframes pour {
@@ -151,6 +180,23 @@
   }
 }
 
+/*
+ * Reduced motion: the coin does not fall; it fades in resting on the heap and out again. The fade is
+ * a Web Animation (opacity only), which the global reduced-motion reset leaves alone.
+ */
+.coinStill {
+  position: absolute;
+  z-index: 702;
+  pointer-events: none;
+  opacity: 0;
+}
+
+.coinStill > svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
 .clink {
   animation: clink 0.26s cubic-bezier(0.2, 0.8, 0.2, 1) 1;
 }
@@ -162,4 +208,9 @@
   100% {
     transform: none;
   }
+}
+
+.scroll:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: -3px;
 }

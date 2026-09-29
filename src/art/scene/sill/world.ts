@@ -10,7 +10,8 @@ import { baseline, clamp, depthScale, depthZ, PLANT_BASELINE, POT_FOOT_W, POT_RI
 import type { Ground, Obstacle, Perch } from '../arrange';
 import { decorSize } from '../fit';
 import type { CastSpec } from './Backdrop';
-import { castVector, sillLayout, sunbeam, type Beam, type SillLayout, type SillSpec } from './layout';
+import { BEAM_WIDTH, castVector, sillLayout, sunbeam, type Beam, type SillLayout, type SillSpec } from './layout';
+import type { Season } from '../time';
 
 /** Decor pets can sleep in, and how far above the item's baseline they lie (share of its canvas). */
 export const NAP_SPOTS: Record<string, number> = {
@@ -45,6 +46,11 @@ export interface SillWorld {
   cast: readonly [number, number];
   decor: PlacedDecor[];
   ground: Ground;
+}
+
+/** A resident faces into the room from its rim; its pot's tag stands on the other side (`tagSide`). */
+export function rimFacing(x: number, mid: number): 'left' | 'right' {
+  return x > mid ? 'left' : 'right';
 }
 
 /** A plant's rough height above its pot, by stage (share of the plant canvas). */
@@ -90,13 +96,22 @@ export function placeDecor(layout: SillLayout, decor: readonly ShelfDecor[]): Pl
   });
 }
 
-export function sillWorld(spec: SillSpec, pots: readonly SillPot[], decor: readonly ShelfDecor[], room: RoomPalette, sun: number, minWidth: number): SillWorld {
+/**
+ * How long the patch of sun is by season: the winter sun is low and throws a long patch deep into
+ * the room, the summer sun is high and throws a short one (after the day lengths in `@/art/light`).
+ */
+export const BEAM_BY_SEASON: Record<Season, number> = { spring: 1, summer: 0.84, autumn: 1.14, winter: 1.34 };
+
+export function sillWorld(spec: SillSpec, pots: readonly SillPot[], decor: readonly ShelfDecor[], room: RoomPalette, sun: number, minWidth: number, season: Season = 'spring'): SillWorld {
   const layout = sillLayout(spec, pots.length, minWidth);
   const { rows, scale } = layout.spec;
-  const beam = room.beam ? sunbeam(layout.window, rows, sun) : null;
-  const cast = castVector(sun);
+  const long = BEAM_BY_SEASON[season];
+  const beam = room.beam ? sunbeam(layout.window, rows, sun, BEAM_WIDTH * long) : null;
+  const [cx, cy] = castVector(sun);
+  const cast = [cx * long, Math.min(0.4, cy * long)] as const;
   const casts: CastSpec[] = [];
   const perches: Perch[] = [];
+  const mid = (layout.window.x0 + 2 + layout.width - 4) / 2;
   layout.pots.forEach((p, i) => {
     const pot = pots[i]!;
     const y = baseline(rows, p.depth);
@@ -106,7 +121,7 @@ export function sillWorld(spec: SillSpec, pots: readonly SillPot[], decor: reado
     const stage = Math.max(0, Math.min(7, Math.floor(pot.stage) || 0));
     if (stage >= 2) {
       casts.push({ x: p.x, y, foot: size * POT_FOOT_W, top: size * POT_RIM_W, height: potH, crown: { h: potH + CROWN[stage]! * size * 0.5, r: CROWN[stage]! * size * 0.5 } });
-      perches.push({ id: `rim:${pot.habitId}`, owner: pot.habitId, kind: 'rim', x: p.x, y: y - potH, depth: p.depth, z: depthZ(p.depth), w: size * POT_RIM_W });
+      perches.push({ id: `rim:${pot.habitId}`, owner: pot.habitId, kind: 'rim', x: p.x, y: y - potH, depth: p.depth, z: depthZ(p.depth), w: size * POT_RIM_W, facing: rimFacing(p.x, mid) });
     } else {
       casts.push({ x: p.x, y, foot: size * 0.18, top: size * 0.18, height: size * 0.4 });
     }
@@ -142,4 +157,13 @@ export function sillWorld(spec: SillSpec, pots: readonly SillPot[], decor: reado
     petSize: scale.pet,
   };
   return { layout, beam, casts, cast, decor: placed, ground };
+}
+
+/** How far left of the lamp the scene centres when it opens after dark (lamp and moon both in view). */
+export const NIGHT_OPEN_LEFT_OF_LAMP = 34;
+
+/** The x a scene centres on when it opens "where the light is": the sunbeam by day, near the lamp at night. */
+export function lightTarget(world: SillWorld): number {
+  const b = world.beam;
+  return b ? (b.x0 + b.x1) / 2 + b.slant / 2 : world.layout.lamp.x - NIGHT_OPEN_LEFT_OF_LAMP;
 }

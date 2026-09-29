@@ -1,7 +1,7 @@
 /**
  * Cat-grass Tray (DESIGN §8.4): a long seed tray of oat grass on an oak bench. At this size it is a
- * pasture: cows graze in it and rabbits sit up in it, with the front blades and the tray's lip drawn
- * over their legs.
+ * pasture: cows and rabbits stand on the lawn, level with the tray's lip, the short front blades
+ * brushing their feet.
  */
 import type { Ground } from '../arrange';
 import { depthZ, type RoomRows } from '../room';
@@ -11,7 +11,7 @@ import { painter, Solid, oval } from './kit';
 import { GRASS, GRASS_W } from './shapes';
 import type { PlaceDrawProps, PlaceScene } from './types';
 
-const ROWS: RoomRows = { glassBottom: 60, sillBack: 62.6, sillFront: 72, nosing: 83 };
+const ROWS: RoomRows = { glassBottom: 58, sillBack: GRASS.soil, sillFront: GRASS.lip, nosing: 83 };
 
 const C = {
   benchTop: '#E6D2B5',
@@ -25,6 +25,8 @@ const C = {
   mat: '#FBF7EF',
   fern: '#A9C495',
   clump: '#9DC089',
+  lawn: '#A9C792',
+  lawnBack: '#9CBD86',
   rail: '#E3CDAE',
   tin: '#BCCBD2',
   tinDeep: '#A9BAC3',
@@ -66,7 +68,7 @@ function blades(x0: number, x1: number, soil: number, tall: number, n: number, s
 }
 
 const BACK = blades(18, 152, GRASS.soil + 0.5, 25, 150, 17, 9);
-const FRONT = blades(16, 154, GRASS.soil + 1, 9, 110, 23);
+const FRONT = blades(16, 154, GRASS.lip + 0.6, 4.2, 120, 23);
 
 /** The dense body of the clump behind the blades: a soft ridge, so it reads as a lawn, not sprouts. */
 const CLUMP = (() => {
@@ -74,12 +76,6 @@ const CLUMP = (() => {
   let d = `M17 ${GRASS.soil + 1}`;
   for (let x = 17; x <= 153; x += 6) d += `L${x} ${f(GRASS.soil - 9 - r() * 6)}`;
   return `${d}L153 ${GRASS.soil + 1}Z`;
-})();
-
-const RIBS = (() => {
-  const out: string[] = [`M18.6 74.6H151.4V75.3H18.6Z`];
-  for (let x = 30; x < 150; x += 12) out.push(`M${x} 67.4h0.7V82.4h-0.7Z`);
-  return out.join('');
 })();
 
 function Grass({ b, p }: { b: Blades; p: ReturnType<typeof painter> }) {
@@ -134,9 +130,12 @@ function Back({ room, light }: PlaceDrawProps) {
       <rect y={bench.bottom} width={GRASS_W} height={1.4} fill={room.underNosing} />
       <path d={oval(85, GRASS.bench.top + 0.8, 72, 1.4)} fill="var(--contact)" />
       {/* soil and the tall grass behind the pasture */}
-      <rect x={16} y={GRASS.soil - 1} width={138} height={3} fill={p.c(C.soil)} />
       <path d={CLUMP} fill={p.c(C.clump)} />
       <Grass b={BACK} p={p} />
+      {/* the mown lawn the pets stand on, level with the tray's lip, and the soil at its edge */}
+      <rect x={16} y={GRASS.soil} width={138} height={GRASS.lip - GRASS.soil} fill={p.c(C.lawn)} />
+      <rect x={16} y={GRASS.soil} width={138} height={2.2} fill={p.c(C.lawnBack)} />
+      <rect x={16} y={GRASS.lip - 1.2} width={138} height={1.6} fill={p.c(C.soil)} />
     </g>
   );
 }
@@ -147,8 +146,8 @@ function Front({ room, light }: PlaceDrawProps) {
     <g>
       <Grass b={FRONT} p={p} />
       <Solid d={GRASS.tray} fill={p.c(C.tray)} crescent={p.shade('grass.tray')} />
-      {/* the moulded cells of the seed tray, faintly */}
-      <path d={RIBS} fill={p.c(C.rim)} opacity={0.55} />
+      {/* the rolled rim throws one hard band of shade on the moulded front */}
+      <rect x={16} y={GRASS.lip + 2} width={138} height={1.3} fill="var(--shade)" />
       <Solid d={GRASS.rim} fill={p.c(C.rim)} crescent={p.shade('grass.rim')} />
     </g>
   );

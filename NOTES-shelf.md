@@ -67,9 +67,33 @@ the places (`places/`), the pets' behaviour (`behavior/`) and the vignette regis
    the sill. `--sun` is still set inside the scene for child art. If the lead prefers the token, set
    `--sun` to an opaque value or add `--sun-beam`.
 
-10. **pets, for the vignettes**: the cat-on-cow and nap-pile vignettes stage correctly, but with the old round
-    pet art in this worktree a cat on a lying cow hides the cow. They read once the pets module's true postures
-    (a long lying cow) land.
+10. **pets, for the vignettes**: the cat-on-cow vignette is gated out of the registry until the lying cow lands
+    (`LYING_COW_READY = false` in `behavior/vignettes.ts`, `TODO(integration)`): with the old round cow a cat on
+    its back hides the cow. Flip it to `true` once the pets module's long lying cow is in. `findVignette` and
+    `stageVignette` skip any vignette whose `ready()` is false.
+
+11. **plants, for tags** (`PlantTag`): the Sill's tags now stand on the side of the pot away from the resident's
+    head (each rim perch has a fixed `facing`; the tag takes the other side), size to their text (no max-width,
+    no ellipsis), use type floors of 11 px (name) and 10 px (note), and drop the note on scenes under 220 px
+    tall rather than truncate it. When `PlantTag` lands, please give it a `side?: 'left' | 'right'` prop and the
+    same floors; `SillTag`, `tagStake` and `tagBox` in `actors/PotSlot.tsx` show the geometry.
+
+12. **ui / Today screen, collapse**: `BAND_FOLLOW` is now 0.4, so at 64 px the pot rims and the residents' heads
+    sit in the lower 40 px (the pot feet run under the bottom edge). The band no longer animates `clip-path`:
+    it is a fixed 168 px `overflow: hidden` box with the band translated up inside it (compositor only). The
+    screen's greeting chip should shrink as it collapses (the gallery mocks this).
+
+13. **ui / Shelf screen**: `ShelfScene` and `SillScene` now render a frame (`ScrollFrame`) around the scroller:
+    `class` and `style` go on the frame, the scroller is keyboard focusable (Arrow keys step one pot pitch,
+    Home/End go to the ends) with a focus ring, a wall-coloured fade marks an end that has more room beyond, and
+    on `(hover: hover) and (pointer: fine)` two 44 px chevrons scroll it. The band's pot row takes Arrow keys too.
+
+14. **light.ts**: the winter/summer sunbeam length is a per-season factor (`BEAM_BY_SEASON` in `sill/world.ts`)
+    because `SUNRISE`/`SUNSET` are not exported from `@/art/light`. If they are exported, derive it from day length.
+
+15. **time**: scenes follow the clock with `useWindowMoment` (`hooks.ts`): a timeout to the next quarter hour and
+    a re-read on `visibilitychange`, re-rendering only when the quarter hour changes (≤ 96 a day). Pinned
+    `moment`/`now` props still win.
 
 ## How it is built (for reviewers)
 
@@ -77,6 +101,13 @@ the places (`places/`), the pets' behaviour (`behavior/`) and the vignette regis
 - Crescents for the scene's own objects (jar, lamp, saucer, tray, books, box, quilt) are precomputed strings in
   `crescent/data.ts`, generated offline by `crescent/crescents.test.ts` from the shapes in `props/shapes.ts` and
   `places/shapes.ts` (`WRITE_CRESCENTS=1 npx vitest run src/art/scene/crescent`). The test fails if they drift.
+- Night is opaque indigo planes (`ROOM.night`), with the lamp's pool painted as a light gradient on the wall,
+  frame and sill only (not the glass), under everyone; its stops run amber → rose → violet (`LAMP_POOL`) so the
+  falloff never passes through grey. There is no dark veil over the pets any more.
+- The season shows through the glass: the plane tree's boughs across the top of the panes (`boughsFor`, blossom,
+  full leaf, amber, bare wood with snow), a per-season sky tint and a longer winter beam. The moon hangs a pane
+  or so left of the lamp, where the scene opens after dark, and the boughs keep clear of it.
+- A unit test pins `ROOM[*].tokens` to `tokens.css` (`--shade`, `--contact`, `--sun`, day and night).
 - Cast shadows in the sunbeam are the bare sill showing through the beam (sill-coloured shapes), so they need no
   clipping and vanish outside the sun by themselves.
 - Pets: one `@preact/signals` signal per pet; a move is one update and CSS carries it (transform only). The director

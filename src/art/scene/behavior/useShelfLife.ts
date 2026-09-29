@@ -15,7 +15,7 @@ import { Director, type DirectorPet } from './director';
 export function useShelfLife(
   pets: readonly DirectorPet[],
   start: ReadonlyMap<string, PetSpot>,
-  { moment, live, sceneRef, vignettes = true }: { moment: Moment; live: boolean; sceneRef: RefObject<HTMLElement>; vignettes?: boolean },
+  { moment, live, sceneRef, vignettes = true, opening }: { moment: Moment; live: boolean; sceneRef: RefObject<HTMLElement>; vignettes?: boolean; opening?: string },
 ): ReadonlyMap<string, Signal<ActorView>> {
   const director = useMemo(
     () =>
@@ -45,8 +45,13 @@ export function useShelfLife(
   useEffect(() => {
     if (!live) return;
     director.start();
-    return () => director.stop();
-  }, [director, live]);
+    // A staged vignette plays out (a line of ducks walks on) once the scene is live.
+    const t = opening ? setTimeout(() => director.playVignette(opening), 400) : undefined;
+    return () => {
+      clearTimeout(t);
+      director.stop();
+    };
+  }, [director, live, opening]);
 
   return director.views;
 }

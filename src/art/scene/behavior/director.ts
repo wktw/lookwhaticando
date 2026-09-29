@@ -12,7 +12,7 @@ import type { Ground, Perch } from '../arrange';
 import type { Moment } from '../time';
 import { seeded } from '../sill/scenery';
 import { PACE, planAct, type Step } from './plan';
-import { findVignette, type Vignette } from './vignettes';
+import { findVignette, vignetteById, type Vignette } from './vignettes';
 
 export interface DirectorPet {
   key: string;
@@ -166,6 +166,27 @@ export class Director {
     this.sceneTimer = setTimeout(() => this.tryVignette(), a + this.rnd() * (b - a));
   }
 
+  /** Play a vignette now by id, if it can (a staged gallery scene, a moment the screen asks for). */
+  playVignette(id: string): boolean {
+    const v = vignetteById(id);
+    if (!v || !this.running || this.opts.reduced() || (v.ready && !v.ready())) return false;
+    const pets = [...this.pets.values()].filter((p) => !this.busy.has(p.key));
+    for (const place of new Set(pets.map((p) => p.place))) {
+      const here = pets.filter((p) => p.place === place);
+      const ground = here[0]!.ground;
+      const cast = v.cast({ place, ground, moment: this.moment, actors: here.map((p) => ({ key: p.key, species: p.species, spot: this.views.get(p.key)!.peek() })) });
+      if (cast) {
+        for (const key of cast) {
+          const t = this.timers.get(key);
+          if (t) clearTimeout(t);
+        }
+        this.stageVignette(v, cast, place, ground);
+        return true;
+      }
+    }
+    return false;
+  }
+
   private stageVignette(v: Vignette, cast: readonly string[], place: PlaceId, ground: Ground): void {
     const actors = [...this.pets.values()].filter((p) => p.place === place).map((p) => ({ key: p.key, species: p.species, spot: this.views.get(p.key)!.peek() }));
     const spots = v.stage({ place, ground, moment: this.moment, actors }, cast);
@@ -188,6 +209,9 @@ export class Director {
         { spot: { ...to, pose: move ? 'walk' : to.pose, asleep: false, facing: to.x < at.x ? 'left' : 'right' }, move, walk: move > 0, hop: !!to.perch && !at.perch, hold: 0 },
         { spot: to, move: 0, walk: false, hop: false, hold: 0 },
       ];
+      // A line sets off one after another, so the gait reads as a line, not a crowd.
+      const delay = v.stagger ? members.indexOf(key) * v.stagger : 0;
+      if (delay) steps.unshift({ spot: { ...at }, move: 0, walk: false, hop: false, hold: delay });
       if (v.procession) {
         // Walk on together, in step, the length of the line and a bit.
         const dir = to.facing === 'right' ? 1 : -1;

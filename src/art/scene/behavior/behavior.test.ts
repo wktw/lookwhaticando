@@ -119,7 +119,9 @@ describe('vignettes', () => {
     const spots = cast.map((k) => v.stage(c, cast).get(k)!);
     expect(new Set(spots.map((s) => s.facing)).size).toBe(1);
     const dir = spots[0]!.facing === 'right' ? 1 : -1;
-    for (let i = 1; i < spots.length; i++) expect((spots[i - 1]!.x - spots[i]!.x) * dir).toBeGreaterThan(0);
+    // Single file with clear space between: nearly a body length (half the canvas) apart.
+    for (let i = 1; i < spots.length; i++) expect((spots[i - 1]!.x - spots[i]!.x) * dir).toBeGreaterThan(c.ground.petSize * 0.9);
+    expect(v.stagger).toBeGreaterThan(0);
     expect(v.cast(ctx(['duck', 'cat']))).toBeNull();
     expect(v.cast(ctx(['duck', 'duck'], at(1, true)))).toBeNull();
   });
@@ -141,16 +143,26 @@ describe('vignettes', () => {
     registerVignette({ id: 'test-only', caption: 'Test.', weight: 1, hold: 1, cast: (c) => (c.actors.length === 9 ? ['x'] : null), stage: () => new Map() });
     expect(vignetteById('test-only')).toBeDefined();
     VIGNETTES.splice(VIGNETTES.findIndex((v) => v.id === 'test-only'), 1);
-    const c = ctx(['cow', 'cat']);
-    expect(findVignette(c, 0)?.vignette.id).toBe('cat-on-cow');
+    const c = ctx(['duck', 'duck', 'cat']);
+    expect(findVignette(c, 0)?.vignette.id).toBe('duck-line');
     expect(findVignette(c, 0.99)).toBeNull();
+    // The cat on a cow's back waits for the lying cow (the round cow would hide under the cat).
+    expect(findVignette(ctx(['cow', 'cat']), 0)).toBeNull();
   });
 
   it('can be staged on a still scene', () => {
     const g = sill();
-    const pets: ShelfPet[] = [{ petId: 'pet-cow-beltie' }, { petId: 'pet-cat-calico' }];
-    const spots = stageVignette('cat-on-cow', 'sill', g, at(0.5), pets, arrangePets(g, pets, at(0.5)));
-    expect(spots.get('pet-cat-calico')).toMatchObject({ perch: 'back', asleep: true });
+    const pets: ShelfPet[] = [{ petId: 'pet-bunny-lop' }];
+    const spots = stageVignette('bunny-leaf', 'sill', g, at(0.5), pets, arrangePets(g, pets, at(0.5)));
+    const bunny = spots.get('pet-bunny-lop')!;
+    const rim = g.perches.filter((p) => p.kind === 'rim').reduce((a, b) => (Math.abs(a.x - bunny.x) < Math.abs(b.x - bunny.x) ? a : b));
+    // Beside the nearest pot, facing it, up on its haunches.
+    expect(Math.abs(bunny.x - rim.x)).toBeLessThan(g.petSize);
+    expect(bunny.facing).toBe(bunny.x > rim.x ? 'left' : 'right');
+    expect(bunny.pose).toBe('sit');
+    // Not staged while it waits for its art.
+    const still = stageVignette('cat-on-cow', 'sill', g, at(0.5), [{ petId: 'pet-cow-beltie' }, { petId: 'pet-cat-calico' }], new Map());
+    expect(still.size).toBe(0);
   });
 });
 

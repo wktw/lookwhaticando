@@ -80,23 +80,39 @@ const GOLDEN: RoomPalette = {
   beam: { color: '#FFDCA8', opacity: 0.86 },
 };
 
-/** Lamplight: indigo walls and one warm pool from the lamp on the right. */
+/**
+ * Lamplight (DESIGN §10.1): opaque indigo planes, never a dark veil over the day room. Each plane is
+ * one step nearer or further in value (wall, sill, nosing, the wall under it), so the room keeps its
+ * shape in the dark; the lamp's pool is painted on them as light, under everyone standing there.
+ */
 const NIGHT: RoomPalette = {
   time: 'night',
   night: true,
-  wall: '#34304A',
-  wallLow: '#2E2A42',
-  frame: '#4B4569',
-  frameShade: '#403B5E',
-  sill: '#433D5C',
-  sillSeam: '#3A3553',
-  nosing: '#3A3552',
-  underNosing: '#2A2640',
-  floor: '#3E3852',
-  floorSeam: '#353049',
+  wall: '#2A2542',
+  wallLow: '#221E37',
+  frame: '#3A3459',
+  frameShade: '#302B4C',
+  sill: '#39335A',
+  sillSeam: '#302A4C',
+  nosing: '#2F2A4B',
+  underNosing: '#1C1930',
+  floor: '#342E52',
+  floorSeam: '#2B2646',
   beam: null,
   tokens: { shade: 'rgba(10, 8, 22, 0.3)', contact: 'rgba(0, 0, 0, 0.22)', sun: 'rgba(255, 201, 138, 0.18)' },
 };
+
+/**
+ * The lamp's pool as light stops, centre outward: warm amber at the bulb, turning rose then violet as
+ * it fades into the indigo, so the falloff never passes through grey (the taupe of amber over indigo).
+ */
+export const LAMP_POOL: readonly (readonly [offset: number, color: string, opacity: number])[] = [
+  [0, '#FFD9A0', 0.72],
+  [0.16, '#FFC98A', 0.5],
+  [0.4, '#E79A86', 0.2],
+  [0.7, '#8C5E9A', 0.08],
+  [1, '#5A4A8C', 0],
+];
 
 export const ROOM: Record<TimeOfDay, RoomPalette> = { dawn: DAWN, day: DAY, golden: GOLDEN, night: NIGHT };
 
@@ -123,6 +139,7 @@ export const JAR_COLORS = {
   coin: '#EDCB72',
   coinEdge: '#D2A24B',
   coinDeep: '#B98B3C',
+  coinLeaf: '#C99A3E',
 } as const;
 
 /* ── The view through the glass ─────────────────────────────────────────────────────────── */
@@ -147,6 +164,8 @@ export interface OutsidePalette {
   pane: string;
   awning: string;
   stripe: string;
+  /** The plane tree's boughs over the top of the glass: the season you see first. */
+  bough: { wood: string; leaf: string | null; leafDeep: string | null; dots: string | null; snow: string | null };
 }
 
 const SKY: Record<TimeOfDay, readonly [string, string]> = {
@@ -156,11 +175,29 @@ const SKY: Record<TimeOfDay, readonly [string, string]> = {
   night: ['#23213D', '#3A3558'],
 };
 
-const SEASON_HAZE: Record<Season, readonly [string, number]> = {
-  spring: ['#F4D8E0', 0.12],
-  summer: ['#A9CDEB', 0.12],
-  autumn: ['#F2D2B0', 0.1],
-  winter: ['#DCE2EA', 0.3],
+/** How far each season pulls the sky toward its own tint: blush spring, deep summer blue, apricot autumn, pale winter. */
+const SEASON_HAZE: Record<Season, readonly [string, number, number]> = {
+  spring: ['#F6CFDC', 0.14, 0.46],
+  summer: ['#86BDEB', 0.34, 0.14],
+  autumn: ['#F7D2A8', 0.06, 0.5],
+  winter: ['#E3E7EE', 0.46, 0.46],
+};
+
+/** The plane tree through the seasons (day). Winter is bare wood with snow along it. */
+const BOUGHS: Record<Season, OutsidePalette['bough']> = {
+  spring: { wood: '#A88C82', leaf: '#CFE0B4', leafDeep: '#BCD3A0', dots: '#F5C3D0', snow: null },
+  summer: { wood: '#9C8275', leaf: '#A9CB8E', leafDeep: '#8FB67B', dots: null, snow: null },
+  autumn: { wood: '#9C7F72', leaf: '#EDC57E', leafDeep: '#E0A56A', dots: '#D9866A', snow: null },
+  winter: { wood: '#A4948F', leaf: null, leafDeep: null, dots: null, snow: '#FFFFFF' },
+};
+
+/** After dark the tree is a quiet silhouette a shade off the sky, never a lit shape. */
+const NIGHT_BOUGH: OutsidePalette['bough'] = { wood: '#24213A', leaf: '#2D2A48', leafDeep: '#28253F', dots: null, snow: null };
+const NIGHT_BOUGHS: Record<Season, OutsidePalette['bough']> = {
+  spring: NIGHT_BOUGH,
+  summer: NIGHT_BOUGH,
+  autumn: NIGHT_BOUGH,
+  winter: { wood: '#2F2B48', leaf: null, leafDeep: null, dots: null, snow: '#8E8BB0' },
 };
 
 const TREES: Record<Season, readonly [string, string, string | null]> = {
@@ -176,8 +213,8 @@ const NIGHT_FACADES = ['#312A48', '#2D2843', '#342B49', '#2B2741'] as const;
 
 function outside(time: TimeOfDay, season: Season): OutsidePalette {
   const night = time === 'night';
-  const [haze, t] = SEASON_HAZE[season];
-  const sky: readonly [string, string] = night ? SKY.night : [mix(SKY[time][0], haze, t), mix(SKY[time][1], haze, t * 0.8)];
+  const [haze, top, low] = SEASON_HAZE[season];
+  const sky: readonly [string, string] = night ? SKY.night : [mix(SKY[time][0], haze, top), mix(SKY[time][1], haze, low)];
   const far = (c: string, k = 0.45) => (night ? c : mix(c, sky[1], k));
   const [tree, treeDeep, accent] = TREES[season];
   if (night) {
@@ -198,6 +235,7 @@ function outside(time: TimeOfDay, season: Season): OutsidePalette {
       pane: '#28243B',
       awning: '#3B3450',
       stripe: '#4A3E58',
+      bough: NIGHT_BOUGHS[season],
     };
   }
   return {
@@ -217,6 +255,7 @@ function outside(time: TimeOfDay, season: Season): OutsidePalette {
     pane: far('#D5DAE3', 0.25),
     awning: far('#FFF6EC', 0.15),
     stripe: far('#F2B9C3', 0.15),
+    bough: BOUGHS[season],
   };
 }
 

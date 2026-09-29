@@ -1,6 +1,6 @@
 /**
  * One place on the Shelf, drawn in its own segment: the place's back, its decor and pets, its front
- * (the saucer's lip, the front of the grass), and after dark its lamp's pool and the dusk around it.
+ * (the saucer's lip, the front of the grass), and after dark its lamp's pool, painted under the pets.
  */
 import type { ComponentChildren } from 'preact';
 import { DECOR_ENTRIES } from '../decor';
@@ -10,7 +10,7 @@ import { baseline, clamp, depthScale, depthZ } from '../room';
 import type { PlacedDecor } from '../sill/world';
 import { DecorItem } from '../actors/DecorItem';
 import type { PlaceDrawProps, PlaceScene } from './types';
-import s from '../shelf.module.css';
+import { LampPoolGradient } from '../props/LampPool';
 
 /** Decor on a place's ground: where it was put, or spread along the front. Hanging decor stays on the Sill. */
 export function placeOnGround(g: Ground, decor: readonly ShelfDecor[]): PlacedDecor[] {
@@ -42,11 +42,7 @@ export function PlaceSegment({ place, decor, petSize, children, ...draw }: Place
       <svg viewBox={`0 0 ${W} 100`} width="100%" height="100%" preserveAspectRatio="none" aria-hidden="true" focusable="false" style={{ position: 'absolute', inset: 0, display: 'block' }}>
         {room.night && (
           <defs>
-            <radialGradient id={`${uid}-pool`} gradientUnits="userSpaceOnUse" cx={lamp[0]} cy={lamp[1]} r={own ? 90 : 120}>
-              <stop offset="0" stop-color="var(--lamp, #FFC98A)" stop-opacity={own ? 0.5 : 0.3} />
-              <stop offset="0.45" stop-color="var(--lamp, #FFC98A)" stop-opacity={own ? 0.16 : 0.1} />
-              <stop offset="1" stop-color="var(--lamp, #FFC98A)" stop-opacity={0} />
-            </radialGradient>
+            <LampPoolGradient id={`${uid}-pool`} cx={place.pool?.x ?? lamp[0]} cy={place.pool?.y ?? lamp[1]} r={place.pool?.r ?? (own ? 78 : 96)} strength={own ? 1 : 0.55} />
           </defs>
         )}
         {place.back(draw)}
@@ -62,12 +58,6 @@ export function PlaceSegment({ place, decor, petSize, children, ...draw }: Place
         <svg viewBox={`0 0 ${W} 100`} width="100%" height="100%" preserveAspectRatio="none" aria-hidden="true" focusable="false" style={{ position: 'absolute', inset: 0, display: 'block', zIndex: place.frontZ, pointerEvents: 'none' }}>
           {place.front(draw)}
         </svg>
-      )}
-      {room.night && (
-        <div
-          class={s.dusk}
-          style={{ background: `radial-gradient(circle at ${((lamp[0] / W) * 100).toFixed(1)}% ${lamp[1]}%, rgba(26, 22, 48, 0) ${own ? 16 : 24}%, rgba(26, 22, 48, 0.44) 80%)` }}
-        />
       )}
     </>
   );

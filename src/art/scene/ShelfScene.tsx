@@ -11,23 +11,24 @@ import type { PlaceId } from '@/catalog/types';
 import { PLACES } from '@/catalog/places';
 import type { ShelfDecor, ShelfPet, SillPot } from './model';
 import { petKey, speciesOf } from './model';
-import { momentAt, type Moment } from './time';
+import type { Moment } from './time';
 import { outsidePalette, ROOM } from './palette';
 import { childLight } from './lighting';
 import { arrangePets, type Ground } from './arrange';
 import { SILL_SPEC } from './sill/layout';
-import { sillWorld } from './sill/world';
+import { lightTarget, sillWorld } from './sill/world';
 import { SillSegment } from './sill/SillSegment';
 import { PLACE_SCENES, type RoomPlaceId } from './places';
 import { PlaceSegment, placeOnGround } from './places/PlaceSegment';
 import { PetLayer } from './actors/PetLayer';
 import { u } from './actors/stand';
-import { useWidthUnits } from './hooks';
+import { useWidthUnits, useWindowMoment } from './hooks';
 import { useShelfLife } from './behavior/useShelfLife';
 import type { DirectorPet } from './behavior/director';
 import { stageVignette } from './behavior/stage';
 import { sceneTokens } from './SillScene';
 import { useUid } from './uid';
+import { ScrollFrame } from './ScrollFrame';
 import s from './shelf.module.css';
 
 export interface ShelfSceneProps {
@@ -67,14 +68,14 @@ export function ShelfScene(props: ShelfSceneProps) {
   const ref = useRef<HTMLDivElement>(null);
   const uid = useUid('shelf');
   const widthU = useWidthUnits(ref, 130);
-  const moment = props.moment ?? momentAt(props.now ?? new Date(), props.hemisphere);
+  const moment = useWindowMoment(props);
   const room = ROOM[moment.time];
   const view = outsidePalette(moment.time, moment.season);
   const light = childLight(moment.light);
   const opened = useMemo(() => ORDER.filter((id): id is RoomPlaceId => id !== 'sill' && places.includes(id)), [places]);
 
   const sillDecor = useMemo(() => decor.filter((d) => !d.place || d.place === 'sill' || !opened.includes(d.place as RoomPlaceId)), [decor, opened]);
-  const world = useMemo(() => sillWorld(SILL_SPEC, pots, sillDecor, room, moment.light.sun, opened.length ? 0 : widthU), [pots, sillDecor, room, moment.light.sun, widthU, opened.length]);
+  const world = useMemo(() => sillWorld(SILL_SPEC, pots, sillDecor, room, moment.light.sun, opened.length ? 0 : widthU, moment.season), [pots, sillDecor, room, moment.light.sun, widthU, opened.length, moment.season]);
 
   const segments = useMemo(() => {
     const out: Segment[] = [{ id: 'sill', x: 0, width: world.layout.width, ground: world.ground }];
@@ -117,7 +118,8 @@ export function ShelfScene(props: ShelfSceneProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [pets, segments],
   );
-  const views = useShelfLife(cast, start, { moment, live: live && !props.vignette, sceneRef: ref });
+  // A staged vignette holds its places, then plays out once the scene is live (ducks walk on).
+  const views = useShelfLife(cast, start, { moment, live, sceneRef: ref, vignettes: !props.vignette, opening: props.vignette?.id });
 
   // Open where the light is: the sunbeam by day, the lamp at night (or a place, or the start).
   const open = props.open ?? 'light';
@@ -126,7 +128,7 @@ export function ShelfScene(props: ShelfSceneProps) {
     if (!el || open === 'start') return;
     const unit = el.clientHeight / 100;
     let target: number;
-    if (open === 'light') target = world.beam ? (world.beam.x0 + world.beam.x1) / 2 + world.beam.slant / 2 : world.layout.lamp.x - 40;
+    if (open === 'light') target = lightTarget(world);
     else {
       const seg = segments.find((x) => x.id === open);
       if (!seg) return;
@@ -139,13 +141,15 @@ export function ShelfScene(props: ShelfSceneProps) {
 
   const draw = { room, view, light, moment };
   return (
-    <div
-      ref={ref}
-      class={[s.scene, room.night ? s.night : '', props.class].filter(Boolean).join(' ')}
+    <ScrollFrame
+      sceneRef={ref}
+      wall={room.wall}
+      step={SILL_SPEC.pitch}
+      label={label ?? 'The Shelf'}
+      night={room.night}
+      time={moment.time}
+      class={props.class}
       style={{ ...sceneTokens(room.tokens), background: room.wall, ...props.style }}
-      role={label ? 'group' : undefined}
-      aria-label={label}
-      data-time={moment.time}
     >
       <div class={s.track} style={{ width: u(total) }}>
         {segments.map((seg) => {
@@ -175,6 +179,6 @@ export function ShelfScene(props: ShelfSceneProps) {
           );
         })}
       </div>
-    </div>
+    </ScrollFrame>
   );
 }

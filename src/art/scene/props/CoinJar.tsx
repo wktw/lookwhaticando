@@ -14,6 +14,12 @@ export const JAR_FULL = 1000;
 /** Fill levels drawn (each one is memoised). */
 export const JAR_LEVELS = 12;
 
+/** The y of the top of the heap on the jar's 100 canvas (where a new coin comes to rest). */
+export function pileTop(coins: number): number {
+  const { floor, top } = JAR.inner;
+  return floor - ((floor - top) * jarLevel(coins)) / JAR_LEVELS - 1.6;
+}
+
 /** Fill level 0…JAR_LEVELS for a coin balance: any coins show at least one layer; the curve eases out. */
 export function jarLevel(coins: number): number {
   const c = Number.isFinite(coins) ? Math.max(0, coins) : 0;

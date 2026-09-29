@@ -23,6 +23,11 @@ export interface SillSpec {
   backRow: number;
   /** The jar stands in the row after the pots (the Today band pins it at its edge instead). */
   jarInRow: boolean;
+  /**
+   * The view ends at a fixed edge (the Today band's pinned jamb): space the pots so that, scrolled to
+   * the start, the edge falls in a gap between two pots and never slices one.
+   */
+  wholePots?: boolean;
 }
 
 /** The Shelf's Sill: a long painted sill in front of a sash window. */
@@ -52,6 +57,7 @@ export const BAND_SPEC: SillSpec = {
   roam: 6,
   backRow: 0.72,
   jarInRow: false,
+  wholePots: true,
 };
 
 /** The Today band's pinned right end (the window's jamb, the jar and the lamp), in units. */
@@ -83,6 +89,34 @@ export interface SillLayout {
   lamp: Placed;
 }
 
+/** Half a potted plant's footprint (pot and its lower leaves), as a share of the pot canvas. */
+export const POT_HALF = 0.3;
+
+/**
+ * The first pot's offset and a pitch that put the view's right edge (`view` units from the start) in
+ * the middle of the gap after the k-th pot, for as many whole pots as fit; null when all fit anyway.
+ */
+function wholeRow(spec: SillSpec, n: number, view: number): { first: number; pitch: number } | null {
+  const half = spec.scale.pot * POT_HALF;
+  if (spec.lead + spec.first + (n - 1) * spec.maxPitch + half <= view) return null;
+  const lo = Math.max(spec.pitch * 0.92, 2 * half + 4);
+  for (let k = n - 1; k >= 1; k--) {
+    for (const shift of [0, -4, 4, -8, 8, 12, 16]) {
+      const first = spec.first + shift;
+      if (first < half + 2) continue;
+      const p = (view - spec.lead - first) / (k - 0.5);
+      if (p >= lo && p <= spec.maxPitch) return { first, pitch: p };
+    }
+  }
+  return null;
+}
+
+/** Whether a pot at x is sliced by a view edge at `edge` (for the Today band's pinned end). */
+export function potCut(spec: SillSpec, x: number, edge: number): boolean {
+  const half = spec.scale.pot * POT_HALF;
+  return x - half < edge && x + half > edge;
+}
+
 /** One sash about every this many units. */
 const SASH = 70;
 
@@ -95,10 +129,13 @@ export function sillLayout(spec: SillSpec, pots: number, minWidth = 0): SillLayo
   const jarGap = spec.jarInRow ? spec.scale.jar * 0.72 : spec.pitch * 0.5;
   const natural = spec.lead + spec.first + Math.max(0, n - 1) * spec.pitch + jarGap + spec.roam + spec.tail;
   const spare = Math.max(0, minWidth - natural);
-  const pitch = n > 1 ? Math.min(spec.maxPitch, spec.pitch + spare / (n - 1 + 0.8)) : spec.pitch;
+  let pitch = n > 1 ? Math.min(spec.maxPitch, spec.pitch + spare / (n - 1 + 0.8)) : spec.pitch;
+  let first = spec.first;
+  const whole = spec.wholePots && minWidth > 0 && n > 1 ? wholeRow(spec, n, minWidth) : null;
+  if (whole) ({ first, pitch } = whole);
   const x0 = spec.lead;
-  const potX = (i: number) => x0 + spec.first + i * pitch;
-  const jarX = n > 0 ? potX(n - 1) + Math.max(jarGap, pitch * 0.78) : x0 + spec.first;
+  const potX = (i: number) => x0 + first + i * pitch;
+  const jarX = n > 0 ? potX(n - 1) + Math.max(jarGap, pitch * 0.78) : x0 + first;
   const contentRight = spec.jarInRow ? jarX + spec.scale.jar / 2 + spec.roam : (n > 0 ? potX(n - 1) + pitch * 0.5 : x0) + spec.roam;
   const width = Math.max(minWidth, contentRight + spec.tail);
   const x1 = width - spec.tail;

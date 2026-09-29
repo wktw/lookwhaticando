@@ -30,6 +30,8 @@ export interface Perch {
   likes?: readonly Species[];
   /** The pose it asks for (floating is a loaf; a shelf top is anything). */
   pose?: PetPose;
+  /** The way a pet always faces here (a pot rim: head away from the plant tag). */
+  facing?: 'left' | 'right';
 }
 
 /** Something standing on the ground that pets walk around. */
@@ -82,7 +84,7 @@ export function groundSpot(g: Ground, x: number, depth: number, pose: PetPose, a
 
 export function perchSpot(p: Perch, pose: PetPose, asleep: boolean, facing: 'left' | 'right', dx = 0): PetSpot {
   const perch = p.kind === 'rim' ? 'rim' : p.kind === 'bed' ? 'bed' : p.kind === 'water' ? 'water' : 'shelf';
-  return { x: p.x + dx, depth: p.depth, y: p.y, pose: p.pose && !asleep ? p.pose : pose, facing, asleep, perch, perchId: p.id, z: p.z + 1 };
+  return { x: p.x + dx, depth: p.depth, y: p.y, pose: p.pose && !asleep ? p.pose : pose, facing: p.facing ?? facing, asleep, perch, perchId: p.id, z: p.z + 1 };
 }
 
 /** Half a pet's footprint on the ground, in units. */
@@ -186,6 +188,19 @@ export function arrangePets(g: Ground, pets: readonly ShelfPet[], m: Moment): Ma
     out.set(key, { ...spot });
   });
   return out;
+}
+
+/**
+ * Where a pet's head is, roughly, as a box in units [x0, y0, x1, y1] (y down): the upper part of its
+ * silhouette on the side it faces. Used to keep plant tags off faces.
+ */
+export function headBox(spot: PetSpot, petSize: number): [number, number, number, number] {
+  const s = petSize * (spot.perch ? 1 : 0.9 + 0.1 * spot.depth);
+  const low = spot.pose === 'sleep' || spot.pose === 'loaf';
+  const top = spot.y - (low ? 0.36 : 0.5) * s;
+  const bottom = spot.y - (low ? 0.08 : 0.2) * s;
+  const [a, b] = spot.facing === 'right' ? [-0.06, 0.28] : [-0.28, 0.06];
+  return [spot.x + a * s, top, spot.x + b * s, bottom];
 }
 
 /** Whether a floor spot is in the sun (for the long shadow). */

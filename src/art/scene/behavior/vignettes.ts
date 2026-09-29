@@ -7,7 +7,7 @@
 import type { PlaceId, Species } from '@/catalog/types';
 import type { PetSpot } from '../model';
 import { groundSpot, nearestFree, routineAt, type Ground } from '../arrange';
-import { depthZ } from '../room';
+import { baseline, depthZ } from '../room';
 import type { Moment } from '../time';
 
 export interface VignetteActor {
@@ -37,10 +37,23 @@ export interface Vignette {
   procession?: boolean;
   /** Chance per check that it starts when it can (0…1). */
   weight: number;
+  /** Whether it may play at all yet (art it depends on has landed). Absent: always. */
+  ready?: () => boolean;
+  /** Cast members set off one after another, this many ms apart (a line of ducks). */
+  stagger?: number;
 }
 
 /** A lying cow's back, as a share of the pet canvas above its feet. TODO(integration): a pose anchor from the pets module. */
 export const COW_BACK = 0.24;
+
+/**
+ * Whether the pets module's lying cow (a long, low body a cat can sleep on) has landed. With the
+ * old round cow a cat on its back hides it, so the vignette waits. TODO(integration): flip to true.
+ */
+export const LYING_COW_READY = false;
+
+/** A duck's body length, as a share of the pet canvas. */
+const DUCK_BODY = 0.5;
 
 const bySpecies = (ctx: VignetteContext, species: Species) => ctx.actors.filter((a) => a.species === species && !a.spot.perch);
 const asleep = (ctx: VignetteContext) => ctx.moment.light.night && routineAt(ctx.moment.hour) === 'sleep';
@@ -50,6 +63,7 @@ const catOnCow: Vignette = {
   caption: 'A cat asleep on a cow’s back.',
   weight: 0.5,
   hold: 60000,
+  ready: () => LYING_COW_READY,
   cast: (ctx) => {
     const cow = bySpecies(ctx, 'cow')[0];
     const cat = bySpecies(ctx, 'cat')[0];
@@ -77,6 +91,7 @@ const duckLine: Vignette = {
   weight: 0.6,
   hold: 20000,
   procession: true,
+  stagger: 260,
   cast: (ctx) => {
     if (ctx.moment.light.night) return null;
     const ducks = bySpecies(ctx, 'duck');
@@ -87,7 +102,8 @@ const duckLine: Vignette = {
     const lead = ctx.actors.find((a) => a.key === cast[0])!;
     const facing = lead.spot.x < (g.x0 + g.x1) / 2 ? 'right' : 'left';
     const dir = facing === 'right' ? 1 : -1;
-    const gap = g.petSize * 0.5;
+    // Single file, each a body length and nearly another behind the one in front.
+    const gap = g.petSize * DUCK_BODY * 1.9;
     const span = gap * (cast.length - 1);
     const leadX = facing === 'right' ? Math.min(g.x1 - g.petSize * 0.5, lead.spot.x + g.petSize * 2.5) : Math.max(g.x0 + g.petSize * 0.5 + span, lead.spot.x - g.petSize * 2.5);
     const depth = Math.min(g.d1, Math.max(g.d0 + 0.2, lead.spot.depth));
@@ -116,9 +132,10 @@ const napPile: Vignette = {
       const onTop = i === cast.length - 1 && cast.length >= 3;
       const base = bed ? { x: cx, y: bed.y, depth: bed.depth, z: bed.z } : groundSpot(g, cx, 0.7, 'sleep', true, 'right');
       out.set(key, {
-        x: cx + (onTop ? 0.12 : side * 0.42) * g.petSize,
+        // Side by side a little over half a body apart; the latecomer curled across two of them.
+        x: cx + (onTop ? 0.27 : side * 0.52) * g.petSize,
         depth: base.depth,
-        y: base.y - (onTop ? 0.14 * g.petSize : 0),
+        y: base.y - (onTop ? 0.2 * g.petSize : 0),
         pose: 'sleep',
         facing: side < 0 ? 'right' : 'left',
         asleep: true,
@@ -146,8 +163,12 @@ const bunnyLeaf: Vignette = {
     const rims = g.perches.filter((p) => p.kind === 'rim');
     const bunny = ctx.actors.find((a) => a.key === key)!;
     const rim = rims.reduce((best, p) => (Math.abs(p.x - bunny.spot.x) < Math.abs(best.x - bunny.spot.x) ? p : best), rims[0]!);
-    const x = rim.x + g.petSize * 0.42;
-    return new Map([[key!, groundSpot(g, x, g.d0, 'stand', false, 'left')]]);
+    // Up on its haunches right beside the pot, facing it, nose to the lowest leaves over the rim.
+    const side = rim.x + rim.w / 2 + g.petSize * 0.24 <= g.x1 ? 1 : -1;
+    const x = rim.x + side * (rim.w / 2 + g.petSize * 0.2);
+    const depth = Math.min(g.d1, rim.depth + 0.18);
+    const spot: PetSpot = { x, depth, y: baseline(g.rows, depth), pose: 'sit', facing: side > 0 ? 'left' : 'right', asleep: false, z: rim.z + 3 };
+    return new Map([[key!, spot]]);
   },
 };
 
@@ -166,6 +187,7 @@ export function vignetteById(id: string): Vignette | undefined {
 /** The first vignette that can play now (and passes its chance, given `roll` 0…1), with its cast. */
 export function findVignette(ctx: VignetteContext, roll = 0): { vignette: Vignette; cast: string[] } | null {
   for (const v of VIGNETTES) {
+    if (v.ready && !v.ready()) continue;
     const cast = v.cast(ctx);
     if (cast && roll <= v.weight) return { vignette: v, cast };
   }

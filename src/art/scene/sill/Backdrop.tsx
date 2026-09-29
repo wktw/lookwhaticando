@@ -9,7 +9,8 @@ import { CRESCENT } from '../paths';
 import { tone, type OutsidePalette, type RoomPalette } from '../palette';
 import type { RoomRows } from '../room';
 import { beamQuad, type Beam, type SillLayout } from './layout';
-import { skyFor, terraceFor } from './scenery';
+import { boughsFor, skyFor, terraceFor } from './scenery';
+import { LampPoolGradient } from '../props/LampPool';
 
 /** A shadow thrown across the sill by something standing in the sun. */
 export interface CastSpec {
@@ -40,6 +41,17 @@ export interface SillBackdropProps {
 
 const f = (n: number) => +n.toFixed(2);
 
+/**
+ * Where the moon hangs on this window: a pane or so left of the lamp, so it is in view where the
+ * scene opens after dark (the Shelf and the Sill scroll to the lamp at night).
+ */
+export function nightMoonX(layout: SillLayout): number {
+  return layout.lamp.x - NIGHT_MOON_LEFT_OF_LAMP;
+}
+
+/** How far left of the lamp the moon hangs, in units. */
+export const NIGHT_MOON_LEFT_OF_LAMP = 52;
+
 export const SillBackdrop = memo(function SillBackdrop({ layout, room, view, beam, casts, cast, uid, pool = true }: SillBackdropProps) {
   const { width, window: win, spec } = layout;
   const rows = spec.rows;
@@ -51,30 +63,25 @@ export const SillBackdrop = memo(function SillBackdrop({ layout, room, view, bea
           <stop offset="0" stop-color={view.sky[0]} />
           <stop offset="1" stop-color={view.sky[1]} />
         </linearGradient>
-        {room.night && pool && (
-          <radialGradient id={`${uid}-pool`} gradientUnits="userSpaceOnUse" cx={f(lamp.x)} cy={f(rows.sillBack - 30)} r={120}>
-            <stop offset="0" stop-color="var(--lamp, #FFC98A)" stop-opacity={0.5} />
-            <stop offset="0.42" stop-color="var(--lamp, #FFC98A)" stop-opacity={0.17} />
-            <stop offset="1" stop-color="var(--lamp, #FFC98A)" stop-opacity={0} />
-          </radialGradient>
-        )}
+        {room.night && pool && <LampPoolGradient id={`${uid}-pool`} cx={f(lamp.x)} cy={f(rows.sillBack - 20)} r={84} />}
       </defs>
       <rect width={f(width)} height={100} fill={room.wall} />
-      <WindowView x0={win.x0} x1={win.x1} bottom={rows.glassBottom} view={view} fill={`url(#${uid}-sky)`} />
+      <WindowView x0={win.x0} x1={win.x1} bottom={rows.glassBottom} view={view} fill={`url(#${uid}-sky)`} moonX={nightMoonX(layout)} />
       <Frame layout={layout} room={room} />
       {win.x0 >= 10 && <Curtain x1={win.x0 + 1.5} bottom={rows.sillBack + 0.6} room={room} />}
       <SillBoard width={width} rows={rows} room={room} />
       {beam && room.beam && <Sunbeam beam={beam} rows={rows} room={room} />}
       {beam && room.beam && casts.length > 0 && <Casts casts={casts} cast={cast} rows={rows} fill={room.sill} />}
-      {room.night && pool && <rect width={f(width)} height={100} fill={`url(#${uid}-pool)`} />}
+      {/* the lamp lights the wall, the frame and the sill, not the night through the glass */}
+      {room.night && pool && <path d={`M0 0H${f(width)}V100H0ZM${f(win.x0)} 0V${rows.glassBottom}H${f(win.x1)}V0Z`} fill-rule="evenodd" fill={`url(#${uid}-pool)`} />}
     </svg>
   );
 });
 
 /** The view through a pane from x0 to x1, down to `bottom`: sky, clouds or stars, the street across the road. */
-export function WindowView({ x0, x1, bottom, view, fill, seed = 7 }: { x0: number; x1: number; bottom: number; view: OutsidePalette; fill: string; seed?: number }) {
+export function WindowView({ x0, x1, bottom, view, fill, seed = 7, moonX }: { x0: number; x1: number; bottom: number; view: OutsidePalette; fill: string; seed?: number; moonX?: number }) {
   const street = terraceFor(x0, x1, bottom, seed);
-  const sky = skyFor(x0, x1, bottom, seed - 4);
+  const sky = skyFor(x0, x1, bottom, seed - 4, moonX);
   const m = sky.moon;
   const s = m.r / 20;
   return (
@@ -93,7 +100,23 @@ export function WindowView({ x0, x1, bottom, view, fill, seed = 7 }: { x0: numbe
       <path d={street.treesDeep} fill={view.treeDeep} />
       <path d={street.trees} fill={view.tree} />
       {view.accent && !view.snow && <path d={street.accents} fill={view.accent} />}
+      <Boughs x0={x0} x1={x1} bottom={bottom} view={view} clear={m.x} />
     </svg>
+  );
+}
+
+/** The street tree's boughs over the top of the glass, in the season's paint. */
+function Boughs({ x0, x1, bottom, view, clear }: { x0: number; x1: number; bottom: number; view: OutsidePalette; clear: number }) {
+  const b = boughsFor(x0, x1, bottom, 11, clear);
+  const p = view.bough;
+  return (
+    <g>
+      {p.leafDeep && <path d={b.leavesDeep} fill={p.leafDeep} />}
+      <path d={b.wood} fill={p.wood} />
+      {p.leaf && <path d={b.leaves} fill={p.leaf} />}
+      {p.dots && <path d={b.dots} fill={p.dots} />}
+      {p.snow && <path d={b.snow} fill={p.snow} />}
+    </g>
   );
 }
 

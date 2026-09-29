@@ -125,8 +125,9 @@ function ground(room: RoomPalette, petSize: number): Ground {
   const frontZ = depthZ(FRONT_DEPTH);
   const water = (id: string, x: number, y: number, likes: Perch['likes'], pose: Perch['pose']): Perch => ({ id, kind: 'water', x, y, depth: 0.5, z: frontZ - 10, w: petSize * 0.6, likes, pose });
   const perches: Perch[] = [
-    { id: 'pond:island', kind: 'shelf', x: 66, y: 74.4, depth: 0.4, z: frontZ - 20, w: 10, likes: ['frog', 'hamster'] },
+    // The lily pad first: the first frog out sits on it, a second takes the pebble island.
     { id: 'pond:pad', kind: 'shelf', x: 103, y: 80.8, depth: 0.5, z: frontZ + 6, w: 12, likes: ['frog'] },
+    { id: 'pond:island', kind: 'shelf', x: 66, y: 74.4, depth: 0.4, z: frontZ - 20, w: 10, likes: ['frog', 'hamster'] },
     water('pond:water-a', 90, 84.4, ['duck'], 'loaf'),
     water('pond:water-b', 118, 83.4, ['duck'], 'loaf'),
     water('pond:water-c', 50, 83.6, ['duck', 'frog'], 'loaf'),

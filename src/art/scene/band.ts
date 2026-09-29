@@ -2,8 +2,11 @@
 
 export const BAND_OPEN_PX = 168;
 export const BAND_CLOSED_PX = 64;
-/** While it collapses, the sill slides down this share of the crop, so the pots stay in view. */
-export const BAND_FOLLOW = 0.24;
+/**
+ * While it collapses, the sill slides down this share of the crop, so that at 64 px the pot rims and
+ * the residents' heads sit in the lower 40 px (under the screen's short date chip), not sliced.
+ */
+export const BAND_FOLLOW = 0.4;
 
 export interface BandCollapse {
   /** 0 open … 1 collapsed, clamped. */

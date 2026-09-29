@@ -31,6 +31,8 @@ export interface PlaceScene {
   ground: (room: RoomPalette, petSize: number) => Ground;
   /** Where its own lamp shines from after dark; otherwise light spills in from the right. */
   lampAt?: readonly [number, number];
+  /** Where its lamp's pool is brightest and how far it reaches, if not centred on the lamp. */
+  pool?: { x: number; y: number; r: number };
   /** The crop the places map shows: [x, y, w, h] in segment units. */
   crop: readonly [number, number, number, number];
 }

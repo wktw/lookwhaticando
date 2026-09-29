@@ -115,21 +115,25 @@ const RETIRED_SHORT: SillPot[] = [{ habitId: 'old-run', name: 'Run', species: 'l
 const BAND_POTS = POTS.slice(0, 5);
 
 /** The chips the Today screen lays over the band, mocked for review. */
-function Chips({ collapsed, night }: { collapsed: boolean; night: boolean }) {
+function Chips({ collapse, night }: { collapse: number; night: boolean }) {
+  // The screen shrinks its chips as the band collapses; mock the same so every frame is honest.
+  const collapsed = collapse > 0.5;
   const chip: JSX.CSSProperties = {
     position: 'absolute',
-    top: collapsed ? '14px' : '12px',
+    top: collapsed ? '8px' : '12px',
+    transform: `scale(${collapsed ? 1 : 1 - 0.34 * collapse * 2})`,
+    transformOrigin: '0 0',
     background: night ? 'rgba(45, 39, 51, 0.88)' : 'rgba(255, 253, 249, 0.85)',
     color: night ? '#f4ede6' : '#3b3236',
     borderRadius: '14px',
-    padding: collapsed ? '6px 12px' : '8px 14px',
+    padding: collapsed ? '4px 10px' : '8px 14px',
     zIndex: 1000,
   };
   return (
     <>
       <div style={{ ...chip, left: '16px' }}>
         {collapsed ? (
-          <b style={{ font: '700 14px var(--font-body)' }}>Tue 29 · 3 of 5</b>
+          <b style={{ font: '700 12px var(--font-body)' }}>Tue 29 · 3 of 5</b>
         ) : (
           <>
             <div style={{ font: '700 12px var(--font-body)', opacity: 0.8 }}>Tuesday, Sep 29</div>
@@ -137,7 +141,7 @@ function Chips({ collapsed, night }: { collapsed: boolean; night: boolean }) {
           </>
         )}
       </div>
-      <div style={{ ...chip, right: '16px', borderRadius: '999px', font: '700 15px var(--font-body)' }}>
+      <div style={{ ...chip, right: '16px', transformOrigin: '100% 0', borderRadius: '999px', font: `700 ${collapsed ? 13 : 15}px var(--font-body)` }}>
         <span style={{ display: 'inline-block', width: '14px', height: '14px', borderRadius: '50%', background: '#EDCB72', boxShadow: 'inset 0 0 0 2px #D2A24B', verticalAlign: '-2px', marginRight: '6px' }} />
         142
       </div>
@@ -153,7 +157,7 @@ function BandFrame({ moment, collapse, label }: { moment: Moment; collapse: numb
         <div style={{ position: 'absolute', inset: 0, height: '168px', top: 0 }}>
           <WindowsillBand pots={BAND_POTS} pets={PETS} coins={142} moment={moment} collapse={collapse} onWindowTap={() => {}} />
         </div>
-        <Chips collapsed={collapse > 0.5} night={moment.light.night} />
+        <Chips collapse={collapse} night={moment.light.night} />
       </div>
       <figcaption style={{ fontSize: '12px', color: 'var(--ink-2)' }}>{label}</figcaption>
     </figure>
@@ -289,12 +293,9 @@ SECTIONS.push(
   },
   {
     id: 'shelf-vignettes',
-    title: 'Vignettes',
+    title: 'Vignettes · the ducks walk on under normal motion (a cat asleep on a cow’s back waits for the lying cow)',
     render: () => (
       <div class="gal-row" style={{ alignItems: 'flex-start' }}>
-        <Frame w={390} h={300} label="A cat asleep on a cow’s back">
-          <SillScene pots={POTS.slice(0, 2)} pets={[{ petId: 'pet-cow-beltie', name: 'Oreo' }, { petId: 'pet-cat-calico', name: 'Juniper' }]} coins={60} moment={at(0.45)} vignette="cat-on-cow" style={{ width: '100%', height: '100%' }} />
-        </Frame>
         <Frame w={390} h={300} label="Ducks walking in a line">
           <ShelfScene pots={POTS.slice(0, 1)} pets={['pet-duck-yellow', 'pet-duck-pekin', 'pet-duck-call', 'pet-duck-mallard'].map((petId) => ({ petId, place: 'balcony' as const }))} places={['balcony']} open="balcony" moment={at(0.55)} vignette={{ id: 'duck-line', place: 'balcony' }} style={{ width: '100%', height: '100%' }} />
         </Frame>

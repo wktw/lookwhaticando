@@ -6,7 +6,7 @@ import type { JSX } from 'preact';
 import type { PlaceId } from '@/catalog/types';
 import { PLACE_BY_ID } from '@/catalog/places';
 import type { Moment } from './time';
-import { momentAt } from './time';
+import { useWindowMoment } from './hooks';
 import { outsidePalette, ROOM } from './palette';
 import { childLight } from './lighting';
 import { SILL_SPEC } from './sill/layout';
@@ -20,6 +20,7 @@ import { OBJECT_BASE } from './props/shapes';
 import { sceneTokens } from './SillScene';
 import { useUid } from './uid';
 import { Plant } from './actors/adapters';
+import { Coin } from './props/Coin';
 
 export interface PlaceArtProps {
   place: PlaceId;
@@ -49,7 +50,7 @@ function SillPicture({ moment, uid }: { moment: Moment; uid: string }) {
   const view = outsidePalette(moment.time, moment.season);
   const light = childLight(moment.light);
   const pots = MAP_POTS.map((p, i) => ({ habitId: `map-${i}`, ...p }));
-  const world = sillWorld(SILL_SPEC, pots, [], room, moment.light.sun, SILL_CROP[2] + 20);
+  const world = sillWorld(SILL_SPEC, pots, [], room, moment.light.sun, SILL_CROP[2] + 20, moment.season);
   const { jar, lamp } = world.layout;
   const rows = SILL_SPEC.rows;
   const at = (x: number, depth: number, size: number) => ({ x: x - size / 2, y: baseline(rows, depth) - (size * OBJECT_BASE) / 100, width: size, height: size });
@@ -75,7 +76,7 @@ function SillPicture({ moment, uid }: { moment: Moment; uid: string }) {
 
 export function PlaceArt({ place, locked = false, price, width = 180, moment: pinned, title, class: cls, style }: PlaceArtProps) {
   const uid = useUid('place');
-  const moment = pinned ?? momentAt(new Date());
+  const moment = useWindowMoment({ moment: pinned });
   const room = ROOM[moment.time];
   const def = PLACE_BY_ID.get(place);
   const cost = price ?? def?.price ?? 0;
@@ -95,7 +96,8 @@ export function PlaceArt({ place, locked = false, price, width = 180, moment: pi
         ) : (
           <SillPicture moment={moment} uid={uid} />
         )}
-        {locked && <rect x={crop[0]} y={crop[1]} width={crop[2]} height={crop[3]} fill={room.night ? '#2D2733' : '#FAF6EF'} opacity={0.58} />}
+        {/* a veil of the page's own paper, so a locked place is quiet on a light or a dark page */}
+        {locked && <rect x={crop[0]} y={crop[1]} width={crop[2]} height={crop[3]} fill="var(--bg, #FAF6EF)" opacity={0.55} />}
       </svg>
       {locked && (
         <span
@@ -108,17 +110,13 @@ export function PlaceArt({ place, locked = false, price, width = 180, moment: pi
             gap: '5px',
             padding: '3px 9px 3px 5px',
             borderRadius: '999px',
-            background: room.night ? 'rgba(45, 39, 51, 0.9)' : 'rgba(255, 253, 249, 0.92)',
-            color: room.night ? '#F4EDE6' : '#3B3236',
+            background: 'color-mix(in srgb, var(--card, #FFFDF9) 92%, transparent)',
+            color: 'var(--ink, #3B3236)',
             font: '700 12px/1.2 var(--font-body)',
           }}
           aria-hidden="true"
         >
-          <svg width="14" height="14" viewBox="0 0 10 10">
-            <circle cx={5} cy={5} r={4.6} fill="#D2A24B" />
-            <circle cx={4.8} cy={4.8} r={4} fill="#EDCB72" />
-            <path d="M4.8 2.6C6.2 3.5 6.2 5.6 4.8 7M4.8 4.6l1-0.8" fill="none" stroke="#C99A3E" stroke-width={0.6} stroke-linecap="round" />
-          </svg>
+          <Coin width={14} height={14} />
           {cost.toLocaleString('en-US')}
         </span>
       )}

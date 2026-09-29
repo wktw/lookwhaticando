@@ -47,7 +47,8 @@
 
 .tag {
   position: absolute;
-  translate: -20% -100%;
+  /* the stake's foot sits on the anchor, the card reaches out over the rim on its side */
+  translate: calc(-1.6cqh - 0.275cqh) -100%;
   pointer-events: none;
   display: flex;
   flex-direction: column;
@@ -56,17 +57,27 @@
 
 .tag::after {
   content: '';
-  width: max(1.5px, 0.55cqh);
+  width: 0.55cqh;
+  min-width: 1.5px;
   height: 5cqh;
-  margin-left: 2.4cqh;
+  margin-left: 1.6cqh;
   background: #efe3cf;
   border-radius: 0 0 1px 1px;
+}
+
+.tagLeft {
+  translate: calc(-100% + 1.6cqh + 0.275cqh) -100%;
+  align-items: flex-end;
+}
+
+.tagLeft::after {
+  margin-left: 0;
+  margin-right: 1.6cqh;
 }
 
 .tagCard {
   display: flex;
   flex-direction: column;
-  max-width: 24cqh;
   padding: 0.5cqh 1.3cqh 0.7cqh;
   border-radius: 0.7cqh;
   background: #fffdf9;
@@ -75,23 +86,29 @@
   color: #3b3236;
   font-family: var(--font-display);
   line-height: 1.12;
-}
-
-.tagName,
-.tagNote {
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
+.tagLeft .tagCard {
+  rotate: 3deg;
+}
+
+/* Legible floors (11 / 10 px) whatever the scene's size; the card is as wide as its words. */
 .tagName {
-  font-size: max(9px, 3.1cqh);
+  font-size: max(11px, 3.1cqh);
 }
 
 .tagNote {
-  font-size: max(8px, 2.5cqh);
+  font-size: max(10px, 2.5cqh);
   font-style: italic;
   color: #66585d;
+}
+
+/* On a short scene, the name alone: a note is left off rather than cut mid-word. */
+@container (max-height: 220px) {
+  .tagNote {
+    display: none;
+  }
 }
 
 .night .tagCard {
@@ -242,10 +259,85 @@
   animation-play-state: paused !important;
 }
 
-/* Lamplight: the room darkens away from the lamp (over everything, never catching taps). */
-.dusk {
+/* ── The frame a long scene scrolls in: focus, edge fades, chevrons ─────────────── */
+
+.frame {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.frame > .scene {
   position: absolute;
   inset: 0;
+}
+
+.scene:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: -3px;
+}
+
+/* A quiet fade of wall paint at an end with more room beyond it: the room goes on. */
+.edge {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 28px;
   pointer-events: none;
-  z-index: 900;
+  opacity: 0;
+  transition: opacity 0.3s var(--ease-pop, ease);
+  z-index: 1;
+}
+
+.edgeLeft {
+  left: 0;
+  background: linear-gradient(to right, var(--wall), transparent);
+}
+
+.edgeRight {
+  right: 0;
+  background: linear-gradient(to left, var(--wall), transparent);
+}
+
+.frame[data-more-left] .edgeLeft,
+.frame[data-more-right] .edgeRight {
+  opacity: 0.85;
+}
+
+/* Chevrons for a mouse (no swipe): 44 px, at the ends that have more to see. */
+.chevron {
+  display: none;
+  position: absolute;
+  top: 50%;
+  z-index: 2;
+  width: 44px;
+  height: 44px;
+  margin-top: -22px;
+  padding: 0;
+  border: 1px solid var(--control-border, rgba(59, 50, 54, 0.2));
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--card, #fffdf9) 88%, transparent);
+  color: var(--ink, #3b3236);
+  cursor: pointer;
+  place-items: center;
+}
+
+.chevron:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.chevronLeft {
+  left: 10px;
+}
+
+.chevronRight {
+  right: 10px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .frame[data-more-left] .chevronLeft,
+  .frame[data-more-right] .chevronRight {
+    display: grid;
+  }
 }
