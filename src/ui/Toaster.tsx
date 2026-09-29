@@ -5,7 +5,7 @@ import { cx } from './cx';
 import { toneClass } from './tone';
 import { overlayRoot } from './overlay';
 import { anyLayerOpen, momentOpen, onLayersChange } from './sheetStack';
-import { dismissToast, toastActions, toastDuration, toastLaneTop, toasts, toastsHeld, visibleToasts, type ToastAction, type ToastItem } from './toast';
+import { dismissToast, runToastAction, toastActions, toastDuration, toastLaneTop, toasts, toastsHeld, visibleToasts, type ToastAction, type ToastItem } from './toast';
 import s from './Toaster.module.css';
 
 /**
@@ -94,10 +94,7 @@ function ToastCard({ item }: { item: ToastItem }) {
     <ToastNote
       item={item}
       noteRef={cardRef}
-      onAction={(a) => {
-        a.onAction();
-        dismissToast(item.id);
-      }}
+      onAction={(a) => runToastAction(item.id, a)}
       onPointerEnter={(e) => e.pointerType === 'mouse' && setPaused(true)}
       onPointerLeave={(e) => e.pointerType === 'mouse' && !drag.current && setPaused(false)}
       onFocusIn={() => setPaused(true)}

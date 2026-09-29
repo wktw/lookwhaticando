@@ -105,7 +105,10 @@ finding is done in this branch (m1/ui).
 - `@/fx/frameMonitor`: `watchScene(root)` (ScreenHost runs it for the Shelf). It sets
   `<html data-lite>` when the median frame is over 25 ms, `data-offscreen` on pets off screen and
   `data-flick="on|off"` on each `.pet-art`, so art must keep the class names `.pet-tailflick`,
-  `.pet-earflick`, `.pet-throat` and `.plant-sway`.
+  `.pet-earflick`, `.pet-throat`, `.pet-wag`, `.pet-twitch`, `.pet-chew`, `.pet-wave`,
+  `.pet-bob`, `.pet-waddle`, `.pet-hop` and `.plant-sway` (all stop in lite mode and on pets
+  that are not among the nearest few; `.pet-breathe` and `.pet-blink` always run). A new small
+  idle loop in the art needs adding to the two rules in src/styles/global.css.
 - Tab changes are announced ("Capsules"), and after keyboard navigation focus goes to the
   screen's `h1` (given `tabIndex=-1` if it has none). Every screen needs exactly one `h1`.
 - Single-key shortcuts: `shortcutsEnabled()`, `NEW_HABIT_EVENT = 'ck:new-habit'`.

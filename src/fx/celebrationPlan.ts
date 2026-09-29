@@ -139,7 +139,7 @@ export interface CelebrationContext {
   locallyCelebrated: ReadonlySet<string>;
   /** The plants on today's sill (a perfect day's petals are theirs). */
   sill?(): readonly PlantSpeciesId[];
-  /** From 8 pm, or under the lamp: a perfect day's sill is in the lamplight. */
+  /** From 8 pm to 5 am, or under the lamp: a perfect day’s sill is in the lamplight. */
   lamplight?(): boolean;
 }
 

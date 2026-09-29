@@ -22,6 +22,7 @@ import { ALBUMS, getCollectible } from '@/catalog/collectibles';
 import { BADGE_BY_ID } from '@/catalog/badges';
 import { levelForXp } from '@/domain/levels';
 import { CoinIcon } from '@/art/icons';
+import { timeOfDayAt } from '@/art/scene/time';
 import { overlayRoot } from '@/ui/overlay';
 import { findToast, toast } from '@/ui/toast';
 import { announce } from '@/ui/announce';
@@ -105,7 +106,7 @@ function context(): CelebrationContext {
       return friend ? friend.name : '';
     },
     albumName: (id) => ALBUMS.find((a) => a.id === id)?.name ?? id,
-    lamplight: () => new Date().getHours() >= 20 || document.documentElement.dataset.theme === 'night',
+    lamplight: () => lampIsLit(new Date(), document.documentElement.dataset.theme),
     itemName: (id) => getCollectible(id)?.name ?? 'Something new',
     itemFlavor: (id) => getCollectible(id)?.flavor ?? '',
     badge: (id) => BADGE_BY_ID.get(id),
@@ -154,6 +155,14 @@ function showWallet(add: Tally, payout: Payout) {
 
 type Queued = BannerSpec & { id: number; payouts: Payout[] };
 let bannerSeq = 0;
+
+/**
+ * Whether the sill is in the lamplight: the room's night by the clock (8 pm to 5 am, the same
+ * hours the sill and the pets keep, so the small hours count), or the page in Lamplight.
+ */
+export function lampIsLit(now: Date, theme: string | undefined): boolean {
+  return theme === 'night' || timeOfDayAt(now) === 'night';
+}
 
 export function CelebrationHost() {
   const [queue, setQueue] = useState<Queued[]>([]);

@@ -95,20 +95,14 @@
   gap: 10px 12px;
 }
 
-/* On the narrowest phones the label wraps onto two lines rather than losing its words. */
+/* The label keeps its words on one line; it never shrinks below its own width (desktop's
+   cabinet column is narrow, and the button may reach past the cabinet's edge a little). */
 .insert {
-  height: auto;
-  min-height: 54px;
-  max-width: 100%;
-  padding-block: 8px;
-  white-space: normal;
-  line-height: 1.15;
-  text-align: center;
+  min-width: max-content;
 }
 
 .insert span {
   overflow: visible;
-  white-space: normal;
 }
 
 .buttons :global(.num) {
@@ -151,9 +145,22 @@
   }
 }
 
+/* On the narrowest phones the label wraps onto two lines rather than losing its words. */
 @media (max-width: 359px) {
   .insert.insert {
     --px: 14px;
+    height: auto;
+    min-height: 54px;
+    min-width: 0;
+    max-width: 100%;
+    padding-block: 8px;
     font-size: var(--fs-body);
+    white-space: normal;
+    line-height: 1.15;
+    text-align: center;
+  }
+
+  .insert.insert span {
+    white-space: normal;
   }
 }

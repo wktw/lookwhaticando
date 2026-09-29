@@ -113,6 +113,16 @@ export function findToast(key: string): ToastItem | undefined {
   return toasts.value.find((t) => t.key === key && !t.leaving);
 }
 
+/**
+ * Press one of a note's buttons: the note is put away first, then the action runs. An action
+ * that shows a note of its own (Undo shows "not watered after all") therefore never lands on the
+ * note that is leaving, and is never dismissed along with it.
+ */
+export function runToastAction(id: string, action: ToastAction): void {
+  dismissToast(id);
+  action.onAction();
+}
+
 export function dismissToast(id: string): void {
   const t = toasts.value.find((x) => x.id === id);
   if (!t || t.leaving) return;

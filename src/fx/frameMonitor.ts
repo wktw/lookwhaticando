@@ -2,11 +2,12 @@
  * Auto-lite (DESIGN §11.1): the Shelf keeps a couple of dozen small loops going (breaths, blinks,
  * ear and tail flicks, a frog's throat, plants swaying). On a slow phone that can cost more than a
  * frame. So when the Shelf opens, the frame rate is sampled for 2 s; if the median frame takes
- * more than 25 ms, <html data-lite> is set for the session and the CSS stops the flicks, the
- * throat pulses and the sway, keeping the breathing and the blinks (src/styles/global.css).
+ * more than 25 ms, <html data-lite> is set for the session and the CSS stops the small loops
+ * (flicks, throat pulses, wags, twitches, the bob, waddle and hop of a walk) and the sway, keeping
+ * the breathing and the blinks (src/styles/global.css).
  *
  * Whatever the device, pets off screen hold still (data-offscreen), and only the few pets nearest
- * the middle of the viewport flick (data-flick="off" on the rest).
+ * the middle of the viewport keep their small loops (data-flick="off" on the rest).
  */
 
 /** Median frame time above which the page goes lite. */

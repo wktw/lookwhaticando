@@ -18,7 +18,7 @@ import { CoinIcon } from '@/art/icons';
 import { CHECKIN_CHOREOGRAPHY } from '@/ui/checkRing';
 import { themeLight, WaterDrop } from '@/ui/art/objects';
 import { announceSettled, cancelSettled } from '@/ui/announce';
-import { toast, type ToastAction } from '@/ui/toast';
+import { dismissToast, findToast, toast, type ToastAction } from '@/ui/toast';
 import { flyCoins } from './coinFly';
 import { floatText } from './floatingText';
 import { haptic } from './haptics';
@@ -164,6 +164,15 @@ interface Heard {
   kind?: CheckInKind;
 }
 
+/** The toast keys of a habit's check-in note and its un-watering note (kept apart, never merged). */
+export const checkInKey = (habitId: string) => `checkin-${habitId}`;
+export const uncheckKey = (habitId: string) => `uncheck-${habitId}`;
+
+function putAway(key: string) {
+  const live = findToast(key);
+  if (live) dismissToast(live.id);
+}
+
 /** Check-ins waiting to be announced together, by habit (the burst rule, DESIGN §9.1). */
 const heard = new Map<string, Heard>();
 const SETTLE_GROUP = 'checkin';
@@ -209,6 +218,8 @@ export function showCheckInNote(opts: CheckInNoteOptions): string {
   const line = checkInLine(kind, { habit: habitName, count, unit, date });
   const note = opts.note ?? (events.length ? asideFromState(habitId, events) : undefined);
   const chip = coins > 0 && kind !== 'history';
+  // Watered again: the "not watered after all" note has had its say.
+  putAway(uncheckKey(habitId));
   heard.delete(habitId);
   heard.set(habitId, { name: habitName, coins: chip ? coins : 0, tiny, note, kind });
   announceCheckIns();
@@ -224,7 +235,7 @@ export function showCheckInNote(opts: CheckInNoteOptions): string {
   ];
   if (onAddNote) actions.push({ label: FX_UI.addNote, onAction: onAddNote });
   return toast({
-    key: `checkin-${habitId}`,
+    key: checkInKey(habitId),
     message: (
       <>
         {line}
@@ -254,5 +265,7 @@ export function showCheckInNote(opts: CheckInNoteOptions): string {
 export function showUncheckNote({ habitId, habitName, refunded, spent = 0 }: { habitId: string; habitName: string; refunded: number; spent?: number }): string {
   const message = uncheckLine(habitName, { refunded, spent: spent > 0 && refunded <= 0 });
   heard.delete(habitId);
-  return toast({ key: `checkin-${habitId}`, message, art: <WaterDrop size={22} light={themeLight()} />, tone: 'sky' });
+  // The check-in note (its aside, its Undo) no longer holds: put it away rather than merge into it.
+  putAway(checkInKey(habitId));
+  return toast({ key: uncheckKey(habitId), message, art: <WaterDrop size={22} light={themeLight()} />, tone: 'sky' });
 }
