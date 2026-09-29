@@ -1,0 +1,255 @@
+diff --git a/src/fx/CelebrationBanner.tsx b/src/fx/CelebrationBanner.tsx
+index 20fd6d6..feb92a9 100644
+--- a/src/fx/CelebrationBanner.tsx
++++ b/src/fx/CelebrationBanner.tsx
+@@ -7,7 +7,7 @@ import { toneClass } from '@/ui/tone';
+ import { toastLaneTop } from '@/ui/toast';
+ import { burst } from './confetti';
+ import { flyPayout } from './coinFly';
+-import { CelebrationArt } from './CelebrationArt';
++import { LazyCelebrationArt } from './celebrationArtLoader';
+ import { FX_UI } from './copy';
+ import type { BannerSpec, Tally } from './celebrationPlan';
+ import type { Payout } from './walletLedger';
+@@ -159,7 +159,7 @@ export function CelebrationBanner({ spec, payouts = [], onDone }: { spec: Banner
+         onClick={(e) => !(e.target as HTMLElement).closest('button') && leave()}
+       >
+         <div class={s.artTile} aria-hidden="true">
+-          <CelebrationArt art={spec.art} size={64} />
++          <LazyCelebrationArt art={spec.art} size={64} />
+         </div>
+         <div class={s.copy}>
+           <p class={s.eyebrow}>{spec.eyebrow}</p>
+diff --git a/src/fx/EpicMoment.tsx b/src/fx/EpicMoment.tsx
+index 8da51af..d7139b5 100644
+--- a/src/fx/EpicMoment.tsx
++++ b/src/fx/EpicMoment.tsx
+@@ -3,7 +3,7 @@ import { Button } from '@/ui/Button';
+ import { isTopLayer, pushLayer, removeLayer, trapTab } from '@/ui/sheetStack';
+ import { holdToasts } from '@/ui/toast';
+ import { flyPayout } from './coinFly';
+-import { CelebrationArt } from './CelebrationArt';
++import { LazyCelebrationArt } from './celebrationArtLoader';
+ import { RewardChips } from './CelebrationBanner';
+ import { SparkleBurst } from './SparkleBurst';
+ import { EXCLUSIVE } from './copy';
+@@ -79,7 +79,7 @@ export function EpicMoment({ spec, payouts = [], onDone }: { spec: BannerSpec; p
+         <div ref={cardRef} class={s.card} role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1} onKeyDown={(e) => cardRef.current && trapTab(e, cardRef.current)}>
+           <div class={s.stage} aria-hidden="true">
+             <div class={s.art}>
+-              <CelebrationArt art={spec.art} size={132} />
++              <LazyCelebrationArt art={spec.art} size={132} />
+             </div>
+             <span class={s.contact} />
+             <span class={s.glint}>
+diff --git a/src/fx/celebrationArtLoader.tsx b/src/fx/celebrationArtLoader.tsx
+new file mode 100644
+index 0000000..1eda450
+--- /dev/null
++++ b/src/fx/celebrationArtLoader.tsx
+@@ -0,0 +1,76 @@
++/**
++ * CelebrationArt, loaded on demand. The art pulls in every pet, plant, item and badge drawing
++ * (with the pet crescents and the decor shade table), so it lives in its own chunk instead of the
++ * entry: the host warms it when the browser is idle after first paint, and waits for it (briefly)
++ * before its first note or banner.
++ */
++import type { ComponentProps } from 'preact';
++import { useEffect, useState } from 'preact/hooks';
++
++type ArtModule = typeof import('./CelebrationArt');
++export type CelebrationArtProps = ComponentProps<ArtModule['CelebrationArt']>;
++
++let loaded: ArtModule | null = null;
++let pending: Promise<ArtModule> | null = null;
++
++/** The art module, fetched once and cached; a failed fetch can be retried. */
++export function loadCelebrationArt(): Promise<ArtModule> {
++  if (loaded) return Promise.resolve(loaded);
++  pending ??= import('./CelebrationArt').then(
++    (m) => (loaded = m),
++    (err: unknown) => {
++      pending = null;
++      throw err;
++    },
++  );
++  return pending;
++}
++
++/** True once the art is in memory (a note or banner can then draw it on its first frame). */
++export const celebrationArtReady = (): boolean => loaded !== null;
++
++/** Resolves when the art is in, or after `capMs`, whichever is first. Never rejects. */
++export function celebrationArtWithin(capMs: number): Promise<void> {
++  if (loaded) return Promise.resolve();
++  return new Promise((resolve) => {
++    const t = setTimeout(resolve, capMs);
++    loadCelebrationArt().then(
++      () => (clearTimeout(t), resolve()),
++      () => (clearTimeout(t), resolve()),
++    );
++  });
++}
++
++/** Warm the chunk once the browser is idle, so the first celebration has nothing to wait for. */
++export function preloadCelebrationArtWhenIdle(): () => void {
++  if (loaded || typeof window === 'undefined') return () => undefined;
++  const warm = () => void loadCelebrationArt().catch(() => undefined);
++  // Safari has no requestIdleCallback.
++  if (typeof window.requestIdleCallback === 'function') {
++    const id = window.requestIdleCallback(warm, { timeout: 4000 });
++    return () => window.cancelIdleCallback(id);
++  }
++  const id = setTimeout(warm, 1500);
++  return () => clearTimeout(id);
++}
++
++/**
++ * The celebration art, drawn from the cached module. Until the chunk arrives it holds the art's
++ * square (decorative either way: the copy says it all), then draws in place.
++ */
++export function LazyCelebrationArt(props: CelebrationArtProps) {
++  const [mod, setMod] = useState<ArtModule | null>(loaded);
++  useEffect(() => {
++    if (mod) return;
++    let live = true;
++    loadCelebrationArt().then(
++      (m) => live && setMod(() => m),
++      () => undefined,
++    );
++    return () => {
++      live = false;
++    };
++  }, []);
++  if (mod) return <mod.CelebrationArt {...props} />;
++  return <span aria-hidden="true" style={{ display: 'inline-block', width: `${props.size}px`, height: `${props.size}px` }} />;
++}
+diff --git a/src/fx/celebrations.tsx b/src/fx/celebrations.tsx
+index f4663b4..bf9310f 100644
+--- a/src/fx/celebrations.tsx
++++ b/src/fx/celebrations.tsx
+@@ -35,7 +35,7 @@ import {
+   type Tally,
+   type ToastSpec,
+ } from './celebrationPlan';
+-import { CelebrationArt } from './CelebrationArt';
++import { celebrationArtReady, celebrationArtWithin, LazyCelebrationArt, preloadCelebrationArtWhenIdle } from './celebrationArtLoader';
+ import { CelebrationBanner, RewardInline } from './CelebrationBanner';
+ import { EpicMoment } from './EpicMoment';
+ import { sfx } from './sound';
+@@ -45,6 +45,8 @@ import { holdPayout, releasePayout, reserveInto, type Payout } from './walletLed
+ 
+ /** How long after an action its events are gathered into one batch. */
+ export const BATCH_MS = 40;
++/** The longest a moment waits for its art on a cold start before it shows without it. */
++const ART_WAIT_MS = 400;
+ /** A local check-in flourish claims that habit's coin event for this long. */
+ const CLAIM_MS = 1500;
+ /** The coin leaves a note once it has settled. */
+@@ -119,7 +121,7 @@ function showToast(t: ToastSpec, payout: Payout) {
+     t.message
+   );
+   const label = t.rewards ? `${t.message} ${formatTally(t.rewards)}` : t.message;
+-  const id = toast({ key: t.key, message, label, tone: t.tone, art: <CelebrationArt art={t.art} size={30} animated={false} /> });
++  const id = toast({ key: t.key, message, label, tone: t.tone, art: <LazyCelebrationArt art={t.art} size={30} animated={false} /> });
+   if (t.rewards && hasRewards(payout)) flyFromToast(id, payout);
+ }
+ 
+@@ -143,6 +145,7 @@ export function CelebrationHost() {
+ 
+   useEffect(() => {
+     let timer = 0;
++    let alive = true;
+     const apply = (plan: CelebrationPlan, payout: Payout) => {
+       plan.toasts.forEach((t, i) => {
+         showToast(t, payout);
+@@ -169,7 +172,11 @@ export function CelebrationHost() {
+       timer = 0;
+       const b = batch;
+       batch = null;
+-      if (b) apply(planCelebration(b.events, context()), b.payout);
++      if (!b) return;
++      const plan = planCelebration(b.events, context());
++      // The art has its own chunk; on a cold start the moment waits for it, briefly.
++      if (celebrationArtReady()) apply(plan, b.payout);
++      else void celebrationArtWithin(ART_WAIT_MS).then(() => (alive ? apply(plan, b.payout) : releasePayout(b.payout)));
+     };
+     const off = onGameEvent((e) => {
+       const b = (batch ??= newBatch());
+@@ -189,8 +196,11 @@ export function CelebrationHost() {
+       }
+       if (!timer) timer = window.setTimeout(flush, BATCH_MS);
+     });
++    const cancelWarm = preloadCelebrationArtWhenIdle();
+     return () => {
++      alive = false;
+       off();
++      cancelWarm();
+       clearTimeout(timer);
+       // Nothing may stay reserved once the host is gone.
+       releasePayout(batch?.payout);
+diff --git a/tests/unit/fx/celebrationArtLoader.test.tsx b/tests/unit/fx/celebrationArtLoader.test.tsx
+new file mode 100644
+index 0000000..5c37eb7
+--- /dev/null
++++ b/tests/unit/fx/celebrationArtLoader.test.tsx
+@@ -0,0 +1,31 @@
++// @vitest-environment jsdom
++import { afterEach, describe, expect, it } from 'vitest';
++import { render } from 'preact';
++import { act } from 'preact/test-utils';
++import { celebrationArtReady, celebrationArtWithin, LazyCelebrationArt, loadCelebrationArt } from '@/fx/celebrationArtLoader';
++
++const host = () => document.getElementById('app')!;
++
++afterEach(() => {
++  act(() => render(null, host()));
++});
++document.body.innerHTML = '<div id="app"></div>';
++
++describe('celebration art, loaded on demand', () => {
++  it('holds the art’s square until the chunk is in, then draws it in place', async () => {
++    expect(celebrationArtReady()).toBe(false);
++    act(() => render(<LazyCelebrationArt art={{ type: 'currency', kind: 'coins' }} size={40} />, host()));
++    const box = host().querySelector('span[aria-hidden="true"]') as HTMLElement | null;
++    expect(box?.style.width).toBe('40px');
++    expect(host().querySelector('svg')).toBeNull();
++    await act(() => loadCelebrationArt().then(() => undefined));
++    expect(celebrationArtReady()).toBe(true);
++    expect(host().querySelector('svg')).not.toBeNull();
++  });
++
++  it('loads the module once and caches it', async () => {
++    const [a, b] = await Promise.all([loadCelebrationArt(), loadCelebrationArt()]);
++    expect(a).toBe(b);
++    await expect(celebrationArtWithin(0)).resolves.toBeUndefined();
++  });
++});
+diff --git a/tests/unit/fx/host.test.tsx b/tests/unit/fx/host.test.tsx
+index ddc3590..da187a9 100644
+--- a/tests/unit/fx/host.test.tsx
++++ b/tests/unit/fx/host.test.tsx
+@@ -1,11 +1,12 @@
+ // @vitest-environment jsdom
+-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
++import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+ import { render } from 'preact';
+ import { act } from 'preact/test-utils';
+ import { AnimatedNumber } from '@/ui/AnimatedNumber';
+ import { Toaster } from '@/ui/Toaster';
+ import { toasts } from '@/ui/toast';
+ import { BATCH_MS, CelebrationHost, markCelebratedLocally } from '@/fx/celebrations';
++import { loadCelebrationArt } from '@/fx/celebrationArtLoader';
+ import { pendingFor, reserve } from '@/fx/walletLedger';
+ import { emitGameEvents } from '@/state/events';
+ 
+@@ -64,6 +65,9 @@ describe('AnimatedNumber with a wallet reservation', () => {
+ });
+ 
+ describe('CelebrationHost', () => {
++  // The art has its own chunk; warm it as the idle preload would, so notes show on the batch.
++  beforeAll(() => loadCelebrationArt());
++
+   const mountHost = () =>
+     act(() =>
+       render(

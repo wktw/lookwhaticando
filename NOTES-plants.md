@@ -57,8 +57,9 @@ at y 59.4.
 2. **Stage names in fx** (`tests/unit/fx/celebrationPlan.test.ts`, `src/dev/sections-fxui.tsx`) still use "Seedling" and
    "Sprout". The stages are now Cutting, Rooting, Potted, Leafy, Budding, Blooming, Flourishing, Evergreen; the
    celebration copy for stages 1–2 should become Rooting ("white roots in the glass") and Potted.
-3. **`blooms` semantics** (see above): `src/art/scene/meadow/Planter.tsx` documents `blooms` as "extra blooms after
-   Evergreen". Please pass the Blooms Like You count (or leave it out) and update that comment.
+3. ~~**`blooms` semantics** (see above): `src/art/scene/meadow/Planter.tsx` documents `blooms` as "extra blooms after
+   Evergreen". Please pass the Blooms Like You count (or leave it out) and update that comment.~~
+   **Superseded (M1 triage):** the Meadow planter is gone. The live blooms blocker (PlantArt and today.ts) is an M1 art/logic finding.
 4. **Lamplight in the light theme**: crescents paint with `var(--shade)`, which follows the theme. If a scene shows
    Lamplight while the UI theme is light, set the night value on the scene container
    (`--shade: rgba(10, 8, 22, 0.3); --contact: rgba(0, 0, 0, 0.22)`) so crescents deepen with the lamp. No token change

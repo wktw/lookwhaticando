@@ -32,7 +32,10 @@
 
 ## The lint, and extending it
 
-`VOICE_SCAN_DIRS` (top of `tests/unit/voice.test.ts`) is `['src/catalog']`. It parses each .ts/.tsx with the
+`VOICE_SCAN_DIRS` (top of `tests/unit/voice.test.ts`) is `['src']` since M1 (generated `*.gen.ts` and the pet
+crescent table are skipped; CSS values, selectors, hex, dotted keys, camelCase labels and SVG path data count as
+data). Copy that fails today sits in `KNOWN_TEXT_EXCEPTIONS` with a TODO for its owner, and a test fails once an
+entry is stale. It parses each .ts/.tsx with the
 TypeScript compiler and reads string literals, template text and JSX text. It skips comments, types,
 imports, `throw`/`new Error(...)`/`console.*`, object keys and id-like strings. A developer-only string can
 opt out with a `// voice-ignore` comment on its line.

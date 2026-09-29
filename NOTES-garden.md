@@ -23,9 +23,10 @@
 
 ## Contract-change requests
 
-1. **`MeadowScene` planters (src/art/scene/index.tsx, world module)**: `planters?: { species: string; stage: number; pot: string }[]`
+1. ~~**`MeadowScene` planters (src/art/scene/index.tsx, world module)**: `planters?: { species: string; stage: number; pot: string }[]`
    is typed with plain strings. Please type them as `{ species: PlantSpeciesId; stage: number; pot: PotId; progress?: number; blooms?: number }`
-   so the planter box can pass straight through to `PlantArt` without casts and show the same in-stage detail.
+   so the planter box can pass straight through to `PlantArt` without casts and show the same in-stage detail.~~
+   **Superseded (M1 triage):** the Meadow is gone; pots reach the Shelf and the windowsill band through `ShelfScene` / `WindowsillBand`.
 2. **DESIGN §5.5 pot list vs catalog**: the doc lists "Strawberry, Moon, Snow Globe Base, Gold" pots and a "Cat Face" pot,
    while `catalog/types.ts` has `kitty, frog, pumpkin, snowy, heart, starlight` (no strawberry/moon/gold). Art follows the
    catalog; the doc line should be updated to match.

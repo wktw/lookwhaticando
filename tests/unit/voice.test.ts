@@ -14,7 +14,8 @@
  * A developer-only string can opt out with a `// voice-ignore` comment on its line.
  */
 import { describe, expect, it } from 'vitest';
-import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join, relative } from 'node:path';
 import ts from 'typescript';
 import { BADGES } from '@/catalog/badges';
@@ -67,8 +68,12 @@ import {
   type LineContext,
 } from '@/catalog/lines';
 
-/** Where the lint looks for UI strings. The lead extends this to the UI at integration. */
-export const VOICE_SCAN_DIRS: readonly string[] = ['src/catalog'];
+/**
+ * Where the lint looks for UI strings: all of src (tests, `.d.ts` and developer errors are
+ * skipped; see stringsIn). Data that only looks like words (CSS, colours, ids, dotted keys,
+ * camelCase labels) is held to the emoji rules only; see isProse.
+ */
+export const VOICE_SCAN_DIRS: readonly string[] = ['src'];
 
 /**
  * Known exceptions, as `file#propertyKey`. machines.ts keeps a seasonal `emoji` field that is not
@@ -77,10 +82,12 @@ export const VOICE_SCAN_DIRS: readonly string[] = ['src/catalog'];
 const KNOWN_EXCEPTIONS: ReadonlySet<string> = new Set(['src/catalog/machines.ts#emoji']);
 
 /**
- * Strings in files this module doesn't own, waiting on the lead (NOTES-voice.md, requests). Each
- * breaks one rule; delete the entry once the string is fixed.
+ * Copy that breaks a rule today, in files the lint's owner doesn't own, waiting on their owners.
+ * Each entry is `file → exact string`. The lint skips these; the "known exceptions are still
+ * real" test fails once a string is fixed or moved, so delete its entry in the same change.
  */
 const KNOWN_TEXT_EXCEPTIONS: ReadonlyMap<string, ReadonlySet<string>> = new Map([
+  // Catalog copy (NOTES-voice.md, requests).
   [
     'src/catalog/collectibles.ts',
     new Set([
@@ -89,6 +96,43 @@ const KNOWN_TEXT_EXCEPTIONS: ReadonlyMap<string, ReadonlySet<string>> = new Map(
       "Robin's Nest", // straight apostrophe
     ]),
   ],
+  // TODO(m1 ui): the Capsules copy below; delete each entry as its string is fixed.
+  [
+    'src/features/capsules/OddsSheet.tsx',
+    new Set([
+      "Each item's chance is before new-first weighting, which only ever raises the chance of something new.", // straight apostrophe
+      ", on every series, each counted on its own. A guaranteed pull picks something you don't have yet whenever it can.", // straight apostrophe
+      "Anything you don't have yet is", // straight apostrophe
+      "stamps for any item you don't have\n          yet. Seasonal items can be ordered once their season has visited.", // straight apostrophe
+    ]),
+  ],
+  ['src/features/capsules/RevealCard.tsx', new Set(['The secret one!'])], // exclamation mark outside the Secret reveal
+  ['src/features/capsules/copy.ts', new Set(['1, the secret one!'])], // exclamation mark outside the Secret reveal
+  [
+    'src/features/capsules/SpecialOrder.tsx',
+    new Set([
+      "Anything you don't have yet, ordered at the counter for stamps. Seasonal items can be ordered once their season has visited.", // straight apostrophe
+      'Nothing missing here. Try another series.', // "missing"
+    ]),
+  ],
+  // TODO(m1 logic): the view-model copy below (VOICE §3: "watered", not "checked in"; no "kept it up").
+  ['src/state/views/common.ts', new Set(['Kept it up 1', ', kept it up'])],
+  ['src/state/views/today.ts', new Set(['1 checked in'])],
+  // TODO(m1 ui): gallery labels (developer-facing; they can take a `// voice-ignore` comment or say "watering").
+  [
+    'src/dev/sections-capsules.tsx',
+    new Set([
+      'Cabinets: every series, window light from the left and the right, and lamplight (&machine=cats)', // URL param
+      'Interactive cabinet (&machine=cows &coins=10 &tickets=0 &quick=1)', // URL param
+    ]),
+  ],
+  [
+    'src/dev/sections-fxui.tsx',
+    new Set(['The check-in, frame by frame (ms)', 'A drop of water when you check in', 'Check-in (4 s, with Undo)', 'Check-in note', 'Check in (+5)', 'check-in: a drop, then a rising glass chime']),
+  ],
+  ['src/dev/sections-garden.tsx', new Set(['Kept it up 8 days'])],
+  ['src/dev/sections-items.tsx', new Set(["Decor at true relative size, beside a 16-unit box: a sitting cat's height"])], // straight apostrophe
+  ['src/dev/sections-world.tsx', new Set(['Check-in choreography (tap the buttons)'])],
 ]);
 
 /** Pet flavor text waiting on the lead (collectibles.ts is not ours): a pronoun, and a hand and a hello. */
@@ -195,7 +239,7 @@ function lint(text: string, opts: { prose?: boolean; pronouns?: RegExp | null } 
   const dingbat = DINGBATS.exec(text);
   if (dingbat) out.push(`a decorative symbol ${JSON.stringify(dingbat[0])}`);
   if (!prose) return out;
-  if (/[A-Za-z]'[A-Za-z]/.test(text)) out.push('a straight apostrophe (use ’)');
+  if (/[A-Za-z]'[A-Za-z-]/.test(text)) out.push('a straight apostrophe (use ’)');
   const bangs = (text.match(/!/g) ?? []).length;
   if (bangs > 0 && !(bangs === 1 && SECRET_SHAPE.test(text))) out.push('an exclamation mark (only the Secret reveal gets one)');
   for (const rule of RULES) {
@@ -210,10 +254,24 @@ function lint(text: string, opts: { prose?: boolean; pronouns?: RegExp | null } 
   return out;
 }
 
-/** Ids, keys and hex colours are data, not copy: only emoji checks apply to them. */
-function isProse(s: string): boolean {
-  if (!/[A-Za-z]/.test(s) || /^#[0-9a-f]{3,8}$/i.test(s)) return false;
-  return /\s/.test(s) || /^[A-Z]/.test(s) || /[’'!?.,]/.test(s);
+/** CSS functions: a value like `var(--ink, #3B3236)` or `color-mix(in srgb, …)` is styling, not copy. */
+const CSS_VALUE = /^(var|color-mix|calc|min|max|clamp|rgba?|hsla?|oklch|url|(repeating-)?(linear|radial|conic)-gradient|cubic-bezier|steps|translate(3d|[XYZ])?|rotate|scale|matrix)\(/i;
+
+/**
+ * Ids, keys, CSS and colours are data, not copy: only the emoji checks apply to them. Data is:
+ * a hex colour; a CSS value, selector or block (`var(`, `color-mix(`, `.cls`, `#id`, `{ …; }`);
+ * a dotted key (`wallet.stardust`); anything with a camelCase word (`addDays offset`), since copy
+ * never has one (`iPhone` and `macOS` are not camelCase by this rule).
+ */
+export function isProse(s: string): boolean {
+  const t = s.trim();
+  if (!/[A-Za-z]/.test(t)) return false;
+  if (CSS_VALUE.test(t) || /^[#.]/.test(t)) return false;
+  if (t.includes('{') && t.includes(';')) return false;
+  if (/^[a-z][\w-]*(\.[\w-]+)+$/i.test(t)) return false;
+  if (/\b[a-z]{2,}[A-Z][a-z]/.test(t)) return false;
+  if (/^[MmLlHhVvCcSsQqTtAaZz0-9.,\s-]+$/.test(t) && /\d/.test(t)) return false; // SVG path data
+  return /\s/.test(t) || /^[A-Z]/.test(t) || /[’'!?.,]/.test(t);
 }
 
 /* ------------------------------------------------------------------------ */
@@ -226,12 +284,15 @@ interface Found {
   key?: string;
 }
 
+/** Generated tables (shade crescents, pet crescents): numbers and path data, no copy. */
+const GENERATED = /\.gen\.tsx?$|\/crescents\/data\.ts$/;
+
 function sourceFiles(dir: string): string[] {
   const out: string[] = [];
   for (const name of readdirSync(dir)) {
     const path = join(dir, name);
     if (statSync(path).isDirectory()) out.push(...sourceFiles(path));
-    else if (/\.tsx?$/.test(name) && !/\.test\.tsx?$/.test(name) && !name.endsWith('.d.ts')) out.push(path);
+    else if (/\.tsx?$/.test(name) && !/\.test\.tsx?$/.test(name) && !name.endsWith('.d.ts') && !GENERATED.test(path.split('\\').join('/'))) out.push(path);
   }
   return out;
 }
@@ -271,8 +332,24 @@ function stringsIn(file: string): Found[] {
     ts.forEachChild(node, (child) => visit(child, key));
   };
   visit(sf);
-  const texts = KNOWN_TEXT_EXCEPTIONS.get(rel);
-  return out.filter((f) => !KNOWN_EXCEPTIONS.has(`${rel}#${f.key}`) && !texts?.has(f.text));
+  return out;
+}
+
+let uiCache: Found[] | null = null;
+/** Every string under VOICE_SCAN_DIRS, parsed once per run. */
+function uiStrings(): Found[] {
+  if (!uiCache) {
+    const files = VOICE_SCAN_DIRS.flatMap((d) => sourceFiles(d));
+    if (!files.length) throw new Error(`No sources under ${VOICE_SCAN_DIRS.join(', ')}`);
+    uiCache = files.flatMap((f) => stringsIn(f));
+  }
+  return uiCache;
+}
+
+/** Whether a found string is on a known-exception list. */
+function isKnownException(f: Found): boolean {
+  const file = f.where.replace(/:\d+$/, '');
+  return KNOWN_EXCEPTIONS.has(`${file}#${f.key}`) || !!KNOWN_TEXT_EXCEPTIONS.get(file)?.has(f.text);
 }
 
 /**
@@ -393,19 +470,86 @@ function anatomyProblems(text: string, species: readonly Species[]): string[] {
   return out;
 }
 
+/** "them" and "they" can mean the spots or the ears there, so flavor text is held to he/she/its. */
+const FLAVOR_PRONOUNS = /\b(he|she|him|her|his|hers|himself|herself|its|itself)\b/i;
+
+/** What's wrong with a pet's catalog flavor text: pronouns, anatomy it lacks, a voice of its own. */
+function flavorProblems(p: { flavor: string; species: Species }): string[] {
+  return [...lint(p.flavor, { pronouns: FLAVOR_PRONOUNS }), ...anatomyProblems(p.flavor, [p.species]), ...(FIRST_PERSON.test(p.flavor) ? ['first person'] : [])];
+}
+
 /* ------------------------------------------------------------------------ */
 /* The lint                                                                  */
 /* ------------------------------------------------------------------------ */
 
 describe('voice lint (DESIGN §12)', () => {
   it('every UI string under VOICE_SCAN_DIRS follows the voice', () => {
-    const files = VOICE_SCAN_DIRS.flatMap((d) => sourceFiles(d));
-    expect(files.length).toBeGreaterThan(0);
-    const bad = files
-      .flatMap((f) => stringsIn(f))
+    const bad = uiStrings()
+      .filter((f) => !isKnownException(f))
       .map((f) => ({ ...f, problems: lint(f.text, { prose: isProse(f.text) }) }))
       .filter((f) => f.problems.length > 0);
     expect(bad, report(bad)).toEqual([]);
+  });
+
+  it('known exceptions are still real (delete an entry once its string is fixed)', () => {
+    const found = uiStrings();
+    const stale: string[] = [];
+    for (const [file, texts] of KNOWN_TEXT_EXCEPTIONS) {
+      for (const text of texts) {
+        const hits = found.filter((f) => f.where.startsWith(`${file}:`) && f.text === text);
+        if (!hits.length) stale.push(`${file}  ${JSON.stringify(text)}: no longer in the file`);
+        else if (hits.every((f) => lint(f.text, { prose: isProse(f.text) }).length === 0)) stale.push(`${file}  ${JSON.stringify(text)}: passes now`);
+      }
+    }
+    for (const entry of KNOWN_EXCEPTIONS) {
+      const [file, key] = entry.split('#');
+      const hits = found.filter((f) => f.where.startsWith(`${file}:`) && f.key === key);
+      if (!hits.some((f) => lint(f.text, { prose: isProse(f.text) }).length > 0)) stale.push(`${entry}: passes now`);
+    }
+    for (const id of KNOWN_FLAVOR_EXCEPTIONS) {
+      const pet = PETS.find((p) => p.id === id);
+      if (!pet || flavorProblems(pet).length === 0) stale.push(`flavor ${id}: passes now`);
+    }
+    expect(stale, `Stale voice-lint exceptions; delete them from tests/unit/voice.test.ts:\n${stale.join('\n')}`).toEqual([]);
+  });
+
+  it('skips a line marked // voice-ignore, and developer errors, but reads the rest', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'voice-'));
+    try {
+      const file = join(dir, 'Sample.tsx');
+      writeFileSync(
+        file,
+        [
+          "const url = `?only=capsules&machine=cows`; // voice-ignore",
+          "export const Hint = () => <p title=\"Put a coin in\">Water</p>;",
+          "export const Skip = () => <p>Turn the machine{/* voice-ignore */}</p>;",
+          "export const Bad = () => <p>Yay, all done!</p>;",
+          "if (!url) throw new Error('Unlocked the machine!');",
+          "console.warn('Oops, wishing well');",
+        ].join('\n'),
+      );
+      const texts = stringsIn(file).map((f) => f.text);
+      expect(texts).toEqual(['Put a coin in', 'Water', 'Yay, all done!']);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('tells copy from data', () => {
+    for (const data of [
+      'var(--lavender-300, #DDD4F1)',
+      'color-mix(in srgb, var(--card, #FFFDF9) 92%, transparent)',
+      '.fxui-panels { display: flex; gap: 16px; }',
+      '#FAF6EF',
+      '#/today',
+      'wallet.stardust',
+      'addDays offset',
+      'translate(12px, 4px) rotate(3deg)',
+    ])
+      expect(isProse(data), data).toBe(false);
+    for (const copy of ['Walk, watered.', 'Put a coin in', 'Keep catkin on your iPhone', 'Works on macOS and iPadOS too', 'Water', '4 more waterings to Blooming'])
+      expect(isProse(copy), copy).toBe(true);
+    expect(lint('var(--lavender-300, #DDD4F1)', { prose: isProse('var(--lavender-300, #DDD4F1)') })).toEqual([]);
   });
 
   it('every quoted line in docs/VOICE.md follows the voice', () => {
@@ -427,14 +571,8 @@ describe('voice lint (DESIGN §12)', () => {
   });
 
   it('pet flavor text in the catalog gives no pet a pronoun, a hand or a hello', () => {
-    // "them" and "they" can mean the spots or the ears there, so flavor text is held to he/she/its.
-    const pronouns = /\b(he|she|him|her|his|hers|himself|herself|its|itself)\b/i;
     const bad = PETS.filter((p) => !KNOWN_FLAVOR_EXCEPTIONS.has(p.id))
-      .map((p) => ({
-        where: `flavor ${p.id}`,
-        text: p.flavor,
-        problems: [...lint(p.flavor, { pronouns }), ...anatomyProblems(p.flavor, [p.species]), ...(FIRST_PERSON.test(p.flavor) ? ['first person'] : [])],
-      }))
+      .map((p) => ({ where: `flavor ${p.id}`, text: p.flavor, problems: flavorProblems(p) }))
       .filter((f) => f.problems.length > 0);
     expect(bad, report(bad)).toEqual([]);
   });
@@ -455,6 +593,8 @@ describe('voice lint (DESIGN §12)', () => {
       'You’re behind.', 'It’s been a long time', 'Down from 80%',
       // gaps
       'You’re back.', 'It’s been 5 days.', 'Good to see you again.', 'Haven’t seen you in a while.',
+      // straight apostrophes, before a letter or a hyphen
+      'Robin\'s Nest', 'Jack-o\'-lantern',
       // undone
       '2 of 3 this week · 1 more by Sun', 'Almost there', 'There are 0 in the jar.', 'Only 2 more',
       // pep talk and platitudes
