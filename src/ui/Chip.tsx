@@ -18,7 +18,7 @@ function renderIcon(icon: IconName | JSX.Element) {
   return typeof icon === 'string' ? <Icon name={icon} size={18} /> : icon;
 }
 
-/** A soft, rounded tag. */
+/** A small paper tag: the family's palest wash under a hairline. */
 export function Chip({ tone = 'blush', icon, onRemove, removeLabel, class: cls, children }: ChipProps) {
   return (
     <span class={cx(s.chip, s.static, toneClass(tone), cls)}>
@@ -43,7 +43,7 @@ export interface FilterChipProps extends Omit<JSX.ButtonHTMLAttributes<HTMLButto
   children?: ComponentChildren;
 }
 
-/** A toggleable chip for filters and multi-select (aria-pressed). */
+/** A toggleable paper chip for filters and multi-select (aria-pressed). A hairline check marks it on. */
 export function FilterChip({ selected, onChange, tone = 'blush', icon, count, class: cls, children, ...rest }: FilterChipProps) {
   return (
     <button
@@ -53,9 +53,9 @@ export function FilterChip({ selected, onChange, tone = 'blush', icon, count, cl
       class={cx(s.chip, s.filter, selected && s.selected, toneClass(tone), cls as string)}
       onClick={() => onChange(!selected)}
     >
-      <span class={s.check} aria-hidden="true">
-        <Icon name="check" size={14} />
-      </span>
+      <svg class={s.check} viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false">
+        <path d="M3.4 8.4 6.5 11.3 12.6 4.9" />
+      </svg>
       {icon && <span class={s.icon}>{renderIcon(icon)}</span>}
       <span class={s.text}>{children}</span>
       {count !== undefined && <span class={s.count}>{count}</span>}

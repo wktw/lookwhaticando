@@ -1,5 +1,5 @@
 import type { ComponentChildren, JSX } from 'preact';
-import type { Rarity } from '@/catalog/types';
+import { RARITY_FINISH, RARITY_LABEL as TIER_LABEL, type Rarity } from '@/catalog/types';
 import { cx } from './cx';
 import { toneClass, type Tone } from './tone';
 import { Sparkle } from './Sparkle';
@@ -7,7 +7,7 @@ import s from './Pill.module.css';
 
 export interface PillProps {
   tone?: Tone | 'neutral';
-  /** soft: tinted · solid: pastel face with cocoa text. */
+  /** soft: the family's palest wash · solid: a pastel face with a graphite label. */
   variant?: 'soft' | 'solid';
   size?: 'sm' | 'md';
   icon?: JSX.Element;
@@ -15,7 +15,7 @@ export interface PillProps {
   children?: ComponentChildren;
 }
 
-/** Small rounded label for counts, prices, states and tags. */
+/** A small label for counts, prices, states and tags. */
 export function Pill({ tone = 'neutral', variant = 'soft', size = 'md', icon, class: cls, children }: PillProps) {
   return (
     <span class={cx(s.pill, s[variant], s[size], tone === 'neutral' ? s.neutral : toneClass(tone), cls)}>
@@ -25,15 +25,20 @@ export function Pill({ tone = 'neutral', variant = 'soft', size = 'md', icon, cl
   );
 }
 
-export const RARITY_LABEL: Record<Rarity, string> = { common: 'Common', uncommon: 'Uncommon', rare: 'Rare', ultra: 'Secret' };
+/** Display tier names (DESIGN §7.1): Classic · Special · Rare · Super rare. A series Secret prints "Secret". */
+export const RARITY_LABEL: Record<Rarity, string> = TIER_LABEL;
 
-/** Rarity sticker: common sage, uncommon sky, rare lavender, ultra a holographic "Secret". */
-export function RarityPill({ rarity, label, size = 'md', class: cls }: { rarity: Rarity; label?: string; size?: 'sm' | 'md'; class?: string }) {
-  const sparkle = rarity === 'rare' || rarity === 'ultra';
+/**
+ * A printed tier label with its static finish, so rarity never rests on colour alone and
+ * survives reduced motion: Classic matte paper · Special two-colour print · Rare foil edge ·
+ * Super rare holographic stripes · Secret holo stripes with its one sparkle.
+ */
+export function RarityPill({ rarity, label, secret = false, size = 'md', class: cls }: { rarity: Rarity; label?: string; secret?: boolean; size?: 'sm' | 'md'; class?: string }) {
+  const text = label ?? (secret ? 'Secret' : RARITY_LABEL[rarity]);
   return (
-    <span class={cx(s.pill, s.rarity, s[rarity], s[size], cls)}>
-      {sparkle ? <Sparkle size={size === 'sm' ? 9 : 11} class={s.sparkle} /> : <span class={s.dot} aria-hidden="true" />}
-      {label ?? RARITY_LABEL[rarity]}
+    <span class={cx(s.pill, s.tier, s[rarity], secret && s.secret, s[size], cls)} title={`${text}, ${secret ? 'holographic, blind-embossed' : RARITY_FINISH[rarity]}`}>
+      {secret && <Sparkle size={size === 'sm' ? 8 : 10} class={s.sparkle} />}
+      {text}
     </span>
   );
 }

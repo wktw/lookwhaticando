@@ -1,10 +1,90 @@
-.gal { padding: 24px; max-width: 1400px; margin: 0 auto; }
-.gal h1 { font-size: 28px; margin-bottom: 16px; }
-.gal-section { margin: 28px 0; }
-.gal-section h2 { font-size: 20px; margin-bottom: 12px; color: var(--ink-2); }
-.gal-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 14px; }
-.gal-cell { background: var(--card); border-radius: 18px; padding: 10px; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; align-items: center; gap: 4px; }
-.gal-cell small { font-size: 11px; color: var(--ink-2); text-align: center; line-height: 1.2; }
-.gal-cell b { font-size: 12px; text-align: center; line-height: 1.2; }
-.gal-row { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-end; }
-.gal-nav { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; } .gal-nav a { font-size: 12px; padding: 4px 10px; border-radius: 99px; background: var(--card); color: var(--ink-2); text-decoration: none; }
+/* The gallery shell, in catkin paper: oat page, paper cells, hairlines, small-caps labels. */
+.gal {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 28px 24px 48px;
+}
+
+.gal > h1 {
+  margin-bottom: 18px;
+  font-size: 2.25rem;
+  letter-spacing: -0.01em;
+}
+.gal > h1 span {
+  margin-left: 6px;
+  font-size: 1.25rem;
+  font-style: italic;
+  color: var(--ink-2);
+}
+
+.gal-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.gal-nav a {
+  padding: 5px 11px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--card);
+  color: var(--ink-2);
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: none;
+}
+.gal-nav a:hover {
+  color: var(--ink);
+  border-color: var(--control-border);
+}
+
+.gal-section {
+  margin: 30px 0;
+}
+.gal-section > h2 {
+  margin-bottom: 14px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--line);
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+
+.gal-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 12px;
+}
+
+.gal-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--card);
+  box-shadow: 0 1px 0 rgba(59, 50, 54, 0.03), 0 6px 16px -14px rgba(59, 50, 54, 0.35);
+}
+.gal-cell small {
+  font-size: 11px;
+  line-height: 1.2;
+  text-align: center;
+  color: var(--ink-2);
+}
+.gal-cell b {
+  font-size: 12px;
+  line-height: 1.2;
+  text-align: center;
+}
+
+.gal-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 14px;
+}

@@ -32,7 +32,7 @@ export interface SheetProps {
   dismissible?: boolean;
   showClose?: boolean;
   role?: 'dialog' | 'alertdialog';
-  /** Art that peeks over the sheet's top edge (a pet, a plant). */
+  /** Art that peeks over the sheet's top edge (a plant, a sleeping pet). */
   peek?: ComponentChildren;
   /** Selector of the element to focus on open (default: [data-autofocus], else the sheet itself). */
   initialFocus?: string;
@@ -48,7 +48,8 @@ const WIDE = '(min-width: 900px)';
 const isWide = () => typeof matchMedia === 'function' && matchMedia(WIDE).matches;
 
 /**
- * Bottom sheet on phones (drag to dismiss, detents, rubber-band), centered dialog on wide screens.
+ * A paper sheet: bottom sheet on phones (radius 24, a paper grabber, drag to dismiss, detents,
+ * rubber-band), a centered paper dialog on wide screens.
  * Portals into #overlay-root, traps focus, restores it, closes on Esc, locks page scroll and stacks.
  */
 export function Sheet(props: SheetProps) {
@@ -348,7 +349,7 @@ export function Sheet(props: SheetProps) {
               </p>
             )}
           </div>
-          {showClose && dismissible && <IconButton class={s.close} icon="close" label="Close" variant="soft" size="sm" tone="lavender" onClick={onClose} />}
+          {showClose && dismissible && <IconButton class={s.close} icon="close" label="Close" variant="card" size="sm" onClick={onClose} />}
         </header>
         <div ref={bodyRef} class={s.body}>
           {children}

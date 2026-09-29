@@ -10,8 +10,7 @@ import { pendingFor, reserve } from '@/fx/walletLedger';
 import { emitGameEvents } from '@/state/events';
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
-// jsdom has no canvas: confetti quietly skips itself.
-HTMLCanvasElement.prototype.getContext = () => null;
+// jsdom has no Element.animate: petals quietly skip themselves.
 
 let host: HTMLElement;
 
@@ -85,7 +84,7 @@ describe('CelebrationHost', () => {
     const banners = document.querySelectorAll('#overlay-root [role="group"]');
     expect(banners).toHaveLength(1);
     expect(banners[0]!.getAttribute('aria-label')).toContain('Perfect day');
-    expect(banners[0]!.textContent).toContain('Fifty & Flourishing badge');
+    expect(banners[0]!.textContent).toContain('Fifty & Flourishing pin');
   });
 
   it('reserves rewards the instant they arrive, and hands check-in coins to the screen’s own flourish', async () => {

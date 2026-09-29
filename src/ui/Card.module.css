@@ -1,14 +1,16 @@
 .card {
   display: block;
   position: relative;
-  border-radius: var(--r-lg);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
   background: var(--card);
   color: var(--ink);
-  box-shadow: var(--shadow-md);
+  box-shadow: var(--kit-card-shadow);
   text-align: start;
 }
 
 .tinted {
+  border-color: var(--t300);
   background: var(--t100);
 }
 
@@ -33,31 +35,25 @@
   width: 100%;
   cursor: pointer;
   text-decoration: none;
-  transition: transform 200ms var(--ease-out);
+  transition: transform 120ms var(--ease-pop);
 }
-/* The deeper hover shadow fades in on a pseudo-element, so only opacity animates. */
+/* The hover shadow fades in on a pseudo-element, so only opacity animates. */
 .interactive::after {
   content: '';
   position: absolute;
-  inset: 0;
+  inset: -1px;
   border-radius: inherit;
-  box-shadow: var(--shadow-lg);
+  box-shadow: var(--kit-float-shadow);
   opacity: 0;
   pointer-events: none;
-  transition: opacity 200ms var(--ease-out);
-}
-.interactive:focus-visible {
-  border-radius: var(--r-lg);
+  transition: opacity 200ms var(--ease-pop);
 }
 @media (hover: hover) {
-  .interactive:hover {
-    transform: translateY(-2px);
-  }
   .interactive:hover::after {
     opacity: 1;
   }
 }
 .interactive:active {
-  transform: scale(0.985);
-  transition-duration: 80ms;
+  transform: translateY(1px);
+  transition-duration: 40ms;
 }

@@ -1,5 +1,6 @@
 /**
- * Toast queue. `toast()` from anywhere; <Toaster/> (mounted once by the app) renders it.
+ * Toast queue. `toast()` from anywhere; <Toaster/> (mounted once by the app) renders each one as
+ * a small paper note ("Walk, watered. +5 · Pudding opened one eye. · Undo").
  * Toasts with the same `key` coalesce: the visible one updates in place and its timer restarts,
  * which is how rapid events ("+5", "+5", "+8") become one calm "+18".
  */
@@ -14,14 +15,17 @@ export interface ToastAction {
 }
 
 export interface ToastOptions {
+  /** The note's first line, in Castoro ("Walk, watered. +5"). */
   message: ComponentChildren;
-  /** Text for screen readers (defaults to `message` when it is a string). */
+  /** An observed second line in Castoro italic ("Pudding opened one eye."). */
+  note?: ComponentChildren;
+  /** Text for screen readers (defaults to `message` and `note` when they are strings). */
   label?: string;
-  /** Leading art: a pet face, a currency icon… */
+  /** A small leading drawing: a water drop, a currency token, a plant. */
   art?: ComponentChildren;
   tone?: Tone;
   action?: ToastAction;
-  /** Auto-dismiss after ms (default 3200, or 5200 with an action). 0 = stay until dismissed. */
+  /** Auto-dismiss after ms (default 3200, or 4000 with an action, like Undo). 0 = stay until dismissed. */
   duration?: number;
   /** Coalescing key: a queued toast with the same key is replaced instead of stacking. */
   key?: string;
@@ -34,14 +38,15 @@ export interface ToastItem extends ToastOptions {
   leaving?: boolean;
 }
 
-export const MAX_VISIBLE = 3;
+export const MAX_VISIBLE = 2;
 export const EXIT_MS = 220;
 
 export const toasts = signal<ToastItem[]>([]);
 
 /**
- * The bottom edge (px from the top of the viewport) of a celebration banner that shares the
- * top of the screen; the toast stack slides below it so nothing hides underneath. 0 = none.
+ * The bottom edge (px from the top of the viewport) of a celebration banner at the top of the
+ * screen. Notes normally sit at the bottom; when a sheet lifts them to the top, they slide
+ * below the banner so nothing hides underneath. 0 = none.
  */
 export const toastLaneTop = signal(0);
 
@@ -76,14 +81,14 @@ export function visibleToasts(list: readonly ToastItem[]): ToastItem[] {
 }
 
 export function toastDuration(t: ToastOptions): number {
-  return t.duration ?? (t.action ? 5200 : 3200);
+  return t.duration ?? (t.action ? 4000 : 3200);
 }
 
 /** Show (or coalesce) a toast. Its text is announced through the shared aria-live="polite" region. */
 export function toast(opts: ToastOptions): string {
   const { list, id } = upsertToast(toasts.value, opts, `t${++seq}`);
   toasts.value = list;
-  const text = opts.label ?? (typeof opts.message === 'string' ? opts.message : '');
+  const text = opts.label ?? [opts.message, opts.note].filter((x): x is string => typeof x === 'string').join(' ');
   if (text) announce(opts.action ? `${text}. ${opts.action.label} available.` : text);
   return id;
 }

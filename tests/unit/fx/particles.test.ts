@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { alphaOf, BUDGET, spawn, spawnStill, step } from '@/fx/particles';
+import { BUDGET, LEAF_COLOURS, MAX_PETALS, PETAL_COLOURS, petalAt, petalKeyframes, petalOpacity, planPetals, type Intensity } from '@/fx/particles';
 import { arcControl, easeInOutCubic, quadAt, spriteCount } from '@/fx/arc';
 
-/** Deterministic PRNG (mulberry32) so particle tests are stable. */
+/** Deterministic PRNG (mulberry32) so petal tests are stable. */
 function rng(seed = 7) {
   let a = seed;
   return () => {
@@ -14,65 +14,67 @@ function rng(seed = 7) {
   };
 }
 
-describe('confetti particles', () => {
-  it('budgets grow with meaning: tiny 10 … epic 160', () => {
-    expect(BUDGET).toEqual({ tiny: 10, small: 24, medium: 50, big: 90, epic: 160 });
+const INTENSITIES: Intensity[] = ['tiny', 'small', 'medium', 'big', 'epic'];
+
+describe('celebration petals (never confetti)', () => {
+  it('are at most 12, whatever the moment or the caller asks for', () => {
+    for (const intensity of INTENSITIES) {
+      expect(BUDGET[intensity]).toBeLessThanOrEqual(MAX_PETALS);
+      expect(planPetals({ width: 390, height: 844, intensity, rng: rng() }).length).toBe(BUDGET[intensity]);
+    }
+    expect(planPetals({ width: 390, height: 844, count: 160, rng: rng() })).toHaveLength(MAX_PETALS);
+    expect(MAX_PETALS).toBe(12);
   });
 
-  it('spawns the requested count, launched upward within the cone', () => {
-    const ps = spawn({ x: 100, y: 500, count: 50, shapes: ['petal', 'heart'], colors: ['#FFC4D3'], rng: rng() });
-    expect(ps).toHaveLength(50);
-    for (const p of ps) {
-      expect(p.vy).toBeLessThan(0);
-      expect(['petal', 'heart']).toContain(p.shape);
+  it('grow with meaning: a bigger moment never gets fewer petals', () => {
+    const counts = INTENSITIES.map((i) => BUDGET[i]);
+    for (let i = 1; i < counts.length; i++) expect(counts[i]!).toBeGreaterThanOrEqual(counts[i - 1]!);
+  });
+
+  it('are petals and leaves in the plants’ own colours; stars, hearts and sparkles become petals', () => {
+    const ps = planPetals({ width: 390, height: 844, intensity: 'epic', rng: rng() });
+    expect(new Set(ps.map((p) => p.kind))).toEqual(new Set(['petal', 'leaf']));
+    for (const p of ps) expect(p.kind === 'leaf' ? LEAF_COLOURS : PETAL_COLOURS).toContain(p.color as never);
+    const legacy = planPetals({ width: 390, height: 844, shapes: ['star', 'heart', 'sparkle', 'coin'], rng: rng() });
+    expect(legacy.every((p) => p.kind === 'petal')).toBe(true);
+  });
+
+  it('skip colours that would vanish on cream paper', () => {
+    const ps = planPetals({ width: 390, height: 844, shapes: ['petal'], colors: ['#FFFFFF', '#FFFDF9', '#EFB4C1'], rng: rng() });
+    expect(ps.every((p) => p.color === '#EFB4C1')).toBe(true);
+  });
+
+  it('drift down with a gentle turn, and fade out by the end', () => {
+    for (const p of planPetals({ width: 390, height: 844, x: 195, y: 300, intensity: 'big', rng: rng(3) })) {
+      const end = petalAt(p, 1);
+      expect(end.dy).toBeGreaterThan(100);
+      expect(Math.abs(end.rot - p.rot)).toBeGreaterThan(30);
+      expect(Math.abs(end.rot - p.rot)).toBeLessThan(360);
+      expect(petalOpacity(1, false)).toBe(0);
+      expect(petalOpacity(0.5, false)).toBe(1);
     }
   });
 
-  it('coins are heavier: fall faster than petals', () => {
-    const [coin] = spawn({ x: 0, y: 0, count: 1, shapes: ['coin'], colors: ['#fff'], rng: rng(1) });
-    const [petal] = spawn({ x: 0, y: 0, count: 1, shapes: ['petal'], colors: ['#fff'], rng: rng(1) });
-    expect(coin!.color).toBe('#F6C544');
-    expect(coin!.gravity).toBeGreaterThan(petal!.gravity);
+  it('animate only transform and opacity', () => {
+    const [p] = planPetals({ width: 390, height: 844, rng: rng() });
+    const frames = petalKeyframes(p!);
+    expect(frames[0]!.offset).toBe(0);
+    expect(frames.at(-1)!.offset).toBe(1);
+    for (const f of frames) expect(Object.keys(f).sort()).toEqual(['offset', 'opacity', 'transform']);
   });
 
-  it('gravity wins: particles rise, slow, fall, and expire off-screen or by age', () => {
-    const [p] = spawn({ x: 200, y: 400, count: 1, shapes: ['circle'], colors: ['#fff'], angle: -Math.PI / 2, spread: 0, speed: [0.8, 0.8], rng: rng() });
-    let minY = p!.y;
-    let alive = true;
-    let t = 0;
-    while (alive && t < 10_000) {
-      alive = step(p!, 16, 800);
-      minY = Math.min(minY, p!.y);
-      t += 16;
-    }
-    expect(minY).toBeLessThan(400);
-    expect(alive).toBe(false);
-    expect(t).toBeLessThan(3000);
-  });
-
-  it('fades in quickly and out over the last quarter of life', () => {
-    const [p] = spawn({ x: 0, y: 0, count: 1, shapes: ['circle'], colors: ['#fff'], rng: rng() });
-    p!.age = p!.life * 0.5;
-    expect(alphaOf(p!)).toBe(1);
-    p!.age = p!.life * 0.95;
-    expect(alphaOf(p!)).toBeGreaterThan(0);
-    expect(alphaOf(p!)).toBeLessThan(0.3);
-  });
-
-  it('reduced motion: still sparkles that never move, only breathe and fade', () => {
-    const ps = spawnStill({ x: 50, y: 50, count: 8, radius: 40, colors: ['#FFE593'], rng: rng() });
-    for (const p of ps) {
-      const { x, y } = p;
-      p.age = 0;
-      step(p, 300, 800);
-      expect([p.x, p.y]).toEqual([x, y]);
-      expect(p.shape).toBe('sparkle');
-      expect(Math.hypot(x - 50, y - 50)).toBeLessThanOrEqual(40);
+  it('reduced motion: petals hold still where they can be seen, and crossfade', () => {
+    for (const p of planPetals({ width: 390, height: 844, still: true, rng: rng() })) expect(p.y).toBeGreaterThan(0);
+    for (const p of planPetals({ width: 390, height: 844, x: 100, y: 100, still: true, rng: rng() })) {
+      const frames = petalKeyframes(p);
+      expect(new Set(frames.map((f) => f.transform)).size).toBe(1);
+      expect(Math.max(...frames.map((f) => f.opacity))).toBe(1);
+      expect(frames.at(-1)!.opacity).toBe(0);
     }
   });
 });
 
-describe('coin flight arcs', () => {
+describe('the coin flight', () => {
   it('starts and ends exactly on the endpoints', () => {
     const a = { x: 10, y: 400 };
     const b = { x: 300, y: 30 };
@@ -93,7 +95,7 @@ describe('coin flight arcs', () => {
     expect(easeInOutCubic(0.1)).toBeLessThan(0.1);
   });
 
-  it('flies a sensible number of sprites', () => {
-    expect([0, -3, 1, 3, 5, 8, 24, 500].map(spriteCount)).toEqual([0, 0, 1, 1, 2, 2, 6, 8]);
+  it('flies one brass coin per reward, whatever its size', () => {
+    expect([0, -3, 1, 3, 5, 8, 24, 500].map(spriteCount)).toEqual([0, 0, 1, 1, 1, 1, 1, 1]);
   });
 });

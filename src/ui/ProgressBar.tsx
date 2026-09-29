@@ -14,10 +14,10 @@ export interface ProgressBarProps {
   class?: string;
 }
 
-/** A rounded pill bar. The fill slides (transform only) and always shows a round tip once started. */
+/** A calm bar: a hairline track and a flat pastel fill that slides (transform only). */
 export function ProgressBar({ value, label, valueText, tone = 'sage', size = 'md', class: cls }: ProgressBarProps) {
   const v = Math.min(1, Math.max(0, Number.isFinite(value) ? value : 0));
-  const visible = v > 0 ? Math.max(v, 0.05) : 0;
+  const visible = v > 0 ? Math.max(v, 0.04) : 0;
   return (
     <div
       class={cx(s.bar, s[size], toneClass(tone), cls)}

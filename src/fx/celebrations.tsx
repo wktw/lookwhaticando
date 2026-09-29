@@ -1,8 +1,8 @@
 /**
- * <CelebrationHost/>: listens to game events and turns them into the right-sized joy.
+ * <CelebrationHost/>: listens to game events and gives each the right-sized moment.
  * Events from one action arrive synchronously and are batched, planned by the pure
- * planCelebration(), then shown: calm toasts for small things, a banner for big ones, an epic
- * moment for exclusives.
+ * planCelebration(), then shown: paper notes for small things, a note tucked over the band for
+ * big ones, the calm epic moment for exclusives.
  *
  * Two things happen right away, inside the user's gesture, before planning: the batch's coins
  * and stars are reserved (so wallet counters wait for the flying coins, see walletLedger), and
@@ -46,7 +46,7 @@ import { holdPayout, releasePayout, reserveInto, type Payout } from './walletLed
 export const BATCH_MS = 40;
 /** A local check-in flourish claims that habit's coin event for this long. */
 const CLAIM_MS = 1500;
-/** Coins hop out of a toast once it has dropped in. */
+/** The coin leaves a note once it has settled. */
 const TOAST_HOP_MS = 280;
 
 interface Batch {
@@ -84,9 +84,9 @@ function context(): CelebrationContext {
     },
     petName: (id) => {
       const def = getCollectible(id);
-      return s.pets[id]?.name ?? (def?.category === 'pet' ? def.defaultName : 'Your friend');
+      return s.pets[id]?.name ?? (def?.category === 'pet' ? def.defaultName : 'Your pet');
     },
-    itemName: (id) => getCollectible(id)?.name ?? 'A surprise',
+    itemName: (id) => getCollectible(id)?.name ?? 'Something new',
     itemFlavor: (id) => getCollectible(id)?.flavor ?? '',
     badge: (id) => BADGE_BY_ID.get(id),
     buddy: s.profile.buddy ?? '',
@@ -107,7 +107,7 @@ function flyFromToast(id: string, payout: Payout) {
   setTimeout(() => flyPayout(payout, toastOrigin(id)), TOAST_HOP_MS);
 }
 
-/** A small moment's toast; when it carries the batch's rewards, its coins hop out of it. */
+/** A small moment's note; when it carries the batch's rewards, its coin arcs out of it. */
 function showToast(t: ToastSpec, payout: Payout) {
   const message = t.rewards ? (
     <>
@@ -117,16 +117,16 @@ function showToast(t: ToastSpec, payout: Payout) {
     t.message
   );
   const label = t.rewards ? `${t.message} ${formatTally(t.rewards)}` : t.message;
-  const id = toast({ key: t.key, message, label, tone: t.tone, art: <CelebrationArt art={t.art} size={34} animated={false} /> });
+  const id = toast({ key: t.key, message, label, tone: t.tone, art: <CelebrationArt art={t.art} size={30} animated={false} /> });
   if (t.rewards && hasRewards(payout)) flyFromToast(id, payout);
 }
 
 let walletTally: Tally = { ...EMPTY_TALLY };
 
-/** The one calm, coalescing "+N coins" toast; each batch's coins hop out of it. */
+/** The one calm, coalescing "+N coins" note; each batch's coin arcs out of it. */
 function showWallet(add: Tally, payout: Payout) {
   walletTally = findToast('wallet') ? addTally(walletTally, add) : add;
-  const id = toast({ key: 'wallet', message: formatTally(walletTally), art: <CoinIcon size={24} />, tone: 'butter' });
+  const id = toast({ key: 'wallet', message: formatTally(walletTally), art: <CoinIcon size={22} />, tone: 'butter' });
   if (hasRewards(payout)) flyFromToast(id, payout);
   else sfx.play('sparkle', { volume: 0.7 });
 }

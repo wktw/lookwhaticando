@@ -3,7 +3,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'preact';
 import { act } from 'preact/test-utils';
 import { useState } from 'preact/hooks';
-import { Card, CandyButton, ConfirmDialog, IconButton, Segmented, Sheet, Toggle } from '@/ui';
+import { Button, Card, CandyButton, ConfirmDialog, IconButton, RarityPill, Segmented, Sheet, Toggle } from '@/ui';
+import { ToastNote } from '@/ui/Toaster';
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 // jsdom has no layout: scrolling is a no-op here.
@@ -182,6 +183,50 @@ describe('controls', () => {
     expect(btn.getAttribute('aria-busy')).toBe('true');
     act(() => btn.click());
     expect(onClick).not.toHaveBeenCalled();
+  });
+
+  it('CandyButton is the catkin Button under its older name, and the older variants still work', () => {
+    expect(CandyButton).toBe(Button);
+    setup();
+    const host = mount(
+      <>
+        <Button variant="soft">Tint</Button>
+        <Button variant="ghost">Quiet</Button>
+        <Button variant="danger">Delete</Button>
+      </>,
+    );
+    const [tint, quiet, danger] = [...host.querySelectorAll('button')];
+    expect(tint!.className).toMatch(/tint/);
+    expect(quiet!.className).toMatch(/quiet/);
+    expect(danger!.className).toMatch(/primary/);
+    expect(danger!.className).toContain('mm-tone-danger');
+    for (const b of [tint, quiet, danger]) expect(b!.type).toBe('button');
+  });
+
+  it('a tier label always prints its word (never colour alone)', () => {
+    setup();
+    const host = mount(
+      <>
+        <RarityPill rarity="common" />
+        <RarityPill rarity="uncommon" />
+        <RarityPill rarity="rare" />
+        <RarityPill rarity="ultra" />
+        <RarityPill rarity="ultra" secret />
+      </>,
+    );
+    expect([...host.children].map((c) => c.textContent)).toEqual(['Classic', 'Special', 'Rare', 'Super rare', 'Secret']);
+  });
+
+  it('a note shows its line, its observed second line and a real Undo button', () => {
+    setup();
+    const onUndo = vi.fn();
+    const host = mount(<ToastNote item={{ message: 'Walk, watered.', note: 'Pudding opened one eye.', action: { label: 'Undo', onAction: onUndo }, version: 0 }} />);
+    expect(host.textContent).toContain('Walk, watered.');
+    expect(host.textContent).toContain('Pudding opened one eye.');
+    const undo = host.querySelector('button')!;
+    expect(undo.textContent).toBe('Undo');
+    act(() => undo.click());
+    expect(onUndo).toHaveBeenCalledTimes(1);
   });
 
   it('a button Card never submits the form around it', () => {

@@ -10,8 +10,8 @@ export interface IconButtonProps extends Omit<JSX.ButtonHTMLAttributes<HTMLButto
   /** Accessible name (required: the button has no visible text). */
   label: string;
   /**
-   * plain: transparent until hovered · soft: pastel tint · candy: a tiny candy button ·
-   * card: a white disc that floats over scenes and art.
+   * plain: ink only until hovered · soft: the family's palest wash · candy: a flat pastel face
+   * (the older name is kept) · card: a paper disc with a hairline, for floating over scenes.
    */
   variant?: 'plain' | 'soft' | 'candy' | 'card';
   /** Visual size; the touch target is always at least 44px. */
@@ -23,7 +23,7 @@ export interface IconButtonProps extends Omit<JSX.ButtonHTMLAttributes<HTMLButto
   type?: 'button' | 'submit' | 'reset';
 }
 
-const ICON_PX = { sm: 18, md: 22, lg: 26 } as const;
+const ICON_PX = { sm: 18, md: 22, lg: 24 } as const;
 
 export function IconButton({ icon, label, variant = 'plain', size = 'md', tone = 'blush', pressed, type = 'button', class: cls, ...rest }: IconButtonProps) {
   return (
@@ -35,7 +35,6 @@ export function IconButton({ icon, label, variant = 'plain', size = 'md', tone =
       title={rest.title ?? label}
       class={cx(s.btn, s[variant], s[size], toneClass(tone), cls as string)}
     >
-      {variant === 'candy' && <span class={s.lip} aria-hidden="true" />}
       <span class={s.face}>{typeof icon === 'string' ? <Icon name={icon} size={ICON_PX[size]} /> : icon}</span>
     </button>
   );

@@ -1,6 +1,9 @@
-/** Mochi Meadow UI kit. Tokens only, light + night, touch targets ≥ 44px. */
+/** The catkin UI kit: paper, hairlines and graphite ink. Tokens only, light + night, targets ≥ 44px. */
+export { Button, type ButtonProps, type ButtonVariant, type ButtonSize } from './Button';
 export { CandyButton, type CandyButtonProps, type CandyVariant, type CandySize } from './CandyButton';
 export { IconButton, type IconButtonProps } from './IconButton';
+export { CheckRing, CheckRingArt, type CheckRingProps, type CheckRingArtProps, type CheckRingMark } from './CheckRing';
+export { CHECK_RING_MS, CHECKIN_CHOREOGRAPHY, ringState, waterLevel, type CheckRingState } from './checkRing';
 export { Card, type CardProps } from './Card';
 export { Sheet, type SheetProps, type SheetDetent } from './Sheet';
 export { ConfirmDialog, type ConfirmDialogProps } from './ConfirmDialog';
@@ -18,7 +21,7 @@ export { EmptyState, type EmptyStateProps } from './EmptyState';
 export { SectionHeader, type SectionHeaderProps } from './SectionHeader';
 export { ListRow, ListGroup, type ListRowProps, type ListGroupProps } from './ListRow';
 export { AnimatedNumber, type AnimatedNumberProps } from './AnimatedNumber';
-export { Sparkle, SPARKLE_PATH } from './Sparkle';
+export { Sparkle, SPARKLE_PATH, Glint, GLINT_PATH } from './Sparkle';
 export { announce } from './announce';
 export { overlayRoot } from './overlay';
 export { toneClass, type Tone } from './tone';

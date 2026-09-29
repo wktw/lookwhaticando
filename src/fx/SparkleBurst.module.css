@@ -1,39 +1,48 @@
-.burst {
+.glint {
   position: absolute;
   top: 50%;
   left: 50%;
+  z-index: 2;
   width: 0;
   height: 0;
   pointer-events: none;
-  z-index: 2;
 }
 
-.spark {
+.mark {
   position: absolute;
   top: calc(var(--size) / -2);
   left: calc(var(--size) / -2);
   width: var(--size);
   height: var(--size);
-  /* The burst box is 0×0; the global svg max-width would squash the sparks to nothing. */
+  /* The glint box is 0×0; the global svg max-width would squash it. */
   max-width: none;
   opacity: 0;
-  animation: spark 620ms var(--ease-out) var(--delay) both;
+  animation: glint 720ms var(--ease-pop) both;
 }
 
-@keyframes spark {
+/* Warm foil gold with a paper-white core: reads on cream and on the night card alike. */
+.outer {
+  fill: #e3be6a;
+}
+.inner {
+  fill: #fffbf0;
+}
+
+@keyframes glint {
   0% {
-    transform: translate(0, 0) scale(0.2) rotate(0deg);
+    transform: scale(0.1) rotate(-12deg);
     opacity: 0;
   }
-  25% {
+  30% {
+    transform: scale(1) rotate(0deg);
     opacity: 1;
   }
-  60% {
-    transform: translate(var(--dx), var(--dy)) scale(1.1) rotate(var(--rot));
+  55% {
+    transform: scale(0.92) rotate(6deg);
     opacity: 1;
   }
   100% {
-    transform: translate(calc(var(--dx) * 1.15), calc(var(--dy) * 1.15)) scale(0) rotate(var(--rot));
+    transform: scale(0.2) rotate(18deg);
     opacity: 0;
   }
 }

@@ -1,5 +1,6 @@
 .btn {
   --d: 40px;
+  --press-ink: #3b3236;
   position: relative;
   display: inline-grid;
   place-items: center;
@@ -8,11 +9,9 @@
   min-height: 44px;
   border-radius: 50%;
   color: var(--ink-2);
-  isolation: isolate;
 }
-
-.btn:focus-visible {
-  border-radius: 50%;
+:global([data-theme='night']) .btn {
+  --press-ink: #000;
 }
 
 .face {
@@ -22,14 +21,20 @@
   height: var(--d);
   border-radius: 50%;
   background: var(--face, transparent);
+  box-shadow: inset 0 0 0 1px var(--edge, transparent);
   transition:
-    transform 160ms var(--ease-out),
-    background-color var(--t-micro) ease;
+    transform 120ms var(--ease-pop),
+    background-color 120ms var(--ease-pop);
 }
 
 .btn:active:not(:disabled) .face {
-  transform: scale(0.9);
-  transition-duration: 60ms;
+  transform: translateY(1px);
+  transition-duration: 40ms;
+}
+@supports (background: color-mix(in srgb, red 50%, blue)) {
+  .btn:active:not(:disabled) .face {
+    background: color-mix(in srgb, var(--face, var(--bg-2)) 94%, var(--press-ink));
+  }
 }
 
 .btn:disabled {
@@ -40,12 +45,12 @@
   --d: 34px;
 }
 .lg {
-  --d: 50px;
-  min-width: 52px;
-  min-height: 52px;
+  --d: 48px;
+  min-width: 48px;
+  min-height: 48px;
 }
 
-/* plain */
+/* plain: ink only; a paper wash on hover */
 @media (hover: hover) {
   .plain:hover:not(:disabled) {
     --face: var(--bg-2);
@@ -54,10 +59,10 @@
 }
 .plain[aria-pressed='true'] {
   --face: var(--t100);
-  color: var(--ink);
+  color: var(--t700);
 }
 
-/* soft */
+/* soft: the family's palest wash */
 .soft {
   --face: var(--t100);
   color: var(--ink);
@@ -65,43 +70,28 @@
 :global([data-theme='night']) .soft {
   --face: var(--t300);
 }
-@media (hover: hover) {
-  .soft:hover:not(:disabled) .face {
-    transform: scale(1.06);
-  }
-}
 .soft[aria-pressed='true'] {
   --face: var(--t300);
 }
+:global([data-theme='night']) .soft[aria-pressed='true'] {
+  --face: var(--t500);
+  color: var(--on-accent);
+}
 
-/* card: floats over art */
+/* card: a paper disc that floats over scenes */
 .card {
   --face: var(--card);
+  --edge: var(--line);
   color: var(--ink);
 }
 .card .face {
-  box-shadow: var(--shadow-sm);
+  box-shadow:
+    inset 0 0 0 1px var(--edge),
+    var(--kit-card-shadow);
 }
 
-/* candy: a tiny candy button with a lip */
+/* candy (older name): a flat pastel face with a graphite glyph */
 .candy {
   --face: var(--t500);
-  color: var(--on-pastel);
-}
-.candy .face {
-  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.42);
-  transform: translateY(-2px);
-}
-.lip {
-  position: absolute;
-  z-index: -1;
-  width: var(--d);
-  height: var(--d);
-  border-radius: 50%;
-  background: var(--tlip);
-  transform: translateY(2px);
-  box-shadow: var(--candy-drop);
-}
-.candy:active:not(:disabled) .face {
-  transform: translateY(1px);
+  color: var(--on-accent);
 }

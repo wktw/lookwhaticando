@@ -1,13 +1,13 @@
 .track {
-  --pad: 4px;
-  --h: 44px;
+  --pad: 3px;
+  --h: 40px;
   position: relative;
   display: inline-grid;
   grid-template-columns: repeat(var(--n), minmax(0, 1fr));
   padding: var(--pad);
   border-radius: var(--r-pill);
   background: var(--bg-2);
-  box-shadow: inset 0 1.5px 3px rgba(74, 53, 64, 0.08);
+  box-shadow: inset 0 0 0 1px var(--line);
   isolation: isolate;
 }
 
@@ -17,8 +17,7 @@
 }
 
 .sm {
-  --h: 38px;
-  --pad: 3px;
+  --h: 34px;
 }
 
 .thumb {
@@ -29,20 +28,20 @@
   left: var(--pad);
   width: calc((100% - 2 * var(--pad)) / var(--n));
   border-radius: var(--r-pill);
-  background: var(--raised);
+  background: var(--card);
   box-shadow:
-    0 2px 0 var(--raised-lip),
-    0 6px 14px -6px rgba(74, 53, 64, 0.3);
+    inset 0 0 0 1px var(--line),
+    var(--kit-card-shadow);
   transform: translateX(calc(100% * var(--i)));
-  transition: transform 340ms var(--ease-pop);
+  transition: transform 260ms var(--ease-pop);
 }
 :global([data-theme='night']) .thumb {
-  box-shadow:
-    0 2px 0 var(--raised-lip),
-    0 6px 14px -6px rgba(0, 0, 0, 0.5);
+  background: var(--card-2);
+  box-shadow: inset 0 0 0 1px var(--control-border);
 }
 
 .option {
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -51,9 +50,9 @@
   height: var(--h);
   padding: 0 14px;
   border-radius: var(--r-pill);
-  font-family: var(--font-display);
+  font-family: var(--font-body);
   font-size: var(--fs-caption);
-  font-weight: 600;
+  font-weight: 700;
   color: var(--ink-2);
   white-space: nowrap;
   transition: color var(--t-micro) ease;
@@ -63,20 +62,16 @@
   text-overflow: ellipsis;
 }
 .option:focus-visible {
-  border-radius: var(--r-pill);
   outline-offset: -2px;
 }
 .md .option {
   font-size: 0.9375rem;
 }
-/* Small options are 38px; their hit area reaches into the track padding for a full 44px. */
-.sm .option {
-  position: relative;
-}
-.sm .option::after {
+/* Options are shorter than 44px; their hit area reaches into the track padding and beyond. */
+.option::after {
   content: '';
   position: absolute;
-  inset: calc(-1 * var(--pad)) 0;
+  inset: calc(-1 * var(--pad) - 2px) 0;
 }
 
 .checked {

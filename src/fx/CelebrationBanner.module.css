@@ -1,117 +1,81 @@
+/* A celebration note: paper on paper, tucked over the windowsill band (DESIGN §9.1). */
 .anchor {
   position: fixed;
   top: calc(var(--safe-top) + 10px);
   left: 50%;
   z-index: 250;
-  width: min(440px, calc(100vw - 20px));
+  width: min(440px, calc(100vw - 2 * var(--gutter)));
   transform: translateX(-50%);
   pointer-events: none;
 }
 
 @media (min-width: 900px) {
-  .anchor {
+  .anchor:not(.placed) {
     top: 18px;
     left: calc(var(--sidebar-w) + (100vw - var(--sidebar-w)) / 2);
   }
 }
 
-.banner {
+.note {
   position: relative;
   display: flex;
   align-items: flex-start;
   gap: 14px;
-  padding: 12px 8px 14px 12px;
-  overflow: hidden;
-  border-radius: 26px;
+  padding: 12px 12px 13px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
   background: var(--card);
-  box-shadow:
-    0 0 0 1.5px var(--t300),
-    0 3px 0 var(--t300),
-    var(--shadow-lg);
+  box-shadow: var(--kit-float-shadow);
   pointer-events: auto;
   cursor: default;
-  animation: drop-in 560ms var(--ease-pop) backwards;
+  animation: note-in 320ms var(--ease-pop) backwards;
 }
 
 .leaving {
-  animation: lift-out 260ms var(--ease-out) forwards;
-}
-
-/* One slow light sweep across the card as it lands. */
-.shine {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(105deg, transparent 35%, rgba(255, 255, 255, 0.55) 50%, transparent 65%);
-  transform: translateX(-110%);
-  animation: shine 1100ms 380ms var(--ease-out) both;
-  pointer-events: none;
+  animation: note-out 220ms var(--ease-pop) forwards;
 }
 
 .artTile {
-  position: relative;
   display: grid;
   place-items: center;
   flex: none;
-  width: 92px;
-  height: 92px;
-  border-radius: 22px;
-  background: radial-gradient(circle at 50% 38%, #fff8 0 18%, transparent 60%), var(--t100);
-}
-
-.art {
-  animation: art-pop 700ms 120ms var(--ease-pop) backwards;
-}
-
-.spark {
-  position: absolute;
-  color: var(--butter-500);
-  animation: twinkle 1.6s var(--ease-in-out) infinite;
-}
-.spark1 {
-  top: 8px;
-  right: 8px;
-}
-.spark2 {
-  bottom: 12px;
-  left: 8px;
-  animation-delay: -0.8s;
+  width: 68px;
+  height: 68px;
+  overflow: hidden;
+  border-radius: 12px;
+  background: var(--bg-2);
 }
 
 .copy {
   flex: 1;
   min-width: 0;
-  padding-top: 2px;
+  padding: 2px 30px 0 0;
 }
 
+/* Small caps with +8% tracking, in the moment's text-safe ink. */
 .eyebrow {
-  font-family: var(--font-display);
+  font-family: var(--font-body);
   font-size: var(--fs-micro);
-  font-weight: 600;
-  letter-spacing: 0.06em;
+  font-weight: 800;
+  letter-spacing: var(--tracking-caps);
   text-transform: uppercase;
-  color: var(--ink-2);
+  color: var(--t700);
 }
 
 .title {
-  margin-top: 1px;
+  margin-top: 3px;
   font-family: var(--font-display);
   font-size: 1.25rem;
-  font-weight: 600;
   line-height: 1.2;
   color: var(--ink);
   text-wrap: balance;
 }
 
-.titleSpark {
-  display: inline-block;
-  margin: 0 0 0.12em 0.3em;
-  color: var(--butter-500);
-  vertical-align: middle;
-}
-
 .text {
   margin-top: 3px;
-  font-size: var(--fs-caption);
+  font-family: var(--font-display);
+  font-size: 0.9375rem;
+  font-style: italic;
   line-height: 1.35;
   color: var(--ink-2);
   text-wrap: pretty;
@@ -121,27 +85,19 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
-  margin: 6px 0 0;
-  padding: 0;
+  margin: 7px 0 0;
+  padding: 7px 0 0;
   list-style: none;
+  border-top: 1px dashed var(--line);
   font-size: var(--fs-caption);
-  font-weight: 700;
-  color: var(--ink);
-}
-.also li {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.also svg {
-  flex: none;
-  color: var(--butter-500);
+  font-weight: 600;
+  color: var(--ink-2);
 }
 
 .chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 12px;
   margin-top: 8px;
 }
 
@@ -149,30 +105,19 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  height: 28px;
-  padding: 0 10px 0 5px;
-  border-radius: var(--r-pill);
-  background: var(--butter-100);
   color: var(--ink);
-  font-family: var(--font-display);
+  font-family: var(--font-body);
   font-size: var(--fs-caption);
-  font-weight: 600;
+  font-weight: 800;
   font-variant-numeric: tabular-nums;
-  animation: art-pop 500ms 420ms var(--ease-pop) backwards;
-}
-.chip + .chip {
-  animation-delay: 500ms;
 }
 
-/* Rewards riding along in a toast's line. */
+/* Rewards riding along at the end of a note's line: "+20 {coin}". */
 .inline {
   display: inline-flex;
   gap: 8px;
   margin-left: 2px;
-  vertical-align: -3px;
-  font-family: var(--font-display);
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
+  vertical-align: -2px;
   white-space: nowrap;
 }
 .inline > span {
@@ -182,48 +127,21 @@
 }
 
 .close {
-  flex: none;
-  margin: -4px 0 0 -6px;
+  position: absolute;
+  top: 2px;
+  right: 2px;
 }
 
-@keyframes drop-in {
+@keyframes note-in {
   from {
-    transform: translateY(-70px) scale(0.92);
+    transform: translateY(-8px);
     opacity: 0;
-  }
-  60% {
-    opacity: 1;
   }
 }
 
-@keyframes lift-out {
+@keyframes note-out {
   to {
-    transform: translateY(-40px) scale(0.96);
+    transform: translateY(-6px);
     opacity: 0;
-  }
-}
-
-@keyframes shine {
-  to {
-    transform: translateX(110%);
-  }
-}
-
-@keyframes art-pop {
-  from {
-    transform: scale(0.4) rotate(-8deg);
-    opacity: 0;
-  }
-}
-
-@keyframes twinkle {
-  0%,
-  100% {
-    transform: scale(0.7);
-    opacity: 0.6;
-  }
-  50% {
-    transform: scale(1.15) rotate(25deg);
-    opacity: 1;
   }
 }

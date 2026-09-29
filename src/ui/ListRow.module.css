@@ -4,7 +4,7 @@
   align-items: center;
   gap: var(--s-3);
   width: 100%;
-  min-height: 56px;
+  min-height: 54px;
   padding: var(--s-2) var(--s-4);
   color: var(--ink);
   text-align: start;
@@ -17,14 +17,14 @@
   content: '';
   position: absolute;
   top: 0;
-  right: var(--s-4);
+  right: 0;
   left: var(--s-4);
   height: 1px;
   background: var(--line);
 }
 .row:has(.leading) + .row::before,
 .row + .row:has(.leading)::before {
-  left: 60px;
+  left: 58px;
 }
 
 .interactive {
@@ -32,8 +32,8 @@
   transition: background-color var(--t-micro) ease;
 }
 .interactive:focus-visible {
-  border-radius: var(--r-md);
   outline-offset: -3px;
+  border-radius: var(--r-md);
 }
 @media (hover: hover) {
   .interactive:hover {
@@ -53,16 +53,17 @@
   display: inline-grid;
   place-items: center;
   flex: none;
-  width: 32px;
-  height: 32px;
+  width: 30px;
+  height: 30px;
 }
 .tile {
-  border-radius: 10px;
-  background: var(--t300);
-  color: var(--on-pastel);
+  border-radius: 9px;
+  background: var(--t100);
+  color: var(--t700);
 }
 :global([data-theme='night']) .tile {
-  background: var(--t500);
+  background: var(--t300);
+  color: var(--ink);
 }
 
 .text {
@@ -114,18 +115,19 @@
 .groupTitle {
   padding: 0 var(--s-4);
   font-family: var(--font-body);
-  font-size: var(--fs-caption);
+  font-size: var(--fs-micro);
   font-weight: 800;
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
   color: var(--ink-2);
 }
 
 .card {
   overflow: hidden;
-  border-radius: var(--r-lg);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
   background: var(--card);
-  box-shadow:
-    0 0 0 1px var(--line),
-    var(--shadow-md);
+  box-shadow: var(--kit-card-shadow);
 }
 
 .footer {

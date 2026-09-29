@@ -4,8 +4,8 @@
   align-items: center;
   gap: 6px;
   flex: none;
-  height: 36px;
-  padding: 0 14px;
+  height: 32px;
+  padding: 0 12px;
   border-radius: var(--r-pill);
   font-family: var(--font-body);
   font-size: var(--fs-caption);
@@ -17,7 +17,7 @@
 
 .icon {
   display: inline-flex;
-  margin-left: -4px;
+  margin-left: -3px;
 }
 
 .text {
@@ -27,101 +27,100 @@
 
 .static {
   background: var(--t100);
+  box-shadow: inset 0 0 0 1px var(--t300);
 }
 
 .remove {
   position: relative;
   display: grid;
   place-items: center;
-  width: 22px;
-  height: 22px;
-  margin: 0 -7px 0 -1px;
+  width: 20px;
+  height: 20px;
+  margin: 0 -6px 0 0;
   border-radius: 50%;
   color: var(--ink-2);
-  background: var(--t300);
+}
+@media (hover: hover) {
+  .remove:hover {
+    background: var(--t300);
+    color: var(--ink);
+  }
 }
 /* 44px target for the tiny remove button. */
 .remove::after {
   content: '';
   position: absolute;
-  inset: -11px;
-}
-.remove:focus-visible {
-  border-radius: 50%;
+  inset: -12px;
 }
 
 /* ---------- FilterChip ---------- */
 .filter {
+  height: 36px;
+  padding: 0 14px;
   background: var(--card);
-  box-shadow: inset 0 0 0 1.5px var(--line);
+  box-shadow: inset 0 0 0 1px var(--line);
+  color: var(--ink-2);
   transition:
-    transform 160ms var(--ease-out),
-    background-color var(--t-micro) ease;
+    transform 120ms var(--ease-pop),
+    background-color 160ms var(--ease-pop),
+    box-shadow 160ms var(--ease-pop);
 }
 .filter::after {
   content: '';
   position: absolute;
   inset: -4px -2px;
 }
-.filter:focus-visible {
-  border-radius: var(--r-pill);
-}
 @media (hover: hover) {
   .filter:hover:not(.selected) {
-    background: var(--t100);
+    color: var(--ink);
+    box-shadow: inset 0 0 0 1px var(--control-border);
   }
 }
 .filter:active {
-  transform: scale(0.95);
-  transition-duration: 60ms;
+  transform: translateY(1px);
+  transition-duration: 40ms;
 }
 
 .check {
   display: none;
-  place-items: center;
-  width: 18px;
-  height: 18px;
-  margin-left: -6px;
-  border-radius: 50%;
-  background: var(--card);
-  color: var(--ink);
+  flex: none;
+  margin-left: -4px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 16;
 }
 
 .selected {
+  background: var(--t100);
+  box-shadow: inset 0 0 0 1px var(--t500);
+  color: var(--ink);
+}
+:global([data-theme='night']) .selected {
   background: var(--t300);
-  box-shadow: inset 0 0 0 1.5px var(--t300);
 }
 .selected .check {
-  display: inline-grid;
-  animation: check-pop 280ms var(--ease-pop);
-}
-:global([data-theme='night']) .selected .check {
-  background: var(--t100);
+  display: block;
+  animation: draw 220ms var(--ease-pop) both;
 }
 
-@keyframes check-pop {
+@keyframes draw {
   from {
-    transform: scale(0.3);
-    opacity: 0;
+    stroke-dashoffset: 16;
+  }
+  to {
+    stroke-dashoffset: 0;
   }
 }
 
 .count {
-  min-width: 20px;
-  height: 20px;
-  padding: 0 6px;
-  margin-right: -6px;
-  border-radius: var(--r-pill);
-  background: var(--bg-2);
-  color: var(--ink-2);
-  font-family: var(--font-display);
-  font-size: var(--fs-micro);
-  font-weight: 600;
-  line-height: 20px;
-  text-align: center;
+  margin-right: -4px;
+  color: var(--ink-3);
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
 .selected .count {
-  background: var(--card);
-  color: var(--ink);
+  color: var(--ink-2);
 }

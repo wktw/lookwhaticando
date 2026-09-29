@@ -1,58 +1,38 @@
 /*
  * Pastel tone scopes for the UI kit. A `.mm-tone-<key>` class maps one pastel family onto
- * --t100/--t300/--t500/--t700 plus --tlip (the darker candy "lip" under a 500 face).
- * Components read only these variables, so every tone works in light and night.
+ * --t100/--t300/--t500/--t700. Components read only these variables, so every tone works in
+ * light and night. Faces are flat paper and ink: no candy lips, no gloss (DESIGN §10.3).
  */
 :root {
-  /* Text on pastel 500 faces. Fixed in both themes: pastel faces stay light at night. */
-  --on-pastel: #3f2d37;
-  --candy-drop: 0 10px 18px -12px rgba(74, 53, 64, 0.45);
+  /* Labels on any -500 face are graphite (DESIGN §10.1). Kept as an alias for older call sites. */
+  --on-pastel: var(--on-accent);
 
   /*
-   * Kit tokens that tokens.css doesn't have yet (requested in NOTES-fxui.md). Components read
-   * only these variables; the kit's hex values live here and nowhere else.
+   * Kit values that tokens.css doesn't carry (requested in NOTES-ui.md). Components read only
+   * these variables; the kit's own values live here and nowhere else.
    */
-  /* Candy "lips": the darker edge under each pastel 500 face (theme-invariant, like the faces). */
-  --blush-lip: #d96a8b;
-  --peach-lip: #e07b4b;
-  --butter-lip: #d6a21e;
-  --sage-lip: #6e9f5d;
-  --mint-lip: #4aa88b;
-  --sky-lip: #5a95c8;
-  --lavender-lip: #8a72cf;
-  --lilac-lip: #b96db9;
-  /* Gentle coral for destructive actions: clearly not "primary pink", never alarm red. */
-  --danger-100: #ffebe7;
-  --danger-300: #ffc9bf;
-  --danger-500: #ff9c8f;
-  --danger-700: #b3473a;
-  --danger-lip: #e0766a;
-  /* Raised neutral surfaces: Segmented/Stepper thumbs and secondary buttons sit on this lip. */
-  --raised: var(--card);
-  --raised-lip: #ecdcd2;
-  /* Form controls: error text (AA on --bg and --bg-2), the switch's off track and its outline. */
+  /* Paper cards: barely-there warm shadow under a 1px hairline. */
+  --kit-card-shadow: 0 1px 0 rgba(59, 50, 54, 0.03), 0 6px 16px -14px rgba(59, 50, 54, 0.35);
+  /* Things that float over the page (sheets, notes, menus). */
+  --kit-float-shadow: 0 1px 0 rgba(59, 50, 54, 0.04), 0 14px 32px -18px rgba(59, 50, 54, 0.34);
+  /* Form error text: AA on --bg, --bg-2 and --card. */
   --error-ink: #a9501f;
-  --control-off: #e8d8cf;
-  --control-stroke: rgba(74, 53, 64, 0.42);
-  /* Soft-variant face for butter at night, where butter-300 is too light for light text. */
+  /* Soft-variant butter at night, where butter-300 is too light under light text. */
   --butter-soft-night: #74622f;
-  /* Floating reward chips: theme-invariant, like printed stickers. */
-  --chip-coin: #ffe593;
-  --chip-star: #fff1b8;
-  --chip-heart: #ffc4d3;
-  --chip-sage: #c3dfb4;
 }
 
 :root[data-theme='night'] {
-  --candy-drop: 0 10px 18px -10px rgba(0, 0, 0, 0.6);
-  --danger-100: #4a2c33;
-  --danger-300: #8c4a4c;
-  --danger-700: #ffb9ad;
-  --raised: #4a4066;
-  --raised-lip: #1d1829;
+  --kit-card-shadow: 0 1px 0 rgba(0, 0, 0, 0.18), 0 8px 18px -14px rgba(0, 0, 0, 0.6);
+  --kit-float-shadow: 0 1px 0 rgba(0, 0, 0, 0.2), 0 16px 36px -18px rgba(0, 0, 0, 0.7);
   --error-ink: var(--peach-700);
-  --control-off: #4b4166;
-  --control-stroke: rgba(255, 255, 255, 0.32);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']):not([data-theme='night']) {
+    --kit-card-shadow: 0 1px 0 rgba(0, 0, 0, 0.18), 0 8px 18px -14px rgba(0, 0, 0, 0.6);
+    --kit-float-shadow: 0 1px 0 rgba(0, 0, 0, 0.2), 0 16px 36px -18px rgba(0, 0, 0, 0.7);
+    --error-ink: var(--peach-700);
+  }
 }
 
 .mm-tone-blush {
@@ -60,61 +40,53 @@
   --t300: var(--blush-300);
   --t500: var(--blush-500);
   --t700: var(--blush-700);
-  --tlip: var(--blush-lip);
 }
 .mm-tone-peach {
   --t100: var(--peach-100);
   --t300: var(--peach-300);
   --t500: var(--peach-500);
   --t700: var(--peach-700);
-  --tlip: var(--peach-lip);
 }
 .mm-tone-butter {
   --t100: var(--butter-100);
   --t300: var(--butter-300);
   --t500: var(--butter-500);
   --t700: var(--butter-700);
-  --tlip: var(--butter-lip);
 }
 .mm-tone-sage {
   --t100: var(--sage-100);
   --t300: var(--sage-300);
   --t500: var(--sage-500);
   --t700: var(--sage-700);
-  --tlip: var(--sage-lip);
 }
 .mm-tone-mint {
   --t100: var(--mint-100);
   --t300: var(--mint-300);
   --t500: var(--mint-500);
   --t700: var(--mint-700);
-  --tlip: var(--mint-lip);
 }
 .mm-tone-sky {
   --t100: var(--sky-100);
   --t300: var(--sky-300);
   --t500: var(--sky-500);
   --t700: var(--sky-700);
-  --tlip: var(--sky-lip);
 }
 .mm-tone-lavender {
   --t100: var(--lavender-100);
   --t300: var(--lavender-300);
   --t500: var(--lavender-500);
   --t700: var(--lavender-700);
-  --tlip: var(--lavender-lip);
 }
 .mm-tone-lilac {
   --t100: var(--lilac-100);
   --t300: var(--lilac-300);
   --t500: var(--lilac-500);
   --t700: var(--lilac-700);
-  --tlip: var(--lilac-lip);
 }
+/* Destructive actions use terracotta, never alarm red (DESIGN §3: no red). */
 .mm-tone-danger {
-  --t100: var(--danger-100);
-  --t300: var(--danger-300);
-  --t500: var(--danger-500);
-  --t700: var(--danger-700);
-  --tlip: var(--danger-lip);
+  --t100: var(--peach-100);
+  --t300: var(--peach-300);
+  --t500: var(--peach-500);
+  --t700: var(--peach-700);
 }

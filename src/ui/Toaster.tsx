@@ -1,60 +1,36 @@
+import type { JSX, Ref } from 'preact';
 import { createPortal } from 'preact/compat';
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { cx } from './cx';
 import { toneClass } from './tone';
 import { overlayRoot } from './overlay';
+import { anyLayerOpen, onLayersChange } from './sheetStack';
 import { dismissToast, toastDuration, toastLaneTop, toasts, toastsHeld, visibleToasts, type ToastItem } from './toast';
 import s from './Toaster.module.css';
 
-/** Wallet counters this close to the top get a clear zone, so landing coins stay visible. */
-const WALLET_ZONE_PX = 160;
-
 /**
- * Where the stack may start: below a celebration banner, and below any wallet counter it
- * would otherwise cover (the Today header's wallet pill on phones).
+ * Mount once near the app root. Notes sit at the bottom, above the tab bar, where the thumb
+ * can reach Undo. While a sheet is open they move to the top, so they never cover its buttons,
+ * and slide below a celebration banner there.
  */
-function laneTop(stack: DOMRect, bannerBottom: number): number {
-  let top = bannerBottom ? bannerBottom + 10 : 0;
-  for (const el of document.querySelectorAll<HTMLElement>('[data-wallet-target]')) {
-    const r = el.getBoundingClientRect();
-    if (!r.width || r.bottom <= 0 || r.top > WALLET_ZONE_PX || r.right < stack.left || r.left > stack.right) continue;
-    top = Math.max(top, r.bottom + 8);
-  }
-  return top;
-}
-
-/** Mount once near the app root. Renders the toast queue at the top of the screen. */
 export function Toaster() {
   const items = visibleToasts(toasts.value);
   const bannerBottom = toastLaneTop.value;
+  const [lifted, setLifted] = useState(anyLayerOpen);
   const stackRef = useRef<HTMLElement>(null);
-  const shift = useRef(0);
 
-  // Slide the stack clear of banners and wallet pills (transform only; no jump on first show).
+  useEffect(() => onLayersChange(() => setLifted(anyLayerOpen())), []);
+
+  // At the top, keep clear of a banner (transform only).
   useLayoutEffect(() => {
     const el = stackRef.current;
-    if (!el) {
-      shift.current = 0;
-      return;
-    }
-    const rect = el.getBoundingClientRect();
-    const natural = rect.top - shift.current;
-    const next = Math.max(0, laneTop(rect, bannerBottom) - natural);
-    if (next === shift.current && el.dataset.placed) return;
-    const first = !el.dataset.placed;
-    if (first) el.style.transition = 'none';
-    el.style.setProperty('--lane-shift', `${next}px`);
-    shift.current = next;
-    if (first) {
-      void el.offsetWidth;
-      el.style.transition = '';
-      el.dataset.placed = '';
-    }
-  }, [items.map((t) => t.id).join(), bannerBottom]);
+    if (!el) return;
+    el.style.setProperty('--lane-shift', lifted && bannerBottom ? `${Math.max(0, bannerBottom + 10 - el.offsetTop)}px` : '0px');
+  }, [items.length, bannerBottom, lifted]);
 
   if (!items.length || typeof document === 'undefined') return null;
   return createPortal(
-    <section ref={stackRef} class={s.stack} aria-label="Notifications">
+    <section ref={stackRef} class={s.stack} data-at={lifted ? 'top' : 'bottom'} aria-label="Notes">
       {items.map((t) => (
         <ToastCard key={t.id} item={t} />
       ))}
@@ -76,7 +52,7 @@ function ToastCard({ item }: { item: ToastItem }) {
     return () => clearTimeout(timer);
   }, [item.version, paused, held, item.leaving]);
 
-  // Flick up to dismiss.
+  // A flick (up or down) puts the note away.
   const onPointerDown = (e: PointerEvent) => {
     if ((e.target as HTMLElement).closest('button')) return;
     drag.current = { y: e.clientY, id: e.pointerId };
@@ -89,8 +65,7 @@ function ToastCard({ item }: { item: ToastItem }) {
     const d = drag.current;
     const el = cardRef.current;
     if (!d || !el || e.pointerId !== d.id) return;
-    const dy = e.clientY - d.y;
-    el.style.transform = `translateY(${dy < 0 ? dy : dy * 0.2}px)`;
+    el.style.transform = `translateY(${e.clientY - d.y}px)`;
   };
   const onPointerUp = (e: PointerEvent) => {
     const d = drag.current;
@@ -100,17 +75,20 @@ function ToastCard({ item }: { item: ToastItem }) {
     if (!d || !el) return;
     const dy = e.clientY - d.y;
     el.style.transition = '';
-    // A flick keeps its offset so the exit animation continues from where the finger left it.
-    if (dy < -24) return dismissToast(item.id);
+    // A flick keeps its offset, so the exit continues from where the finger left it.
+    if (Math.abs(dy) > 24) return dismissToast(item.id);
     el.style.transform = '';
     if (Math.abs(dy) < 4 && !item.action) dismissToast(item.id);
   };
 
   return (
-    <div
-      ref={cardRef}
-      class={cx(s.toast, item.leaving && s.leaving, toneClass(item.tone ?? 'blush'))}
-      data-toast-id={item.id}
+    <ToastNote
+      item={item}
+      noteRef={cardRef}
+      onAction={() => {
+        item.action!.onAction();
+        dismissToast(item.id);
+      }}
       onPointerEnter={(e) => e.pointerType === 'mouse' && setPaused(true)}
       onPointerLeave={(e) => e.pointerType === 'mouse' && !drag.current && setPaused(false)}
       onFocusIn={() => setPaused(true)}
@@ -119,24 +97,31 @@ function ToastCard({ item }: { item: ToastItem }) {
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerUp}
-    >
+    />
+  );
+}
+
+export interface ToastNoteProps extends Omit<JSX.HTMLAttributes<HTMLDivElement>, 'ref'> {
+  item: Pick<ToastItem, 'message' | 'note' | 'art' | 'tone' | 'action' | 'version' | 'leaving'> & { id?: string };
+  noteRef?: Ref<HTMLDivElement>;
+  onAction?: () => void;
+}
+
+/** One paper note, as drawn (the Toaster adds timing and gestures; the gallery shows it still). */
+export function ToastNote({ item, noteRef, onAction, class: cls, ...rest }: ToastNoteProps) {
+  return (
+    <div {...rest} ref={noteRef} class={cx(s.toast, item.leaving && s.leaving, toneClass(item.tone ?? 'blush'), cls as string)} data-toast-id={item.id}>
       {item.art && (
         <span class={s.art} data-toast-art>
           {item.art}
         </span>
       )}
-      <p key={item.version} class={cx(s.message, item.version > 0 && s.updated)}>
-        {item.message}
-      </p>
+      <div key={item.version} class={cx(s.text, (item.version ?? 0) > 0 && s.updated)}>
+        <p class={s.message}>{item.message}</p>
+        {item.note && <p class={s.note}>{item.note}</p>}
+      </div>
       {item.action && (
-        <button
-          type="button"
-          class={s.action}
-          onClick={() => {
-            item.action!.onAction();
-            dismissToast(item.id);
-          }}
-        >
+        <button type="button" class={s.action} onClick={onAction ?? item.action.onAction}>
           {item.action.label}
         </button>
       )}

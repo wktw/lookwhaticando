@@ -16,7 +16,7 @@
   inset: 0;
   background: var(--scrim);
   opacity: 0;
-  transition: opacity 320ms ease;
+  transition: opacity 320ms var(--ease-pop);
   -webkit-tap-highlight-color: transparent;
 }
 .layer[data-state='open'] .scrim {
@@ -24,7 +24,7 @@
 }
 /* A sheet stacked on another only adds a whisper more dimming. */
 .layer + .layer .scrim {
-  background: rgba(74, 53, 64, 0.14);
+  background: rgba(59, 50, 54, 0.12);
 }
 
 .sheet {
@@ -35,30 +35,35 @@
   max-width: 640px;
   max-height: calc(100dvh - var(--safe-top) - var(--sheet-gap) - var(--kb, 0px));
   margin-bottom: var(--kb, 0px);
+  border: 1px solid var(--line);
+  border-bottom: 0;
   border-radius: var(--r-xl) var(--r-xl) 0 0;
   background: var(--card);
-  box-shadow:
-    0 -1px 0 rgba(255, 255, 255, 0.6) inset,
-    0 -12px 40px -14px rgba(74, 53, 64, 0.32);
+  box-shadow: 0 -14px 36px -22px rgba(59, 50, 54, 0.38);
   outline: none;
   transform: translateY(0);
   transform-origin: 50% 0;
-  transition: transform 480ms cubic-bezier(0.2, 0.9, 0.25, 1);
+  transition: transform 420ms var(--ease-pop);
   will-change: transform;
+}
+:global([data-theme='night']) .sheet {
+  box-shadow: 0 -14px 36px -18px rgba(0, 0, 0, 0.7);
 }
 .sheet:focus-visible {
   outline: none;
-  border-radius: var(--r-xl) var(--r-xl) 0 0;
 }
-/* The surface continues below the bottom edge, so pulling the sheet up (rubber band) never
+/* The paper continues below the bottom edge, so pulling the sheet up (rubber band) never
    opens a gap under it. */
 .sheet::after {
   content: '';
   position: absolute;
   top: calc(100% - 1px);
-  right: 0;
-  left: 0;
+  right: -1px;
+  left: -1px;
   height: 100vh;
+  border: 1px solid var(--line);
+  border-top: 0;
+  border-bottom: 0;
   background: var(--card);
   pointer-events: none;
 }
@@ -72,13 +77,13 @@
   transform: translateY(calc(100% + 40px));
 }
 .layer[data-state='exit'] .sheet {
-  transition-duration: 300ms;
+  transition-duration: 280ms;
   transition-timing-function: cubic-bezier(0.4, 0, 0.9, 0.6);
 }
 
-/* Pushed back when another sheet stacks on top. */
+/* Pushed back a little when another sheet stacks on top. */
 .behind .sheet {
-  transform: translateY(-6px) scale(0.95);
+  transform: translateY(-6px) scale(0.96);
 }
 
 .peek {
@@ -90,6 +95,7 @@
   pointer-events: none;
 }
 
+/* The paper grabber: a small tab the thumb recognises. */
 .grabber {
   display: flex;
   justify-content: center;
@@ -99,11 +105,11 @@
   touch-action: none;
 }
 .grabber span {
-  width: 40px;
+  width: 36px;
   height: 5px;
   border-radius: var(--r-pill);
-  background: var(--ink-3);
-  opacity: 0.55;
+  background: var(--control-border);
+  opacity: 0.45;
 }
 .hasPeek {
   /* leave room above for the art peeking over the top edge */
@@ -172,7 +178,7 @@
   flex: 1 1 0;
 }
 
-/* ---------- Wide screens: a centered dialog ---------- */
+/* ---------- Wide screens: a centered paper dialog ---------- */
 .sm {
   --w: 420px;
 }
@@ -193,15 +199,13 @@
     max-width: none;
     max-height: min(86vh, 860px);
     margin: 0;
+    border-bottom: 1px solid var(--line);
     border-radius: var(--r-xl);
     box-shadow: var(--shadow-lg);
     transform-origin: 50% 60%;
     transition:
-      transform 380ms var(--ease-pop),
-      opacity 220ms ease;
-  }
-  .sheet:focus-visible {
-    border-radius: var(--r-xl);
+      transform 320ms var(--ease-pop),
+      opacity 220ms var(--ease-pop);
   }
   .sheet::after {
     content: none;
@@ -212,15 +216,15 @@
   }
   .layer[data-state='enter'] .sheet,
   .layer[data-state='exit'] .sheet {
-    transform: translateY(18px) scale(0.95);
+    transform: translateY(14px);
     opacity: 0;
   }
   .layer[data-state='exit'] .sheet {
-    transition-duration: 200ms;
+    transition-duration: 180ms;
     transition-timing-function: ease;
   }
   .behind .sheet {
-    transform: scale(0.96);
+    transform: scale(0.97);
     opacity: 0.6;
   }
   .grabber {

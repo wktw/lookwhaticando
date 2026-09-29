@@ -72,7 +72,7 @@ export interface ListGroupProps {
   class?: string;
 }
 
-/** A card of ListRows with inset hairlines, iOS grouped-list style. */
+/** A paper card of ListRows with inset hairlines, under a small-caps label. */
 export function ListGroup({ title, footer, children, class: cls }: ListGroupProps) {
   return (
     <section class={cx(s.group, cls)}>

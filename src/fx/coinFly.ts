@@ -1,16 +1,20 @@
 /**
- * Coins (or stars) that arc from where they were earned into the wallet.
- * The wallet element is whatever carries `data-wallet-target="coins" | "stars"`; each landing
- * bumps it and releases a share of the flight's reservation, so counters (AnimatedNumber
- * with `walletKind`) tick up in step with the coins.
+ * A brass coin that arcs from where it was earned into the wallet or the coin jar (DESIGN §9.1).
+ * One coin per reward, and only one in the air at a time: rapid check-ins queue, and a coin still
+ * waiting takes the next reward's amount along with it, so a burst never becomes a stream.
+ *
+ * The target is whatever visible element carries `data-wallet-target="coins" | "stars"` (the
+ * wallet pill, the sidebar wallet, the jar on the sill), nearest to where the coin starts.
+ * Each landing bumps it and releases the flight's reservation, so counters (AnimatedNumber with
+ * `walletKind`) roll once as the coin drops in.
  */
 import { h, render } from 'preact';
 import { CoinIcon, StarIcon } from '@/art/icons';
 import { fxLayer, toPoint, type Point } from './layer';
-import { arcControl, easeInOutCubic, quadAt, spriteCount } from './arc';
+import { arcControl, easeInOutCubic, quadAt } from './arc';
 import { prefersReducedMotion } from './motion';
 import { sfx } from './sound';
-import { chunkOf, reserve, type Payout, type Reservation, type WalletKind } from './walletLedger';
+import { reserve, type Payout, type Reservation, type WalletKind } from './walletLedger';
 
 export type { WalletKind } from './walletLedger';
 
@@ -27,6 +31,8 @@ export interface FlyCoinsOptions {
 }
 
 const BUMP = 'mm-wallet-bump';
+/** One coin's flight (ms). */
+export const COIN_FLIGHT_MS = 560;
 
 function isVisible(el: Element): DOMRect | null {
   const r = el.getBoundingClientRect();
@@ -35,7 +41,7 @@ function isVisible(el: Element): DOMRect | null {
   return r;
 }
 
-/** The visible wallet target nearest to the origin (sidebar vs. Today header, for example). */
+/** The visible wallet target nearest to the origin (sidebar vs. Today header vs. the jar). */
 export function findWalletTarget(kind: WalletKind, from: Point): HTMLElement | null {
   let best: HTMLElement | null = null;
   let bestDist = Infinity;
@@ -58,31 +64,28 @@ export function bumpWallet(el: HTMLElement) {
   el.addEventListener('animationend', () => el.classList.remove(BUMP), { once: true });
 }
 
-const FRAMES = 16;
+const FRAMES = 14;
 
-function flySprite(kind: WalletKind, from: Point, to: Point, index: number, count: number): Promise<void> {
+function flySprite(kind: WalletKind, from: Point, to: Point): Promise<void> {
   const el = document.createElement('div');
   el.className = 'mm-fx-sprite';
   render(h(kind === 'coins' ? CoinIcon : StarIcon, { size: '100%' }), el);
   fxLayer().appendChild(el);
 
-  const spread = (index - (count - 1) / 2) * 26;
-  const ctrl = arcControl(from, to, 90 + Math.random() * 60, spread + (Math.random() - 0.5) * 30);
-  const spin = kind === 'coins' ? 2 + Math.floor(Math.random() * 2) : 0;
+  const ctrl = arcControl(from, to, 110, (to.x < from.x ? 1 : -1) * 18);
   const keyframes: Keyframe[] = [];
   for (let i = 0; i <= FRAMES; i++) {
     const t = i / FRAMES;
     const p = quadAt(from, ctrl, to, easeInOutCubic(t));
-    // Pop up big, shrink into the wallet; coins flip (scaleX) as they tumble, stars twirl.
-    const scale = t < 0.18 ? 0.4 + (t / 0.18) * 0.85 : 1.25 - (t - 0.18) * 0.55;
-    const flip = spin ? Math.max(0.2, Math.abs(Math.cos(t * Math.PI * spin))) : 1;
-    const rot = kind === 'stars' ? t * 300 : 0;
+    // Lifts a little bigger, settles smaller into the wallet; a coin turns over once on the way.
+    const scale = t < 0.2 ? 0.7 + (t / 0.2) * 0.35 : 1.05 - (t - 0.2) * 0.4;
+    const turn = kind === 'coins' ? Math.max(0.25, Math.abs(Math.cos(t * Math.PI))) : 1;
     keyframes.push({
-      transform: `translate(${p.x.toFixed(1)}px, ${p.y.toFixed(1)}px) rotate(${rot.toFixed(0)}deg) scale(${(scale * flip).toFixed(3)}, ${scale.toFixed(3)})`,
-      opacity: t < 0.08 ? t / 0.08 : 1,
+      transform: `translate(${p.x.toFixed(1)}px, ${p.y.toFixed(1)}px) scale(${(scale * turn).toFixed(3)}, ${scale.toFixed(3)})`,
+      opacity: t < 0.1 ? t / 0.1 : 1,
     });
   }
-  const anim = el.animate(keyframes, { duration: 620 + Math.random() * 120, delay: index * 60, easing: 'linear', fill: 'both' });
+  const anim = el.animate(keyframes, { duration: COIN_FLIGHT_MS, easing: 'linear', fill: 'both' });
   return anim.finished
     .catch(() => undefined)
     .then(() => {
@@ -91,45 +94,65 @@ function flySprite(kind: WalletKind, from: Point, to: Point, index: number, coun
     });
 }
 
-/** Fly `amount` coins/stars from a point or element rect into the wallet. Resolves once all have landed. */
+interface Flight {
+  kind: WalletKind;
+  from: Point;
+  holds: Reservation[];
+  landed: (() => void)[];
+}
+
+const waiting: Flight[] = [];
+let inAir = false;
+
+function land(f: Flight, target: HTMLElement | null) {
+  if (target) bumpWallet(target);
+  for (const r of f.holds) r.release();
+  for (const done of f.landed) done();
+}
+
+function launchNext() {
+  if (inAir) return;
+  const f = waiting.shift();
+  if (!f) return;
+  const target = findWalletTarget(f.kind, f.from);
+  if (!target || prefersReducedMotion() || typeof Element.prototype.animate !== 'function') {
+    // No visible wallet (or no motion): the counter rolls in place, no flight.
+    if (target) sfx.play('coin', { volume: 0.7 });
+    land(f, target);
+    launchNext();
+    return;
+  }
+  inAir = true;
+  void flySprite(f.kind, f.from, toPoint(target.getBoundingClientRect())).then(() => {
+    sfx.play('coin', { volume: 0.7 });
+    land(f, target);
+    inAir = false;
+    launchNext();
+  });
+}
+
+/** Fly one coin (or stamp) worth `amount` into the wallet. Resolves once it has landed. */
 export function flyCoins({ from, amount, kind = 'coins', reservation }: FlyCoinsOptions): Promise<void> {
-  const count = spriteCount(amount);
-  if (!count || typeof document === 'undefined') {
+  if (!(amount > 0) || typeof document === 'undefined') {
     reservation?.release();
     return Promise.resolve();
   }
   const held = reservation ?? reserve(kind, amount);
-  const total = held.left;
-  const origin = toPoint(from);
-  const target = findWalletTarget(kind, origin);
-  let landed = 0;
-  const land = () => {
-    if (target) bumpWallet(target);
-    held.release(chunkOf(total, count, landed++));
-  };
-
-  if (!target || prefersReducedMotion() || typeof Element.prototype.animate !== 'function') {
-    // No visible wallet (or no motion): count up in place without the flight.
-    held.release();
-    if (target) {
-      bumpWallet(target);
-      sfx.play('coin', { volume: 0.7 });
-    }
-    return Promise.resolve();
-  }
-
   held.hold(Infinity);
-  const to = toPoint(target.getBoundingClientRect());
-  const flights = Array.from({ length: count }, (_, i) =>
-    flySprite(kind, origin, to, i, count).then(() => {
-      sfx.play('coin', { volume: 0.55, pitch: 1 + i * 0.045 });
-      land();
-    }),
-  );
-  return Promise.all(flights).then(() => held.release());
+  return new Promise<void>((resolve) => {
+    // A coin already waiting for its turn carries this reward too.
+    const queued = waiting.find((f) => f.kind === kind);
+    if (queued) {
+      queued.holds.push(held);
+      queued.landed.push(resolve);
+      return;
+    }
+    waiting.push({ kind, from: toPoint(from), holds: [held], landed: [resolve] });
+    launchNext();
+  });
 }
 
-/** Fly a batch's reserved rewards (coins and stars) from one place. */
+/** Fly a batch's reserved rewards (coins and stamps) from one place. */
 export function flyPayout(payout: Payout | undefined, from: DOMRect | Point): void {
   for (const r of [payout?.coins, payout?.stars]) {
     if (r?.left) void flyCoins({ from, amount: r.left, kind: r.kind, reservation: r });

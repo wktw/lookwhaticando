@@ -1,7 +1,8 @@
 /**
- * Dev-only art gallery: renders every collectible and art system for visual review.
- * Open /gallery.html in `npm run dev`. Sections can be filtered with ?only=pets|wearables|…
- * and the expression can be forced with ?expr=happy. Not included in production builds.
+ * Dev-only gallery: every drawing and every piece of the interface, for visual review.
+ * Open /gallery.html in `npm run dev`. Filter with ?only=<section id or prefix> (fxui, pets…),
+ * force a theme with ?theme=light|night (otherwise it follows the OS), and force a pet
+ * expression with ?expr=happy. Not included in production builds.
  */
 import { render } from 'preact';
 import '@/styles/global.css';
@@ -15,15 +16,18 @@ const ALL_SECTIONS: GallerySection[] = [...GALLERY_SECTIONS, ...Object.values(mo
 const params = new URLSearchParams(location.search);
 const only = params.get('only');
 const theme = params.get('theme');
-if (theme) document.documentElement.dataset.theme = theme;
+// Like the app: an explicit theme wins, otherwise follow the OS (so a dark-mode shot is Lamplight).
+document.documentElement.dataset.theme = theme === 'light' || theme === 'night' ? theme : matchMedia('(prefers-color-scheme: dark)').matches ? 'night' : 'light';
 
 function Gallery() {
   const sections = ALL_SECTIONS.filter((s) => !only || s.id === only || s.id.startsWith(`${only}-`));
   return (
     <main class="gal">
-      <h1>Mochi Meadow · Art Gallery</h1>
+      <h1>
+        catkin <span>gallery</span>
+      </h1>
       {!only && (
-        <nav class="gal-nav">
+        <nav class="gal-nav" aria-label="Sections">
           {ALL_SECTIONS.map((s) => (
             <a key={s.id} href={`?only=${s.id}`}>
               {s.id}

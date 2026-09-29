@@ -1,6 +1,11 @@
 @import './fonts.css';
 @import './tokens.css';
 
+/*
+ * catkin base styles: warm paper, graphite ink, Castoro for the voice and Nunito for the
+ * interface (DESIGN §10.1–§10.2). Components bring their own look; this file only sets the page.
+ */
+
 *,
 *::before,
 *::after {
@@ -38,6 +43,7 @@ body {
   min-height: 100dvh;
 }
 
+/* Castoro has one weight; it is the voice (greetings, names, notes), never bolded. */
 h1,
 h2,
 h3,
@@ -89,11 +95,10 @@ svg {
   outline: none;
 }
 
+/* One calm focus ring everywhere. It follows each element's own corners (no radius override). */
 :focus-visible {
-  outline: 3px solid var(--focus);
-  outline-offset: 2px;
-  box-shadow: 0 0 0 2px var(--card);
-  border-radius: 12px;
+  outline: 2px solid var(--focus);
+  outline-offset: 3px;
 }
 
 /* iOS Dynamic Type: the root follows the system text size (17px default). */
@@ -138,10 +143,15 @@ select {
   -webkit-touch-callout: none;
 }
 
+/*
+ * Reduced motion (DESIGN §10.5): everything holds still. An element marked .mm-motion-safe keeps
+ * its own animation (not its children's): a blink, breathing under 1.5%, a crossfade. Mark only
+ * motion that small, and give it its own reduced-motion version where it needs one.
+ */
 @media (prefers-reduced-motion: reduce) {
-  :root:not([data-motion='full']) *,
-  :root:not([data-motion='full']) *::before,
-  :root:not([data-motion='full']) *::after {
+  :root:not([data-motion='full']) *:not(.mm-motion-safe),
+  :root:not([data-motion='full']) *:not(.mm-motion-safe)::before,
+  :root:not([data-motion='full']) *:not(.mm-motion-safe)::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
@@ -149,9 +159,9 @@ select {
   }
 }
 
-:root[data-motion='reduced'] *,
-:root[data-motion='reduced'] *::before,
-:root[data-motion='reduced'] *::after {
+:root[data-motion='reduced'] *:not(.mm-motion-safe),
+:root[data-motion='reduced'] *:not(.mm-motion-safe)::before,
+:root[data-motion='reduced'] *:not(.mm-motion-safe)::after {
   animation-duration: 0.01ms !important;
   animation-iteration-count: 1 !important;
   transition-duration: 0.01ms !important;

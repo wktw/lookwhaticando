@@ -21,7 +21,7 @@ function markSwitch(el: HTMLInputElement | null) {
   el?.setAttribute('switch', '');
 }
 
-/** iOS-style switch built on a real checkbox (role="switch"), so forms, labels and AT all just work. */
+/** A paper switch built on a real checkbox (role="switch"), so forms, labels and AT all just work. */
 export function Toggle({ checked, onChange, label, description, hideLabel, disabled, tone = 'sage', class: cls }: ToggleProps) {
   const descId = useId();
   return (

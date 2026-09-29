@@ -1,5 +1,4 @@
 import { useEffect, useRef } from 'preact/hooks';
-import { Icon } from '@/art/icons';
 import { cx } from './cx';
 import s from './Stepper.module.css';
 
@@ -21,7 +20,7 @@ export interface StepperProps {
 const HOLD_DELAY = 420;
 const HOLD_EVERY = 90;
 
-/** − value + with press-and-hold repeat. */
+/** − value + on a paper strip, with press-and-hold repeat. */
 export function Stepper({ value, onChange, label, min = 0, max = 99, step = 1, unit, showLabel, class: cls }: StepperProps) {
   const latest = useRef({ value, onChange, min, max, step });
   latest.current = { value, onChange, min, max, step };
@@ -77,13 +76,9 @@ export function Stepper({ value, onChange, label, min = 0, max = 99, step = 1, u
       onClick={onClick(dir)}
     >
       <span class={s.face}>
-        {dir < 0 ? (
-          <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
-            <path d="M6 12h12" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" />
-          </svg>
-        ) : (
-          <Icon name="plus" size={20} />
-        )}
+        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false">
+          <path d={dir < 0 ? 'M6 12h12' : 'M6 12h12M12 6v12'} stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+        </svg>
       </span>
     </button>
   );

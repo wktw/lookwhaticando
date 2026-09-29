@@ -11,7 +11,8 @@ export function overlayRoot(): HTMLElement {
 
 /**
  * Base z-index for sheets; each stacked sheet adds 2. The full scale above the app:
- * sheets 100+ · toasts 200 · epic scrim 240 · confetti 245 · epic card 248 · celebration banners 250
- * · fx sprites 300. Confetti flies over dimmed pages but behind the cards it bursts out from.
+ * sheets 100+ · notes (toasts) 200 · epic dimmed room 240 · petals 245 · epic card 248 ·
+ * celebration notes 250 · fx sprites (the coin, chips, the glint) 300. Petals drift over a dimmed
+ * page but behind the note they fall from, so they never cross its words.
  */
 export const Z_SHEET = 100;

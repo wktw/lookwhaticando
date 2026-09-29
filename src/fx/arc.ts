@@ -20,8 +20,7 @@ export function easeInOutCubic(t: number): number {
   return t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2;
 }
 
-/** How many sprites to fly for an amount: 1 per ~4, at least 1, at most 8. */
+/** How many coins fly for an amount: one brass coin per reward, whatever its size (DESIGN §9.1). */
 export function spriteCount(amount: number): number {
-  if (!(amount > 0)) return 0;
-  return Math.max(1, Math.min(8, Math.ceil(amount / 4)));
+  return amount > 0 ? 1 : 0;
 }
