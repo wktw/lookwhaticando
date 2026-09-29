@@ -5,6 +5,7 @@
  * is structurally equal, so its readers only hear about real changes.
  */
 import { computed, type ReadonlySignal } from '@preact/signals';
+import { useRef } from 'preact/hooks';
 
 /** Deep equality for plain view data (arrays, plain objects, primitives; functions by identity). */
 export function same(a: unknown, b: unknown): boolean {
@@ -51,4 +52,11 @@ export function keyed<K, T>(key: () => K, build: () => T): ReadonlySignal<T> {
     prev = { k, v };
     return v;
   });
+}
+
+/** The same reference as last render while the value is structurally equal (for `memo` props). */
+export function useSame<T>(value: T): T {
+  const ref = useRef(value);
+  if (!same(ref.current, value)) ref.current = value;
+  return ref.current;
 }

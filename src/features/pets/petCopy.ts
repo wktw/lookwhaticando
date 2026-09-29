@@ -32,8 +32,39 @@ export const PET_CARD_UI = {
   favourite: 'Favourite',
   markFavourite: 'Favourite',
   keepsakes: 'Left by the pot',
+  pantry: 'Basket and pantry',
   indoors: 'Indoors',
+  /** A Find-a-plant chip for a habit someone already keeps company. */
+  keptBy: '{name} keeps it company',
+  /** Asked before a companion moves out to make room. */
+  moveOutAsk: 'Move {name} out of {plant}?',
 } as const;
+
+/** How many treats the Pet Card shows before "Basket and pantry". */
+export const FEED_ROW = 6;
+
+/** The Pet Card's feeding order: the favourite first, then what there is most of, then by name. */
+export function feedOrder<T extends { name: string; servings: number; favorite: boolean }>(treats: readonly T[]): T[] {
+  return [...treats].sort((a, b) => Number(b.favorite) - Number(a.favorite) || b.servings - a.servings || a.name.localeCompare(b.name));
+}
+
+/**
+ * The card's Memories (§8.2, §14.1), oldest first: the dated moments from real events (the day it came
+ * home, each "Look at us" bloom) and the friendship Memories after best friends, each once.
+ */
+export function memoryEntries(pet: Pick<PetVM, 'moments' | 'memories'>): PetMemory[] {
+  const seen = new Set<string>();
+  const out: PetMemory[] = [];
+  for (const m of [...pet.moments, ...pet.memories]) {
+    // A came-home day and a plant's bloom happen once; the friendship Memories are each their own day.
+    const once = m.kind === 'came-home' || m.kind === 'bloomed';
+    const key = once ? `${m.kind}:${m.habitId ?? ''}` : `${m.kind}:${m.date}:${m.habitId ?? ''}:${'treatId' in m ? (m.treatId ?? '') : ''}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push({ kind: m.kind, date: m.date, ...(m.habitId ? { habitId: m.habitId } : {}), ...('treatId' in m && m.treatId ? { treatId: m.treatId } : {}) });
+  }
+  return out.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+}
 
 /** "Knows you" · "Best friends" · "Old friends" (bond levels 11–15 keep their own names). */
 export function levelName(level: number): string {

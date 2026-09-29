@@ -102,3 +102,42 @@ describe('the Shelf’s words', () => {
     for (const line of seen) expect(line).toContain('Pudding');
   });
 });
+
+describe('the Pet Card’s order and memories', () => {
+  it('feeds the favourite first, then what there is most of', async () => {
+    const { feedOrder } = await import('./petCopy');
+    const t = (name: string, servings: number, favorite = false) => ({ id: name, name, servings, favorite });
+    expect(feedOrder([t('Apple', 3), t('Kale', 0, true), t('Oat', 5), t('Bean', 3)]).map((x) => x.name)).toEqual(['Kale', 'Oat', 'Apple', 'Bean']);
+  });
+
+  it('merges the dated moments with the friendship Memories, each once, oldest first', async () => {
+    const { memoryEntries } = await import('./petCopy');
+    const m = memoryEntries({
+      moments: [
+        { kind: 'came-home', date: '2026-03-01' },
+        { kind: 'bloomed', date: '2026-06-02', habitId: 'h1' },
+      ],
+      memories: [
+        { kind: 'best-friends', date: '2026-05-01' },
+        { kind: 'bloomed', date: '2026-06-02', habitId: 'h1' },
+        { kind: 'day', date: '2026-07-01' },
+        { kind: 'day', date: '2026-07-09' },
+      ],
+    });
+    expect(m.map((x) => `${x.kind} ${x.date}`)).toEqual(['came-home 2026-03-01', 'best-friends 2026-05-01', 'bloomed 2026-06-02', 'day 2026-07-01', 'day 2026-07-09']);
+  });
+});
+
+describe('a pet’s voice is sparse', () => {
+  it('only a tap, at most every 20 s, never at night', async () => {
+    const { shouldVoice, resetVoice, VOICE_GAP_MS } = await import('./voice');
+    resetVoice();
+    expect(shouldVoice('boop', 12, 0)).toBe(false);
+    expect(shouldVoice('stroke', 12, 0)).toBe(false);
+    expect(shouldVoice('tap', 23, 0)).toBe(false);
+    expect(shouldVoice('tap', 3, 0)).toBe(false);
+    expect(shouldVoice('tap', 12, 1000)).toBe(true);
+    expect(shouldVoice('tap', 12, 1000 + VOICE_GAP_MS - 1)).toBe(false);
+    expect(shouldVoice('tap', 12, 1000 + VOICE_GAP_MS)).toBe(true);
+  });
+});

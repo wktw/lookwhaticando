@@ -110,6 +110,55 @@ describe('the Pet Card', () => {
     expect(d.textContent).toContain('Indoors');
   });
 
+  it('a favourite treat with no servings left says so, and a tap never bakes: baking is its own button', async () => {
+    const p = demo.pets[petId]!;
+    const fav = p.favoriteTreat;
+    state.value = {
+      ...demo,
+      pets: { ...demo.pets, [petId]: { ...p, favoriteKnown: true } },
+      collection: { ...demo.collection, [fav]: { count: 1, firstAt: 0 } },
+      pantry: { ...demo.pantry, [fav]: { servings: 0, restockedOn: TODAY } },
+      wallet: { ...demo.wallet, coins: 100 },
+    };
+    const d = await open();
+    const name = getCollectible(fav)!.name;
+    const tiles = Array.from(d.querySelectorAll<HTMLButtonElement>('button[aria-label^="Feed "]'));
+    // The favourite comes first, says its servings ("More in the morning") and is tagged Favourite.
+    const tile = tiles[0]!;
+    expect(tile.getAttribute('aria-label')).toBe(`Feed ${name}, More in the morning, Favourite`);
+    expect(tile.textContent).toContain('More in the morning');
+    expect(tile.disabled).toBe(true);
+    await click(tile);
+    expect(state.value.wallet.coins).toBe(100);
+    // At most a row of 6; the rest are in the basket and pantry.
+    expect(tiles.length).toBeLessThanOrEqual(6);
+    const bake = d.querySelector<HTMLButtonElement>(`button[aria-label="Bake a tray · 10 coins, ${name}"]`);
+    if (getCollectible(fav)!.source === 'harvest') expect(bake).toBeNull();
+    else {
+      await click(bake, 'Bake a tray');
+      expect(state.value.wallet.coins).toBe(90);
+      expect(state.value.pantry[fav]!.servings).toBe(5);
+    }
+  });
+
+  it('Memories: the day it came home and each “Look at us” bloom, before best friends', async () => {
+    const habit = demo.habits.find((h) => h.archivedOn === undefined)!;
+    const withBloom: AppState = {
+      ...demo,
+      company: {
+        offer: demo.company?.offer ?? { declines: 0 },
+        pairs: { ...(demo.company?.pairs ?? {}), [`${petId}|${habit.id}`]: { petId, habitId: habit.id, since: '2026-06-01', sunshine: 0, waterings: 40, stories: { lookAtUs: { on: '2026-08-12' } } } },
+      },
+    };
+    state.value = withBloom;
+    const d = await open();
+    const memories = d.querySelector('section[aria-labelledby="pc-memories"]')!;
+    const items = Array.from(memories.querySelectorAll('li')).map((li) => li.textContent);
+    expect(items.some((t) => t?.startsWith('Came home'))).toBe(true);
+    expect(items).toContain(`The day ${habit.name} bloomed`);
+    expect(memories.textContent).not.toContain('Memories start once');
+  });
+
   it('closes itself for a pet that isn’t there', async () => {
     view = mount(<PetCardHost />);
     openPetCard('pet-nobody');

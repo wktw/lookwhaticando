@@ -274,13 +274,38 @@
 }
 
 /* ---------- feed ---------- */
+/* One row, the favourite first; the rest are in "Basket and pantry". */
 .treats {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  display: flex;
   gap: 8px;
-  margin: 0;
-  padding: 0;
+  margin: 0 -4px;
+  padding: 2px 4px 4px;
+  overflow-x: auto;
   list-style: none;
+  scroll-snap-type: x proximity;
+  scrollbar-width: none;
+}
+.treats::-webkit-scrollbar {
+  display: none;
+}
+
+.treatItem {
+  display: grid;
+  flex: none;
+  align-content: start;
+  justify-items: center;
+  gap: 4px;
+  width: 104px;
+  scroll-snap-align: start;
+}
+
+.bake {
+  width: 100%;
+  min-height: 44px;
+  padding-inline: 6px;
+  white-space: normal;
+  line-height: 1.2;
+  text-align: center;
 }
 
 .treat {
@@ -307,6 +332,7 @@
   opacity: 0.55;
 }
 .treat:disabled {
+  color: var(--ink-2);
   cursor: default;
 }
 .treat:focus-visible {

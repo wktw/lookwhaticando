@@ -5,25 +5,27 @@
  * company, the pantry, the wardrobe (with a live preview), where it spends the day, and Memories.
  */
 import type { ComponentChildren } from 'preact';
-import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
-import { COMPANION, EMPTY, PET_CARD, fillLine, pickLine, plantPhrase } from '@/catalog/lines';
+import { memo } from 'preact/compat';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'preact/hooks';
+import { COMPANION, EMPTY, PET_CARD, capitalise, fillLine, pickLine, plantPhrase } from '@/catalog/lines';
+import { getCollectible } from '@/catalog/collectibles';
 import { choseLine, movedToPlaceLine } from '@/catalog/format';
-import { SPECIES_VOICE } from '@/catalog/personalities';
 import { WEARABLE_SLOTS, type PlaceId, type WearableSlot } from '@/catalog/types';
 import { PetArt } from '@/art/pets/PetArt';
 import type { Expression } from '@/art/pets/types';
 import { CollectibleArt } from '@/art/CollectibleArt';
 import { CardPlant } from '@/art/plants/CardPlant';
-import { ObjectArt, useArtLight } from '@/art/scene';
+import { useArtLight } from '@/art/scene';
 import { reactionFor } from '@/art/scene/actors/touch';
 import { Icon } from '@/art/icons';
 import type { PetVM, ShelfVM } from '@/state/selectors';
-import type { Habit } from '@/state/types';
+import type { Habit, PetMemory } from '@/state/types';
 import { bakeTray, feedPet, letPetChoose, petPet, renamePet, setCompanion, setOutfit, setPetPlace, state, toggleFavoritePet, togglePetOut, today } from '@/state/store';
 import { BAKE } from '@/domain/pantry';
 import { MAX_PET_NAME } from '@/domain/friendship';
 import { nameIdeas } from '@/features/capsules/names';
 import { Button } from '@/ui/Button';
+import { ConfirmDialog } from '@/ui/ConfirmDialog';
 import { IconButton } from '@/ui/IconButton';
 import { Segmented } from '@/ui/Segmented';
 import { TextField } from '@/ui/TextField';
@@ -33,7 +35,10 @@ import { toast } from '@/ui/toast';
 import { cx } from '@/ui/cx';
 import { haptic } from '@/fx/haptics';
 import { sfx } from '@/fx/sound';
-import { PET_CARD_UI, PlacePhrase, boopLabel, keepsakeCaption, keepsLine, knownForLine, levelLine, levelName, likesLine, memoryLine, servingsLine, spotLine, withName } from './petCopy';
+import { FitObject } from '@/features/shelf/FitObject';
+import { useSame } from '@/features/shelf/stable';
+import { petVoice } from './voice';
+import { FEED_ROW, PET_CARD_UI, PlacePhrase, boopLabel, feedOrder, keepsakeCaption, keepsLine, knownForLine, levelLine, levelName, likesLine, memoryEntries, memoryLine, servingsLine, spotLine, withName } from './petCopy';
 import s from './PetCard.module.css';
 
 export interface PetCardProps {
@@ -43,16 +48,27 @@ export interface PetCardProps {
   /** Pets out, for the room left in each place. */
   out: ShelfVM['out'];
   capacity: number;
+  /** "Basket and pantry": every treat, when the card shows only the first few. */
+  onPantry?: () => void;
 }
 
 type Gesture = 'tap' | 'stroke' | 'boop' | 'carry';
+type Say = (line: string) => void;
+type React_ = (e: Expression, ms: number) => void;
+type Caption = (context: 'fed' | 'fedFavourite' | 'newWear' | 'tap', slots: Record<string, string>) => string;
 
 const recent: string[] = [];
 let seed = Math.floor(Math.random() * 100_000);
 
-export function PetCard({ pet, places, out, capacity }: PetCardProps) {
+/**
+ * Render cost: a gesture pays XP, so the card's `pet` is new on every press. The portrait and the
+ * friendship row show that; every other section is a `memo` of the few fields it draws, with its
+ * handlers stable (they read the pet as it is now through a ref), so a stroke re-renders the top of
+ * the card only.
+ */
+export function PetCard({ pet, places, out, capacity, onPantry }: PetCardProps) {
   const light = useArtLight();
-  const habits = state.value.habits.filter((h) => h.archivedOn === undefined);
+  const habits = useSame(state.value.habits.filter((h) => h.archivedOn === undefined).map((h): HabitLite => ({ id: h.id, name: h.name, plant: h.plant, pot: h.pot, companionId: h.companionId })));
   const species = pet.species;
   const [expression, setExpression] = useState<Expression>('rest');
   const [bounce, setBounce] = useState(0);
@@ -60,31 +76,33 @@ export function PetCard({ pet, places, out, capacity }: PetCardProps) {
   const [caption, setCaption] = useState<string>('');
   const [preview, setPreview] = useState<{ slot: WearableSlot; id: string } | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout>>();
+  const live = useRef(pet);
+  live.current = pet;
   useEffect(() => () => clearTimeout(timer.current), []);
 
-  const say = (line: string) => {
+  const say = useCallback<Say>((line) => {
     setCaption(line);
     announceSettled('pet-card', line);
-  };
-  const show = (e: Expression, ms: number) => {
+  }, []);
+  const show = useCallback<React_>((e, ms) => {
     clearTimeout(timer.current);
     setExpression(e);
     setBounce((b) => b + 1);
     timer.current = setTimeout(() => setExpression('rest'), ms);
-  };
-  const situation = { level: pet.level };
-  const caption_ = (context: 'fed' | 'fedFavourite' | 'newWear' | 'tap', slots: Record<string, string>) => {
-    const t = pickLine(context, pet.personality, species ?? 'cat', ++seed, recent, situation);
+  }, []);
+  const caption_ = useCallback<Caption>((context, slots) => {
+    const p = live.current;
+    const t = pickLine(context, p.personality, p.species ?? 'cat', ++seed, recent, { level: p.level });
     recent.push(t);
     if (recent.length > 5) recent.shift();
-    return fillLine(t, { name: pet.name, ...slots });
-  };
+    return fillLine(t, { name: p.name, ...slots });
+  }, []);
 
   /* ---------------- gestures ---------------- */
   const gesture = (g: Gesture) => {
     const r = reactionFor(g, species ?? 'cat', false);
     haptic(g === 'stroke' ? 'light' : 'tick');
-    if (species && g !== 'stroke') sfx.voice(SPECIES_VOICE[species], { pitch: g === 'boop' ? 1.12 : 1 });
+    petVoice(species, g, new Date().getHours());
     if (g === 'carry') setHeld((h) => !h);
     else show(r.expression, r.ms || 900);
     if (g !== 'carry' || !held) petPet(pet.id);
@@ -100,6 +118,18 @@ export function PetCard({ pet, places, out, capacity }: PetCardProps) {
     }
     return o;
   }, [pet.outfit, preview]);
+
+  const level = levelName(pet.level);
+  const line = levelLine(pet.name, pet.level, species, pet.bestFriend ? (state.value.pets[pet.bestFriend]?.name ?? null) : null);
+  const coins = state.value.wallet.coins;
+  const treats = useSame(pet.treats);
+  const wardrobe = useSame(pet.wardrobe);
+  const wearing = useSame(pet.outfit);
+  const memories = useSame(memoryEntries(pet));
+  const keepsakes = useSame(pet.keepsakes);
+  const about = useSame({ likes: likesLine(pet.likes), knownFor: knownForLine(pet.company, pet.species, pet.id), spot: pet.spot, bestFriend: pet.bestFriend ? (state.value.pets[pet.bestFriend]?.name ?? null) : null, cameHome: pet.arrivedOn === today.value ? null : pet.arrivedLabel });
+  const whereOut = useSame(out.map((p) => ({ id: p.id, place: p.place })));
+  const placesLite = useSame(places.filter((p) => p.owned).map((p) => ({ id: p.id, name: p.name, petsOut: p.petsOut })));
 
   return (
     <div class={s.card}>
@@ -142,34 +172,38 @@ export function PetCard({ pet, places, out, capacity }: PetCardProps) {
       </div>
 
       {/* ---------------- friendship ---------------- */}
-      <Section title={PET_CARD.fields.friendship}>
+      <Section id="pc-friendship" title={PET_CARD.fields.friendship}>
         <div class={s.friendship}>
-          <span class={s.dots} role="img" aria-label={fillLine(PET_CARD_UI.friendshipAria, { level: levelName(pet.level) })}>
+          <span class={s.dots} role="img" aria-label={fillLine(PET_CARD_UI.friendshipAria, { level })}>
             {Array.from({ length: 10 }, (_, i) => (
               <span key={i} class={s.dot} data-on={i < pet.hearts ? '' : undefined} />
             ))}
           </span>
-          <span class={s.levelName}>{levelName(pet.level)}</span>
+          <span class={s.levelName}>{level}</span>
         </div>
-        <p class={s.levelLine}>{levelLine(pet.name, pet.level, species, pet.bestFriend ? (state.value.pets[pet.bestFriend]?.name ?? null) : null)}</p>
+        {/* The level's line, when it says more than the level's name ("New here" · "Humbug is new here." says it twice). */}
+        {!line.toLowerCase().includes(level.toLowerCase()) && <p class={s.levelLine}>{line}</p>}
       </Section>
 
-      <About pet={pet} habits={habits} />
-      <Company pet={pet} habits={habits} />
-      <Feed pet={pet} say={say} onReact={show} caption={caption_} />
-      <Wardrobe pet={pet} preview={preview} onPreview={setPreview} say={say} caption={caption_} />
-      <Where pet={pet} places={places} out={out} capacity={capacity} />
-      <Memories pet={pet} habits={habits} />
+      <About about={about} habits={habits} />
+      <Company petId={pet.id} name={pet.name} habitId={pet.company.habitId ?? null} habits={habits} />
+      <Feed petId={pet.id} name={pet.name} treats={treats} coins={coins} say={say} onReact={show} caption={caption_} onPantry={onPantry} />
+      <Wardrobe petId={pet.id} wardrobe={wardrobe} outfit={wearing} preview={preview} onPreview={setPreview} say={say} caption={caption_} />
+      <Where petId={pet.id} name={pet.name} isOut={pet.out} place={pet.place} places={placesLite} out={whereOut} capacity={capacity} />
+      <Memories memories={memories} keepsakes={keepsakes} habits={habits} />
     </div>
   );
 }
 
 /* ------------------------------------------------------------------ */
 
-function Section({ title, children, id }: { title: string; children: ComponentChildren; id?: string }) {
+/** A titled part of the card: its heading names the region (one name, not a label and a heading). */
+function Section({ title, children, id }: { title: string; children: ComponentChildren; id: string }) {
   return (
-    <section class={s.section} aria-label={title} id={id}>
-      <h3 class={s.sectionTitle}>{title}</h3>
+    <section class={s.section} aria-labelledby={id}>
+      <h3 class={s.sectionTitle} id={id}>
+        {title}
+      </h3>
       {children}
     </section>
   );
@@ -177,13 +211,23 @@ function Section({ title, children, id }: { title: string; children: ComponentCh
 
 type HabitLite = Pick<Habit, 'id' | 'name' | 'plant' | 'pot' | 'companionId'>;
 
-function About({ pet, habits }: { pet: PetVM; habits: HabitLite[] }) {
+interface AboutVM {
+  likes: string | null;
+  knownFor: string | null;
+  spot: PetVM['spot'];
+  bestFriend: string | null;
+  /** The came-home day's label; null when it is today. */
+  cameHome: string | null;
+}
+
+const About = memo(function About({ about, habits }: { about: AboutVM; habits: HabitLite[] }) {
   const rows: [string, string | null][] = [
-    [PET_CARD.fields.likes, likesLine(pet.likes)],
-    [PET_CARD.fields.knownFor, knownForLine(pet.company, pet.species, pet.id)],
-    [PET_CARD.fields.spot, spotLine(pet.spot, habits)],
-    [PET_CARD.fields.bestFriend, pet.bestFriend ? (state.value.pets[pet.bestFriend]?.name ?? null) : null],
-    [PET_CARD.fields.cameHome, pet.arrivedOn === today.value ? PET_CARD.cameHomeToday.slice(PET_CARD.cameHomeToday.indexOf(': ') + 2) : pet.arrivedLabel],
+    [PET_CARD.fields.likes, about.likes],
+    [PET_CARD.fields.knownFor, about.knownFor],
+    [PET_CARD.fields.spot, spotLine(about.spot, habits)],
+    [PET_CARD.fields.bestFriend, about.bestFriend],
+    // "Came home: today" reads as its own line's second half, capitalised: "Today".
+    [PET_CARD.fields.cameHome, about.cameHome ?? capitalise(PET_CARD.cameHomeToday.slice(PET_CARD.cameHomeToday.indexOf(': ') + 2))],
   ];
   return (
     <dl class={s.about}>
@@ -197,75 +241,98 @@ function About({ pet, habits }: { pet: PetVM; habits: HabitLite[] }) {
         ))}
     </dl>
   );
-}
+});
 
-function Company({ pet, habits }: { pet: PetVM; habits: HabitLite[] }) {
+const Company = memo(function Company({ petId, name, habitId, habits }: { petId: string; name: string; habitId: string | null; habits: HabitLite[] }) {
   const [choosing, setChoosing] = useState(false);
-  const habit = pet.company.habitId ? habits.find((h) => h.id === pet.company.habitId) : undefined;
+  const [asking, setAsking] = useState<HabitLite | null>(null);
+  const habit = habitId ? habits.find((h) => h.id === habitId) : undefined;
   if (habits.length === 0) return null;
   if (habit) {
     return (
-      <section class={s.company} aria-label={keepsLine(habit.name)}>
+      <section class={s.company} aria-labelledby="pc-company">
         <span class={s.companyArt} aria-hidden="true">
-          <CardPlant species={habit.plant} stage={state.value.ledger.bestStage[habit.id] ?? 0} pot={habit.pot} size={56} residentPetId={pet.id} />
+          <CardPlant species={habit.plant} stage={state.value.ledger.bestStage[habit.id] ?? 0} pot={habit.pot} size={56} residentPetId={petId} />
         </span>
         <div class={s.companyText}>
-          <h3 class={s.companyTitle}>{keepsLine(habit.name)}</h3>
+          <h3 class={s.companyTitle} id="pc-company">
+            {keepsLine(habit.name)}
+          </h3>
           <Button
             variant="quiet"
             size="sm"
             class={s.companyButton}
             onClick={() => {
-              if (setCompanion(habit.id, null)) toast({ message: fillLine(COMPANION.movedOut, { name: pet.name }), tone: 'blush', key: `companion-${pet.id}` });
+              if (setCompanion(habit.id, null)) toast({ message: fillLine(COMPANION.movedOut, { name }), tone: 'blush', key: `companion-${petId}` });
             }}
           >
-            {withName(COMPANION.moveOut, pet.name)}
+            {withName(COMPANION.moveOut, name)}
           </Button>
         </div>
       </section>
     );
   }
+  const other = (h: HabitLite) => (h.companionId && h.companionId !== petId ? (state.value.pets[h.companionId]?.name ?? null) : null);
+  const moveIn = (h: HabitLite) => {
+    // The celebration host words it: "{name} moved into {plant}."
+    if (setCompanion(h.id, petId)) haptic('light');
+    setChoosing(false);
+  };
   const sorted = [...habits].sort((a, b) => Number(!!a.companionId) - Number(!!b.companionId));
+  // No title of its own: the button says it ("Find Humbug a plant"), then the plants to choose from.
   return (
-    <Section title={withName(COMPANION.card.find, pet.name)}>
+    <div class={s.section}>
       {!choosing ? (
         <div class={s.actions}>
           <Button variant="secondary" size="sm" icon="sprout" onClick={() => setChoosing(true)}>
-            {withName(PET_CARD.buttons.findPlant, pet.name)}
+            {withName(PET_CARD.buttons.findPlant, name)}
           </Button>
         </div>
       ) : (
-        <ul class={s.chips} aria-label={withName(PET_CARD.buttons.findPlant, pet.name)}>
-          {sorted.map((h) => (
-            <li key={h.id}>
-              <button
-                type="button"
-                class={s.chip}
-                onClick={() => {
-                  // The celebration host words it: "{name} moved into {plant}."
-                  if (setCompanion(h.id, pet.id)) haptic('light');
-                  setChoosing(false);
-                }}
-              >
-                {h.name}
-                {h.companionId && <span class={s.chipNote}>{state.value.pets[h.companionId]?.name}</span>}
-              </button>
-            </li>
-          ))}
+        <ul class={s.chips} aria-label={withName(PET_CARD.buttons.findPlant, name)}>
+          {sorted.map((h) => {
+            const o = other(h);
+            return (
+              <li key={h.id}>
+                <button type="button" class={s.chip} onClick={() => (o ? setAsking(h) : moveIn(h))}>
+                  {h.name}
+                  {o && <span class={s.chipNote}>{fillLine(PET_CARD_UI.keptBy, { name: o })}</span>}
+                </button>
+              </li>
+            );
+          })}
         </ul>
       )}
-    </Section>
+      <ConfirmDialog
+        open={asking !== null}
+        title={asking ? fillLine(PET_CARD_UI.moveOutAsk, { name: other(asking) ?? '', plant: plantPhrase(asking.name, asking.plant) }) : ''}
+        confirmLabel={asking ? withName(COMPANION.moveOut, other(asking) ?? '') : ''}
+        cancelLabel={PET_CARD.buttons.notNow}
+        onCancel={() => setAsking(null)}
+        onConfirm={() => {
+          const h = asking;
+          setAsking(null);
+          if (!h) return;
+          const o = other(h);
+          if (h.companionId && setCompanion(h.id, null) && o) toast({ message: fillLine(COMPANION.movedOut, { name: o }), tone: 'blush', key: `companion-${h.companionId}` });
+          moveIn(h);
+        }}
+      />
+    </div>
   );
-}
+});
 
-function Feed({ pet, say, onReact, caption }: { pet: PetVM; say: (l: string) => void; onReact: (e: Expression, ms: number) => void; caption: (c: 'fed' | 'fedFavourite', slots: Record<string, string>) => string }) {
-  const coins = state.value.wallet.coins;
-  const feed = (t: PetVM['treats'][number]) => {
-    const r = feedPet(pet.id, t.id);
+type Treat = PetVM['treats'][number];
+
+const Feed = memo(function Feed({ petId, name, treats, coins, say, onReact, caption, onPantry }: { petId: string; name: string; treats: Treat[]; coins: number; say: Say; onReact: React_; caption: Caption; onPantry?: () => void }) {
+  const ordered = useMemo(() => feedOrder(treats), [treats]);
+  const shown = ordered.slice(0, FEED_ROW);
+  const feed = (t: Treat) => {
+    const r = feedPet(petId, t.id);
     const treat = t.name.toLowerCase();
     if (r.reaction === 'full') {
       onReact('blink', 900);
-      return say(fillLine(PET_CARD.enough, { name: pet.name }));
+      return say(fillLine(PET_CARD.enough, { name }));
     }
     if (r.reaction === 'none') return say(fillLine(PET_CARD.lastServing, { treat }));
     haptic('light');
@@ -276,53 +343,80 @@ function Feed({ pet, say, onReact, caption }: { pet: PetVM; say: (l: string) => 
     const left = (state.value.pantry[t.id]?.servings ?? 0) === 0;
     say(left ? `${line} ${fillLine(PET_CARD.lastServing, { treat })}` : line);
   };
-  const bake = (t: PetVM['treats'][number]) => {
-    if (bakeTray(t.id).ok) toast({ message: fillLine(PET_CARD.baked, { treat: t.name.toLowerCase() }), tone: 'butter', key: `bake-${t.id}` });
+  const bake = (t: Treat) => {
+    if (bakeTray(t.id).ok) {
+      haptic('light');
+      toast({ message: fillLine(PET_CARD.baked, { treat: t.name.toLowerCase() }), tone: 'butter', key: `bake-${t.id}` });
+    }
   };
   return (
-    <Section title={PET_CARD.buttons.feed}>
-      {pet.treats.length === 0 ? (
+    <Section id="pc-feed" title={PET_CARD.buttons.feed}>
+      {treats.length === 0 ? (
         <p class={s.note}>{PET_CARD_UI.noTreats}</p>
       ) : (
-        <ul class={s.treats}>
-          {pet.treats.map((t) => (
-            <li key={t.id}>
-              <button type="button" class={s.treat} data-empty={t.servings < 1 ? '' : undefined} onClick={() => (t.servings < 1 ? bake(t) : feed(t))} aria-label={t.servings < 1 ? `${PET_CARD.buttons.bakeTray}, ${t.name}` : `${PET_CARD.buttons.feed} ${t.name}, ${servingsLine(t.servings)}`} disabled={t.servings < 1 && coins < BAKE.coins}>
-                <span class={s.treatArt} aria-hidden="true">
-                  <CollectibleArt id={t.id} size={44} px={44} animated={false} />
-                </span>
-                <span class={s.treatName} aria-hidden="true">
-                  {t.name}
-                </span>
-                <span class={s.treatMeta} aria-hidden="true">
-                  {t.favorite ? <span class={s.fav}>{PET_CARD_UI.favourite}</span> : t.servings < 1 ? PET_CARD.buttons.bakeTray : servingsLine(t.servings)}
-                </span>
-              </button>
-            </li>
-          ))}
-        </ul>
+        <>
+          <ul class={s.treats}>
+            {shown.map((t) => {
+              const empty = t.servings < 1;
+              // Baking is its own button, only where a treat has run out (never a harvest).
+              const bakeable = empty && getCollectible(t.id)?.source !== 'harvest';
+              return (
+                <li key={t.id} class={s.treatItem}>
+                  <button type="button" class={s.treat} data-empty={empty ? '' : undefined} disabled={empty} onClick={() => feed(t)} aria-label={`${PET_CARD.buttons.feed} ${t.name}, ${servingsLine(t.servings)}${t.favorite ? `, ${PET_CARD_UI.favourite}` : ''}`}>
+                    <span class={s.treatArt} aria-hidden="true">
+                      <CollectibleArt id={t.id} size={44} px={44} animated={false} />
+                    </span>
+                    <span class={s.treatName} aria-hidden="true">
+                      {t.name}
+                    </span>
+                    <span class={s.treatMeta} aria-hidden="true">
+                      {servingsLine(t.servings)}
+                    </span>
+                    {t.favorite && (
+                      <span class={s.fav} aria-hidden="true">
+                        {PET_CARD_UI.favourite}
+                      </span>
+                    )}
+                  </button>
+                  {bakeable && (
+                    <Button variant="quiet" size="sm" class={s.bake} disabled={coins < BAKE.coins} onClick={() => bake(t)} aria-label={`${PET_CARD.buttons.bakeTray}, ${t.name}`}>
+                      {PET_CARD.buttons.bakeTray}
+                    </Button>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+          {onPantry && (
+            <div class={s.actions}>
+              <Button variant="quiet" size="sm" iconRight="chevron-right" onClick={onPantry}>
+                {PET_CARD_UI.pantry}
+              </Button>
+            </div>
+          )}
+        </>
       )}
     </Section>
   );
-}
+});
 
-function Wardrobe({ pet, preview, onPreview, say, caption }: { pet: PetVM; preview: { slot: WearableSlot; id: string } | null; onPreview: (p: { slot: WearableSlot; id: string } | null) => void; say: (l: string) => void; caption: (c: 'newWear', slots: Record<string, string>) => string }) {
-  const firstWithItems = WEARABLE_SLOTS.find((sl) => pet.wardrobe[sl].length > 0) ?? 'head';
+const Wardrobe = memo(function Wardrobe({ petId, wardrobe, outfit, preview, onPreview, say, caption }: { petId: string; wardrobe: PetVM['wardrobe']; outfit: PetVM['outfit']; preview: { slot: WearableSlot; id: string } | null; onPreview: (p: { slot: WearableSlot; id: string } | null) => void; say: Say; caption: Caption }) {
+  const firstWithItems = WEARABLE_SLOTS.find((sl) => wardrobe[sl].length > 0) ?? 'head';
   const [slot, setSlot] = useState<WearableSlot>(firstWithItems);
-  const items = pet.wardrobe[slot];
-  const wearing = pet.outfit[slot];
-  const any = WEARABLE_SLOTS.some((sl) => pet.wardrobe[sl].length > 0);
+  const items = wardrobe[slot];
+  const wearing = outfit[slot];
+  const any = WEARABLE_SLOTS.some((sl) => wardrobe[sl].length > 0);
   const chosen = preview?.slot === slot ? preview.id : null;
   const putOn = () => {
     if (!chosen) return;
     const name = items.find((i) => i.id === chosen)?.name ?? '';
-    setOutfit(pet.id, slot, chosen);
+    setOutfit(petId, slot, chosen);
     onPreview(null);
     haptic('light');
     say(caption('newWear', { wear: name.toLowerCase() }));
   };
   return (
-    <Section title={PET_CARD.fields.wardrobe}>
+    <Section id="pc-wardrobe" title={PET_CARD.fields.wardrobe}>
       {!any ? (
         <p class={s.note}>{PET_CARD_UI.nothingToWear}</p>
       ) : (
@@ -376,7 +470,7 @@ function Wardrobe({ pet, preview, onPreview, say, caption }: { pet: PetVM; previ
                 variant="secondary"
                 size="sm"
                 onClick={() => {
-                  setOutfit(pet.id, slot, null);
+                  setOutfit(petId, slot, null);
                   haptic('tick');
                 }}
               >
@@ -388,38 +482,40 @@ function Wardrobe({ pet, preview, onPreview, say, caption }: { pet: PetVM; previ
       )}
     </Section>
   );
-}
+});
 
-function Where({ pet, places, out, capacity }: { pet: PetVM; places: ShelfVM['places']; out: ShelfVM['out']; capacity: number }) {
+type PlaceLite = { id: PlaceId; name: string; petsOut: number };
+
+const Where = memo(function Where({ petId, name, isOut, place, places, out, capacity }: { petId: string; name: string; isOut: boolean; place: PlaceId; places: PlaceLite[]; out: { id: string; place: PlaceId }[]; capacity: number }) {
   const [moving, setMoving] = useState(false);
-  const open = places.filter((p) => p.owned);
-  const room = (id: PlaceId) => id === 'sill' || out.filter((p) => p.place === id && p.id !== pet.id).length < (places.find((p) => p.id === id)?.petsOut ?? 0);
+  const room = (id: PlaceId) => id === 'sill' || out.filter((p) => p.place === id && p.id !== petId).length < (places.find((p) => p.id === id)?.petsOut ?? 0);
   const toggleOut = (on: boolean) => {
-    if (on === pet.out) return;
-    const was = pet.out;
-    togglePetOut(pet.id);
-    if (!was && !state.value.pets[pet.id]?.inMeadow) toast({ message: fillLine(PET_CARD_UI.noRoom, { count: capacity }), tone: 'butter', key: 'pet-out' });
+    if (on === isOut) return;
+    togglePetOut(petId);
+    if (!isOut && !state.value.pets[petId]?.inMeadow) toast({ message: fillLine(PET_CARD_UI.noRoom, { count: capacity }), tone: 'butter', key: 'pet-out' });
     else haptic('tick');
   };
   return (
-    <Section title={PET_CARD.fields.place}>
-      <p class={s.placeValue}>{pet.out ? PlacePhrase(pet.place) : PET_CARD_UI.indoors}</p>
-      {pet.out &&
+    <Section id="pc-place" title={PET_CARD.fields.place}>
+      {/* Out or indoors first: moving and choosing only apply to a pet that is out. */}
+      <Toggle checked={isOut} onChange={toggleOut} label={PET_CARD_UI.out} description={isOut ? undefined : fillLine(PET_CARD_UI.outHint, { name })} />
+      {isOut && <p class={s.placeValue}>{PlacePhrase(place)}</p>}
+      {isOut &&
         (moving ? (
-          <ul class={s.chips} aria-label={withName(PET_CARD.buttons.move, pet.name)}>
-            {open.map((p) => (
+          <ul class={s.chips} aria-label={withName(PET_CARD.buttons.move, name)}>
+            {places.map((p) => (
               <li key={p.id}>
                 <button
                   type="button"
                   class={s.chip}
-                  aria-current={p.id === pet.place ? 'true' : undefined}
-                  disabled={p.id !== pet.place && !room(p.id)}
+                  aria-current={p.id === place ? 'true' : undefined}
+                  disabled={p.id !== place && !room(p.id)}
                   onClick={() => {
                     setMoving(false);
-                    if (p.id === pet.place) return;
-                    if (setPetPlace(pet.id, p.id === 'sill' ? null : p.id)) {
+                    if (p.id === place) return;
+                    if (setPetPlace(petId, p.id === 'sill' ? null : p.id)) {
                       haptic('light');
-                      toast({ message: movedToPlaceLine(pet.name, p.id), tone: 'sage', key: `place-${pet.id}` });
+                      toast({ message: movedToPlaceLine(name, p.id), tone: 'sage', key: `place-${petId}` });
                     }
                   }}
                 >
@@ -430,50 +526,49 @@ function Where({ pet, places, out, capacity }: { pet: PetVM; places: ShelfVM['pl
           </ul>
         ) : (
           <div class={s.actions}>
-            {open.length > 1 && (
+            {places.length > 1 && (
               <Button variant="secondary" size="sm" onClick={() => setMoving(true)}>
-                {withName(PET_CARD.buttons.move, pet.name)}
+                {withName(PET_CARD.buttons.move, name)}
               </Button>
             )}
             <Button
               variant="quiet"
               size="sm"
               onClick={() => {
-                const r = letPetChoose(pet.id);
+                const r = letPetChoose(petId);
                 if (!r) return;
                 const h = r.habitId ? state.value.habits.find((x) => x.id === r.habitId) : null;
-                toast({ message: choseLine(pet.name, r, h ? { name: h.name, plant: h.plant } : null), tone: 'sage', key: `place-${pet.id}` });
+                toast({ message: choseLine(name, r, h ? { name: h.name, plant: h.plant } : null), tone: 'sage', key: `place-${petId}` });
               }}
             >
-              {withName(PET_CARD.buttons.letChoose, pet.name)}
+              {withName(PET_CARD.buttons.letChoose, name)}
             </Button>
           </div>
         ))}
-      <Toggle checked={pet.out} onChange={toggleOut} label={PET_CARD_UI.out} description={pet.out ? undefined : fillLine(PET_CARD_UI.outHint, { name: pet.name })} />
     </Section>
   );
-}
+});
 
-function Memories({ pet, habits }: { pet: PetVM; habits: HabitLite[] }) {
+const Memories = memo(function Memories({ memories, keepsakes, habits }: { memories: PetMemory[]; keepsakes: PetVM['keepsakes']; habits: HabitLite[] }) {
   return (
-    <Section title={PET_CARD.fields.memories}>
-      {pet.memories.length === 0 ? (
+    <Section id="pc-memories" title={PET_CARD.fields.memories}>
+      {memories.length === 0 ? (
         <p class={s.note}>{EMPTY.memories}</p>
       ) : (
         <ol class={s.memories}>
-          {pet.memories.map((m, i) => (
-            <li key={i}>{memoryLine(m, habits)}</li>
+          {memories.map((m) => (
+            <li key={`${m.kind}:${m.date}:${m.habitId ?? ''}`}>{memoryLine(m, habits)}</li>
           ))}
         </ol>
       )}
-      {pet.keepsakes.length > 0 && (
+      {keepsakes.length > 0 && (
         <>
           <h4 class={s.subTitle}>{PET_CARD_UI.keepsakes}</h4>
           <ul class={s.keepsakes}>
-            {pet.keepsakes.map((k) => (
+            {keepsakes.map((k) => (
               <li key={k.id}>
                 <span class={s.keepsakeArt} aria-hidden="true">
-                  <ObjectArt keepsake={k.kind} size={48} />
+                  <FitObject keepsake={k.kind} size={44} />
                 </span>
                 <span>{keepsakeCaption(k)}</span>
               </li>
@@ -483,7 +578,7 @@ function Memories({ pet, habits }: { pet: PetVM; habits: HabitLite[] }) {
       )}
     </Section>
   );
-}
+});
 
 /** The heart in the sheet's header: a favourite is sorted first everywhere. */
 export function FavouriteButton({ pet }: { pet: PetVM }) {
