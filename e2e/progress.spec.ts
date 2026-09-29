@@ -154,6 +154,12 @@ test.describe('journeys', () => {
     await expect(page.locator('[data-section="plants"]')).toBeVisible();
     const text = (await page.locator('main').innerText()).replace(/\s+/g, ' ');
     expect(text).not.toMatch(/\b0 (of|days|waterings)\b|streak|missed/i);
+    // The empty line is said once, and the "not yet" pins are four and a button, not a wall.
+    await expect(page.locator('[data-section="memory"]')).toBeVisible();
+    const full = (await page.locator('main').innerText()).replace(/\s+/g, ' ');
+    expect(full.match(/This fills in as you water\./g) ?? []).toHaveLength(1);
+    await expect(page.locator('[data-pin][data-earned="false"]')).toHaveCount(4);
+    await expect(page.locator('[data-more-pins]')).toHaveText(/^\d+ more pins$/);
     await page.waitForLoadState('networkidle');
     await expectNoAxeViolations(page, info);
     expect(errors, errors.join('\n')).toEqual([]);
