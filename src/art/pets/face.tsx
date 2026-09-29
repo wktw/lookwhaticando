@@ -1,124 +1,147 @@
-import type { ArtCtx } from './types';
-import { BLUSH, EYE, OUTLINE } from './geometry';
-
-/** One eye at (x, y) for the current expression. `side` mirrors asymmetric shapes. */
-export function Eye({ x, y, ctx, side, scale = 1 }: { x: number; y: number; ctx: ArtCtx; side: 'l' | 'r'; scale?: number }) {
-  const { iris } = ctx.look.palette;
-  const color = ctx.look.palette.eye ?? EYE;
-  const line = ctx.look.palette.ink ?? color;
-  const e = ctx.expression;
-  const idleEyes = e === 'idle' ? ctx.look.idleEyes : undefined;
-  const wink = e === 'wink' && side === 'r';
-  const s = scale;
-
-  if (e === 'happy' || e === 'eat' || wink || idleEyes === 'happy') {
-    return (
-      <path
-        d={`M${x - 3.6 * s} ${y + 1.4 * s} Q${x} ${y - 3.8 * s} ${x + 3.6 * s} ${y + 1.4 * s}`}
-        fill="none"
-        stroke={line}
-        stroke-width={2.3 * s}
-        stroke-linecap="round"
-      />
-    );
-  }
-  if (e === 'sleep') {
-    return (
-      <path
-        d={`M${x - 3.6 * s} ${y - 0.4 * s} Q${x} ${y + 3 * s} ${x + 3.6 * s} ${y - 0.4 * s}`}
-        fill="none"
-        stroke={line}
-        stroke-width={2.1 * s}
-        stroke-linecap="round"
-      />
-    );
-  }
-  if (e === 'love') {
-    // A plump heart with a highlight.
-    const k = 0.95 * s;
-    return (
-      <g transform={`translate(${x} ${y}) scale(${k})`}>
-        <path
-          d="M0 4.2 C-1.2 3.1 -5 0.6 -5 -1.8 C-5 -3.8 -3.4 -5 -2 -5 C-0.9 -5 -0.3 -4.4 0 -3.7 C0.3 -4.4 0.9 -5 2 -5 C3.4 -5 5 -3.8 5 -1.8 C5 0.6 1.2 3.1 0 4.2 Z"
-          fill="#F0607F"
-          stroke={OUTLINE}
-          stroke-width={1}
-          stroke-linejoin="round"
-        />
-        <circle cx={-2.2} cy={-2.6} r={0.95} fill="#fff" opacity={0.85} />
-      </g>
-    );
-  }
-  if (idleEyes === 'drowsy') {
-    // Heavy half-lids over the lower half of the eye.
-    return (
-      <g>
-        <path d={`M${x - 3.7 * s} ${y - 0.2 * s} A${3.7 * s} ${3.9 * s} 0 0 0 ${x + 3.7 * s} ${y - 0.2 * s} Z`} fill={iris ?? color} />
-        <circle cx={x + 1.3 * s} cy={y + 1.3 * s} r={0.9 * s} fill="#fff" />
-        <path
-          d={`M${x - 4.3 * s} ${y - 0.6 * s} Q${x} ${y + 0.6 * s} ${x + 4.3 * s} ${y - 0.6 * s}`}
-          fill="none"
-          stroke={line}
-          stroke-width={2.1 * s}
-          stroke-linecap="round"
-        />
-      </g>
-    );
-  }
-  const big = e === 'surprised' ? 1.25 : 1;
-  const rx = 3.7 * s * big;
-  const ry = 4.5 * s * big;
-  return (
-    <g>
-      <ellipse cx={x} cy={y} rx={rx} ry={ry} fill={iris ?? color} />
-      {iris && <ellipse cx={x} cy={y + 0.2 * s} rx={rx * 0.5} ry={ry * 0.78} fill={color} />}
-      <circle cx={x + 1.3 * s * big} cy={y - 1.7 * s * big} r={1.45 * s * big} fill="#fff" />
-      <circle cx={x - 1.3 * s * big} cy={y + 1.9 * s * big} r={0.6 * s * big} fill="#fff" opacity={0.7} />
-    </g>
-  );
-}
-
-/** Line color for mouths drawn straight on the fur (light on dark coats). */
-export const faceInk = (ctx: ArtCtx) => ctx.look.palette.ink ?? OUTLINE;
-
-/** Open, resting eyes blink now and then. */
-export const blinks = (ctx: ArtCtx) => (ctx.expression === 'idle' && !ctx.look.idleEyes) || ctx.expression === 'surprised';
-
-/** Default eyes at the species' eye anchors, in a group that blinks when idle. */
-export function DefaultEyes({ ctx }: { ctx: ArtCtx }) {
-  const { eyes } = ctx.anchors;
-  return (
-    <g class={blinks(ctx) ? 'pet-blink' : undefined}>
-      <Eye x={eyes.left} y={eyes.y} ctx={ctx} side="l" />
-      <Eye x={eyes.right} y={eyes.y} ctx={ctx} side="r" />
-    </g>
-  );
-}
+import type { JSX } from 'preact';
+import { BLUSH, TONGUE, type Tones } from './palette';
+import type { CanonicalExpression } from './types';
+import type { LitKey } from './rig';
+import { fmt } from './shape';
 
 /**
- * Rosy cheeks at the species' cheek anchors. `dy`/`spread` (offsets from the eyes) apply only to
- * species without cheek anchors; `opacity` overrides the species' blush strength.
+ * Faces (DESIGN §10.4): solid graphite dot eyes (an iris for breeds known by their eyes), a pale
+ * ring on dark coats, a catchlight toward the window at larger sizes. Closed eyes and whiskers
+ * are the only strokes (`pet-line`). Mouths appear only for a yawn, a blep or chewing.
  */
-export function Blush({ ctx, dy = 6.5, spread = 7.5, opacity }: { ctx: ArtCtx; dy?: number; spread?: number; opacity?: number }) {
-  const { eyes, cheeks } = ctx.anchors;
-  const c = cheeks ?? { y: eyes.y + dy, left: eyes.left - spread, right: eyes.right + spread };
-  const k = c.size ?? 1;
-  const base = opacity ?? cheeks?.opacity ?? 0.55;
-  const strong = ctx.expression === 'love' || ctx.expression === 'happy';
+
+export interface FaceCtx {
+  tones: Tones;
+  expr: CanonicalExpression;
+  /** The eyes are shut whatever the expression (sleep pose, small sizes). */
+  closed: boolean;
+  /** ≥ 48 px: catchlights, whiskers, inner ears. */
+  full: boolean;
+  lit: LitKey;
+  /** Cats have slit pupils when they have an iris. */
+  slit?: boolean;
+  /** Idle life is on: the slow blink plays in CSS instead of holding half-closed. */
+  animated?: boolean;
+}
+
+const CATCH: Record<LitKey, [number, number]> = { left: [-0.36, -0.4], top: [0, -0.46], right: [0.36, -0.4] };
+
+type EyeState = 'open' | 'closed' | 'happy';
+
+export function eyeState(f: FaceCtx): EyeState {
+  if (f.closed || f.expr === 'sleep' || f.expr === 'yawn') return 'closed';
+  if (f.expr === 'happy') return 'happy';
+  return 'open';
+}
+
+/** Two eyes. `left` and `right` are x positions in the head frame; `y2` and `r2` for eyes that are not level. */
+export function Eyes({ f, y, y2 = y, left, right, r, r2 = r }: { f: FaceCtx; y: number; y2?: number; left: number; right: number; r: number; r2?: number }) {
+  const state = eyeState(f);
+  const t = f.tones;
+  const w = fmt(Math.max(0.9, r * 0.6));
+  if (state !== 'open') {
+    const up = state === 'happy';
+    const arc = (x: number, y: number, r: number) =>
+      up
+        ? `M${fmt(x - r * 1.05)} ${fmt(y + r * 0.35)}Q${fmt(x)} ${fmt(y - r * 1.25)} ${fmt(x + r * 1.05)} ${fmt(y + r * 0.35)}`
+        : `M${fmt(x - r * 1.05)} ${fmt(y - r * 0.1)}Q${fmt(x)} ${fmt(y + r * 0.95)} ${fmt(x + r * 1.05)} ${fmt(y - r * 0.1)}`;
+    return <path class="pet-line" d={arc(left, y, r) + arc(right, y2, r2)} fill="none" stroke={t.line} stroke-width={w} stroke-linecap="round" />;
+  }
+  if (f.expr === 'blink' && !f.animated) {
+    // A still slow blink: the lids halfway down, the lower half of each eye showing.
+    const half = (x: number, y: number, rr: number) => `M${fmt(x - rr * 1.1)} ${fmt(y - rr * 0.1)}Q${fmt(x)} ${fmt(y + rr * 1.5)} ${fmt(x + rr * 1.1)} ${fmt(y - rr * 0.1)}Z`;
+    return (
+      <g>
+        {t.ring && <path d={half(left, y, r * 1.4) + half(right, y2, r2 * 1.4)} fill={t.ring} />}
+        <path d={half(left, y, r) + half(right, y2, r2)} fill={t.eye ?? t.ink} />
+      </g>
+    );
+  }
+  const k = f.expr === 'surprised' ? 1.16 : 1;
+  const [cx, cy] = CATCH[f.lit];
+  const one = (x: number, y: number, rr: number, iris: string | null, key: string) => (
+    <g key={key}>
+      {t.ring && <circle cx={x} cy={y} r={fmt(rr * (iris ? 1.5 : 1.36))} fill={t.ring} />}
+      {iris ? (
+        <>
+          <circle cx={x} cy={y} r={fmt(rr * 1.2)} fill={iris} />
+          {f.slit ? (
+            <ellipse cx={x} cy={y} rx={fmt(rr * 0.38)} ry={fmt(rr * 0.98)} fill={t.ink} />
+          ) : (
+            <circle cx={x} cy={y} r={fmt(rr * 0.62)} fill={t.ink} />
+          )}
+        </>
+      ) : (
+        <circle cx={x} cy={y} r={fmt(rr)} fill={t.ink} />
+      )}
+      {f.full && <circle cx={fmt(x + cx * rr)} cy={fmt(y + cy * rr)} r={fmt(rr * 0.33)} fill="#FFFDF8" />}
+    </g>
+  );
+  // The blink squashes both eyes toward the eye line (pet.css); the slow blink holds it.
+  const mid = (y + y2) / 2;
   return (
-    <g opacity={strong ? Math.min(1, base + 0.2) : base}>
-      <ellipse cx={c.left} cy={c.y} rx={5 * k} ry={2.9 * k} fill={BLUSH} />
-      <ellipse cx={c.right} cy={c.y} rx={5 * k} ry={2.9 * k} fill={BLUSH} />
+    <g transform={`translate(0 ${fmt(mid)})`}>
+      <g class={f.expr === 'blink' ? 'pet-slowblink' : 'pet-blink'}>
+        <g transform={`translate(0 ${fmt(-mid)})`}>
+          {one(left, y, r * k, t.eye, 'l')}
+          {one(right, y2, r2 * k, t.eye2, 'r')}
+        </g>
+      </g>
     </g>
   );
 }
 
-/** A small open mouth used by several species for eat/surprised/happy. */
-export function OpenMouth({ x, y, w = 5.2, h = 4.2 }: { x: number; y: number; w?: number; h?: number }) {
+/** Blush appears only as a reaction (happy). */
+export function Blush({ f, y, left, right, rx = 3.2, ry = 1.9, opacity = 0.7 }: { f: FaceCtx; y: number; left: number; right: number; rx?: number; ry?: number; opacity?: number }) {
+  if (f.expr !== 'happy') return null;
   return (
-    <g>
-      <path d={`M${x - w / 2} ${y} Q${x} ${y + h * 1.5} ${x + w / 2} ${y} Z`} fill="#C75B73" stroke={OUTLINE} stroke-width={1.5} stroke-linejoin="round" />
-      <path d={`M${x - w / 4} ${y + h * 0.75} Q${x} ${y + h * 0.35} ${x + w / 4} ${y + h * 0.75}`} fill="#FF9FB8" />
+    <g fill={BLUSH} opacity={opacity}>
+      <ellipse cx={left} cy={y} rx={rx} ry={ry} />
+      <ellipse cx={right} cy={y} rx={rx} ry={ry} />
     </g>
+  );
+}
+
+/** A small mouth for a yawn, a tongue tip for a blep, a moving jaw line for chewing. */
+export function Mouth({ f, x, y, s = 1 }: { f: FaceCtx; x: number; y: number; s?: number }): JSX.Element | null {
+  const t = f.tones;
+  if (f.expr === 'yawn') {
+    return (
+      <g transform={`translate(${fmt(x)} ${fmt(y)}) scale(${fmt(s)})`}>
+        <path d="M-2.3 0.4C-2.3 -1 2.3 -1 2.3 0.4C2.3 3.4 1.2 4.8 0 4.8C-1.2 4.8 -2.3 3.4 -2.3 0.4Z" fill="#7C4854" />
+        <path d="M-1.5 3.2C-0.8 2.5 0.8 2.5 1.5 3.2C1.1 4.3 0.6 4.7 0 4.7C-0.6 4.7 -1.1 4.3 -1.5 3.2Z" fill={TONGUE} />
+      </g>
+    );
+  }
+  if (f.expr === 'blep') {
+    return <path transform={`translate(${fmt(x)} ${fmt(y)}) scale(${fmt(s)})`} d="M-1.3 0C-1.3 1.9 -0.7 2.8 0 2.8C0.7 2.8 1.3 1.9 1.3 0Z" fill={TONGUE} />;
+  }
+  if (f.expr === 'chew') {
+    return (
+      <g transform={`translate(${fmt(x)} ${fmt(y)}) scale(${fmt(s)})`}>
+        <g class="pet-chew">
+          <path class="pet-line" d="M-1.6 0.6Q0 1.6 1.6 0.6" fill="none" stroke={t.line} stroke-width="0.9" stroke-linecap="round" />
+        </g>
+      </g>
+    );
+  }
+  return null;
+}
+
+/** Three whiskers a side, thin graphite, only at full detail. */
+export function Whiskers({ f, left, right, y, len = 9, spread = 3 }: { f: FaceCtx; left: number; right: number; y: number; len?: number; spread?: number }) {
+  if (!f.full) return null;
+  const side = (x0: number, dir: number) =>
+    [-1, 0, 1].map((k) => `M${fmt(x0)} ${fmt(y + k * 1.1)}L${fmt(x0 + dir * len)} ${fmt(y + k * spread - 1.4)}`).join('');
+  return (
+    <path
+      class="pet-line"
+      d={side(right, 1) + side(left, -1)}
+      fill="none"
+      stroke={f.tones.dark ? f.tones.line : f.tones.ink}
+      stroke-opacity={f.tones.dark ? 0.55 : 0.5}
+      stroke-width="0.7"
+      stroke-linecap="round"
+    />
   );
 }

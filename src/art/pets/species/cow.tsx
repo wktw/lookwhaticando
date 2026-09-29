@@ -1,151 +1,163 @@
-import type { ArtCtx, SpeciesArt } from '../types';
-import { OUTLINE, STROKE } from '../geometry';
-import { lighten, shade } from '../color';
-import { OpenMouth } from '../face';
-import { hasTrait, MIRROR, OutlinedStroke, rim } from './parts';
+import { COW_PARTS, COW_RIG, COW_SPRITE } from './cow.rig';
+import type { DrawCtx, SpeciesArt, SpriteCtx } from './art';
+import { Blush, Eyes, Mouth } from '../face';
+import { TONGUE } from '../palette';
+import { blotch, dots, star } from './marks';
+import { ellipse, rrect } from '../shape';
 
-const HORN = '#FFF1C9';
+/**
+ * Cows: horns and a pale muzzle always (they read at 32 px), ears out to the side, a nose-lick
+ * for happy (DESIGN §10.4), cud for chewing.
+ */
 
-/** A Highland's long horn, sweeping out past the head and curling up (left side). */
-function LongHorn({ color }: { color: string }) {
+function ears(c: DrawCtx) {
+  const t = c.tones;
+  const up = c.face.expr === 'happy' || c.face.expr === 'surprised';
+  const big = c.trait('long-ears');
+  const L = big ? COW_PARTS.earBigL : up ? COW_PARTS.earUpL : COW_PARTS.earL;
+  const R = big ? COW_PARTS.earBigR : up ? COW_PARTS.earUpR : COW_PARTS.earR;
+  const inner = c.face.full && !c.silhouette;
+  const earCol = c.has('holstein') || c.has('stars') ? t.mark : t.ear;
   return (
     <g>
-      <path
-        d="M36.4 34.2 C29.6 34.6 21.6 33.6 16.4 29.6 C13.2 27 11.6 22.6 12.4 18.4 C15 21.4 17.8 24.2 21.6 25.6 C26.6 27.4 32 28 37.4 28.4 Z"
-        fill={color}
-        stroke={OUTLINE}
-        stroke-width={STROKE * 0.9}
-        stroke-linejoin="round"
-      />
-      <path d="M17.6 26.4 C19.8 28.4 23 29.6 26.4 30" fill="none" stroke="#fff" stroke-width={1.2} stroke-linecap="round" opacity={0.75} />
-    </g>
-  );
-}
-
-/** Short rounded horn on the top-left of the head; its base follows the head curve. */
-function Horn({ ctx, mirror }: { ctx: ArtCtx; mirror?: boolean }) {
-  const color = ctx.look.palette.accent ?? HORN;
-  if (hasTrait(ctx, 'long-horns')) {
-    return (
-      <g transform={mirror ? MIRROR : undefined}>
-        <LongHorn color={color} />
-      </g>
-    );
-  }
-  return (
-    <g transform={mirror ? MIRROR : undefined}>
-      <path
-        d="M33.6 34.4 C31.9 31.8 31 29 31.3 26.4 C31.6 23.7 34.5 22.9 36.5 24.4 C38.7 26 40.3 28.4 41.3 30.9 C38.6 31.6 35.9 32.8 33.6 34.4 Z"
-        fill={color}
-        stroke={OUTLINE}
-        stroke-width={STROKE * 0.9}
-        stroke-linejoin="round"
-      />
-      <path d="M33 27.6 C33.2 26.4 33.9 25.6 34.8 25.6" fill="none" stroke="#fff" stroke-width={1.2} stroke-linecap="round" opacity={0.8} />
-    </g>
-  );
-}
-
-const SIDE_EAR = 'M21 40.5 C14.5 38.4 6.8 39.6 4.6 44.2 C3.2 47.4 6.2 50.6 11 51.2 C14.8 51.7 18.4 51 21.4 49.8';
-
-/** Soft floppy side ear with a pink inner, tucked behind the head. */
-function SideEar({ ctx, mirror }: { ctx: ArtCtx; mirror?: boolean }) {
-  const p = ctx.look.palette;
-  return (
-    <g transform={mirror ? MIRROR : undefined}>
-      <g class={mirror ? 'pet-ear-r' : 'pet-ear-l'} style={{ '--ear-origin': '19px 45px' }}>
-        <path d={SIDE_EAR} {...rim()} />
-        <path
-          d={SIDE_EAR}
-          fill={p.ear ?? p.body}
-          stroke={OUTLINE}
-          stroke-width={STROKE}
-          stroke-linejoin="round"
-          stroke-linecap="round"
-        />
-        <path d="M19 43 C15 41.8 10.2 42.4 8.6 44.8 C7.6 46.6 9.8 48.4 13 48.6 C15.4 48.8 17.6 48.2 19.4 47.4 Z" fill={p.earInner} />
-      </g>
-    </g>
-  );
-}
-
-export const cow: SpeciesArt = {
-  back: (ctx) => (
-    <g>
-      <SideEar ctx={ctx} />
-      <SideEar ctx={ctx} mirror />
-    </g>
-  ),
-  tail: (ctx) => {
-    const p = ctx.look.palette;
-    const tuft = p.pattern ?? shade(p.body, 0.25);
-    return (
-      <g class="pet-tail" style={{ '--tail-origin': '80px 86px' }}>
-        <OutlinedStroke d="M78 87 C85 87.5 89 83 89.5 76 C89.8 72 90.5 69.5 91.5 68" color={p.tail ?? p.body} width={3.2} rimmed />
-        <path
-          d="M91.5 70.2 C88.6 69.2 88.3 65.4 90.4 62.8 C91.3 61.7 92.1 60.8 92.5 59.4 C94.6 61.8 95.9 65 94.9 67.7 C94.3 69.3 93 70.4 91.5 70.2 Z"
-          fill={tuft}
-          stroke={OUTLINE}
-          stroke-width={STROKE * 0.8}
-          stroke-linejoin="round"
-        />
-      </g>
-    );
-  },
-  ears: (ctx) => (
-    <g>
-      <Horn ctx={ctx} />
-      <Horn ctx={ctx} mirror />
-    </g>
-  ),
-  overlay: (ctx) => {
-    const p = ctx.look.palette;
-    const { x, y } = ctx.anchors.mouth;
-    return <ellipse cx={x} cy={y + 0.4} rx={15.6} ry={9.2} fill={p.muzzle ?? lighten(p.body, 0.6)} stroke={OUTLINE} stroke-width={STROKE * 0.66} />;
-  },
-  mouth: (ctx) => {
-    const { x, y } = ctx.anchors.mouth;
-    const nostril = ctx.look.palette.nose;
-    const e = ctx.expression;
-    const nostrils = (
-      <g fill={nostril}>
-        <ellipse cx={x - 5} cy={y - 2.4} rx={1.5} ry={2.1} transform={`rotate(-12 ${x - 5} ${y - 2.4})`} />
-        <ellipse cx={x + 5} cy={y - 2.4} rx={1.5} ry={2.1} transform={`rotate(12 ${x + 5} ${y - 2.4})`} />
-      </g>
-    );
-    const my = y + 3.2;
-    let mouth;
-    if (e === 'eat' || e === 'surprised') {
-      mouth = <OpenMouth x={x} y={my - 0.6} w={e === 'surprised' ? 4 : 5.6} h={e === 'surprised' ? 4.4 : 3.6} />;
-    } else if (e === 'happy' || e === 'love' || e === 'wink') {
-      mouth = (
-        <g>
-          <path
-            d={`M${x - 4} ${my - 0.8} Q${x} ${my + 4.6} ${x + 4} ${my - 0.8} Z`}
-            fill="#C75B73"
-            stroke={OUTLINE}
-            stroke-width={1.5}
-            stroke-linejoin="round"
-          />
-          <path d={`M${x - 1.8} ${my + 2.2} Q${x} ${my + 0.8} ${x + 1.8} ${my + 2.2} Q${x} ${my + 3.4} ${x - 1.8} ${my + 2.2} Z`} fill="#FF9FB8" />
+      {c.trait('long-horns') ? (
+        <g fill={t.horn}>
+          <path d={COW_PARTS.longHornL} />
+          <path d={COW_PARTS.longHornR} />
         </g>
-      );
-    } else {
-      mouth = (
-        <path
-          d={e === 'sleep' ? `M${x - 2.4} ${my} Q${x} ${my + 1.4} ${x + 2.4} ${my}` : `M${x - 3} ${my - 0.4} Q${x} ${my + 2.8} ${x + 3} ${my - 0.4}`}
-          fill="none"
-          stroke={OUTLINE}
-          stroke-width={1.6}
-          stroke-linecap="round"
-        />
-      );
-    }
-    return (
-      <g>
-        {nostrils}
-        {mouth}
+      ) : (
+        <g fill={t.horn}>
+          <path d={COW_PARTS.hornL} />
+          <path d={COW_PARTS.hornR} />
+        </g>
+      )}
+      <g transform="translate(-12.5 -5.5)">
+        <g class={c.animated ? 'pet-earflick' : undefined}>
+          <g transform="translate(12.5 5.5)">
+            <path d={L} fill={earCol} />
+            {inner && <path d={COW_PARTS.earInL} fill={t.earIn} />}
+          </g>
+        </g>
       </g>
-    );
+      <path d={R} fill={earCol} />
+      {inner && <path d={COW_PARTS.earInR} fill={t.earIn} />}
+    </g>
+  );
+}
+
+const MUZ_X = 1.4;
+
+function face(c: DrawCtx) {
+  const f = c.face;
+  const t = c.tones;
+  const a = COW_RIG.head;
+  const fringe = c.trait('fringe');
+  return (
+    <g>
+      {c.has('ring') && <path d={rrect(-14.8, 2.2, 32.4, 17.6, 8.8)} fill={t.under} />}
+      <path d={COW_PARTS.muzzle} fill={t.muzzle} />
+      <g fill={t.dark ? t.ink : t.nose} opacity={0.85}>
+        <ellipse cx={MUZ_X - 5.8} cy={10.6} rx={1.35} ry={1.7} />
+        <ellipse cx={MUZ_X + 5.8} cy={10.6} rx={1.35} ry={1.7} />
+      </g>
+      {fringe ? (
+        <path d={COW_PARTS.fringe} fill={t.mark} />
+      ) : (
+        <>
+          <Blush f={f} y={3.8} left={-10.4} right={12.6} rx={2.8} ry={1.6} />
+          <Eyes f={f} y={a.eyes.y} left={a.eyes.left} right={a.eyes.right} r={a.eyes.r} />
+        </>
+      )}
+      {fringe && <Blush f={f} y={4} left={-10.4} right={12.6} rx={2.8} ry={1.6} />}
+      {f.expr === 'happy' && !f.closed && <path d="M1.6 18.4C5.4 18.2 8.6 16 8.4 12.2C8.3 10.5 6.1 10.4 5.9 12C5.6 14.4 4.2 15.8 1.2 16.2Z" fill={TONGUE} />}
+      <Mouth f={f} x={MUZ_X} y={f.expr === 'yawn' ? 13.6 : f.expr === 'blep' ? 17.4 : 16.4} s={f.expr === 'yawn' ? 1.3 : 1.1} />
+    </g>
+  );
+}
+
+const marks: SpeciesArt['marks'] = {
+  holstein: {
+    body: (c) => (
+      <g fill={c.tones.mark}>
+        <path d={blotch(46, 14, 30, 64, 0.3)} />
+        <path d={blotch(-2, 26, 30, 96, -0.2)} />
+        <path d={blotch(80, 68, 14, 34, 0.8)} />
+      </g>
+    ),
+    head: (c) => <path d="M-5 -18C-13 -19 -18 -12 -16.4 -3.4C-12.6 -5.2 -8.6 -7.8 -5.6 -10C-3.8 -12.4 -3.6 -16 -5 -18Z" fill={c.tones.mark} />,
+  },
+  stars: {
+    body: (c) => (
+      <g>
+        <g fill={c.tones.mark}>
+          <path d={blotch(46, 14, 32, 64, 0.3)} />
+          <path d={blotch(-2, 26, 30, 96, -0.2)} />
+          <path d={blotch(80, 68, 14, 34, 0.8)} />
+        </g>
+        <g fill={c.tones.mark2}>
+          <path d={star(42, 10, 2.4)} />
+          <path d={star(52, 26, 1.6)} />
+          <path d={star(38, 34, 1.3)} />
+          <path d={star(4, 20, 2)} />
+          <path d={star(8, 50, 1.4)} />
+          <path d={dots(34, 0, 26, 40, 5, 0.6, 7.7, 1)} />
+          <path d={dots(-6, 10, 16, 60, 4, 0.6, 3.1, 1)} />
+        </g>
+      </g>
+    ),
+    head: (c) => (
+      <g>
+        <path d="M-5 -18C-13 -19 -18 -12 -16.4 -3.4C-12.6 -5.2 -8.6 -7.8 -5.6 -10C-3.8 -12.4 -3.6 -16 -5 -18Z" fill={c.tones.mark} />
+        <path d={star(-11, -9, 1.3)} fill={c.tones.mark2} />
+      </g>
+    ),
+  },
+  belt: {
+    body: (c) => <path d="M36 -10H62V110H36Z" fill={c.tones.under} />,
+  },
+  roan: {
+    body: (c) => <path d={dots(0, 0, 100, 100, 46, 1.6, 2.2)} fill={c.tones.mark} />,
+    head: (c) => <path d={dots(-14, -15, 28, 18, 12, 0.9, 4.4)} fill={c.tones.mark} />,
+  },
+  whiteface: {
+    body: (c) => (
+      <g fill={c.tones.under}>
+        <path d="M60 78C74 70 92 72 110 80V110H56Z" />
+        <path d="M88 -10C96 -8 104 0 110 4V30C102 22 94 12 88 -10Z" />
+      </g>
+    ),
+  },
+  ring: {},
+  shag: {
+    body: (c) => <path d={[4, 16, 28, 40, 52, 64, 76, 88, 100].map((u) => ellipse(u, 98, 7.4, 9)).join('')} fill={c.tones.mark} />,
+  },
+  belly: {
+    body: (c) => <path d="M10 82C40 74 70 74 104 82V110H10Z" fill={c.tones.under} />,
   },
 };
+
+function sprite({ tones: t, has }: SpriteCtx) {
+  return (
+    <g transform="translate(4 0)">
+      <path d={COW_SPRITE.body} fill={t.far} />
+      {has('belt') && <path d="M58 46H70V76H58Z" fill={t.under} />}
+      {has('holstein') && <path d={ellipse(70, 56, 9, 7)} fill={t.mark} />}
+      <path d={COW_SPRITE.head} fill={t.head} />
+      <path d="M17 24C12 17 20 13 21 20ZM37 24C42 17 34 13 33 20Z" fill={t.horn} />
+      <path d={COW_SPRITE.muzzle} fill={t.muzzle} />
+      {COW_SPRITE.eyes.map((d, i) => (
+        <path key={i} d={d} fill={t.dark ? t.ring ?? t.ink : t.ink} />
+      ))}
+    </g>
+  );
+}
+
+export const COW_ART: SpeciesArt = {
+  species: 'cow',
+  rigFor: () => ({ id: 'cow', rig: COW_RIG }),
+  ears,
+  face,
+  marks,
+  sprite,
+};
+

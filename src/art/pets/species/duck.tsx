@@ -1,119 +1,99 @@
-import type { ArtCtx, SpeciesArt } from '../types';
-import { OUTLINE, STROKE } from '../geometry';
-import { shade } from '../color';
-import { MIRROR } from './parts';
+import { DUCK_PARTS, DUCK_RIG, DUCK_RUNNER_RIG, DUCK_WING, WING_FOR } from './duck.rig';
+import type { DrawCtx, SpeciesArt, SpriteCtx } from './art';
+import { Blush, Eyes, Mouth } from '../face';
+import { blotch } from './marks';
+import { ellipse, scallop, tube } from '../shape';
+import { mix } from '../palette';
 
-const BILL = '#FFB877';
+/** Ducks: the bill is the cue. A folded wing on the near side; a Mallard's hood and ring. */
 
-/** Little wing nub resting on the side of the body. */
-function Wing({ ctx, mirror }: { ctx: ArtCtx; mirror?: boolean }) {
-  const p = ctx.look.palette;
+function overHead(c: DrawCtx) {
+  if (!c.trait('crest')) return null;
+  return <path d={scallop(0, -12.6, 7.4, 6.4, 8, 0.14)} fill={c.tones.head} />;
+}
+
+function face(c: DrawCtx) {
+  const f = c.face;
+  const t = c.tones;
+  const a = DUCK_RIG.head;
+  if (c.pose === 'sleep') {
+    return <Eyes f={f} y={a.eyes.y} left={a.eyes.left} right={a.eyes.right} r={a.eyes.r} />;
+  }
+  const open = f.expr === 'yawn';
   return (
-    <g transform={mirror ? MIRROR : undefined}>
-      <path
-        d="M22.4 66.2 C17.6 68.4 15.2 74.4 16.4 80.6 C16.8 82.4 18.6 83 20.2 82.2 C23.8 80.2 26.4 75.6 26.6 71 C26.7 68.6 25 66.4 22.4 66.2 Z"
-        fill={shade(p.body, 0.08)}
-        stroke={OUTLINE}
-        stroke-width={STROKE * 0.85}
-        stroke-linejoin="round"
-      />
+    <g>
+      <Blush f={f} y={3.4} left={-5.6} right={9.4} rx={2.4} ry={1.4} />
+      <Eyes f={f} y={a.eyes.y} left={a.eyes.left} right={a.eyes.right} r={a.eyes.r} />
+      {open && <path d="M9 5.4C13 5.6 17 7.6 19 10C15 11.2 11 10.2 8.6 7.4Z" fill={mix(t.bill, '#7C4854', 0.3)} />}
+      <path d={DUCK_PARTS.bill} fill={t.bill} transform={open ? 'rotate(-8 9 4)' : undefined} />
+      {f.full && !open && <path class="pet-line" d={DUCK_PARTS.billLine} fill="none" stroke={mix(t.bill, '#7C4854', 0.45)} stroke-width="0.6" stroke-linecap="round" />}
+      {f.expr === 'blep' && <Mouth f={f} x={15} y={6.6} s={0.8} />}
     </g>
   );
 }
 
-export const duck: SpeciesArt = {
-  // Three-feather tuft, tucked behind the top of the head.
-  back: (ctx) => {
-    const p = ctx.look.palette;
-    return (
-      <g class="pet-tuft" fill={p.pattern ?? p.body} stroke={OUTLINE} stroke-width={STROKE * 0.85} stroke-linejoin="round">
-        <path d="M44.2 33 C41.6 30.6 40.4 27.6 40.8 24.8 C43.6 25.8 45.8 28.2 47 31.2 Z" />
-        <path d="M55.8 33 C58.4 30.6 59.6 27.6 59.2 24.8 C56.4 25.8 54.2 28.2 53 31.2 Z" />
-        <path d="M47.6 32.4 C46.6 27.6 47.6 23 50.6 20 C52.4 23.6 52.8 28.2 52.2 32.4 Z" />
+const marks: SpeciesArt['marks'] = {
+  mallard: {
+    body: (c) => <path d={blotch(94, 66, 34, 56, 0)} fill={c.tones.mark} />,
+  },
+  mandarin: {
+    body: (c) => <path d={blotch(94, 60, 30, 52, 0)} fill={c.tones.mark} />,
+    head: (c) => (
+      <g>
+        <path d="M-12 -2C-8 -8 0 -8.6 6.4 -5.2C4 -3 0 -3.4 -3 -2.6C-6 -1.8 -9 0 -12 -2Z" fill={c.tones.under} />
+        <path d="M-6 2C-2 3 4 5 8 8C6 11.4 0 12.4 -6 11C-8 8 -8 4 -6 2Z" fill={c.tones.point} />
       </g>
-    );
+    ),
   },
-  tail: (ctx) => {
-    const p = ctx.look.palette;
-    return (
-      <path
-        class="pet-tail"
-        style={{ '--tail-origin': '84px 86px' }}
-        d="M80 85 C84.6 83.8 88.2 80.6 90.4 75.8 C91.6 78.6 91 82 89.4 84.2 C91 84.4 92.4 84 93.6 83.2 C92.4 87.6 88.2 90.6 81.6 90.8 Z"
-        fill={p.tail ?? p.body}
-        stroke={OUTLINE}
-        stroke-width={STROKE * 0.9}
-        stroke-linejoin="round"
-      />
-    );
+  sheen: {
+    head: (c) => <path d={ellipse(-3, -3, 7, 5.4)} fill={c.tones.mark} opacity={0.55} />,
   },
-  feet: (ctx) => {
-    const p = ctx.look.palette;
-    const fill = p.feet ?? p.accent ?? BILL;
-    const foot = (cx: number) => (
-      <g key={cx}>
-        <path
-          d={`M${cx - 7.4} ${92.4} C${cx - 7.4} ${89.6} ${cx + 7.4} ${89.6} ${cx + 7.4} ${92.4} C${cx + 7.4} ${94.6} ${cx + 5} ${95.4} ${cx + 3.6} ${94.6} C${cx + 2.4} ${95.6} ${cx + 1} ${95.6} ${cx} ${94.8} C${cx - 1} ${95.6} ${cx - 2.4} ${95.6} ${cx - 3.6} ${94.6} C${cx - 5} ${95.4} ${cx - 7.4} ${94.6} ${cx - 7.4} ${92.4} Z`}
-          fill={fill}
-          stroke={OUTLINE}
-          stroke-width={STROKE * 0.85}
-          stroke-linejoin="round"
-        />
-      </g>
-    );
-    return <g>{[38.5, 61.5].map(foot)}</g>;
+  speculum: {},
+  belly: {
+    body: (c) => <path d={blotch(80, 84, 60, 44, 0)} fill={c.tones.under} />,
   },
-  front: (ctx) => (
+};
+
+/** The folded wing, with a Mallard's blue flash or a Mandarin's sail. */
+function overBody(c: DrawCtx) {
+  const t = c.tones;
+  const upright = c.trait('upright') && c.pose !== 'loaf' && c.pose !== 'sleep';
+  const key = upright ? 'runner' : WING_FOR[c.pose];
+  const wing = DUCK_WING[key]!;
+  const col = c.has('mallard') || c.has('mandarin') ? t.mark2 : c.has('sheen') ? mix(t.coat, '#2E4A3A', 0.4) : t.far;
+  const flash = c.has('speculum') || c.has('mallard');
+  const n = c.p.neck;
+  return (
     <g>
-      <Wing ctx={ctx} />
-      <Wing ctx={ctx} mirror />
+      {c.has('mandarin') && (
+        <path d={tube([[n.x - 12, n.y + 16], [n.x - 14, n.y + 8]], 7, 4)} fill={t.point} />
+      )}
+      <path d={wing} fill={col} />
+      {flash && <path d={key === 'tall' ? 'M40 78C45 76 51 77 55 79.6C51 81.6 45 82 40 80.6Z' : key === 'runner' ? 'M45 76C49 75 53 75.6 56.4 77.4C53 79 49 79.4 45 78.6Z' : key === 'nest' ? 'M34 84C40 82 48 82 54 84C48 86 40 86.6 34 85.6Z' : 'M30 75C36 73 44 73 50 75C44 77 36 77.6 30 76.6Z'} fill={t.point} />}
+      {c.has('mallard') && <path d={tube([[n.x - n.w, n.y + 1], [n.x + n.w, n.y + 1]], 2.2, 2.2)} fill="#FBF7F0" />}
     </g>
-  ),
-  mouth: (ctx) => {
-    const { x, y } = ctx.anchors.mouth;
-    const bill = ctx.look.palette.accent ?? BILL;
-    const e = ctx.expression;
-    const open = e === 'happy' || e === 'love' || e === 'eat' || e === 'surprised';
-    const w = 7.4;
-    if (open) {
-      const drop = e === 'surprised' ? 6.2 : e === 'eat' ? 4.6 : 5.4;
-      return (
-        <g stroke={OUTLINE} stroke-width={1.6} stroke-linejoin="round">
-          <path
-            d={`M${x - w + 0.6} ${y + 0.4} C${x - w + 1} ${y + drop + 1.6} ${x + w - 1} ${y + drop + 1.6} ${x + w - 0.6} ${y + 0.4} Z`}
-            fill={shade(bill, 0.1)}
-          />
-          <path d={`M${x - w + 2} ${y + 0.8} C${x - w + 2.6} ${y + drop} ${x + w - 2.6} ${y + drop} ${x + w - 2} ${y + 0.8} Z`} fill="#C75B73" stroke="none" />
-          <path d={`M${x - 2.4} ${y + drop - 0.6} Q${x} ${y + drop - 2.2} ${x + 2.4} ${y + drop - 0.6}`} fill="#FF9FB8" stroke="none" />
-          <path
-            d={`M${x - w} ${y - 0.4} C${x - w} ${y - 3.8} ${x + w} ${y - 3.8} ${x + w} ${y - 0.4} C${x + w} ${y + 1.6} ${x + 3} ${y + 2.2} ${x} ${y + 2.2} C${x - 3} ${y + 2.2} ${x - w} ${y + 1.6} ${x - w} ${y - 0.4} Z`}
-            fill={bill}
-          />
-          <g fill={OUTLINE} stroke="none" opacity={0.5}>
-            <ellipse cx={x - 2.2} cy={y - 1.4} rx={0.7} ry={0.5} />
-            <ellipse cx={x + 2.2} cy={y - 1.4} rx={0.7} ry={0.5} />
-          </g>
-        </g>
-      );
-    }
-    return (
-      <g stroke={OUTLINE} stroke-width={1.6} stroke-linejoin="round">
-        <path
-          d={`M${x - w} ${y} C${x - w} ${y - 3.6} ${x + w} ${y - 3.6} ${x + w} ${y} C${x + w} ${y + 2.8} ${x + 3.4} ${y + 3.8} ${x} ${y + 3.8} C${x - 3.4} ${y + 3.8} ${x - w} ${y + 2.8} ${x - w} ${y} Z`}
-          fill={bill}
-        />
-        <path
-          d={`M${x - w + 1.6} ${y + 0.6} Q${x} ${y + (e === 'wink' ? 3 : 2.2)} ${x + w - 1.6} ${y + 0.6}`}
-          fill="none"
-          stroke-width={1.2}
-          opacity={0.55}
-          stroke-linecap="round"
-        />
-        <g fill={OUTLINE} stroke="none" opacity={0.5}>
-          <ellipse cx={x - 2.2} cy={y - 1.2} rx={0.7} ry={0.5} />
-          <ellipse cx={x + 2.2} cy={y - 1.2} rx={0.7} ry={0.5} />
-        </g>
-      </g>
-    );
-  },
+  );
+}
+
+function sprite({ tones: t }: SpriteCtx) {
+  return (
+    <g>
+      <path d="M10 70C10 60 24 56 40 58C54 60 66 66 72 76C76 86 66 94 50 94C30 94 10 86 10 70Z" fill={t.far} />
+      <path d={ellipse(62, 44, 18, 17)} fill={t.head} />
+      <path d="M72 44C80 42 92 43 96 47C98 50 94 54 88 54C82 55 76 54 72 52Z" fill={t.bill} />
+      <circle cx={60} cy={40} r={3} fill={t.ink} />
+      <circle cx={72} cy={39} r={2.8} fill={t.ink} />
+    </g>
+  );
+}
+
+export const DUCK_ART: SpeciesArt = {
+  species: 'duck',
+  rigFor: (look) => (look.traits?.includes('upright') ? { id: 'duck-runner', rig: DUCK_RUNNER_RIG } : { id: 'duck', rig: DUCK_RIG }),
+  ears: () => null,
+  overHead,
+  face,
+  marks,
+  overBody,
+  sprite,
 };

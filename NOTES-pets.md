@@ -1,74 +1,47 @@
-# Pets module notes (for the lead)
+# Pets module notes (catkin restyle, for the lead)
 
-## Contract changes (all additive, nothing existing changed)
+Everything under `src/art/pets/**` and `src/art/wearables/**` was redrawn in the catkin art language (DESIGN §10.4):
+flat, matte, outline-free shapes lit by one window, with precomputed hard shade crescents. The Mochi-era aura, face,
+bits, traits, patterns, placement and outline modules are gone.
 
-`PetArt` props are unchanged. The following were added in files I own:
+## Public API (all existing exports kept)
 
-* `geometry.ts`
-  * `BODIES` now holds a distinct silhouette per species. The cat is still exactly `BODY_PATH`. Each
-    half-width table was sampled from its path's Béziers, and a unit test checks that they match.
-  * `ANCHORS` has been measured per species.
-  * `Anchors.cheeks?` sets the blush position, size and (optionally) `opacity`. Frogs use 0.85 so the
-    blush reads pink on green.
-  * `Anchors.crown?` is the top of the ear tips and horns, so a halo floats above them.
-  * `Anchors.chin?` is the lowest point of the face (muzzle, bill). Bibs, lapels and straps start below it.
-  * `Anchors.clip?` is where a hair clip or bow sits when the head top is not the right spot (the top of a
-    frog's eye bump).
-  * The frog now has `headWearBehindFeatures: true` and a new head anchor (y 30, width 36). Its eye bumps
-    (with the eyes) render through the `ears` slot, so hats sit full size behind the eyes, as they do
-    behind bunny ears.
-  * `BodyShape.sheen?` is the top-left highlight for each silhouette.
-* `types.ts`
-  * `SpeciesArt`: optional `tail`, `ears` and `feet` slots. `ears` render behind the body, or in front
-    of hats when `headWearBehindFeatures` is set.
-  * `TraitArt`: optional `surface` (clipped to the body), `body` (reshapes the silhouette), `replaces`
-    (hides the species' tail, ears, feet or mouth), `occupies` (the trait steps aside when real wear
-    fills that slot, e.g. the Frog Prince's crown under a witch hat, or Jack-o'-Kitty climbing out of her
-    pumpkin to wear clothes) and `mouth` (replaces the species' mouth for an expression; it returns null
-    to keep the species' own mouth). A trait that occupies the head is layered exactly like a hat.
-  * `WearableArt`: optional `overEars` (bows, clips and wreaths sit in front of bunny ears and cow
-    horns; it can also be a function of the ctx), `behind` (unclipped layer behind the pet, used for the
-    backpack, the earmuff band and the Evergreen Crown's glow) and `over` (unclipped layer over the body,
-    used for the duck floatie).
-  * `PetLook.idleEyes?: 'drowsy' | 'happy'` sets the resting eyes: Sleepy Bear is drowsy, and the
-    Samoyed smiles her eyes shut.
-  * `ArtCtx.hidden?` lists the species parts that a trait has replaced.
-  * `PetPalette.iris?` and `ink?` keep eyes and mouths readable on dark coats (Black Cat, Witchy Cat).
-  * New pattern ids: `spots`, `urajiro`, `raindrops`, `snowflakes`, `mallard`.
-  * New trait ids:
-    * dog styles: `pointy-ears`, `floppy-ears`, `bat-ears`, `fluffy`, `curly-tail`
-    * others: `witch-hat`, `red-nose`, `forelock`, `starfish`, `rose`, `nori`, `moonlit`,
-      `long-horns` (the Highland Cow)
-  * Each new id is documented inline.
-* `looks.ts`
-  * `auraOf(look, petId)` gives every ultra the holo aura automatically, so the domain v2 rarity
-    re-tiering needs no art change. Glow (Golden Mochi), ghost (Boo-vine) and a few hand-picked rare
-    sparkles still come from the look.
-  * `getLook('moonlit:<petId>')` already draws the Moonlit variants from DESIGN §13.6 (on the domain
-    branch). Every fur part gets the same pale periwinkle wash, with a soft moonlight gradient and star
-    speckles. After merging, the local `MOONLIT` constant can import `MOONLIT_PREFIX` from the catalog
-    instead.
-* `pet.css`
-  * The svg carries a `species-<id>` class.
-  * `.pet-idle` wraps `.pet-breathe` for the species idles (the bear sways, the duck bobs).
-  * Callers that animate a whole pet (a hop, the meadow walk) should transform the `<svg>` or a
-    wrapper, never `.pet-idle` or `.pet-breathe`.
-  * The `drop-shadow` filters on auras were replaced by gradient halos drawn in the SVG, which are
-    cheaper on iPhone. Ultras also get a thin pastel rainbow ring that slowly turns (a transform).
-  * In Moonlight Meadow (`data-theme="night"`, or the OS dark setting with no `data-theme`), a static
-    pale rim (`.pet-rim`) outlines the body, ears, tails and feet so the cocoa silhouette reads on the
-    night cards. By day these paths have no stroke.
-  * Boo-vine's translucency is set on the `<svg>` box, not on the animated group.
-  * Reduced motion (the OS setting or `data-motion="reduced"`) stops every pet animation.
-* `wearables/kit.tsx`: icons that need ids (clip paths, gradients) render as small components using
-  `useId`, so the same icon can appear twice on a page. The `icon: () => JSX.Element` contract is
-  unchanged.
+* `PetArt` keeps every old prop (`petId`, `outfit`, `expression`, `animated`, `size`, `facing`, `silhouette`, `shadow`,
+  `title`, `class`, `style`, `look`) and adds:
+  * `pose?: 'sit' | 'loaf' | 'stand' | 'walk' | 'sleep'` (default `sit`);
+  * `light?: Light` from `@/art/light` (default: the window from the left, by day);
+  * `muted?: boolean` for the Field Guide's "not yet" (a precomputed 35% saturation palette, no filter);
+  * `px?: number`, the pixel size when `size` is a CSS string, so the size floors still apply.
+* Size floors: ≤ 32 px draws the loaf with closed eyes, ≤ 20 px a dedicated three-shape sprite. `tierFor(px)` is exported.
+* `Expression` keeps the old values as aliases: `idle`→`rest`, `love`→`happy`, `eat`→`chew`, `wink`→`blink`.
+  `canonicalExpression()`, `EXPRESSIONS`, `POSES` and `Pose` are exported from `types.ts`.
+* `LOOKS`, `getLook()` (including `moonlit:<petId>`), `SPECIES_ART`, `PLACEHOLDER_SPECIES` and `WEARABLE_ART` keep
+  their names. Every wearable still has `icon(): JSX.Element` drawn on a 100×100 canvas.
+* `geometry.ts` now only holds the legacy `OUTLINE`, `STROKE`, `BLUSH`, `EYE` constants that plants, items and scene
+  still import. Please drop those imports as those modules are restyled; nothing in pets uses them.
 
-## Requests (files I don't own)
+## Behaviour other modules can rely on
 
-1. `src/dev/sections.tsx`: please delete the legacy `pets` and `wearables` sections. `sections-pets.tsx`
-   replaces them, and the old wearables section leaves out dogs.
-2. `docs/DESIGN.md` §10.4: the sentence saying species identity comes "not from body shape" contradicts
-   §13.1 now that each species has its own silhouette. Suggest rewording it to "within the mochi family".
-3. `src/art/CollectibleArt.tsx`: nothing is needed. Wearable icons come from `WEARABLE_ART[id].icon`, and
-   every wearable now has one.
+* The svg carries `data-pose` and `data-tier` (`micro` | `small` | `medium` | `full`).
+* Idle life (`animated`) is CSS only: breathing ≤ 1.5%, a blink every 4–9 s desynchronised per pet id, a cat's tail
+  flick, a cow's ear flick, a frog's throat pulse, and per-species walk rhythms (a cow's 1-unit bob, a duck's waddle, a
+  cat's two-stage hop) over two alternating leg key frames. Under `[data-motion='reduced']` or
+  `prefers-reduced-motion` only breathing and blinks remain.
+* A still `blink` holds the slow blink half-closed; with `animated` it plays 400 ms close, hold, 400 ms open.
+* To animate a whole pet (a hop, a carry), transform the `<svg>` or a wrapper, never the inner `.pet-*` groups.
+* Night (`light.night`): lit surfaces warm slightly toward `--lamp`, and dark coats get a rim on the lamp side.
+  Crescents use `var(--shade)`, contact shadows `var(--contact)`, silhouettes `var(--ink-disabled)`.
+* Crescents are generated offline from the rigs into `crescents/data.ts`
+  (`npx vite-node src/art/pets/crescents/write.ts`); a unit test fails if a rig changes without regenerating.
+
+## Requests (files I do not own)
+
+1. `src/dev/gallery.tsx`: the page heading still reads "Mochi Meadow · Art Gallery". Suggest "catkin · art gallery".
+2. `src/art/CollectibleArt.tsx` (and any Field Guide tile): pass `muted` for unowned pets instead of a CSS filter,
+   and `silhouette` for Secrets. Pets on cards at 20–32 px should pass a numeric `size` (or `px`) so the size floors
+   apply.
+3. Scene and Today band owners: pass the shared `light` (`windowLight(...)`) and a `pose` to `PetArt` so the crescents
+   agree with the sunbeam; the style frames use `loaf` on pot rims and `sleep` at night.
+4. Plants, items and scene: drop the legacy `OUTLINE` / `STROKE` / `BLUSH` / `EYE` imports from `@/art/pets/geometry`
+   when you restyle, so the file can be deleted.
+5. The pets brief mentions 95 catalog pets; the catalog currently has 88, and every one of them has a look.

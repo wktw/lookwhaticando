@@ -1,42 +1,52 @@
 import type { JSX } from 'preact';
-import { useId, useMemo } from 'preact/hooks';
+import { useId } from 'preact/hooks';
 import type { Outfit } from '@/state/types';
 import { getCollectible } from '@/catalog/collectibles';
-import { ANCHORS, BODIES, FOOT_LEFT, FOOT_RIGHT, OUTLINE, STROKE, VIEWBOX } from './geometry';
-import type { ArtCtx, BodyPart, Expression, PetLook, TraitArt } from './types';
-import { auraOf, getLook } from './looks';
-import { SPECIES_ART } from './species';
-import { PATTERNS } from './patterns';
-import { TRAITS } from './traits';
-import { DefaultEyes, Blush } from './face';
-import { Aura, Sparkles } from './aura';
-import { rim } from './species/parts';
+import { DAY_LIGHT, type Light } from '@/art/light';
 import { WEARABLE_ART } from '../wearables';
+import { canonicalExpression, type Expression, type MarkId, type PetLook, type Pose, type TraitId } from './types';
+import { getLook } from './looks';
+import { SPECIES_ART } from './species';
+import type { DrawCtx } from './species/art';
+import { spriteTones, tonesFor, type PaletteMode, type Tones } from './palette';
+import { crescentPath } from './crescents';
+import { BASELINE, frameTransform, SHADE_FOR, type Layer, type LitKey, type PoseRig, type TailRig } from './rig';
+import { fmt, place } from './shape';
+import { dots } from './species/marks';
+import { WearHead, WearNeck, WearBody, wearCtxFor } from './wear';
 import './pet.css';
 
 export interface PetArtProps {
-  /** Pet collectible id, e.g. 'pet-cat-calico'. */
+  /** Pet collectible id, e.g. 'pet-cat-calico', or a Moonlit variant 'moonlit:pet-cat-calico'. */
   petId: string;
   outfit?: Outfit;
   expression?: Expression;
-  /** Idle life: breathing, blinking, tail sway. */
+  /** A true posture (DESIGN §8.1). Default 'sit'. */
+  pose?: Pose;
+  /** Windowlight: where the light comes from, and whether it is the lamp. Default: the window, from the left. */
+  light?: Light;
+  /** Idle life: breathing, blinking, a tail flick, the walk cycle. */
   animated?: boolean;
   /** CSS size (number = px). Square. */
   size?: number | string;
+  /** The pixel size when `size` is not a number (e.g. '100%'), so the small-size floors still apply. */
+  px?: number;
   facing?: 'left' | 'right';
-  /** Render as an unowned silhouette. */
+  /** Render as an unowned silhouette (a flat shape in a muted token). */
   silhouette?: boolean;
-  /** Draw the soft ground shadow (default true). */
+  /** Field Guide "not yet": the same drawing at 35% saturation. */
+  muted?: boolean;
+  /** Draw the contact shadow (default true). */
   shadow?: boolean;
   /** Accessible label. When omitted the art is decorative (aria-hidden). */
   title?: string;
   class?: string;
   style?: JSX.CSSProperties;
-  /** Override look (used by the gallery & tests). */
+  /** Override look (gallery and tests). */
   look?: PetLook;
 }
 
-/** Stable pseudo-random 0..1 from a string (for desynchronized idle timings). */
+/** Stable pseudo-random 0..1 from a string (desynchronised idle timings). */
 function hash01(s: string): number {
   let h = 2166136261;
   for (let i = 0; i < s.length; i++) {
@@ -46,169 +56,306 @@ function hash01(s: string): number {
   return ((h >>> 0) % 10000) / 10000;
 }
 
-/** The look's traits, minus any that step aside for real wear in the slot they occupy. */
-function activeTraits(look: PetLook, outfit: Outfit | undefined): TraitArt[] {
-  const out: TraitArt[] = [];
-  for (const id of look.traits ?? []) {
-    const t = TRAITS[id];
-    if (t && !(t.occupies && outfit?.[t.occupies])) out.push(t);
-  }
-  return out;
+type Tier = 'micro' | 'small' | 'medium' | 'full';
+
+/** Size floors (DESIGN §10.4): ≤ 20 px a three-shape sprite, ≤ 32 px the loaf with closed eyes. */
+export function tierFor(px: number | undefined): Tier {
+  if (px === undefined) return 'full';
+  if (px <= 20) return 'micro';
+  if (px <= 32) return 'small';
+  if (px < 48) return 'medium';
+  return 'full';
 }
 
-const DEFAULT_SHEEN = { cx: 34, cy: 41, rx: 10, ry: 5.5, rotate: -28 };
-const WEAR_SLOTS = ['body', 'neck', 'face', 'head'] as const;
+/** The lit side in the art's own frame: a left-facing pet is mirrored, so left and right swap. */
+function litSide(light: Light, facing: 'left' | 'right'): LitKey {
+  if (light.from === 'top') return 'top';
+  if (facing === 'right') return light.from;
+  return light.from === 'left' ? 'right' : 'left';
+}
+
+function Layers({ layers, c, part, cls }: { layers?: Layer[]; c: DrawCtx; part: 'front' | 'frontB' | 'back' | 'backB'; cls?: string }) {
+  if (!layers?.length) return null;
+  const t = c.tones;
+  const rim = t.dark && !c.silhouette;
+  return (
+    <g class={cls}>
+      {layers.map((l, i) => {
+        const sockTone = l.sockTone ? t[l.sockTone] : l.tone === 'legFar' ? t.pawFar : l.tone === 'foot' || l.tone === 'footFar' ? null : t.paw;
+        const shade = l.lit && !c.silhouette ? c.crescent(`${part}${i}` as never, c.shade) : '';
+        const glow = l.lit && rim ? c.crescent(`${part}${i}` as never, `rim-${c.lit}`) : '';
+        return (
+          <g key={i} class={l.cls}>
+            <path d={l.d} fill={t[l.tone] ?? t.coat} />
+            {l.sock && sockTone && <path d={l.sock} fill={sockTone} />}
+            {shade && <path d={shade} fill="var(--shade)" />}
+            {glow && <path d={glow} fill={c.night ? 'var(--lamp)' : DAY_RIM} opacity={c.night ? 0.45 : 0.5} />}
+          </g>
+        );
+      })}
+    </g>
+  );
+}
+
+/** The window's cool edge light on a dark coat by day (the style frames' "rim light"). */
+const DAY_RIM = '#B4B0D2';
+
+/**
+ * A lit part: its crescent in the room's shade and, on a dark coat, a thin rim on the lit side:
+ * the window's cool light by day, the lamp's warm light at night, so it never sinks into the room.
+ */
+function Light({ c, part, rim }: { c: DrawCtx; part: 'body' | 'head' | 'tail' | 'tailCurl'; rim: boolean }) {
+  const d = c.crescent(part, c.shade);
+  const r = rim ? c.crescent(part, `rim-${c.lit}`) : '';
+  return (
+    <>
+      {d && <path class="pet-shade" d={d} fill="var(--shade)" />}
+      {r && <path class="pet-rim" d={r} fill={c.night ? 'var(--lamp)' : DAY_RIM} opacity={c.night ? 0.45 : 0.5} />}
+    </>
+  );
+}
+
+function Tail({ c, tail, part }: { c: DrawCtx; tail: TailRig; part: 'tail' | 'tailCurl' }) {
+  const t = c.tones;
+  const motion = !c.animated ? undefined : c.look.species === 'cat' ? 'pet-tailflick' : c.look.species === 'dog' && c.face.expr === 'happy' ? 'pet-wag' : undefined;
+  const tipped = t.tip !== t.tail && !c.silhouette;
+  const rings = c.has('tabby') && tail.rings;
+  const clip = !tail.tuft && (tipped || rings);
+  const clipId = `${c.uid}-t`;
+  const body = (
+    <g>
+      {(c.trait('longhair') || c.trait('fluffy')) && <path d={tail.d} fill={t.tail} transform={`translate(${tail.pivot[0]} ${tail.pivot[1]}) scale(1.14) translate(${-tail.pivot[0]} ${-tail.pivot[1]})`} />}
+      <path d={tail.d} fill={t.tail} />
+      {clip && (
+        <>
+          <clipPath id={clipId}>
+            <path d={tail.d} />
+          </clipPath>
+          <g clip-path={`url(#${clipId})`}>
+            {rings && <path d={tail.rings} fill={t.mark} />}
+            {tipped && <path d={tail.tip} fill={t.tip} />}
+          </g>
+        </>
+      )}
+      {tail.tuft && <path d={tail.tip} fill={t.tip} />}
+      {!c.silhouette && <Light c={c} part={part} rim={t.dark} />}
+    </g>
+  );
+  if (!motion) return body;
+  const [x, y] = tail.pivot;
+  return (
+    <g transform={`translate(${x} ${y})`}>
+      <g class={motion}>
+        <g transform={`translate(${-x} ${-y})`}>{body}</g>
+      </g>
+    </g>
+  );
+}
+
+const SPRITE_POSE: Pose = 'loaf';
 
 export function PetArt(props: PetArtProps) {
-  const { petId, outfit, expression = 'idle', animated = false, size = 96, facing = 'right', silhouette = false, shadow = true, title } = props;
+  const { petId, outfit, animated = false, size = 96, facing = 'right', silhouette = false, muted = false, shadow = true, title } = props;
   const rawId = useId();
   const uid = `pet${rawId.replace(/[^a-zA-Z0-9_-]/g, '')}`;
   const look = props.look ?? getLook(petId);
-  const species = SPECIES_ART[look.species];
-  const anchors = ANCHORS[look.species];
-  const traits = activeTraits(look, outfit);
-  const body = traits.reduce((shape, t) => (t.body ? t.body(shape, anchors) : shape), BODIES[look.species]);
-  const hidden = new Set<BodyPart>(traits.flatMap((t) => t.replaces ?? []));
-  const bodyClipId = `${uid}-body`;
-  const ctx: ArtCtx = { uid, bodyClip: `url(#${bodyClipId})`, expression, anchors, body, look, hidden };
+  const art = SPECIES_ART[look.species];
+  const { id: rigId, rig } = art.rigFor(look);
+  const px = typeof size === 'number' ? size : props.px;
+  const tier = tierFor(px);
+  const light = props.light ?? DAY_LIGHT;
+  const night = light.night;
+  const mode: PaletteMode = silhouette ? 'silhouette' : muted ? (night ? 'muted-night' : 'muted') : night ? 'night' : 'day';
+  const tones = tonesFor(look, mode);
+  const marks = new Set<MarkId>(look.marks ?? []);
+  const traits = new Set<TraitId>(look.traits ?? []);
+  const has = (m: MarkId) => !silhouette && marks.has(m);
+  const trait = (t: TraitId) => traits.has(t);
+  const lit = litSide(light, facing);
+  const shade = SHADE_FOR[lit];
 
-  const r = useMemo(() => hash01(petId + rawId), [petId, rawId]);
+  const r = hash01(petId);
   const timing = {
-    '--pet-breathe-dur': `${(3 + r * 0.8).toFixed(2)}s`,
-    '--pet-breathe-delay': `${(-r * 3).toFixed(2)}s`,
-    '--pet-blink-dur': `${(3.6 + r * 2.6).toFixed(2)}s`,
-    '--pet-blink-delay': `${(-r * 5).toFixed(2)}s`,
-    '--pet-tail-dur': `${(2.2 + r * 1.2).toFixed(2)}s`,
-    '--pet-idle-delay': `${(-r * 7).toFixed(2)}s`,
+    '--pet-breathe-dur': `${(3.4 + r * 1.2).toFixed(2)}s`,
+    '--pet-breathe-delay': `${(-r * 4).toFixed(2)}s`,
+    '--pet-blink-dur': `${(4 + ((r * 7919) % 1) * 5).toFixed(2)}s`,
+    '--pet-blink-delay': `${(-r * 9).toFixed(2)}s`,
+    '--pet-flick-dur': `${(6 + r * 4).toFixed(2)}s`,
+    '--pet-flick-delay': `${(-r * 6).toFixed(2)}s`,
   } as JSX.CSSProperties;
 
-  const pattern = PATTERNS[look.pattern];
-  const p = look.palette;
-  const sheen = body.sheen ?? DEFAULT_SHEEN;
-  const aura = silhouette ? undefined : auraOf(look, petId);
-
-  const worn = (slot: keyof Outfit) => {
-    const id = outfit?.[slot];
-    return id ? WEARABLE_ART[id] : undefined;
-  };
-  const wear = (slot: keyof Outfit) => {
-    const art = worn(slot);
-    return art ? <g class={`pet-wear pet-wear-${slot}`}>{art.render(ctx)}</g> : null;
-  };
-  const headArt = worn('head');
-  const wearBehind = WEAR_SLOTS.map((slot) => {
-    const layer = worn(slot)?.behind?.(ctx);
-    return layer ? <g key={slot}>{layer}</g> : null;
-  });
-  const bodyOver = worn('body')?.over?.(ctx);
-  // Ears (horns, eye bumps) stand in front of hats for species that wear hats behind them;
-  // small accessories (bows, clips, wreaths) may opt to sit in front of the ears anyway.
-  const earsFront = anchors.headWearBehindFeatures;
-  const overEars = typeof headArt?.overEars === 'function' ? headArt.overEars(ctx) : headArt?.overEars;
-  const hatBehindEars = earsFront && !overEars;
-  const ears = hidden.has('ears') ? null : species.ears?.(ctx);
-  // A trait that fills the head slot (a cap, a crown) is layered exactly like a hat.
-  const headLayer = (
-    <>
-      {traits.map((t, i) => t.occupies === 'head' && t.front && <g key={`th${i}`}>{t.front(ctx)}</g>)}
-      {wear('head')}
-    </>
-  );
-  const traitMouth = traits.reduce<JSX.Element | null>((m, t) => m ?? t.mouth?.(ctx) ?? null, null);
-  const mouth = hidden.has('mouth') ? null : (traitMouth ?? species.mouth(ctx));
-
-  const classes = [
-    'pet-art',
-    `species-${look.species}`,
-    animated && !silhouette ? 'is-animated' : '',
-    silhouette ? 'is-silhouette' : '',
-    aura ? `aura-${aura}` : '',
-    props.class ?? '',
-  ]
+  const pxStr = typeof size === 'number' ? `${size}px` : size;
+  const label = title ?? (silhouette ? undefined : getCollectible(petId)?.name);
+  const classes = ['pet-art', `species-${look.species}`, animated && !silhouette ? 'is-animated' : '', silhouette ? 'is-silhouette' : '', props.class ?? '']
     .filter(Boolean)
     .join(' ');
-  const px = typeof size === 'number' ? `${size}px` : size;
-  const label = title ?? (silhouette ? undefined : getCollectible(petId)?.name);
+  const flip = facing === 'left' ? 'translate(100 0) scale(-1 1)' : undefined;
 
-  return (
+  const svg = (children: JSX.Element, pose: Pose | 'sprite') => (
     <svg
       class={classes}
-      viewBox={VIEWBOX}
-      width={px}
-      height={px}
+      data-tier={tier}
+      data-pose={pose}
+      viewBox="0 0 100 100"
+      width={pxStr}
+      height={pxStr}
       style={{ ...timing, ...props.style }}
       role={title ? 'img' : undefined}
       aria-label={title ? label : undefined}
       aria-hidden={title ? undefined : true}
       focusable="false"
     >
-      <defs>
-        <clipPath id={bodyClipId}>
-          <path d={body.path} />
+      {children}
+    </svg>
+  );
+
+  if (tier === 'micro') {
+    return svg(
+      <g transform={flip}>
+        {shadow && <ellipse cx={48} cy={94.5} rx={36} ry={4} fill="var(--contact)" />}
+        {art.sprite({ tones: spriteTones(tones), look, has, trait })}
+      </g>,
+      'sprite',
+    );
+  }
+
+  const pose: Pose = tier === 'small' ? SPRITE_POSE : (props.pose ?? 'sit');
+  const p: PoseRig = rig.poses[pose];
+  const expr = canonicalExpression(props.expression);
+  const closed = !!p.eyesClosed || (tier === 'small' && expr !== 'happy');
+  const ctx: DrawCtx = {
+    uid,
+    rigId,
+    rig,
+    pose,
+    p,
+    look,
+    tones,
+    face: { tones, expr: p.eyesClosed ? 'sleep' : expr, closed, full: tier === 'full', lit, animated: animated && !silhouette },
+    shade,
+    lit,
+    night,
+    silhouette,
+    animated: animated && !silhouette,
+    hat: !silhouette && !!outfit?.head && !!WEARABLE_ART[outfit.head],
+    has,
+    trait,
+    crescent: (part, kind) => (part === 'head' ? crescentPath(rigId, 'head', kind) : crescentPath(rigId, pose, part, kind)),
+  };
+
+  const bodyMarks = [...marks].map((m) => art.marks[m]?.body).filter((f): f is NonNullable<typeof f> => !!f);
+  const headMarks = [...marks].map((m) => art.marks[m]?.head).filter((f): f is NonNullable<typeof f> => !!f);
+  const wear = outfit && !silhouette ? outfit : undefined;
+  const wearCtx = wearCtxFor(ctx);
+  const bodyWear = wear?.body ? WEARABLE_ART[wear.body] : undefined;
+  const showBodyWear = bodyWear && !bodyWear.hideIn?.includes(pose);
+  const needsBodyClip = !silhouette && (bodyMarks.length > 0 || showBodyWear || look.flecks || !!art.bodyDetail);
+  const needsHeadClip = !silhouette && (headMarks.length > 0 || look.flecks);
+
+  // Species scale, eased toward full size at small sizes so tiny pets stay legible.
+  const base = rig.scale * (look.scale ?? 1);
+  const s = tier === 'small' ? 0.9 + (base - 0.9) * 0.25 : tier === 'medium' ? base + (0.95 - base) * 0.4 : base;
+  const sx = s * (look.stocky ?? 1);
+  const scaleT = `translate(50 ${BASELINE}) scale(${fmt(sx)} ${fmt(s)}) translate(-50 ${-BASELINE})`;
+
+  const darkRim = tones.dark && !silhouette;
+  const curled = trait('curled-tail') && !!p.tailCurl;
+  const tail = curled ? p.tailCurl : p.tail;
+  const tailPart = curled ? 'tailCurl' : 'tail';
+  const walkB = pose === 'walk' && p.frameB && ctx.animated;
+  const motion = ctx.animated ? p.motion : undefined;
+  const bob = motion === 'bob' ? 'pet-bob' : undefined;
+  const tilt = expr === 'happy' ? ' rotate(-6)' : expr === 'surprised' ? ' translate(0 -1.2)' : '';
+  const headT = place(p.head.x, p.head.y, p.head.s, p.head.r ?? 0) + tilt;
+  const contactDx = shade === 'right' ? p.contact.rx * 0.08 : shade === 'left' ? -p.contact.rx * 0.08 : 0;
+
+  const body = (
+    <g>
+      {needsBodyClip && (
+        <clipPath id={`${uid}-b`}>
+          <path d={p.body} />
         </clipPath>
-      </defs>
-      {aura && <Aura kind={aura} uid={uid} />}
-      {shadow && <ellipse class="pet-shadow" cx={50} cy={94.5} rx={31} ry={3.6} fill={OUTLINE} opacity={0.12} />}
-      <g transform={facing === 'left' ? 'translate(100 0) scale(-1 1)' : undefined}>
-        <g class="pet-idle">
+      )}
+      <path d={p.body} fill={tones.coat} />
+      {needsBodyClip && (
+        <g clip-path={`url(#${uid}-b)`}>
+          {art.bodyDetail?.(ctx)}
+          <g transform={frameTransform(p.frame)}>
+            {bodyMarks.map((m, i) => (
+              <g key={i}>{m(ctx)}</g>
+            ))}
+            {look.flecks && <path d={dots(4, 4, 92, 70, 7, 1.1, 3.3, 1)} fill="#F4F0FF" opacity={0.7} />}
+            {showBodyWear && <WearBody art={bodyWear!} ctx={wearCtx} />}
+          </g>
+        </g>
+      )}
+      {!silhouette && (
+        <>
+          {ctx.crescent('cast', shade) && <path d={ctx.crescent('cast', shade)} fill="var(--shade)" />}
+          <Light c={ctx} part="body" rim={darkRim} />
+        </>
+      )}
+    </g>
+  );
+
+  const head = (
+    <g transform={headT}>
+      {showBodyWear && bodyWear!.hood?.(wearCtx)}
+      {art.ears(ctx)}
+      {needsHeadClip && (
+        <clipPath id={`${uid}-h`}>
+          <path d={rig.head.d} />
+        </clipPath>
+      )}
+      <path d={rig.head.d} fill={tones.head} />
+      {needsHeadClip && (
+        <g clip-path={`url(#${uid}-h)`}>
+          {headMarks.map((m, i) => (
+            <g key={i}>{m(ctx)}</g>
+          ))}
+          {look.flecks && <path d={dots(-14, -14, 26, 10, 3, 0.9, 5.1, 1)} fill="#F4F0FF" opacity={0.7} />}
+        </g>
+      )}
+      {!silhouette && <Light c={ctx} part="head" rim={darkRim} />}
+      {art.overHead?.(ctx)}
+      {!silhouette && art.face(ctx)}
+      {wear && <WearHead outfit={wear} ctx={wearCtx} front={false} />}
+      {art.earsOverHat?.(ctx)}
+      {wear && <WearHead outfit={wear} ctx={wearCtx} front />}
+    </g>
+  );
+
+  return svg(
+    <g transform={flip}>
+      <g transform={scaleT}>
+        {shadow && <ellipse cx={fmt(p.contact.cx + contactDx)} cy={BASELINE + 0.4} rx={p.contact.rx} ry={2.8} fill="var(--contact)" />}
+        <g transform={`translate(50 ${BASELINE})`}>
           <g class="pet-breathe">
-            {/* night-theme rim light around the silhouette (styled in pet.css; invisible by day) */}
-            <path d={body.path} {...rim()} />
-            {!hidden.has('feet') && !species.feet && (
-              <g>
-                <ellipse {...FOOT_LEFT} {...rim(STROKE * 0.9)} />
-                <ellipse {...FOOT_RIGHT} {...rim(STROKE * 0.9)} />
-              </g>
-            )}
-            {wearBehind}
-            {traits.map((t, i) => t.back && <g key={`tb${i}`}>{t.back(ctx)}</g>)}
-            {!hidden.has('tail') && species.tail?.(ctx)}
-            {species.back(ctx)}
-            {!earsFront && ears}
-            <path d={body.path} fill={p.body} />
-            {/* surface: pattern, species overlay, trait surfaces, shading, clothing, all clipped to the body */}
-            <g clip-path={ctx.bodyClip}>
-              {pattern(ctx)}
-              {species.overlay?.(ctx)}
-              {traits.map((t, i) => t.surface && <g key={`ts${i}`}>{t.surface(ctx)}</g>)}
-              <ellipse
-                cx={sheen.cx}
-                cy={sheen.cy}
-                rx={sheen.rx}
-                ry={sheen.ry}
-                transform={`rotate(${sheen.rotate} ${sheen.cx} ${sheen.cy})`}
-                fill="#fff"
-                opacity={0.38}
-              />
-              <ellipse cx={50} cy={97} rx={40} ry={12} fill={OUTLINE} opacity={0.07} />
-              {wear('body')}
-            </g>
-            <path d={body.path} fill="none" stroke={OUTLINE} stroke-width={STROKE} stroke-linejoin="round" />
-            {bodyOver}
-            {!hidden.has('feet') &&
-              (species.feet ? (
-                species.feet(ctx)
-              ) : (
-                <g fill={p.feet ?? p.body} stroke={OUTLINE} stroke-width={STROKE * 0.9}>
-                  <ellipse {...FOOT_LEFT} />
-                  <ellipse {...FOOT_RIGHT} />
+            <g class={motion === 'waddle' ? 'pet-waddle' : motion === 'hop' ? 'pet-hop' : undefined}>
+              <g transform={`translate(-50 ${-BASELINE})`}>
+                <Layers layers={p.back} c={ctx} part="back" cls={walkB ? 'pet-walk-a' : undefined} />
+                {walkB && <Layers layers={p.frameB!.back} c={ctx} part="backB" cls="pet-walk-b" />}
+                <g class={bob}>
+                  {tail && tail.layer === 'back' && <Tail c={ctx} tail={tail} part={tailPart} />}
+                  {art.behindBody?.(ctx)}
+                  {body}
                 </g>
-              ))}
-            <Blush ctx={ctx} />
-            {species.eyes ? species.eyes(ctx) : <DefaultEyes ctx={ctx} />}
-            {mouth}
-            {hatBehindEars && headLayer}
-            {earsFront && ears}
-            {wear('neck')}
-            {wear('face')}
-            {species.front?.(ctx)}
-            {traits.map((t, i) => t.occupies !== 'head' && t.front && <g key={`tf${i}`}>{t.front(ctx)}</g>)}
-            {!hatBehindEars && headLayer}
-            {traits.map((t, i) => t.top && <g key={`tt${i}`}>{t.top(ctx)}</g>)}
+                <Layers layers={p.front} c={ctx} part="front" cls={walkB ? 'pet-walk-a' : undefined} />
+                {walkB && <Layers layers={p.frameB!.front} c={ctx} part="frontB" cls="pet-walk-b" />}
+                <g class={bob}>
+                  {tail && tail.layer === 'front' && <Tail c={ctx} tail={tail} part={tailPart} />}
+                  {art.overBody?.(ctx)}
+                  {wear?.neck && <WearNeck id={wear.neck} ctx={wearCtx} neck={p.neck} />}
+                  {head}
+                  {tail && tail.layer === 'over' && <Tail c={ctx} tail={tail} part={tailPart} />}
+                  {art.top?.(ctx)}
+                </g>
+              </g>
+            </g>
           </g>
         </g>
       </g>
-      {(aura === 'sparkle' || aura === 'holo') && <Sparkles holo={aura === 'holo'} />}
-    </svg>
+    </g>,
+    pose,
   );
 }

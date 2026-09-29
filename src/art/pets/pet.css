@@ -1,455 +1,258 @@
 /*
- * Pet art idle life. Transforms use view-box coordinates of the 100×100 canvas; pivots come from
- * custom properties set on the element (e.g. --tail-origin). Only transform and opacity animate,
- * and only while the art is `.is-animated`; otherwise every pet is perfectly still.
+ * Pet idle life (DESIGN §10.5): unhurried, CSS only, transforms and opacity only, and only while
+ * the art is `.is-animated`. Pivots are set in the SVG by wrapping each animated group in a
+ * translate, so every transform here rotates or scales about the group's local origin.
+ * Reduced motion keeps the breathing (≤ 1.5%) and the blinks; everything else holds still.
  */
 .pet-art {
   overflow: visible;
   flex: none;
 }
 
-.pet-art
-  :is(
-    .pet-idle,
-    .pet-breathe,
-    .pet-tail,
-    .pet-sprout,
-    .pet-ear-l,
-    .pet-ear-r,
-    .pet-nose,
-    .pet-throat,
-    .pet-nibble,
-    .pet-wing-l,
-    .pet-wing-r,
-    .pet-beckon,
-    .pet-halo,
-    .pet-gleam,
-    .pet-crown-gleam,
-    .pet-tuft,
-    .pet-holo-ring,
-    .pet-aura
-  ) {
+.pet-art :is(.pet-breathe, .pet-blink, .pet-slowblink, .pet-tailflick, .pet-earflick, .pet-throat, .pet-chew, .pet-wag, .pet-twitch, .pet-wave, .pet-bob, .pet-waddle, .pet-hop) {
   transform-box: view-box;
+  transform-origin: 0 0;
 }
 
-.pet-art :is(.pet-idle, .pet-breathe) {
-  transform-origin: 50px 94px;
-}
-.pet-art .pet-tail {
-  transform-origin: var(--tail-origin, 76px 88px);
-}
-.pet-art .pet-sprout {
-  transform-origin: 50px 29px;
-}
-.pet-art :is(.pet-ear-l, .pet-ear-r) {
-  transform-origin: var(--ear-origin, 30px 30px);
-}
-.pet-art .pet-nose {
-  transform-origin: var(--nose-origin, 50px 61px);
-}
-.pet-art .pet-throat {
-  transform-origin: var(--throat-origin, 50px 60px);
-}
-.pet-art .pet-nibble {
-  transform-origin: var(--mouth-origin, 50px 66px);
-}
-.pet-art :is(.pet-wing-l, .pet-wing-r) {
-  transform-origin: var(--wing-origin, 20px 52px);
-}
-.pet-art .pet-beckon {
-  transform-origin: var(--beckon-origin, 76px 66px);
-}
-.pet-art .pet-aura {
-  transform-origin: 50px 60px;
-}
-.pet-art .pet-holo-ring {
-  transform-origin: 50px 58px;
-}
-.pet-art .pet-tuft {
-  transform-origin: 50px 32px;
-}
-.pet-art .pet-blink {
-  transform-box: fill-box;
-  transform-origin: center;
-}
-.pet-art .pet-gleam {
-  opacity: 0;
-}
-
-/* ---------- Shared idle life ---------- */
+/* ---------- breathing: ≤ 1.5% ---------- */
 .pet-art.is-animated .pet-breathe {
-  animation: pet-breathe var(--pet-breathe-dur, 3.2s) ease-in-out var(--pet-breathe-delay, 0s) infinite;
+  animation: pet-breathe var(--pet-breathe-dur, 3.8s) ease-in-out var(--pet-breathe-delay, 0s) infinite;
 }
-.pet-art.is-animated .pet-blink {
-  animation: pet-blink var(--pet-blink-dur, 4.5s) linear var(--pet-blink-delay, 0s) infinite;
-}
-.pet-art.is-animated .pet-tail {
-  animation: pet-tail var(--pet-tail-dur, 2.6s) ease-in-out infinite alternate;
-}
-.pet-art.is-animated .pet-sprout {
-  animation: pet-sprout 2.8s ease-in-out infinite alternate;
-}
-.pet-art .pet-twinkle {
-  transform-box: fill-box;
-  transform-origin: center;
-}
-.pet-art.is-animated .pet-twinkle {
-  animation: pet-twinkle 1.8s ease-in-out infinite;
-}
-.pet-art.is-animated .pet-aura {
-  animation: pet-aura 3.6s ease-in-out infinite alternate;
-}
-/* Ultras: the holographic ring slowly turns, so its pastel colors drift around. */
-.pet-art.is-animated .pet-holo-ring {
-  animation: pet-spin 14s linear infinite;
-}
-
-/* ---------- Species personalities ---------- */
-/* Dogs wag, quick and happy. */
-.pet-art.is-animated.species-dog .pet-tail {
-  animation: pet-wag 0.46s ease-in-out infinite alternate;
-}
-/* Cows flick an ear now and then. */
-.pet-art.is-animated.species-cow .pet-ear-l {
-  animation: pet-ear-flick 5.6s ease-in-out var(--pet-idle-delay, 0s) infinite;
-}
-.pet-art.is-animated.species-cow .pet-ear-r {
-  animation: pet-ear-flick 7.3s ease-in-out calc(var(--pet-idle-delay, 0s) - 2.4s) infinite;
-}
-/* Bunnies twitch their noses and sway their ears. */
-.pet-art.is-animated.species-bunny .pet-nose {
-  animation: pet-nose-twitch 2.6s ease-in-out var(--pet-idle-delay, 0s) infinite;
-}
-.pet-art.is-animated.species-bunny :is(.pet-ear-l, .pet-ear-r) {
-  animation: pet-ear-sway 3.8s ease-in-out infinite alternate;
-}
-.pet-art.is-animated.species-bunny .pet-ear-r {
-  animation-delay: -1.3s;
-}
-/* Frogs puff their throats. */
-.pet-art.is-animated .pet-throat {
-  animation: pet-throat 3.4s ease-in-out var(--pet-idle-delay, 0s) infinite;
-}
-/* Hamsters nibble. */
-.pet-art.is-animated .pet-nibble {
-  animation: pet-nibble 3.2s linear var(--pet-idle-delay, 0s) infinite;
-}
-/* Bears sway, slow and cozy. */
-.pet-art.is-animated.species-bear .pet-idle {
-  animation: pet-sway 5.4s ease-in-out var(--pet-idle-delay, 0s) infinite alternate;
-}
-/* Ducks bob their heads, twice, then rest; the tuft follows through a beat later. */
-.pet-art.is-animated.species-duck .pet-idle {
-  animation: pet-bob 3.8s ease-in-out var(--pet-idle-delay, 0s) infinite;
-}
-.pet-art.is-animated.species-duck .pet-tuft {
-  animation: pet-tuft 3.8s ease-in-out var(--pet-idle-delay, 0s) infinite;
-}
-
-/* ---------- Trait motion ---------- */
-.pet-art.is-animated :is(.pet-wing-l, .pet-wing-r) {
-  animation: pet-flap 1.6s ease-in-out infinite alternate;
-}
-.pet-art.is-animated .pet-beckon {
-  animation: pet-beckon 1.5s ease-in-out infinite alternate;
-}
-.pet-art.is-animated .pet-halo {
-  animation: pet-float 2.4s ease-in-out infinite alternate;
-}
-.pet-art.is-animated .pet-gleam {
-  animation: pet-gleam 5s ease-in-out var(--pet-idle-delay, 0s) infinite;
-}
-/* The Evergreen Crown's gold catches the light. */
-.pet-art.is-animated .pet-crown-gleam {
-  animation: pet-crown-gleam 4.2s ease-in-out infinite;
-}
-
 @keyframes pet-breathe {
   0%,
   100% {
     transform: scale(1, 1);
   }
   50% {
-    transform: scale(1.012, 1.026);
+    transform: scale(1.004, 1.013);
   }
+}
+
+/* ---------- the blink: every 4–9 s, desynchronised per pet ---------- */
+.pet-art.is-animated .pet-blink {
+  animation: pet-blink var(--pet-blink-dur, 6s) linear var(--pet-blink-delay, 0s) infinite;
 }
 @keyframes pet-blink {
   0%,
-  93%,
+  95.5%,
   100% {
     transform: scaleY(1);
   }
-  96% {
+  97% {
     transform: scaleY(0.1);
   }
 }
-@keyframes pet-tail {
-  from {
-    transform: rotate(-7deg);
-  }
-  to {
-    transform: rotate(9deg);
-  }
+
+/* ---------- the slow blink: 400 ms close, hold, 400 ms open ---------- */
+.pet-art.is-animated .pet-slowblink {
+  animation: pet-slowblink 3.6s var(--ease-in-out, ease-in-out) infinite;
 }
-@keyframes pet-wag {
-  from {
-    transform: rotate(-13deg);
-  }
-  to {
-    transform: rotate(13deg);
-  }
-}
-@keyframes pet-sprout {
-  from {
-    transform: rotate(-6deg);
-  }
-  to {
-    transform: rotate(6deg);
-  }
-}
-@keyframes pet-twinkle {
+@keyframes pet-slowblink {
   0%,
+  8% {
+    transform: scaleY(1);
+  }
+  19%,
+  36% {
+    transform: scaleY(0.12);
+  }
+  47%,
   100% {
-    transform: scale(0.6);
-    opacity: 0.5;
-  }
-  50% {
-    transform: scale(1.15);
-    opacity: 1;
+    transform: scaleY(1);
   }
 }
-@keyframes pet-aura {
-  from {
-    transform: scale(0.96);
-    opacity: 0.75;
-  }
-  to {
-    transform: scale(1.03);
-    opacity: 1;
-  }
+
+/* ---------- a cat's tail-tip flick ---------- */
+.pet-art.is-animated .pet-tailflick {
+  animation: pet-tailflick var(--pet-flick-dur, 7s) ease-in-out var(--pet-flick-delay, 0s) infinite;
 }
-@keyframes pet-ear-flick {
+@keyframes pet-tailflick {
   0%,
-  84%,
+  82%,
   100% {
     transform: rotate(0deg);
   }
-  87% {
-    transform: rotate(-16deg);
+  86% {
+    transform: rotate(-4deg);
   }
   90% {
-    transform: rotate(5deg);
+    transform: rotate(1.5deg);
   }
-  93% {
-    transform: rotate(-7deg);
+  94% {
+    transform: rotate(-2deg);
   }
-  96% {
+}
+
+/* ---------- a cow's ear flick ---------- */
+.pet-art.is-animated .pet-earflick {
+  animation: pet-earflick var(--pet-flick-dur, 7s) ease-in-out var(--pet-flick-delay, 0s) infinite;
+}
+@keyframes pet-earflick {
+  0%,
+  88%,
+  100% {
     transform: rotate(0deg);
   }
-}
-@keyframes pet-ear-sway {
-  from {
-    transform: rotate(-3deg);
+  91% {
+    transform: rotate(-12deg);
   }
-  to {
-    transform: rotate(3.5deg);
+  94% {
+    transform: rotate(2deg);
   }
 }
-@keyframes pet-nose-twitch {
-  0%,
-  60%,
-  100% {
-    transform: scale(1);
-  }
-  64%,
-  72% {
-    transform: scale(1.18, 0.86);
-  }
-  68%,
-  76% {
-    transform: scale(0.92, 1.1);
-  }
-  80% {
-    transform: scale(1);
-  }
+
+/* ---------- a frog's throat pulse ---------- */
+.pet-art.is-animated .pet-throat {
+  animation: pet-throat 2.6s ease-in-out var(--pet-breathe-delay, 0s) infinite;
 }
 @keyframes pet-throat {
   0%,
-  45%,
-  100% {
-    transform: scale(1);
-  }
-  60% {
-    transform: scale(1.22, 1.45);
-  }
-  75% {
-    transform: scale(1);
-  }
-}
-@keyframes pet-nibble {
-  0%,
-  66%,
-  100% {
-    transform: translateY(0) scaleX(1);
-  }
-  70%,
-  78%,
-  86% {
-    transform: translateY(0.5px) scaleX(1.08);
-  }
-  74%,
-  82%,
-  90% {
-    transform: translateY(-0.2px) scaleX(0.94);
-  }
-}
-@keyframes pet-sway {
-  from {
-    transform: rotate(-2.2deg);
-  }
-  to {
-    transform: rotate(2.2deg);
-  }
-}
-@keyframes pet-bob {
-  0%,
   60%,
   100% {
-    transform: rotate(0deg);
+    transform: scale(1);
   }
-  66%,
-  78% {
-    transform: rotate(-5deg) translateY(0.6px);
-  }
-  72%,
-  84% {
-    transform: rotate(0deg);
+  75% {
+    transform: scale(1.14, 1.2);
   }
 }
-@keyframes pet-tuft {
+
+/* ---------- happy gestures ---------- */
+.pet-art.is-animated .pet-wag {
+  animation: pet-wag 0.5s ease-in-out infinite alternate;
+}
+@keyframes pet-wag {
+  from {
+    transform: rotate(-9deg);
+  }
+  to {
+    transform: rotate(9deg);
+  }
+}
+.pet-art.is-animated .pet-twitch {
+  animation: pet-twitch 0.9s steps(2, jump-none) infinite;
+}
+@keyframes pet-twitch {
   0%,
-  62%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-0.5px);
+  }
+}
+.pet-art.is-animated .pet-wave {
+  animation: pet-wave 1.4s ease-in-out infinite;
+}
+@keyframes pet-wave {
+  0%,
   100% {
     transform: rotate(0deg);
   }
-  69%,
-  81% {
-    transform: rotate(7deg);
+  25%,
+  75% {
+    transform: rotate(-14deg);
   }
-  75%,
-  87% {
-    transform: rotate(-3deg);
-  }
-  92% {
-    transform: rotate(0deg);
+  50% {
+    transform: rotate(8deg);
   }
 }
-@keyframes pet-spin {
-  to {
-    transform: rotate(360deg);
-  }
+
+/* ---------- chewing: cud, or a hamster's full cheeks ---------- */
+.pet-art.is-animated .pet-chew {
+  animation: pet-chew 0.7s ease-in-out infinite alternate;
 }
-@keyframes pet-flap {
+@keyframes pet-chew {
   from {
-    transform: rotate(-4deg);
+    transform: translateX(-0.4px);
   }
   to {
-    transform: rotate(9deg);
+    transform: translateX(0.4px) scaleY(1.2);
   }
 }
-@keyframes pet-beckon {
-  from {
-    transform: rotate(-4deg);
+
+/* ---------- the walk: two key frames, alternated ---------- */
+.pet-art .pet-walk-b {
+  opacity: 0;
+}
+.pet-art.is-animated .pet-walk-a {
+  animation: pet-step-a 0.9s steps(1, end) infinite;
+}
+.pet-art.is-animated .pet-walk-b {
+  animation: pet-step-b 0.9s steps(1, end) infinite;
+}
+@keyframes pet-step-a {
+  0% {
+    opacity: 1;
   }
-  to {
-    transform: rotate(9deg);
+  50% {
+    opacity: 0;
   }
 }
-@keyframes pet-float {
+@keyframes pet-step-b {
+  0% {
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+/* A cow's four-beat walk bobs one unit per step; a duck waddles side to side. */
+.pet-art.is-animated .pet-bob {
+  animation: pet-bob 0.45s ease-in-out infinite alternate;
+}
+@keyframes pet-bob {
   from {
     transform: translateY(0);
   }
   to {
-    transform: translateY(-1.6px);
+    transform: translateY(-1px);
   }
 }
-@keyframes pet-gleam {
+.pet-art.is-animated .pet-waddle {
+  animation: pet-waddle 0.9s ease-in-out infinite;
+}
+@keyframes pet-waddle {
   0%,
-  55% {
-    transform: translateX(-10px);
-    opacity: 0;
-  }
-  60% {
-    opacity: 0.5;
-  }
-  80% {
-    transform: translateX(120px);
-    opacity: 0.35;
-  }
-  82%,
   100% {
-    transform: translateX(120px);
-    opacity: 0;
+    transform: rotate(-3.5deg);
   }
-}
-
-@keyframes pet-crown-gleam {
-  0%,
   50% {
-    transform: translateX(0);
-    opacity: 0;
+    transform: rotate(3.5deg);
   }
-  56% {
-    opacity: 0.85;
-  }
-  80% {
-    transform: translateX(62px);
-    opacity: 0.6;
-  }
-  82%,
+}
+
+/* A cat's walk is a two-stage hop: the forequarters lift, then the hindquarters follow. */
+.pet-art.is-animated .pet-hop {
+  animation: pet-hop 0.9s var(--ease-pop, ease-in-out) infinite;
+}
+@keyframes pet-hop {
+  0%,
   100% {
-    transform: translateX(62px);
+    transform: translateY(0) rotate(0deg);
+  }
+  22% {
+    transform: translateY(-0.6px) rotate(-1.4deg);
+  }
+  44% {
+    transform: translateY(-1px) rotate(0.6deg);
+  }
+  64% {
+    transform: translateY(0) rotate(0deg);
+  }
+}
+
+/* ---------- reduced motion: breathing and blinks only ---------- */
+@media (prefers-reduced-motion: reduce) {
+  .pet-art.is-animated :is(.pet-tailflick, .pet-earflick, .pet-throat, .pet-wag, .pet-twitch, .pet-wave, .pet-chew, .pet-bob, .pet-waddle, .pet-hop, .pet-walk-a, .pet-walk-b) {
+    animation: none;
+  }
+  .pet-art.is-animated .pet-walk-b {
     opacity: 0;
   }
 }
-
-/* Reduced motion (OS setting or the in-app preference): pets hold still. */
-@media (prefers-reduced-motion: reduce) {
-  :root:not([data-motion='full']) .pet-art * {
-    animation: none !important;
-  }
+[data-motion='reduced'] .pet-art.is-animated :is(.pet-tailflick, .pet-earflick, .pet-throat, .pet-wag, .pet-twitch, .pet-wave, .pet-chew, .pet-bob, .pet-waddle, .pet-hop, .pet-walk-a, .pet-walk-b) {
+  animation: none;
 }
-:root[data-motion='reduced'] .pet-art * {
-  animation: none !important;
-}
-
-/* Unowned: a soft silhouette. Static, so the filter is rasterized once. */
-.pet-art.is-silhouette {
-  filter: brightness(0);
-  opacity: 0.13;
-}
-:root[data-theme='night'] .pet-art.is-silhouette {
-  filter: brightness(0) invert(1);
-  opacity: 0.16;
-}
-
-/* Moonlight Meadow: a soft moonlit rim keeps the cocoa silhouette readable on the night cards. */
-:root[data-theme='night'] .pet-art .pet-rim {
-  stroke: rgba(248, 238, 243, 0.42);
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme]) .pet-art .pet-rim {
-    stroke: rgba(248, 238, 243, 0.42);
-  }
-}
-.pet-art.is-silhouette .pet-rim {
-  stroke: none;
-}
-
-/*
- * Boo-vine is a little see-through. Opacity sits on the static <svg> box (a cheap compositor blend)
- * rather than on the animated group inside, which would force an offscreen pass every frame.
- */
-.pet-art.aura-ghost {
-  opacity: 0.9;
+[data-motion='reduced'] .pet-art.is-animated .pet-walk-b {
+  opacity: 0;
 }
