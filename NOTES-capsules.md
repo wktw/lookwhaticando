@@ -63,11 +63,12 @@ outside my ownership. Requests for shared contracts and other modules are below.
 ## Integration notes
 
 - **Routing:** `CapsulesScreen` for `#/capsules` (unchanged export). It now accepts optional
-  `onPlace(itemId)` and `onLetThemChoose(itemId)` for the reveal card's "Find them a place" and
-  "Let them choose". Without them, "Find them a place" closes the reveal and goes to `#/shelf`,
-  and "Let them choose" just closes it. Wire them when the placement UI lands.
+  `onPlace(itemId)` and `onLetThemChoose(itemId)` for the reveal card's buttons. M1: VOICE.md wins,
+  so they read "Find {name} a plant" and "Let {name} choose" (not "them", not "a place"); "Let
+  {name} choose" calls the store's `letPetChoose(petId)` (NOTES-m1-logic.md).
 - **Onboarding:** `FirstPick` (also exported as `CatsOrCowsPick`) from
-  `src/features/capsules/FirstPick.tsx` shows the two cabinets side by side; choosing one brings
+  `src/features/capsules/FirstPick.tsx` shows the first-pick cabinets (M1: all four of
+  `FIRST_CAPSULE_MACHINES`, 2×2 at 390 px, see NOTES-m1-logic.md); choosing one brings
   it forward for a free pull (`pull(id, { free: true })`). Props: `onDone(machineId)` after the
   reveal closes, plus `onPlace` / `onLetThemChoose`.
 - **Light:** the art takes `light?: Light` (default `DAY_LIGHT`). The screen picks it in
