@@ -1,0 +1,346 @@
+import type { Anchors, BodyShape } from '../geometry';
+import type { TraitArt } from '../types';
+import { OUTLINE, STROKE } from '../geometry';
+import { lighten, shade } from '../color';
+import { mapPath, outlinePoints, scallopPath, smoothPath, type Pt } from '../outline';
+import { RAINBOW } from '../shapes';
+import { OutlinedStroke, puffPath } from '../species/parts';
+
+/** Body traits: reshaped silhouettes (fluff, sheet, ghost wisps) and body surfaces. */
+
+/** Memoize a reshaped silhouette per source path (bodies are static). */
+function reshaper(make: (shape: BodyShape, anchors: Anchors) => BodyShape) {
+  const cache = new Map<string, BodyShape>();
+  return (shape: BodyShape, anchors: Anchors) => {
+    let out = cache.get(shape.path);
+    if (!out) cache.set(shape.path, (out = make(shape, anchors)));
+    return out;
+  };
+}
+
+const fluff = (bumps: number, amp: number) =>
+  reshaper((shape) => ({ ...shape, path: scallopPath(shape.path, bumps, amp), halfWidthAt: (y) => shape.halfWidthAt(y) + amp }));
+
+/** A puffy cloud outline, sitting (floating a tiny bit) on a little cloud of its own (Cloud Kitty, Snowdrift Bunny). */
+export const cloudFluff: TraitArt = {
+  body: fluff(11, 3.1),
+  replaces: ['feet'],
+  surface: (ctx) => {
+    // Pale blue cloud shadow along the underside.
+    const hw = ctx.body.halfWidthAt(84);
+    return <path d={`M${50 - hw - 4} 84 ${Array.from({ length: 6 }, (_, i) => `Q${50 - hw + (i + 0.5) * (hw / 3)} 77.6 ${50 - hw + (i + 1) * (hw / 3)} 84`).join(' ')} L100 100 L0 100 Z`} fill="#DCE8F8" opacity={0.75} />;
+  },
+  front: () => (
+    <g stroke-linejoin="round">
+      <path
+        d="M24 95.4 C19.6 95.4 18.4 90.4 22.4 89 C22 85.2 27.4 83.6 30 86.4 C31.4 82.6 37.6 82.4 39 86.4 C41 83.4 46 83.8 46.8 87.4 C49 84.6 53.8 85 54.6 88 C56.4 84.6 61.6 84.4 62.8 87.8 C64.6 83.8 71.6 84.4 71.6 89 C75.8 88.6 77.4 94.8 73.4 95.4 Z"
+        fill="#FFFFFF"
+        stroke={OUTLINE}
+        stroke-width={STROKE * 0.9}
+      />
+      <path d="M27 92.6 C38 94.2 60 94.2 71 92.6" fill="none" stroke="#DCE8F8" stroke-width={1.8} stroke-linecap="round" />
+    </g>
+  ),
+};
+
+/** Dog fluff (Pom, Samoyed): a scalloped coat and a soft chest ruff. */
+export const fluffy: TraitArt = {
+  body: fluff(19, 1.35),
+  surface: (ctx) => {
+    const p = ctx.look.palette;
+    return <path d={puffPath(50, ctx.anchors.neck.y + 5, 12.5, 9, 0.16)} fill={p.belly ?? lighten(p.body, 0.55)} />;
+  },
+};
+
+/** Boo Bunny's sheet: ear bumps on top, a scalloped hem, feet peeking out, eye holes. */
+export const ghostSheet: TraitArt = {
+  replaces: ['ears', 'tail'],
+  body: reshaper((shape, anchors) => {
+    const hw = shape.halfWidthAt;
+    const top = anchors.head.y;
+    const f = anchors.headFeatures;
+    const [bl, br] = f.length >= 2 ? [f[0]!.x, f[1]!.x] : [anchors.head.x - 9, anchors.head.x + 9];
+    const pad = 2.2;
+    const side = (y: number, extra = 0) => 50 + Math.max(hw(y) + pad, 22 + extra);
+    const right: Pt[] = [
+      [50, top - 1.5],
+      [br - 5.2, top - 4.4],
+      [br - 4.6, top - 10],
+      [br - 1, top - 13],
+      [br + 3.4, top - 12.6],
+      [br + 6.2, top - 8.8],
+      [br + 7.4, top - 2.8],
+      [side(top + 8, 3), top + 8],
+      [side(top + 22, 8), top + 22],
+      [side(62, 9), 62],
+      [side(76, 9) + 0.4, 76],
+    ];
+    const xr = side(84, 9) + 1.4;
+    const hem: Pt[] = Array.from({ length: 9 }, (_, i) => [xr - (i * 2 * (xr - 50)) / 8, i % 2 ? 93.2 : 88.8]);
+    const left: Pt[] = right
+      .slice(1)
+      .reverse()
+      .map(([x, y]) => [100 - x, y]);
+    left.forEach((p, i) => {
+      // Mirror the ear bump onto the left ear's own x.
+      if (p[1] < top) left[i] = [p[0] - (100 - br - bl), p[1]];
+    });
+    return { ...shape, path: smoothPath([...right, ...hem, ...left]), halfWidthAt: (y) => hw(y) + pad };
+  }),
+  surface: (ctx) => {
+    const { eyes } = ctx.anchors;
+    const fur = ctx.look.palette.pattern ?? '#E7D8F2';
+    return (
+      <g>
+        <g fill={fur} stroke={OUTLINE} stroke-width={1.2} stroke-opacity={0.35}>
+          <ellipse cx={eyes.left} cy={eyes.y} rx={5.2} ry={6} />
+          <ellipse cx={eyes.right} cy={eyes.y} rx={5.2} ry={6} />
+        </g>
+        <g fill="none" stroke={OUTLINE} stroke-width={1.2} stroke-linecap="round" opacity={0.18}>
+          <path d="M30 72 C28 78 28 84 30 90" />
+          <path d="M68 70 C71 77 72 83 70 90" />
+        </g>
+      </g>
+    );
+  },
+  mouth: (ctx) => {
+    const { x, y } = ctx.anchors.mouth;
+    const e = ctx.expression;
+    if (e === 'eat' || e === 'surprised') return <ellipse cx={x} cy={y + 0.6} rx={1.8} ry={2.2} fill={OUTLINE} opacity={0.8} />;
+    return (
+      <path
+        d={`M${x - 2.4} ${y} Q${x} ${y + (e === 'sleep' ? 1.2 : 2.4)} ${x + 2.4} ${y}`}
+        fill="none"
+        stroke={OUTLINE}
+        stroke-width={1.5}
+        stroke-linecap="round"
+      />
+    );
+  },
+};
+
+/** Jack-o'-Kitty sits inside a carved pumpkin; only the body above the rim shows. She climbs out to wear clothes. */
+export const pumpkinShell: TraitArt = {
+  occupies: 'body',
+  replaces: ['feet', 'tail'],
+  back: (ctx) => {
+    const c = ctx.look.palette.accent ?? '#FFB26B';
+    return <ellipse cx={50} cy={71} rx={35} ry={6.4} fill={shade(c, 0.28)} stroke={OUTLINE} stroke-width={STROKE} />;
+  },
+  front: (ctx) => {
+    const c = ctx.look.palette.accent ?? '#FFB26B';
+    const glow = '#FFE08A';
+    return (
+      <g stroke={OUTLINE} stroke-linejoin="round" stroke-linecap="round">
+        <path d="M89.6 71.4 C92.6 67.4 97 67.4 98.6 69.6 C96 71.4 92.8 72.4 89.6 71.4 Z" fill="#9CCB86" stroke-width={STROKE * 0.7} />
+        <path d="M15 71 C7 74 5.5 90 15 95 C28 100.6 72 100.6 85 95 C94.5 90 93 74 85 71 C73 76.6 27 76.6 15 71 Z" fill={c} stroke-width={STROKE} />
+        <g fill="none" stroke-width={1.4} opacity={0.3}>
+          <path d="M29 75.6 C26 82.6 26 90.6 29.6 98" />
+          <path d="M71 75.6 C74 82.6 74 90.6 70.4 98" />
+        </g>
+        <path d="M20 76 C16.6 80 16.4 86 18.4 89.6" fill="none" stroke="#fff" stroke-width={1.6} opacity={0.5} />
+        <g fill={glow} stroke-width={1.3}>
+          <path d="M35 86.4 L38.4 80.8 L41.8 86.4 Z" />
+          <path d="M58.2 86.4 L61.6 80.8 L65 86.4 Z" />
+          <path d="M40.5 89.2 L43.4 91.4 L46.6 89.6 L50 92 L53.4 89.6 L56.6 91.4 L59.5 89.2 C57 94.6 43 94.6 40.5 89.2 Z" />
+        </g>
+      </g>
+    );
+  },
+};
+
+/** Boo-vine: the bottom trails off into three wisps, fading out (no feet, no tail). */
+export const ghostTail: TraitArt = {
+  replaces: ['feet', 'tail'],
+  body: reshaper((shape) => {
+    const cut = 68;
+    const pts = outlinePoints(shape.path, 72);
+    const first = pts.findIndex((p) => p[1] > cut);
+    let last = first;
+    pts.forEach((p, i) => {
+      if (p[1] > cut) last = i;
+    });
+    const hw = shape.halfWidthAt(cut);
+    const hem: Pt[] = (
+      [
+        [0.99, 75],
+        [0.9, 82.5],
+        [0.76, 88.4],
+        [0.63, 95.4],
+        [0.46, 89.6],
+        [0.2, 90.4],
+        [0.02, 96.4],
+        [-0.2, 90.4],
+        [-0.44, 89.6],
+        [-0.6, 95.4],
+        [-0.76, 88.4],
+        [-0.9, 82.5],
+        [-0.99, 75],
+      ] as Pt[]
+    ).map(([k, y]) => [50 + k * hw, y]);
+    return {
+      ...shape,
+      path: smoothPath([...pts.slice(0, first), ...hem, ...pts.slice(last + 1)]),
+      halfWidthAt: (y) => (y <= cut ? shape.halfWidthAt(y) : shape.halfWidthAt(y) * 0.94),
+    };
+  }),
+  surface: (ctx) => {
+    const id = `${ctx.uid}-wisp`;
+    return (
+      <g>
+        <linearGradient id={id} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#FFFFFF" stop-opacity={0} />
+          <stop offset="1" stop-color="#F2EDFE" stop-opacity={0.75} />
+        </linearGradient>
+        <rect x={0} y={68} width={100} height={32} fill={`url(#${id})`} />
+      </g>
+    );
+  },
+};
+
+/** Mermaid Kitty: a scaly lower half and a fin tail curled to the side. */
+export const mermaidTail: TraitArt = {
+  replaces: ['feet', 'tail'],
+  back: (ctx) => {
+    const p = ctx.look.palette;
+    const fin = p.tail ?? p.pattern ?? '#9FDCCB';
+    return (
+      <g class="pet-tail" style={{ '--tail-origin': '80px 88px' }} stroke={OUTLINE} stroke-linejoin="round">
+        <OutlinedStroke d="M74 90 C83 90.6 88.6 85 90 77.6" color={fin} width={6.4} />
+        <path
+          d="M90.4 78.4 C86.4 73.4 86.8 66.4 91 63 C92.4 67.4 93.2 70.6 91.8 74.6 C94.6 70.8 98.2 69.4 100.8 70.6 C98.6 75.2 95.4 78.4 90.4 78.4 Z"
+          fill={fin}
+          stroke-width={STROKE}
+        />
+        <path d="M90.6 75.6 C89.4 72 89.6 68.6 90.8 66.4 M92.4 76.2 C94.4 74 96.4 72.6 98.6 72" fill="none" stroke-width={1} opacity={0.4} />
+      </g>
+    );
+  },
+  surface: (ctx) => {
+    const p = ctx.look.palette;
+    const scales = p.pattern ?? '#9FDCCB';
+    const y0 = ctx.anchors.neck.y + 2;
+    const wave = `M0 ${y0} Q12.5 ${y0 - 2.6} 25 ${y0} Q37.5 ${y0 + 2.6} 50 ${y0} Q62.5 ${y0 - 2.6} 75 ${y0} Q87.5 ${y0 + 2.6} 100 ${y0}`;
+    return (
+      <g>
+        <path d={`${wave} L100 100 L0 100 Z`} fill={scales} />
+        <g fill="none" stroke={lighten(scales, 0.5)} stroke-width={1.2} stroke-linecap="round">
+          {[5, 10.5, 16].map((dy, row) =>
+            Array.from({ length: 13 }, (_, i) => {
+              const x = 4 + i * 7.6 + (row % 2 ? 3.8 : 0);
+              return <path key={`${row}-${i}`} d={`M${x - 3.4} ${y0 + dy} Q${x} ${y0 + dy + 3.2} ${x + 3.4} ${y0 + dy}`} />;
+            }),
+          )}
+        </g>
+        <path d={wave} fill="none" stroke={shade(scales, 0.2)} stroke-width={1.4} />
+      </g>
+    );
+  },
+};
+
+/** Daifuku: a squishier, rounder silhouette, sweet bean filling peeking through the top, and a dusting of starch. */
+export const daifukuBean: TraitArt = {
+  body: reshaper((shape) => {
+    const sx = 1.06;
+    const sy = 0.94;
+    return {
+      path: mapPath(shape.path, ([x, y]) => [50 + (x - 50) * sx, 93 - (93 - y) * sy]),
+      halfWidthAt: (y) => sx * shape.halfWidthAt(93 - (93 - y) / sy),
+      sheen: shape.sheen && { ...shape.sheen, cx: 50 + (shape.sheen.cx - 50) * sx, cy: 93 - (93 - shape.sheen.cy) * sy },
+    };
+  }),
+  surface: (ctx) => {
+    const { head } = ctx.anchors;
+    const y = head.y + 8.5;
+    return (
+      <g>
+        <g fill="#FFFFFF" opacity={0.8}>
+          {[
+            [36, 6],
+            [63, 5],
+            [66, 11],
+            [33, 12],
+            [58, 13],
+          ].map(([x, dy]) => (
+            <circle key={x} cx={x} cy={head.y + dy!} r={0.7} />
+          ))}
+        </g>
+        {/* the sweet bean filling, showing softly through the mochi skin */}
+        <g fill="#B77586">
+          <path d={`M${head.x - 8} ${y + 0.6} C${head.x - 7.4} ${y - 3.6} ${head.x + 6.4} ${y - 4} ${head.x + 8} ${y - 0.2} C${head.x + 8.6} ${y + 3.4} ${head.x - 8.6} ${y + 4.4} ${head.x - 8} ${y + 0.6} Z`} opacity={0.22} />
+          <path d={`M${head.x - 4.6} ${y + 0.4} C${head.x - 4} ${y - 2} ${head.x + 3.6} ${y - 2.2} ${head.x + 4.4} ${y} C${head.x + 4.8} ${y + 2} ${head.x - 5} ${y + 2.6} ${head.x - 4.6} ${y + 0.4} Z`} opacity={0.3} />
+          <ellipse cx={head.x - 1.6} cy={y} rx={1.3} ry={0.85} opacity={0.55} />
+          <ellipse cx={head.x + 1.6} cy={y + 0.3} rx={1.2} ry={0.8} opacity={0.5} />
+        </g>
+      </g>
+    );
+  },
+};
+
+/** Gingerbread: piped icing trim just inside the outline, plus two gumdrop buttons. */
+export const gingerbread: TraitArt = {
+  surface: (ctx) => {
+    const trim = mapPath(ctx.body.path, ([x, y]) => [50 + (x - 50) * 0.87, 64 + (y - 64) * 0.87]);
+    const { neck } = ctx.anchors;
+    return (
+      <g>
+        <path d={trim} fill="none" stroke="#FFFFFF" stroke-width={1.9} stroke-dasharray="2.6 2" stroke-linecap="round" />
+        <g stroke={OUTLINE} stroke-width={1}>
+          <circle cx={50} cy={neck.y + 7.4} r={2.3} fill="#F58CAA" />
+          <circle cx={50} cy={neck.y + 13} r={2.3} fill="#6CCBAE" />
+        </g>
+      </g>
+    );
+  },
+};
+
+/** A little rainbow arching over the tummy (Sunshower Frog). */
+export const rainbowBelly: TraitArt = {
+  surface: () => (
+    <g>
+      <g fill="none" stroke-width={3.6}>
+        {RAINBOW.slice(0, 5).map((c, i) => (
+          <circle key={c} cx={50} cy={96} r={22 - i * 3.5} stroke={c} />
+        ))}
+      </g>
+      <g fill="#FFFFFF" stroke={OUTLINE} stroke-width={1.2}>
+        <path d={puffPath(29.5, 93.5, 3.6, 6, 0.3)} />
+        <path d={puffPath(70.5, 93.5, 3.6, 6, 0.3)} />
+      </g>
+    </g>
+  ),
+};
+
+/** Hamster cheek pouches: the outline swells into two stuffed lobes, each with a shine. */
+const POUCH = 3.4;
+const pouchY = (anchors: Anchors) => (anchors.cheeks?.y ?? anchors.eyes.y + 6.5) + 1;
+const pouchSwell = (anchors: Anchors, y: number) => POUCH * Math.exp(-(((y - pouchY(anchors)) / 5.6) ** 2));
+
+export const cheeks: TraitArt = {
+  body: reshaper((shape, anchors) => ({
+    ...shape,
+    path: smoothPath(outlinePoints(shape.path, 72).map(([x, y]) => [x + Math.sign(x - 50) * pouchSwell(anchors, y), y])),
+    halfWidthAt: (y) => shape.halfWidthAt(y) + pouchSwell(anchors, y),
+  })),
+  front: (ctx) => {
+    const y = pouchY(ctx.anchors) - 4.2;
+    const x = ctx.body.halfWidthAt(y) - 4.6;
+    return (
+      <g fill="#FFFFFF" opacity={0.85}>
+        <ellipse cx={50 - x} cy={y} rx={2.3} ry={1.2} transform={`rotate(-34 ${50 - x} ${y})`} />
+        <ellipse cx={50 + x} cy={y} rx={2.3} ry={1.2} transform={`rotate(34 ${50 + x} ${y})`} />
+      </g>
+    );
+  },
+};
+
+/** Onigiri: a sheet of nori cupping the bottom of the rice ball, its top edge following the body's curve. */
+export const nori: TraitArt = {
+  surface: () => (
+    <g>
+      <path d="M0 71 C22 82.6 78 82.6 100 71 L100 100 L0 100 Z" fill="#56675C" />
+      <path d="M16 79.4 C32 85.6 68 85.6 84 79.4" fill="none" stroke="#7E9585" stroke-width={1} stroke-linecap="round" opacity={0.7} />
+      <path d="M0 71 C22 82.6 78 82.6 100 71" fill="none" stroke={OUTLINE} stroke-width={1.3} opacity={0.5} />
+    </g>
+  ),
+};

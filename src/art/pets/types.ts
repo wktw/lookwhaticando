@@ -1,5 +1,5 @@
 import type { JSX } from 'preact';
-import type { Species } from '@/catalog/types';
+import type { Species, WearableSlot } from '@/catalog/types';
 import type { Anchors, BodyShape } from './geometry';
 
 export type Expression = 'idle' | 'happy' | 'sleep' | 'love' | 'eat' | 'surprised' | 'wink';
@@ -29,7 +29,13 @@ export type PatternId =
   | 'rainbow'
   | 'nebula'
   | 'icing'
-  | 'belly-only';
+  | 'belly-only'
+  // Added by the pets module:
+  | 'spots' // small round dalmatian spots
+  | 'urajiro' // shiba cream cheeks, brows and chest
+  | 'raindrops'
+  | 'snowflakes'
+  | 'mallard'; // green hood with a white neck ring
 
 /** Extra built-in features that are part of a variant (not removable like wearables). */
 export type TraitId =
@@ -61,7 +67,21 @@ export type TraitId =
   | 'rainbow-belly'
   | 'daifuku-bean' // red bean dot + extra round (Daifuku Hamster)
   | 'cheeks' // hamster cheek pouches (default for hamsters)
-  | 'gingerbread';
+  | 'gingerbread'
+  // Added by the pets module. Dog ear/tail styles are read by the dog species art (default: floppy ears, wag tail).
+  | 'pointy-ears' // shiba, corgi
+  | 'floppy-ears' // golden, dachshund, dalmatian
+  | 'bat-ears' // frenchie
+  | 'fluffy' // pom, samoyed: scalloped fluffy outline + chest ruff, ears peek out of the fluff
+  | 'curly-tail' // shiba, pom, samoyed
+  | 'long-horns' // Highland Cow: long, wide horns sweeping up (read by the cow species art)
+  | 'witch-hat' // Witchy Cat's tiny crooked hat
+  | 'red-nose' // Reindeer Cow's shiny nose
+  | 'forelock' // cow hair tuft between the horns
+  | 'starfish' // Sandy Cat's hair accessory
+  | 'rose' // Rose Bunny's rose, tucked by the ear
+  | 'nori' // onigiri seaweed wrap (Snowball Hamster)
+  | 'moonlit'; // star speckles of the code-drawn Moonlit variants (DESIGN §13.6)
 
 export interface PetPalette {
   body: string;
@@ -84,8 +104,12 @@ export interface PetPalette {
   tail?: string;
   /** Horns (cow), beak (duck), antlers. */
   accent?: string;
-  /** Eye color override (defaults to EYE cocoa). */
+  /** Eye color override (defaults to EYE cocoa). With `iris`, this is the pupil. */
   eye?: string;
+  /** Colored irises (e.g. a black cat's golden eyes): open eyes get an iris with a pupil. */
+  iris?: string;
+  /** Face line color (closed eyes, mouth) for dark fur, where cocoa lines would vanish. */
+  ink?: string;
 }
 
 export interface PetLook {
@@ -95,6 +119,8 @@ export interface PetLook {
   traits?: TraitId[];
   /** Special presentation for rare/ultra variants. */
   aura?: 'sparkle' | 'holo' | 'glow' | 'ghost';
+  /** Resting eyes for the idle expression: drowsy half-lids (Sleepy Bear) or happy closed arcs (Samoyed). */
+  idleEyes?: 'drowsy' | 'happy';
 }
 
 /** Rendering context passed to species/pattern/trait/wearable renderers. */
@@ -108,14 +134,28 @@ export interface ArtCtx {
   /** This species' silhouette (path + half-width sampler for fitting wear). */
   body: BodyShape;
   look: PetLook;
+  /** Species parts replaced by a trait (see TraitArt.replaces). */
+  hidden?: ReadonlySet<BodyPart>;
 }
 
+/** Parts of the species art a trait can take over (e.g. a mermaid tail replaces feet and tail). */
+export type BodyPart = 'tail' | 'ears' | 'feet' | 'mouth';
+
 export interface SpeciesArt {
-  /** Behind the body: tail, ears, horns, wings… (animated tail should use className "pet-tail"). */
+  /** Behind the body: horns, wings, anything that isn't a tail or ears. */
   back: (ctx: ArtCtx) => JSX.Element | null;
+  /** Tail, behind the body (animated tails use className "pet-tail"). Omitted when a trait replaces it. */
+  tail?: (ctx: ArtCtx) => JSX.Element | null;
+  /**
+   * Ears (and cow horns, frog eye bumps). Drawn behind the body, or in front of head wear when
+   * `anchors.headWearBehindFeatures` is true, so hats never hide them.
+   */
+  ears?: (ctx: ArtCtx) => JSX.Element | null;
   /** Clipped to the body, drawn over the pattern: muzzle patches, belly shapes. */
   overlay?: (ctx: ArtCtx) => JSX.Element | null;
-  /** Over the body outline (e.g. frog eye bumps, duck beak, whiskers). */
+  /** Feet nubs on the ground; the default is two cocoa-outlined ovals. */
+  feet?: (ctx: ArtCtx) => JSX.Element | null;
+  /** Over the face and neck/face wear (e.g. whiskers, duck wings, hamster paws). */
   front?: (ctx: ArtCtx) => JSX.Element | null;
   /** Mouth/nose for the given expression. */
   mouth: (ctx: ArtCtx) => JSX.Element | null;
@@ -126,15 +166,35 @@ export interface SpeciesArt {
 export interface TraitArt {
   /** Behind the body. */
   back?: (ctx: ArtCtx) => JSX.Element | null;
+  /** Clipped to the body, over the pattern and species overlay (under body wear). */
+  surface?: (ctx: ArtCtx) => JSX.Element | null;
   /** On top of everything except head wear. */
   front?: (ctx: ArtCtx) => JSX.Element | null;
   /** Drawn above head wear (rare; e.g. golden sparkles). */
   top?: (ctx: ArtCtx) => JSX.Element | null;
+  /** Replaces the species' mouth for this expression; return null to keep the species' own mouth. */
+  mouth?: (ctx: ArtCtx) => JSX.Element | null;
+  /** Reshapes the silhouette (fluff, ghost wisps). Wear still fits through the returned halfWidthAt. */
+  body?: (shape: BodyShape, anchors: Anchors) => BodyShape;
+  /** Species parts this trait replaces. */
+  replaces?: readonly BodyPart[];
+  /** A wearable slot this trait fills (a crown, a cap): it steps aside while real wear is in that slot. */
+  occupies?: WearableSlot;
 }
 
 export interface WearableArt {
   /** Render the item in pet canvas coordinates using ctx.anchors. Body wear is auto-clipped to the body. */
   render: (ctx: ArtCtx) => JSX.Element | null;
+  /**
+   * Head wear only: draw in front of ears and horns (bows, clips, wreaths) even on species that wear
+   * hats behind them. A function decides per pet (a wreath sits in front of bunny ears but behind a
+   * frog's eye bumps).
+   */
+  overEars?: boolean | ((ctx: ArtCtx) => boolean);
+  /** Optional unclipped layer behind the pet (a backpack, a hood). */
+  behind?: (ctx: ArtCtx) => JSX.Element | null;
+  /** Body wear only: an unclipped layer over the body outline (a floatie ring, apron ties). */
+  over?: (ctx: ArtCtx) => JSX.Element | null;
   /** Optional standalone icon rendering (collection book / reveal) on a 100×100 canvas. Defaults to render() on a ghost body. */
   icon?: () => JSX.Element;
 }
