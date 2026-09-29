@@ -21,7 +21,7 @@ const SHORTCUTS = [
   { tab: 'capsules', icon: 'tab-capsules' },
 ];
 const SCREENSHOTS = [
-  { file: 'public/screenshots/narrow-1170x2532.png', route: 'capsules', w: 390, h: 844, dpr: 3 },
+  { file: 'public/screenshots/narrow-1170x2532.png', route: 'today', w: 390, h: 844, dpr: 3 },
   { file: 'public/screenshots/wide-2560x1600.png', route: 'shelf', w: 1280, h: 800, dpr: 2 },
 ];
 /** A late-afternoon light, so the screenshots don't depend on when they were taken. */
@@ -65,7 +65,16 @@ try {
     mkdirSync('public/screenshots', { recursive: true });
     for (const s of SCREENSHOTS) {
       const ctx = await browser.newContext({ viewport: { width: s.w, height: s.h }, deviceScaleFactor: s.dpr, colorScheme: 'light', reducedMotion: 'reduce' });
+      // A first boot is onboarding: the screenshots show the demo household instead.
       const page = await open(ctx, `/#/${s.route}`);
+      await page.evaluate(async (now) => {
+        const d = await import('/src/state/demo.ts');
+        const p = await import('/src/state/persist.ts');
+        const t = await import('/src/domain/dates.ts');
+        localStorage.setItem('catkin:v1', p.encodeEnvelope(d.buildDemo({ today: t.appDayKey(now, 180), now, name: 'Sam' }), 1, now, 'dev'));
+      }, FIXED_TIME);
+      await page.reload({ waitUntil: 'networkidle' });
+      await page.evaluate(() => document.fonts.ready);
       await page.locator('main h1').waitFor();
       await page.waitForTimeout(1200);
       await page.screenshot({ path: s.file });

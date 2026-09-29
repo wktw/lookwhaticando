@@ -60,7 +60,7 @@ export const MANIFEST: Partial<ManifestOptions> = {
     },
   ],
   screenshots: [
-    { src: 'screenshots/narrow-1170x2532.png', sizes: '1170x2532', type: 'image/png', form_factor: 'narrow', label: 'The Cats capsule cabinet, on a phone' },
+    { src: 'screenshots/narrow-1170x2532.png', sizes: '1170x2532', type: 'image/png', form_factor: 'narrow', label: 'Today: the windowsill band and the day’s habits, on a phone' },
     { src: 'screenshots/wide-2560x1600.png', sizes: '2560x1600', type: 'image/png', form_factor: 'wide', label: 'The Shelf: the windowsill, two pets and the places to buy' },
   ],
 };
