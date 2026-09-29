@@ -26,6 +26,8 @@ export interface Env {
   /** Local wall-clock reader (early-bird / wind-down hours, `createdAt` → app day). */
   readonly local: LocalTimeReader;
   readonly rng: Rng;
+  /** The device's IANA time zone, when known (the hemisphere is inferred from it, §14.3). */
+  readonly timeZone?: string;
 }
 
 /** What every game reducer returns: the next state, the events to celebrate, and its own result fields. */

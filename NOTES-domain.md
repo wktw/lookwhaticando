@@ -62,7 +62,7 @@ View models carry data, not catalog prose or emoji; the screens word them from `
   within } | null`; `luckyText` gone. `CapsulesVM.away[i]` is `{ id, name, back }`.
 - `WishItemVM.note` → `arrives: DateKey | null`. `BookItemVM.from` is the series label ("No. 01 · Cats") or
   Starter / Exclusive / Harvest, and `visits` is month/day bounds. `BadgeVM.emoji` is gone.
-- Unchanged for now (stage B renames them at the view layer): `lettersVM` (Sunday Notes, Herbarium pages).
+- `lettersVM` was renamed in stage B (`memoryShelfVM`, below).
 
 ### Domain helpers the screens may call
 
@@ -91,8 +91,149 @@ View models carry data, not catalog prose or emoji; the screens word them from `
    created. A profile created mid-season can order that season's items at once (the old reading, "a window that
    *started* after creation", made her wait a year for the season she met on day one).
 6. **Levels**: L9 changes nothing new and bond levels 11–15 are cosmetic, as in §8.2.
-7. **No XP from check-ins until Keeping Company.** §8.2 lists petting, treats, a companion's check-ins and duplicate
-   pulls. The buddy bonus is gone; companion XP arrives with `Habit.companionId` (stage B).
+7. **No XP from check-ins without a companion.** §8.2 lists petting, treats, a companion's check-ins and
+   duplicate pulls. The buddy bonus is gone; companion XP comes with `Habit.companionId` (stage B).
+
+## The three pillars and the rituals (stage B): what the screens use
+
+All new state is optional, so older saves stay valid; `validate.ts` checks every field and its
+cross-references. Nothing here pays except Grow's stamp (§14.3) and the Sunday Note / Herbarium
+stamps of §6 (unchanged, upward differences only).
+
+### State (`src/state/types.ts`)
+
+- `Habit`: `companionId?` (§14.1), `why?` (≤ 140), `anchorHabitId?` (stacking), `endsOn?` ("just this
+  season"), `ribbon?` (retired with a ribbon: its last day), `timeNudge?: 'moved' | 'left'`.
+- `DayLog.starred?: true`: only a starred note is ever quoted in a Sunday Note.
+- `PetState.daily.company?`: XP its habit's check-ins paid today (≤ 30).
+- `LedgerEntry.co?: { pet, sun, watered? }`: the companion's share of an occurrence (internal).
+- `company?: { pairs: Record<'<petId>|<habitId>', CompanyPair>; offer: { shownOn?, declines } }`, where
+  `CompanyPair = { petId, habitId, since, sunshine, waterings, stories?: { start|why|lookAtUs: { on, readAt? } }, whyAsked? }`.
+- `keepsakes?: Keepsake[]` (`{ id: 'k-<habitId>-<stage>', habitId, petId, stage: 1|4|5|7, kind, date, note? }`,
+  `kind` one of the 12 families or `'brass-seed'`).
+- `plantLooks?: Record<habitId, { looks: PlantLook[]; shown: number | null; chosen?; reads: { bloom?, evergreen? } }>`
+  (`PlantLook = { colour, shape, read, on, evidence }`; `shown: null` is Classic).
+- `stageDates?: Record<habitId, { [stage]: DateKey }>`: the day each stage was first reached.
+- `seasons?: { pending?: SeasonRecord; filed: SeasonRecord[] }` (`SeasonRecord = { key, name, start, end,
+  hemisphere, plants (≤ 8: { habitId, plant, fromStage, toStage, waterings, petId? }), waterings, filed? }`).
+- `Letter`: weekly gains `waterings`, `highlights` (≤ 2 `SundayHighlight`s), `ps` (`SundayPS`); monthly gains
+  `pressings` (`HerbariumPressing[]`), `margin`, `firstPage` (it no longer writes `stems`); new kind
+  `'anniversary'` (`{ id, date, years, firstHabitId?, waterings, stars: 0 }`).
+- `Settings`: `showCompanions?` (default on), `hemisphere?: 'north' | 'south'` (absent = inferred),
+  `compactToday?`, `quoteNotes?` (default on).
+- Once-keys: `'company|<habitId>|<date>'` (compacted with the window), `'anniversary|<YYYY>'`.
+
+### Store (`src/state/store.ts`)
+
+`setCompanion(habitId, petId | null)` · `noteCompanionOffer()` (call when the offer is shown) ·
+`declineCompanionOffer()` · `readStory(habitId, story)` · `answerWhy(habitId, text | null)` ·
+`setKeepsakeNote(id, text)` · `placeDecor('keepsake:<id>', place, x, y)` places a keepsake ·
+`setPlantLook(habitId, index | null)` · `answerTimeNudge(habitId, move)` ·
+`resolveSeasonReview(choices | 'skip')` ([] = "Keep everything") · `tuneHabits(choices)` ·
+`starNote(habitId, date, starred)` · `updateSettings({ showCompanions, hemisphere, compactToday, quoteNotes })`.
+`HabitInput` gains `why`, `anchorHabitId`, `endsOn` (validated: `anchor-self|unknown|archived|cycle`,
+`ends-on`, `why`). `StoreRuntime.timeZone?` (the device zone; onboarding stores the inferred hemisphere).
+
+### Events (`src/state/api.ts`)
+
+`companion` (moved in) · `companionXp { petId, habitId, date, xp }` · `story { petId, habitId, story }` ·
+`keepsake { keepsakeId, petId, habitId, stage, kind }` · `look { habitId, colour, shape, read }` ·
+`seasonReview { season, key }` · `retired { habitId, ribbon }`. The anniversary note arrives as `letter`.
+
+### Views
+
+- `HabitCardVM`: `damp`, `companion: { petId, routine: { petId, routine, phase } | null } | null`,
+  `after: { habitId, name } | null`, `look: { colour, shape } | null`, `endsOn`. Cards (and `liveHabits`)
+  are in stack order: a follower right after its anchor.
+- `SillPotVM`: `damp`, `routine`, `bow` (the resident's came-home day), `look`; `resident` is the
+  companion (`companion: true`), else the nearest pet out not already living in a pot.
+- `TodayVM`: `letterWaiting` is now `{ id, kind: 'sundayNote' | 'herbarium' | 'anniversary' } | null`
+  (oldest unread); new `showCompanions`, `compactToday`, `season { name, start, end, hemisphere }`,
+  `seasonReview: SeasonReviewVM | null`, `storyWaiting`, `birthday: { petIds } | null`, `cameHome`,
+  `companionOffer: { petId, suggested, habitIds } | null`.
+- `HabitDetailVM`: `why`, `companion: CompanionVM | null` (`{ petId, since, waterings, stories: StoryVM[],
+  askWhy, moment, routine }`, `StoryVM = { id, unlocked, on, read, remaining }`), `keepsakes`, `looks { looks,
+  shown, tag, waiting }`, `journal: JournalEntry[]`, `timeNudge { from, to, band, usualMinute } | null`,
+  `after { habitId, name, keptTogether }`, `followers`, `checkinsToBlooming`, `endsOn`, `ribbon`, `tune`.
+- `PetSummaryVM.habitId`; `PetVM`: `cameHomeYears`, `company { habitId, since, knownFor, history }`,
+  `suggestedHabit`, `keepsakes`, `moments` (came home, each "Look at us").
+- `ShelfVM`: `keepsakes`; `inventory` and `decor` carry `keepsake` for keepsake items.
+- `lettersVM`/`lettersView` → `memoryShelfVM`/`memoryShelfView`: `{ unread, next, items: RitualVM[],
+  sundayNotes, herbarium: { year, pages }[], retired, seasons }`. A `SundayNoteVM` carries no tally.
+- New: `seasonReviewVM` (inside `todayVM`: the time-lapse, counts, the season starting, the finished
+  "just this season" habits) and `tuneVM`/`tuneView` ("Tune my habits", and the review card's chips).
+- Helpers: `checkinsToStage`, `ritualKind`, `ritualDate`, `companionVM`, `petCompanyVM`, `keepsakeVM`.
+
+### Domain helpers the screens may call
+
+`companionOfferOpen`, `suggestHabitFor` ("Let them choose"), `companionXpFor`, `STORY_SUNSHINE`,
+`routineOf`, `ROUTINES`, `KEEPSAKE_FAMILIES`, `readTimes`/`eligibleTimes`, `justThisSeasonEnd`,
+`seasonAt`, `nextSeasonStart`, `inferHemisphere`, `hemisphereOf`, `freshStartOptions`, `tinierPatch`,
+`growPatch`, `gardenJournal`, `keptTogetherDays`, `stackOrder`, `anniversaryOf`, `cameHomeToday`.
+
+## Spec readings (stage B)
+
+1. **Stories** unlock on companion sunshine 7 · 21 · 42 (a faithful week is 7 sunshine for every rhythm;
+   21 and 42 are Budding's and Blooming's thresholds); Look at us also needs the plant at Blooming. One
+   story per check-in at most (like one stage per check-in), in order, never taken back.
+2. **Companion sunshine** is kept per occurrence in the ledger entry, so an un-check inside the window
+   takes it back from the pet that had it (even after a move) and a rule edit re-prices it. Growth while
+   a *different* pet holds the day's share goes to nobody.
+3. **Companion XP**: the tiny version counts as a completing check-in (full XP); once per occurrence
+   (an un-check and re-check can't pay twice); the 30-a-day cap is per pet per action day; only
+   reward-path check-ins (the 6-day window), never history, never a flexible check-in beyond `times`.
+4. **The offer's counters are global**: one offer a day in all, and after 3 declines in all it never
+   comes back. Pairing by hand is always possible, and pairing counts as the day's offer.
+5. Archiving, retiring or deleting a habit frees its companion (and its followers stop following it).
+   Pairing records stay (a pet that returns to a plant carries on), except a deleted habit's.
+6. **Keepsakes** need a companion when the plant first reaches the stage; pairing later brings none for
+   stages already reached. Learn (laptop, lightbulb, language) keeps the *read* family's bookmark. The
+   caption is her latest Moment at that moment, copied (editable).
+7. **Routines**: 'starting' from Potted on days the habit was done, 'settled' every day from Blooming
+   (the plant's shown stage). The 14 ids and the icon map mirror `ARCHETYPES`/`ARCHETYPE_BY_ICON` in the
+   voice module's `lines.ts`.
+8. **The colour**: a day's time is its last live stamp; bands Dawn < 9:00 ≤ Sunlit < 18:00 ≤ Twilight;
+   "usually" = a band with ≥ 60% of the eligible days, else Wildflower; only the stamps still kept (120
+   days), so the Evergreen re-read reflects now. A read with < 10 eligible days waits and is retried on
+   later check-ins (it never guesses a colour). A burst is ≥ 3 habits' stamps inside one 120-s window.
+9. **The shape**: Paired beats Petite; Petite counts the whole history. A kept-together day is one where
+   both were done and, when both were live, the follower came at or after the anchor.
+10. A new look is shown unless she chose one herself; a re-read equal to a look she has adds nothing.
+11. **The nudge** uses the Today blocks (morning < 11:00 ≤ midday < 17:00 ≤ evening) with the same ≥ 60%
+    of ≥ 10 days; "offered once" means either answer closes it for good.
+12. **Journal**: nothing inks before day 8; the steadiest day from day 15 (ties to the earlier day of her
+    week); the tiny sentence appears only for a habit that has or had a tiny version.
+13. **Seasons** are meteorological (Mar/Jun/Sep/Dec 1 in the north, six months on in the south); the
+    southern-zone list is in `hemisphere.ts`, and onboarding stores the inference.
+14. **The review card** is only for the season just ended, only if she opened the app during it and it
+    had a watering. Seasons she never opened the app in are filed silently; a season with no watering is
+    not filed; a card still pending when the next season begins is filed as skipped.
+15. **Fresh start**: Tinier = half the count, one fewer time, a rarer every, or daily → 5 a week (edits
+    "this period"); Grow = one more step / time / weekday, from tomorrow, paying its stamp only while
+    "Ready to grow?" stands; Rest = paused through the day before the next season; Finish = archived as of
+    yesterday (today if already watered) with a ribbon.
+16. **Just this season** retires on the first open after `endsOn`, archived as of `endsOn`; restoring it
+    takes the ribbon off (and a past `endsOn`).
+17. **Sunday Note**: highlights in order stage-up · newcomer · every day (else the most watered) · new
+    plant · tiny (≥ 2 days) · kept together (≥ 3 days), the first two kept; the P.S. is the companion
+    watered on the most days (at Potted or later), else a found thing; contents are frozen when written.
+18. **Herbarium page**: habits watered or rested that month; margin note priority bloom · came home ·
+    planted; the first page is marked.
+19. **Birthday cards** come from the pets out on the Shelf. **Came-home days** use the arrival's app day.
+    The **anniversary note** is written on the first open within 7 days of the day, pays nothing, and is
+    an inbox item of kind `'anniversary'`.
+20. **Show companions** off hides companions, stories and the offer from the screens; pairing, XP and
+    stories carry on underneath (it is a display setting).
+
+## Requests from stage B
+
+- **voice** (`src/catalog/lines.ts`): import `ROUTINES`/`routineOf` from `@/domain/routines` (or keep
+  `ARCHETYPE_BY_ICON` identical: the ids and the map here are yours, copied); keepsake captions key on
+  `Keepsake.kind` (the 12 families + `'brass-seed'`); the Sunday Note `ps.companion` gives `days` and the
+  habit's `timeOfDay` for {times}; the Garden Journal records are `JournalEntry`.
+- **ui**: call `noteCompanionOffer()` when the offer is shown and `declineCompanionOffer()` on "Not now";
+  show the Season Review card from `todayVM().seasonReview`; "Just this season" sets
+  `endsOn: tuneView.season.justThisSeasonEnd`.
 
 ## Catalog
 
@@ -133,6 +274,10 @@ The logic team's readings after the adversarial audits are now short clarificati
 | Pity counts only while its tier is armed; the Moonlit slot weighs half an item | §7.1 |
 | Memories rule: from the first day she has the app while the season is on | §7.3 |
 | The free capsule and First Sprout are one gift; every first capsule is a pet | §9.6 |
+| Offer counters shared; XP once per occurrence; story thresholds 7 · 21 · 42; keepsakes need a companion at the stage | §14.1 |
+| Colour bands and the 60% rule; reads wait for 10 days; Paired over Petite; kept-together; the nudge | §14.2 |
+| Meteorological seasons; which season gets the card; Grow's stamp; archive as of the last day | §14.3 |
+| Only starred notes are quoted; the anniversary note's week of grace | §13 |
 
 ## Open (not changed)
 

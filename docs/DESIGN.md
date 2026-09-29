@@ -588,14 +588,15 @@ third-person lines, no line repeated within the last 5 in a context). A lint tes
 ## 13. Rituals
 
 * **Sunday Note** (weekly): a small card pinned to the sill with a paper clip, in the narrator's voice. It has two real highlights (the top
-  habit, a plant stage-up, a newcomer), a quoted note if one exists, a companion's P.S. line ("Juniper slept on the book four
+  habit, a plant stage-up, a newcomer), a quoted note if one exists (only a note she starred), a companion's P.S. line ("Juniper slept on the book four
   evenings"), and the stamps enclosed. It never shows a percentage. Kept in the memory shelf.
 * **This month's flowers → Pressing Day**: through the month, a jar on the sill fills with a stem from each habit you watered.
   On the 1st, the stems are pressed into a **Herbarium page**: each habit's pressing is sized by how often it was watered and
   labelled in small type ("Walk · 24"). Rest days press as a small flower. There's no percentage on the page, and a quiet month's page is
   as beautiful as any other.
 * **Season Review** (§14.3). **Birthday** (optional): each pet leaves a one-line card and there's a tiny cake on the sill, plus 1 ticket. **Came-home
-  days** for each pet (a small bow and a line), and a yearly **moving-in anniversary** note.
+  days** for each pet (a small bow and a line), and a yearly **moving-in anniversary** note (on the first open within a week of
+  the day; it pays nothing).
 * **The Cutting** (lifetime gauge): a pothos cutting in a jar on the window frame, there from day one. It grows on lifetime
   sunshine across all habits (thresholds 0/5/20/50/105/210/450/900): roots, then a pot, then a vine trailing along the window
   frame until it frames the whole window. **The Window Seat** (365 show-up days) is a cushioned seat built into the window, with the
@@ -611,9 +612,11 @@ target-user panel (AUDITS.md). **Every pillar is driven by real habit data and m
 * **Residency = companionship.** Any pet may keep **one** habit company and each habit has at most one companion (optional).
   The companion **lives in that habit's plant**: it peeks from the pot on the card (≤ 20 px) and waters with you in the sill
   band. Habits without one are watered by whoever is nearest. Offered after naming at a reveal ("Find them a plant"),
-  in the Habit Editor ("Who keeps it company?") and on the Pet Card, at most once per day, and never again after 3 declines.
+  in the Habit Editor ("Who keeps it company?") and on the Pet Card, at most once per day, and never again after 3 declines
+  (the counters are shared by all three; pairing by hand always works). Archiving, retiring or deleting a habit frees its
+  companion.
 * **Friendship grows through the habit**: each completing check-in gives its companion `min(30, round(5 × 7/expectedPerWeek))`
-  XP (≤ 30/day from habits).
+  XP (≤ 30/day from habits), once per occurrence (tiny included), on the reward path only.
 * **Routines, not performances.** From Potted on, the companion **relates to the habit's objects the way real animals do**, and never
   performs the human activity: it sleeps on the open book (Read), lies on the yoga mat (Stretch), sits in the laundry
   basket (Tidy), drinks from its bowl when you log water, waits by the door at your walk time (Walk), lies on the warm laptop
@@ -622,10 +625,13 @@ target-user panel (AUDITS.md). **Every pillar is driven by real habit data and m
   permanent from Blooming. **A missed day looks exactly like an ordinary day.**
 * **Three stories**, unlocked only by **companion sunshine** (sunshine grown while paired; petting can never unlock them):
   **The start** (~1 week), **Why it matters** (~3 weeks; asks once and stores `Habit.why`, which is also editable in the Habit
-  Editor from day 0), **Look at us** (at Blooming; quotes her Moments and makes a Memory).
+  Editor from day 0), **Look at us** (at Blooming; quotes her Moments and makes a Memory). In check-in-equivalents: 7 · 21 · 42
+  companion sunshine (a faithful week is 7 for every rhythm), Look at us with the plant at Blooming, one story per check-in.
+  Companion sunshine follows the day like sunshine: an un-check inside the refund window takes it back.
 * **Keepsakes**: at Rooting, Budding, Blooming and Evergreen the companion leaves a small dated keepsake by the pot, from 12
   activity families (move, read, hydrate, rest, mind, create, tidy, cook, care, garden, connect, plan) plus a brass
-  seed for Evergreen. The caption is prefilled from her latest Moment. Keepsakes are placeable on the Shelf and never a currency. The
+  seed for Evergreen, when the plant first reaches the stage with a companion (none afterwards for stages already reached).
+  The caption is prefilled from her latest Moment. Keepsakes are placeable on the Shelf and never a currency. The
   **same activity art** draws the routine props and the Sunday Note sketches.
 
 ### 14.2 Blooms Like You *(Pokémon's branching evolution · AC's hybrid flowers)* + Garden Journal + stacking
@@ -633,11 +639,15 @@ target-user panel (AUDITS.md). **Every pillar is driven by real habit data and m
 * When a plant first reaches **Blooming**, its look is computed from *how* she keeps the habit, and re-read at Evergreen. Looks are only
   ever added, and she chooses which to show (Classic is always available). **Color** from when she usually checks in: **Dawn ·
   Sunlit · Twilight · Wildflower** (anytime). The classifier uses live `at` stamps only, drops catch-up bursts (≥ 3 habits within
-  120 s) and 23:00–03:59, and needs ≥ 10 eligible days. **Shape**: **Classic · Petite** (tiny on ≥ 25% of days, ≥ 5 days) **·
-  Paired** (stacked on ≥ 14 kept-together days: petals take the partner's card color, the pots sit side by side, a bee visits).
+  120 s) and 23:00–03:59, and needs ≥ 10 eligible days (a read waits for them rather than guess). Bands: Dawn before 9:00,
+  Sunlit 9:00–17:59, Twilight from 18:00; "usually" is a band holding ≥ 60% of the eligible days of the kept stamps (120 days),
+  else Wildflower. **Shape**: **Classic · Petite** (tiny on ≥ 25% of days, ≥ 5 days) **·
+  Paired** (stacked on ≥ 14 kept-together days: petals take the partner's card color, the pots sit side by side, a bee visits;
+  Paired wins over Petite). A kept-together day: both done, the follower at or after its anchor when both were live.
   **No performance-graded looks.** It pays nothing. The **plant tag** explains it in plain words ("Dawn · Paired: you usually
   water it before 9, and 18 days you did it right after Walk"). A mismatch offers "You set Walk for mornings but usually
-  water it after 6 pm. Move it to Evening?" (one tap).
+  water it after 6 pm. Move it to Evening?" (one tap; ≥ 60% of ≥ 10 eligible days in another Today block; offered once, either
+  answer closes it).
 * **Garden Journal** (Habit Detail): up to 5 plain sentences that ink in from week 2 (usual time, steadiest weekday, tiny saves,
   kept-together count, why it looks like this), with pencil placeholders that say when they'll fill in. The forecast is in check-ins, never
   a deadline.
@@ -646,13 +656,17 @@ target-user panel (AUDITS.md). **Every pillar is driven by real habit data and m
 
 ### 14.3 Season Review *(Stardew's seasons as chapters · AC's real calendar)*
 
-Hemisphere-correct seasons ("Where's your summer?", inferred from the time zone). The window scenery and Shelf skins follow them;
+Hemisphere-correct seasons ("Where's your summer?", inferred from the time zone and stored at onboarding; meteorological: Mar,
+Jun, Sep, Dec 1 in the north, six months on in the south). The window scenery and Shelf skins follow them;
 capsule series keep fixed dates. On the first open of a new season, a Today card (never modal, skippable, ≤ 15 s) shows
 a time-lapse of up to 8 plants through the season just ended, with residents beside them and captions in counts only. Then
 **fresh-start chips** per habit: **Keep going** (preselected) · **Tinier** · **Grow** (if eligible) · **Rest till next
 season** · **Finish** (to the balcony shelf with a ribbon), plus a one-tap **Keep everything**. "Just this season" habits
 (`endsOn`) retire with a ribbon and are never shown as incomplete. **Tune my habits** is available anytime. It pays nothing
-beyond Grow's stamp, and seasons that passed unopened are filed silently.
+beyond Grow's stamp (paid only while "Ready to grow?" stands), and seasons that passed unopened are filed silently. The card is
+for the season just ended, when she opened the app in it and something was watered; a card still waiting when the next season
+begins is filed. Rest runs to the day before the next season; Finish and a finished "just this season" archive the habit as of
+its last day, so no later day is ever expected of it.
 
 ## 15. Milestones & adversarial audits
 

@@ -133,6 +133,16 @@ export function fromDayNumber(n: number): DateKey {
   return remember(keyCache, n, formatDateKey(d.getUTCFullYear(), d.getUTCMonth() + 1, d.getUTCDate()));
 }
 
+/**
+ * A yearly date (birthday, came-home day, anniversary) on `year`: Feb 29 falls on Feb 28 in other
+ * years. Null for a month/day that never exists.
+ */
+export function recurringDay(month: number, day: number, year: number): DateKey | null {
+  if (!Number.isInteger(month) || month < 1 || month > 12 || !Number.isInteger(day) || day < 1) return null;
+  const d = month === 2 && day === 29 && !isLeapYear(year) ? 28 : day;
+  return validYmd(year, month, d) ? formatDateKey(year, month, d) : null;
+}
+
 /** `key` moved by `n` calendar days (n may be negative). */
 export function addDays(key: DateKey, n: number): DateKey {
   assertInt(n, 'addDays offset');

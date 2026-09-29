@@ -84,6 +84,8 @@ import { ruleAt } from './rules';
 import { isDayBased, restAllowancePerWeek } from './schedule';
 import { RUNGS, streakInfo, type StreakInfo } from './streaks';
 import { seal, type Tx } from './tx';
+import { leaveKeepsakes, shareWithCompanion } from './company';
+import { readPlantLook } from './signature';
 import { grantCoins, grantExclusive, grantStars, grantTickets, hasOnce, refundCoins, rewardsPaused, setOnce } from './wallet';
 
 /* ------------------------------------------------------------------ */
@@ -331,6 +333,9 @@ export interface SettleOptions {
   only?: 'up' | 'down';
 }
 
+/** A level that completes the occurrence (tiny or full): what a companion's watering counts. */
+const completes = (l: GrantLevel): boolean => l === 'tiny' || l === 'full';
+
 const NO_CHANGE = (l: GrantLevel): Settlement => ({ prev: l, next: l, paid: 0, refunded: 0, refundBlocked: false, sunshine: 0, fresh: false });
 
 function addSunshine(tx: Tx, habitId: string, delta: number): void {
@@ -367,7 +372,9 @@ export function settleTo(tx: Tx, habitId: string, date: DateKey, next: GrantLeve
     // Same level: coins stay; the sunshine follows the rule now governing the day (a rule edit).
     if (!entry || Math.abs(wantSun - heldSun) < 1e-9) return NO_CHANGE(prev);
     addSunshine(tx, habitId, wantSun - heldSun);
-    tx.ledger('recent')[key] = { ...entry, sunshine: wantSun };
+    const co = shareWithCompanion(tx, habit, entry, wantSun, completes(prev), completes(next));
+    const { co: _old, ...rest } = entry;
+    tx.ledger('recent')[key] = { ...rest, sunshine: wantSun, ...(co ? { co } : {}) };
     return { prev, next, paid: 0, refunded: 0, refundBlocked: false, sunshine: wantSun - heldSun, fresh: false };
   }
 
@@ -416,6 +423,7 @@ export function settleTo(tx: Tx, habitId: string, date: DateKey, next: GrantLeve
   }
 
   addSunshine(tx, habitId, wantSun - heldSun);
+  const co = shareWithCompanion(tx, habit, entry, wantSun, completes(prev), completes(next));
 
   if (prev === 'none' || next === 'none') {
     const life = tx.section('lifetime');
@@ -423,13 +431,14 @@ export function settleTo(tx: Tx, habitId: string, date: DateKey, next: GrantLeve
   }
 
   const recent = tx.ledger('recent');
-  if (next === 'none' && coins === 0 && cap === undefined) delete recent[key];
+  if (next === 'none' && coins === 0 && cap === undefined && !co) delete recent[key];
   else {
     recent[key] = {
       coins,
       sunshine: wantSun,
       ...(cap !== undefined ? { cap } : {}),
       ...(next !== 'none' ? { lvl: next } : {}),
+      ...(co ? { co } : {}),
     };
   }
   return { prev, next, paid, refunded, refundBlocked, sunshine: wantSun - heldSun, fresh: up && entry === undefined && !inherited };
@@ -803,13 +812,26 @@ export function updatePlantStage(tx: Tx, habitId: string): number {
   const best = tx.s.ledger.bestStage[habitId] ?? 0;
   if (stage > best) {
     tx.ledger('bestStage')[habitId] = stage;
-    for (const st of stagesCrossed(best, stage)) tx.emit({ type: 'plantStage', habitId, stage: st, stageName: stageName(st) });
+    const crossed = stagesCrossed(best, stage);
+    recordStageDates(tx, habitId, crossed);
+    for (const st of crossed) tx.emit({ type: 'plantStage', habitId, stage: st, stageName: stageName(st) });
     if (stage >= EVERGREEN) grantExclusive(tx, LAUREL_SPRIG_ID);
+    leaveKeepsakes(tx, habitId, crossed);
   }
   const shown = Math.max(stage, best);
   recordFlourishes(tx, habitId, flourishesFor(tx.s.ledger.sunshine[habitId] ?? 0, shown));
   recordCutting(tx);
+  readPlantLook(tx, habitId, shown);
   return shown;
+}
+
+/** Records the app day each stage was first reached (Sunday Note stage-ups, Herbarium margins, reviews). */
+function recordStageDates(tx: Tx, habitId: string, stages: readonly number[]): void {
+  if (stages.length === 0) return;
+  const cur = tx.s.stageDates?.[habitId] ?? {};
+  const next = { ...cur };
+  for (const st of stages) next[st] ??= tx.env.today;
+  tx.set('stageDates', { ...tx.s.stageDates, [habitId]: next });
 }
 
 /** The once-key holding The Cutting's best stage (a high-water mark: it never shrinks, §3.1). */
@@ -897,6 +919,9 @@ export function onceKeyExpired(s: AppState, key: string, value: number | true, t
       return parts[2]! < today;
     case 'found':
       return parts[1]! < today;
+    case 'company':
+      // Companion XP is once per occurrence; occurrences leave the refund window after a week.
+      return parts[2]! < addDays(today, -LEDGER_DAYS);
     case 'grow':
       // An accepted offer keeps the offer closed for GROW_COOLDOWN_DAYS.
       return parts[2]! < addDays(today, -(GROW_COOLDOWN_DAYS - 1));

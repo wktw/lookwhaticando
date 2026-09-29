@@ -44,10 +44,26 @@ describe('letters on the first open of a new week / month', () => {
     for (let d = 0; d < 7; d++) {
       g.checkIn(a);
       if (d === 2) g.run((tx) => logging.setNote(tx, a, g.today, 'Felt great'));
+      if (d === 3) {
+        g.run((tx) => logging.setNote(tx, a, g.today, 'Private, not starred'));
+        g.run((tx) => logging.starNote(tx, a, '2026-03-04', true));
+      }
       g.advance(1);
     }
     const letter = g.state.inbox.find((l) => l.id === 'weekly-2026-03-02');
-    expect(letter).toMatchObject({ kind: 'weekly', weekStart: '2026-03-02', achieved: 7, expected: 7, stars: 3, showUpDays: 7, bestHabitId: a, quote: { habitId: a, date: '2026-03-04', text: 'Felt great' } });
+    // Only a starred note is quoted (the newer note wasn't starred), and the Sunday Note carries its contents.
+    expect(letter).toMatchObject({
+      kind: 'weekly',
+      weekStart: '2026-03-02',
+      achieved: 7,
+      expected: 7,
+      stars: 3,
+      showUpDays: 7,
+      bestHabitId: a,
+      quote: { habitId: a, date: '2026-03-04', text: 'Felt great' },
+      waterings: 7,
+    });
+    expect((letter as { highlights: unknown[] }).highlights[0]).toMatchObject({ kind: 'stageUp', habitId: a });
     expect(g.allOf('letter')).toEqual([{ type: 'letter', letterId: 'weekly-2026-03-02' }]);
     expect(g.allOf('stars').filter((e) => e.reason === 'letter').map((e) => e.amount)).toEqual([3]);
     g.advance(1);
@@ -99,8 +115,16 @@ describe('letters on the first open of a new week / month', () => {
     g.goTo('2026-04-01');
     const feb = g.state.inbox.find((l) => l.id === 'bouquet-2026-02')!;
     const mar = g.state.inbox.find((l) => l.id === 'bouquet-2026-03')!;
-    expect(feb).toMatchObject({ kind: 'monthly', stems: [{ habitId: a, plant: 'pothos', count: 7 }, { habitId: b, plant: 'begonia', count: 1 }] });
-    expect(mar).toMatchObject({ kind: 'monthly', stars: 4, growingBonus: true, achieved: 62, expected: 62, stems: [{ habitId: a, count: 7 }, { habitId: b, count: 7 }] });
+    // The Herbarium page: pressings sized by waterings (clamp(round(n/4), 1, 7)); the first page is marked.
+    expect(feb).toMatchObject({
+      kind: 'monthly',
+      firstPage: true,
+      pressings: [
+        { habitId: a, plant: 'pothos', waterings: 28, rests: 0, size: 7 },
+        { habitId: b, plant: 'begonia', waterings: 5, rests: 0, size: 1 },
+      ],
+    });
+    expect(mar).toMatchObject({ kind: 'monthly', stars: 4, growingBonus: true, achieved: 62, expected: 62, firstPage: false, pressings: [{ habitId: a, size: 7 }, { habitId: b, size: 7 }] });
     expect(g.state.badges['steady-month']).toBeDefined();
   });
 

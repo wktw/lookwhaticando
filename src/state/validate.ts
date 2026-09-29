@@ -95,6 +95,12 @@ function checkHabit(r: Report, h: unknown, path: string): void {
   r.check(isNum(o.order), `${path}.order`, 'not a number');
   for (const k of ['unit', 'anchor', 'notes'] as const) r.check(o[k] === undefined || isStr(o[k]), `${path}.${k}`, 'not a string');
   r.check(o.dueDay === undefined || o.dueDay === 'last' || (isInt(o.dueDay) && o.dueDay >= 1 && o.dueDay <= 31), `${path}.dueDay`, 'bad due day');
+  r.check(o.companionId === undefined || isStr(o.companionId), `${path}.companionId`, 'not a string');
+  r.check(o.why === undefined || (isStr(o.why) && Array.from(o.why).length <= 140), `${path}.why`, 'not a short string');
+  r.check(o.anchorHabitId === undefined || (isStr(o.anchorHabitId) && o.anchorHabitId !== o.id), `${path}.anchorHabitId`, 'bad anchor');
+  r.check(o.endsOn === undefined || (isDateKey(o.endsOn) && o.endsOn >= String(o.startedOn)), `${path}.endsOn`, 'not a date on/after startedOn');
+  r.check(o.ribbon === undefined || (isDateKey(o.ribbon) && o.archivedOn !== undefined), `${path}.ribbon`, 'a ribbon needs an archived habit');
+  r.check(o.timeNudge === undefined || o.timeNudge === 'moved' || o.timeNudge === 'left', `${path}.timeNudge`, 'unknown answer');
   if (r.check(Array.isArray(o.pauses), `${path}.pauses`, 'not a list')) {
     (o.pauses as unknown[]).forEach((p, i) => {
       const ok = isObj(p) && isDateKey(p.start) && (p.end === undefined || (isDateKey(p.end) && p.end >= p.start));
@@ -127,6 +133,7 @@ function checkLog(r: Report, log: unknown, path: string): void {
   if (!r.check(isObj(log), path, 'not an object')) return;
   const o = log as Obj;
   r.check(o.note === undefined || isStr(o.note), `${path}.note`, 'not a string');
+  r.check(o.starred === undefined || (o.starred === true && isStr(o.note)), `${path}.starred`, 'only a note can be starred');
   if (o.kind === 'rest') {
     r.check(o.count === undefined && o.level === undefined, path, 'a rest day cannot carry a count');
     return;
@@ -141,11 +148,91 @@ function checkLetter(r: Report, l: unknown, path: string): void {
   if (!r.check(isObj(l), path, 'not an object')) return;
   const o = l as Obj;
   r.check(isStr(o.id), `${path}.id`, 'not a string');
+  if (o.kind === 'anniversary') {
+    r.check(isDateKey(o.date) && isInt(o.years) && o.years >= 1 && nonNeg(o.waterings) && nonNegInt(o.stars), path, 'bad anniversary');
+    r.check(o.firstHabitId === undefined || isStr(o.firstHabitId), `${path}.firstHabitId`, 'not a string');
+    return;
+  }
   r.check(nonNegInt(o.stars) && nonNeg(o.achieved) && nonNeg(o.expected), path, 'bad numbers');
   if (o.kind === 'weekly') {
     r.check(isDateKey(o.weekStart), `${path}.weekStart`, 'not a date');
     r.check(Array.isArray(o.newFriends) && Array.isArray(o.plantsGrown), path, 'bad lists');
-  } else r.check(o.kind === 'monthly' && isStr(o.month) && /^\d{4}-\d{2}$/.test(o.month), path, 'bad letter');
+    r.check(o.waterings === undefined || nonNegInt(o.waterings), `${path}.waterings`, 'not a count');
+    r.check(o.highlights === undefined || (Array.isArray(o.highlights) && o.highlights.every((h) => isObj(h) && isStr(h.kind))), `${path}.highlights`, 'bad highlights');
+    r.check(o.ps === undefined || (isObj(o.ps) && isStr(o.ps.kind) && isStr(o.ps.petId)), `${path}.ps`, 'bad P.S.');
+  } else {
+    r.check(o.kind === 'monthly' && isStr(o.month) && /^\d{4}-\d{2}$/.test(o.month), path, 'bad letter');
+    r.check(
+      o.pressings === undefined ||
+        (Array.isArray(o.pressings) && o.pressings.every((p) => isObj(p) && isStr(p.habitId) && nonNegInt(p.waterings) && nonNegInt(p.rests) && isInt(p.size) && p.size >= 0 && p.size <= 7)),
+      `${path}.pressings`,
+      'bad pressings',
+    );
+    r.check(o.margin === undefined || (isObj(o.margin) && isStr(o.margin.kind) && isDateKey(o.margin.date)), `${path}.margin`, 'bad margin');
+  }
+}
+
+function checkCompany(r: Report, c: unknown, petIds: Set<string>): void {
+  if (!r.check(isObj(c), 'company', 'not an object')) return;
+  const o = c as Obj;
+  checkRecord(r, o.pairs, 'company.pairs', (v, k, path) => {
+    const ok =
+      isObj(v) &&
+      isStr(v.petId) &&
+      isStr(v.habitId) &&
+      k === `${v.petId}|${v.habitId}` &&
+      isDateKey(v.since) &&
+      nonNeg(v.sunshine) &&
+      nonNegInt(v.waterings) &&
+      (v.whyAsked === undefined || v.whyAsked === true);
+    if (!r.check(ok, path, 'bad pairing')) return;
+    const pair = v as Obj;
+    r.check(petIds.has(pair.petId as string), `${path}.petId`, 'unknown pet');
+    if (pair.stories !== undefined) {
+      checkRecord(r, pair.stories, `${path}.stories`, (st, _k, p) => r.check(isObj(st) && isDateKey(st.on) && (st.readAt === undefined || nonNeg(st.readAt)), p, 'bad story'), oneOf(['start', 'why', 'lookAtUs'] as const));
+    }
+  });
+  const offer = o.offer;
+  r.check(isObj(offer) && nonNegInt(offer.declines) && (offer.shownOn === undefined || isDateKey(offer.shownOn)), 'company.offer', 'bad offer');
+}
+
+const KEEPSAKE_KINDS = ['move', 'read', 'hydrate', 'rest', 'mind', 'create', 'tidy', 'cook', 'care', 'garden', 'connect', 'plan', 'brass-seed'] as const;
+
+function checkLooks(r: Report, v: unknown, path: string): void {
+  if (!r.check(isObj(v) && Array.isArray(v.looks) && isObj(v.reads), path, 'bad looks')) return;
+  const o = v as Obj;
+  const looks = o.looks as unknown[];
+  looks.forEach((l, i) => {
+    const ok =
+      isObj(l) &&
+      oneOf(['dawn', 'sunlit', 'twilight', 'wildflower'] as const)(l.colour) &&
+      oneOf(['classic', 'petite', 'paired'] as const)(l.shape) &&
+      oneOf(['bloom', 'evergreen'] as const)(l.read) &&
+      isDateKey(l.on) &&
+      isObj(l.evidence);
+    r.check(ok, `${path}.looks[${i}]`, 'bad look');
+  });
+  r.check(o.shown === null || (isInt(o.shown) && o.shown >= 0 && o.shown < looks.length), `${path}.shown`, 'not a look');
+  const reads = o.reads as Obj;
+  r.check((reads.bloom === undefined || isDateKey(reads.bloom)) && (reads.evergreen === undefined || isDateKey(reads.evergreen)), `${path}.reads`, 'bad reads');
+}
+
+function checkSeasonRecord(r: Report, v: unknown, path: string): void {
+  const ok =
+    isObj(v) &&
+    isDateKey(v.key) &&
+    oneOf(['spring', 'summer', 'autumn', 'winter'] as const)(v.name) &&
+    isDateKey(v.start) &&
+    isDateKey(v.end) &&
+    v.start === v.key &&
+    v.end >= v.start &&
+    oneOf(['north', 'south'] as const)(v.hemisphere) &&
+    nonNegInt(v.waterings) &&
+    Array.isArray(v.plants) &&
+    v.plants.length <= 8 &&
+    v.plants.every((p) => isObj(p) && isStr(p.habitId) && isInt(p.fromStage) && isInt(p.toStage) && nonNegInt(p.waterings)) &&
+    (v.filed === undefined || oneOf(['reviewed', 'skipped', 'silent'] as const)(v.filed));
+  r.check(ok, path, 'bad season');
 }
 
 function checkPet(r: Report, p: unknown, id: string, path: string): void {
@@ -161,7 +248,7 @@ function checkPet(r: Report, p: unknown, id: string, path: string): void {
   r.check(isObj(o.outfit) && Object.values(o.outfit).every((v) => v === undefined || isStr(v)), `${path}.outfit`, 'bad outfit');
   const d = o.daily;
   r.check(
-    isObj(d) && isStr(d.date) && nonNegInt(d.pets) && nonNegInt(d.treats) && (d.favorites === undefined || nonNegInt(d.favorites)),
+    isObj(d) && isStr(d.date) && nonNegInt(d.pets) && nonNegInt(d.treats) && (d.favorites === undefined || nonNegInt(d.favorites)) && (d.company === undefined || nonNegInt(d.company)),
     `${path}.daily`,
     'bad daily counters',
   );
@@ -189,6 +276,8 @@ export function validateState(x: unknown): ValidationResult {
     r.check(oneOf(['auto', 'light', 'night'] as const)(st.theme), 'settings.theme', 'unknown theme');
     r.check(oneOf(['auto', 'on', 'off'] as const)(st.reduceMotion), 'settings.reduceMotion', 'unknown value');
     for (const k of ['sound', 'haptics', 'quickOpen', 'quietRewards'] as const) r.check(isBool(st[k]), `settings.${k}`, 'not a boolean');
+    for (const k of ['showCompanions', 'compactToday', 'quoteNotes'] as const) r.check(st[k] === undefined || isBool(st[k]), `settings.${k}`, 'not a boolean');
+    r.check(st.hemisphere === undefined || st.hemisphere === 'north' || st.hemisphere === 'south', 'settings.hemisphere', 'not north/south');
     r.check(isNum(st.volume) && st.volume >= 0 && st.volume <= 1, 'settings.volume', 'not 0–1');
     checkRecord(r, st.reminders, 'settings.reminders', (v, k, path) => r.check(['morning', 'midday', 'evening'].includes(k) && isStr(v) && HHMM.test(v), path, 'not HH:MM'));
   }
@@ -228,7 +317,12 @@ export function validateState(x: unknown): ValidationResult {
       'ledger.recent',
       (v, _k, path) =>
         r.check(
-          isObj(v) && nonNeg(v.coins) && nonNeg(v.sunshine) && (v.cap === undefined || nonNeg(v.cap)) && (v.lvl === undefined || ['tiny', 'full', 'over'].includes(v.lvl as string)),
+          isObj(v) &&
+          nonNeg(v.coins) &&
+          nonNeg(v.sunshine) &&
+          (v.cap === undefined || nonNeg(v.cap)) &&
+          (v.lvl === undefined || ['tiny', 'full', 'over'].includes(v.lvl as string)) &&
+          (v.co === undefined || (isObj(v.co) && isStr(v.co.pet) && nonNeg(v.co.sun) && v.co.sun <= (v.sunshine as number) + 1e-6 && (v.co.watered === undefined || v.co.watered === true))),
           path,
           'bad entry',
         ),
@@ -276,6 +370,59 @@ export function validateState(x: unknown): ValidationResult {
     (s.found as unknown[]).forEach((f, i) =>
       r.check(isObj(f) && isDateKey(f.date) && isStr(f.petId) && nonNegInt(f.seed), `found[${i}]`, 'bad found thing'),
     );
+  }
+  // Stage B (all optional): Keeping Company, keepsakes, looks, stage days, seasons.
+  const petIds = new Set(isObj(s.pets) ? Object.keys(s.pets) : []);
+  if (Array.isArray(s.habits)) {
+    const companions = new Set<string>();
+    (s.habits as unknown[]).forEach((h, i) => {
+      if (!isObj(h) || h.companionId === undefined) return;
+      const pet = h.companionId as string;
+      r.check(petIds.has(pet), `habits[${i}].companionId`, 'unknown pet');
+      r.check(h.archivedOn === undefined, `habits[${i}].companionId`, 'an archived habit has no companion');
+      r.check(!companions.has(pet), `habits[${i}].companionId`, 'a pet keeps one habit company');
+      companions.add(pet);
+      r.check(isObj(s.company) && isObj((s.company as Obj).pairs) && isObj(((s.company as Obj).pairs as Obj)[`${pet}|${String(h.id)}`]), `habits[${i}].companionId`, 'no pairing record');
+    });
+    (s.habits as unknown[]).forEach((h, i) => {
+      if (isObj(h) && isStr(h.anchorHabitId)) r.check(habitIds.has(h.anchorHabitId), `habits[${i}].anchorHabitId`, 'unknown habit');
+    });
+  }
+  if (s.company !== undefined) checkCompany(r, s.company, petIds);
+  if (s.keepsakes !== undefined && r.check(Array.isArray(s.keepsakes), 'keepsakes', 'not a list')) {
+    const ids = new Set<string>();
+    (s.keepsakes as unknown[]).forEach((k, i) => {
+      const ok =
+        isObj(k) &&
+        isStr(k.id) &&
+        !ids.has(k.id) &&
+        k.id === `k-${String(k.habitId)}-${String(k.stage)}` &&
+        isStr(k.habitId) &&
+        isStr(k.petId) &&
+        [1, 4, 5, 7].includes(k.stage as number) &&
+        oneOf(KEEPSAKE_KINDS)(k.kind) &&
+        isDateKey(k.date) &&
+        (k.note === undefined || (isObj(k.note) && isDateKey(k.note.date) && isStr(k.note.text)));
+      if (isObj(k) && isStr(k.id)) ids.add(k.id);
+      r.check(ok, `keepsakes[${i}]`, 'bad keepsake');
+    });
+  }
+  if (s.plantLooks !== undefined) checkRecord(r, s.plantLooks, 'plantLooks', (v, _k, path) => checkLooks(r, v, path));
+  if (s.stageDates !== undefined) {
+    checkRecord(r, s.stageDates, 'stageDates', (v, _k, path) =>
+      checkRecord(r, v, path, (d, _st, p) => r.check(isDateKey(d), p, 'not a date'), (st) => /^[1-7]$/.test(st)),
+    );
+  }
+  if (s.seasons !== undefined && r.check(isObj(s.seasons) && Array.isArray((s.seasons as Obj).filed), 'seasons', 'bad seasons')) {
+    const sh = s.seasons as Obj;
+    if (sh.pending !== undefined) checkSeasonRecord(r, sh.pending, 'seasons.pending');
+    const keys = new Set<string>();
+    (sh.filed as unknown[]).forEach((v, i) => {
+      checkSeasonRecord(r, v, `seasons.filed[${i}]`);
+      const key = isObj(v) ? String(v.key) : '';
+      r.check(!keys.has(key) && (!isObj(sh.pending) || sh.pending.key !== key), `seasons.filed[${i}]`, 'filed twice');
+      keys.add(key);
+    });
   }
   if (s.pendingReveal !== undefined) {
     const p = s.pendingReveal;

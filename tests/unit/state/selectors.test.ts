@@ -11,7 +11,7 @@ import {
   collectionVM,
   currentBlock,
   habitDetailVM,
-  lettersVM,
+  memoryShelfVM,
   petVM,
   petsVM,
   progressVM,
@@ -407,16 +407,18 @@ describe('Pets, the Shelf, rituals, pins', () => {
     expect(vm.cutting).toMatchObject({ stage: 0, framed: false });
   });
 
-  it('letters and badge progress', () => {
+  it('the memory shelf (a Sunday Note, never a percentage) and badge progress', () => {
     const g = new Game({ start: '2026-03-02' });
     const a = g.addHabit();
     for (let d = 0; d < 8; d++) {
       g.checkIn(a);
       g.advance(1);
     }
-    const letters = lettersVM(g.state);
-    expect(letters).toMatchObject({ unread: 1, next: 'weekly-2026-03-02' });
-    expect(letters.letters[0]).toMatchObject({ title: 'Week of Mar 2', stars: 3, read: false });
+    const shelf = memoryShelfVM(g.state);
+    expect(shelf).toMatchObject({ unread: 1, next: 'weekly-2026-03-02' });
+    expect(shelf.items[0]).toMatchObject({ kind: 'sundayNote', weekStart: '2026-03-02', stamps: 3, read: false, waterings: 7 });
+    expect(shelf.items[0]).not.toHaveProperty('achieved');
+    expect(shelf.sundayNotes).toHaveLength(1);
     const badges = badgesVM(g.state);
     expect(badges.badges.find((b) => b.id === 'checkins-10')).toMatchObject({ earned: false, progress: { have: 8, need: 10 } });
     expect(badges.badges.find((b) => b.id === 'first-checkin')).toMatchObject({ earned: true, progress: null });

@@ -9,13 +9,15 @@
  * off days; a vacation pause; a habit started mid-way; a schedule edit; notes on some days; the
  * "Cats or Cows?" capsule at onboarding, then capsule pulls (≈ 14 pets), treats, outfits and
  * favourites; decor placed; the Saucer Pond opened; and last week's Sunday Note still waiting on
- * the sill.
+ * the sill. Keeping Company: the first friend lives in the reading plant, later friends sometimes
+ * choose a plant, their keepsakes sit on the sill; the walk follows the vitamins; some notes are
+ * starred for the Sunday Note.
  */
 import { MACHINES } from '@/catalog/machines';
 import { COLLECTIBLES, getCollectible } from '@/catalog/collectibles';
 import type { MachineId } from '@/catalog/types';
 import type { HabitInput } from './api';
-import type { AppState, DateKey } from './types';
+import type { AppState, DateKey, StoryId } from './types';
 import { createInitialState } from './defaults';
 import { addDays, appDayKey, monotonicDayKey, parseDateKey, runtimeLocalTime, weekday, type LocalTimeReader } from '@/domain/dates';
 import { chance, mulberry32, pick, randomInt, type Rng } from '@/domain/rng';
@@ -28,6 +30,7 @@ import * as friendship from '@/domain/friendship';
 import * as shelf from '@/domain/shelf';
 import * as pantry from '@/domain/pantry';
 import { readLetter } from '@/domain/letters';
+import * as company from '@/domain/company';
 import { availableMachineIds } from '@/domain/seasons';
 import { ownedTreats, ownedWearables } from '@/domain/collection';
 import { isScheduledOn } from '@/domain/rules';
@@ -142,6 +145,13 @@ export function buildDemo(opts: DemoOptions): AppState {
   };
   let phoneFree: string | null = null;
   const yogaDays = new Set<number>([2, 4]);
+  // Keeping Company (§14.1): the first friend moves into the reading plant ("Find them a plant"),
+  // the walk follows the vitamins (§14.2 stacking), and reading has a why.
+  sim.run((tx) => {
+    const first = Object.keys(tx.s.pets)[0];
+    if (first) company.setCompanion(tx, ids.read, first);
+    habits.updateHabit(tx, ids.walk, { anchorHabitId: ids.vitamins, why: 'Fresh air before the afternoon.' });
+  });
 
   const sickStart = 36;
   const vacationStart = 76;
@@ -213,7 +223,12 @@ export function buildDemo(opts: DemoOptions): AppState {
       }
       const tinyDay = (sick || chance(rng, 0.08)) && habit.rules.at(-1)!.tiny !== undefined;
       sim.run((tx) => (tinyDay ? logging.checkInTiny(tx, id) : logging.checkIn(tx, id)));
-      if (chance(rng, 0.07)) sim.run((tx) => logging.setNote(tx, id, date, pick(rng, NOTES)));
+      if (chance(rng, 0.07)) {
+        sim.run((tx) => {
+          logging.setNote(tx, id, date, pick(rng, NOTES));
+          if (chance(rng, 0.5)) logging.starNote(tx, id, date, true);
+        });
+      }
     }
 
     // Forgot to log last night's reading; backfilled with breakfast.
@@ -227,11 +242,19 @@ export function buildDemo(opts: DemoOptions): AppState {
     eveningOnTheShelf(sim, date, rng);
   }
 
-  // Rituals: everything read except the latest Sunday Note (it waits on the sill).
+  // Rituals: everything read except the latest Sunday Note (it waits on the sill). Stories: all
+  // opened except the newest (it waits on its plant tag); reading's "Why it matters" was answered.
   sim.run((tx) => {
     const weekly = tx.s.inbox.filter((l) => l.kind === 'weekly');
     const keep = weekly[weekly.length - 1]?.id;
     for (const l of tx.s.inbox) if (l.id !== keep) readLetter(tx, l.id);
+    const stories = Object.values(tx.s.company?.pairs ?? {})
+      .flatMap((p) => Object.entries(p.stories ?? {}).map(([story, st]) => ({ habitId: p.habitId, story: story as StoryId, on: st!.on })))
+      .sort((a, b) => (a.on < b.on ? -1 : a.on > b.on ? 1 : 0));
+    for (const st of stories.slice(0, -1)) company.readStory(tx, st.habitId, st.story);
+    for (const p of Object.values(tx.s.company?.pairs ?? {})) {
+      if (p.stories?.why && tx.s.habits.find((h) => h.id === p.habitId)?.companionId === p.petId) company.answerWhy(tx, p.habitId, p.habitId === ids.read ? 'Evenings feel longer with a book.' : null);
+    }
   });
   return sim.state;
 }
@@ -246,8 +269,14 @@ function eveningOnTheShelf(sim: Sim, date: DateKey, rng: Rng): void {
     const coinMachines = availableMachineIds(date).filter((m) => MACHINES.find((x) => x.id === m)!.currency === 'coins') as MachineId[];
     const machine = pick(rng, coinMachines);
     sim.run((tx) => {
-      gacha.pull(tx, machine);
+      const out = gacha.pull(tx, machine);
       gacha.finishReveal(tx);
+      // A new friend is offered a plant; now and then she lets them choose.
+      if (out.ok && out.pet && chance(rng, 0.5) && company.companionOfferOpen(tx.s, tx.env.today)) {
+        const habitId = company.suggestHabitFor(tx.s, out.pet.id);
+        if (habitId) company.setCompanion(tx, habitId, out.pet.id);
+        else company.noteCompanionOffer(tx);
+      }
     });
   }
   if (friends < 14 && s().wallet.stars >= 9 && chance(rng, 0.15)) {
@@ -295,6 +324,12 @@ function eveningOnTheShelf(sim: Sim, date: DateKey, rng: Rng): void {
     const w = pick(rng, wearables);
     const petId = pick(rng, pets);
     sim.run((tx) => friendship.setOutfit(tx, petId, w.slot, w.id));
+  }
+  // Keepsakes go on the sill by their pots.
+  for (const k of s().keepsakes ?? []) {
+    const itemId = `${company.KEEPSAKE_ITEM_PREFIX}${k.id}`;
+    if (shelf.unplacedCopies(s(), itemId) < 1) continue;
+    sim.run((tx) => shelf.placeDecor(tx, itemId, 'sill', 0.1 + rng() * 0.8, 0.8, false));
   }
   // Put new decor out.
   for (const [itemId, owned] of Object.entries(s().collection)) {

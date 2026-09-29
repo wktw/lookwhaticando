@@ -8,7 +8,7 @@
  *   pay +4). At most 3 counted treats a day; after that the pet is full ('full'): no XP and the
  *   serving is kept. Feeding needs a serving in the pantry ('none' otherwise).
  * - Duplicate pull: +20 XP.
- * - A companion's habit check-ins (§14.1) arrive with Keeping Company.
+ * - A companion's habit check-ins (§14.1): company.ts, at most 30 XP a day (`daily.company`).
  * No decay, no needs. Feeding the favorite reveals it (the Favorite Found pin).
  *
  * Found things (§8.2 "L6 leaves a small found thing on the sill on days you check in; 1 swap, never
@@ -45,8 +45,8 @@ type Daily = PetState['daily'];
 
 /** The pet's daily counters as of `today` (fresh counters on a new day). */
 export function dailyFor(pet: Pick<PetState, 'daily'>, today: DateKey): Required<Daily> {
-  if (pet.daily.date !== today) return { date: today, pets: 0, treats: 0, favorites: 0 };
-  return { date: pet.daily.date, pets: pet.daily.pets, treats: pet.daily.treats, favorites: pet.daily.favorites ?? 0 };
+  if (pet.daily.date !== today) return { date: today, pets: 0, treats: 0, favorites: 0, company: 0 };
+  return { date: pet.daily.date, pets: pet.daily.pets, treats: pet.daily.treats, favorites: pet.daily.favorites ?? 0, company: pet.daily.company ?? 0 };
 }
 
 /** A fresh PetState for a newly obtained pet (personality and favorite treat rolled with `rng`). */

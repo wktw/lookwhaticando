@@ -23,7 +23,7 @@
  * reached through `StoreRuntime`, which tests replace with `configureStore`.
  */
 import { batch, computed, signal } from '@preact/signals';
-import type { AppState, DateKey, PlacedDecor, Settings } from './types';
+import type { AppState, DateKey, PlacedDecor, Settings, StoryId } from './types';
 import type {
   ActionResult,
   CheckInResult,
@@ -80,6 +80,10 @@ import * as pantry from '@/domain/pantry';
 import * as shelfDomain from '@/domain/shelf';
 import * as profileDomain from '@/domain/profile';
 import { readLetter } from '@/domain/letters';
+import * as company from '@/domain/company';
+import * as signature from '@/domain/signature';
+import * as seasonReview from '@/domain/seasonReview';
+import type { FreshStartInput, FreshStartOutcome } from '@/domain/seasonReview';
 import type { RuleEditTiming } from '@/domain/rules';
 
 /* ------------------------------------------------------------------ */
@@ -111,6 +115,8 @@ export interface StoreRuntime {
   persistStorage: () => void;
   appVersion: string;
   device: string;
+  /** The device's IANA time zone ('' when unknown): the hemisphere is inferred from it (§14.3). */
+  timeZone?: () => string;
 }
 
 function cryptoRng(): Rng {
@@ -160,6 +166,13 @@ function defaultRuntime(): StoreRuntime {
     },
     appVersion: typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : 'dev',
     device: deviceLabel(),
+    timeZone: () => {
+      try {
+        return Intl.DateTimeFormat().resolvedOptions().timeZone ?? '';
+      } catch {
+        return '';
+      }
+    },
   };
 }
 
@@ -214,7 +227,8 @@ function todayFor(s: AppState, ms: number): DateKey {
 }
 
 function envAt(ms: number, s: AppState): Env {
-  return { now: ms, today: todayFor(s, ms), local: rt.local, rng: rt.rng };
+  const tz = rt.timeZone?.() ?? '';
+  return { now: ms, today: todayFor(s, ms), local: rt.local, rng: rt.rng, ...(tz ? { timeZone: tz } : {}) };
 }
 
 const writable = (): boolean => readOnly.value !== 'other-window' && readOnly.value !== 'newer-version';
@@ -565,6 +579,10 @@ export function toggleOffDay(date: DateKey): { ok: boolean; remaining: number } 
 export function setNote(habitId: string, date: DateKey, note: string): void {
   actVoid((tx) => logging.setNote(tx, habitId, date, note));
 }
+/** Stars a day's note: only starred notes are ever quoted in a Sunday Note. False without a note. */
+export function starNote(habitId: string, date: DateKey, starred: boolean): boolean {
+  return actValue((tx) => logging.starNote(tx, habitId, date, starred), false);
+}
 /**
  * Calendar history edit (older than the 6-day window): toggles done/not-done, never touches rewards.
  * False when refused: window days go through the week strip (the check-in path), and so does
@@ -690,8 +708,57 @@ export function removeDecor(placementId: string): void {
   actVoid((tx) => shelfDomain.removeDecor(tx, placementId));
 }
 
+/* ---------------- Keeping Company (§14.1) ---------------- */
+/**
+ * Pairs a pet with a habit ("Find {name} a plant", "Who keeps it company?"), or frees the habit
+ * (`petId` null). The pet leaves any habit it kept company. False when refused.
+ */
+export function setCompanion(habitId: string, petId: string | null): boolean {
+  return actValue((tx) => company.setCompanion(tx, habitId, petId), false);
+}
+/** The offer was shown (it won't be shown again today). */
+export function noteCompanionOffer(): void {
+  actVoid((tx) => company.noteCompanionOffer(tx));
+}
+/** "Not now" on the offer (after 3, it is never offered again). */
+export function declineCompanionOffer(): void {
+  actVoid((tx) => company.declineCompanionOffer(tx));
+}
+/** Marks a plant-tag story as opened. */
+export function readStory(habitId: string, story: StoryId): void {
+  actVoid((tx) => company.readStory(tx, habitId, story));
+}
+/** "Why it matters" answered ("Keep it") or passed ("Not now": null). Asked once. */
+export function answerWhy(habitId: string, why: string | null): boolean {
+  return actValue((tx) => company.answerWhy(tx, habitId, why), false);
+}
+/** A keepsake's caption (empty → its family's caption). */
+export function setKeepsakeNote(keepsakeId: string, text: string): void {
+  actVoid((tx) => company.setKeepsakeNote(tx, keepsakeId, text));
+}
+
+/* ---------------- Blooms Like You (§14.2) ---------------- */
+/** "Show this look" (an index into the plant's looks) or "Classic" (null). */
+export function setPlantLook(habitId: string, index: number | null): boolean {
+  return actValue((tx) => signature.setPlantLook(tx, habitId, index), false);
+}
+/** "Move to Evening" (true) or "Leave it in Morning" (false). Offered once. */
+export function answerTimeNudge(habitId: string, move: boolean): boolean {
+  return actValue((tx) => signature.answerTimeNudge(tx, habitId, move), false);
+}
+
+/* ---------------- Season Review (§14.3) ---------------- */
+/** Closes the Season Review card: fresh-start choices ([] = "Keep everything"), or 'skip' ("Later"). */
+export function resolveSeasonReview(choices: FreshStartInput[] | 'skip'): FreshStartOutcome[] | false {
+  return actValue((tx) => seasonReview.resolveSeasonReview(tx, choices, tx.env.timeZone), false as FreshStartOutcome[] | false);
+}
+/** "Tune my habits" (anytime): the same fresh-start choices, without a review. */
+export function tuneHabits(choices: FreshStartInput[]): FreshStartOutcome[] {
+  return actValue((tx) => seasonReview.applyFreshStart(tx, choices, tx.env.timeZone), [] as FreshStartOutcome[]);
+}
+
 /* ---------------- Letters, profile, settings ---------------- */
-/** Marks a Sunday Note or Herbarium page read; it stays on the memory shelf forever (DESIGN §9.2). */
+/** Marks a Sunday Note, Herbarium page or anniversary note read; it stays on the memory shelf forever (DESIGN §9.2). */
 export function dismissLetter(id: string): void {
   actVoid((tx) => readLetter(tx, id));
 }
@@ -883,4 +950,9 @@ export function repairClock(): { behind: boolean; resumesAt: number | null } {
 /** The local wall-clock reader the store runs on (selectors use it for hour-based views). */
 export function storeLocal(): LocalTimeReader {
   return rt.local;
+}
+
+/** The device time zone the store runs in (selectors pass it to season views). */
+export function storeTimeZone(): string | undefined {
+  return rt.timeZone?.() || undefined;
 }

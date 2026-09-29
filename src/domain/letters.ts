@@ -1,12 +1,13 @@
 /**
- * Rituals: the Sunday Note (weekly; internally the "weekly letter") and the monthly page
- * (internally the "bouquet"; the Herbarium page in catkin), DESIGN §6 and §13.
+ * Rituals: the Sunday Note (weekly; internally the "weekly letter") and the Herbarium page
+ * (monthly; internally the "bouquet": its once-key is still `bloom|<YYYY-MM>`), DESIGN §6 and §13.
+ * Their contents (highlights, the P.S., pressings, the margin note) come from rituals.ts.
  *
  * - On the first open of a new week, last week's note is written (if that week had any check-in):
  *   1 stamp for showing up, +1 at ≥ 60%, +1 at ≥ 85% (the bonus tiers need ≥ 5 expected).
- *   Contents: top habit by check-ins, plant stage-ups, newcomers, a quoted note, show-up days.
+ *   Contents: waterings, two highlights, a starred note quoted, a P.S. (rituals.ts), show-up days.
  * - On the first open of a new month, last month's page is always given (once the profile existed
- *   that month): every habit with ≥ 1 check-in adds clamp(round(checkIns/4), 1, 7) stems.
+ *   that month): every habit watered or rested that month is pressed, sized by its waterings.
  *   Stamps: 1 for showing up, +1 ≥ 70%, +1 ≥ 85%, +1 when ≥ 5 pts above the month before; the bonus
  *   tiers need ≥ 10 expected (both months, for the last one).
  * - Both store the stars paid (`once['weekly|<weekStart>']`, `once['bloom|<YYYY-MM>']`) and pay
@@ -29,6 +30,7 @@ import { memoByHabit } from './economy';
 import { plantStage, sunshineFromHistory } from './growth';
 import { checkinCounts } from './insights';
 import { ruleAt } from './rules';
+import { herbariumFacts, starredNote, sundayNoteFacts } from './rituals';
 import type { Tx } from './tx';
 import { grantStars, hasOnce, rewardsPaused, setOnce } from './wallet';
 
@@ -83,19 +85,6 @@ export function stemsFor(checkins: number): number {
 
 const profileCreatedOn = (s: AppState, tx: Tx): DateKey => appDayKey(s.profile.createdAt, s.settings.dayStartsAt, tx.env.local);
 
-/** The most recent note written in [start, end] (quoted back warmly). */
-function newestNote(s: AppState, start: DateKey, end: DateKey): Weekly['quote'] {
-  let best: Weekly['quote'];
-  for (const h of s.habits) {
-    for (const [date, log] of Object.entries(s.logs[h.id] ?? {})) {
-      const text = log.note?.trim();
-      if (!text || date < start || date > end) continue;
-      if (!best || date > best.date) best = { habitId: h.id, date, text };
-    }
-  }
-  return best;
-}
-
 /** Everything a weekly letter says about the week starting `weekStart`, as of `today`. */
 export function weeklyFacts(s: AppState, weekStart: DateKey, today: DateKey, local: Tx['env']['local']): Omit<Weekly, 'id' | 'kind' | 'stars'> {
   const t = trackingOf(s);
@@ -129,7 +118,8 @@ export function weeklyFacts(s: AppState, weekStart: DateKey, today: DateKey, loc
       return stageAt(after) > stageAt(before);
     })
     .map((h) => h.id);
-  const quote = newestNote(s, weekStart, end);
+  const quote = starredNote(s, weekStart, end);
+  const note = sundayNoteFacts(s, weekStart, today, local);
   return {
     weekStart,
     achieved: tally.achieved,
@@ -139,6 +129,9 @@ export function weeklyFacts(s: AppState, weekStart: DateKey, today: DateKey, loc
     ...(quote ? { quote } : {}),
     newFriends,
     plantsGrown,
+    waterings: note.waterings,
+    highlights: note.highlights,
+    ...(note.ps ? { ps: note.ps } : {}),
   };
 }
 
@@ -223,6 +216,7 @@ export function ensureMonthlyBouquet(tx: Tx): void {
   if (s.ledger.once[key] !== undefined) return;
   if (profileCreatedOn(s, tx) > monthEnd || !s.habits.some((h) => h.startedOn <= monthEnd)) return;
   const f = monthFacts(s, month, today);
+  const page = herbariumFacts(s, month, today, tx.env.local);
   const prevPct = isPctReady(f.previous) ? percent(f.previous) : null;
   const { stars, growing } = bouquetStarsVs(f.tally, f.checkins, prevPct);
   const pct = percent(f.tally);
@@ -237,7 +231,9 @@ export function ensureMonthlyBouquet(tx: Tx): void {
     stars,
     ...(prevPct !== null ? { previousPct: prevPct } : {}),
     growingBonus: growing,
-    stems: f.stems,
+    pressings: page.pressings,
+    ...(page.margin ? { margin: page.margin } : {}),
+    firstPage: page.firstPage,
   });
   tx.emit({ type: 'letter', letterId: id });
   grantStars(tx, stars, 'bloom');
@@ -319,7 +315,7 @@ function topUpBouquet(tx: Tx, month: MonthKey, delta: Tally, date: DateKey): voi
   if (!letter || letter.kind !== 'monthly') return;
   const tally: Tally = { achieved: Math.max(0, letter.achieved + delta.achieved), expected: Math.max(0, letter.expected + delta.expected), tiny: 0 };
   // The show-up star needs a check-in that month: the letter's own, or the one just made.
-  const checkedIn = (letter.stems?.length ?? 0) > 0 || letter.stars > 0 || showedUpOn(tx.s, date, tx.env.today);
+  const checkedIn = (letter.stems?.length ?? 0) > 0 || (letter.pressings ?? []).some((p) => p.waterings > 0) || letter.stars > 0 || showedUpOn(tx.s, date, tx.env.today);
   const { stars, growing } = bouquetStarsVs(tally, checkedIn ? 1 : 0, letter.previousPct ?? null);
   const inbox = tx.section('inbox');
   inbox[i] = { ...letter, achieved: tally.achieved, expected: tally.expected };

@@ -2,7 +2,9 @@
  * Shared building blocks for view-models: the view environment, habit cards, plants, streaks and
  * the small English labels the screens print. Everything is a pure function of (state, view env).
  */
-import type { AppState, DateKey, Habit, Schedule } from '../types';
+import type { AppState, BloomColour, BloomShape, DateKey, Habit, Schedule } from '../types';
+import { companionOf, routineOn, type RoutineOn } from '@/domain/company';
+import { stackOrder } from '@/domain/stacking';
 import type { LocalTimeReader } from '@/domain/dates';
 import {
   WEEKDAY_SHORT,
@@ -18,7 +20,7 @@ import {
 import { canSetRest, logStatus, restStanding, showedUp, type LogStatus } from '@/domain/activity';
 import { formatHabitPhrase, habitPhrase, habitTally, trailingWindow, isPctReady } from '@/domain/consistency';
 import { bestFlourishes, completedOccurrences, daysSinceCreation, habitCreatedOn, logsOf, streakOf, trackingCtx } from '@/domain/economy';
-import { POTTED, ROOTING, growthInfo, sunshinePerOccurrence, type GrowthInfo } from '@/domain/growth';
+import { POTTED, ROOTING, STAGE_THRESHOLDS, growthInfo, sunshinePerOccurrence, type GrowthInfo } from '@/domain/growth';
 import { evaluatePeriod, flexPeriodAt } from '@/domain/periods';
 import { isPausedOn, pauseReturnDay } from '@/domain/pauses';
 import { ruleAt, scheduleStatusOn } from '@/domain/rules';
@@ -30,6 +32,8 @@ export interface ViewEnv {
   today: DateKey;
   now: number;
   local: LocalTimeReader;
+  /** The device's IANA time zone (the hemisphere is inferred from it when not set, §14.3). */
+  timeZone?: string;
 }
 
 /* ------------------------------------------------------------------ */
@@ -98,6 +102,24 @@ export interface PlantVM extends GrowthInfo {
   checkinsToNext: number | null;
   /** "4 more check-ins to Blooming" (sunshine is never shown as a number, §9.2); null at Evergreen. */
   nextLine: string | null;
+}
+
+/**
+ * Check-ins still needed for the plant to show `stage` (the Garden Journal's forecast, the stories'
+ * "at Blooming"): enough sunshine at the rule of the next check-in, and one check-in per stage.
+ * Null once it shows that stage. Never a date: rests and pauses only make it later.
+ */
+export function checkinsToStage(s: AppState, habit: Habit, today: DateKey, local: LocalTimeReader, stage: number): number | null {
+  const plant = plantVM(s, habit, today, local);
+  if (plant.displayStage >= stage) return null;
+  const logs = logsOf(s, habit.id);
+  const since = habitCreatedOn(habit, s.settings.dayStartsAt, local);
+  const completed = completedOccurrences(habit, logs, trackingCtx(s, today), since);
+  const nextDay = showedUp(logStatus(logs[today], ruleAt(habit, today), false)) ? addDays(today, 1) : today;
+  const per = sunshinePerOccurrence(ruleAt(habit, nextDay));
+  const sun = s.ledger.sunshine[habit.id] ?? 0;
+  const bySun = Math.ceil(Math.max(0, STAGE_THRESHOLDS[stage]! - sun) / per - 1e-9);
+  return Math.max(1, bySun, stage - completed);
 }
 
 export function plantVM(s: AppState, habit: Habit, today: DateKey, local: LocalTimeReader): PlantVM {
@@ -202,6 +224,20 @@ export interface HabitCardVM {
   plant: PlantVM;
   /** Flexible goal met for the current period ("Done for the week" fold; still tappable). */
   met: boolean;
+  /** Damp soil: watered on `date` (§14.2; there is no dry state). */
+  damp: boolean;
+  /**
+   * Keeping Company (§14.1): the companion peeking from the pot, and its routine that day (null on
+   * a day without one, which looks like any ordinary day). Null without a companion, or when
+   * "Show companions" is off.
+   */
+  companion: { petId: string; routine: RoutineOn | null } | null;
+  /** Habit stacking (§14.2): the habit this one follows ("After Walk"). */
+  after: { habitId: string; name: string } | null;
+  /** The plant's shown look (§14.2); null = Classic. */
+  look: { colour: BloomColour; shape: BloomShape } | null;
+  /** "Just this season": its last day. */
+  endsOn: DateKey | null;
   /** Screen-reader name: "Drink water, 5 of 8 glasses". */
   ariaLabel: string;
 }
@@ -266,6 +302,10 @@ export function habitCard(s: AppState, habit: Habit, date: DateKey, env: ViewEnv
 
   const streak = streakVM(streakOf(habit, logs, ctx).current, habit.polarity);
   const plant = plantVM(s, habit, today, env.local);
+  const petId = s.settings.showCompanions === false ? null : companionOf(s, habit);
+  const anchor = habit.anchorHabitId === undefined ? undefined : s.habits.find((h) => h.id === habit.anchorHabitId);
+  const looks = s.plantLooks?.[habit.id];
+  const shownLook = looks && looks.shown !== null ? looks.looks[looks.shown] : undefined;
   const subtitle = cardSubtitle({ habit, rule, count, target, status, flexible, pace, streak, s, env, plant });
   const unitWord = habit.unit ?? '';
   const aria =
@@ -305,6 +345,11 @@ export function habitCard(s: AppState, habit: Habit, date: DateKey, env: ViewEnv
     streak,
     plant,
     met,
+    damp: done,
+    companion: petId ? { petId, routine: routineOn(s, habit, date, plant.displayStage, today) } : null,
+    after: anchor ? { habitId: anchor.id, name: anchor.name } : null,
+    look: shownLook ? { colour: shownLook.colour, shape: shownLook.shape } : null,
+    endsOn: habit.endsOn ?? null,
     ariaLabel: aria,
   };
 }
@@ -358,9 +403,9 @@ export function cardSubtitle(i: SubtitleInput): { kind: SubtitleKind; text: stri
 /* Small helpers                                                       */
 /* ------------------------------------------------------------------ */
 
-/** Habits alive on `date` (started, not archived before it), in display order. */
+/** Habits alive on `date` (started, not archived before it), in display order: followers right after their anchors (§14.2). */
 export function liveHabits(s: AppState, date: DateKey): Habit[] {
-  return s.habits.filter((h) => h.startedOn <= date && (h.archivedOn === undefined || h.archivedOn >= date)).sort((a, b) => a.order - b.order);
+  return stackOrder(s.habits.filter((h) => h.startedOn <= date && (h.archivedOn === undefined || h.archivedOn >= date)));
 }
 
 export function habitName(s: AppState, id: string | undefined): string | null {

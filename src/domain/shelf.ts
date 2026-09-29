@@ -8,7 +8,8 @@
  *   Shelf"). A pet obtained while the Shelf is full starts indoors. Every pet can be brought in
  *   or out; there is no pet that must stay out.
  * - Decor is placed freely: one placement per owned copy, up to 24 per place, coordinates 0..1
- *   within the place, optionally flipped. Placement ids are unique and stable.
+ *   within the place, optionally flipped. Placement ids are unique and stable. A companion's
+ *   keepsake (§14.1) places like decor, as 'keepsake:<id>' (one copy).
  */
 import { getCollectible } from '@/catalog/collectibles';
 import { PLACES, PLACE_BY_ID } from '@/catalog/places';
@@ -18,6 +19,7 @@ import type { AppState, PlacedDecor } from '@/state/types';
 import { owns } from './collection';
 import type { Tx } from './tx';
 import { spendCoins } from './wallet';
+import { keepsakeOfItem } from './company';
 
 export const MAX_DECOR_PER_PLACE = 24;
 
@@ -71,9 +73,10 @@ export function decorInPlace(s: Pick<AppState, 'shelf'>, place: PlaceId): number
   return s.shelf.decor.filter((d) => d.place === place).length;
 }
 
-/** Owned copies of a decor item not yet placed. */
-export function unplacedCopies(s: Pick<AppState, 'shelf' | 'collection'>, itemId: string): number {
-  return Math.max(0, (s.collection[itemId]?.count ?? 0) - placementsOf(s, itemId));
+/** Owned copies of a decor item not yet placed (a keepsake, 'keepsake:<id>', is one copy). */
+export function unplacedCopies(s: Pick<AppState, 'shelf' | 'collection'> & Partial<Pick<AppState, 'keepsakes'>>, itemId: string): number {
+  const owned = keepsakeOfItem(s, itemId) ? 1 : (s.collection[itemId]?.count ?? 0);
+  return Math.max(0, owned - placementsOf(s, itemId));
 }
 
 function newPlacementId(tx: Tx): string {
@@ -86,7 +89,8 @@ function newPlacementId(tx: Tx): string {
 
 /** Places one owned copy of a decor item. Returns the placement id, or null when not allowed. */
 export function placeDecor(tx: Tx, itemId: string, place: PlaceId, x: number, y: number, flip = false): string | null {
-  if (getCollectible(itemId)?.category !== 'decor' || !owns(tx.s.collection, itemId)) return null;
+  const keepsake = keepsakeOfItem(tx.s, itemId);
+  if (!keepsake && (getCollectible(itemId)?.category !== 'decor' || !owns(tx.s.collection, itemId))) return null;
   if (!tx.s.shelf.places.includes(place)) return null;
   if (unplacedCopies(tx.s, itemId) < 1 || decorInPlace(tx.s, place) >= MAX_DECOR_PER_PLACE) return null;
   const placement: PlacedDecor = { id: newPlacementId(tx), itemId, place, x: clamp01(x), y: clamp01(y), ...(flip ? { flip: true } : {}) };

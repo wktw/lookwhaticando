@@ -6,7 +6,12 @@
  * its words (and every caption) from src/catalog/lines.ts. The few labels built here are plain
  * formatting of numbers and dates.
  */
-import type { AppState, DateKey, Habit, TimeOfDay } from '../types';
+import type { AppState, BloomColour, BloomShape, DateKey, Habit, Hemisphere, SeasonName, StoryId, TimeOfDay } from '../types';
+import { companionOfferOpen, habitsWithoutCompanion, pairOf, petsWithoutHabit, suggestHabitFor, type RoutineOn } from '@/domain/company';
+import { birthdayCards, cameHomeToday } from '@/domain/rituals';
+import { hemisphereOf, seasonAt } from '@/domain/seasonReview';
+import { ritualDate, ritualKind, type RitualKind } from './pets';
+import { seasonReviewVM, type SeasonReviewVM } from './season';
 import { OFF_DAYS_PER_MONTH, canLogOn, isInBackfillWindow, offDaysRemaining } from '@/domain/activity';
 import { dayCompletion, trackingOf } from '@/domain/consistency';
 import { WEEKDAY_LETTERS, addDays, parseDateKey, shortDateLabel, startOfWeek, weekday } from '@/domain/dates';
@@ -100,12 +105,20 @@ export interface SillPotVM {
   blooms: number;
   /** Watered on the selected day: the pot shows damp soil (§9.1; there is no dry state). */
   done: boolean;
+  /** Damp soil: watered on the selected day (same as `done`). */
+  damp: boolean;
   /**
-   * Who sits in this pot in the band. Until Keeping Company (§14.1) pairs pets with habits, the pets
-   * out on the Shelf take the pots in order (favourites first, then the closest friends), so each
-   * habit is watered by whoever is nearest; `companion` is then false.
+   * Who sits in this pot in the band: the habit's companion (`companion: true`, §14.1), else whoever
+   * is nearest: the other pets out on the Shelf take the remaining pots in order (favourites first,
+   * then the closest friends). With "Show companions" off, everyone is just nearest.
    */
   resident: { petId: string; companion: boolean } | null;
+  /** The companion's routine that day (null on a day without one: an ordinary day). */
+  routine: RoutineOn | null;
+  /** The resident's came-home day: a small bow on the pot (§13). */
+  bow: boolean;
+  /** The plant's shown look (§14.2); null = Classic. */
+  look: { colour: BloomColour; shape: BloomShape } | null;
 }
 
 /** The greeting chip's data (§9.1 "Good afternoon, Sam"); the words come from lines.ts. */
@@ -160,10 +173,38 @@ export interface TodayVM {
   cutting: CuttingVM;
   /** Today's found thing on the sill, if an L6+ pet left one (§8.2). */
   found: { petId: string; seed: number } | null;
-  /** An unread Sunday Note or Herbarium page waiting on the sill ("There's a note on the sill"). */
-  letterWaiting: string | null;
+  /**
+   * An unread Sunday Note, Herbarium page or anniversary note waiting on the sill ("There's a note
+   * on the sill" / "There's a page on the sill"), oldest first.
+   */
+  letterWaiting: { id: string; kind: RitualKind } | null;
   /** A capsule reveal was interrupted: resume it. */
   pendingReveal: boolean;
+  /** "Show companions" (§9.5) and "Compact Today". */
+  showCompanions: boolean;
+  compactToday: boolean;
+  /** The season today is in (hemisphere-correct, §14.3), and the last day a "just this season" habit would run. */
+  season: { name: SeasonName; start: DateKey; end: DateKey; hemisphere: Hemisphere };
+  /** The Season Review card (never modal, skippable), when a season just ended. */
+  seasonReview: SeasonReviewVM | null;
+  /** An unread story on a plant tag ("There's a story on the plant tag for {habit}."). */
+  storyWaiting: { habitId: string; petId: string; story: StoryId } | null;
+  /** Her birthday: the pets out leave one-line cards; there's a tiny cake and a ticket (§13). */
+  birthday: { petIds: string[] } | null;
+  /** Pets whose came-home day it is (a small bow on the pot). */
+  cameHome: { petId: string; years: number }[];
+  /** "Find {name} a plant": the Keeping Company offer, when it may be shown today. */
+  companionOffer: CompanionOfferVM | null;
+}
+
+/** The Keeping Company offer (§14.1): at most once a day, never again after 3 declines. */
+export interface CompanionOfferVM {
+  /** The newest pet without a habit to keep company. */
+  petId: string;
+  /** "Let them choose": the habit its species would pick. */
+  suggested: string | null;
+  /** Habits without a companion, in display order. */
+  habitIds: string[];
 }
 
 const BLOCK_ORDER: readonly Exclude<TimeOfDay, 'anytime'>[] = ['morning', 'midday', 'evening'];
@@ -298,28 +339,41 @@ export function todayVM(s: AppState, env: ViewEnv, date: DateKey = env.today): T
     };
   }
 
-  // The band: pots with whoever is nearest, the Cutting, today's found thing.
-  const residents = sillResidents(s);
+  // The band: pots with their companions or whoever is nearest, the Cutting, today's found thing.
   const cards = new Map([...blocks.flatMap((b) => b.cards), ...doneForPeriod, ...thisMonth, ...notToday].map((c) => [c.id, c]));
-  const sill: SillPotVM[] = live
-    .filter((h) => !isPausedOn(h.pauses, day))
-    .map((h, i) => {
-      const card = cards.get(h.id)!;
-      const petId = residents[i];
-      return {
-        habitId: h.id,
-        icon: h.icon,
-        plant: h.plant,
-        pot: h.pot,
-        stage: card.plant.displayStage,
-        progress: card.plant.progress,
-        blooms: card.plant.blooms,
-        done: card.done,
-        resident: petId ? { petId, companion: false } : null,
-      };
-    });
+  const showCompanions = s.settings.showCompanions !== false;
+  const potHabits = live.filter((h) => !isPausedOn(h.pauses, day));
+  const companions = new Set(showCompanions ? potHabits.map((h) => cards.get(h.id)?.companion?.petId).filter((x): x is string => x !== undefined) : []);
+  const nearest = sillResidents(s).filter((id) => !companions.has(id));
+  const cameHome = isToday ? cameHomeToday(s, today, env.local) : [];
+  const bows = new Set(cameHome.map((c) => c.petId));
+  let next = 0;
+  const sill: SillPotVM[] = potHabits.map((h) => {
+    const card = cards.get(h.id)!;
+    const own = showCompanions ? card.companion : null;
+    const petId = own?.petId ?? nearest[next++];
+    return {
+      habitId: h.id,
+      icon: h.icon,
+      plant: h.plant,
+      pot: h.pot,
+      stage: card.plant.displayStage,
+      progress: card.plant.progress,
+      blooms: card.plant.blooms,
+      done: card.done,
+      damp: card.damp,
+      resident: petId ? { petId, companion: own !== null && own !== undefined } : null,
+      routine: own?.routine ?? null,
+      bow: petId !== undefined && bows.has(petId),
+      look: card.look,
+    };
+  });
   const found = s.found?.find((f) => f.date === day);
   const birthday = s.profile.birthday ? birthdayOn(s.profile.birthday, parseDateKey(today).year) === today : false;
+  const hemisphere = hemisphereOf(s, env.timeZone);
+  const season = seasonAt(today, hemisphere);
+  const waiting = [...s.inbox].filter((l) => l.readAt === undefined).sort((a, b) => (ritualDate(a) < ritualDate(b) ? -1 : 1))[0];
+  const offerPet = companionOfferOpen(s, today) ? petsWithoutHabit(s)[0] : undefined;
 
   return {
     date: day,
@@ -348,7 +402,28 @@ export function todayVM(s: AppState, env: ViewEnv, date: DateKey = env.today): T
     sill,
     cutting: cuttingOf(s),
     found: found ? { petId: found.petId, seed: found.seed } : null,
-    letterWaiting: s.inbox.find((l) => l.readAt === undefined)?.id ?? null,
+    letterWaiting: waiting ? { id: waiting.id, kind: ritualKind(waiting) } : null,
     pendingReveal: s.pendingReveal !== undefined,
+    showCompanions,
+    compactToday: s.settings.compactToday === true,
+    season: { name: season.name, start: season.start, end: season.end, hemisphere },
+    seasonReview: seasonReviewVM(s, env),
+    storyWaiting: showCompanions ? storyWaiting(s) : null,
+    birthday: birthday && isToday ? { petIds: birthdayCards(s) } : null,
+    cameHome,
+    companionOffer: offerPet && showCompanions ? { petId: offerPet, suggested: suggestHabitFor(s, offerPet), habitIds: habitsWithoutCompanion(s).map((h) => h.id) } : null,
   };
+}
+
+/** The oldest unread story of a live habit's current companion. */
+export function storyWaiting(s: AppState): TodayVM['storyWaiting'] {
+  let best: { habitId: string; petId: string; story: StoryId; on: DateKey } | null = null;
+  for (const h of s.habits) {
+    if (h.archivedOn !== undefined || !h.companionId) continue;
+    const pair = pairOf(s, h.companionId, h.id);
+    for (const [story, st] of Object.entries(pair?.stories ?? {}) as [StoryId, { on: DateKey; readAt?: number }][]) {
+      if (st.readAt === undefined && (!best || st.on < best.on)) best = { habitId: h.id, petId: h.companionId, story, on: st.on };
+    }
+  }
+  return best ? { habitId: best.habitId, petId: best.petId, story: best.story } : null;
 }

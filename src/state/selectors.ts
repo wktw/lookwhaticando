@@ -4,7 +4,7 @@
  * Every view-model is a pure function of (state, view env) in ./views/* — unit-testable without a
  * store — and is exposed here as a memoised `computed` signal bound to the store:
  * - singletons: `todayView`, `progressView`, `walletView`, `capsulesView`, `wishListView`,
- *   `collectionView`, `petsView`, `shelfView`, `lettersView`, `badgesView`;
+ *   `collectionView`, `petsView`, `shelfView`, `memoryShelfView`, `tuneView`, `badgesView`;
  * - parameterised: `selectToday(date)`, `selectHabitDetail(id)`, `selectCalendarMonth(habitId, month)`,
  *   `selectYearQuilt(year, habitId?)`, `selectSeries(machineId)`, `selectPet(id)`: each returns the
  *   same signal for the same arguments (a small LRU), so components can call them on every render.
@@ -15,14 +15,15 @@
 import { computed, type ReadonlySignal } from '@preact/signals';
 import type { MachineId } from '@/catalog/types';
 import type { DateKey } from './types';
-import { machineStatusOf, now, state, storeLocal, today } from './store';
+import { machineStatusOf, now, state, storeLocal, storeTimeZone, today } from './store';
 import type { ViewEnv } from './views/common';
 import { todayVM, type TodayVM } from './views/today';
 import { habitDetailVM, type HabitDetailVM } from './views/habit';
 import { calendarMonthVM, yearQuiltVM, type CalendarMonthVM, type YearQuiltVM } from './views/calendar';
 import { progressVM, type ProgressVM } from './views/progress';
 import { capsulesVM, collectionVM, seriesVM, walletVM, wishListVM, type CapsulesVM, type CollectionVM, type SeriesVM, type WalletVM, type WishListVM } from './views/capsules';
-import { badgesVM, lettersVM, petVM, petsVM, shelfVM, type LettersVM, type PetVM, type PetsVM, type ShelfVM } from './views/pets';
+import { badgesVM, memoryShelfVM, petVM, petsVM, shelfVM, type MemoryShelfVM, type PetVM, type PetsVM, type ShelfVM } from './views/pets';
+import { tuneVM, type TuneVM } from './views/season';
 
 export * from './views/common';
 export * from './views/today';
@@ -31,14 +32,16 @@ export * from './views/calendar';
 export * from './views/progress';
 export * from './views/capsules';
 export * from './views/pets';
+export * from './views/company';
+export * from './views/season';
 
 /** `now` rounded down to the hour: changes 24 times a day, not every tick. */
 const hourNow = computed(() => Math.floor(now.value / 3_600_000) * 3_600_000);
 
 /** The view env for views that don't need the wall clock (stable across ticks). */
-const dayEnv = computed<ViewEnv>(() => ({ today: today.value, now: hourNow.peek(), local: storeLocal() }));
+const dayEnv = computed<ViewEnv>(() => ({ today: today.value, now: hourNow.peek(), local: storeLocal(), timeZone: storeTimeZone() }));
 /** The view env for views that use the hour (greeting, current time block, clock banner). */
-const hourEnv = computed<ViewEnv>(() => ({ today: today.value, now: hourNow.value, local: storeLocal() }));
+const hourEnv = computed<ViewEnv>(() => ({ today: today.value, now: hourNow.value, local: storeLocal(), timeZone: storeTimeZone() }));
 
 export const todayView: ReadonlySignal<TodayVM> = computed(() => todayVM(state.value, hourEnv.value));
 export const progressView: ReadonlySignal<ProgressVM> = computed(() => progressVM(state.value, dayEnv.value));
@@ -52,7 +55,10 @@ export const wishListView: ReadonlySignal<WishListVM> = computed(() => wishListV
 export const collectionView: ReadonlySignal<CollectionVM> = computed(() => collectionVM(state.value));
 export const petsView: ReadonlySignal<PetsVM> = computed(() => petsVM(state.value));
 export const shelfView: ReadonlySignal<ShelfVM> = computed(() => shelfVM(state.value));
-export const lettersView: ReadonlySignal<LettersVM> = computed(() => lettersVM(state.value));
+/** The memory shelf (§9.2): Sunday Notes, Herbarium pages, anniversary notes, retired plants, seasons. */
+export const memoryShelfView: ReadonlySignal<MemoryShelfVM> = computed(() => memoryShelfVM(state.value));
+/** "Tune my habits" (§14.3), anytime. */
+export const tuneView: ReadonlySignal<TuneVM> = computed(() => tuneVM(state.value, dayEnv.value));
 export const badgesView = computed(() => badgesVM(state.value));
 
 /** A small LRU of computed signals keyed by the selector's arguments. */

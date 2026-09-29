@@ -5,8 +5,13 @@
  *   dates → schedule → pauses → rules → activity → periods → consistency / streaks / growth → insights
  * Game layer (stage 2), reducers that run in a copy-on-write transaction (tx.ts) and return
  * `{ state, events, ...result }`:
- *   tx → wallet → levels / collection / seasons → badges → pantry / friendship / shelf →
- *   economy → letters → logging → gacha / habits / profile → rollover
+ *   tx → wallet → levels / collection / seasons → badges → pantry / friendship →
+ *   routines / stacking / company / signature → shelf → economy → journal / rituals → letters →
+ *   logging → gacha / habits / profile → hemisphere / seasonReview → rollover
+ * The three pillars (§14) and rituals (§13): company.ts (Keeping Company), routines.ts,
+ * signature.ts (Blooms Like You), stacking.ts, journal.ts (Garden Journal), seasonReview.ts and
+ * hemisphere.ts (Season Review), rituals.ts (Sunday Note, Herbarium page, birthday, came-home days,
+ * the moving-in anniversary).
  * Nothing here reads Date.now(), Math.random() or browser APIs: time, the app day, the local clock
  * and randomness are injected (`Env`).
  *
@@ -41,3 +46,11 @@ export * from './gacha';
 export * from './habits';
 export * from './profile';
 export * from './rollover';
+export * from './routines';
+export * from './stacking';
+export * from './company';
+export * from './signature';
+export * from './journal';
+export * from './rituals';
+export * from './hemisphere';
+export * from './seasonReview';

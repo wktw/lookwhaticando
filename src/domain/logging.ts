@@ -43,6 +43,7 @@ import {
   type Settlement,
 } from './economy';
 import { leaveFoundThing } from './friendship';
+import { companionCheckin } from './company';
 import { BLOOMING } from './growth';
 import { topUpLetters } from './letters';
 import { harvest } from './pantry';
@@ -158,6 +159,8 @@ export function rewardPass(tx: Tx, habitId: string, date: DateKey, opts: PassOpt
   }
   if (up && flexible && st.next !== 'over') payPeriodGoal(tx, habitId, date);
   const stage = updatePlantStage(tx, habitId);
+  // Keeping Company (§14.1): the companion's XP and its next story come with a completing check-in.
+  if (up && opts.user && (st.next === 'tiny' || st.next === 'full')) companionCheckin(tx, habitId, date);
   if (up && opts.user && st.next !== 'over' && stage >= BLOOMING && harvest(tx, habit)) trigger = { ...trigger, harvested: true };
   if (up && payPerfectDay(tx, date) && isPerfectWeek(tx.s, date)) trigger = { ...trigger, perfectWeek: true };
   payRungs(tx, habitId, opts.bestBefore);
@@ -333,8 +336,25 @@ export function setNote(tx: Tx, habitId: string, date: DateKey, note: string): v
   const cur = tx.s.logs[habitId]?.[date];
   const next: DayLog = cur ? { ...cur } : { kind: 'log', count: 0 };
   if (text) next.note = text;
-  else delete next.note;
+  else {
+    delete next.note;
+    delete next.starred;
+  }
   writeLog(tx, habitId, date, next);
+}
+
+/**
+ * Stars (or un-stars) a day's note: only starred notes are ever quoted in a Sunday Note (a note is
+ * private by default). False when the day has no note.
+ */
+export function starNote(tx: Tx, habitId: string, date: DateKey, starred: boolean): boolean {
+  const cur = tx.s.logs[habitId]?.[date];
+  if (!cur?.note || !isDateKey(date)) return false;
+  const next: DayLog = { ...cur };
+  if (starred) next.starred = true;
+  else delete next.starred;
+  writeLog(tx, habitId, date, next);
+  return true;
 }
 
 /**

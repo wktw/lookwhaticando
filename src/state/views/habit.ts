@@ -2,7 +2,7 @@
  * Habit Detail sheet (DESIGN §9.2 "Habit Detail", v1 §13.2 tiny/graduation/notes, v1 §13.5 rungs,
  * v1 §13.11 "Legible economy").
  */
-import type { AppState, DateKey, Habit, HabitRule } from '../types';
+import type { AppState, DateKey, Habit, HabitRule, PlantLook } from '../types';
 import { logStatus, showedUp } from '@/domain/activity';
 import { habitTally, monthWindow, weekWindow, formatHabitPhrase, habitPhrase, type Tally } from '@/domain/consistency';
 import { monthDayLabel, monthFromIndex, monthIndex, monthLabel, shortDateLabel, type MonthKey } from '@/domain/dates';
@@ -12,7 +12,13 @@ import { currentOffer } from '@/domain/habits';
 import { pauseCovering, pauseReturnDay } from '@/domain/pauses';
 import { ruleAt, ruleSegments } from '@/domain/rules';
 import { calendarMonthVM, tallyVM, type CalendarMonthVM, type TallyVM } from './calendar';
-import { plantVM, scheduleLabel, streakVM, type PlantVM, type StreakVM, type ViewEnv } from './common';
+import { checkinsToStage, plantVM, scheduleLabel, streakVM, type PlantVM, type StreakVM, type ViewEnv } from './common';
+import { companionVM, keepsakeVM, type CompanionVM, type KeepsakeVM } from './company';
+import { BLOOMING } from '@/domain/growth';
+import { gardenJournal, type JournalEntry } from '@/domain/journal';
+import { dueRead, looksOf, timeNudge, type TimeNudge } from '@/domain/signature';
+import { keptTogetherDays } from '@/domain/stacking';
+import { freshStartOptions, hemisphereOf, type FreshStartOptions } from '@/domain/seasonReview';
 
 export interface RungVM {
   /** Occurrence-equivalent needed. */
@@ -68,6 +74,39 @@ export interface HabitDetailVM {
   pause: { paused: boolean; back: DateKey | null; label: string | null; upcoming: { start: DateKey; end?: DateKey } | null };
   /** The habit's rule history, oldest first ("Since Sep 22: Mon/Wed/Fri"). */
   history: { from: DateKey | null; label: string }[];
+  /** "Why it matters" (§14.1), editable from day 0. */
+  why: string | null;
+  /** Keeping Company (§14.1): the companion, its stories and today's routine. */
+  companion: CompanionVM | null;
+  /** Keepsakes left by this plant's pot, oldest first. */
+  keepsakes: KeepsakeVM[];
+  /** Blooms Like You (§14.2): the looks earned (only ever added), the one shown, and the plant tag. */
+  looks: LooksVM;
+  /** The Garden Journal (§14.2): up to five sentences, inked or pencilled. */
+  journal: JournalEntry[];
+  /** "You set Walk for mornings but usually water it after 6 pm. Move it to Evening?" (offered once). */
+  timeNudge: TimeNudge | null;
+  /** Habit stacking (§14.2): the habit it follows, and the kept-together count. */
+  after: { habitId: string; name: string; keptTogether: number } | null;
+  /** Habits that follow this one. */
+  followers: string[];
+  /** Check-ins still needed to reach Blooming (null once there). */
+  checkinsToBlooming: number | null;
+  /** "Just this season": its last day; retired with a ribbon: its last day. */
+  endsOn: DateKey | null;
+  ribbon: DateKey | null;
+  /** "Tune my habits" (§14.3): the fresh-start chips for this habit (null when archived). */
+  tune: FreshStartOptions | null;
+}
+
+export interface LooksVM {
+  looks: PlantLook[];
+  /** Index of the look shown; null = Classic (always available). */
+  shown: number | null;
+  /** The plant tag in plain words: the shown look's (or, on Classic, the latest look's) facts. */
+  tag: PlantLook | null;
+  /** A read is due (Blooming / Evergreen) and waits for 10 eligible live check-in days. */
+  waiting: 'bloom' | 'evergreen' | null;
 }
 
 export function habitDetailVM(s: AppState, env: ViewEnv, id: string): HabitDetailVM | null {
@@ -112,6 +151,11 @@ export function habitDetailVM(s: AppState, env: ViewEnv, id: string): HabitDetai
   const back = pauseReturnDay(habit.pauses, today) ?? null;
 
   const pending = habit.rules.find((r) => r.from > today);
+  const plant = plantVM(s, habit, today, env.local);
+  const checkinsToBlooming = checkinsToStage(s, habit, today, env.local, BLOOMING);
+  const pl = looksOf(s, id);
+  const anchor = habit.anchorHabitId === undefined ? undefined : s.habits.find((h) => h.id === habit.anchorHabitId);
+  const due = dueRead(pl, plant.displayStage);
   return {
     habit,
     rule,
@@ -119,7 +163,7 @@ export function habitDetailVM(s: AppState, env: ViewEnv, id: string): HabitDetai
     upcoming: pending ? { from: pending.from, rule: pending, label: `From ${monthDayLabel(pending.from)}: ${scheduleLabel(pending.schedule, s.settings.weekStart)}` } : null,
     archived: habit.archivedOn !== undefined,
     createdOn: habitCreatedOn(habit, s.settings.dayStartsAt, env.local),
-    plant: plantVM(s, habit, today, env.local),
+    plant,
     stats: {
       current: streakVM(streak.current, habit.polarity),
       best: streakVM(streak.best, habit.polarity),
@@ -146,5 +190,22 @@ export function habitDetailVM(s: AppState, env: ViewEnv, id: string): HabitDetai
         seg.rule.target > 1 ? ` · ${seg.rule.target}${habit.unit ? ` ${habit.unit}` : ''}` : ''
       }`,
     })),
+    why: habit.why ?? null,
+    companion: companionVM(s, env, habit),
+    keepsakes: (s.keepsakes ?? []).filter((k) => k.habitId === id).map((k) => keepsakeVM(s, k)),
+    looks: {
+      looks: pl.looks,
+      shown: pl.shown,
+      tag: pl.shown !== null ? (pl.looks[pl.shown] ?? null) : (pl.looks[pl.looks.length - 1] ?? null),
+      waiting: due,
+    },
+    journal: gardenJournal(s, habit, { today, local: env.local, weekStart: s.settings.weekStart, checkinsToBlooming }),
+    timeNudge: timeNudge(s, habit, today, env.local),
+    after: anchor ? { habitId: anchor.id, name: anchor.name, keptTogether: keptTogetherDays(s, habit, today) } : null,
+    followers: s.habits.filter((h) => h.anchorHabitId === id).map((h) => h.id),
+    checkinsToBlooming,
+    endsOn: habit.endsOn ?? null,
+    ribbon: habit.ribbon ?? null,
+    tune: habit.archivedOn === undefined ? freshStartOptions(s, habit, today, hemisphereOf(s, env.timeZone)) : null,
   };
 }

@@ -15,15 +15,24 @@ import { Game, at } from '../domain/game';
 export const TODAY = '2026-09-29';
 
 export function fiveYearSave(): AppState {
+  return bigSave({ years: 5, habits: 12 });
+}
+
+/**
+ * A big save: `years` of `habits` busy habits (see module doc), with every stage B record a
+ * long-kept sill has: companions on half the habits (and their pairings, stories and keepsakes),
+ * stacked pairs, plant looks, stage days and filed seasons.
+ */
+export function bigSave(opts: { years: number; habits: number }): AppState {
   const rng = mulberry32(5);
   const g = new Game({ start: TODAY, hour: 21 });
   g.freeze = false;
-  const start = addDays(TODAY, -(5 * 365 + 1));
+  const start = addDays(TODAY, -(opts.years * 365 + 1));
   const days = eachDay(start, TODAY);
   const s = structuredClone(g.state);
   s.profile.createdAt = at(start, 9);
   s.clock = { maxDateKey: TODAY, maxEpochMs: at(TODAY, 21), lastCheckinAt: at(TODAY, 20) };
-  for (let i = 0; i < 12; i++) {
+  for (let i = 0; i < opts.habits; i++) {
     const kind = i % 4;
     const schedule: Habit['rules'][number]['schedule'] =
       kind === 0 ? { kind: 'daily' } : kind === 1 ? { kind: 'days', days: [1, 3, 5] } : kind === 2 ? { kind: 'weekly', times: 3, every: 1 } : { kind: 'daily' };
@@ -94,6 +103,34 @@ export function fiveYearSave(): AppState {
     letters.push({ kind: 'monthly', id: `bouquet-${month}`, month, achieved: 300, expected: 340, stars: 4, previousPct: 85, growingBonus: false, stems: s.habits.map((h) => ({ habitId: h.id, plant: h.plant, count: 7 })), readAt: 0 });
   }
   s.inbox = letters;
+  // Stage B: companions on every other habit, stacks, looks, stage days, keepsakes, seasons.
+  const pairs: NonNullable<AppState['company']>['pairs'] = {};
+  s.habits.forEach((h, i) => {
+    if (i % 2 === 1) h.anchorHabitId = s.habits[i - 1]!.id;
+    if (i % 2 === 0 && PETS[i]) {
+      h.companionId = PETS[i]!.id;
+      pairs[`${PETS[i]!.id}|${h.id}`] = { petId: PETS[i]!.id, habitId: h.id, since: start, sunshine: 1200, waterings: 900, stories: { start: { on: addDays(start, 7), readAt: 1 }, why: { on: addDays(start, 21), readAt: 1 }, lookAtUs: { on: addDays(start, 42), readAt: 1 } }, whyAsked: true };
+    }
+    s.stageDates = { ...s.stageDates, [h.id]: { 1: addDays(start, 1), 2: addDays(start, 4), 3: addDays(start, 10), 4: addDays(start, 21), 5: addDays(start, 42), 6: addDays(start, 90), 7: addDays(start, 180) } };
+    const look = (colour: 'dawn' | 'twilight', read: 'bloom' | 'evergreen', on: string) => ({ colour, shape: 'classic' as const, read, on, evidence: { band: colour, eligibleDays: 40, bandDays: 40, usualMinute: 495, tinyDays: 0, doneDays: 40 } });
+    s.plantLooks = { ...s.plantLooks, [h.id]: { looks: [look('dawn', 'bloom', addDays(start, 42)), look('twilight', 'evergreen', addDays(start, 180))], shown: 1, reads: { bloom: addDays(start, 42), evergreen: addDays(start, 180) } } };
+    if (h.companionId) {
+      for (const stage of [1, 4, 5, 7]) s.keepsakes = [...(s.keepsakes ?? []), { id: `k-${h.id}-${stage}`, habitId: h.id, petId: h.companionId, stage, kind: stage === 7 ? 'brass-seed' : 'move', date: addDays(start, stage * 10) }];
+    }
+  });
+  s.company = { pairs, offer: { declines: 3 } };
+  s.seasons = {
+    filed: [],
+    pending: {
+      key: '2026-06-01',
+      name: 'summer',
+      start: '2026-06-01',
+      end: '2026-08-31',
+      hemisphere: 'north',
+      plants: s.habits.slice(0, 8).map((h) => ({ habitId: h.id, plant: h.plant, fromStage: 7, toStage: 7, waterings: 80, ...(h.companionId ? { petId: h.companionId } : {}) })),
+      waterings: 80 * s.habits.length,
+    },
+  };
   return s;
 }
 

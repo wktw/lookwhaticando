@@ -34,6 +34,9 @@ import { logStatus, showedUp } from './activity';
 import { owns, ownedTreats } from './collection';
 import { addDays, clampDayStartsAt, isDateKey } from './dates';
 import { addPause, archivedStretchPause, isPausedOn, resumePauses } from './pauses';
+import { forgetHabitPairs, freeCompanion } from './company';
+import { anchorIssue, unstackFollowers } from './stacking';
+import { inferHemisphere } from './hemisphere';
 import { ensureRecipe } from './pantry';
 import { ruleAt, withRuleEdit, withStartedOn, type RuleEditTiming } from './rules';
 import { isBiggerRule, isDayBased, normalizeRuleContent, sameRuleContent, validateRuleContent, type RuleContent } from './schedule';
@@ -42,7 +45,7 @@ import type { Tx } from './tx';
 import { grantStars, hasOnce, refundCoins, setOnce } from './wallet';
 
 export const MAX_BIG_HABITS = 3;
-export const LIMITS = { name: 60, anchor: 80, unit: 20, notes: 500 } as const;
+export const LIMITS = { name: 60, anchor: 80, unit: 20, notes: 500, why: 140 } as const;
 /** Onboarding suggests starting small (DESIGN §9.6: pick up to 3 habits). */
 export const ONBOARDING_MAX_HABITS = 3;
 export const DEFAULT_POT: PotId = 'terracotta';
@@ -78,8 +81,11 @@ export function bigHabitCount(s: Pick<AppState, 'habits'>, exceptId?: string): n
   return s.habits.filter((h) => h.effort === 'big' && h.archivedOn === undefined && h.id !== exceptId).length;
 }
 
-/** Every problem with a habit's input (empty = valid). `editingId` excludes that habit from the big-habit limit. */
-export function validateHabitInput(s: AppState, input: HabitInput, editingId?: string): HabitIssue[] {
+/**
+ * Every problem with a habit's input (empty = valid). `editingId` excludes that habit from the
+ * big-habit limit (and is the habit an anchor must not lead back to). `today` bounds `endsOn`.
+ */
+export function validateHabitInput(s: AppState, input: HabitInput, editingId?: string, today?: DateKey): HabitIssue[] {
   const issues: HabitIssue[] = [];
   const add = (field: keyof HabitInput, code: string, message: string) => issues.push({ field, code, message });
   const name = typeof input.name === 'string' ? input.name.trim() : '';
@@ -100,6 +106,12 @@ export function validateHabitInput(s: AppState, input: HabitInput, editingId?: s
   if (input.anchor !== undefined && input.anchor.length > LIMITS.anchor) add('anchor', 'anchor', `Keep the anchor under ${LIMITS.anchor} characters.`);
   if (input.unit !== undefined && input.unit.length > LIMITS.unit) add('unit', 'unit', `Keep the unit under ${LIMITS.unit} characters.`);
   if (input.notes !== undefined && input.notes.length > LIMITS.notes) add('notes', 'notes', `Keep notes under ${LIMITS.notes} characters.`);
+  if (input.why !== undefined && (typeof input.why !== 'string' || Array.from(input.why.trim()).length > LIMITS.why)) add('why', 'why', `Keep it under ${LIMITS.why} characters.`);
+  if (input.anchorHabitId !== undefined) {
+    const issue = typeof input.anchorHabitId === 'string' ? anchorIssue(s, editingId, input.anchorHabitId) : 'unknown';
+    if (issue) add('anchorHabitId', `anchor-${issue}`, 'Pick another habit to follow.');
+  }
+  if (input.endsOn !== undefined && (!isDateKey(input.endsOn) || (today !== undefined && input.endsOn < today))) add('endsOn', 'ends-on', 'Pick a last day from today on.');
   const content = ruleContentOf(input);
   for (const issue of validateRuleContent(content)) add(RULE_FIELD[issue.code] ?? 'schedule', issue.code, issue.message);
   return issues;
@@ -114,7 +126,12 @@ function ruleContentOf(input: Pick<HabitInput, 'schedule' | 'target' | 'step' | 
   });
 }
 
-function cosmetic(input: HabitInput): Pick<Habit, 'name' | 'icon' | 'color' | 'plant' | 'pot' | 'unit' | 'effort' | 'timeOfDay' | 'anchor' | 'polarity' | 'dueDay' | 'notes'> {
+/** Optional habit fields a patch can clear by passing `undefined`. */
+const OPTIONAL_FIELDS = ['unit', 'anchor', 'dueDay', 'notes', 'why', 'anchorHabitId', 'endsOn'] as const;
+
+function cosmetic(
+  input: HabitInput,
+): Pick<Habit, 'name' | 'icon' | 'color' | 'plant' | 'pot' | 'unit' | 'effort' | 'timeOfDay' | 'anchor' | 'polarity' | 'dueDay' | 'notes' | 'why' | 'anchorHabitId' | 'endsOn'> {
   const out: ReturnType<typeof cosmetic> = {
     name: input.name.trim(),
     icon: input.icon,
@@ -129,6 +146,9 @@ function cosmetic(input: HabitInput): Pick<Habit, 'name' | 'icon' | 'color' | 'p
   if (input.anchor?.trim()) out.anchor = input.anchor.trim();
   if (input.dueDay !== undefined) out.dueDay = input.dueDay;
   if (input.notes?.trim()) out.notes = input.notes.trim();
+  if (input.why?.trim()) out.why = input.why.trim();
+  if (input.anchorHabitId !== undefined) out.anchorHabitId = input.anchorHabitId;
+  if (input.endsOn !== undefined) out.endsOn = input.endsOn;
   return out;
 }
 
@@ -143,7 +163,7 @@ function newHabitId(tx: Tx): string {
 
 /** Creates a habit from validated input; throws HabitInputError otherwise. Returns its id. */
 export function createHabit(tx: Tx, input: HabitInput): string {
-  const issues = validateHabitInput(tx.s, input);
+  const issues = validateHabitInput(tx.s, input, undefined, tx.env.today);
   if (issues.length > 0) throw new HabitInputError(issues);
   const id = newHabitId(tx);
   const today = tx.env.today;
@@ -175,6 +195,9 @@ export function habitInputOf(habit: Habit, today: DateKey): HabitInput {
     polarity: habit.polarity,
     ...(habit.dueDay !== undefined ? { dueDay: habit.dueDay } : {}),
     ...(habit.notes !== undefined ? { notes: habit.notes } : {}),
+    ...(habit.why !== undefined ? { why: habit.why } : {}),
+    ...(habit.anchorHabitId !== undefined ? { anchorHabitId: habit.anchorHabitId } : {}),
+    ...(habit.endsOn !== undefined ? { endsOn: habit.endsOn } : {}),
   };
 }
 
@@ -191,13 +214,14 @@ export function updateHabit(tx: Tx, id: string, patch: Partial<HabitInput>, timi
   const today = tx.env.today;
   const merged: HabitInput = { ...habitInputOf(current, today), ...patch };
   if (Object.prototype.hasOwnProperty.call(patch, 'tiny') && patch.tiny === undefined) delete merged.tiny;
-  for (const k of ['unit', 'anchor', 'dueDay', 'notes'] as const) {
+  for (const k of OPTIONAL_FIELDS) {
     if (Object.prototype.hasOwnProperty.call(patch, k) && patch[k] === undefined) delete merged[k];
   }
-  const issues = validateHabitInput(tx.s, merged, id);
+  // An unchanged `endsOn` already in the past (a restored habit) is not re-validated against today.
+  const issues = validateHabitInput(tx.s, merged, id, merged.endsOn === current.endsOn ? undefined : tx.env.today);
   if (issues.length > 0) throw new HabitInputError(issues);
   let next: Habit = { ...current, ...cosmetic(merged) };
-  for (const k of ['unit', 'anchor', 'dueDay', 'notes'] as const) if (merged[k] === undefined) delete next[k];
+  for (const k of OPTIONAL_FIELDS) if (merged[k] === undefined) delete next[k];
   const ruleEdit = RULE_KEYS.some((k) => Object.prototype.hasOwnProperty.call(patch, k));
   if (ruleEdit) {
     const content = ruleContentOf(merged);
@@ -206,7 +230,7 @@ export function updateHabit(tx: Tx, id: string, patch: Partial<HabitInput>, timi
   }
   const h = tx.habit(id);
   Object.assign(h, next);
-  for (const k of ['unit', 'anchor', 'dueDay', 'notes'] as const) if (next[k] === undefined) delete h[k];
+  for (const k of OPTIONAL_FIELDS) if (next[k] === undefined) delete h[k];
   if (ruleEdit && next.rules !== current.rules) {
     forfeitLoweredGoal(tx, current, next);
     resettleHabit(tx, id);
@@ -222,6 +246,8 @@ function todayRewarded(tx: Tx, id: string): boolean {
 export function archiveHabit(tx: Tx, id: string): void {
   const h = tx.s.habits.find((x) => x.id === id);
   if (!h || h.archivedOn !== undefined) return;
+  freeCompanion(tx, id);
+  unstackFollowers(tx, id);
   tx.habit(id).archivedOn = tx.env.today < h.startedOn ? h.startedOn : tx.env.today;
 }
 
@@ -237,6 +263,9 @@ export function restoreHabit(tx: Tx, id: string): void {
   const stretch = archivedStretchPause(h.archivedOn, tx.env.today);
   if (stretch) w.pauses = addPause(h.pauses, stretch.start, stretch.end);
   delete w.archivedOn;
+  // Back from the balcony shelf: the ribbon comes off, and a finished "just this season" runs on.
+  delete w.ribbon;
+  if (w.endsOn !== undefined && w.endsOn < tx.env.today) delete w.endsOn;
   if (h.effort === 'big' && bigHabitCount(tx.s, id) >= MAX_BIG_HABITS) w.effort = 'steady';
 }
 
@@ -293,7 +322,18 @@ export function deleteHabit(tx: Tx, id: string, opts: DeleteOptions = {}): void 
     else delete tx.ledger('sunshine')[id];
   }
   if (tx.s.ledger.bestStage[id] !== undefined) delete tx.ledger('bestStage')[id];
-  const staleOnce = Object.keys(tx.s.ledger.once).filter((k) => k.split('|')[1] === id && /^(period|rung|harvest|grow|rest|flourish)\|/.test(k));
+  // Followers no longer follow it; its pairings, looks and stage days go with it (keepsakes stay: they are hers).
+  unstackFollowers(tx, id);
+  forgetHabitPairs(tx, id);
+  if (tx.s.plantLooks?.[id]) {
+    const { [id]: _looks, ...rest } = tx.s.plantLooks;
+    tx.set('plantLooks', Object.keys(rest).length > 0 ? rest : undefined);
+  }
+  if (tx.s.stageDates?.[id]) {
+    const { [id]: _days, ...rest } = tx.s.stageDates;
+    tx.set('stageDates', Object.keys(rest).length > 0 ? rest : undefined);
+  }
+  const staleOnce = Object.keys(tx.s.ledger.once).filter((k) => k.split('|')[1] === id && /^(period|rung|harvest|grow|rest|flourish|company)\|/.test(k));
   if (staleOnce.length > 0) {
     const once = tx.ledger('once');
     for (const k of staleOnce) delete once[k];
@@ -445,6 +485,8 @@ export function completeOnboarding(tx: Tx, opts: OnboardingInput): string[] {
   profile.onboarded = true;
   if (opts.birthday && /^\d{2}-\d{2}$/.test(opts.birthday)) profile.birthday = opts.birthday;
   if (opts.dayStartsAt !== undefined) tx.section('settings').dayStartsAt = clampDayStartsAt(opts.dayStartsAt);
+  // "Where's your summer?" starts from the device's time zone, and stays put when she travels.
+  if (tx.s.settings.hemisphere === undefined && tx.env.timeZone) tx.section('settings').hemisphere = inferHemisphere(tx.env.timeZone);
   for (const t of ownedTreats(tx.s.collection)) ensureRecipe(tx, t.id);
   const ids: string[] = [];
   for (const templateId of opts.templateIds.slice(0, ONBOARDING_MAX_HABITS)) {

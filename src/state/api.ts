@@ -3,7 +3,7 @@
  * them) and every UI feature (which consumes them). Changing these is a cross-team change.
  */
 import type { MachineId, PlaceId, Rarity, WearableSlot, PastelKey, PlantSpeciesId, PotId } from '@/catalog/types';
-import type { DateKey, Effort, Schedule, PetState, TimeOfDay } from './types';
+import type { BloomColour, BloomShape, DateKey, Effort, KeepsakeKind, Schedule, PetState, SeasonName, StoryId, TimeOfDay } from './types';
 
 /* ------------------------------------------------------------------ */
 /* Game events: emitted by actions, consumed by FX/celebration layers  */
@@ -49,7 +49,21 @@ export type GameEvent =
    * An L6+ pet left a found thing on the sill (DESIGN §8.2): once a day on a day with a check-in,
    * worth `swaps` (a `stardust` event follows). `seed` picks the thing (a button, a leaf, a bead…).
    */
-  | { type: 'foundThing'; petId: string; date: DateKey; seed: number; swaps: number };
+  | { type: 'foundThing'; petId: string; date: DateKey; seed: number; swaps: number }
+  /** Keeping Company (§14.1): a pet moved into a habit's plant ("{name} moved into {plant}."). */
+  | { type: 'companion'; petId: string; habitId: string }
+  /** A companion's friendship grew through its habit's check-in (a `petLevel` may follow). */
+  | { type: 'companionXp'; petId: string; habitId: string; date: DateKey; xp: number }
+  /** A story unlocked on the plant tag ("There's a story on the plant tag for {habit}."). */
+  | { type: 'story'; petId: string; habitId: string; story: StoryId }
+  /** A companion left a keepsake by the pot (Rooting, Budding, Blooming, Evergreen). */
+  | { type: 'keepsake'; keepsakeId: string; petId: string; habitId: string; stage: number; kind: KeepsakeKind }
+  /** Blooms Like You (§14.2): the plant earned a new look ("A new look for {plant}: Twilight."). */
+  | { type: 'look'; habitId: string; colour: BloomColour; shape: BloomShape; read: 'bloom' | 'evergreen' }
+  /** A new season began and the one just ended waits as a Season Review card on Today (§14.3). */
+  | { type: 'seasonReview'; season: SeasonName; key: DateKey }
+  /** A habit retired to the balcony shelf with a ribbon (Finish, or a "just this season" habit ended). */
+  | { type: 'retired'; habitId: string; ribbon: boolean };
 
 /* ------------------------------------------------------------------ */
 /* Action inputs & results                                              */
@@ -72,6 +86,12 @@ export interface HabitInput {
   polarity: 'build' | 'avoid';
   dueDay?: number | 'last';
   notes?: string;
+  /** "Why it matters" (≤ 140 characters, §14.1). */
+  why?: string;
+  /** Habit stacking (§14.2): the habit this one follows ("After Walk"). */
+  anchorHabitId?: string;
+  /** "Just this season" (§14.3): its last day (normally the season's end, seasonReview.justThisSeasonEnd). */
+  endsOn?: DateKey;
 }
 
 export interface ActionResult {

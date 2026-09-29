@@ -9,20 +9,25 @@
  * 1. day-end tiny: a count habit that reached `tiny.count` but not its target on a day that just
  *    closed is now recorded as tiny, and paid as tiny if the day is still rewardable;
  * 2. the morning pantry restock;
- * 3. last week's Sunday Note and last month's Herbarium page (first open of a new week/month);
- * 4. the birthday (1 ticket every year; the Paper Party Hat and the Tiny Cake once);
- * 5. compaction (ledger to the refund window, live stamps to 120 days, found things to 14).
+ * 3. "just this season" habits whose last day has passed retire with a ribbon (§14.3);
+ * 4. last week's Sunday Note and last month's Herbarium page (first open of a new week/month);
+ * 5. a new season files the seasons that ended, and raises the Season Review card (§14.3);
+ * 6. the moving-in anniversary note (§13);
+ * 7. the birthday (1 ticket every year; the Paper Party Hat and the Tiny Cake once);
+ * 8. compaction (ledger to the refund window, live stamps to 120 days, found things to 14).
  * Growth only adds (§3.1): nothing here ever takes a plant, a pet or a stage away.
  */
 import { BIRTHDAY_CAKE_ID, PARTY_HAT_ID } from '@/catalog/collectibles';
 import type { DateKey } from '@/state/types';
 import { logStatus } from './activity';
-import { addDays, isLeapYear, maxDateKey, parseDateKey } from './dates';
+import { addDays, maxDateKey, parseDateKey, recurringDay } from './dates';
 import { bestStreakOccurrences, compactLedger, ledgerKey } from './economy';
 import { ensureLetters } from './letters';
 import { pruneOldStamps, rewardPass } from './logging';
 import { pruneFoundThings } from './friendship';
 import { restockPantry } from './pantry';
+import { anniversaryNote } from './rituals';
+import { openSeason, retireEndedHabits } from './seasonReview';
 import { ruleAt } from './rules';
 import { isDayBased } from './schedule';
 import type { Tx } from './tx';
@@ -67,17 +72,7 @@ export function closeDays(tx: Tx, from: DateKey): void {
 /** The birthday on a given year ('MM-DD'; Feb 29 falls on Feb 28 in other years). */
 export function birthdayOn(mmdd: string, year: number): DateKey | null {
   const m = /^(\d{2})-(\d{2})$/.exec(mmdd);
-  if (!m) return null;
-  const month = Number(m[1]);
-  let day = Number(m[2]);
-  if (month === 2 && day === 29 && !isLeapYear(year)) day = 28;
-  const key = `${year}-${m[1]}-${String(day).padStart(2, '0')}`;
-  try {
-    parseDateKey(key);
-    return key;
-  } catch {
-    return null;
-  }
+  return m ? recurringDay(Number(m[1]), Number(m[2]), year) : null;
 }
 
 /** Birthday (§13): 1 ticket on the day each year; the Paper Party Hat and the Tiny Cake once. */
@@ -107,7 +102,10 @@ export function openDay(tx: Tx): boolean {
   if (!fresh && tx.env.today <= previous) return false;
   if (!fresh) closeDays(tx, previous);
   restockPantry(tx);
+  retireEndedHabits(tx);
   ensureLetters(tx);
+  if (!fresh) openSeason(tx, previous, tx.env.timeZone);
+  anniversaryNote(tx);
   birthdaySurprise(tx);
   compactSave(tx);
   return true;
