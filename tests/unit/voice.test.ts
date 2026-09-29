@@ -96,25 +96,6 @@ const KNOWN_TEXT_EXCEPTIONS: ReadonlyMap<string, ReadonlySet<string>> = new Map(
       "Robin's Nest", // straight apostrophe
     ]),
   ],
-  // TODO(m1 ui): the Capsules copy below; delete each entry as its string is fixed.
-  [
-    'src/features/capsules/OddsSheet.tsx',
-    new Set([
-      "Each item's chance is before new-first weighting, which only ever raises the chance of something new.", // straight apostrophe
-      ", on every series, each counted on its own. A guaranteed pull picks something you don't have yet whenever it can.", // straight apostrophe
-      "Anything you don't have yet is", // straight apostrophe
-      "stamps for any item you don't have\n          yet. Seasonal items can be ordered once their season has visited.", // straight apostrophe
-    ]),
-  ],
-  ['src/features/capsules/RevealCard.tsx', new Set(['The secret one!'])], // exclamation mark outside the Secret reveal
-  ['src/features/capsules/copy.ts', new Set(['1, the secret one!'])], // exclamation mark outside the Secret reveal
-  [
-    'src/features/capsules/SpecialOrder.tsx',
-    new Set([
-      "Anything you don't have yet, ordered at the counter for stamps. Seasonal items can be ordered once their season has visited.", // straight apostrophe
-      'Nothing missing here. Try another series.', // "missing"
-    ]),
-  ],
   // TODO(m1 logic): the view-model copy below (VOICE §3: "watered", not "checked in"; no "kept it up").
   ['src/state/views/common.ts', new Set(['Kept it up 1', ', kept it up'])],
   ['src/state/views/today.ts', new Set(['1 checked in'])],
@@ -125,10 +106,6 @@ const KNOWN_TEXT_EXCEPTIONS: ReadonlyMap<string, ReadonlySet<string>> = new Map(
       'Cabinets: every series, window light from the left and the right, and lamplight (&machine=cats)', // URL param
       'Interactive cabinet (&machine=cows &coins=10 &tickets=0 &quick=1)', // URL param
     ]),
-  ],
-  [
-    'src/dev/sections-fxui.tsx',
-    new Set(['The check-in, frame by frame (ms)', 'A drop of water when you check in', 'Check-in (4 s, with Undo)', 'Check-in note', 'Check in (+5)', 'check-in: a drop, then a rising glass chime']),
   ],
   ['src/dev/sections-garden.tsx', new Set(['Kept it up 8 days'])],
   ['src/dev/sections-items.tsx', new Set(["Decor at true relative size, beside a 16-unit box: a sitting cat's height"])], // straight apostrophe
