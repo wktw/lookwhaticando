@@ -1,0 +1,110 @@
+/* Shelf tiers: each row of plants stands on one plank (the planks of a row's cells meet). */
+.shelf {
+  --plank-top: #ecdcc4;
+  --plank-front: #dcc5a4;
+  --plank-under: rgba(94, 76, 154, 0.12);
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
+  grid-auto-rows: 150px;
+  row-gap: 20px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  /* One plank under each row, wall to wall: a lit top, a front edge, a flat shade under it. */
+  background: linear-gradient(
+      to bottom,
+      transparent 0 92px,
+      var(--plank-top) 92px 98px,
+      var(--plank-front) 98px 104px,
+      var(--plank-under) 104px 108px,
+      transparent 108px
+    )
+    0 0 / 100% 170px repeat-y;
+}
+
+:global(html[data-theme='night']) .shelf {
+  --plank-top: #54463f;
+  --plank-front: #45393a;
+  --plank-under: rgba(0, 0, 0, 0.28);
+}
+
+/* The balcony: painted slats, sage. */
+.balcony {
+  --plank-top: #cfdcc0;
+  --plank-front: #b5c7a2;
+}
+:global(html[data-theme='night']) .balcony {
+  --plank-top: #4a5445;
+  --plank-front: #3d4639;
+}
+
+.slot {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  padding-bottom: 0;
+}
+
+.plant {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: 112px;
+  min-height: 44px;
+  padding: 0 4px 2px;
+  border: 0;
+  border-radius: var(--r-md);
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.plant:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.art {
+  display: block;
+  width: 92px;
+  height: 92px;
+  /* the scene canvas puts the pot's foot at y 94 of 100: sit it on the plank */
+  margin-top: 2px;
+  transition: transform var(--t-std) var(--ease-out);
+  transform-origin: 50% 100%;
+}
+
+.plant:hover .art {
+  transform: translateY(-2px);
+}
+.plant:active .art {
+  transform: translateY(0) scale(0.98);
+}
+
+:global(html[data-motion='reduced']) .art {
+  transition: none;
+}
+
+.name {
+  display: block;
+  max-width: 100%;
+  margin-top: 16px;
+  overflow: hidden;
+  font-family: var(--font-display);
+  font-size: var(--fs-caption);
+  line-height: 1.25;
+  color: var(--ink);
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stage {
+  font-size: var(--fs-micro);
+  font-weight: 700;
+  color: var(--ink-2);
+}

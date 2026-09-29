@@ -1,0 +1,150 @@
+.sheet {
+  --paper: #fffbf3;
+  --paper-rule: #eee4d4;
+}
+
+:global(html[data-theme='night']) .sheet {
+  --paper: #332c35;
+  --paper-rule: #463c47;
+}
+
+/* A sheet of note paper: faint ruled lines, a hairline, the window's light from the left. */
+.paper {
+  position: relative;
+  margin: 0 0 var(--s-4);
+  padding: var(--s-6) var(--s-5) var(--s-5);
+  border-radius: 6px;
+  background:
+    repeating-linear-gradient(to bottom, transparent 0, transparent 29px, var(--paper-rule) 29px, var(--paper-rule) 30px) 0 58px / 100% 100% no-repeat,
+    var(--paper);
+  box-shadow:
+    inset 0 0 0 1px var(--line),
+    var(--shadow-sm);
+  color: var(--ink);
+}
+
+.note .line,
+.note .opener {
+  line-height: 30px;
+}
+
+.opener {
+  margin: 0 0 0;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: var(--fs-headline);
+  color: var(--ink);
+}
+
+.line {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--fs-body-lg);
+  color: var(--ink);
+}
+
+.quote {
+  font-style: italic;
+}
+
+.ps {
+  margin-top: 30px;
+  font-style: italic;
+  color: var(--ink-2);
+}
+
+.big {
+  font-size: var(--fs-headline);
+  line-height: 1.4;
+}
+
+.stamps {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: var(--s-4) 0 0;
+  font-family: var(--font-display);
+  font-size: var(--fs-body);
+  color: var(--ink);
+}
+
+/* ---------- a Herbarium page ---------- */
+.page {
+  background: var(--paper);
+}
+
+.pageTitle {
+  margin: 0 0 var(--s-4);
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: var(--fs-headline);
+  text-align: center;
+}
+
+.pressings {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  align-items: end;
+  gap: var(--s-5) var(--s-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pressing {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.pressLabel {
+  font-size: var(--fs-micro);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--ink-2);
+  text-align: center;
+}
+
+.margin {
+  margin-top: var(--s-5);
+  padding-top: var(--s-3);
+  border-top: 1px solid var(--paper-rule);
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: var(--fs-body);
+  color: var(--ink-2);
+}
+
+.margin p {
+  margin: 0 0 4px;
+}
+
+.foot {
+  font-size: var(--fs-caption);
+}
+
+.firstPlant {
+  float: right;
+  margin: -8px -4px 0 var(--s-3);
+}
+
+.seasonPlants {
+  display: grid;
+  gap: 4px;
+  margin: var(--s-2) 0 0;
+  padding: 0;
+  list-style: none;
+  font-family: var(--font-display);
+  font-size: var(--fs-body);
+}
+
+.seasonPlants li {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+}
+
+.seasonArt {
+  flex: none;
+}

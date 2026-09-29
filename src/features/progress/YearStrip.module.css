@@ -1,0 +1,64 @@
+.year {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.label {
+  margin: 0;
+  flex: 1;
+  text-align: center;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: var(--fs-body-lg);
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.scroller {
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
+  margin: 0 calc(-1 * var(--s-4));
+  padding: 0 var(--s-4) 4px;
+}
+
+/* A phone scrolls a 14 px-a-week strip; from 600 px the whole year fits. */
+.svg {
+  display: block;
+  width: calc(var(--cols, 53) * 14px);
+  max-width: none;
+  height: auto;
+}
+
+@media (min-width: 600px) {
+  .scroller {
+    overflow-x: visible;
+    margin: 0;
+    padding: 0;
+  }
+  .svg {
+    width: 100%;
+  }
+}
+
+.monthText {
+  font-family: var(--font-body);
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  fill: var(--ink-2);
+}
+
+.summary {
+  margin: 0;
+  font-size: var(--fs-caption);
+  color: var(--ink-2);
+}
