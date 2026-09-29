@@ -1,0 +1,9 @@
+.gal { padding: 24px; max-width: 1400px; margin: 0 auto; }
+.gal h1 { font-size: 28px; margin-bottom: 16px; }
+.gal-section { margin: 28px 0; }
+.gal-section h2 { font-size: 20px; margin-bottom: 12px; color: var(--ink-2); }
+.gal-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 14px; }
+.gal-cell { background: var(--card); border-radius: 18px; padding: 10px; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.gal-cell small { font-size: 11px; color: var(--ink-2); text-align: center; line-height: 1.2; }
+.gal-cell b { font-size: 12px; text-align: center; line-height: 1.2; }
+.gal-row { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-end; }
