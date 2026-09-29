@@ -19,7 +19,7 @@ export const TEMPLATES: readonly HabitTemplate[] = [
   { id: 'read', group: 'mind', name: 'Read', icon: 'book', schedule: { kind: 'daily' }, target: 1, effort: 'steady', timeOfDay: 'evening', tiny: { label: 'One page' }, plant: 'pothos', color: 'mint' },
   { id: 'journal', group: 'mind', name: 'Journal', icon: 'journal', schedule: { kind: 'daily' }, target: 1, effort: 'light', timeOfDay: 'evening', tiny: { label: 'One line' }, plant: 'begonia', color: 'lilac' },
   { id: 'meditate', group: 'mind', name: 'Meditate', icon: 'lotus', schedule: { kind: 'daily' }, target: 1, effort: 'light', timeOfDay: 'morning', tiny: { label: 'Three slow breaths' }, plant: 'pilea', color: 'lavender' },
-  { id: 'hobby', group: 'mind', name: 'Hobby time', icon: 'palette', schedule: { kind: 'weekly', times: 3, every: 1 }, target: 1, effort: 'steady', timeOfDay: 'anytime', tiny: { label: 'Five minutes' }, plant: 'begonia', color: 'blush' },
+  { id: 'hobby', group: 'mind', name: 'Hobby', icon: 'palette', schedule: { kind: 'weekly', times: 3, every: 1 }, target: 1, effort: 'steady', timeOfDay: 'anytime', tiny: { label: 'Five minutes' }, plant: 'begonia', color: 'blush' },
   { id: 'learn', group: 'mind', name: 'Learn something', icon: 'lightbulb', schedule: { kind: 'weekly', times: 2, every: 1 }, target: 1, effort: 'steady', timeOfDay: 'anytime', plant: 'pothos', color: 'sky' },
   // Home
   { id: 'tidy', group: 'home', name: 'Tidy for 10 minutes', icon: 'broom', schedule: { kind: 'daily' }, target: 1, effort: 'light', timeOfDay: 'evening', tiny: { label: 'Clear one surface' }, plant: 'snakeplant', color: 'butter' },
@@ -35,7 +35,7 @@ export const TEMPLATES: readonly HabitTemplate[] = [
   { id: 'budget', group: 'heart', name: 'Look over the budget', icon: 'piggy-bank', schedule: { kind: 'monthly', times: 1, every: 1 }, target: 1, effort: 'steady', timeOfDay: 'anytime', plant: 'pilea', color: 'butter' },
   { id: 'qualitytime', group: 'heart', name: 'Quality time', icon: 'heart-date', schedule: { kind: 'monthly', times: 2, every: 1 }, target: 1, effort: 'steady', timeOfDay: 'evening', plant: 'begonia', color: 'lilac' },
   { id: 'creative', group: 'heart', name: 'Make something', icon: 'yarn', schedule: { kind: 'weekly', times: 2, every: 1 }, target: 1, effort: 'steady', timeOfDay: 'anytime', tiny: { label: 'Ten stitches' }, plant: 'begonia', color: 'lilac' },
-  // "Avoid" habits: the status line says "Kept it up 12 days" instead of "12 days"
+  // "Avoid" habits: the status line says "Held off 12 days" instead of "12 days"
   { id: 'nospend', group: 'heart', name: 'No-spend day', icon: 'piggy-bank', schedule: { kind: 'days', days: [1, 2, 3, 4] }, target: 1, effort: 'light', timeOfDay: 'evening', polarity: 'avoid', plant: 'pilea', color: 'mint' },
   { id: 'phonefree', group: 'mind', name: 'Phone-free bedtime', icon: 'no-phone', schedule: { kind: 'daily' }, target: 1, effort: 'steady', timeOfDay: 'evening', polarity: 'avoid', plant: 'catgrass', color: 'lavender' },
   { id: 'nosnooze', group: 'body', name: 'No snooze', icon: 'sun', schedule: { kind: 'daily' }, target: 1, effort: 'light', timeOfDay: 'morning', polarity: 'avoid', plant: 'catgrass', color: 'butter' },

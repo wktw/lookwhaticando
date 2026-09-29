@@ -26,7 +26,7 @@ export const BADGES: readonly BadgeDef[] = [
   { id: 'checkins-500', name: 'Five hundred waterings', description: 'Water habits 500 times in all.', stars: 5, emoji: '', color: 'lilac' },
   { id: 'checkins-1000', name: 'A thousand waterings', description: 'Water habits 1,000 times in all.', stars: 8, emoji: '', color: 'lavender' },
   { id: 'first-rest', name: 'First rest day', description: 'Give any habit a rest day. It shows as a moon.', stars: 1, emoji: '', color: 'lavender' },
-  { id: 'comeback', name: 'Welcome home', description: 'Comes with your first welcome-home ticket.', stars: 1, emoji: '', color: 'blush' },
+  { id: 'comeback', name: 'Key under the mat', description: 'Comes with your first welcome-home ticket.', stars: 1, emoji: '', color: 'blush' },
   { id: 'first-capsule', name: 'First capsule', description: 'Turn the handle on any capsule cabinet.', stars: 1, emoji: '', color: 'sky' },
   { id: 'first-rare', name: 'Foil edge', description: 'Open a Rare, or anything rarer.', stars: 1, emoji: '', color: 'lavender' },
   { id: 'first-ultra', name: 'Holographic stripes', description: 'Open a Super rare. A Secret counts.', stars: 2, emoji: '', color: 'butter' },
@@ -41,10 +41,10 @@ export const BADGES: readonly BadgeDef[] = [
   { id: 'favorite-found', name: 'A favourite treat', description: 'Find out which treat a pet likes best.', stars: 1, emoji: '', color: 'blush' },
   { id: 'first-outfit', name: 'Something to wear', description: 'Put something to wear on a pet.', stars: 1, emoji: '', color: 'lilac' },
   { id: 'best-friends', name: 'Brass name tag', description: 'Reach friendship level 10 with a pet: best friends.', stars: 3, emoji: '', color: 'blush' },
-  { id: 'early-bird', name: 'Before seven', description: 'Water a habit before 7:00 am.', stars: 1, emoji: '', color: 'butter' },
+  { id: 'early-bird', name: 'Before seven', description: 'Water a habit before 7 am.', stars: 1, emoji: '', color: 'butter' },
   { id: 'wind-down', name: 'Under the lamp', description: 'Water habits 3 times between 7 and 10 pm.', stars: 1, emoji: '', color: 'lavender' },
   { id: 'album-complete', name: 'A full Field Guide page', description: 'Collect everything on one page of the Field Guide.', stars: 5, emoji: '', color: 'peach' },
-  { id: 'first-harvest', name: 'First harvest', description: 'Pick a treat from an edible plant that’s Blooming.', stars: 1, emoji: '', color: 'sage' },
+  { id: 'first-harvest', name: 'First harvest', description: 'Water cat grass, catnip, strawberry or lavender once it’s Blooming, and a serving drops into the basket.', stars: 1, emoji: '', color: 'sage' },
   { id: 'steady-month', name: 'A steady month', description: 'Water at least 80% of what’s on in a calendar month.', stars: 3, emoji: '', color: 'mint' },
 ];
 
