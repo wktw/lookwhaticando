@@ -8,7 +8,7 @@ import type { GallerySection } from './sections';
 
 /**
  * Pets module gallery. Useful params: ?only=pets (all sections), &ids=pet-cow-moon,pet-cat-black
- * to focus pets, &size=260 to enlarge, &expr=happy, &slot=head to filter wearables.
+ * to focus pets, &size=260 to enlarge, &expr=happy, &facing=left, &slot=head to filter wearables.
  */
 
 const EXPRESSIONS: Expression[] = ['idle', 'happy', 'sleep', 'love', 'eat', 'surprised', 'wink'];
@@ -51,11 +51,12 @@ export const SECTIONS: GallerySection[] = [
     render: (params) => {
       const size = Number(params.get('size') ?? 130);
       const expr = (params.get('expr') as Expression) || 'idle';
+      const facing = params.get('facing') === 'left' ? 'left' : 'right';
       return (
         <div class="gal-grid" style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${size + 20}px, 1fr))` }}>
           {pickPets(params).map((p) => (
             <div class="gal-cell" key={p.id}>
-              <PetArt petId={p.id} size={size} expression={expr} animated />
+              <PetArt petId={p.id} size={size} expression={expr} facing={facing} animated />
               <b>{p.name}</b>
               <small>
                 {p.species} · {p.rarity}
@@ -78,12 +79,26 @@ export const SECTIONS: GallerySection[] = [
     ),
   },
   {
+    id: 'pets-moonlit',
+    title: "Moonlit variants ('moonlit:<petId>', DESIGN §13.6)",
+    render: (params) => (
+      <div class="gal-row" style={{ gap: '8px' }}>
+        {pickPets(params).map((p) => (
+          <PetArt key={p.id} petId={`moonlit:${p.id}`} size={Number(params.get('size') ?? 80)} title={`Moonlit ${p.name}`} />
+        ))}
+      </div>
+    ),
+  },
+  {
     id: 'pets-list',
     title: 'List view · 44px rows',
     render: (params) => (
       <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))', gap: '6px' }}>
         {pickPets(params).map((p) => (
-          <li key={p.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'var(--card)', borderRadius: '14px', padding: '4px 12px 4px 6px' }}>
+          <li
+            key={p.id}
+            style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'var(--card)', borderRadius: '14px', padding: '4px 12px 4px 6px' }}
+          >
             <PetArt petId={p.id} size={44} shadow={false} />
             <span style={{ display: 'grid', lineHeight: 1.2 }}>
               <b style={{ fontSize: '14px' }}>{p.defaultName}</b>

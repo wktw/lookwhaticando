@@ -117,8 +117,20 @@ export const cozyHoodie: WearableArt = {
     rib: HOODIE_DARK,
     extra: (
       <g>
-        <path d="M31 25 C30 13 40 7.4 50 7.4 C60 7.4 70 13 69 25 L62.6 27.4 C61 19.6 56 15.4 50 15.4 C44 15.4 39 19.6 37.4 27.4 Z" fill={HOODIE_DARK} stroke={INK} stroke-width={SW} stroke-linejoin="round" />
-        <path d="M37.4 27.4 C39 19.6 44 15.4 50 15.4 C56 15.4 61 19.6 62.6 27.4 C57 29 43 29 37.4 27.4 Z" fill="#EFE9FD" stroke={INK} stroke-width={SW * 0.8} stroke-linejoin="round" />
+        <path
+          d="M31 25 C30 13 40 7.4 50 7.4 C60 7.4 70 13 69 25 L62.6 27.4 C61 19.6 56 15.4 50 15.4 C44 15.4 39 19.6 37.4 27.4 Z"
+          fill={HOODIE_DARK}
+          stroke={INK}
+          stroke-width={SW}
+          stroke-linejoin="round"
+        />
+        <path
+          d="M37.4 27.4 C39 19.6 44 15.4 50 15.4 C56 15.4 61 19.6 62.6 27.4 C57 29 43 29 37.4 27.4 Z"
+          fill="#EFE9FD"
+          stroke={INK}
+          stroke-width={SW * 0.8}
+          stroke-linejoin="round"
+        />
         {hoodieFront(26)}
       </g>
     ),
@@ -139,7 +151,10 @@ export const tinyBackpack: WearableArt = {
         <path d={`M${x + 9} ${top - 15} C${x + 11} ${top - 19} ${x + 15} ${top - 20} ${x + 16} ${top - 17}`} fill="none" stroke-width={SW * 2.2} />
         <path d={`M${x + 9} ${top - 15} C${x + 11} ${top - 19} ${x + 15} ${top - 20} ${x + 16} ${top - 17}`} fill="none" stroke="#F2C98A" stroke-width={2.6} />
         <rect x={x} y={top - 14} width={21} height={25} rx={7} fill={PACK} />
-        <path d={`M${x} ${top - 6} C${x} ${top - 12} ${x + 4} ${top - 14} ${x + 10.5} ${top - 14} C${x + 17} ${top - 14} ${x + 21} ${top - 12} ${x + 21} ${top - 6} C${x + 14} ${top - 3.4} ${x + 7} ${top - 3.4} ${x} ${top - 6} Z`} fill={PACK_FLAP} />
+        <path
+          d={`M${x} ${top - 6} C${x} ${top - 12} ${x + 4} ${top - 14} ${x + 10.5} ${top - 14} C${x + 17} ${top - 14} ${x + 21} ${top - 12} ${x + 21} ${top - 6} C${x + 14} ${top - 3.4} ${x + 7} ${top - 3.4} ${x} ${top - 6} Z`}
+          fill={PACK_FLAP}
+        />
         <rect x={x + 4.5} y={top + 1} width={12} height={7} rx={2.6} fill="#FFF3C4" stroke-width={SW * 0.8} />
       </g>
     );
@@ -187,7 +202,11 @@ export const gardenApron: WearableArt = {
       <g stroke={INK} stroke-linejoin="round" stroke-linecap="round">
         <path d={apronPath(top)} fill="#C3DFB4" stroke-width={SW * 0.85} />
         <path d={`M22 ${top + 9} C38 ${top + 6} 62 ${top + 6} 78 ${top + 9}`} fill="none" stroke="#A9CF97" stroke-width={2.2} />
-        <path d={`M47.6 ${top + 13} L46.4 ${top + 7} C46.2 ${top + 5.6} 47.6 ${top + 5} 48.2 ${top + 6.2} L50.4 ${top + 13}`} fill="#FFB27A" stroke-width={1.1} />
+        <path
+          d={`M47.6 ${top + 13} L46.4 ${top + 7} C46.2 ${top + 5.6} 47.6 ${top + 5} 48.2 ${top + 6.2} L50.4 ${top + 13}`}
+          fill="#FFB27A"
+          stroke-width={1.1}
+        />
         <rect x={41} y={top + 12} width={18} height={9} rx={2} fill="#A9CF97" stroke-width={SW * 0.75} />
         <path d={`M43.4 ${top + 14.6} L56.6 ${top + 14.6}`} stroke="#FFFFFF" stroke-width={0.9} stroke-dasharray="1.4 1.2" />
       </g>
@@ -322,8 +341,18 @@ function cardiganPanels(top: number, gap: number, bottom = 100): JSX.Element {
   const r = 50 + gap;
   return (
     <g stroke-linejoin="round" stroke-linecap="round">
-      <path d={`M0 ${top - 3} L${l - 6} ${top - 3} C${l - 2} ${top + 6} ${l} ${top + 14} ${l} ${bottom} L0 ${bottom} Z`} fill={CARDI} stroke={INK} stroke-width={SW * 0.85} />
-      <path d={`M100 ${top - 3} L${r + 6} ${top - 3} C${r + 2} ${top + 6} ${r} ${top + 14} ${r} ${bottom} L100 ${bottom} Z`} fill={CARDI} stroke={INK} stroke-width={SW * 0.85} />
+      <path
+        d={`M0 ${top - 3} L${l - 6} ${top - 3} C${l - 2} ${top + 6} ${l} ${top + 14} ${l} ${bottom} L0 ${bottom} Z`}
+        fill={CARDI}
+        stroke={INK}
+        stroke-width={SW * 0.85}
+      />
+      <path
+        d={`M100 ${top - 3} L${r + 6} ${top - 3} C${r + 2} ${top + 6} ${r} ${top + 14} ${r} ${bottom} L100 ${bottom} Z`}
+        fill={CARDI}
+        stroke={INK}
+        stroke-width={SW * 0.85}
+      />
       <g fill="none" stroke={CARDI_DARK} stroke-width={1.1}>
         {[-26, -18, -10, 10, 18, 26].map((dx) => (
           <path key={dx} d={`M${50 + dx} ${top + 4} L${50 + dx} ${bottom}`} />
@@ -435,7 +464,13 @@ export const raincoat: WearableArt = {
     return (
       <g>
         <rect x={0} y={top - 2} width={100} height={80} fill={RAIN} />
-        <path d={`M28 ${top - 3} C36 ${top + 7} 44 ${top + 6} 48 ${top + 1} C52 ${top + 6} 64 ${top + 7} 72 ${top - 3}`} fill={RAIN_DARK} stroke={INK} stroke-width={SW * 0.8} stroke-linejoin="round" />
+        <path
+          d={`M28 ${top - 3} C36 ${top + 7} 44 ${top + 6} 48 ${top + 1} C52 ${top + 6} 64 ${top + 7} 72 ${top - 3}`}
+          fill={RAIN_DARK}
+          stroke={INK}
+          stroke-width={SW * 0.8}
+          stroke-linejoin="round"
+        />
         {raincoatFront(top)}
       </g>
     );
@@ -444,7 +479,13 @@ export const raincoat: WearableArt = {
     rib: RAIN_DARK,
     extra: (
       <g>
-        <path d="M31 21 C36 31 44 31 50 27 C56 31 64 31 69 21 C62 26 56 27 50 27 C44 27 38 26 31 21 Z" fill={RAIN_DARK} stroke={INK} stroke-width={SW * 0.9} stroke-linejoin="round" />
+        <path
+          d="M31 21 C36 31 44 31 50 27 C56 31 64 31 69 21 C62 26 56 27 50 27 C44 27 38 26 31 21 Z"
+          fill={RAIN_DARK}
+          stroke={INK}
+          stroke-width={SW * 0.9}
+          stroke-linejoin="round"
+        />
         {raincoatFront(26, 86)}
       </g>
     ),
@@ -465,8 +506,14 @@ function floatGeometry(ctx: ArtCtx) {
 function FloatDuck({ x, y }: { x: number; y: number }) {
   return (
     <g stroke={INK} stroke-width={SW * 0.85} stroke-linejoin="round">
-      <path d={`M${x - 5.6} ${y + 2} C${x - 7} ${y - 6} ${x - 2} ${y - 10} ${x + 2} ${y - 9} C${x + 6} ${y - 8} ${x + 7} ${y - 3} ${x + 5.4} ${y + 2} Z`} fill={FLOAT} />
-      <path d={`M${x + 4.6} ${y - 5.4} C${x + 8.4} ${y - 6.6} ${x + 10.6} ${y - 5} ${x + 9.6} ${y - 3} C${x + 8.4} ${y - 1.6} ${x + 6} ${y - 2.4} ${x + 4.4} ${y - 2.6} Z`} fill="#FFB877" />
+      <path
+        d={`M${x - 5.6} ${y + 2} C${x - 7} ${y - 6} ${x - 2} ${y - 10} ${x + 2} ${y - 9} C${x + 6} ${y - 8} ${x + 7} ${y - 3} ${x + 5.4} ${y + 2} Z`}
+        fill={FLOAT}
+      />
+      <path
+        d={`M${x + 4.6} ${y - 5.4} C${x + 8.4} ${y - 6.6} ${x + 10.6} ${y - 5} ${x + 9.6} ${y - 3} C${x + 8.4} ${y - 1.6} ${x + 6} ${y - 2.4} ${x + 4.4} ${y - 2.6} Z`}
+        fill="#FFB877"
+      />
       <circle cx={x + 1.6} cy={y - 5.4} r={1.2} fill={INK} stroke="none" />
       <ellipse cx={x - 1.4} cy={y - 2.6} rx={1.6} ry={1} fill="#FF9FB8" stroke="none" opacity={0.7} />
     </g>
@@ -486,7 +533,14 @@ export const duckFloat: WearableArt = {
     return (
       <g stroke-linejoin="round">
         <path d={`${outer} ${inner}`} fill={FLOAT} stroke={INK} stroke-width={SW} />
-        <path d={`M${50 - rx * 0.6} ${y + ry + 1.6} Q50 ${y + ry + 3.6} ${50 + rx * 0.2} ${y + ry + 2}`} fill="none" stroke="#FFFFFF" stroke-width={1.6} stroke-linecap="round" opacity={0.8} />
+        <path
+          d={`M${50 - rx * 0.6} ${y + ry + 1.6} Q50 ${y + ry + 3.6} ${50 + rx * 0.2} ${y + ry + 2}`}
+          fill="none"
+          stroke="#FFFFFF"
+          stroke-width={1.6}
+          stroke-linecap="round"
+          opacity={0.8}
+        />
         <g transform={`translate(${50 + rx * 0.6} ${y + ry * 0.75}) scale(1.25)`}>
           <FloatDuck x={0} y={0} />
         </g>

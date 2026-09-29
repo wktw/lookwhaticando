@@ -270,7 +270,13 @@ export const evergreenCrown: WearableArt = headItem(
       const [x, y] = crownPoint(t);
       return (
         <g key={`l${i}`} transform={`translate(${x} ${y}) rotate(${t * 38})`}>
-          <path d={`M0 0.6 C-4 -2.4 -4.2 ${-h * 0.72} 0 ${-h} C4.2 ${-h * 0.72} 4 -2.4 0 0.6 Z`} fill={i % 2 ? '#A9D98F' : '#8EC07C'} stroke={INK} stroke-width={SW * 0.7} stroke-linejoin="round" />
+          <path
+            d={`M0 0.6 C-4 -2.4 -4.2 ${-h * 0.72} 0 ${-h} C4.2 ${-h * 0.72} 4 -2.4 0 0.6 Z`}
+            fill={i % 2 ? '#A9D98F' : '#8EC07C'}
+            stroke={INK}
+            stroke-width={SW * 0.7}
+            stroke-linejoin="round"
+          />
           <path d={`M0 -1.4 L0 ${-h * 0.72}`} stroke="#E4F4D6" stroke-width={0.9} stroke-linecap="round" />
         </g>
       );

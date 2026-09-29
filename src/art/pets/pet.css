@@ -8,7 +8,24 @@
   flex: none;
 }
 
-.pet-art :is(.pet-idle, .pet-breathe, .pet-tail, .pet-sprout, .pet-ear-l, .pet-ear-r, .pet-nose, .pet-throat, .pet-nibble, .pet-wing-l, .pet-wing-r, .pet-beckon, .pet-halo, .pet-gleam, .pet-aura) {
+.pet-art
+  :is(
+    .pet-idle,
+    .pet-breathe,
+    .pet-tail,
+    .pet-sprout,
+    .pet-ear-l,
+    .pet-ear-r,
+    .pet-nose,
+    .pet-throat,
+    .pet-nibble,
+    .pet-wing-l,
+    .pet-wing-r,
+    .pet-beckon,
+    .pet-halo,
+    .pet-gleam,
+    .pet-aura
+  ) {
   transform-box: view-box;
 }
 

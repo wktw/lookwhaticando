@@ -1,7 +1,24 @@
 import type { TraitArt, TraitId } from '../types';
-import { acornCap, antlers, bangs, crown, flower, forelock, frosting, haloGlow, lilypadHat, mushroomCap, nightcap, rose, sprout, starfish, strawberryCap, witchHat } from './head';
+import {
+  acornCap,
+  antlers,
+  bangs,
+  crown,
+  flower,
+  forelock,
+  frosting,
+  haloGlow,
+  lilypadHat,
+  mushroomCap,
+  nightcap,
+  rose,
+  sprout,
+  starfish,
+  strawberryCap,
+  witchHat,
+} from './head';
 import { cheeks, cloudFluff, daifukuBean, fluffy, ghostSheet, ghostTail, gingerbread, mermaidTail, nori, pumpkinShell, rainbowBelly } from './body';
-import { golden, heartHold, kissy, luckyPaw, redNose, ribbon, sailorCollar, wings } from './accents';
+import { golden, heartHold, kissy, luckyPaw, moonlit, redNose, ribbon, sailorCollar, wings } from './accents';
 
 /**
  * Trait renderers. Style traits that change a species' own parts live in the species art instead:
@@ -43,4 +60,5 @@ export const TRAITS: Partial<Record<TraitId, TraitArt>> = {
   starfish,
   rose,
   nori,
+  moonlit,
 };

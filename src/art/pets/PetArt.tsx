@@ -95,7 +95,10 @@ export function PetArt(props: PetArtProps) {
     return art ? <g class={`pet-wear pet-wear-${slot}`}>{art.render(ctx)}</g> : null;
   };
   const headWear = wear('head');
-  const wearBehind = WEAR_SLOTS.map((slot) => worn(slot)?.behind?.(ctx));
+  const wearBehind = WEAR_SLOTS.map((slot) => {
+    const layer = worn(slot)?.behind?.(ctx);
+    return layer ? <g key={slot}>{layer}</g> : null;
+  });
   const bodyOver = worn('body')?.over?.(ctx);
   // Ears (and horns) stand in front of hats for species that wear hats behind them;
   // small accessories (bows, clips, wreaths) opt to sit in front of the ears anyway.

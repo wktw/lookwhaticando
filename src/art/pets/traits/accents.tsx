@@ -1,6 +1,7 @@
 import type { TraitArt } from '../types';
 import { OUTLINE, STROKE } from '../geometry';
-import { heartPath } from '../shapes';
+import { heartPath, sparklePath } from '../shapes';
+import { scatter } from '../patterns/layout';
 import { Crown, Sparkle } from '../bits';
 import { MIRROR, OutlinedStroke } from '../species/parts';
 import { SPECIES_ART } from '../species';
@@ -57,7 +58,11 @@ export const luckyPaw: TraitArt = {
         {/* raised paw, beckoning good things */}
         <g class="pet-beckon" style={{ '--beckon-origin': '76px 66px' }}>
           <OutlinedStroke d="M75 68 C77 62 78.6 57 79.6 52" color={fur} width={8.4} />
-          <path d="M73.6 47.6 C73.4 42.6 77 39.6 80.6 40 C84.4 40.4 87 43.8 86.4 47.8 C85.8 51.6 82.6 53.6 79.4 53.4 C76.2 53.2 73.8 51 73.6 47.6 Z" fill={fur} stroke-width={STROKE} />
+          <path
+            d="M73.6 47.6 C73.4 42.6 77 39.6 80.6 40 C84.4 40.4 87 43.8 86.4 47.8 C85.8 51.6 82.6 53.6 79.4 53.4 C76.2 53.2 73.8 51 73.6 47.6 Z"
+            fill={fur}
+            stroke-width={STROKE}
+          />
           <g fill="#FFB3C4" stroke="none">
             <ellipse cx={80} cy={48.6} rx={2.6} ry={2.1} />
             <circle cx={77.2} cy={44.6} r={1.1} />
@@ -113,15 +118,21 @@ function Wing({ mirror }: { mirror?: boolean }) {
     <g transform={mirror ? MIRROR : undefined}>
       <g class={mirror ? 'pet-wing-r' : 'pet-wing-l'} style={{ '--wing-origin': '20px 52px' }}>
         <g transform="translate(-1.5 -9) rotate(-8 20 60) scale(1.12)">
-        <path
-          d="M21 54 C14 48.6 5.4 48.6 2.6 52.6 C1.4 54.6 2.6 56.2 4.6 56.4 C2 58 1.6 61 3.8 62.2 C2.4 64.4 3.6 67.4 6.6 67.2 C10.6 70 17.6 68.4 22 64"
-          fill="#FFFFFF"
-          stroke={OUTLINE}
-          stroke-width={STROKE}
-          stroke-linejoin="round"
-          stroke-linecap="round"
-        />
-        <path d="M7.4 56.6 C11 56.4 14.4 57 17.4 58.4 M8.4 62.2 C11.6 62.6 14.6 62.6 17.6 61.8" fill="none" stroke="#F7B8C8" stroke-width={1.2} stroke-linecap="round" />
+          <path
+            d="M21 54 C14 48.6 5.4 48.6 2.6 52.6 C1.4 54.6 2.6 56.2 4.6 56.4 C2 58 1.6 61 3.8 62.2 C2.4 64.4 3.6 67.4 6.6 67.2 C10.6 70 17.6 68.4 22 64"
+            fill="#FFFFFF"
+            stroke={OUTLINE}
+            stroke-width={STROKE}
+            stroke-linejoin="round"
+            stroke-linecap="round"
+          />
+          <path
+            d="M7.4 56.6 C11 56.4 14.4 57 17.4 58.4 M8.4 62.2 C11.6 62.6 14.6 62.6 17.6 61.8"
+            fill="none"
+            stroke="#F7B8C8"
+            stroke-width={1.2}
+            stroke-linecap="round"
+          />
         </g>
       </g>
     </g>
@@ -146,7 +157,14 @@ export const heartHold: TraitArt = {
     return (
       <g stroke={OUTLINE} stroke-linejoin="round">
         <path d={heartPath(50, y, 9.6)} fill="#F58CAA" stroke-width={STROKE * 0.9} />
-        <path d={`M${43.4} ${y - 5} C${44.6} ${y - 7} ${46.6} ${y - 7.6} ${48} ${y - 6.6}`} fill="none" stroke="#fff" stroke-width={1.3} stroke-linecap="round" opacity={0.85} />
+        <path
+          d={`M${43.4} ${y - 5} C${44.6} ${y - 7} ${46.6} ${y - 7.6} ${48} ${y - 6.6}`}
+          fill="none"
+          stroke="#fff"
+          stroke-width={1.3}
+          stroke-linecap="round"
+          opacity={0.85}
+        />
         <g fill={fur} stroke-width={STROKE * 0.8}>
           <ellipse cx={39.6} cy={y + 1} rx={4.2} ry={3.6} transform={`rotate(-24 39.6 ${y + 1})`} />
           <ellipse cx={60.4} cy={y + 1} rx={4.2} ry={3.6} transform={`rotate(24 60.4 ${y + 1})`} />
@@ -163,7 +181,12 @@ export const sailorCollar: TraitArt = {
     const { y } = ctx.anchors.neck;
     return (
       <g stroke-linejoin="round">
-        <path d={`M0 ${y - 3} Q50 ${y + 3} 100 ${y - 3} L100 ${y + 6} L60 ${y + 6} L50 ${y + 15} L40 ${y + 6} L0 ${y + 6} Z`} fill="#7E95D6" stroke={OUTLINE} stroke-width={STROKE * 0.8} />
+        <path
+          d={`M0 ${y - 3} Q50 ${y + 3} 100 ${y - 3} L100 ${y + 6} L60 ${y + 6} L50 ${y + 15} L40 ${y + 6} L0 ${y + 6} Z`}
+          fill="#7E95D6"
+          stroke={OUTLINE}
+          stroke-width={STROKE * 0.8}
+        />
         <path d={`M0 ${y + 3} L39 ${y + 3} L50 ${y + 12.4} L61 ${y + 3} L100 ${y + 3}`} fill="none" stroke="#FFFFFF" stroke-width={1.3} />
       </g>
     );
@@ -210,6 +233,29 @@ export const redNose: TraitArt = {
       <g>
         <circle cx={x} cy={y - 3} r={3.6} fill="#F0607F" stroke={OUTLINE} stroke-width={STROKE * 0.7} />
         <ellipse cx={x - 1.2} cy={y - 4.2} rx={1.2} ry={0.8} fill="#fff" opacity={0.85} />
+      </g>
+    );
+  },
+};
+
+/** Moonlit variants: a moonlight wash deepening toward the ground, and a dusting of tiny stars. */
+export const moonlit: TraitArt = {
+  surface: (ctx) => {
+    const id = `${ctx.uid}-moon`;
+    return (
+      <g>
+        <linearGradient id={id} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0.2" stop-color="#6F66B8" stop-opacity={0} />
+          <stop offset="1" stop-color="#6F66B8" stop-opacity={0.5} />
+        </linearGradient>
+        <rect x={0} y={0} width={100} height={100} fill={`url(#${id})`} />
+        {scatter(ctx, 12, 13).map((p) =>
+          p.i % 3 ? (
+            <circle key={p.i} cx={p.x} cy={p.y} r={0.5 + p.r * 0.5} fill="#FFFFFF" opacity={0.85} />
+          ) : (
+            <path key={p.i} d={sparklePath(p.x, p.y, 1.8 + p.r)} fill="#FFF3B0" />
+          ),
+        )}
       </g>
     );
   },

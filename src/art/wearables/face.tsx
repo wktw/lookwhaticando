@@ -63,7 +63,13 @@ const starShadesRender = (ctx: ArtCtx) => {
         <g key={cx}>
           <path d={starPath(cx, y + 0.4, r, 0.56)} fill="#6E5C8F" stroke={INK} stroke-width={1.2 + 2.6} />
           <path d={starPath(cx, y + 0.4, r, 0.56)} fill="#6E5C8F" stroke="#F58CAA" stroke-width={2.4} />
-          <path d={`M${cx - r * 0.36} ${y - r * 0.12} L${cx - r * 0.06} ${y - r * 0.42}`} stroke="#FFFFFF" stroke-width={1.3} stroke-linecap="round" opacity={0.85} />
+          <path
+            d={`M${cx - r * 0.36} ${y - r * 0.12} L${cx - r * 0.06} ${y - r * 0.42}`}
+            stroke="#FFFFFF"
+            stroke-width={1.3}
+            stroke-linecap="round"
+            opacity={0.85}
+          />
         </g>
       ))}
     </g>
@@ -80,12 +86,20 @@ const sleepMaskRender = ({ anchors }: ArtCtx) => {
   const lash = (ex: number) => (
     <g fill="none" stroke={INK} stroke-width={1.3} stroke-linecap="round">
       <path d={`M${ex - 3.4} ${y - 0.6} Q${ex} ${y + 2.6} ${ex + 3.4} ${y - 0.6}`} />
-      <path d={`M${ex - 2.6} ${y + 1} L${ex - 3.4} ${y + 2.6} M${ex} ${y + 1.8} L${ex} ${y + 3.6} M${ex + 2.6} ${y + 1} L${ex + 3.4} ${y + 2.6}`} stroke-width={1} />
+      <path
+        d={`M${ex - 2.6} ${y + 1} L${ex - 3.4} ${y + 2.6} M${ex} ${y + 1.8} L${ex} ${y + 3.6} M${ex + 2.6} ${y + 1} L${ex + 3.4} ${y + 2.6}`}
+        stroke-width={1}
+      />
     </g>
   );
   return (
     <g stroke-linejoin="round">
-      <path d={`M${cx - hw} ${y - 1} L${cx - hw - 6} ${y - 3} M${cx + hw} ${y - 1} L${cx + hw + 6} ${y - 3}`} stroke={INK} stroke-width={2.4} stroke-linecap="round" />
+      <path
+        d={`M${cx - hw} ${y - 1} L${cx - hw - 6} ${y - 3} M${cx + hw} ${y - 1} L${cx + hw + 6} ${y - 3}`}
+        stroke={INK}
+        stroke-width={2.4}
+        stroke-linecap="round"
+      />
       <path
         d={`M${cx - hw} ${y} C${cx - hw} ${y - h} ${cx - 2.4} ${y - h - 1} ${cx} ${y - h + 1.8} C${cx + 2.4} ${y - h - 1} ${cx + hw} ${y - h} ${cx + hw} ${y} C${cx + hw} ${y + h} ${cx + 2.4} ${y + h + 0.6} ${cx} ${y + h - 1.2} C${cx - 2.4} ${y + h + 0.6} ${cx - hw} ${y + h} ${cx - hw} ${y} Z`}
         fill="#D6C8F8"
@@ -110,7 +124,13 @@ const heartGlassesRender = (ctx: ArtCtx) => {
       {[left, right].map((cx) => (
         <g key={cx}>
           <path d={heartPath(cx, y + 0.6, s)} fill="rgba(255,196,211,0.45)" stroke="#F58CAA" stroke-width={2} />
-          <path d={`M${cx - s * 0.62} ${y - s * 0.3} q${s * 0.2} ${-s * 0.3} ${s * 0.5} ${-s * 0.34}`} fill="none" stroke="#FFFFFF" stroke-width={1.2} stroke-linecap="round" />
+          <path
+            d={`M${cx - s * 0.62} ${y - s * 0.3} q${s * 0.2} ${-s * 0.3} ${s * 0.5} ${-s * 0.34}`}
+            fill="none"
+            stroke="#FFFFFF"
+            stroke-width={1.2}
+            stroke-linecap="round"
+          />
         </g>
       ))}
     </g>
@@ -130,7 +150,14 @@ const heartShadesRender = (ctx: ArtCtx) => {
         <g key={cx}>
           <path d={heartPath(cx, y + 0.6, s)} fill="#D9557E" stroke={INK} stroke-width={1.2 + 3} />
           <path d={heartPath(cx, y + 0.6, s)} fill="#D9557E" stroke="#FFFFFF" stroke-width={2.6} />
-          <path d={`M${cx - s * 0.58} ${y - s * 0.28} q${s * 0.2} ${-s * 0.3} ${s * 0.5} ${-s * 0.34}`} fill="none" stroke="#FFFFFF" stroke-width={1.4} stroke-linecap="round" opacity={0.9} />
+          <path
+            d={`M${cx - s * 0.58} ${y - s * 0.28} q${s * 0.2} ${-s * 0.3} ${s * 0.5} ${-s * 0.34}`}
+            fill="none"
+            stroke="#FFFFFF"
+            stroke-width={1.4}
+            stroke-linecap="round"
+            opacity={0.9}
+          />
         </g>
       ))}
     </g>

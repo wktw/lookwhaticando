@@ -42,21 +42,22 @@ export const ghostSheet: TraitArt = {
     const f = anchors.headFeatures;
     const [bl, br] = f.length >= 2 ? [f[0]!.x, f[1]!.x] : [anchors.head.x - 9, anchors.head.x + 9];
     const pad = 2.2;
+    const side = (y: number, extra = 0) => 50 + Math.max(hw(y) + pad, 22 + extra);
     const right: Pt[] = [
       [50, top - 1.5],
-      [br - 5.6, top - 3],
-      [br - 4.4, top - 8.8],
-      [br - 1.2, top - 11.6],
-      [br + 2.6, top - 11.6],
-      [br + 5.4, top - 8.6],
-      [br + 6.6, top - 3.2],
-      [50 + hw(top + 10) + pad, top + 10],
-      [50 + hw(top + 24) + pad, top + 24],
-      [50 + hw(62) + pad, 62],
-      [50 + hw(76) + pad + 0.4, 76],
+      [br - 5.2, top - 4.4],
+      [br - 4.6, top - 10],
+      [br - 1, top - 13],
+      [br + 3.4, top - 12.6],
+      [br + 6.2, top - 8.8],
+      [br + 7.4, top - 2.8],
+      [side(top + 8, 3), top + 8],
+      [side(top + 22, 8), top + 22],
+      [side(62, 9), 62],
+      [side(76, 9) + 0.4, 76],
     ];
-    const xr = 50 + hw(84) + pad + 1.4;
-    const hem: Pt[] = Array.from({ length: 9 }, (_, i) => [xr - (i * 2 * (xr - 50)) / 8, i % 2 ? 92.4 : 89.6]);
+    const xr = side(84, 9) + 1.4;
+    const hem: Pt[] = Array.from({ length: 9 }, (_, i) => [xr - (i * 2 * (xr - 50)) / 8, i % 2 ? 93.2 : 88.8]);
     const left: Pt[] = right
       .slice(1)
       .reverse()
@@ -87,7 +88,15 @@ export const ghostSheet: TraitArt = {
     const { x, y } = ctx.anchors.mouth;
     const e = ctx.expression;
     if (e === 'eat' || e === 'surprised') return <ellipse cx={x} cy={y + 0.6} rx={1.8} ry={2.2} fill={OUTLINE} opacity={0.8} />;
-    return <path d={`M${x - 2.4} ${y} Q${x} ${y + (e === 'sleep' ? 1.2 : 2.4)} ${x + 2.4} ${y}`} fill="none" stroke={OUTLINE} stroke-width={1.5} stroke-linecap="round" />;
+    return (
+      <path
+        d={`M${x - 2.4} ${y} Q${x} ${y + (e === 'sleep' ? 1.2 : 2.4)} ${x + 2.4} ${y}`}
+        fill="none"
+        stroke={OUTLINE}
+        stroke-width={1.5}
+        stroke-linecap="round"
+      />
+    );
   },
 };
 
@@ -178,7 +187,11 @@ export const mermaidTail: TraitArt = {
     return (
       <g class="pet-tail" style={{ '--tail-origin': '80px 88px' }} stroke={OUTLINE} stroke-linejoin="round">
         <OutlinedStroke d="M74 90 C83 90.6 88.6 85 90 77.6" color={fin} width={6.4} />
-        <path d="M90.4 78.4 C86.4 73.4 86.8 66.4 91 63 C92.4 67.4 93.2 70.6 91.8 74.6 C94.6 70.8 98.2 69.4 100.8 70.6 C98.6 75.2 95.4 78.4 90.4 78.4 Z" fill={fin} stroke-width={STROKE} />
+        <path
+          d="M90.4 78.4 C86.4 73.4 86.8 66.4 91 63 C92.4 67.4 93.2 70.6 91.8 74.6 C94.6 70.8 98.2 69.4 100.8 70.6 C98.6 75.2 95.4 78.4 90.4 78.4 Z"
+          fill={fin}
+          stroke-width={STROKE}
+        />
         <path d="M90.6 75.6 C89.4 72 89.6 68.6 90.8 66.4 M92.4 76.2 C94.4 74 96.4 72.6 98.6 72" fill="none" stroke-width={1} opacity={0.4} />
       </g>
     );
@@ -279,7 +292,7 @@ export const cheeks: TraitArt = {
     const cy = c.y + 2.4;
     return (
       <g>
-        <g fill="none" stroke={OUTLINE} stroke-width={1.2} stroke-linecap="round" opacity={0.2}>
+        <g fill="none" stroke={OUTLINE} stroke-width={1.2} stroke-linecap="round" opacity={0.13}>
           <path d={`M${c.left - 1.6} ${cy - 7.4} C${c.left - 4.2} ${cy - 3} ${c.left - 4} ${cy + 3} ${c.left - 0.6} ${cy + 7.4}`} />
           <path d={`M${c.right + 1.6} ${cy - 7.4} C${c.right + 4.2} ${cy - 3} ${c.right + 4} ${cy + 3} ${c.right + 0.6} ${cy + 7.4}`} />
         </g>

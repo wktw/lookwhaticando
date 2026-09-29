@@ -71,14 +71,17 @@ export const frog: SpeciesArt = {
         </g>
       );
     }
-    const smile =
-      e === 'sleep'
-        ? `M${x - 6} ${y + 0.4} Q${x} ${y + 3} ${x + 6} ${y + 0.4}`
-        : `M${x - 9} ${y - 0.6} Q${x} ${y + 5.6} ${x + 9} ${y - 0.6}`;
+    const smile = e === 'sleep' ? `M${x - 6} ${y + 0.4} Q${x} ${y + 3} ${x + 6} ${y + 0.4}` : `M${x - 9} ${y - 0.6} Q${x} ${y + 5.6} ${x + 9} ${y - 0.6}`;
     return (
       <g>
         {e === 'wink' && (
-          <path d={`M${x + 1} ${y + 2.2} Q${x + 1.4} ${y + 6.6} ${x + 3.8} ${y + 6} Q${x + 5.8} ${y + 5.2} ${x + 4.8} ${y + 1.6}`} fill="#FF9FB8" stroke={OUTLINE} stroke-width={1.3} stroke-linejoin="round" />
+          <path
+            d={`M${x + 1} ${y + 2.2} Q${x + 1.4} ${y + 6.6} ${x + 3.8} ${y + 6} Q${x + 5.8} ${y + 5.2} ${x + 4.8} ${y + 1.6}`}
+            fill="#FF9FB8"
+            stroke={OUTLINE}
+            stroke-width={1.3}
+            stroke-linejoin="round"
+          />
         )}
         <path d={smile} fill="none" stroke={faceInk(ctx)} stroke-width={1.7} stroke-linecap="round" />
       </g>

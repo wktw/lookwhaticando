@@ -1,7 +1,7 @@
 import type { Anchors } from './geometry';
 
 /** Reference head width (the cat's): head art is designed at this width and scaled to each species. */
-export const HEAD_REF_WIDTH = 40;
+const HEAD_REF_WIDTH = 40;
 
 /**
  * SVG transform placing head art drawn in local coordinates, where (0, 0) is the top-center of

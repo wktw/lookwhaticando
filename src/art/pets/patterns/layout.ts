@@ -1,7 +1,7 @@
 import type { ArtCtx } from '../types';
 
 /** The face region (eyes, cheeks, mouth) that patterns keep clear so every face stays readable. */
-export function faceZone({ anchors }: ArtCtx) {
+function faceZone({ anchors }: ArtCtx) {
   const { eyes, mouth } = anchors;
   return {
     cx: (eyes.left + eyes.right) / 2,
@@ -11,7 +11,7 @@ export function faceZone({ anchors }: ArtCtx) {
   };
 }
 
-export function inFace(ctx: ArtCtx, x: number, y: number, pad = 0): boolean {
+function inFace(ctx: ArtCtx, x: number, y: number, pad = 0): boolean {
   const z = faceZone(ctx);
   const dx = (x - z.cx) / (z.rx + pad);
   const dy = (y - z.cy) / (z.ry + pad);
@@ -26,7 +26,7 @@ function jitter(i: number, seed: number): number {
   return s - Math.floor(s) - 0.5;
 }
 
-export interface ScatterPoint {
+interface ScatterPoint {
   x: number;
   y: number;
   /** Stable per-point value in [0, 1) for rotation/size/color variety. */

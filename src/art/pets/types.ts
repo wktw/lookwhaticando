@@ -79,7 +79,8 @@ export type TraitId =
   | 'forelock' // cow hair tuft between the horns
   | 'starfish' // Sandy Cat's hair accessory
   | 'rose' // Rose Bunny's rose, tucked by the ear
-  | 'nori'; // onigiri seaweed wrap (Snowball Hamster)
+  | 'nori' // onigiri seaweed wrap (Snowball Hamster)
+  | 'moonlit'; // star speckles of the code-drawn Moonlit variants (DESIGN §13.6)
 
 export interface PetPalette {
   body: string;

@@ -44,7 +44,7 @@ export function Aura({ kind, uid }: { kind: AuraKind; uid: string }) {
   );
 }
 
-export const SPARKLE_PATH = 'M0 -4 C0.6 -1 1 -0.6 4 0 C1 0.6 0.6 1 0 4 C-0.6 1 -1 0.6 -4 0 C-1 -0.6 -0.6 -1 0 -4 Z';
+const SPARKLE_PATH = 'M0 -4 C0.6 -1 1 -0.6 4 0 C1 0.6 0.6 1 0 4 C-0.6 1 -1 0.6 -4 0 C-1 -0.6 -0.6 -1 0 -4 Z';
 
 const SPOTS = [
   { x: 12, y: 30, s: 0.9 },

@@ -71,7 +71,15 @@ export const hamster: SpeciesArt = {
     const open = e === 'happy' || e === 'love';
     return (
       <g class="pet-nibble" style={{ '--mouth-origin': `${x}px ${y}px` }}>
-        {open && <path d={`M${x - 2.6} ${ny + 2.6} Q${x} ${ny + 6.4} ${x + 2.6} ${ny + 2.6} Z`} fill="#C75B73" stroke={OUTLINE} stroke-width={1.2} stroke-linejoin="round" />}
+        {open && (
+          <path
+            d={`M${x - 2.6} ${ny + 2.6} Q${x} ${ny + 6.4} ${x + 2.6} ${ny + 2.6} Z`}
+            fill="#C75B73"
+            stroke={OUTLINE}
+            stroke-width={1.2}
+            stroke-linejoin="round"
+          />
+        )}
         <path
           d={`M${x} ${ny + 1.2} L${x} ${ny + 2.4} M${x - 2.8} ${ny + 2.6} Q${x - 1.4} ${ny + 4} ${x} ${ny + 2.4} Q${x + 1.4} ${ny + 4} ${x + 2.8} ${ny + 2.6}`}
           fill="none"

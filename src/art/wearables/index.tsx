@@ -1,9 +1,35 @@
 import type { WearableArt } from '../pets/types';
-import { bakersHat, bucketHat, cowgirlHat, fishHat, frogHat, leafUmbrella, milkCarton, nightcap, pomBeanie, santaHat, strawberryHat, sunHat, witchHat } from './hats';
+import {
+  bakersHat,
+  bucketHat,
+  cowgirlHat,
+  fishHat,
+  frogHat,
+  leafUmbrella,
+  milkCarton,
+  nightcap,
+  pomBeanie,
+  santaHat,
+  strawberryHat,
+  sunHat,
+  witchHat,
+} from './hats';
 import { cherryClips, crescentClip, daisyCrown, earmuffs, evergreenCrown, halo, heartHeadband, mapleCrown, pinkBow, roseCrown, sakuraClip } from './headpieces';
 import { heartGlasses, heartShades, milkMustache, readingGlasses, sleepMask, starShades } from './face';
 import { autumnScarf, bellCollar, bowTie, cloudScarf, cowbell, flowerLei, ginghamBandana, heartLocket, knitScarf, pawBandana } from './neck';
-import { cozyHoodie, cozyStripes, duckFloat, festiveSweater, frillyApron, gardenApron, overalls, pumpkinCardigan, raincoat, starryPajamas, tinyBackpack } from './body';
+import {
+  cozyHoodie,
+  cozyStripes,
+  duckFloat,
+  festiveSweater,
+  frillyApron,
+  gardenApron,
+  overalls,
+  pumpkinCardigan,
+  raincoat,
+  starryPajamas,
+  tinyBackpack,
+} from './body';
 
 /**
  * Wearable art, keyed by collectible id. Each renderer draws in pet canvas coordinates using

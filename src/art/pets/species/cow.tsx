@@ -75,9 +75,7 @@ export const cow: SpeciesArt = {
   overlay: (ctx) => {
     const p = ctx.look.palette;
     const { x, y } = ctx.anchors.mouth;
-    return (
-      <ellipse cx={x} cy={y + 0.4} rx={15.6} ry={9.2} fill={p.muzzle ?? lighten(p.body, 0.6)} stroke={OUTLINE} stroke-width={STROKE * 0.66} />
-    );
+    return <ellipse cx={x} cy={y + 0.4} rx={15.6} ry={9.2} fill={p.muzzle ?? lighten(p.body, 0.6)} stroke={OUTLINE} stroke-width={STROKE * 0.66} />;
   },
   mouth: (ctx) => {
     const { x, y } = ctx.anchors.mouth;
@@ -96,7 +94,13 @@ export const cow: SpeciesArt = {
     } else if (e === 'happy' || e === 'love' || e === 'wink') {
       mouth = (
         <g>
-          <path d={`M${x - 4} ${my - 0.8} Q${x} ${my + 4.6} ${x + 4} ${my - 0.8} Z`} fill="#C75B73" stroke={OUTLINE} stroke-width={1.5} stroke-linejoin="round" />
+          <path
+            d={`M${x - 4} ${my - 0.8} Q${x} ${my + 4.6} ${x + 4} ${my - 0.8} Z`}
+            fill="#C75B73"
+            stroke={OUTLINE}
+            stroke-width={1.5}
+            stroke-linejoin="round"
+          />
           <path d={`M${x - 1.8} ${my + 2.2} Q${x} ${my + 0.8} ${x + 1.8} ${my + 2.2} Q${x} ${my + 3.4} ${x - 1.8} ${my + 2.2} Z`} fill="#FF9FB8" />
         </g>
       );

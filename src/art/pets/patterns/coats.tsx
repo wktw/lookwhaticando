@@ -92,7 +92,9 @@ export const socks: PatternRenderer = (ctx) => {
   const blazeEnd = eyes.y - 3;
   return (
     <g fill={white}>
-      <path d={`M50 ${top + 1} C52.4 ${top + 1} 53.2 ${blazeEnd - 6} 51.6 ${blazeEnd} L48.4 ${blazeEnd} C46.8 ${blazeEnd - 6} 47.6 ${top + 1} 50 ${top + 1} Z`} />
+      <path
+        d={`M50 ${top + 1} C52.4 ${top + 1} 53.2 ${blazeEnd - 6} 51.6 ${blazeEnd} L48.4 ${blazeEnd} C46.8 ${blazeEnd - 6} 47.6 ${top + 1} 50 ${top + 1} Z`}
+      />
       <ellipse cx={50} cy={neck.y + 10} rx={10.5} ry={11} />
     </g>
   );
@@ -106,7 +108,9 @@ export const patch: PatternRenderer = (ctx) => {
   const py = Math.min(top + 8, eyes.y - 13);
   return (
     <g fill={c}>
-      <path d={`M${eyes.left - 16} ${py - 10} C${eyes.left - 6} ${py - 14} ${eyes.left + 6} ${py - 8} ${eyes.left + 5} ${py + 1} C${eyes.left + 4} ${py + 6} ${eyes.left - 4} ${py + 7} ${eyes.left - 10} ${py + 9} C${eyes.left - 16} ${py + 11} ${eyes.left - 22} ${py + 2} ${eyes.left - 16} ${py - 10} Z`} />
+      <path
+        d={`M${eyes.left - 16} ${py - 10} C${eyes.left - 6} ${py - 14} ${eyes.left + 6} ${py - 8} ${eyes.left + 5} ${py + 1} C${eyes.left + 4} ${py + 6} ${eyes.left - 4} ${py + 7} ${eyes.left - 10} ${py + 9} C${eyes.left - 16} ${py + 11} ${eyes.left - 22} ${py + 2} ${eyes.left - 16} ${py - 10} Z`}
+      />
       <path d="M62 82 C64 77 71 76 74.5 79.5 C78 83 76.5 90 71 91.5 C65.5 93 60.5 87.5 62 82 Z" />
     </g>
   );
@@ -141,5 +145,4 @@ export const mallard: PatternRenderer = (ctx) => {
   );
 };
 
-export const bellyOnly: PatternRenderer = ({ look }) =>
-  look.palette.belly ? <ellipse cx={50} cy={84} rx={19} ry={12} fill={look.palette.belly} /> : null;
+export const bellyOnly: PatternRenderer = ({ look }) => (look.palette.belly ? <ellipse cx={50} cy={84} rx={19} ry={12} fill={look.palette.belly} /> : null);

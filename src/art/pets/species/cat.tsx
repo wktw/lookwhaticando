@@ -10,14 +10,14 @@ function Ear({ ctx, mirror }: { ctx: ArtCtx; mirror?: boolean }) {
   return (
     <g transform={mirror ? MIRROR : undefined}>
       <g class={mirror ? 'pet-ear-r' : 'pet-ear-l'} style={{ '--ear-origin': '33px 36px' }}>
-      <path
-        d="M22.5 47 C22 38 23.5 28 26.5 22.8 C27.6 20.9 29.6 20.8 31 22.2 C35.5 26.2 40.5 30.5 44 34"
-        fill={outer}
-        stroke={OUTLINE}
-        stroke-width={STROKE}
-        stroke-linejoin="round"
-        stroke-linecap="round"
-      />
+        <path
+          d="M22.5 47 C22 38 23.5 28 26.5 22.8 C27.6 20.9 29.6 20.8 31 22.2 C35.5 26.2 40.5 30.5 44 34"
+          fill={outer}
+          stroke={OUTLINE}
+          stroke-width={STROKE}
+          stroke-linejoin="round"
+          stroke-linecap="round"
+        />
         <path d="M27 37 C27 32 27.8 28 29 26 C31.6 28.4 34.8 31.2 37.2 33.6 C33 34.2 29.6 35.4 27 37 Z" fill={p.earInner} />
       </g>
     </g>

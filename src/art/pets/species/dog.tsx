@@ -74,7 +74,14 @@ export const dog: SpeciesArt = {
         <g class="pet-tail" style={{ '--tail-origin': '82px 76px' }}>
           <OutlinedStroke d="M80 78 C83.5 76.6 85.6 74.4 86.6 71.4" color={color} width={5.4} />
           <circle cx={88.6} cy={65.6} r={6.6} fill={color} stroke={OUTLINE} stroke-width={STROKE} />
-          <path d="M89.4 66.2 C87.8 67 86.6 65.4 87.6 64.2 C89.2 62.6 92 63.8 91.8 66.2 C91.6 68.8 88.4 70 86 68.4" fill="none" stroke={OUTLINE} stroke-width={1.3} stroke-linecap="round" opacity={0.55} />
+          <path
+            d="M89.4 66.2 C87.8 67 86.6 65.4 87.6 64.2 C89.2 62.6 92 63.8 91.8 66.2 C91.6 68.8 88.4 70 86 68.4"
+            fill="none"
+            stroke={OUTLINE}
+            stroke-width={1.3}
+            stroke-linecap="round"
+            opacity={0.55}
+          />
         </g>
       );
     }
@@ -138,8 +145,17 @@ export const dog: SpeciesArt = {
       return (
         <g>
           {nose}
-          <path d={`M${x - 4.2} ${my + 1.2} Q${x} ${my + 8.4} ${x + 4.2} ${my + 1.2} Z`} fill="#C75B73" stroke={OUTLINE} stroke-width={1.5} stroke-linejoin="round" />
-          <path d={`M${x - 2.4} ${my + 4.2} Q${x} ${my + 2.8} ${x + 2.4} ${my + 4.2} Q${x + 2.2} ${my + 6.6} ${x} ${my + 6.8} Q${x - 2.2} ${my + 6.6} ${x - 2.4} ${my + 4.2} Z`} fill="#FF9FB8" />
+          <path
+            d={`M${x - 4.2} ${my + 1.2} Q${x} ${my + 8.4} ${x + 4.2} ${my + 1.2} Z`}
+            fill="#C75B73"
+            stroke={OUTLINE}
+            stroke-width={1.5}
+            stroke-linejoin="round"
+          />
+          <path
+            d={`M${x - 2.4} ${my + 4.2} Q${x} ${my + 2.8} ${x + 2.4} ${my + 4.2} Q${x + 2.2} ${my + 6.6} ${x} ${my + 6.8} Q${x - 2.2} ${my + 6.6} ${x - 2.4} ${my + 4.2} Z`}
+            fill="#FF9FB8"
+          />
           <path d={`M${x} ${my} L${x} ${my + 1.2}`} stroke={OUTLINE} stroke-width={1.5} stroke-linecap="round" />
         </g>
       );
@@ -149,7 +165,13 @@ export const dog: SpeciesArt = {
       return (
         <g>
           {nose}
-          <path d={`M${x - 1.2} ${my + 2.2} Q${x - 1.6} ${my + 5.8} ${x + 0.8} ${my + 5.8} Q${x + 2.8} ${my + 5.6} ${x + 2.2} ${my + 2}`} fill="#FF9FB8" stroke={OUTLINE} stroke-width={1.3} stroke-linejoin="round" />
+          <path
+            d={`M${x - 1.2} ${my + 2.2} Q${x - 1.6} ${my + 5.8} ${x + 0.8} ${my + 5.8} Q${x + 2.8} ${my + 5.6} ${x + 2.2} ${my + 2}`}
+            fill="#FF9FB8"
+            stroke={OUTLINE}
+            stroke-width={1.3}
+            stroke-linejoin="round"
+          />
           {smile}
         </g>
       );

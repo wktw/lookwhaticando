@@ -93,13 +93,7 @@ export function Blush({ ctx, opacity = 0.55 }: { ctx: ArtCtx; opacity?: number }
 export function OpenMouth({ x, y, w = 5.2, h = 4.2 }: { x: number; y: number; w?: number; h?: number }) {
   return (
     <g>
-      <path
-        d={`M${x - w / 2} ${y} Q${x} ${y + h * 1.5} ${x + w / 2} ${y} Z`}
-        fill="#C75B73"
-        stroke={OUTLINE}
-        stroke-width={1.5}
-        stroke-linejoin="round"
-      />
+      <path d={`M${x - w / 2} ${y} Q${x} ${y + h * 1.5} ${x + w / 2} ${y} Z`} fill="#C75B73" stroke={OUTLINE} stroke-width={1.5} stroke-linejoin="round" />
       <path d={`M${x - w / 4} ${y + h * 0.75} Q${x} ${y + h * 0.35} ${x + w / 4} ${y + h * 0.75}`} fill="#FF9FB8" />
     </g>
   );

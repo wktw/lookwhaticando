@@ -1,5 +1,6 @@
 import type { PetLook, PetPalette } from './types';
 import { getCollectible } from '@/catalog/collectibles';
+import { mix } from './color';
 
 /**
  * Visual definition of every pet variant, keyed by collectible id.
@@ -67,7 +68,16 @@ export const LOOKS: Record<string, PetLook> = {
   'pet-cat-siamese': {
     species: 'cat',
     pattern: 'siamese',
-    palette: soft({ body: '#FFF4E6', pattern: '#D8B6A0', ear: '#B98D78', feet: '#C49A85', tail: '#B98D78', earInner: '#F2C2C0', nose: '#B98079', eye: '#4F7FB8' }),
+    palette: soft({
+      body: '#FFF4E6',
+      pattern: '#D8B6A0',
+      ear: '#B98D78',
+      feet: '#C49A85',
+      tail: '#B98D78',
+      earInner: '#F2C2C0',
+      nose: '#B98079',
+      eye: '#4F7FB8',
+    }),
   },
   'pet-cat-strawberry': {
     species: 'cat',
@@ -198,7 +208,16 @@ export const LOOKS: Record<string, PetLook> = {
   'pet-cow-celestial': {
     species: 'cow',
     pattern: 'cow-stars',
-    palette: soft({ body: '#8C86CE', pattern: '#5E5799', pattern2: '#FFE593', earInner: '#F3A6D0', nose: '#D98FBF', muzzle: '#E6E0FB', accent: '#FFE593', eye: '#2B2448' }),
+    palette: soft({
+      body: '#8C86CE',
+      pattern: '#5E5799',
+      pattern2: '#FFE593',
+      earInner: '#F3A6D0',
+      nose: '#D98FBF',
+      muzzle: '#E6E0FB',
+      accent: '#FFE593',
+      eye: '#2B2448',
+    }),
   },
   'pet-cow-pumpkin': {
     species: 'cow',
@@ -232,7 +251,16 @@ export const LOOKS: Record<string, PetLook> = {
   'pet-cow-melon': {
     species: 'cow',
     pattern: 'melon',
-    palette: soft({ body: '#FFC6CE', pattern: '#9BCF86', pattern2: '#6B4F58', ear: '#BFE3A8', earInner: '#FFC6CE', nose: COW_NOSTRIL, muzzle: '#FFEAED', feet: '#9BCF86' }),
+    palette: soft({
+      body: '#FFC6CE',
+      pattern: '#9BCF86',
+      pattern2: '#6B4F58',
+      ear: '#BFE3A8',
+      earInner: '#FFC6CE',
+      nose: COW_NOSTRIL,
+      muzzle: '#FFEAED',
+      feet: '#9BCF86',
+    }),
   },
 
   /* ---------------- Dogs ---------------- */
@@ -397,7 +425,17 @@ export const LOOKS: Record<string, PetLook> = {
   'pet-bear-panda': {
     species: 'bear',
     pattern: 'panda',
-    palette: soft({ body: '#FFFFFF', pattern: '#6E5E69', ear: '#6E5E69', earInner: '#8F7E8A', feet: '#6E5E69', tail: '#6E5E69', muzzle: '#FFFFFF', nose: '#4A3540', eye: '#2A2130' }),
+    palette: soft({
+      body: '#FFFFFF',
+      pattern: '#6E5E69',
+      ear: '#6E5E69',
+      earInner: '#8F7E8A',
+      feet: '#6E5E69',
+      tail: '#6E5E69',
+      muzzle: '#FFFFFF',
+      nose: '#4A3540',
+      eye: '#2A2130',
+    }),
   },
   'pet-bear-cupcake': {
     species: 'bear',
@@ -497,10 +535,35 @@ export const LOOKS: Record<string, PetLook> = {
   },
 };
 
+/** Code-drawn night variants, 'moonlit:<petId>' (DESIGN §13.6). */
+const MOONLIT = 'moonlit:';
+const NIGHT = '#6F66B8';
+
+/** A pet's Moonlit look: its own design in a starlit night palette, dusted with tiny stars. */
+function moonlitLook(base: PetLook): PetLook {
+  const tint = (c: string | undefined, t: number) => (c ? mix(c, NIGHT, t) : undefined);
+  const p = base.palette;
+  const palette: PetPalette = {
+    ...p,
+    body: mix(p.body, NIGHT, 0.18),
+    belly: tint(p.belly, 0.14),
+    ear: tint(p.ear, 0.18),
+    pattern: tint(p.pattern, 0.16),
+    pattern2: tint(p.pattern2, 0.12),
+    muzzle: tint(p.muzzle, 0.12),
+    feet: tint(p.feet, 0.3),
+    tail: tint(p.tail ?? p.body, 0.3),
+    earInner: mix(p.earInner, '#D6C8F8', 0.35),
+  };
+  const aura = base.aura === 'glow' || base.aura === 'ghost' ? base.aura : 'sparkle';
+  return { ...base, palette, traits: [...(base.traits ?? []), 'moonlit'], aura };
+}
+
 /** Look for any pet id. Unknown ids get a neutral look of the right species. */
 export function getLook(petId: string): PetLook {
   const found = LOOKS[petId];
   if (found) return found;
+  if (petId.startsWith(MOONLIT)) return moonlitLook(getLook(petId.slice(MOONLIT.length)));
   const def = getCollectible(petId);
   const species = def && def.category === 'pet' ? def.species : 'cat';
   return { species, pattern: 'none', palette: { body: '#F4ECE6', earInner: '#FFC4D3', nose: '#F58CAA' } };

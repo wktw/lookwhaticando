@@ -7,8 +7,7 @@ import { scatter } from './layout';
  * The cow family shares one layout: a big patch hugging the top-right of the head (kept above
  * the eyes), a spot on the left flank and one low on the right.
  */
-const HEAD_PATCH =
-  'M58 26 C68 25 80 31 83 41 C85 47 79 50 74 47 C70 45 71 40 66 39 C60 38 56 35 56.5 31 C57 28.5 57 26.5 58 26 Z';
+const HEAD_PATCH = 'M58 26 C68 25 80 31 83 41 C85 47 79 50 74 47 C70 45 71 40 66 39 C60 38 56 35 56.5 31 C57 28.5 57 26.5 58 26 Z';
 const FLANK_SPOT = 'M12 72 C15 67 22 67 24.5 71.5 C27 76 23 81 18.5 81 C14 81 10 77 12 72 Z';
 const LOW_SPOT = 'M63 85 C65 80.5 72 80 75 83.5 C78 87 76 94 70 95 C65 95.5 61.5 90 63 85 Z';
 
@@ -32,9 +31,7 @@ export const cow: PatternRenderer = (ctx) => (
 /** Lovebug: every spot is a heart. */
 export const cowHearts: PatternRenderer = (ctx) => {
   const dy = headDy(ctx);
-  const heart = (x: number, y: number, s: number, rot: number) => (
-    <path d={heartPath(0, 0, s)} transform={`translate(${x} ${y}) rotate(${rot})`} />
-  );
+  const heart = (x: number, y: number, s: number, rot: number) => <path d={heartPath(0, 0, s)} transform={`translate(${x} ${y}) rotate(${rot})`} />;
   return (
     <g fill={ctx.look.palette.pattern ?? '#F59AB4'}>
       {heart(71, 36 + dy, 8.5, 16)}
@@ -84,9 +81,24 @@ export const cowStars: PatternRenderer = (ctx) => {
         <path d={FLANK_SPOT} />
         <path d={LOW_SPOT} />
       </g>
-      <g transform={`translate(0 ${dy})`}>{constellation([[62, 31], [68, 33.5], [73.5, 32], [78, 38.5]])}</g>
-      {constellation([[14.5, 74.5], [19, 71.5], [22, 76.5]])}
-      {constellation([[66, 86], [70.5, 84], [73.5, 89]])}
+      <g transform={`translate(0 ${dy})`}>
+        {constellation([
+          [62, 31],
+          [68, 33.5],
+          [73.5, 32],
+          [78, 38.5],
+        ])}
+      </g>
+      {constellation([
+        [14.5, 74.5],
+        [19, 71.5],
+        [22, 76.5],
+      ])}
+      {constellation([
+        [66, 86],
+        [70.5, 84],
+        [73.5, 89],
+      ])}
     </g>
   );
 };

@@ -105,7 +105,13 @@ export const frosting: TraitArt = {
 export const lilypadHat: TraitArt = {
   occupies: 'head',
   front: (ctx) => (
-    <g transform={headTransform(ctx.anchors, { dy: -1, rotate: -10, scale: 1.25 })} stroke={OUTLINE} stroke-width={STROKE * 0.85} stroke-linejoin="round" stroke-linecap="round">
+    <g
+      transform={headTransform(ctx.anchors, { dy: -1, rotate: -10, scale: 1.25 })}
+      stroke={OUTLINE}
+      stroke-width={STROKE * 0.85}
+      stroke-linejoin="round"
+      stroke-linecap="round"
+    >
       <path d="M0.5 -3.5 C0.5 -7 1.4 -9.6 3 -11.2" fill="none" />
       <path d="M-17 1 C-18 -6 -9 -9 0 -9 C9 -9 18 -6 17 1 C13 3.4 5 3.2 2.2 2.2 L0 -3 L-1.8 2.4 C-6 3.4 -13 3.2 -17 1 Z" fill="#9DD48C" />
       <path d="M0 -3 L-9 -4.4 M0 -3 L8.6 -5 M0 -3 L-12 0.2 M0 -3 L12.4 -0.6" fill="none" stroke="#6FA35C" stroke-width={1} opacity={0.8} />
@@ -173,14 +179,14 @@ export const haloGlow: TraitArt = {
     return (
       <g transform={headTransform(ctx.anchors, { dy: -8 })}>
         <g class="pet-halo">
-        <radialGradient id={id}>
-          <stop offset="0%" stop-color="#FFF3B0" stop-opacity={0.9} />
-          <stop offset="100%" stop-color="#FFE593" stop-opacity={0} />
-        </radialGradient>
-        <ellipse cx={0} cy={0} rx={19} ry={8} fill={`url(#${id})`} />
-        <ellipse cx={0} cy={0} rx={11.5} ry={3.4} fill="none" stroke={OUTLINE} stroke-width={2.4 + STROKE * 1.4} />
-        <ellipse cx={0} cy={0} rx={11.5} ry={3.4} fill="none" stroke="#FFD65C" stroke-width={2.4} />
-        <path d="M-7 -2.6 C-4 -3.6 0 -3.8 3 -3.4" fill="none" stroke="#FFF8D6" stroke-width={1} stroke-linecap="round" />
+          <radialGradient id={id}>
+            <stop offset="0%" stop-color="#FFF3B0" stop-opacity={0.9} />
+            <stop offset="100%" stop-color="#FFE593" stop-opacity={0} />
+          </radialGradient>
+          <ellipse cx={0} cy={0} rx={19} ry={8} fill={`url(#${id})`} />
+          <ellipse cx={0} cy={0} rx={11.5} ry={3.4} fill="none" stroke={OUTLINE} stroke-width={2.4 + STROKE * 1.4} />
+          <ellipse cx={0} cy={0} rx={11.5} ry={3.4} fill="none" stroke="#FFD65C" stroke-width={2.4} />
+          <path d="M-7 -2.6 C-4 -3.6 0 -3.8 3 -3.4" fill="none" stroke="#FFF8D6" stroke-width={1} stroke-linecap="round" />
         </g>
       </g>
     );
@@ -191,7 +197,13 @@ export const haloGlow: TraitArt = {
 export const witchHat: TraitArt = {
   occupies: 'head',
   front: (ctx) => (
-    <g transform={headTransform(ctx.anchors, { dx: 3, dy: 1, rotate: 10 })} stroke={OUTLINE} stroke-width={STROKE} stroke-linejoin="round" stroke-linecap="round">
+    <g
+      transform={headTransform(ctx.anchors, { dx: 3, dy: 1, rotate: 10 })}
+      stroke={OUTLINE}
+      stroke-width={STROKE}
+      stroke-linejoin="round"
+      stroke-linecap="round"
+    >
       <path d="M-8.6 0 C-7 -7 -4.6 -13 -0.4 -19 C1.6 -21.6 5.4 -22 8.6 -20 C6 -19.4 4.4 -17.8 4 -15.4 C3.8 -10 5.6 -5 8.6 0 Z" fill="#A08BD6" />
       <path d="M-7.6 -3.4 C-3 -1.8 3.4 -1.8 7.4 -3.4 L8.2 -0.6 C3.8 1 -3.8 1 -8.4 -0.6 Z" fill="#7B67B8" stroke-width={STROKE * 0.7} />
       <path d="M-15.5 1.4 C-15.5 -2.4 15.5 -2.4 15.5 1.4 C15.5 4.4 -15.5 4.4 -15.5 1.4 Z" fill="#A08BD6" />
@@ -206,7 +218,13 @@ export const forelock: TraitArt = {
   front: (ctx) => {
     const p = ctx.look.palette;
     return (
-      <g transform={headTransform(ctx.anchors, { dy: 2.5 })} fill={p.pattern ?? shade(p.body, 0.18)} stroke={OUTLINE} stroke-width={STROKE * 0.85} stroke-linejoin="round">
+      <g
+        transform={headTransform(ctx.anchors, { dy: 2.5 })}
+        fill={p.pattern ?? shade(p.body, 0.18)}
+        stroke={OUTLINE}
+        stroke-width={STROKE * 0.85}
+        stroke-linejoin="round"
+      >
         <path d="M-7.4 1 C-9.6 -2.6 -7.6 -6.6 -3.6 -6.4 C-5 -4.2 -4.4 -2 -2.2 -1 Z" />
         <path d="M7.4 1 C9.6 -2.6 7.6 -6.6 3.6 -6.4 C5 -4.2 4.4 -2 2.2 -1 Z" />
         <path d="M-3.2 0.6 C-4.6 -4.4 -1.4 -9.4 2.4 -9.6 C1 -7 1.6 -3.6 3.4 0.6 C1.4 1.6 -1.2 1.6 -3.2 0.6 Z" />

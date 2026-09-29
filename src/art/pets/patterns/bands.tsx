@@ -62,8 +62,14 @@ export const nebula: PatternRenderer = (ctx) => {
   return (
     <g>
       <g opacity={0.85}>
-        <path fill={a} d={`M10 ${top + 16} C18 ${top + 2} 36 ${top - 2} 44 ${top + 4} C48 ${top + 8} 40 ${top + 12} 32 ${top + 14} C24 ${top + 16} 20 ${top + 24} 13 ${top + 26} C8 ${top + 27} 7 ${top + 20} 10 ${top + 16} Z`} />
-        <path fill={b} d={`M62 ${top + 1} C72 ${top} 84 ${top + 8} 86 ${top + 16} C87 ${top + 21} 82 ${top + 21} 78 ${top + 17} C74 ${top + 13} 68 ${top + 12} 62 ${top + 8} C58 ${top + 6} 58 ${top + 2} 62 ${top + 1} Z`} />
+        <path
+          fill={a}
+          d={`M10 ${top + 16} C18 ${top + 2} 36 ${top - 2} 44 ${top + 4} C48 ${top + 8} 40 ${top + 12} 32 ${top + 14} C24 ${top + 16} 20 ${top + 24} 13 ${top + 26} C8 ${top + 27} 7 ${top + 20} 10 ${top + 16} Z`}
+        />
+        <path
+          fill={b}
+          d={`M62 ${top + 1} C72 ${top} 84 ${top + 8} 86 ${top + 16} C87 ${top + 21} 82 ${top + 21} 78 ${top + 17} C74 ${top + 13} 68 ${top + 12} 62 ${top + 8} C58 ${top + 6} 58 ${top + 2} 62 ${top + 1} Z`}
+        />
         <path fill={b} d="M6 74 C14 68 30 70 36 78 C40 84 34 90 26 88 C20 86 16 80 10 82 C5 83 3 77 6 74 Z" />
         <path fill={a} d="M56 86 C62 76 80 72 90 76 C96 79 92 86 84 86 C76 86 72 90 66 94 C60 97 53 92 56 86 Z" />
       </g>

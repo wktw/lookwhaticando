@@ -79,10 +79,16 @@ export const duck: SpeciesArt = {
       const drop = e === 'surprised' ? 6.2 : e === 'eat' ? 4.6 : 5.4;
       return (
         <g stroke={OUTLINE} stroke-width={1.6} stroke-linejoin="round">
-          <path d={`M${x - w + 0.6} ${y + 0.4} C${x - w + 1} ${y + drop + 1.6} ${x + w - 1} ${y + drop + 1.6} ${x + w - 0.6} ${y + 0.4} Z`} fill={shade(bill, 0.1)} />
+          <path
+            d={`M${x - w + 0.6} ${y + 0.4} C${x - w + 1} ${y + drop + 1.6} ${x + w - 1} ${y + drop + 1.6} ${x + w - 0.6} ${y + 0.4} Z`}
+            fill={shade(bill, 0.1)}
+          />
           <path d={`M${x - w + 2} ${y + 0.8} C${x - w + 2.6} ${y + drop} ${x + w - 2.6} ${y + drop} ${x + w - 2} ${y + 0.8} Z`} fill="#C75B73" stroke="none" />
           <path d={`M${x - 2.4} ${y + drop - 0.6} Q${x} ${y + drop - 2.2} ${x + 2.4} ${y + drop - 0.6}`} fill="#FF9FB8" stroke="none" />
-          <path d={`M${x - w} ${y - 0.4} C${x - w} ${y - 3.8} ${x + w} ${y - 3.8} ${x + w} ${y - 0.4} C${x + w} ${y + 1.6} ${x + 3} ${y + 2.2} ${x} ${y + 2.2} C${x - 3} ${y + 2.2} ${x - w} ${y + 1.6} ${x - w} ${y - 0.4} Z`} fill={bill} />
+          <path
+            d={`M${x - w} ${y - 0.4} C${x - w} ${y - 3.8} ${x + w} ${y - 3.8} ${x + w} ${y - 0.4} C${x + w} ${y + 1.6} ${x + 3} ${y + 2.2} ${x} ${y + 2.2} C${x - 3} ${y + 2.2} ${x - w} ${y + 1.6} ${x - w} ${y - 0.4} Z`}
+            fill={bill}
+          />
           <g fill={OUTLINE} stroke="none" opacity={0.5}>
             <ellipse cx={x - 2.2} cy={y - 1.4} rx={0.7} ry={0.5} />
             <ellipse cx={x + 2.2} cy={y - 1.4} rx={0.7} ry={0.5} />
@@ -92,8 +98,17 @@ export const duck: SpeciesArt = {
     }
     return (
       <g stroke={OUTLINE} stroke-width={1.6} stroke-linejoin="round">
-        <path d={`M${x - w} ${y} C${x - w} ${y - 3.6} ${x + w} ${y - 3.6} ${x + w} ${y} C${x + w} ${y + 2.8} ${x + 3.4} ${y + 3.8} ${x} ${y + 3.8} C${x - 3.4} ${y + 3.8} ${x - w} ${y + 2.8} ${x - w} ${y} Z`} fill={bill} />
-        <path d={`M${x - w + 1.6} ${y + 0.6} Q${x} ${y + (e === 'wink' ? 3 : 2.2)} ${x + w - 1.6} ${y + 0.6}`} fill="none" stroke-width={1.2} opacity={0.55} stroke-linecap="round" />
+        <path
+          d={`M${x - w} ${y} C${x - w} ${y - 3.6} ${x + w} ${y - 3.6} ${x + w} ${y} C${x + w} ${y + 2.8} ${x + 3.4} ${y + 3.8} ${x} ${y + 3.8} C${x - 3.4} ${y + 3.8} ${x - w} ${y + 2.8} ${x - w} ${y} Z`}
+          fill={bill}
+        />
+        <path
+          d={`M${x - w + 1.6} ${y + 0.6} Q${x} ${y + (e === 'wink' ? 3 : 2.2)} ${x + w - 1.6} ${y + 0.6}`}
+          fill="none"
+          stroke-width={1.2}
+          opacity={0.55}
+          stroke-linecap="round"
+        />
         <g fill={OUTLINE} stroke="none" opacity={0.5}>
           <ellipse cx={x - 2.2} cy={y - 1.2} rx={0.7} ry={0.5} />
           <ellipse cx={x + 2.2} cy={y - 1.2} rx={0.7} ry={0.5} />

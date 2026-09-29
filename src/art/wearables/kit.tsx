@@ -33,9 +33,7 @@ export function headItem(draw: (uid: string) => JSX.Element, o: HeadItemOptions 
   return {
     overEars: o.overEars,
     render: (ctx) => <g transform={headTransform(ctx.anchors, o)}>{draw(ctx.uid)}</g>,
-    icon: () => (
-      <g transform={`translate(${o.iconX ?? 50} ${o.iconY ?? 62}) rotate(${o.iconRotate ?? 0}) scale(${o.iconScale ?? 1.8})`}>{draw('icon')}</g>
-    ),
+    icon: () => <g transform={`translate(${o.iconX ?? 50} ${o.iconY ?? 62}) rotate(${o.iconRotate ?? 0}) scale(${o.iconScale ?? 1.8})`}>{draw('icon')}</g>,
   };
 }
 

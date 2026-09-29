@@ -102,7 +102,9 @@ export const bunny: SpeciesArt = {
     const teeth =
       e === 'happy' || e === 'love' ? (
         <g fill="#fff" stroke={OUTLINE} stroke-width={1} stroke-linejoin="round">
-          <path d={`M${x - 1.9} ${ny + 3.5} L${x - 1.9} ${ny + 5.4} Q${x - 1.9} ${ny + 6} ${x - 1.3} ${ny + 6} L${x + 1.3} ${ny + 6} Q${x + 1.9} ${ny + 6} ${x + 1.9} ${ny + 5.4} L${x + 1.9} ${ny + 3.5} Z`} />
+          <path
+            d={`M${x - 1.9} ${ny + 3.5} L${x - 1.9} ${ny + 5.4} Q${x - 1.9} ${ny + 6} ${x - 1.3} ${ny + 6} L${x + 1.3} ${ny + 6} Q${x + 1.9} ${ny + 6} ${x + 1.9} ${ny + 5.4} L${x + 1.9} ${ny + 3.5} Z`}
+          />
           <path d={`M${x} ${ny + 3.3} L${x} ${ny + 6}`} fill="none" />
         </g>
       ) : null;

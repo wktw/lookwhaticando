@@ -4,7 +4,17 @@ import { petalPath, sparklePath } from './shapes';
 /** Small drawn motifs shared by traits and wearables. All are centered on (0, 0). */
 
 /** Five-petal blossom (sakura, daisy-ish) with a butter center. */
-export function Blossom({ r = 6, color = '#F7A8C0', center = '#FFE08A', stroke = STROKE * 0.6 }: { r?: number; color?: string; center?: string; stroke?: number }) {
+export function Blossom({
+  r = 6,
+  color = '#F7A8C0',
+  center = '#FFE08A',
+  stroke = STROKE * 0.6,
+}: {
+  r?: number;
+  color?: string;
+  center?: string;
+  stroke?: number;
+}) {
   return (
     <g stroke={OUTLINE} stroke-width={stroke} stroke-linejoin="round">
       {[0, 72, 144, 216, 288].map((deg) => (
@@ -31,10 +41,10 @@ export function Daisy({ r = 6 }: { r?: number }) {
 export function Rose({ r = 6, color = '#F58CAA' }: { r?: number; color?: string }) {
   const k = r / 6;
   return (
-    <g transform={`scale(${k})`} stroke={OUTLINE} stroke-width={STROKE * 0.6 / k} stroke-linejoin="round" stroke-linecap="round">
+    <g transform={`scale(${k})`} stroke={OUTLINE} stroke-width={(STROKE * 0.6) / k} stroke-linejoin="round" stroke-linecap="round">
       <path d="M-5.6 -0.6 C-6.4 -4.6 -3 -6.6 0 -6.2 C3.4 -6.6 6.6 -4.4 5.8 -0.4 C5.2 3.6 2.6 5.8 0 5.8 C-2.8 5.8 -5 3.6 -5.6 -0.6 Z" fill={color} />
-      <path d="M-2.6 -1.8 C-2 -4 2.4 -4.2 2.8 -1.4 C3.2 1.2 0.4 2.6 -1.2 1.4 C-2.4 0.4 -1.2 -1.2 0.2 -0.6" fill="none" stroke-width={STROKE * 0.45 / k} />
-      <path d="M-5.2 1.2 C-3 3.4 3 3.4 5.4 1" fill="none" stroke-width={STROKE * 0.45 / k} opacity={0.6} />
+      <path d="M-2.6 -1.8 C-2 -4 2.4 -4.2 2.8 -1.4 C3.2 1.2 0.4 2.6 -1.2 1.4 C-2.4 0.4 -1.2 -1.2 0.2 -0.6" fill="none" stroke-width={(STROKE * 0.45) / k} />
+      <path d="M-5.2 1.2 C-3 3.4 3 3.4 5.4 1" fill="none" stroke-width={(STROKE * 0.45) / k} opacity={0.6} />
     </g>
   );
 }

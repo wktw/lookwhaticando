@@ -15,7 +15,7 @@ function RoundEar({ ctx, mirror }: { ctx: ArtCtx; mirror?: boolean }) {
 }
 
 /** A rounded cocoa nose with a highlight, above a little "ω" or an open mouth. */
-export function BearMouth({ ctx, noseRx = 3.4 }: { ctx: ArtCtx; noseRx?: number }) {
+function BearMouth({ ctx, noseRx = 3.4 }: { ctx: ArtCtx; noseRx?: number }) {
   const { x, y } = ctx.anchors.mouth;
   const e = ctx.expression;
   const ny = y - 3;
@@ -38,7 +38,13 @@ export function BearMouth({ ctx, noseRx = 3.4 }: { ctx: ArtCtx; noseRx?: number 
   return (
     <g>
       {open && (
-        <path d={`M${x - 3.4} ${my + 1.8} Q${x} ${my + 7.2} ${x + 3.4} ${my + 1.8} Z`} fill="#C75B73" stroke={OUTLINE} stroke-width={1.4} stroke-linejoin="round" />
+        <path
+          d={`M${x - 3.4} ${my + 1.8} Q${x} ${my + 7.2} ${x + 3.4} ${my + 1.8} Z`}
+          fill="#C75B73"
+          stroke={OUTLINE}
+          stroke-width={1.4}
+          stroke-linejoin="round"
+        />
       )}
       <path
         d={`M${x} ${my} L${x} ${my + 1.6} M${x - 3.4} ${my + 1.8} Q${x - 1.7} ${my + 3.8} ${x} ${my + 1.6} Q${x + 1.7} ${my + 3.8} ${x + 3.4} ${my + 1.8}`}
@@ -57,7 +63,18 @@ export const bear: SpeciesArt = {
   back: () => null,
   tail: (ctx) => {
     const p = ctx.look.palette;
-    return <circle class="pet-tail" style={{ '--tail-origin': '84px 84px' }} cx={85.6} cy={83} r={5} fill={p.tail ?? p.body} stroke={OUTLINE} stroke-width={STROKE} />;
+    return (
+      <circle
+        class="pet-tail"
+        style={{ '--tail-origin': '84px 84px' }}
+        cx={85.6}
+        cy={83}
+        r={5}
+        fill={p.tail ?? p.body}
+        stroke={OUTLINE}
+        stroke-width={STROKE}
+      />
+    );
   },
   ears: (ctx) => (
     <g>
