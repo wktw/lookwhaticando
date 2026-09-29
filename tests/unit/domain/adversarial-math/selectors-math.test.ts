@@ -12,6 +12,7 @@ import { trackingOf } from '@/domain/consistency';
 import * as habitsDomain from '@/domain/habits';
 import { todayVM, progressVM, type ViewEnv } from '@/state/selectors';
 import { Game, UTC } from '../game';
+import { blockSummary, restingRow, showedUpLine, statusLine, vineChip } from '@/catalog/format';
 
 const envOf = (g: Game): ViewEnv => ({ today: g.today, now: g.now, local: UTC });
 const cardOf = (g: Game, id: string, date?: string) => {
@@ -23,33 +24,34 @@ const cardOf = (g: Game, id: string, date?: string) => {
 /* Pace lines ("1 more by Sun") and "N of M this week"                 */
 /* ------------------------------------------------------------------ */
 
-describe('pace line and "N of M" agree (DESIGN §9.1 "2 of 3 this week", §13.2 pace line "1 more by Sun")', () => {
+describe('the flexible status line (DESIGN §9.1.1 "2 of 3 this week", VOICE.md §5: nothing after it)', () => {
   it.each([
     ['weekly 3× created on a Sunday', '2026-09-27', { kind: 'weekly', times: 3, every: 1 } as const],
     ['monthly 2× created on the 29th', '2026-09-29', { kind: 'monthly', times: 2, every: 1 } as const],
-  ])('[FAILS] %s: an unmet goal never reads "0 more"', (_label, start, schedule) => {
+  ])('%s: an unmet goal never reads "0 of …" or a count of what is left', (_label, start, schedule) => {
     const g = new Game({ start });
     const id = g.addHabit({ name: 'Yoga', schedule });
     const c = cardOf(g, id);
     expect(c.met).toBe(false);
-    // Observed: target_p = round(times × activeFrac) = 0, so the card prints "0 of 1 this week ·
-    // 0 more by today": the goal shown (max(1, target) = 1) and `needed` (target − check-ins = 0)
-    // come from two different numbers.
-    expect(c.pace!.needed).toBe(c.pace!.target - c.pace!.checkins);
-    expect(c.subtitle.text).not.toMatch(/\b0 more\b/);
+    expect(c.pace!.checkins).toBe(0);
+    expect(c.subtitle.kind).not.toBe('period'); // no watering yet this period: no period line at all
+    const words = statusLine(c.subtitle, 1);
+    expect(words ?? '').not.toMatch(/\b0\b|more|by /);
   });
 
-  it('a normal week reads "1 of 3 this week · 2 more by Sun", then "Done for the week ✓" (passes)', () => {
+  it('a normal week reads "1 of 3 this week" (nothing after it), then "Watered for the week ✓"', () => {
     const g = new Game({ start: '2026-09-21' }); // Monday
     const id = g.addHabit({ name: 'Yoga', schedule: { kind: 'weekly', times: 3, every: 1 } });
     g.goTo('2026-09-23');
     g.checkIn(id);
-    expect(cardOf(g, id).subtitle.text).toBe('1 of 3 this week · 2 more by Sun');
+    expect(cardOf(g, id).subtitle).toEqual({ kind: 'period', count: 1, target: 3, period: { kind: 'weekly', every: 1 }, current: true });
+    expect(statusLine(cardOf(g, id).subtitle)).toBe('1 of 3 this week');
     g.goTo('2026-09-24');
     g.checkIn(id);
     g.goTo('2026-09-25');
     g.checkIn(id);
-    expect(cardOf(g, id).subtitle).toEqual({ kind: 'period-done', text: 'Done for the week ✓' });
+    expect(cardOf(g, id).subtitle).toEqual({ kind: 'period-done', period: { kind: 'weekly', every: 1 } });
+    expect(statusLine(cardOf(g, id).subtitle)).toBe('Watered for the week ✓');
     expect(todayVM(g.state, envOf(g)).doneForPeriod.map((c) => c.id)).toEqual([id]);
   });
 });
@@ -82,7 +84,7 @@ describe('rolling phrases never count today against you (DESIGN §5.3 "Today is 
     const s = showedUpDays(trackingOf(g.state), g.today, 30);
     // Observed: { days: 29, span: 30 } → "You showed up 29 of the last 30 days".
     expect(s.days).toBe(s.span);
-    expect(progressVM(g.state, envOf(g)).showedUp.text).toBe('You showed up 30 of the last 30 days');
+    expect(showedUpLine(progressVM(g.state, envOf(g)).showedUp)).toBe('You showed up 30 of the last 30 days');
   });
 
   it('once today is checked in, the phrase is 30 of 30 (passes)', () => {
@@ -119,7 +121,7 @@ describe('time blocks follow the app day (DESIGN §13.2 "The current block comes
     g.addHabit({ name: 'Journal', timeOfDay: 'evening' });
     g.checkIn(m);
     const vm = todayVM(g.state, envOf(g));
-    expect(vm.blocks.map((b) => [b.id, b.current, b.collapsed, b.summary])).toEqual([
+    expect(vm.blocks.map((b) => [b.id, b.current, b.collapsed, blockSummary(b)])).toEqual([
       ['evening', true, false, 'Evening 0/1'],
       ['morning', false, true, 'Morning 1/1'],
     ]);
@@ -143,9 +145,10 @@ describe('week strip and day progress (DESIGN §9.1; §13.2 rests/pauses) — pa
     const vm = todayVM(g.state, envOf(g));
     expect(vm.weekStrip.map((d) => `${d.letter}${d.day}${d.weekStart ? '|' : ''}`)).toEqual(['M28', 'T29', 'W30', 'T31', 'F1', 'S2', 'S3']);
     // Sunday: Walk done, Read rested (allowed), Nap paused → 1 of 1.
-    expect(vm.progress).toMatchObject({ done: 1, total: 1, label: '1 of 1' });
+    expect(vm.progress).toMatchObject({ done: 1, total: 1 });
+    expect(vineChip(vm.progress)).toBe('1 of 1');
     expect(vm.weekStrip[6]).toMatchObject({ isToday: true, done: 1, due: 1, fraction: 1 });
-    expect(vm.paused?.text).toBe('Resting: 1 habit');
+    expect(restingRow(vm.paused!)).toBe('Resting: 1 habit');
     g.run((tx) => {
       tx.section('settings').weekStart = 0;
     });

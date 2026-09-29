@@ -187,7 +187,8 @@ function checkCompany(r: Report, c: unknown, petIds: Set<string>): void {
       isDateKey(v.since) &&
       nonNeg(v.sunshine) &&
       nonNegInt(v.waterings) &&
-      (v.whyAsked === undefined || v.whyAsked === true);
+      (v.whyAsked === undefined || v.whyAsked === true) &&
+      (v.knownForSince === undefined || isDateKey(v.knownForSince));
     if (!r.check(ok, path, 'bad pairing')) return;
     const pair = v as Obj;
     r.check(petIds.has(pair.petId as string), `${path}.petId`, 'unknown pet');
@@ -255,6 +256,29 @@ function checkPet(r: Report, p: unknown, id: string, path: string): void {
     `${path}.daily`,
     'bad daily counters',
   );
+  // The Shelf (§8.4, §8.2): a place that isn't open (a restored older save) reads as the Sill.
+  if (o.place !== undefined) r.check(oneOf(PLACE_IDS)(o.place), `${path}.place`, 'unknown place');
+  if (o.spot !== undefined) {
+    const sp = o.spot;
+    r.check(isObj(sp) && ((sp.kind === 'pot' && isStr(sp.habitId)) || (sp.kind === 'place' && oneOf(PLACE_IDS)(sp.place))), `${path}.spot`, 'bad spot');
+  }
+  if (o.bestFriend !== undefined) r.check(isStr(o.bestFriend), `${path}.bestFriend`, 'not a string');
+  if (o.bestFriendsOn !== undefined) r.check(isDateKey(o.bestFriendsOn), `${path}.bestFriendsOn`, 'not a date');
+  if (o.memories !== undefined) {
+    r.check(
+      Array.isArray(o.memories) &&
+        o.memories.every(
+          (m) =>
+            isObj(m) &&
+            oneOf(['best-friends', 'came-home', 'bloomed', 'moved-in', 'favourite', 'day'] as const)(m.kind) &&
+            isDateKey(m.date) &&
+            (m.habitId === undefined || isStr(m.habitId)) &&
+            (m.treatId === undefined || isStr(m.treatId)),
+        ),
+      `${path}.memories`,
+      'bad memories',
+    );
+  }
 }
 
 /** Validates an unknown value as a current-schema AppState. */
@@ -338,7 +362,7 @@ export function validateState(x: unknown): ValidationResult {
     checkRecord(r, g.daily, 'ledger.daily', (v, _k, path) => r.check(nonNeg(v), path, 'not a number ≥ 0'), isDateKey);
   }
 
-  checkRecord(r, s.collection, 'collection', (v, _k, path) => r.check(isObj(v) && isInt(v.count) && v.count >= 1 && nonNeg(v.firstAt), path, 'bad entry'));
+  checkRecord(r, s.collection, 'collection', (v, _k, path) => r.check(isObj(v) && isInt(v.count) && v.count >= 1 && nonNeg(v.firstAt) && (v.ordered === undefined || v.ordered === true), path, 'bad entry'));
   checkRecord(
     r,
     s.pity,
@@ -429,7 +453,7 @@ export function validateState(x: unknown): ValidationResult {
   }
   if (s.pendingReveal !== undefined) {
     const p = s.pendingReveal;
-    r.check(isObj(p) && oneOf(MACHINE_IDS)(p.machineId) && isStr(p.itemId) && isBool(p.isNew) && nonNeg(p.stardust) && nonNeg(p.fusedStars) && nonNeg(p.at), 'pendingReveal', 'bad reveal');
+    r.check(isObj(p) && oneOf(MACHINE_IDS)(p.machineId) && isStr(p.itemId) && isBool(p.isNew) && nonNeg(p.stardust) && nonNeg(p.fusedStars) && nonNeg(p.at) && (p.order === undefined || p.order === true), 'pendingReveal', 'bad reveal');
   }
   if (r.check(isObj(s.clock), 'clock', 'not an object')) {
     const c = s.clock as Obj;

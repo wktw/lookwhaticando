@@ -18,7 +18,7 @@ import type { DateKey } from './types';
 import { machineStatusOf, now, state, storeLocal, storeTimeZone, today } from './store';
 import type { ViewEnv } from './views/common';
 import { todayVM, type TodayVM } from './views/today';
-import { habitDetailVM, type HabitDetailVM } from './views/habit';
+import { habitDetailVM, habitEditorVM, type HabitDetailVM, type HabitEditorVM } from './views/habit';
 import { calendarMonthVM, yearQuiltVM, type CalendarMonthVM, type YearQuiltVM } from './views/calendar';
 import { progressVM, type ProgressVM } from './views/progress';
 import { capsulesVM, collectionVM, seriesVM, walletVM, wishListVM, type CapsulesVM, type CollectionVM, type SeriesVM, type WalletVM, type WishListVM } from './views/capsules';
@@ -82,6 +82,8 @@ function memoSelector<A extends unknown[], T>(make: (...args: A) => ReadonlySign
 /** Today for a selected day of the week strip (defaults to today). */
 export const selectToday = memoSelector((date?: DateKey) => computed(() => todayVM(state.value, hourEnv.value, date)));
 export const selectHabitDetail = memoSelector((id: string) => computed<HabitDetailVM | null>(() => habitDetailVM(state.value, dayEnv.value, id)));
+/** The Habit Editor: an existing habit (id), or a new one (null), optionally from a template. */
+export const selectHabitEditor = memoSelector((id: string | null, templateId?: string) => computed<HabitEditorVM | null>(() => habitEditorVM(state.value, dayEnv.value, id, templateId)));
 export const selectCalendarMonth = memoSelector((habitId: string | null, month: string) => computed<CalendarMonthVM>(() => calendarMonthVM(state.value, dayEnv.value, habitId, month)));
 export const selectYearQuilt = memoSelector((year: number, habitId: string | null = null) => computed<YearQuiltVM>(() => yearQuiltVM(state.value, dayEnv.value, year, habitId)));
 export const selectSeries = memoSelector((machineId: MachineId) => computed<SeriesVM>(() => seriesVM(state.value, dayEnv.value, machineId)));

@@ -7,6 +7,9 @@
  * - Pets out: at most `petsOutCapacity` pets have `inMeadow` (internal name for "out on the
  *   Shelf"). A pet obtained while the Shelf is full starts indoors. Every pet can be brought in
  *   or out; there is no pet that must stay out.
+ * - Each pet out spends the day in a place (places.ts): `setPetPlace` moves it (the place must be
+ *   open and have room), "Let {name} choose" picks by species (`suggestPlaceFor`), and opening a
+ *   place moves in the never-placed pets who love it most, up to its room (`buyPlace` → `movedIn`).
  * - Decor is placed freely: one placement per owned copy, up to 24 per place, coordinates 0..1
  *   within the place, optionally flipped. Placement ids are unique and stable. A companion's
  *   keepsake (§14.1) places like decor, as 'keepsake:<id>' (one copy).
@@ -19,7 +22,8 @@ import type { AppState, PlacedDecor } from '@/state/types';
 import { owns } from './collection';
 import type { Tx } from './tx';
 import { spendCoins } from './wallet';
-import { keepsakeOfItem } from './company';
+import { keepsakeOfItem, setCompanion, suggestHabitFor } from './company';
+import { hasRoomIn, lovedPlaces, petPlace, placeRoom, petsInPlace, speciesOfPet, suggestPlaceFor } from './places';
 
 export const MAX_DECOR_PER_PLACE = 24;
 
@@ -40,22 +44,74 @@ export function hasRoomOut(s: Pick<AppState, 'pets' | 'shelf'>): boolean {
   return petsOutCount(s) < petsOutCapacity(s);
 }
 
-/** Opens a place with coins. Places stay in Shelf order (left to right) whatever order they were bought in. */
+/**
+ * Opens a place with coins. Places stay in Shelf order (left to right) whatever order they were
+ * bought in. The pets out who love it and have never been placed move in, up to its room (the
+ * closest friends first; a companion stays with its pot): `movedIn`, for "The Saucer Pond is open.
+ * {name} went straight to the lily pad."
+ */
 export function buyPlace(tx: Tx, place: PlaceId): PlacePurchase {
   const def = PLACE_BY_ID.get(place);
   if (!def || tx.s.shelf.places.includes(place)) return { ok: false, error: 'owned' };
   if (!spendCoins(tx, def.price)) return { ok: false, error: 'not-enough-coins' };
+  tx.emit({ type: 'coins', amount: -def.price, reason: 'spend' });
   const shelf = tx.section('shelf');
   shelf.places = PLACES.map((p) => p.id).filter((id) => id === place || shelf.places.includes(id));
-  return { ok: true, place };
+  return { ok: true, place, movedIn: settleNewPlace(tx, place) };
 }
 
-/** Brings a pet in, or out onto the Shelf when there is room. */
+/** Moves the never-placed pets out who love `place` into it, up to its room. Returns their ids. */
+function settleNewPlace(tx: Tx, place: PlaceId): string[] {
+  const busy = new Set(tx.s.habits.filter((h) => h.archivedOn === undefined).map((h) => h.companionId));
+  const room = placeRoom(place) - petsInPlace(tx.s, place).length;
+  const movers = Object.values(tx.s.pets)
+    .filter((p) => p.inMeadow && p.place === undefined && !busy.has(p.id) && lovedPlaces(tx.s, speciesOfPet(p.id)).includes(place))
+    .sort((a, b) => b.xp - a.xp || a.obtainedAt - b.obtainedAt || (a.id < b.id ? -1 : 1))
+    .slice(0, Math.max(0, room));
+  for (const p of movers) tx.pet(p.id).place = place;
+  return movers.map((p) => p.id);
+}
+
+/**
+ * Moves a pet to a place ("Move {name}"; null = back to the Sill). The place must be open and have
+ * room. Returns false when refused.
+ */
+export function setPetPlace(tx: Tx, petId: string, place: PlaceId | null): boolean {
+  const pet = tx.s.pets[petId];
+  const to = place ?? 'sill';
+  if (!pet || !tx.s.shelf.places.includes(to)) return false;
+  if (pet.place === to) return true;
+  if (!hasRoomIn(tx.s, to, petId)) return false;
+  tx.pet(petId).place = to;
+  return true;
+}
+
+/**
+ * "Let {name} choose" (§7.2, VOICE.md §10): the pet picks a plant to keep company (by its species'
+ * routines, `suggestHabitFor`) when it has none, and a place its species loves (`suggestPlaceFor`).
+ * Returns what it chose ("{name} chose {plant}, for the sun." / "{name} chose the Saucer Pond.").
+ */
+export function letPetChoose(tx: Tx, petId: string): { habitId: string | null; place: PlaceId } | null {
+  if (!tx.s.pets[petId]) return null;
+  const has = tx.s.habits.some((h) => h.companionId === petId && h.archivedOn === undefined);
+  let habitId: string | null = null;
+  if (!has) {
+    const suggested = suggestHabitFor(tx.s, petId);
+    if (suggested && setCompanion(tx, suggested, petId)) habitId = suggested;
+  }
+  const place = suggestPlaceFor(tx.s, petId);
+  setPetPlace(tx, petId, place);
+  return { habitId, place: petPlace(tx.s, tx.s.pets[petId]!) };
+}
+
+/** Brings a pet in, or out onto the Shelf when there is room (back to the Sill if its place is full). */
 export function togglePetOut(tx: Tx, petId: string): boolean {
   const pet = tx.s.pets[petId];
   if (!pet) return false;
   if (!pet.inMeadow && !hasRoomOut(tx.s)) return false;
-  tx.pet(petId).inMeadow = !pet.inMeadow;
+  const out = !pet.inMeadow;
+  if (out && pet.place !== undefined && pet.place !== 'sill' && !hasRoomIn(tx.s, petPlace(tx.s, pet), petId)) tx.pet(petId).place = 'sill';
+  tx.pet(petId).inMeadow = out;
   return true;
 }
 

@@ -89,7 +89,7 @@ export const MACHINES: readonly MachineDef[] = [
     currency: 'coins',
     price: 25,
     theme: { body: '#DDA088', trim: '#F9EBE3', glass: '#FFF8F4', capsules: ['#EFCDBD', '#F6E6B4', '#DDD4F1', '#D5E3C7', CREAM], ink: '#7F3E24' },
-    seasonal: { start: { month: 9, day: 1 }, end: { month: 11, day: 10 }, emoji: '🍂' },
+    seasonal: { start: { month: 9, day: 1 }, end: { month: 11, day: 10 } },
     odds: { ...COIN_ODDS },
   },
   {
@@ -99,7 +99,7 @@ export const MACHINES: readonly MachineDef[] = [
     currency: 'coins',
     price: 25,
     theme: { body: '#D2E4F2', trim: CREAM, glass: '#F7FAFD', capsules: [CREAM, '#D2E4F2', '#F5CDD6', '#D5E3C7', '#F6E6B4'], ink: '#2D6186' },
-    seasonal: { start: { month: 11, day: 11 }, end: { month: 1, day: 14 }, emoji: '❄️' },
+    seasonal: { start: { month: 11, day: 11 }, end: { month: 1, day: 14 } },
     odds: { ...COIN_ODDS },
   },
   {
@@ -109,7 +109,7 @@ export const MACHINES: readonly MachineDef[] = [
     currency: 'coins',
     price: 25,
     theme: { body: '#DDB6DA', trim: '#F8ECF6', glass: '#FDF7FC', capsules: ['#F5CDD6', '#EDD3EA', CREAM, '#F6E6B4', '#EFB4C1'], ink: '#763A74' },
-    seasonal: { start: { month: 1, day: 15 }, end: { month: 2, day: 29 }, emoji: '💌' },
+    seasonal: { start: { month: 1, day: 15 }, end: { month: 2, day: 29 } },
     odds: { ...COIN_ODDS },
   },
   {
@@ -119,7 +119,7 @@ export const MACHINES: readonly MachineDef[] = [
     currency: 'coins',
     price: 25,
     theme: { body: '#D5E3C7', trim: '#FBE9EC', glass: '#FDF8F9', capsules: ['#F5CDD6', '#D5E3C7', '#F6E6B4', CREAM, '#D2E4F2'], ink: '#3F5C34' },
-    seasonal: { start: { month: 3, day: 1 }, end: { month: 5, day: 31 }, emoji: '🌷' },
+    seasonal: { start: { month: 3, day: 1 }, end: { month: 5, day: 31 } },
     odds: { ...COIN_ODDS },
   },
   {
@@ -129,7 +129,7 @@ export const MACHINES: readonly MachineDef[] = [
     currency: 'coins',
     price: 25,
     theme: { body: '#F6E6B4', trim: '#EAF2F9', glass: '#F7FAFD', capsules: ['#F6E6B4', '#D2E4F2', '#F5CDD6', '#CDE6DA', CREAM], ink: '#2D6186' },
-    seasonal: { start: { month: 6, day: 1 }, end: { month: 8, day: 31 }, emoji: '☀️' },
+    seasonal: { start: { month: 6, day: 1 }, end: { month: 8, day: 31 } },
     odds: { ...COIN_ODDS },
   },
 ];
@@ -153,7 +153,7 @@ export const SEASONAL_MACHINE_IDS: readonly SeasonalMachineId[] = ['autumn', 'wi
 /** Duplicate → swaps by rarity (internally `stardust`; DESIGN §6). 10 swaps make a stamp. */
 export const STARDUST_FOR_DUPLICATE = { common: 2, uncommon: 4, rare: 8, ultra: 15 } as const;
 /** Special Order stamp prices by rarity (internally the "wish"; DESIGN §7.3). */
-export const WISH_PRICE = { common: 2, uncommon: 4, rare: 8, ultra: 15 } as const;
+export const WISH_PRICE = { common: 3, uncommon: 4, rare: 8, ultra: 15 } as const;
 export const STARDUST_PER_STAR = 10;
 export const PITY_RARE = 10;
 export const PITY_ULTRA = 40;

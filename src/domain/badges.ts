@@ -17,7 +17,7 @@ import { BADGES, BADGE_BY_ID } from '@/catalog/badges';
 import { MACHINES } from '@/catalog/machines';
 import type { Rarity } from '@/catalog/types';
 import type { AppState } from '@/state/types';
-import { albumProgress, isMachineComplete, machineCollectiblesOwned } from './collection';
+import { albumProgress, capsuleCollectiblesOwned, isMachineComplete } from './collection';
 import { clampDayStartsAt, type LocalTimeReader } from './dates';
 import { levelForXp, MAX_FRIEND_LEVEL } from './levels';
 import type { Tx } from './tx';
@@ -89,7 +89,7 @@ export function windDownCheckins(s: AppState, local: LocalTimeReader): number {
 
 const maxBestStage = (s: AppState): number => Math.max(0, ...Object.values(s.ledger.bestStage));
 const checkins = (n: number): Rule => ({ s }) => s.lifetime.checkins >= n;
-const collected = (n: number): Rule => ({ s }) => machineCollectiblesOwned(s.collection) >= n;
+const collected = (n: number): Rule => ({ s }) => capsuleCollectiblesOwned(s.collection) >= n;
 
 /** One rule per catalog badge. */
 export const BADGE_RULES: Readonly<Record<string, Rule>> = {
@@ -157,7 +157,7 @@ function checkAlbums(tx: Tx): void {
     if (exclusive) grantExclusive(tx, exclusive);
     tx.emit(exclusive ? { type: 'album', albumId: album.id, stars, exclusive } : { type: 'album', albumId: album.id, stars });
     if (firstAlbum) awardBadge(tx, 'album-complete');
-    else grantStars(tx, stars, 'gift');
+    else grantStars(tx, stars, 'album');
   }
 }
 

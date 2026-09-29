@@ -6,9 +6,9 @@
   `progress = (sun - th[stage]) / (th[stage + 1] - th[stage])`; at Evergreen (stage 7) there is no next threshold, so pass
   `0` (or leave it out). PlantArt is defensive anyway: NaN or non-numeric progress counts as 0, and progress, stage and
   blooms are clamped, so bad input can never produce broken path data.
-- `blooms`: after Evergreen, `floor((sun - 180) / 30)`. Pass the raw count: PlantArt ignores blooms below
-  stage 7, draws at most `MAX_BLOOMS` (6, exported) and adds a golden sparkle once the cap is reached.
-- `pulse`: pass a **monotonic check-in counter** for the habit (e.g. its total completions). The watering wiggle,
+- `blooms`: superseded (M1): pass the view model's `plant.blooms` (`artBlooms` in domain/growth.ts): undefined below
+  Evergreen, so the art follows the stage, and 5 + the extra blooms at Evergreen. See NOTES-plants.md.
+- `pulse`: pass the card's `waterings` (SillPotVM `pulse`), a counter that rises with every watering tap. The watering wiggle,
   droplets and sparkle play only when the value goes **up** after mount: the first render, an undo (the value going down)
   and remounts never water the plant. Under reduced motion nothing moves; the droplets and sparkle just fade in and out.
 - `animated`: gentle idle sway. Loops pause automatically while a plant is scrolled off screen (one shared
@@ -23,15 +23,12 @@
 
 ## Contract-change requests
 
-1. **`MeadowScene` planters (src/art/scene/index.tsx, world module)**: `planters?: { species: string; stage: number; pot: string }[]`
-   is typed with plain strings. Please type them as `{ species: PlantSpeciesId; stage: number; pot: PotId; progress?: number; blooms?: number }`
-   so the planter box can pass straight through to `PlantArt` without casts and show the same in-stage detail.
-2. **DESIGN §5.5 pot list vs catalog**: the doc lists "Strawberry, Moon, Snow Globe Base, Gold" pots and a "Cat Face" pot,
+1. **DESIGN §5.5 pot list vs catalog**: the doc lists "Strawberry, Moon, Snow Globe Base, Gold" pots and a "Cat Face" pot,
    while `catalog/types.ts` has `kitty, frog, pumpkin, snowy, heart, starlight` (no strawberry/moon/gold). Art follows the
    catalog; the doc line should be updated to match.
-3. **Optional, `CollectibleArt` (plants)**: it renders plant unlocks at stage 5 in a terracotta pot. Stage 5 reads well in the
+2. **Optional, `CollectibleArt` (plants)**: it renders plant unlocks at stage 5 in a terracotta pot. Stage 5 reads well in the
    collection book; if the lead wants unlocks to feel more rewarding on the reveal card, stage 6 is the fullest non-Evergreen look.
-4. **Shared shape primitives**: treat art (`src/art/items/treats.tsx`) imports `Blob`, `Merged`, `Shine`, `circleD`, `leafD`,
+3. **Shared shape primitives**: treat art (`src/art/items/treats.tsx`) imports `Blob`, `Merged`, `Shine`, `circleD`, `leafD`,
    `FINE` and `SPARKLE_D` from `src/art/plants/parts.tsx`. Other item/decor modules will want the same helpers. Suggest moving
    them to a shared `src/art/shapes.tsx` (owned by the lead) and having both plants and items import from there. No behaviour
    change; it only removes the cross-module dependency.

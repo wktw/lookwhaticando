@@ -6,3 +6,5 @@ export * from './personalities';
 export * from './badges';
 export * from './habitIcons';
 export * from './places';
+export * from './lines';
+export * from './format';

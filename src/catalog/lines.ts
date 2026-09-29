@@ -1488,6 +1488,13 @@ export const CHECKIN_ASIDES: Readonly<{ awake: readonly Line[]; asleep: readonly
 /* ------------------------------------------------------------------------ */
 
 /**
+ * The stage names (DESIGN §5.5), Cutting (0) to Evergreen (7). The single source: domain/growth.ts,
+ * the plant art and the fx layer re-export this list.
+ */
+export const STAGE_NAMES = ['Cutting', 'Rooting', 'Potted', 'Leafy', 'Budding', 'Blooming', 'Flourishing', 'Evergreen'] as const;
+export type StageName = (typeof STAGE_NAMES)[number];
+
+/**
  * One line per stage, Cutting (0) to Evergreen (7), for the toast or banner when a plant
  * reaches it. Slot: {Plant} (`capitalise(plantPhrase(...))`). At Blooming, prefer the species'
  * own line from BLOOM_LINES; index 5 here is the fallback.
@@ -1976,3 +1983,599 @@ export function greetingPeriod(hour: number): GreetingPeriod {
   if (hour >= 17 && hour < 22) return 'evening';
   return 'late';
 }
+
+/* ------------------------------------------------------------------------ */
+/* Today: the card status line, the vine chip, the rows (VOICE.md §5)        */
+/* ------------------------------------------------------------------------ */
+
+/**
+ * The card status line (DESIGN §9.1.1, first match wins). `statusLine()` in format.ts picks the
+ * template from the card's `status` data. Slots: {count}, {target}, {unit}, {period} (PERIOD_WORDS),
+ * {run} (a RUN template filled). Never a 0, never a deadline, never what's left.
+ */
+export const STATUS_LINE = {
+  rested: 'Resting today',
+  count: '{count}/{target} {unit}',
+  countBare: '{count}/{target}',
+  tiny: 'Tiny version ✓',
+  period: '{count} of {target} this {period}',
+  /** A selected past day in a closed period. */
+  periodThen: '{count} of {target} that {period}',
+  periodDone: 'Watered for the {period} ✓',
+  heldOff: 'Held off {run}',
+  rooting: 'Rooting · {count} more to pot up',
+  new: 'Just planted',
+} as const;
+
+/** Flexible periods by `every` (weekly: 1–4 weeks; monthly: 1, 2, 3, 6, 12 months). */
+export const PERIOD_WORDS = {
+  weekly: { 1: 'week', 2: 'fortnight', 3: '3 weeks', 4: '4 weeks' },
+  monthly: { 1: 'month', 2: '2 months', 3: 'quarter', 6: 'half-year', 12: 'year' },
+} as const;
+
+/**
+ * A run, "in a row" (VOICE.md §3: the word for a streak). `short` is the card's own daily form ("12
+ * days"); every other place, and every other unit, says "in a row". Slot: {count}.
+ */
+export const RUN = {
+  days: { short: { one: '1 day', other: '{count} days' }, long: { one: '1 day in a row', other: '{count} days in a row' } },
+  times: { one: '1 in a row', other: '{count} in a row' },
+  weeks: { one: '1 week in a row', other: '{count} weeks in a row' },
+  months: { one: '1 month in a row', other: '{count} months in a row' },
+} as const;
+
+/**
+ * The rolling phrase (DESIGN §5.4). Slots: {count}, {span}, {days} ("Mon/Wed/Fri"), {tiny}. `soFar`
+ * is for a flexible habit before a full span has passed.
+ */
+export const CONSISTENCY_LINES = {
+  days: { one: '{count} of the last 1 day', other: '{count} of the last {span} days' },
+  weekdays: '{count} of your last {span} {days}',
+  weeks: {
+    1: { full: '{count} of the last {span} weeks', soFar: { one: '{count} of 1 week so far', other: '{count} of {span} weeks so far' } },
+    2: { full: '{count} of the last {span} fortnights', soFar: { one: '{count} of 1 fortnight so far', other: '{count} of {span} fortnights so far' } },
+    3: { full: '{count} of the last {span} 3-week stretches', soFar: { one: '{count} of 1 3-week stretch so far', other: '{count} of {span} 3-week stretches so far' } },
+    4: { full: '{count} of the last {span} 4-week stretches', soFar: { one: '{count} of 1 4-week stretch so far', other: '{count} of {span} 4-week stretches so far' } },
+  },
+  months: {
+    1: { full: '{count} of the last {span} months', soFar: { one: '{count} of 1 month so far', other: '{count} of {span} months so far' } },
+    2: { full: '{count} of the last {span} 2-month stretches', soFar: { one: '{count} of 1 2-month stretch so far', other: '{count} of {span} 2-month stretches so far' } },
+    3: { full: '{count} of the last {span} quarters', soFar: { one: '{count} of 1 quarter so far', other: '{count} of {span} quarters so far' } },
+    6: { full: '{count} of the last {span} half-years', soFar: { one: '{count} of 1 half-year so far', other: '{count} of {span} half-years so far' } },
+    12: { full: '{count} of the last {span} years', soFar: { one: '{count} of 1 year so far', other: '{count} of {span} years so far' } },
+  },
+  tiny: '{phrase} · {tiny} tiny',
+} as const;
+
+/** The rest of Today (VOICE.md §5, §17, §23). Slots as named. */
+export const TODAY_LINES = {
+  blocks: { morning: 'Morning', midday: 'Midday', evening: 'Evening', anytime: 'Anytime' },
+  /** A folded block: "Morning 3/3". */
+  blockSummary: '{block} {done}/{total}',
+  /** The vine chip on the sill ledge. */
+  vine: '{done} of {total}',
+  vineCoins: { one: '{done} of {total} · +1 coin', other: '{done} of {total} · +{coins} coins' },
+  /** Only flexible habits watered, nothing day-based on. */
+  vineFlexible: '{count} watered',
+  /** Screen readers: the day's progress, and a week-strip day ({date} is the long date). */
+  dayAria: '{done} of {total} watered',
+  weekDayAria: '{date}, {done} of {total} watered',
+  rows: { doneForWeek: 'Watered for the week', doneForPeriod: 'Watered for the {period}', thisMonth: 'This month', otherDays: 'Other days' },
+  resting: { one: 'Resting: 1 habit', other: 'Resting: {count} habits' },
+  restingBack: '{resting} · back {date}',
+  backdating: 'Logging for {date}',
+  backToToday: 'Back to today',
+  /** Button names while a past day is selected: "Walk for Saturday". */
+  forDay: '{habit} for {weekday}',
+  startEarlier: 'Start tracking {habit} from {date}?',
+  startFrom: 'Start from {date}',
+  notNow: 'Not now',
+  historyNote: 'Fixes history. No coins for this one.',
+  clockBehind: 'The clock on this device reads earlier than catkin last saw. Coins and stamps wait until it’s right again.',
+  openShelf: 'Open the Shelf',
+  firstCapsule: 'Your first capsule: water anything.',
+  letterWaiting: { sundayNote: 'There’s a note on the sill.', herbarium: 'There’s a page on the sill.', anniversary: 'There’s a note on the sill.' },
+  storyWaiting: 'There’s a story on the plant tag for {habit}.',
+  /** A count habit's card, for screen readers ("Drink water, 5 of 8 glasses"). */
+  cardAria: '{habit}, {count} of {target} {unit}',
+  cardAriaBare: '{habit}, {count} of {target}',
+  addOne: 'Add {step} {unit} to {habit}',
+  /** Collapsed band. */
+  takeTodayOff: 'Take today off',
+  takeTodayOffConfirm: 'Take today off? Every habit rests, the same as a rest day.',
+  offDayAllowance: 'Days off this month: {count}. Up to 4 count as rests.',
+  restAllowance: 'Up to {count} rest days a week count as watered. More still get a moon, and the numbers count the first {count}.',
+  restDaysAhead: 'Resting {days}',
+  notePlaceholder: 'A line about today',
+  saveNote: 'Save note',
+  srWatered: '{habit}, watered. Plus {coins} coins.',
+  srWateredOne: '{habit}, watered. Plus 1 coin.',
+  srWateredMany: '{count} habits watered. Plus {coins} coins.',
+} as const;
+
+/* ------------------------------------------------------------------------ */
+/* Progress (VOICE.md §6)                                                    */
+/* ------------------------------------------------------------------------ */
+
+/** Counted nouns, in numerals. Slot: {count}. */
+export const COUNTS = {
+  waterings: { one: '1 watering', other: '{count} waterings' },
+  days: { one: '1 day', other: '{count} days' },
+  habits: { one: '1 habit', other: '{count} habits' },
+  stamps: { one: '1 stamp', other: '{count} stamps' },
+  coins: { one: '1 coin', other: '{count} coins' },
+  swaps: { one: '1 swap', other: '{count} swaps' },
+  tickets: { one: 'a ticket', other: '{count} tickets' },
+} as const;
+
+/**
+ * Progress looks back only at what happened: a lower number is simply not shown. Slots: {days},
+ * {span}, {Month} ("September"), {Mon} ("Aug"), {count}, {habit}, {year}, {run}, {weekday}.
+ */
+export const PROGRESS_LINES = {
+  showedUp: 'You showed up {days} of the last {span} days',
+  monthSoFar: '{Month} so far: {days} of {span} days',
+  soFar: '{count} of {span} so far',
+  week: '{count} of {span} this week',
+  up: 'Up on the same days last month',
+  level: 'Level with the same days last month',
+  fact: {
+    current: { one: '1 watering so far in {Month}.', other: '{count} waterings so far in {Month}.' },
+    closed: { one: '1 watering in {Month}.', other: '{count} waterings in {Month}.' },
+  },
+  steadiest: { current: '{habit} is the steadiest.', closed: '{habit} was the steadiest.' },
+  goals: { one: '1 goal on track', other: '{count} goals on track' },
+  rests: { one: '1 rest', other: '{count} rests' },
+  offDays: { one: '1 day off', other: '{count} days off' },
+  monthBar: { one: '{Mon} · 1 day', other: '{Mon} · {days} days' },
+  /** Slots: {waterings}, {days} (COUNTS filled). */
+  year: '{waterings} in {year}, across {days}',
+  records: {
+    waterings: 'Waterings: {count}',
+    tiny: 'Tiny versions: {count}',
+    longest: 'Longest run: {habit}, {run}',
+    bestMonth: 'Best month: {Month}',
+    perfectDays: { one: 'Everything watered: 1 day', other: 'Everything watered: {count} days' },
+    showUpDays: 'Days showing up: {count}',
+  },
+  insights: {
+    weekday: '{weekday}s are the steadiest.',
+    habit: '{habit} is the steadiest habit.',
+    time: {
+      morning: 'Mornings are when most watering happens.',
+      midday: 'Middays are when most watering happens.',
+      evening: 'Evenings are when most watering happens.',
+      night: 'Late nights are when most watering happens.',
+    },
+  },
+  empty: 'This fills in as you water.',
+  calendarNoNotes: 'No notes on {date}.',
+  recordsEmpty: 'Records fill in as you go.',
+  insightsEmpty: 'Insights fill in after 2 weeks of watering.',
+  pinsEmpty: 'Your pins go on this shelf as you earn each one.',
+  memoryShelf: 'Memory shelf',
+  memoryShelfEmpty: 'Sunday Notes, Herbarium pages and retired plants are kept here.',
+  memoryItems: { sundayNote: 'Sunday Note · Week of {date}', herbarium: '{Month}, pressed', retired: '{habit} · retired {date}', season: '{Season}, on the sill' },
+  moments: 'Notes you add after watering show up here.',
+  moment: '{date} · {habit}',
+} as const;
+
+/* ------------------------------------------------------------------------ */
+/* Pets: the Pet Card, gestures, Memories, places (VOICE.md §9, §11)         */
+/* ------------------------------------------------------------------------ */
+
+export const PET_CARD = {
+  fields: {
+    likes: 'Likes',
+    knownFor: 'Known for',
+    spot: 'Favourite spot',
+    cameHome: 'Came home',
+    friendship: 'Friendship',
+    personality: 'Personality',
+    favouriteTreat: 'Favourite treat',
+    wardrobe: 'Wardrobe',
+    company: 'Keeps {habit} company',
+    memories: 'Memories',
+    bestFriend: 'Best friend',
+    place: 'Spends the day in',
+  },
+  /** "Likes" once the favourite is found (before, the TREAT_TAG_HINTS line). */
+  likesTreat: '{Treat}, most of all',
+  cameHomeToday: 'Came home: today',
+  buttons: {
+    hello: 'Say hello',
+    stroke: 'Stroke',
+    touchNose: 'Touch nose',
+    touchBeak: 'Touch beak',
+    touchHead: 'Touch head',
+    pickUp: 'Pick up',
+    putDown: 'Put down',
+    feed: 'Feed',
+    rename: 'Rename',
+    findPlant: 'Find {name} a plant',
+    letChoose: 'Let {name} choose',
+    notNow: 'Not now',
+    move: 'Move {name}',
+    putOn: 'Put it on',
+    takeOff: 'Take it off',
+    bakeTray: 'Bake a tray · 10 coins',
+  },
+  nameTag: '{name}’s card',
+  name: 'Name',
+  anotherName: 'Another name',
+  favouriteFound: '{name}’s favourite is the {treat}. It’s on the Pet Card now.',
+  enough: '{name} has had enough for today.',
+  restocked: 'The pantry restocked: 2 servings of each treat.',
+  baked: 'Baked: 5 servings of {treat}, in the pantry.',
+  lastServing: 'That’s the last of the {treat} for today. 2 more servings in the morning.',
+  memoriesEmpty: 'Memories start once you’re best friends.',
+  shelfEmpty: 'The sill is ready for someone. Your first capsule is on the Capsules tab.',
+  basketEmpty: 'Harvests land here, from Blooming cat grass, catnip, strawberries and lavender.',
+  pantryEmpty: 'Treats you collect restock here every morning.',
+  decorEmpty: 'Decor from capsules goes here.',
+  bestFriendsBanner: { eyebrow: 'Best friends', title: 'You and {name}', text: 'There’s a small brass tag to show it.' },
+} as const;
+
+/**
+ * Dated Memories on the Pet Card (DESIGN §8.2), like dates in a diary. Kinds match
+ * `PetMemory['kind']`. Slots: {date} ("Sep 29"), {habit}, {plant}, {treat}, {weekday}. `MEMORY_LINE`
+ * announces each.
+ */
+export const MEMORIES = {
+  'best-friends': 'Best friends, {date}',
+  'came-home': 'Came home {date}',
+  bloomed: 'The day {habit} bloomed',
+  'moved-in': 'Moved into {plant}, {date}',
+  favourite: 'The day the {treat} turned out to be the favourite',
+  day: 'A quiet {weekday}, {date}',
+} as const;
+
+/**
+ * Places (VOICE.md §11): the map, moving a pet, and the opening lines (with the pet who loves the
+ * place most, or without). Slots: {name}, {place} (the place's name with its article, `placePhrase`).
+ */
+export const PLACE_LINES = {
+  free: 'free',
+  price: '{price} coins',
+  open: 'Open for {price} coins',
+  room: 'Room for 2 more pets',
+  moved: '{name} moved to {place}.',
+  movedHome: '{name} moved back to the Sill.',
+  chose: '{name} chose {place}.',
+  opened: {
+    pond: { withPet: 'The Saucer Pond is open. {name} went straight to the lily pad.', alone: 'The Saucer Pond is open: a saucer of water, a pebble island and one lily pad.' },
+    grass: { withPet: 'The Cat-grass Tray is open. {name} is out in the grass already.', alone: 'The Cat-grass Tray is open. A pasture, at this size.' },
+    bookshelf: { withPet: 'The Bookshelf is open. {name} is on the top shelf, under the lamp.', alone: 'The Bookshelf is open: two shelves of paperbacks and a reading lamp.' },
+    balcony: { withPet: 'The Balcony Box is open. There’s weather out there now, and room to roam.', alone: 'The Balcony Box is open. There’s weather out there now, and room to roam.' },
+    quilt: { withPet: 'The Quilt is open: a folded patchwork quilt, deep enough to disappear into.', alone: 'The Quilt is open: a folded patchwork quilt, deep enough to disappear into.' },
+  },
+} as const;
+
+/* ------------------------------------------------------------------------ */
+/* Keeping Company, Blooms Like You, the Season Review (VOICE.md §12–§14)    */
+/* ------------------------------------------------------------------------ */
+
+/** The Keeping Company offer (§14.1). Slots: {name}, {habit}, {plant}. A decline says nothing back. */
+export const COMPANION = {
+  reveal: { find: 'Find {name} a plant', choose: 'Let {name} choose', notNow: 'Not now' },
+  editor: { title: 'Who keeps it company?', none: 'No one, for now' },
+  card: { keeps: 'Keeps {habit} company', find: 'Find {name} a plant' },
+  movedIn: '{name} moved into {plant}.',
+  chose: '{name} chose {plant}, for the sun.',
+  moveOut: 'Move {name} out',
+  movedOut: '{name} moved back to the sill.',
+} as const;
+
+/** The three stories (§14.1). Slots: {name}, {plant}/{Plant}, {habit}, {date}, {Count}, {why}, {momentDate}, {moment}. */
+export const STORIES = {
+  titles: { start: 'The start', why: 'Why it matters', lookAtUs: 'Look at us' },
+  waiting: 'There’s a story on the plant tag for {habit}.',
+  start: 'The start. {name} moved into {plant} on {date}. {Count} waterings later, {name} has a favourite side of the pot.',
+  why: {
+    ask: '{name} has kept {habit} company since {date}. If you like, write down why it’s on the sill.',
+    placeholder: 'A line, just for you',
+    keep: 'Keep it',
+    notNow: 'Not now',
+    kept: 'Why it matters: ‘{why}’.',
+  },
+  lookAtUs: {
+    withMoment: '{Plant} is Blooming, and {name} is asleep under it. On {momentDate} you wrote: ‘{moment}’.',
+    withoutMoment: '{Plant} is Blooming, and {name} is asleep under it. {Count} waterings, from a cutting.',
+    memory: 'The day {habit} bloomed',
+  },
+} as const;
+
+/** Keepsake captions (§14.1), prefilled from her latest Moment, otherwise from the family. Slots: {date}, {moment}. */
+export const KEEPSAKE_CAPTIONS = {
+  moment: '{date} · ‘{moment}’',
+  move: '{date} · Left by the pot: a pebble from the path.',
+  read: '{date} · Left by the pot: a paper bookmark.',
+  hydrate: '{date} · Left by the pot: a piece of sea glass.',
+  rest: '{date} · Left by the pot: a small feather.',
+  mind: '{date} · Left by the pot: a smooth grey stone.',
+  create: '{date} · Left by the pot: a scrap of yarn.',
+  tidy: '{date} · Left by the pot: a spare button.',
+  cook: '{date} · Left by the pot: a dried bean.',
+  care: '{date} · Left by the pot: a hair tie.',
+  garden: '{date} · Left by the pot: a seed.',
+  connect: '{date} · Left by the pot: a folded note.',
+  plan: '{date} · Left by the pot: a paperclip.',
+  'brass-seed': '{date} · Left by the pot: a brass seed.',
+} as const;
+
+/** Blooms Like You (§14.2): plain words, and it pays nothing. Slots: {plant}, {look}, {count}, {anchor}. */
+export const LOOKS = {
+  colours: { dawn: 'Dawn', sunlit: 'Sunlit', twilight: 'Twilight', wildflower: 'Wildflower' },
+  colourWhy: {
+    dawn: 'you usually water it before 9',
+    sunlit: 'you usually water it in the middle of the day',
+    twilight: 'you usually water it after 6 pm',
+    wildflower: 'you water it at all sorts of times',
+  },
+  shapes: { classic: 'Classic', petite: 'Petite', paired: 'Paired' },
+  shapeWhy: {
+    petite: { one: 'the tiny version counted on 1 day', other: 'the tiny version counted on {count} days' },
+    paired: { one: 'on 1 day it came right after {anchor}', other: 'on {count} days it came right after {anchor}' },
+  },
+  /** The plant tag: "Dawn · Paired: you usually water it before 9, and on 18 days it came right after Walk." */
+  tag: '{look}: {why}.',
+  tagBoth: '{look}: {why}, and {shapeWhy}.',
+  show: 'Show this look',
+  classic: 'Classic',
+  helper: 'Classic is always here, if you prefer it.',
+  newLook: 'A new look for {plant}: {look}.',
+  stacking: { after: 'After {anchor}', kept: { one: 'Right after {anchor} on 1 day', other: 'Right after {anchor} on {count} days' } },
+} as const;
+
+/** The move-it-to-Evening nudge (§14.2): offered once; a "Leave it" is remembered. Slots: {habit}, {set}, {usual}, {Block}, {Set}. */
+export const TIME_NUDGE = {
+  ask: 'You set {habit} for {set} but usually water it {usual}. Move it to {Block}?',
+  move: 'Move to {Block}',
+  leave: 'Leave it in {Set}',
+  set: { morning: 'mornings', midday: 'the middle of the day', evening: 'evenings', anytime: 'anytime' },
+  usual: { morning: 'in the morning', midday: 'in the middle of the day', evening: 'after 6 pm' },
+} as const;
+
+/** The Season Review card (§14.3). Slots: {Season}, {season}, {habit}, {from}, {to}, {count}, {date}. */
+export const SEASON_REVIEW = {
+  title: '{Season}, on the sill.',
+  plant: { one: '{habit} · {from} to {to} · 1 watering', other: '{habit} · {from} to {to} · {count} waterings' },
+  plantSame: { one: '{habit} · {to} · 1 watering', other: '{habit} · {to} · {count} waterings' },
+  ask: '{Season} starts today. How should each habit go on?',
+  chips: { keep: 'Keep going', tinier: 'Tinier', grow: 'Grow', rest: 'Rest till next season', finish: 'Finish' },
+  chipHelp: { keep: 'Just as it is.', tinier: 'A smaller version, for {season}.', grow: 'A little more. +1 stamp', rest: 'Paused until {date}.', finish: 'To the balcony shelf, with a ribbon.' },
+  keepEverything: 'Keep everything',
+  later: 'Later',
+  done: 'All set for {season}.',
+  justThisSeason: '{habit} was just for {season}. It’s on the balcony shelf now, with a ribbon.',
+  tune: 'Tune my habits',
+} as const;
+
+/** Birthday (§13). Slots: {userName}, {name}. */
+export const BIRTHDAY = {
+  label: 'Birthday',
+  helper: 'For a small surprise on the day. Optional.',
+  card: 'There’s a tiny cake on the sill, and a ticket.',
+  pets: ['{name} sat by the cake all morning.', '{name} left a leaf next to the cake.', '{name} is wearing the paper party hat, more or less.', '{name} has been keeping an eye on the candle.'],
+} as const;
+
+/** Came-home days and the moving-in anniversary (§13). Slots: {name}, {years}, {habit}, {Count}, {Years}. */
+export const CAME_HOME = {
+  pet: { one: '{name} came home a year ago today.', other: '{name} came home {years} years ago today.' },
+  anniversary: {
+    first: 'A year on this sill. The first cutting was {habit}.',
+    later: '{Years} years on this sill. {Count} waterings since the first one.',
+  },
+} as const;
+
+/* ------------------------------------------------------------------------ */
+/* Onboarding, empty states, errors, install, reminders, data, settings      */
+/* ------------------------------------------------------------------------ */
+
+/** Onboarding (§16, DESIGN §9.6). Every step skippable. */
+export const ONBOARDING = {
+  skip: 'Skip',
+  sill: 'New place. Which plants came with you?',
+  nameLabel: 'Your name',
+  nameHelper: 'For the greeting. Optional.',
+  pick: 'Pick up to 3.',
+  moreIdeas: 'More ideas',
+  makeOwn: 'Make my own',
+  more: 'More can go on the sill anytime.',
+  doneToday: 'Anything already done today?',
+  topUp: 'There are 25 coins in the jar. That’s a capsule.',
+  firstPick: 'Who comes home first?',
+  firstPickLead: 'Your first capsule is on the house. Choose a cabinet.',
+  notYet: 'Not yet, I’ll earn it',
+  firstCapsuleCard: 'Your first capsule: water anything.',
+} as const;
+
+/** Empty states (§17). */
+export const EMPTY = {
+  today: 'An empty sill. Add a habit, and it starts as a cutting in a glass of water.',
+  addHabit: 'Add a habit',
+  nothingOn: 'Nothing’s on today. The plants are fine.',
+  allResting: 'Everything is resting today.',
+  progress: 'This fills in as you water.',
+  calendarNoNotes: 'No notes on {date}.',
+  records: 'Records fill in as you go.',
+  insights: 'Insights fill in after 2 weeks of watering.',
+  pins: 'Your pins go on this shelf as you earn each one.',
+  memoryShelf: 'Sunday Notes, Herbarium pages and retired plants are kept here.',
+  moments: 'Notes you add after watering show up here.',
+  shelf: 'The sill is ready for someone. Your first capsule is on the Capsules tab.',
+  fieldGuidePage: '{Species} come from the {number} cabinet.',
+  basket: 'Harvests land here, from Blooming cat grass, catnip, strawberries and lavender.',
+  pantry: 'Treats you collect restock here every morning.',
+  decor: 'Decor from capsules goes here.',
+  memories: 'Memories start once you’re best friends.',
+  archived: 'Nothing archived.',
+  iconPicker: 'No icon for that. The watering can suits anything.',
+  reminders: 'No watering times set.',
+  snapshots: 'The first daily copy is made tonight.',
+  specialOrder: 'Everything in the Field Guide is yours.',
+} as const;
+
+/** Errors and recovery (§18): what happened and what to do. */
+export const ERRORS = {
+  screen: 'This screen didn’t load. Your plants and coins are saved.',
+  reload: 'Reload',
+  save: 'That change didn’t save yet. catkin is trying again, and your last backup is safe.',
+  otherWindow: 'catkin is open in another window · Use here',
+  useHere: 'Use here',
+  newerSave: 'This save is from a newer catkin, so it opens read-only here. Update to make changes.',
+  clock: 'The clock on this device reads earlier than catkin last saw. Coins and stamps wait until it’s right again.',
+  safariTab: 'In a Safari tab, a save can be cleared after 7 days. Keep catkin on your Home Screen to keep it safe.',
+  copy: 'Couldn’t copy. Select the text and copy it by hand.',
+  share: 'Saved to Downloads instead.',
+  notBackup: 'That file isn’t a catkin backup.',
+  newerBackup: 'This backup is from a newer catkin. Update, then import it.',
+  fileBuild: 'Test copy · saved only in this browser, for this file',
+  diagnostics: 'Copy report',
+} as const;
+
+/** The install guide (§19). */
+export const INSTALL = {
+  gate: 'Keep catkin on your Home Screen',
+  peek: 'Just peek',
+  ios: ['Tap Share.', 'Tap Add to Home Screen.', 'Open catkin from there.'],
+  macSafari: ['Choose File › Add to Dock.', 'Open catkin from the Dock.'],
+  chromium: ['Click Install in the address bar.', 'Open catkin from your apps.'],
+  android: ['Tap the menu, then Install app.'],
+  singleFile: ['Double-click catkin.html. It works offline, in this browser.'],
+  handoff: 'Move my plants into the app',
+  handoffCopied: 'Copied. Open catkin from your Home Screen and tap Paste my plants.',
+  paste: 'Paste my plants',
+  updateReady: 'A new version is ready · Reload',
+  upToDate: 'Up to date.',
+  checkUpdates: 'Check for updates',
+  reloadApp: 'Reload app',
+} as const;
+
+/**
+ * Watering time (§20): calendar events she adds herself. `wateringTimeIcs()` (domain/profile.ts)
+ * writes the file from these. Slots: {Block} ("Morning"), {habits} ("Walk, Stretch, Take vitamins").
+ */
+export const REMINDERS = {
+  title: 'Watering time',
+  rows: { morning: 'Morning', midday: 'Midday', evening: 'Evening' },
+  add: 'Add to calendar',
+  helper: 'catkin can’t send notifications, so it makes a calendar event that repeats every day. Your calendar does the reminding.',
+  summary: 'Watering time',
+  description: '{Block} plants: {habits}.',
+  descriptionEmpty: '{Block} plants.',
+  alarm: 'Watering time',
+  file: 'catkin-watering-time-{block}.ics',
+} as const;
+
+/** Data (§21). Slots: {count}, {habits}, {waterings}, {pets}, {date}, {habit}. */
+export const DATA = {
+  save: 'Save a backup',
+  saved: 'Backup saved.',
+  file: 'catkin-backup-{date}.json',
+  copy: 'Copy backup',
+  copied: 'Copied. Paste it somewhere safe, like a note to yourself.',
+  import: 'Import a backup',
+  preview: 'This backup has {habits} habits, {waterings} waterings and {pets} pets. Saved {date}.',
+  importButton: 'Import',
+  keep: 'Keep what’s here',
+  imported: 'Imported. You can undo this for 24 hours.',
+  undoImport: 'Undo import',
+  undone: 'Back to how things were before the import.',
+  snapshots: 'Daily copies, kept on this device: 7 daily and 4 weekly.',
+  restoreSnapshot: 'Restore this copy',
+  csv: 'Export waterings as CSV',
+  csvFile: 'catkin-waterings-{date}.csv',
+  /** The CSV's header row and state words (`exportCsv`). */
+  csvColumns: ['date', 'habit', 'count', 'target', 'state'],
+  csvStates: { watered: 'watered', tiny: 'tiny', partial: 'partial', rest: 'rest' },
+  storage: { device: 'Saved on this device', tab: 'Saved in this browser tab' },
+  lastBackup: 'Last backup: {date}',
+  noBackup: 'No backup yet',
+  nudge: 'Worth saving a backup: the last one is from {date}.',
+  startOver: 'Start over',
+  startOverConfirm: 'Start over? Every habit, plant and pet on this device goes. Save a backup first, just in case.',
+  keepEverything: 'Keep everything',
+  demo: 'Try the demo',
+  leaveDemo: 'Leave the demo',
+  archive: 'Archive {habit}? The plant moves to the balcony shelf, and you can bring it back anytime.',
+  delete: 'Delete {habit}? The plant and its history go too.',
+  keepPlant: 'Keep the plant on the balcony shelf?',
+  keepOnBalcony: 'Keep it on the balcony',
+  deleteEverything: 'Delete everything',
+  restored: '{habit} is back on the sill. The time it spent archived counts as a pause.',
+} as const;
+
+/** Settings and the Habit Editor (§22). */
+export const SETTINGS = {
+  name: { label: 'Your name', helper: 'For the greeting.' },
+  birthday: { label: 'Birthday', helper: 'For a small surprise on the day. Optional.' },
+  weekStart: { label: 'Week starts on', helper: 'Changes apply from next week.' },
+  dayStart: { label: 'Day starts at', helper: 'Late nights count towards the day before, until this time.' },
+  theme: { label: 'Look', options: { auto: 'Automatic', light: 'Day', night: 'Lamplight' } },
+  sounds: { label: 'Sounds', helper: 'Small real sounds: a coin, water, a purr.' },
+  volume: { label: 'Volume' },
+  haptics: { label: 'Haptics', helper: 'Where your device supports it.' },
+  reduceMotion: { label: 'Reduce motion', options: { auto: 'Automatic', on: 'On', off: 'Off' } },
+  quickOpen: { label: 'Quick open', helper: 'Skip the wait when opening capsules.' },
+  quietRewards: { label: 'Quiet rewards', helper: 'Hide coins, capsules and the wallet. Just the tracker.' },
+  compactToday: { label: 'Compact Today', helper: 'Smaller cards, more habits on screen.' },
+  companions: { label: 'Show companions', helper: 'Show who keeps each habit company, on its card.' },
+  quoteNotes: { label: 'Quote my notes in the Sunday Note', helper: 'Only notes you’ve starred.' },
+  hemisphere: { label: 'Where’s your summer?', options: { north: 'June to August', south: 'December to February' } },
+  reminders: { label: 'Watering time' },
+  editor: {
+    name: 'Name',
+    icon: 'Icon',
+    colour: 'Colour',
+    plant: 'Plant',
+    pot: 'Pot',
+    howOften: { label: 'How often', options: { daily: 'Every day', days: 'On certain days', weekly: 'A few times a week', monthly: 'A few times a month' } },
+    howMuch: 'How much',
+    tiny: { label: 'Tiny version', placeholder: 'Shoes on, step outside' },
+    effort: { label: 'About how long?', options: { light: 'Under 5 minutes', steady: '5 to 30 minutes', big: 'Longer' } },
+    when: { label: 'When', options: { morning: 'Morning', midday: 'Midday', evening: 'Evening', anytime: 'Anytime' } },
+    anchor: { label: 'After…', placeholder: 'After I pour my coffee' },
+    polarity: { label: 'Build or avoid', options: { build: 'Do it', avoid: 'Avoid it' } },
+    why: 'Why it matters',
+    company: 'Who keeps it company?',
+    season: 'Just this season',
+    create: 'Plant it',
+    save: 'Save',
+    tooManyBig: '3 long habits is the most at once. Pick a shorter time, or pause one of the others.',
+  },
+  about: { tagline: 'Look after the little things.', explainer: 'Your habits grow the plants. The plants become a home.', how: 'How it works', credits: 'Credits', version: 'Version {version}' },
+} as const;
+
+/** The wallet sheet, "What can I get?" (§4). */
+export const WALLET = {
+  title: 'What can I get?',
+  coins: 'Coins come from watering, and buy capsules (25 each) and new places for the Shelf.',
+  stamps: 'Stamps buy No. 07 · Night and Special Orders, and come from the Showing-up ladder, Sunday Notes, Herbarium pages, pins, swaps, and growing a habit a little bigger.',
+  swaps: 'Swaps come from capsules you already had, and from the small things pets leave on the sill. Every 10 make a stamp.',
+  tickets: 'Tickets come from the Showing-up ladder, welcome-home days and your birthday. Each one is a free capsule from any series.',
+} as const;
+
+/** Field Guide and Special Order category names (pets as a category are "pets", §3). */
+export const CATEGORY_LABELS = { pet: 'Pets', wearable: 'Wardrobe', treat: 'Treats', decor: 'Decor', plant: 'Plants', pot: 'Pots' } as const;
+
+/**
+ * Capsule notices (§10): calm, plain, with the way forward, and never a count of 0. Slots:
+ * {series}, {price}, {count}, {tier}, {season}, {from}, {to}.
+ */
+export const CAPSULE_NOTICES = {
+  coins: { some: '{series} is {price} coins a capsule. There are {count} in the jar.', one: '{series} is {price} coins a capsule. There’s 1 in the jar.', none: '{series} is {price} coins a capsule. Watering fills the jar.', link: 'Water something on Today' },
+  stamps: { some: '{series} is {price} stamps. There are {count} on the card.', one: '{series} is {price} stamps. There’s 1 on the card.', none: '{series} is {price} stamps. The card fills from showing up.', link: 'Where stamps come from' },
+  ticket: 'Tickets come from the Showing-up ladder, welcome-home days and your birthday.',
+  away: '{season} is here from {from} to {to}.',
+  awayVisited: 'Anything it has brought before can be ordered at the counter.',
+  tray: 'There’s a capsule in the tray. Open that one first.',
+  order: { some: 'A {tier} is {price} stamps at the counter. There are {count} on the card.', one: 'A {tier} is {price} stamps at the counter. There’s 1 on the card.', none: 'A {tier} is {price} stamps at the counter. The card fills from showing up.' },
+  owned: 'Already in the Field Guide.',
+  notSold: 'This one isn’t sold at the counter. It comes from showing up.',
+  notVisited: 'The {season} hasn’t visited yet. Its things can be ordered once it has.',
+} as const;
+
+/** The names the M1 contract map uses for two of the groups above. */
+export const PROGRESS_HERO = PROGRESS_LINES;
+export const PLACES_OPENED = PLACE_LINES.opened;

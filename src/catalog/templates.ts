@@ -48,5 +48,12 @@ export const TEMPLATE_GROUPS = [
   { id: 'heart', label: 'Heart & life', icon: 'heart-date' },
 ] as const;
 
-/** Onboarding suggests these three (small, varied, high-success). */
+/** Onboarding suggests these three (small, varied, high-success): preselected among the starters. */
 export const ONBOARDING_SUGGESTIONS = ['water', 'walk', 'read'] as const;
+
+/**
+ * Onboarding's eight starter chips (DESIGN §9.6 step 2, VOICE.md §16): "Drink water" · "Walk" ·
+ * "Read" · "Stretch" · "Journal" · "Tidy for 10 minutes" · "Take vitamins" · "Skincare", then
+ * "More ideas" (the rest of TEMPLATES) and "Make my own".
+ */
+export const ONBOARDING_STARTERS = ['water', 'walk', 'read', 'stretch', 'journal', 'tidy', 'vitamins', 'skincare'] as const;

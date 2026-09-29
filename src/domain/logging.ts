@@ -171,7 +171,12 @@ export function rewardPass(tx: Tx, habitId: string, date: DateKey, opts: PassOpt
   return { rewarded: coins > 0, settlement: st, coins };
 }
 
-/** Records a check-in action's time for Welcome home (after the pass read the previous one). */
+/**
+ * Records a check-in action's time for Welcome home (after the pass read the previous one). Only
+ * a watering that settled up or completed counts: a partial tap on a count habit (glass 1 of 8)
+ * leaves the time alone, so the completing watering after time away still finds the gap and pays
+ * Welcome home (§6).
+ */
 function recordCheckinTime(tx: Tx): void {
   if (rewardsPaused(tx.s, tx.env.now)) return;
   const clock = tx.section('clock');
@@ -197,7 +202,8 @@ function applyCheckin(tx: Tx, habit: Habit, date: DateKey, next: Log, stamped: b
   const completed = !showedUp(before) && showedUp(after);
   tx.emit({ type: 'checkin', habitId: habit.id, date, completed, tiny: after === 'tiny', count: next.count, target });
   const pass = rewardPass(tx, habit.id, date, { user: true, bestBefore, before: prior, direction: 'up', ...(stamped ? { trigger: { liveCheckinAt: tx.env.now } } : {}) });
-  recordCheckinTime(tx);
+  const settledUp = pass.settlement !== null && levelRank(pass.settlement.next) > levelRank(pass.settlement.prev);
+  if (settledUp || completed) recordCheckinTime(tx);
   return { coins: pass.coins, completed, partial: !showedUp(after) && next.count > 0, rewarded: pass.rewarded };
 }
 

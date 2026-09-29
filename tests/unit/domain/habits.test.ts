@@ -167,7 +167,7 @@ describe('onboarding (DESIGN §9.6)', () => {
     expect(g.state.profile).toMatchObject({ name: 'Sam', onboarded: true, birthday: '09-30' });
     expect('buddy' in g.state.profile).toBe(false);
     expect(g.state.settings.dayStartsAt).toBe(240);
-    expect(g.state.pets).toEqual({}); // the first pet comes from the "Cats or Cows?" capsule
+    expect(g.state.pets).toEqual({}); // the first pet comes from the "Who comes home first?" capsule
     expect(Object.keys(g.state.pantry).sort()).toEqual(['treat-oat-biscuit', 'treat-strawberry']);
     expect(g.state.habits.map((h) => [h.name, h.plant, h.pot])).toEqual([
       ['Yoga', 'pilea', 'terracotta'],

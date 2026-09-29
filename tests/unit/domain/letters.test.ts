@@ -64,7 +64,7 @@ describe('letters on the first open of a new week / month', () => {
       waterings: 7,
     });
     expect((letter as { highlights: unknown[] }).highlights[0]).toMatchObject({ kind: 'stageUp', habitId: a });
-    expect(g.allOf('letter')).toEqual([{ type: 'letter', letterId: 'weekly-2026-03-02' }]);
+    expect(g.allOf('letter')).toEqual([{ type: 'letter', letterId: 'weekly-2026-03-02', kind: 'sundayNote' }]);
     expect(g.allOf('stars').filter((e) => e.reason === 'letter').map((e) => e.amount)).toEqual([3]);
     g.advance(1);
     expect(g.state.inbox.filter((l) => l.kind === 'weekly')).toHaveLength(1);
@@ -132,5 +132,54 @@ describe('letters on the first open of a new week / month', () => {
     const g = new Game({ start: '2026-03-02', onboard: false });
     g.goTo('2026-04-20');
     expect(g.state.inbox).toEqual([]);
+  });
+});
+
+describe('the Sunday Note arrives on the week’s last evening (M1 audit)', () => {
+  it('with a Monday week start it arrives on Sunday from 18:00, not on Monday, and waterings later that evening top it up', () => {
+    const g = new Game({ start: '2026-03-02', hour: 9 }); // Monday
+    expect(g.state.settings.weekStart).toBe(1);
+    const walk = g.addHabit();
+    const read = g.addHabit({ name: 'Read', icon: 'book' });
+    for (let d = 0; d < 6; d++) {
+      g.goTo(addDays('2026-03-02', d), 9);
+      g.checkIn(walk);
+      g.checkIn(read);
+    }
+    g.goTo('2026-03-08', 17, 59); // Sunday, before six
+    expect(g.state.inbox.find((l) => l.id === 'weekly-2026-03-02')).toBeUndefined();
+    g.checkIn(walk);
+    g.goTo('2026-03-08', 18, 0);
+    const note = g.state.inbox.find((l) => l.id === 'weekly-2026-03-02');
+    expect(note).toMatchObject({ kind: 'weekly', weekStart: '2026-03-02' });
+    expect(g.lastOf('letter')).toEqual([{ type: 'letter', letterId: 'weekly-2026-03-02', kind: 'sundayNote' }]);
+    const stars = g.state.ledger.once['weekly|2026-03-02'];
+    expect(typeof stars).toBe('number');
+    const before = note && note.kind === 'weekly' ? note.achieved : 0;
+    g.goTo('2026-03-08', 20);
+    g.checkIn(read); // the evening's reading counts in the note it tops up
+    const after = g.state.inbox.find((l) => l.id === 'weekly-2026-03-02');
+    expect(after && after.kind === 'weekly' ? after.achieved : 0).toBe(before + 1);
+    expect(g.state.ledger.once['weekly|2026-03-02']).toBeGreaterThanOrEqual(stars as number);
+    g.goTo('2026-03-09', 9); // Monday: no second note for that week
+    expect(g.state.inbox.filter((l) => l.kind === 'weekly' && l.weekStart === '2026-03-02')).toHaveLength(1);
+    expect(g.allOf('letter').filter((e) => e.letterId === 'weekly-2026-03-02')).toHaveLength(1);
+  });
+
+  it('a week whose last evening passed without an open still gets its note on the next open', () => {
+    const g = new Game({ start: '2026-03-02', hour: 9 });
+    const walk = g.addHabit();
+    g.checkIn(walk);
+    g.goTo('2026-03-10', 9); // Tuesday of the next week
+    expect(g.state.inbox.find((l) => l.id === 'weekly-2026-03-02')).toBeDefined();
+  });
+
+  it('the small hours before the day start still belong to Sunday evening', () => {
+    const g = new Game({ start: '2026-03-02', hour: 9 });
+    const walk = g.addHabit();
+    g.checkIn(walk);
+    g.goTo('2026-03-09', 1, 30); // 1:30 am Monday wall clock = Sunday's app day (day starts at 3:00)
+    expect(g.today).toBe('2026-03-08');
+    expect(g.state.inbox.find((l) => l.id === 'weekly-2026-03-02')).toBeDefined();
   });
 });

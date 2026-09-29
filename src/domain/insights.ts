@@ -92,6 +92,29 @@ export function showedUpDays(t: Tracking, today: DateKey, days = 30): ShowUpSumm
   return { days: seen.size, span: daysInRange(start, last) };
 }
 
+/**
+ * Days in [start, end] (never past today) with at least one check-in (done or tiny) on any habit,
+ * and the span they are out of: from `start` (or the first tracked day) to `end`, where today
+ * counts only once it has a check-in ("September so far: 22 of 29 days", "Aug · 24 days").
+ */
+export function showedUpDaysIn(t: Tracking, start: DateKey, end: DateKey, today: DateKey): ShowUpSummary {
+  const first = firstTrackedDay(t);
+  if (first === null) return { days: 0, span: 0 };
+  const from = maxDateKey(start, first);
+  let last = end < today ? end : today;
+  const seen = new Set<DateKey>();
+  for (const h of t.habits) {
+    const logs = logsFor(t, h.id);
+    for (const [d, log] of Object.entries(logs)) {
+      if (d < from || d > last || seen.has(d) || !inLifetime(h, d)) continue;
+      if (showedUp(logStatus(log, ruleAt(h, d), d < today))) seen.add(d);
+    }
+  }
+  if (last === today && !seen.has(today)) last = addDays(today, -1);
+  if (from > last) return { days: seen.size, span: 0 };
+  return { days: seen.size, span: daysInRange(from, last) };
+}
+
 /* ------------------------------------------------------------------ */
 /* Check-in counts                                                     */
 /* ------------------------------------------------------------------ */

@@ -101,7 +101,8 @@ export function setOnce(tx: Tx, key: string, value: number | true = true): void 
 export function addToCollection(tx: Tx, id: string): boolean {
   const collection = tx.section('collection');
   const prev = collection[id];
-  collection[id] = prev ? { ...prev, count: prev.count + 1 } : { count: 1, firstAt: tx.env.now };
+  // A second copy came another way than the Special Order: it no longer counts as only ordered.
+  collection[id] = prev ? { count: prev.count + 1, firstAt: prev.firstAt } : { count: 1, firstAt: tx.env.now };
   return !prev;
 }
 

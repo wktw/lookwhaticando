@@ -167,6 +167,23 @@ export interface PetState {
   favorite: boolean;
   obtainedAt: number;
   /**
+   * The place it spends the day in when out on the Shelf (DESIGN §8.4). Absent: the Sill, and it
+   * has never been placed, so opening a place it loves can move it there; 'sill' is a choice.
+   * The place must be open. A companion still sits in its pot in the Today band.
+   */
+  place?: PlaceId;
+  /**
+   * Its favourite spot, claimed at friendship level 4 (§8.2 L4) and kept: the pot of the habit it
+   * keeps company, else the place it spends the day in, else its species' favourite open place.
+   */
+  spot?: PetSpotClaim;
+  /** Its best friend on the Shelf, from level 8 (§8.2 L8, "naps next to {friend}"), kept once chosen. */
+  bestFriend?: string;
+  /** The app day it reached level 10, best friends with you (the first Memory's date). */
+  bestFriendsOn?: DateKey;
+  /** Dated Memories (§8.2), one per 150 XP after level 10, oldest first. */
+  memories?: PetMemory[];
+  /**
    * Per-day XP caps; reset when `date` changes. `favorites` counts favorite treats fed that day:
    * only the first pays the +12 (DESIGN §8.2). `company` is the XP its habit's check-ins paid that
    * day (at most 30, §14.1).
@@ -177,6 +194,26 @@ export interface PetState {
 export interface OwnedItem {
   count: number;
   firstAt: number;
+  /**
+   * The only copy came from a Special Order, not a capsule: the collect-N pins ("Collect 10
+   * different things from the capsules") don't count it. A later capsule copy clears it.
+   */
+  ordered?: true;
+}
+
+/** A pet's favourite spot (§8.2 L4): a habit's pot on the sill, or a place. */
+export type PetSpotClaim = { kind: 'pot'; habitId: string } | { kind: 'place'; place: PlaceId };
+
+/**
+ * A dated Memory on the Pet Card (§8.2), like a date in a diary (MEMORIES in lines.ts): best
+ * friends, the day it came home, a plant it keeps company blooming, moving into a plant, the day
+ * its favourite treat was found, or a quiet day on the sill.
+ */
+export interface PetMemory {
+  kind: 'best-friends' | 'came-home' | 'bloomed' | 'moved-in' | 'favourite' | 'day';
+  date: DateKey;
+  habitId?: string;
+  treatId?: string;
 }
 
 export interface PityCounter {
@@ -259,6 +296,8 @@ export interface PendingReveal {
   stardust: number;
   fusedStars: number;
   friendshipXp?: number;
+  /** A Special Order, not a capsule: the reveal says "Your order: a Siamese." */
+  order?: true;
   at: number;
 }
 
@@ -382,6 +421,11 @@ export interface CompanyPair {
   stories?: Partial<Record<StoryId, { on: DateKey; readAt?: number }>>;
   /** "Why it matters" asked its question (answered or not): it is asked once. */
   whyAsked?: true;
+  /**
+   * The first day the companion's routine showed (a completing watering with the plant at Potted
+   * or later): from then on the Pet Card's "Known for" line stays, whatever today holds.
+   */
+  knownForSince?: DateKey;
 }
 
 export interface Company {

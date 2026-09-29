@@ -152,7 +152,6 @@ export interface MachineDef {
     /** Inclusive month/day window, recurring yearly. `start` may be after `end` (wraps new year). */
     start: { month: number; day: number };
     end: { month: number; day: number };
-    emoji: string;
   };
   /** Odds per rarity in percent; must sum to 100. */
   odds: Record<Rarity, number>;

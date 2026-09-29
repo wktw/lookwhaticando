@@ -814,7 +814,7 @@ export function updatePlantStage(tx: Tx, habitId: string): number {
     tx.ledger('bestStage')[habitId] = stage;
     const crossed = stagesCrossed(best, stage);
     recordStageDates(tx, habitId, crossed);
-    for (const st of crossed) tx.emit({ type: 'plantStage', habitId, stage: st, stageName: stageName(st) });
+    for (const st of crossed) tx.emit({ type: 'plantStage', habitId, stage: st });
     if (stage >= EVERGREEN) grantExclusive(tx, LAUREL_SPRIG_ID);
     leaveKeepsakes(tx, habitId, crossed);
   }

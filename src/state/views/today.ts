@@ -2,11 +2,18 @@
  * The Today screen view-model (DESIGN §9.1: the windowsill band, the week strip, the habit list by
  * time block, the card status line, backdating).
  *
- * Structured data only: the greeting is `{ timeOfDay, hour, name, birthday }` and the screens pick
- * its words (and every caption) from src/catalog/lines.ts. The few labels built here are plain
- * formatting of numbers and dates.
+ * Structured data only: the greeting is `{ period, hour, name, birthday }` (GREETINGS[period] in
+ * lines.ts), the card status line is a `StatusLine`, the vine chip, the rows and the banners are
+ * numbers and dates. The words come from src/catalog/format.ts (`statusLine`, `vineChip`,
+ * `blockSummary`, `restingRow`, `backdatingBanner`, `weekDayAria`…), shared with the fx layer. The
+ * only strings here are dates ("Monday, September 29", "Sep 29", "Monday").
+ *
+ * `bandPots(vm)` and `bandPets(vm, state)` turn the VM into the WindowsillBand's `pots` and `pets`.
  */
-import type { AppState, BloomColour, BloomShape, DateKey, Habit, Hemisphere, SeasonName, StoryId, TimeOfDay } from '../types';
+import type { AppState, BloomColour, BloomShape, DateKey, Habit, Hemisphere, Outfit, SeasonName, StoryId, TimeOfDay } from '../types';
+import type { Personality, PlaceId, PlantSpeciesId, PotId } from '@/catalog/types';
+import { greetingPeriod, type GreetingPeriod } from '@/catalog/lines';
+import { weekdayName } from '@/catalog/format';
 import { companionOfferOpen, habitsWithoutCompanion, pairOf, petsWithoutHabit, suggestHabitFor, type RoutineOn } from '@/domain/company';
 import { birthdayCards, cameHomeToday } from '@/domain/rituals';
 import { hemisphereOf, seasonAt } from '@/domain/seasonReview';
@@ -14,7 +21,7 @@ import { ritualDate, ritualKind, type RitualKind } from './pets';
 import { seasonReviewVM, type SeasonReviewVM } from './season';
 import { OFF_DAYS_PER_MONTH, canLogOn, isInBackfillWindow, offDaysRemaining } from '@/domain/activity';
 import { dayCompletion, trackingOf } from '@/domain/consistency';
-import { WEEKDAY_LETTERS, addDays, parseDateKey, shortDateLabel, startOfWeek, weekday } from '@/domain/dates';
+import { WEEKDAY_LETTERS, addDays, parseDateKey, startOfWeek, weekday } from '@/domain/dates';
 import { isFlexible } from '@/domain/schedule';
 import { isPausedOn, pauseReturnDay } from '@/domain/pauses';
 import { ruleAt, scheduleStatusOn } from '@/domain/rules';
@@ -25,8 +32,6 @@ import { birthdayOn } from '@/domain/rollover';
 import { habitCard, liveHabits, longDateLabel, monthDayLabel, type HabitCardVM, type ViewEnv } from './common';
 import { aggregateDayState, type DayState } from './calendar';
 import { firstTrackedDay } from '@/domain/insights';
-
-export type DayPart = 'morning' | 'afternoon' | 'evening' | 'night';
 
 export interface WeekStripDay {
   date: DateKey;
@@ -49,22 +54,17 @@ export interface WeekStripDay {
   state: DayState;
   /** First day of a calendar week: the strip draws a hairline gap before it (v1 §13.11). */
   weekStart: boolean;
-  /** "Saturday, September 27, 3 of 5 done" */
-  ariaLabel: string;
 }
 
 export interface TimeBlockVM {
+  /** "Morning" · "Midday" · "Evening" · "Anytime" (`blockLabel(id)`). */
   id: TimeOfDay;
-  /** "Morning" · "Midday" · "Evening" · "Anytime" */
-  label: string;
   /** The block the wall clock is in (listed first). */
   current: boolean;
-  /** An earlier block with everything done: shown folded ("Morning 3/3"). */
+  /** An earlier block with everything done: shown folded ("Morning 3/3", `blockSummary(block)`). */
   collapsed: boolean;
   done: number;
   total: number;
-  /** "Morning 3/3" */
-  summary: string;
   cards: HabitCardVM[];
 }
 
@@ -80,37 +80,43 @@ export interface DayProgressVM {
   fraction: number;
   /** No day-based habit is due that day (only flexible habits, rests, pauses or a day off). */
   nothingDue: boolean;
-  /** "3 of 5" */
-  label: string;
-  /** Flexible check-ins that day (they count toward a perfect day). */
+  /** Flexible check-ins that day (they count toward a perfect day). The chip: `vineChip(progress, coinsToday)`. */
   flexibleCheckins: number;
   /** The day is complete and earned (or can still earn) a perfect day. */
   perfect: boolean;
 }
 
+/** The collapsed "Resting" row: `restingRow(paused)` → "Resting: 2 habits · back Oct 6". */
 export interface PausedSummaryVM {
   count: number;
   habits: { id: string; name: string; back: DateKey | null }[];
-  /** "Resting: 2 habits · back Oct 6" */
-  text: string;
+  /** The earliest return day, when every paused habit has one. */
+  back: DateKey | null;
 }
 
 export interface SillPotVM {
   habitId: string;
   icon: string;
-  plant: Habit['plant'];
+  /** The habit's name and its anchor line, for the plant tag. */
+  name: string;
+  note: string | null;
+  species: Habit['plant'];
   pot: Habit['pot'];
   stage: number;
   progress: number;
-  blooms: number;
+  /** The art's bloom count: undefined below Evergreen (the art follows the stage), see PlantVM.blooms. */
+  blooms: number | undefined;
+  /** Rises with every watering tap: the art's `pulse`. */
+  pulse: number;
   /** Watered on the selected day: the pot shows damp soil (§9.1; there is no dry state). */
   done: boolean;
   /** Damp soil: watered on the selected day (same as `done`). */
   damp: boolean;
   /**
-   * Who sits in this pot in the band: the habit's companion (`companion: true`, §14.1), else whoever
-   * is nearest: the other pets out on the Shelf take the remaining pots in order (favourites first,
-   * then the closest friends). With "Show companions" off, everyone is just nearest.
+   * Who sits in this pot in the band: the habit's companion (`companion: true`, §14.1) when it is
+   * out on the Shelf, else whoever is nearest: the other pets out take the remaining pots in order
+   * (favourites first, then the closest friends). A companion resting indoors leaves its pot to the
+   * nearest pet. With "Show companions" off, everyone is just nearest.
    */
   resident: { petId: string; companion: boolean } | null;
   /** The companion's routine that day (null on a day without one: an ordinary day). */
@@ -121,10 +127,11 @@ export interface SillPotVM {
   look: { colour: BloomColour; shape: BloomShape } | null;
 }
 
-/** The greeting chip's data (§9.1 "Good afternoon, Sam"); the words come from lines.ts. */
+/** The greeting chip's data (§9.1 "Afternoon, Sam."): GREETINGS[birthday ? 'birthday' : period] in lines.ts. */
 export interface GreetingVM {
-  timeOfDay: DayPart;
-  /** The wall-clock hour (0–23), for finer greeting periods (an early start, a late lamp). */
+  /** The greeting period by the clock's hour (`greetingPeriod`): early, morning, afternoon, evening, late. */
+  period: GreetingPeriod;
+  /** The wall-clock hour (0–23). */
   hour: number;
   /** The profile name, trimmed ('' when none: the line drops ", {name}"). */
   name: string;
@@ -137,8 +144,15 @@ export interface TodayVM {
   isToday: boolean;
   /** "Tuesday, September 29" */
   dateLabel: string;
-  /** A past day is selected: the sticky banner "Logging for Sat, Sep 27" (and whether it still earns). */
-  backdating: { label: string; rewards: boolean } | null;
+  /** "Sep 29" (the collapsed band). */
+  shortDate: string;
+  /** "Tuesday" (button names while a past day is selected: "Walk for Saturday", `forDayLabel`). */
+  weekdayName: string;
+  /**
+   * A past day is selected: the sticky banner (`backdatingBanner(date)`: "Logging for Sat, Sep 27")
+   * and whether it still earns.
+   */
+  backdating: { date: DateKey; weekdayName: string; rewards: boolean } | null;
   greeting: GreetingVM;
   /** The last 7 app days (6 back + today). */
   weekStrip: WeekStripDay[];
@@ -156,7 +170,7 @@ export interface TodayVM {
   doneForPeriod: HabitCardVM[];
   /** Monthly-kind habits not yet met: one collapsible "This month" row at the end (v1 §13.11). */
   thisMonth: HabitCardVM[];
-  /** Day-based habits with no occurrence that day ("Not today", collapsed). */
+  /** Day-based habits with no occurrence that day (the collapsed "Other days" row). */
   notToday: HabitCardVM[];
   paused: PausedSummaryVM | null;
   offDay: { isOff: boolean; remaining: number; perMonth: number; canToggle: boolean };
@@ -167,7 +181,11 @@ export interface TodayVM {
   /** Rewards are paused by the clock guard (calm banner). */
   clockBehind: boolean;
   quietRewards: boolean;
-  /** Windowsill pots for the day's habits, in card order (the band shows up to 6). */
+  /**
+   * Windowsill pots for the day's habits, in card order: the time blocks (the current block first),
+   * then "Watered for the week", "This month" and "Other days". The band shows up to 6, so the
+   * current block's pots come first (`bandPots`).
+   */
   sill: SillPotVM[];
   /** The Cutting on the window frame (§13), drawn in the band. */
   cutting: CuttingVM;
@@ -201,14 +219,13 @@ export interface TodayVM {
 export interface CompanionOfferVM {
   /** The newest pet without a habit to keep company. */
   petId: string;
-  /** "Let them choose": the habit its species would pick. */
+  /** "Let {name} choose": the habit its species would pick. */
   suggested: string | null;
   /** Habits without a companion, in display order. */
   habitIds: string[];
 }
 
 const BLOCK_ORDER: readonly Exclude<TimeOfDay, 'anytime'>[] = ['morning', 'midday', 'evening'];
-const BLOCK_LABEL: Record<TimeOfDay, string> = { morning: 'Morning', midday: 'Midday', evening: 'Evening', anytime: 'Anytime' };
 
 /**
  * Which time block of the app day the wall clock is in: morning from the day start until 11:00,
@@ -222,13 +239,6 @@ export function currentBlock(hour: number, dayStartsAt = 0, minute = 0): Exclude
   if (hour < 11) return 'morning';
   if (hour < 17) return 'midday';
   return 'evening';
-}
-
-export function dayPart(hour: number): DayPart {
-  if (hour >= 5 && hour < 12) return 'morning';
-  if (hour >= 12 && hour < 17) return 'afternoon';
-  if (hour >= 17 && hour < 22) return 'evening';
-  return 'night';
 }
 
 /** Pets out on the Shelf in band order: favourites first, then the closest friends, then who came home first. */
@@ -245,7 +255,6 @@ export function todayVM(s: AppState, env: ViewEnv, date: DateKey = env.today): T
   const t = trackingOf(s);
   const clock = env.local(env.now);
   const hour = clock.hour;
-  const part = dayPart(hour);
   const firstTracked = firstTrackedDay(t);
   const isToday = day === today;
 
@@ -267,7 +276,6 @@ export function todayVM(s: AppState, env: ViewEnv, date: DateKey = env.today): T
       offDay: s.offDays[d] === true,
       state: aggregateDayState(s, d, today, firstTracked).state,
       weekStart: i < 6 && startOfWeek(d, s.settings.weekStart) === d,
-      ariaLabel: `${longDateLabel(d)}, ${c.due > 0 ? `${c.done} of ${c.due} done` : 'nothing due'}`,
     });
   }
 
@@ -306,12 +314,10 @@ export function todayVM(s: AppState, env: ViewEnv, date: DateKey = env.today): T
     const earlier = isToday && id !== 'anytime' && BLOCK_ORDER.indexOf(id as Exclude<TimeOfDay, 'anytime'>) < curIdx;
     blocks.push({
       id,
-      label: BLOCK_LABEL[id],
       current: isToday && id === cur,
       collapsed: (earlier || !isToday) && done === cards.length,
       done,
       total: cards.length,
-      summary: `${BLOCK_LABEL[id]} ${done}/${cards.length}`,
       cards,
     });
   }
@@ -323,7 +329,6 @@ export function todayVM(s: AppState, env: ViewEnv, date: DateKey = env.today): T
     total: c.due,
     fraction: c.due > 0 ? c.done / c.due : c.flexibleCheckins > 0 ? 1 : 0,
     nothingDue: c.due === 0,
-    label: c.due > 0 ? `${c.done} of ${c.due}` : c.flexibleCheckins > 0 ? `${c.flexibleCheckins} checked in` : 'Nothing due',
     flexibleCheckins: c.flexibleCheckins,
     perfect: s.ledger.once[`perfect|${day}`] !== undefined,
   };
@@ -332,37 +337,37 @@ export function todayVM(s: AppState, env: ViewEnv, date: DateKey = env.today): T
     const list = pausedHabits.map((h) => ({ id: h.id, name: h.name, back: pauseReturnDay(h.pauses, day) ?? null }));
     const backs = list.map((x) => x.back).filter((b): b is DateKey => b !== null).sort();
     const back = backs.length === list.length && backs.length > 0 ? backs[0]! : null;
-    paused = {
-      count: list.length,
-      habits: list,
-      text: `Resting: ${list.length} habit${list.length === 1 ? '' : 's'}${back ? ` · back ${monthDayLabel(back)}` : ''}`,
-    };
+    paused = { count: list.length, habits: list, back };
   }
 
   // The band: pots with their companions or whoever is nearest, the Cutting, today's found thing.
-  const cards = new Map([...blocks.flatMap((b) => b.cards), ...doneForPeriod, ...thisMonth, ...notToday].map((c) => [c.id, c]));
+  // Pots follow the card order (current block first), so the band's first 6 are the ones in view.
+  const ordered = [...blocks.flatMap((b) => b.cards), ...doneForPeriod, ...thisMonth, ...notToday];
   const showCompanions = s.settings.showCompanions !== false;
-  const potHabits = live.filter((h) => !isPausedOn(h.pauses, day));
-  const companions = new Set(showCompanions ? potHabits.map((h) => cards.get(h.id)?.companion?.petId).filter((x): x is string => x !== undefined) : []);
+  // A companion lives in its pot only while it is out on the Shelf (a pet resting indoors isn't on the sill).
+  const residentCompanion = (card: HabitCardVM) => (showCompanions && card.companion && s.pets[card.companion.petId]?.inMeadow ? card.companion : null);
+  const companions = new Set(ordered.map((c) => residentCompanion(c)?.petId).filter((x): x is string => x !== undefined));
   const nearest = sillResidents(s).filter((id) => !companions.has(id));
   const cameHome = isToday ? cameHomeToday(s, today, env.local) : [];
   const bows = new Set(cameHome.map((c) => c.petId));
   let next = 0;
-  const sill: SillPotVM[] = potHabits.map((h) => {
-    const card = cards.get(h.id)!;
-    const own = showCompanions ? card.companion : null;
+  const sill: SillPotVM[] = ordered.map((card) => {
+    const own = residentCompanion(card);
     const petId = own?.petId ?? nearest[next++];
     return {
-      habitId: h.id,
-      icon: h.icon,
-      plant: h.plant,
-      pot: h.pot,
+      habitId: card.id,
+      icon: card.icon,
+      name: card.name,
+      note: card.after ? null : card.anchor,
+      species: card.plant.species,
+      pot: card.plant.pot,
       stage: card.plant.displayStage,
       progress: card.plant.progress,
       blooms: card.plant.blooms,
+      pulse: card.waterings,
       done: card.done,
       damp: card.damp,
-      resident: petId ? { petId, companion: own !== null && own !== undefined } : null,
+      resident: petId ? { petId, companion: own !== null } : null,
       routine: own?.routine ?? null,
       bow: petId !== undefined && bows.has(petId),
       look: card.look,
@@ -379,8 +384,10 @@ export function todayVM(s: AppState, env: ViewEnv, date: DateKey = env.today): T
     date: day,
     isToday,
     dateLabel: longDateLabel(day),
-    backdating: isToday ? null : { label: `Logging for ${shortDateLabel(day)}`, rewards: isInBackfillWindow(day, today) && canLogOn(day, today) },
-    greeting: { timeOfDay: part, hour, name: s.profile.name.trim(), birthday },
+    shortDate: monthDayLabel(day),
+    weekdayName: weekdayName(day),
+    backdating: isToday ? null : { date: day, weekdayName: weekdayName(day), rewards: isInBackfillWindow(day, today) && canLogOn(day, today) },
+    greeting: { period: greetingPeriod(hour), hour, name: s.profile.name.trim(), birthday },
     weekStrip,
     progress,
     coinsToday: s.ledger.daily[today] ?? 0,
@@ -426,4 +433,72 @@ export function storyWaiting(s: AppState): TodayVM['storyWaiting'] {
     }
   }
   return best ? { habitId: best.habitId, petId: best.petId, story: best.story } : null;
+}
+
+/* ------------------------------------------------------------------ */
+/* The windowsill band's inputs (WindowsillBand `pots` and `pets`)     */
+/* ------------------------------------------------------------------ */
+
+/** One pot on the band: the shape of the art's `SillPot` (src/art/scene/model.ts). */
+export interface BandPot {
+  habitId: string;
+  name?: string;
+  note?: string;
+  species: PlantSpeciesId;
+  stage: number;
+  progress?: number;
+  blooms?: number;
+  pot: PotId;
+  damp?: boolean;
+  pulse?: number;
+}
+
+/** One pet on the band: the shape of the art's `ShelfPet`. */
+export interface BandPet {
+  key?: string;
+  petId: string;
+  name?: string;
+  personality?: Personality;
+  outfit?: Outfit;
+  /** The habit whose pot it sits in (its companion's pot, or the nearest). */
+  home?: string;
+  place?: PlaceId;
+}
+
+/**
+ * The band's pots, in the VM's card order (the current block first, then "Watered for the week",
+ * "This month", "Other days"): the band shows the first 6, so the pot that is poured into on a
+ * check-in in the current block is always on it. `blooms` is left out below Evergreen so the art
+ * follows the stage.
+ */
+export function bandPots(vm: Pick<TodayVM, 'sill'>): BandPot[] {
+  return vm.sill.map((p) => ({
+    habitId: p.habitId,
+    name: p.name,
+    ...(p.note ? { note: p.note } : {}),
+    species: p.species,
+    stage: p.stage,
+    progress: p.progress,
+    ...(p.blooms !== undefined ? { blooms: p.blooms } : {}),
+    pot: p.pot,
+    damp: p.damp,
+    pulse: p.pulse,
+  }));
+}
+
+/**
+ * The band's pets: each pot's resident that is out on the Shelf, once, in pot order, sitting in
+ * that pot (`home`), with its name, personality and outfit.
+ */
+export function bandPets(vm: Pick<TodayVM, 'sill'>, s: Pick<AppState, 'pets'>): BandPet[] {
+  const out: BandPet[] = [];
+  const seen = new Set<string>();
+  for (const p of vm.sill) {
+    const id = p.resident?.petId;
+    const pet = id ? s.pets[id] : undefined;
+    if (!id || !pet || !pet.inMeadow || seen.has(id)) continue;
+    seen.add(id);
+    out.push({ key: id, petId: id, name: pet.name, personality: pet.personality, outfit: pet.outfit, home: p.habitId, place: 'sill' });
+  }
+  return out;
 }

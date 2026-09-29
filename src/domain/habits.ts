@@ -442,7 +442,7 @@ export function acceptGrowOffer(tx: Tx, id: string, patch: Partial<HabitInput>):
   if (!isBiggerRule(ruleAt(h, today), ruleContentOf(merged))) return false;
   updateHabit(tx, id, patch, 'tomorrow');
   setOnce(tx, `grow|${id}|${today}`);
-  grantStars(tx, GROW_STARS, 'gift');
+  grantStars(tx, GROW_STARS, 'grow');
   return true;
 }
 
@@ -475,15 +475,19 @@ export function habitInputFromTemplate(template: HabitTemplate): HabitInput {
 export interface OnboardingInput {
   name: string;
   templateIds: string[];
+  /** "Make my own" habits from the same step, planted after the chosen starters (3 in all at most). */
+  customHabits?: HabitInput[];
   dayStartsAt?: number;
   birthday?: string;
 }
 
 /**
  * Finishes onboarding (§9.6): the name, the day start and birthday when given, the starter recipes
- * in the pantry, and up to 3 habits from templates. There is no pet and no coin gift here: the first
- * pet comes from the "Cats or Cows?" capsule (`pull(…, { free: true })`, gacha.ts), and the first
- * check-in tops the jar up to one capsule (First Sprout, economy.ts). Idempotent once onboarded.
+ * in the pantry, and up to 3 habits: the chosen starters, then any "Make my own" habits (one
+ * transaction, one limit). Returns the new habit ids in that order, for "Find {name} a plant".
+ * There is no pet and no coin gift here: the first pet comes from the "Who comes home first?"
+ * capsule (`pull(…, { free: true })`, gacha.ts), and the first check-in tops the jar up to one
+ * capsule (First Sprout, economy.ts). Idempotent once onboarded (returns []).
  */
 export function completeOnboarding(tx: Tx, opts: OnboardingInput): string[] {
   if (tx.s.profile.onboarded) return [];
@@ -496,10 +500,12 @@ export function completeOnboarding(tx: Tx, opts: OnboardingInput): string[] {
   if (tx.s.settings.hemisphere === undefined && tx.env.timeZone) tx.section('settings').hemisphere = inferHemisphere(tx.env.timeZone);
   for (const t of ownedTreats(tx.s.collection)) ensureRecipe(tx, t.id);
   const ids: string[] = [];
-  for (const templateId of opts.templateIds.slice(0, ONBOARDING_MAX_HABITS)) {
-    const template = TEMPLATES.find((t) => t.id === templateId);
-    if (!template) continue;
-    const input = habitInputFromTemplate(template);
+  const inputs = [
+    ...opts.templateIds.map((templateId) => TEMPLATES.find((t) => t.id === templateId)).filter((t): t is HabitTemplate => t !== undefined).map(habitInputFromTemplate),
+    ...(opts.customHabits ?? []),
+  ];
+  for (const input of inputs) {
+    if (ids.length >= ONBOARDING_MAX_HABITS) break;
     if (validateHabitInput(tx.s, input).length > 0) continue;
     ids.push(createHabit(tx, input));
   }

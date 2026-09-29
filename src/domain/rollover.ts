@@ -22,7 +22,7 @@ import type { DateKey } from '@/state/types';
 import { logStatus } from './activity';
 import { addDays, maxDateKey, parseDateKey, recurringDay } from './dates';
 import { bestStreakOccurrences, compactLedger, ledgerKey } from './economy';
-import { ensureLetters } from './letters';
+import { ensureEarlyWeeklyNote, ensureLetters } from './letters';
 import { pruneOldStamps, rewardPass } from './logging';
 import { pruneFoundThings } from './friendship';
 import { restockPantry } from './pantry';
@@ -99,7 +99,11 @@ export function openDay(tx: Tx): boolean {
   observeClock(tx);
   if (rewardsPaused(tx.s, tx.env.now)) return false;
   const fresh = previous === '';
-  if (!fresh && tx.env.today <= previous) return false;
+  if (!fresh && tx.env.today <= previous) {
+    // Same app day: only the Sunday Note can come due (from 18:00 on the week's last day).
+    ensureEarlyWeeklyNote(tx);
+    return false;
+  }
   if (!fresh) closeDays(tx, previous);
   restockPantry(tx);
   retireEndedHabits(tx);

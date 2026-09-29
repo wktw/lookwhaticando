@@ -169,3 +169,33 @@ describe('notes and history edits', () => {
     expect(g.state.offDays).toEqual(before.offDays);
   });
 });
+
+describe('Welcome home after a partial tap (M1 audit)', () => {
+  it('a partial tap on a count habit after time away doesn’t use up the welcome: the next completing watering pays it', () => {
+    const g = new Game({ start: '2026-03-02' });
+    const walk = g.addHabit();
+    const water = g.addHabit({ name: 'Drink water', icon: 'water', target: 8, unit: 'glasses' });
+    g.checkIn(walk);
+    g.goTo('2026-03-07'); // four quiet days (Mar 3–6)
+    const tickets = g.state.wallet.tickets;
+    const partial = g.checkIn(water); // glass 1 of 8
+    expect(partial).toMatchObject({ partial: true, completed: false });
+    expect(g.lastOf('welcomeHome')).toEqual([]);
+    g.checkIn(walk);
+    expect(g.lastOf('welcomeHome')).toEqual([{ type: 'welcomeHome', coins: 20, tickets: 1 }]);
+    expect(g.lastOf('coins').filter((e) => e.reason === 'home')).toEqual([{ type: 'coins', amount: 20, reason: 'home' }]);
+    expect(g.state.wallet.tickets).toBe(tickets + 1);
+  });
+
+  it('a completing watering still records the time, so the next day is an ordinary day', () => {
+    const g = new Game({ start: '2026-03-02' });
+    const walk = g.addHabit();
+    g.checkIn(walk);
+    g.goTo('2026-03-07');
+    g.checkIn(walk);
+    expect(g.lastOf('welcomeHome')).toHaveLength(1);
+    g.goTo('2026-03-08');
+    g.checkIn(walk);
+    expect(g.lastOf('welcomeHome')).toEqual([]);
+  });
+});
