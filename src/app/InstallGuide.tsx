@@ -13,6 +13,7 @@ import { toast } from '@/ui/toast';
 import { AppIconArt } from './AppIconArt';
 import { currentInstallPlatform, installPrompt, promptInstall, safariMajor, type InstallPlatform } from './installPrompt';
 import { AddToHomeArt, AndroidMenuArt, ChromeInstallArt, CompactShareArt, DockArt, HomeScreenArt, MacDockArt, ShareStepArt, ViewMoreArt } from './installArt';
+import { INSTALL } from '@/catalog/lines';
 import { INSTALL_COPY } from './copy';
 import s from './InstallGuide.module.css';
 
@@ -167,9 +168,10 @@ export function InstallSheet({ open, onClose, platform }: InstallSheetProps) {
 
 /**
  * The install-first gate: a full page before onboarding, with the reason in one line, the steps
- * for this browser, and "Just peek" for anyone who only wants to look around (the demo).
+ * for this browser, "Just peek" for anyone who only wants to look around (the demo), and "Paste
+ * my plants" for a CK1 backup she brought with her.
  */
-export function InstallGate({ onPeek, platform }: { onPeek: () => void; platform?: InstallPlatform | InstallGuideKey }) {
+export function InstallGate({ onPeek, onPaste, platform }: { onPeek: () => void; onPaste?: () => void; platform?: InstallPlatform | InstallGuideKey }) {
   const p = platform ?? currentInstallPlatform();
   const key: InstallGuideKey = p === 'installed' ? 'other' : p === 'ios-safari-classic' ? p : guideFor(p, navigator.userAgent);
   const guide = GUIDES[key];
@@ -184,6 +186,11 @@ export function InstallGate({ onPeek, platform }: { onPeek: () => void; platform
       <Button variant="quiet" size="lg" block class={s.peek} onClick={onPeek}>
         {INSTALL_COPY.gatePeek}
       </Button>
+      {onPaste && (
+        <Button variant="quiet" size="lg" block onClick={onPaste}>
+          {INSTALL.paste}
+        </Button>
+      )}
     </section>
   );
 }

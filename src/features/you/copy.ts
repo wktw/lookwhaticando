@@ -34,7 +34,7 @@ export const HABITS_COPY = {
   moveDown: 'Move {habit} down',
   moveHint: 'Drag, or use the arrow keys.',
   moved: '{habit}, {pos} of {count}.',
-  empty: 'No habits on the sill yet.',
+  resting: 'Resting',
 } as const;
 
 export const PREFS_COPY = {
@@ -74,7 +74,7 @@ export const ABOUT_COPY = {
   principlesTitle: 'What catkin keeps to',
   principles: [
     'Growth only adds. Nothing wilts, droops or goes brown.',
-    'Rest is part of the routine. A rest day counts as a rest day.',
+    'Rest is part of the routine. Rest days and pauses count as rest.',
     'Coming back is noticed kindly.',
     'With Quiet rewards on, catkin is just the tracker.',
     'The odds are printed on every cabinet.',
@@ -120,6 +120,8 @@ export const ONBOARDING_COPY = {
   toToday: 'On to Today',
   choose: 'Who comes home first? Choose a cabinet',
   notice: 'Name',
+  nameIdeas: 'Name ideas',
+  anotherName: 'Another name',
 } as const;
 
 export const SHELL_BANNERS = {

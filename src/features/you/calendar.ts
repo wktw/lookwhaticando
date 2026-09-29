@@ -61,6 +61,6 @@ export function isAppleTouch(ua: string = navigator.userAgent, platform: string 
  * (a generated file can't reach Calendar from the installed app, and the tab does the same for
  * consistency). The single file has no public folder, so it always makes the file itself.
  */
-export function useStaticCal(env: { single: boolean; protocol: string; appleTouch: boolean }): boolean {
+export function wantsStaticCal(env: { single: boolean; protocol: string; appleTouch: boolean }): boolean {
   return !env.single && /^https?:$/.test(env.protocol) && env.appleTouch;
 }
