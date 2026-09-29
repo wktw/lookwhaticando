@@ -39,6 +39,7 @@ import { EMPTY } from '@/catalog/lines';
 import { DATA_COPY, YOU } from './copy';
 import { copyText, downloadText, saveFile } from './files';
 import { ImportSheet } from './ImportSheet';
+import { saveLocked } from './lock';
 import s from './You.module.css';
 import cs from '@/ui/ConfirmDialog.module.css';
 
@@ -125,7 +126,7 @@ function SnapshotsSheet({ open, onClose }: { open: boolean; onClose: () => void 
                     </span>
                     <span class={s.helper}>{fillLine(DATA_COPY.snapshotLine, { habits: num(snap.habits), waterings: num(snap.checkins) })}</span>
                   </span>
-                  <Button variant="secondary" size="sm" disabled={demoMode.value} onClick={() => setConfirm({ id: snap.id, label })}>
+                  <Button variant="secondary" size="sm" disabled={demoMode.value || saveLocked()} onClick={() => setConfirm({ id: snap.id, label })}>
                     {DATA.restoreSnapshot}
                   </Button>
                 </li>
@@ -212,7 +213,8 @@ export function DataSection() {
   const [resetStep, setResetStep] = useState<0 | 1 | 2>(0);
   const [, bump] = useState(0);
   const inDemo = demoMode.value;
-  const undoable = !inDemo && canUndoImport();
+  const locked = saveLocked();
+  const undoable = !inDemo && !locked && canUndoImport();
 
   const saveBackup = async () => {
     const json = exportData();
@@ -252,7 +254,7 @@ export function DataSection() {
         <StatusRow />
         <ListRow leading="download" leadingTone="sage" title={DATA.save} chevron={false} onClick={() => void saveBackup()} />
         <ListRow leading="export" leadingTone="sage" title={DATA.copy} chevron={false} onClick={() => void copyBackup()} />
-        <ListRow leading="import" leadingTone="sky" title={DATA.import} subtitle={inDemo ? DATA_COPY.inDemo : undefined} onClick={() => setImporting(true)} />
+        <ListRow leading="import" leadingTone="sky" title={DATA.import} subtitle={inDemo ? DATA_COPY.inDemo : undefined} disabled={locked} onClick={() => setImporting(true)} />
         {undoable && <ListRow leading="undo" leadingTone="sky" title={DATA.undoImport} chevron={false} onClick={() => void undo()} />}
         <ListRow leading="calendar" leadingTone="lavender" title={DATA_COPY.snapshotsRow} onClick={() => setSnapshots(true)} />
         <ListRow leading="note" leadingTone="butter" title={DATA.csv} chevron={false} onClick={csv} />
@@ -262,11 +264,12 @@ export function DataSection() {
           title={inDemo ? DATA.leaveDemo : DATA.demo}
           subtitle={inDemo ? undefined : DATA_COPY.demoLine}
           chevron={false}
+          disabled={locked}
           onClick={() => (inDemo ? exitDemo() : (enterDemo(), navigate('today')))}
         />
       </div>
       <div class={s.card} style={{ marginTop: 'var(--s-3)' }}>
-        <ListRow leading="trash" leadingTone="peach" title={DATA.startOver} destructive chevron={false} disabled={!!readOnly.value} onClick={() => setResetStep(1)} />
+        <ListRow leading="trash" leadingTone="peach" title={DATA.startOver} destructive chevron={false} disabled={locked || !!readOnly.value} onClick={() => setResetStep(1)} />
       </div>
 
       <ImportSheet open={importing} onClose={() => setImporting(false)} onImported={() => bump((n) => n + 1)} />

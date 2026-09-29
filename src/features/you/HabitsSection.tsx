@@ -23,6 +23,7 @@ import { toneClass } from '@/ui/tone';
 import { prefersReducedMotion } from '@/fx/motion';
 import { haptic } from '@/fx/haptics';
 import { Group } from './parts';
+import { saveLocked } from './lock';
 import { HABITS_COPY, YOU, movedLine } from './copy';
 import { keyStep, moveBy, moveTo, slotAt } from './reorder';
 import s from './You.module.css';
@@ -240,7 +241,8 @@ export function HabitsSection() {
   const live = all.filter((h) => h.archivedOn === undefined).sort(byOrder);
   const archived = all.filter((h) => h.archivedOn !== undefined).sort(byOrder);
   const [arranging, setArranging] = useState(false);
-  const canArrange = live.length > 1;
+  const locked = saveLocked();
+  const canArrange = live.length > 1 && !locked;
   const on = arranging && canArrange;
 
   return (
@@ -257,7 +259,7 @@ export function HabitsSection() {
       footer={on ? <span id="you-arrange-hint">{HABITS_COPY.moveHint}</span> : archived.length === 0 ? EMPTY.archived : undefined}
     >
       {live.length === 0 ? <p class={s.empty}>{EMPTY.today}</p> : on ? <ArrangeList habits={live} /> : <HabitList habits={live} />}
-      {!on && (
+      {!on && !locked && (
         <div class={s.addRow}>
           <Button variant="secondary" size="sm" icon="plus" onClick={() => openHabitEditor()}>
             {EMPTY.addHabit}
@@ -274,9 +276,11 @@ export function HabitsSection() {
                 <span class={s.habitText}>
                   <span class={s.habitName}>{h.name}</span>
                 </span>
-                <Button variant="secondary" size="sm" aria-label={fillLine(HABITS_COPY.bringBackLabel, { habit: h.name })} onClick={() => bringBack(h)}>
-                  {HABITS_COPY.bringBack}
-                </Button>
+                {!locked && (
+                  <Button variant="secondary" size="sm" aria-label={fillLine(HABITS_COPY.bringBackLabel, { habit: h.name })} onClick={() => bringBack(h)}>
+                    {HABITS_COPY.bringBack}
+                  </Button>
+                )}
               </li>
             ))}
           </ul>

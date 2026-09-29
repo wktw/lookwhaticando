@@ -14,6 +14,7 @@ import { toast } from '@/ui/toast';
 import { YOU } from './copy';
 import { copyText } from './files';
 import { ImportSheet } from './ImportSheet';
+import { saveLocked } from './lock';
 import { CopyByHand } from './DataSection';
 import s from './You.module.css';
 
@@ -37,7 +38,7 @@ export function InstallSection() {
       {(installed || (hasPlants && !single)) && (
         <div class={s.card} style={{ marginTop: 'var(--s-3)' }}>
           {installed ? (
-            <ListRow leading="import" leadingTone="sage" title={INSTALL.paste} onClick={() => setPasting(true)} />
+            <ListRow leading="import" leadingTone="sage" title={INSTALL.paste} disabled={saveLocked()} onClick={() => setPasting(true)} />
           ) : (
             <ListRow leading="export" leadingTone="sage" title={INSTALL.handoff} chevron={false} onClick={() => void handoff()} />
           )}

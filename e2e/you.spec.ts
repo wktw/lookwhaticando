@@ -192,3 +192,17 @@ test('seven taps on the version open Diagnostics', async ({ page }, info) => {
   await page.getByRole('button', { name: 'You', exact: true }).first().click();
   await expect(page.locator('main h1')).toHaveText('You');
 });
+
+test('a second window shows every setting disabled until "Use here"', async ({ page, context }) => {
+  await openYou(page);
+  const other = await context.newPage();
+  await other.goto('./#/you');
+  await expect(other.locator('[data-banner="other-window"]')).toBeVisible();
+  await expect(other.getByLabel('Your name')).toBeDisabled();
+  await expect(other.getByRole('switch', { name: /^Compact Today/ })).toBeDisabled();
+  await expect(other.getByRole('button', { name: 'Arrange' })).toHaveCount(0);
+  await expect(other.getByRole('button', { name: 'Save a backup' })).toBeEnabled();
+  await other.locator('[data-banner="other-window"]').getByRole('button', { name: 'Use here' }).click();
+  await expect(other.getByLabel('Your name')).toBeEnabled();
+  await other.close();
+});

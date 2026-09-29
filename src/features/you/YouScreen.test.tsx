@@ -2,7 +2,7 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { act } from 'preact/test-utils';
 import { createInitialState } from '@/state/defaults';
-import { archiveHabit, completeOnboarding, exportData, setName, state } from '@/state/store';
+import { archiveHabit, completeOnboarding, exportData, readOnly, setName, state } from '@/state/store';
 import { routeRest } from '@/app/router';
 import { toasts } from '@/ui/toast';
 import { button, click, installDom, key, mount, type, until } from '@/features/capsules/testing';
@@ -27,6 +27,7 @@ beforeEach(() => {
   view = mount(<YouScreen />);
 });
 afterEach(() => {
+  readOnly.value = false;
   view?.unmount();
   view = null;
   for (const d of document.querySelectorAll('[role="dialog"], [role="alertdialog"]')) d.remove();
@@ -100,6 +101,21 @@ describe('You (DESIGN §9.5)', () => {
     await click(byText('Start over', dlg), 'confirm twice');
     expect(state.value.habits).toHaveLength(0);
     expect(state.value.profile.onboarded).toBe(false);
+  });
+
+  it('disables every setting while another window owns the save, and keeps the backup', async () => {
+    await act(() => {
+      readOnly.value = 'other-window';
+    });
+    const switches = Array.from(view!.root.querySelectorAll<HTMLInputElement>('input[role="switch"]'));
+    expect(switches.length).toBeGreaterThan(3);
+    for (const sw of switches) expect(sw.matches(':disabled')).toBe(true);
+    expect((view!.root.querySelector('#you-water-morning') as HTMLSelectElement).matches(':disabled')).toBe(true);
+    expect(byText('Arrange')).toBeNull();
+    expect(byText('Add a habit')).toBeNull();
+    expect(view!.root.textContent).toContain('This window can’t change the save right now.');
+    const save = Array.from(view!.root.querySelectorAll('button')).find((b) => b.textContent?.includes('Save a backup'))!;
+    expect(save.matches(':disabled')).toBe(false);
   });
 
   it('keeps everything when either confirmation is declined', async () => {

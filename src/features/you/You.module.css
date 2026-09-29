@@ -617,8 +617,38 @@
   border-top: 0;
 }
 
+/* The settings, disabled together while another window owns the save. */
+.lock {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.lock:disabled .card {
+  opacity: 0.72;
+}
+
+.lockedNote {
+  margin: var(--s-3) 0 0;
+  font-size: var(--fs-caption);
+  color: var(--ink-2);
+}
+
+.column {
+  min-width: 0;
+}
+
 @media (min-width: 900px) {
+  /*
+   * A wider page than the shell's reading column: sized from the window (not the column, whose
+   * padding comes from the shell) and centred on the content area.
+   */
   .screen {
+    --you-w: min(640px, calc(100vw - var(--sidebar-w) - 64px));
+    width: var(--you-w);
+    max-width: none;
+    margin-left: calc(50% - var(--you-w) / 2);
+    margin-right: 0;
     padding-top: calc(var(--safe-top) + 40px);
   }
   .profile {
@@ -653,4 +683,21 @@
   outline: 2px solid var(--focus);
   outline-offset: -3px;
   border-radius: var(--r-md);
+}
+
+/* Two columns on a wide window: the same reading order, top to bottom, then the second column. */
+@media (min-width: 1180px) {
+  .screen {
+    --you-w: min(1000px, calc(100vw - var(--sidebar-w) - 64px));
+  }
+  .columns {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: var(--s-6);
+    align-items: start;
+  }
+  /* Both columns start level with the profile card. */
+  .column:last-child > :first-child > :first-child {
+    margin-top: var(--s-4);
+  }
 }
