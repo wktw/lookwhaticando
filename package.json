@@ -1,13 +1,13 @@
 {
-  "name": "mochi-meadow",
+  "name": "catkin",
   "private": true,
   "version": "1.0.0",
-  "description": "Mochi Meadow: a cozy habit tracker where your habits grow plants and power capsule machines full of cats, cows and friends.",
+  "description": "catkin: a habit tracker where your habits grow houseplants, and the plants become a home for small real animals.",
   "type": "module",
   "scripts": {
     "dev": "vite --host",
     "build": "vite build",
-    "build:single": "vite build --mode single",
+    "build:single": "vite build --mode single && node -e \"require('node:fs').renameSync('dist-single/index.html','dist-single/catkin.html')\"",
     "preview": "vite preview --host",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run",
