@@ -192,10 +192,11 @@ this file.
   something in it asks ("Keep editing" is the default and Esc); "Just this season" has its visible
   label; no placeholder in Unit. A latent bug is gone: the form remounted (losing what was typed) on
   the host's first re-render after opening.
-- Measured on this machine (load average 8–14) against a production build and the 3-year × 20-habit
-  save: switching to Today paints its first card in 40–60 ms (was 177–340); a tap reaches its frame in
-  23–48 ms (median 31 with motion, 48 with reduced motion; was 32–76); scrolling stays at 16.7 ms
-  frames with motion on (one 50–66 ms frame with reduced motion). The rest of a tap is the store (see
+- Measured on this machine against a production build and the 3-year × 20-habit save, at load average
+  about 2 (the reviewer's scripts): switching to Today paints its first card in 36–60 ms, median 48
+  (was 177–195 warm, 340 cold); a tap reaches its frame in 20–36 ms, median 32 with motion and 35 with
+  reduced motion (was 32–76); scrolling holds 16.7 ms frames with motion on, with one or two 33–50 ms
+  frames with reduced motion (was 50–66 ms frames as plants drew in). The rest of a tap is the store (see
   request 15) and native style for the card.
 
 ## Known gaps
