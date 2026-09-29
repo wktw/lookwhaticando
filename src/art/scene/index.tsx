@@ -18,3 +18,24 @@ export { ShelfScene, type ShelfSceneProps } from './ShelfScene';
 export { PlaceArt, type PlaceArtProps } from './PlaceArt';
 export { PLACE_SCENES, type RoomPlaceId } from './places';
 export { VIGNETTES, registerVignette, findVignette, vignetteById, type Vignette, type VignetteContext } from './behavior/vignettes';
+export type { SceneTouchProps, ShelfSceneHandle } from './SillScene';
+export type { EditDecor, PetGesture, SillExtras } from './model';
+export { decorToScene, sceneToDecor, fracToScene, sceneToFrac, decorEntry, type DecorFloor } from './decorPlace';
+export {
+  windowMoment,
+  windowClock,
+  windowHemisphere,
+  setWindowHemisphere,
+  artLight,
+  artLightFor,
+  artLightNow,
+  useArtLight,
+  pageLamplight,
+  retainWindowClock,
+} from './moment';
+export { useWindowMoment } from './hooks';
+export { KEEPSAKE_ART, KEEPSAKE_KINDS, keepsakeItemId } from './objects/keepsakes';
+export { ROUTINE_ART } from './objects/routines';
+export { FOUND_ART, foundFor } from './objects/found';
+export { ObjectArt, type ObjectArtProps } from './objects/ObjectArt';
+export { WORLD_SCALE, COW_BACK } from '@/art/pets/world';

@@ -49,3 +49,28 @@ describe('the app’s one light', () => {
     r();
   });
 });
+
+describe('the scene module’s public face', () => {
+  it('exports the interaction, decor and light contracts screens build on', async () => {
+    const scene = await import('./index');
+    for (const name of ['SillScene', 'ShelfScene', 'WindowsillBand', 'decorToScene', 'sceneToDecor', 'windowMoment', 'setWindowHemisphere', 'useArtLight', 'KEEPSAKE_ART', 'ROUTINE_ART', 'ObjectArt']) expect(scene, name).toHaveProperty(name);
+  });
+});
+
+describe('ObjectArt', () => {
+  it('draws every keepsake and every routine object on its own', async () => {
+    const { render } = await import('preact');
+    const { h } = await import('preact');
+    const { ObjectArt, KEEPSAKE_KINDS, ROUTINE_ART } = await import('./index');
+    const host = document.createElement('div');
+    for (const k of KEEPSAKE_KINDS) {
+      render(h(ObjectArt, { keepsake: k, light: DAY_LIGHT }), host);
+      expect(host.querySelector(`svg[data-object="${k}"] path`), k).not.toBeNull();
+    }
+    for (const r of Object.keys(ROUTINE_ART) as (keyof typeof ROUTINE_ART)[]) {
+      render(h(ObjectArt, { routine: r, light: NIGHT_LIGHT }), host);
+      expect(host.querySelector(`svg[data-object="${r}"] path`), r).not.toBeNull();
+    }
+    render(null, host);
+  });
+});
