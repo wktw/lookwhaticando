@@ -1,0 +1,23 @@
+/*
+ * The active tab: filled in the accent family. By day, strawberry-milk mass with deep blush structure.
+ * At night --blush-700 turns pale, so the mass drops to the dusky --blush-300 to keep the two apart.
+ */
+.mass {
+  fill: var(--blush-500);
+}
+.structure {
+  fill: var(--blush-700);
+}
+.structureLine {
+  stroke: var(--blush-700);
+}
+
+:global([data-theme='night']) .mass {
+  fill: var(--blush-300);
+}
+
+@media (prefers-color-scheme: dark) {
+  :global(:root:not([data-theme='light'])) .mass {
+    fill: var(--blush-300);
+  }
+}

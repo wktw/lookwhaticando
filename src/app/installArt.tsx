@@ -1,9 +1,9 @@
 /**
- * Little code-drawn illustrations for the install guide. Colors come from tokens via classes,
- * so they work in light and night. Each draws on a 240 × 132 canvas.
+ * Little code-drawn illustrations for the install guide: the phone or browser chrome she will see,
+ * drawn flat, with the thing to tap ringed in strawberry milk. Colours come from tokens via classes,
+ * so they work in paper and lamplight. Each draws on a 240 × 132 canvas.
  */
 import type { ComponentChildren } from 'preact';
-import { SPARKLE_PATH } from '@/ui/Sparkle';
 import { AppIconArt } from './AppIconArt';
 import s from './installArt.module.css';
 
@@ -13,10 +13,6 @@ function Frame({ label, children }: { label: string; children: ComponentChildren
       {children}
     </svg>
   );
-}
-
-function Spark({ x, y, k = 1 }: { x: number; y: number; k?: number }) {
-  return <path class={s.spark} d={SPARKLE_PATH} transform={`translate(${x} ${y}) scale(${0.55 * k})`} />;
 }
 
 /** A pulsing highlight ring around the thing to tap. */
@@ -46,7 +42,7 @@ export function ShareStepArt({ inAddressBar = false }: { inAddressBar?: boolean 
       <rect class={s.screen} x="12" y="8" width="216" height="116" rx="20" />
       <rect class={s.well} x="30" y="24" width="180" height="28" rx="14" />
       <text class={s.url} x="120" y="42" text-anchor="middle">
-        mochi meadow
+        catkin
       </text>
       {inAddressBar ? (
         <>
@@ -72,8 +68,6 @@ export function ShareStepArt({ inAddressBar = false }: { inAddressBar?: boolean 
           <ShareGlyph x={120} y={87} />
         </>
       )}
-      <Spark x={inAddressBar ? 214 : 143} y={inAddressBar ? 18 : 66} />
-      <Spark x={inAddressBar ? 176 : 98} y={inAddressBar ? 60 : 106} k={0.6} />
     </Frame>
   );
 }
@@ -108,12 +102,10 @@ export function CompactShareArt() {
       <path class={s.glyph} d="M41 96 l-6 6 l6 6" />
       <rect class={s.well} x="58" y="88" width="124" height="28" rx="14" />
       <text class={s.url} x="120" y="106" text-anchor="middle">
-        mochi meadow
+        catkin
       </text>
       <Ring x={202} y={102} r={14} />
       <MoreGlyph x={202} y={102} />
-      <Spark x={100} y={30} />
-      <Spark x={222} y={84} k={0.6} />
     </Frame>
   );
 }
@@ -140,8 +132,6 @@ export function ViewMoreArt() {
       <text class={s.rowText} x="86" y="120">
         Add to Reading List
       </text>
-      <Spark x={218} y={56} />
-      <Spark x={52} y={104} k={0.6} />
     </Frame>
   );
 }
@@ -180,27 +170,26 @@ export function AddToHomeArt() {
           {!hl && y < 90 && <path class={s.divider} d={`M42 ${y + 18} H206`} />}
         </g>
       ))}
-      <Spark x={214} y={40} />
     </Frame>
   );
 }
 
-/** A home screen with Mochi's icon newly arrived. */
+/** A home screen with the catkin icon newly arrived. */
 export function HomeScreenArt() {
   const others: [number, number, string][] = [
-    [46, 30, '#BBDCF6'],
-    [96, 30, '#C3DFB4'],
-    [196, 30, '#FFE593'],
-    [46, 84, '#D6C8F8'],
-    [146, 84, '#FFCBA8'],
-    [196, 84, '#B3E6D6'],
+    [46, 30, s.appSky!],
+    [96, 30, s.appSage!],
+    [196, 30, s.appButter!],
+    [46, 84, s.appLavender!],
+    [146, 84, s.appPeach!],
+    [196, 84, s.appMint!],
   ];
   return (
-    <Frame label="Home screen with the Mochi Meadow icon">
+    <Frame label="Home screen with the catkin icon">
       <rect class={s.wallpaper} x="12" y="4" width="216" height="124" rx="20" />
       {others.map(([x, y, c]) => (
         <g key={`${x}-${y}`}>
-          <rect x={x - 17} y={y - 17} width="34" height="34" rx="10" fill={c} opacity="0.85" />
+          <rect class={c} x={x - 17} y={y - 17} width="34" height="34" rx="10" />
           <rect class={s.labelBar} x={x - 11} y={y + 22} width="22" height="4" rx="2" />
         </g>
       ))}
@@ -209,11 +198,9 @@ export function HomeScreenArt() {
           <AppIconArt size="100" shape="squircle" />
         </svg>
         <text class={s.appLabel} x="146" y="62" text-anchor="middle">
-          Mochi Meadow
+          catkin
         </text>
       </g>
-      <Spark x={170} y={12} k={1.1} />
-      <Spark x={120} y={46} k={0.6} />
     </Frame>
   );
 }
@@ -249,28 +236,28 @@ export function MacDockArt() {
         Add to Dock…
       </text>
       <rect class={s.well} x="150" y="102" width="74" height="18" rx="7" />
-      <svg x="178" y="98" width="20" height="20" viewBox="0 0 100 100">
+      {/* Centred on the Dock pill (x 150–224, y 102–120), inside its top edge. */}
+      <svg x="180" y="104" width="14" height="14" viewBox="0 0 100 100">
         <AppIconArt size="100" shape="squircle" />
       </svg>
-      <Spark x={184} y={70} />
     </Frame>
   );
 }
 
-/** A Mac Dock with Mochi Meadow newly settled in (and running). */
+/** A Mac Dock with catkin newly settled in (and running). */
 export function DockArt() {
   const icons: [number, string][] = [
-    [40, '#BBDCF6'],
-    [72, '#C3DFB4'],
-    [168, '#FFE593'],
-    [200, '#D6C8F8'],
+    [40, s.appSky!],
+    [72, s.appSage!],
+    [168, s.appButter!],
+    [200, s.appLavender!],
   ];
   return (
-    <Frame label="Mac Dock with the Mochi Meadow icon">
+    <Frame label="Mac Dock with the catkin icon">
       <rect class={s.wallpaper} x="6" y="6" width="228" height="120" rx="14" />
       <rect class={s.dock} x="22" y="78" width="196" height="40" rx="14" />
       {icons.map(([x, c]) => (
-        <rect key={x} x={x - 13} y="85" width="26" height="26" rx="8" fill={c} opacity="0.9" />
+        <rect key={x} class={c} x={x - 13} y="85" width="26" height="26" rx="8" />
       ))}
       <g class={s.newApp}>
         <svg x="98" y="58" width="44" height="44" viewBox="0 0 100 100">
@@ -280,10 +267,8 @@ export function DockArt() {
       </g>
       <rect class={s.tooltip} x="84" y="30" width="72" height="20" rx="8" />
       <text class={s.appLabel} x="120" y="44" text-anchor="middle">
-        Mochi Meadow
+        catkin
       </text>
-      <Spark x={150} y={60} k={1.1} />
-      <Spark x={94} y={70} k={0.6} />
     </Frame>
   );
 }
@@ -295,7 +280,7 @@ export function ChromeInstallArt() {
       <rect class={s.screen} x="8" y="8" width="224" height="116" rx="14" />
       <rect class={s.well} x="18" y="20" width="204" height="28" rx="14" />
       <text class={s.url} x="94" y="38" text-anchor="middle">
-        mochi meadow
+        catkin
       </text>
       <Ring x={202} y={34} r={13} />
       <g class={s.glyph} transform="translate(202 34)">
@@ -305,8 +290,6 @@ export function ChromeInstallArt() {
       <svg x="92" y="62" width="56" height="56" viewBox="0 0 100 100">
         <AppIconArt size="100" shape="squircle" />
       </svg>
-      <Spark x={222} y={58} />
-      <Spark x={78} y={70} k={0.6} />
     </Frame>
   );
 }
@@ -329,7 +312,6 @@ export function AndroidMenuArt() {
       <text class={s.rowTextHl} x="56" y="97">
         Install app
       </text>
-      <Spark x={196} y={82} />
     </Frame>
   );
 }

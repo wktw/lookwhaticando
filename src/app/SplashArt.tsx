@@ -1,25 +1,19 @@
-import { PetArt } from '@/art/pets/PetArt';
-import { Sparkle } from '@/ui/Sparkle';
+import { Wordmark } from '@/art/icons/brand';
+import { DAY_LIGHT, NIGHT_LIGHT } from '@/art/light';
 import s from './SplashArt.module.css';
 
 /**
- * The launch screen (rendered to PNG by scripts/generate-icons.mjs for iOS startup images):
- * Mochi on a soft glow with the wordmark, in the light or night palette.
+ * The launch screen (rendered to PNG by scripts/generate-icons.mjs for the iOS startup images): the
+ * app's own paper, the catkin sprig and the lowercase wordmark, a little above centre. Light is paper
+ * (#FAF6EF); night is lamplight's indigo paper (#1E1A22), so the first paint matches either theme.
  */
 export function SplashArt({ theme = 'light', width, height }: { theme?: 'light' | 'night'; width: number; height: number }) {
-  const unit = Math.min(width, height);
+  const unit = Math.min(width, height) / 100;
   return (
-    <div class={s.splash} data-splash={theme} style={{ width: `${width}px`, height: `${height}px`, '--u': `${unit / 100}px` }}>
-      <div class={s.glow} />
+    <div class={s.splash} data-splash={theme} style={{ width: `${width}px`, height: `${height}px` }}>
       <div class={s.center}>
-        <PetArt petId="pet-mochi" size={unit * 0.44} expression={theme === 'night' ? 'sleep' : 'idle'} />
-        <p class={s.wordmark}>
-          Mochi <span>Meadow</span>
-        </p>
+        <Wordmark size={Math.round(unit * 13 * 10) / 10} light={theme === 'night' ? NIGHT_LIGHT : DAY_LIGHT} />
       </div>
-      <Sparkle class={s.s1} size={unit * 0.06} />
-      <Sparkle class={s.s2} size={unit * 0.035} />
-      <Sparkle class={s.s3} size={unit * 0.045} />
     </div>
   );
 }

@@ -1,15 +1,16 @@
 #!/usr/bin/env node
 /**
- * App icons + iOS launch screens, rendered from the REAL art (PetArt Mochi) with Playwright.
+ * App icons, favicon and iOS launch screens, rendered from the real art with Playwright.
  *   npm run icons
- * Starts a Vite dev server, screenshots the stages in src/dev/sections-fxui.tsx
- * (fxui-appicon / fxui-splash), writes PNGs into public/, and rewrites the
- * <link rel="apple-touch-startup-image"> block in index.html between the startup-images markers.
- * public/icons/favicon.svg is hand-authored and not generated; it is also inlined into
- * index.html (between the favicon markers) so the single-file build carries it.
+ * Starts a Vite dev server and screenshots the bare stages in src/dev/sections-icons.tsx:
+ *  - icons-appicon&stage=<shape>&size=<px>  → public/icons/*.png (AppIconArt)
+ *  - icons-appicon&stage=favicon             → public/icons/favicon.svg (the cropped SVG, serialized)
+ *  - icons-splash&splash=<theme>&w&h          → public/splash/*.png (SplashArt: paper, sprig, wordmark)
+ * Then rewrites index.html between the <!--favicon--> markers (the favicon inlined as a data: URI, so
+ * the single-file build carries it) and the <!--startup-images--> markers.
  *
- * Launch screens are flat pastel discs, so they're stored as 256-color palette PNGs
- * (about a fifth of the size of the screenshots Playwright takes).
+ * Launch screens are flat paper with a small mark, so they're stored as 256-colour palette PNGs
+ * (a fraction of the size of the screenshots Playwright takes).
  */
 import { createServer } from 'vite';
 import { chromium } from '@playwright/test';
@@ -221,10 +222,27 @@ try {
 
   const iconCtx = await browser.newContext({ viewport: { width: 640, height: 640 }, deviceScaleFactor: 1, reducedMotion: 'reduce' });
   for (const icon of ICONS) {
-    const page = await open(iconCtx, `/gallery.html?only=fxui-appicon&stage=${icon.shape}&size=${icon.size}`);
-    await page.locator('#mm-icon-stage').screenshot({ path: icon.file, omitBackground: icon.shape === 'squircle' });
+    const page = await open(iconCtx, `/gallery.html?only=icons-appicon&stage=${icon.shape}&size=${icon.size}`);
+    await page.locator('#icon-stage').screenshot({ path: icon.file, omitBackground: icon.shape === 'squircle' });
     await page.close();
     console.log(`  ${icon.file} (${icon.size}×${icon.size}, ${icon.shape})`);
+  }
+
+  // The favicon is the icon's own SVG at its favicon stage (cropped to the cat and pot on a deeper tile,
+  // squircle with transparent corners), serialized from the page.
+  {
+    const page = await open(iconCtx, '/gallery.html?only=icons-appicon&stage=favicon&size=64');
+    const svg = await page.locator('#icon-stage svg').evaluate((el) => {
+      const copy = el.cloneNode(true);
+      for (const a of ['width', 'height', 'class', 'aria-hidden', 'focusable', 'role', 'aria-label']) copy.removeAttribute(a);
+      const title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
+      title.textContent = 'catkin';
+      copy.insertBefore(title, copy.firstChild);
+      return new XMLSerializer().serializeToString(copy);
+    });
+    writeFileSync('public/icons/favicon.svg', `${svg}\n`);
+    await page.close();
+    console.log(`  public/icons/favicon.svg (${svg.length} bytes)`);
   }
 
   const links = [];
@@ -232,7 +250,7 @@ try {
     for (const theme of THEMES) {
       const file = `splash/iphone-${d.w * d.dpr}x${d.h * d.dpr}-${theme}.png`;
       const ctx = await browser.newContext({ viewport: { width: d.w, height: d.h }, deviceScaleFactor: d.dpr, reducedMotion: 'reduce' });
-      const page = await open(ctx, `/gallery.html?only=fxui-splash&splash=${theme}&w=${d.w}&h=${d.h}`);
+      const page = await open(ctx, `/gallery.html?only=icons-splash&splash=${theme}&w=${d.w}&h=${d.h}`);
       writeFileSync(`public/${file}`, toPalettePng(await page.screenshot()));
       await ctx.close();
       const media = `(device-width: ${d.w}px) and (device-height: ${d.h}px) and (-webkit-device-pixel-ratio: ${d.dpr}) and (orientation: portrait) and (prefers-color-scheme: ${theme === 'night' ? 'dark' : 'light'})`;

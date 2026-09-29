@@ -1,0 +1,75 @@
+/*
+ * The sprig's inks. Day: a cocoa twig and silver-grey catkins lit from the window. Night (lamplight):
+ * a lighter twig and catkins warmed toward the lamp, so the mark reads on indigo paper.
+ * `.auto` follows the page theme; `.day` / `.night` are pinned by the `light` prop.
+ */
+.sprig {
+  display: inline-block;
+  flex: none;
+  overflow: visible;
+}
+
+.day,
+.auto {
+  --sprig-twig: #7e6152;
+  --sprig-lit: #e8e1e8;
+  --sprig-shade: #bdb3bf;
+  --sprig-bract: #7e6152;
+}
+
+.night {
+  --sprig-twig: #b39a8c;
+  --sprig-lit: #f3e9e0;
+  --sprig-shade: #a79cae;
+  --sprig-bract: #b39a8c;
+}
+
+:global([data-theme='night']) .auto {
+  --sprig-twig: #b39a8c;
+  --sprig-lit: #f3e9e0;
+  --sprig-shade: #a79cae;
+  --sprig-bract: #b39a8c;
+}
+
+@media (prefers-color-scheme: dark) {
+  :global(:root:not([data-theme='light'])) .auto {
+    --sprig-twig: #b39a8c;
+    --sprig-lit: #f3e9e0;
+    --sprig-shade: #a79cae;
+    --sprig-bract: #b39a8c;
+  }
+}
+
+.twig {
+  stroke: var(--sprig-twig);
+}
+.lit {
+  fill: var(--sprig-lit);
+}
+.shade {
+  fill: var(--sprig-shade);
+}
+.bract {
+  fill: var(--sprig-bract);
+}
+
+/* ---------- Wordmark: lowercase Castoro, the sprig leaning in from the left ---------- */
+.wordmark {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 0.06em;
+  font-family: var(--font-display);
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: -0.012em;
+  white-space: nowrap;
+}
+
+.lead {
+  margin-bottom: -0.04em;
+}
+
+.word {
+  display: inline-block;
+  padding-bottom: 0.1em;
+}

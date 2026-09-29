@@ -1,114 +1,63 @@
 /**
- * Badge colors. Emblems paint with semantic swatches so an unearned medal can be redrawn in
- * soft lavender-grey (three values keep every shape readable) without any CSS filter. At night
- * badge.module.css repaints those same hexes in deeper lavenders.
+ * Enamel and metal for the pins. Enamel is flat and matte in the catkin families; the metal is brass,
+ * the one "outline" a pin is allowed, because it is the real stamped rim. Colours are fixed (a pin is
+ * an object, it keeps its colours at night) except the unearned outline, which follows the theme.
  */
 import type { BadgeDef } from '@/catalog/badges';
-import { ACCENT, COCOA, PASTEL } from '@/art/icons/palette';
+import { FAMILY, INK, MATERIAL, mix, shadeOf } from '@/art/icons/palette';
 
-export interface EmblemPalette {
-  ink: string;
-  white: string;
-  gold: string;
-  goldLight: string;
-  goldDeep: string;
-  blush: string;
-  blushDeep: string;
-  peach: string;
-  peachDeep: string;
-  butter: string;
-  leaf: string;
-  leafDeep: string;
-  sage: string;
-  mint: string;
-  mintDeep: string;
-  sky: string;
-  skyDeep: string;
-  lavender: string;
-  lavenderDeep: string;
-  lilac: string;
-  red: string;
-  wood: string;
-  brown: string;
-  cheek: string;
-}
-
-export const EARNED: EmblemPalette = {
-  ink: COCOA,
-  white: '#FFFFFF',
-  gold: ACCENT.gold,
-  goldLight: ACCENT.goldLight,
-  goldDeep: ACCENT.goldDeep,
-  blush: PASTEL.blush[300],
-  blushDeep: PASTEL.blush[500],
-  peach: PASTEL.peach[300],
-  peachDeep: PASTEL.peach[500],
-  butter: ACCENT.star,
-  leaf: ACCENT.leaf,
-  leafDeep: ACCENT.leafDeep,
-  sage: PASTEL.sage[300],
-  mint: PASTEL.mint[300],
-  mintDeep: PASTEL.mint[500],
-  sky: PASTEL.sky[300],
-  skyDeep: PASTEL.sky[500],
-  lavender: PASTEL.lavender[300],
-  lavenderDeep: PASTEL.lavender[500],
-  lilac: PASTEL.lilac[300],
-  red: ACCENT.red,
-  wood: ACCENT.wood,
-  brown: ACCENT.brown,
-  cheek: ACCENT.cheek,
-};
-
-/** The locked (unearned) swatches. badge.module.css matches these exact hexes for its night repaint. */
-export const LOCKED = {
-  ink: '#9E90B2',
-  light: '#F6F3FA',
-  mid: '#E4DDEF',
-  deep: '#CEC4DF',
-  face: '#FBFAFD',
+/** The stamped brass rim, and its darker edge on the side away from the window. */
+export const METAL = {
+  rim: '#C9A75E',
+  edge: '#A8874A',
 } as const;
 
-const { light: M_LIGHT, mid: M_MID, deep: M_DEEP } = LOCKED;
+/** The unearned "not yet" outline (a theme token, so it stays quiet on paper and on indigo). */
+export const NOT_YET = 'var(--ink-disabled, #B9ADA8)';
 
-/** The unearned look: soft lavender-grey, still friendly. */
-export const MUTED: EmblemPalette = {
-  ink: LOCKED.ink,
-  white: M_LIGHT,
-  gold: M_MID,
-  goldLight: M_LIGHT,
-  goldDeep: M_DEEP,
-  blush: M_MID,
-  blushDeep: M_DEEP,
-  peach: M_MID,
-  peachDeep: M_DEEP,
-  butter: M_MID,
-  leaf: M_MID,
-  leafDeep: M_DEEP,
-  sage: M_MID,
-  mint: M_MID,
-  mintDeep: M_DEEP,
-  sky: M_MID,
-  skyDeep: M_DEEP,
-  lavender: M_MID,
-  lavenderDeep: M_DEEP,
-  lilac: M_MID,
-  red: M_DEEP,
-  wood: M_MID,
-  brown: M_DEEP,
-  cheek: M_DEEP,
-};
+/** The pin's base enamel for its colour family. */
+export const plateEnamel = (color: BadgeDef['color']) => FAMILY[color][300];
 
-/** Colors of the medal itself (ribbon, crust, face) for a badge color family. */
-export interface MedalColors {
-  ribbon: string;
-  ribbonDeep: string;
-  crust: string;
-  crustLight: string;
-  face: string;
-}
+/** Enamel colours emblems are drawn with: the families plus the materials of real things. */
+export const E = {
+  ink: INK,
+  paper: '#FFFDF6',
+  cream: MATERIAL.cream,
+  glass: '#F2F7FB',
+  leafLight: MATERIAL.leafLight,
+  leaf: MATERIAL.leaf,
+  leafDeep: MATERIAL.leafDeep,
+  stem: MATERIAL.stem,
+  soil: '#A07E68',
+  terracotta: MATERIAL.terracotta,
+  terracottaShade: MATERIAL.terracottaShade,
+  terracottaRim: MATERIAL.terracottaRim,
+  brass: MATERIAL.brass,
+  brassLight: MATERIAL.brassLight,
+  brassDeep: MATERIAL.brassDeep,
+  wood: MATERIAL.wood,
+  woodDeep: MATERIAL.woodDeep,
+  plum: MATERIAL.plum,
+  catEye: MATERIAL.catEye,
+  blush: FAMILY.blush[500],
+  blushDeep: mix(FAMILY.blush[500], FAMILY.blush[700], 0.35),
+  blushInk: FAMILY.blush[700],
+  peach: FAMILY.peach[500],
+  peachInk: FAMILY.peach[700],
+  butter: FAMILY.butter[500],
+  butterDeep: mix(FAMILY.butter[500], FAMILY.butter[700], 0.22),
+  sage: FAMILY.sage[500],
+  mint: FAMILY.mint[500],
+  mintDeep: mix(FAMILY.mint[500], FAMILY.mint[700], 0.3),
+  sky: FAMILY.sky[500],
+  skyDeep: mix(FAMILY.sky[500], FAMILY.sky[700], 0.3),
+  lavender: FAMILY.lavender[500],
+  lavenderDeep: mix(FAMILY.lavender[500], FAMILY.lavender[700], 0.3),
+  lilac: FAMILY.lilac[500],
+  lilacDeep: mix(FAMILY.lilac[500], FAMILY.lilac[700], 0.3),
+  strawberry: '#E7848F',
+  lamp: '#FFC98A',
+} as const;
 
-export function medalColors(color: BadgeDef['color'], earned: boolean): MedalColors {
-  if (!earned) return { ribbon: M_MID, ribbonDeep: M_DEEP, crust: M_MID, crustLight: M_LIGHT, face: LOCKED.face };
-  return { ribbon: PASTEL[color][300], ribbonDeep: PASTEL[color][500], crust: ACCENT.gold, crustLight: ACCENT.goldLight, face: PASTEL[color][100] };
-}
+/** A flat, pre-mixed shade tone for the side of a shape away from the window. */
+export const shade = (hex: string) => shadeOf(hex, 0.18);

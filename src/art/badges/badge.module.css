@@ -1,61 +1,34 @@
 /*
- * Locked medals are drawn in the LOCKED swatches (palette.ts). These rules match those exact
- * hexes and repaint them from custom properties, so night can deepen the lavenders (instead of
- * dimming the medal) without a second render. In light theme the properties equal the hexes.
+ * Pins. An unearned pin is outline-only: the plate is drawn dashed in the component, and here every
+ * emblem shape is repainted as a thin line in --ink-disabled (CSS beats the shapes' own fill and
+ * stroke attributes), with the shade sides and small marks (<Detail>) left out. One render, no filters.
  */
-.locked {
-  --locked-ink: #9e90b2;
-  --locked-light: #f6f3fa;
-  --locked-mid: #e4ddef;
-  --locked-deep: #cec4df;
-  --locked-face: #fbfafd;
-  --locked-gleam: #fff;
+.pin {
+  overflow: visible;
 }
 
-/* Night: deep lavender shapes with a soft light line, the heart lock stays lavender-300. */
-:global([data-theme='night']) .locked {
-  --locked-ink: #b4a6df;
-  --locked-light: #4a3f70;
-  --locked-mid: #594b8a;
-  --locked-deep: #6c5da3;
-  --locked-face: #3e355d;
-  --locked-gleam: #cabdf0;
+.notYet .emblem * {
+  fill: none;
+  fill-opacity: 1;
+  stroke: var(--ink-disabled, #b9ada8);
+  stroke-width: 1.3px;
+  stroke-dasharray: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
-@media (prefers-color-scheme: dark) {
-  :global(:root:not([data-theme='light'])) .locked {
-    --locked-ink: #b4a6df;
-    --locked-light: #4a3f70;
-    --locked-mid: #594b8a;
-    --locked-deep: #6c5da3;
-    --locked-face: #3e355d;
-    --locked-gleam: #cabdf0;
-  }
-}
-
-.locked [stroke='#9E90B2' i] {
-  stroke: var(--locked-ink);
-}
-.locked [fill='#9E90B2' i] {
-  fill: var(--locked-ink);
-}
-.locked [fill='#F6F3FA' i] {
-  fill: var(--locked-light);
-}
-.locked [fill='#E4DDEF' i] {
-  fill: var(--locked-mid);
-}
-.locked [fill='#CEC4DF' i] {
-  fill: var(--locked-deep);
-}
-.locked [fill='#FBFAFD' i] {
-  fill: var(--locked-face);
-}
-.locked [stroke='#fff' i] {
-  stroke: var(--locked-gleam);
-}
-
-/* Compact medals (shelf sizes) drop the decorative sparkles around emblems. */
-.compact .spark {
+.notYet .detail {
   display: none;
+}
+
+/*
+ * Grid sizes: the emblem's line thickens as the pin shrinks, so it still reads at 48 and 32 px.
+ * (The emblem box is scaled about 1.3× onto the 100-unit plate, and 100 units are the pin's width.)
+ */
+.notYet.small .emblem * {
+  stroke-width: 1.8px;
+}
+
+.notYet.tiny .emblem * {
+  stroke-width: 2.5px;
 }

@@ -1,75 +1,19 @@
+/* The launch screen: paper and the wordmark. Colours are the theme's first-paint values. */
 .splash {
-  --bg: #fff9f2;
-  --halo: #fff1ea;
-  --glow: #ffe6ec;
-  --ink: #4a3540;
-  --leaf: #4f7f41;
-  --spark: #f6c544;
   position: relative;
   display: grid;
   place-items: center;
   overflow: hidden;
-  background: var(--bg);
+  background: #faf6ef;
+  color: #3b3236;
 }
+
 .splash[data-splash='night'] {
-  --bg: #221c30;
-  --halo: #282139;
-  --glow: #2f2744;
-  --ink: #f8eef3;
-  --leaf: #b9e0a8;
-  --spark: #ffe593;
+  background: #1e1a22;
+  color: #f4ede6;
 }
 
-/* Flat concentric discs (not a gradient): soft to the eye, tiny as PNG. */
-.glow {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: calc(var(--u) * 96);
-  height: calc(var(--u) * 96);
-  border-radius: 50%;
-  background: var(--glow);
-  box-shadow: 0 0 0 calc(var(--u) * 14) var(--halo);
-  transform: translate(-50%, -60%);
-}
-
+/* Optical centre: a touch above the middle. */
 .center {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: calc(var(--u) * 3);
-  transform: translateY(calc(var(--u) * -4));
-}
-
-.wordmark {
-  margin: 0;
-  font-family: var(--font-display);
-  font-size: calc(var(--u) * 9);
-  font-weight: 600;
-  line-height: 1;
-  letter-spacing: 0.01em;
-  color: var(--ink);
-}
-.wordmark span {
-  color: var(--leaf);
-}
-
-.s1,
-.s2,
-.s3 {
-  position: absolute;
-  color: var(--spark);
-}
-.s1 {
-  top: 36%;
-  right: 22%;
-}
-.s2 {
-  top: 31%;
-  left: 24%;
-}
-.s3 {
-  top: 55%;
-  left: 18%;
+  transform: translateY(-6%);
 }

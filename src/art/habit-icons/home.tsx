@@ -1,153 +1,132 @@
-/** Habit icons: home & chores. */
-import { ACCENT } from '@/art/icons/palette';
-import { heartPath } from '@/art/icons/shapes';
-import { FINE, Shine, Sparkle, Tube, type HabitDrawing } from './kit';
+/** Habit icons: home and chores. A broom, a spray bottle, a tub, a washer, plates, a can, tools. */
+import { circlePath } from '@/art/icons/shapes';
+import { Thin, type HabitDrawing } from './kit';
 
-const BOTTLE_HEART = heartPath(14.5, 21.4, 5.2);
-const CAN_HEART = heartPath(13.8, 20.2, 5.2);
-const HOUSE_HEART = heartPath(22.4, 21.2, 3.8);
-const PAD_HEART = heartPath(16, 21, 4.4);
+/** A small paw print centred on its pad (a decal). */
+const PAW = 'M0-1C2.6-1 4.4 1.4 4.4 3.4 4.4 5 3 5.6 0 5.6S-4.4 5-4.4 3.4C-4.4 1.4-2.6-1 0-1z';
+const TOES: [number, number][] = [
+  [-4.4, -2.8],
+  [-1.6, -5.4],
+  [1.6, -5.4],
+  [4.4, -2.8],
+];
 
 export const HOME_ICONS: Record<string, HabitDrawing> = {
   broom: (c) => (
     <g>
-      <g transform="translate(-1.8 -1.2) rotate(28 16 16)">
-        <rect x={14.9} y={3.5} width={2.2} height={11.5} rx={1.1} fill={ACCENT.wood} />
-        <path d="M12.7 17.3h6.6c.9 2.3 2.5 5.7 4.1 8.1.4.6 0 1.4-.7 1.4H9.3c-.7 0-1.1-.8-.7-1.4 1.6-2.4 3.2-5.8 4.1-8.1z" fill={c.fill} />
-        <path d="M13.3 21l-1.5 5.8M16 21v5.8M18.7 21l1.5 5.8" fill="none" stroke-width={FINE} />
-        <rect x={12.2} y={14.5} width={7.6} height={2.8} rx={1} fill={c.soft} />
-      </g>
-      <Sparkle x={24.6} y={24.4} r={2.6} fill={c.soft} />
-      <Sparkle x={28} y={18.6} r={1.8} fill={c.fill} />
+      <Thin d="M25.8 3.2L15.2 17.4" c={c} w={2.4} />
+      <path d="M11.2 15.4l7 5-4.2 8.4c-.5 1-1.7 1.3-2.6.7L3.8 24c-.9-.6-1-1.8-.3-2.6z" fill={c.fill} />
+      <path d="M14.6 18l3.6 2.4-4.2 8.4c-.5 1-1.7 1.3-2.6.7l-1.4-1z" fill={c.shade} />
+      <path d="M11.2 15.4l7 5-1.3 2.6-7.1-5z" fill={c.ink} />
+      <Thin d="M7.4 22.8l5.4 3.8M9.2 20.6l5 3.6" c={c} w={1.1} color={c.light} />
     </g>
   ),
   'sparkle-clean': (c) => (
     <g>
-      <path d="M10 11V7.6A2.1 2.1 0 0 1 12.1 5.5h7.2l2.7 3.2h-3.5V11" fill={c.soft} />
-      <path d="M18.5 11l1.8 3" fill="none" />
-      <rect x={11} y={11} width={7.5} height={3} fill={c.soft} />
-      <path d="M10 14h9a2.5 2.5 0 0 1 2.5 2.5V26a2.5 2.5 0 0 1-2.5 2.5h-9A2.5 2.5 0 0 1 7.5 26v-9.5A2.5 2.5 0 0 1 10 14z" fill={c.fill} />
-      <path d={BOTTLE_HEART} fill={c.soft} stroke-width={FINE} />
-      <Shine d="M9.8 17v3.6" />
-      <Sparkle x={26.5} y={6.5} r={3.2} fill={c.soft} />
-      <Sparkle x={27.5} y={15} r={2} fill={c.fill} />
+      <g fill={c.light}>
+        <circle cx={27} cy={6.4} r={1.2} />
+        <circle cx={28.4} cy={10.2} r={1.2} />
+        <circle cx={25.4} cy={2.8} r={1.1} />
+      </g>
+      <path d="M10.2 5.2h9.4a1.4 1.4 0 0 1 1.4 1.4v.6h3v2.6h-3v.6a1.4 1.4 0 0 1-1.4 1.4h-9.4z" fill={c.ink} />
+      <Thin d="M13.6 11.6l-2.8 4.2" c={c} w={2} />
+      <rect x={12.4} y={11} width={6} height={3.4} rx={0.6} fill={c.ink} />
+      <path d="M10.4 14h10.2l1.4 12.6a2.4 2.4 0 0 1-2.4 2.6h-8.2a2.4 2.4 0 0 1-2.4-2.6z" fill={c.fill} />
+      <path d="M17.8 14h2.8l1.4 12.6a2.4 2.4 0 0 1-2.4 2.6h-.6z" fill={c.shade} />
+      <rect x={12} y={17.6} width={6.6} height={6.4} rx={1} fill={c.light} />
     </g>
   ),
   bathtub: (c) => (
     <g>
-      <g fill="#fff">
-        <circle cx={8.2} cy={11.4} r={2.6} />
-        <circle cx={12.6} cy={9.6} r={3.2} />
-        <circle cx={17} cy={11.2} r={2.4} />
-      </g>
-      <g stroke-width={FINE}>
-        <path d="M27.4 7.8l2 .5-2 .9z" fill={ACCENT.redDeep} />
-        <path d="M20.2 13c0-2 1.4-3.2 3.2-3.2h.2c-.3-.5-.4-1-.4-1.5a2.4 2.4 0 0 1 4.8 0c0 1.2-.7 2-1.3 2.4 1 .5 1.5 1.3 1.5 2.3z" fill={ACCENT.star} />
-        <circle cx={25.7} cy={8} r={0.55} fill={c.ink} stroke="none" />
-      </g>
-      <path d="M8 26.5v1.8M24 26.5v1.8" />
-      <path d="M4 15.5h24v2.8a7.7 7.7 0 0 1-7.7 7.7h-8.6A7.7 7.7 0 0 1 4 18.3z" fill={c.fill} />
-      <rect x={2.5} y={13} width={27} height={3} rx={1.5} fill={c.soft} />
-      <Shine d="M7.2 19c.5 1.7 1.5 3 2.9 3.8" />
+      <Thin d="M6.4 13.8V7.6a2.4 2.4 0 0 1 4.8 0v.6" c={c} w={1.9} />
+      <circle cx={14.4} cy={11.8} r={2.4} fill={c.light} />
+      <circle cx={18.8} cy={10.6} r={3} fill={c.light} />
+      <circle cx={23.2} cy={11.8} r={2.2} fill={c.light} />
+      <Thin d="M7.6 25.4l-1.4 3.6M24.4 25.4l1.4 3.6" c={c} w={2.4} />
+      <path d="M3.4 15.8h25.2v3.4c0 4.2-3.4 7.4-7.6 7.4H11c-4.2 0-7.6-3.2-7.6-7.4z" fill={c.fill} />
+      <path d="M23 15.8h5.6v3.4c0 4-3 7.2-7 7.4 1-2.4 1.4-5.6 1.4-10.8z" fill={c.shade} />
+      <rect x={2.2} y={13.6} width={27.6} height={2.8} rx={1.4} fill={c.ink} />
     </g>
   ),
   laundry: (c) => (
     <g>
-      <rect x={5} y={3.5} width={22} height={25} rx={4} fill={c.soft} />
-      <path d="M5 9.3h22" fill="none" stroke-width={FINE} />
-      <g fill={c.ink} stroke="none">
-        <circle cx={9} cy={6.4} r={1.1} />
-        <circle cx={12.4} cy={6.4} r={1.1} />
-      </g>
-      <rect x={18.5} y={5.1} width={5.5} height={2.6} rx={1.3} fill={c.fill} stroke-width={FINE} />
-      <circle cx={16} cy={18.8} r={6.9} fill={c.fill} />
-      <circle cx={16} cy={18.8} r={4.5} fill="#fff" stroke-width={FINE} />
-      <path d="M11.5 19.4c1.5-1 3-1 4.5 0s3 1 4.5 0a4.5 4.5 0 0 1-9 0z" fill={c.fill} stroke="none" />
-      <path d="M11.5 19.4c1.5-1 3-1 4.5 0s3 1 4.5 0" fill="none" stroke-width={FINE} />
-      <circle cx={16} cy={18.8} r={4.5} fill="none" stroke-width={FINE} />
-      <Shine d="M13.2 15.9a3.4 3.4 0 0 1 1.9-1" width={1.2} />
+      <rect x={5} y={3.2} width={22} height={25.8} rx={3.4} fill={c.fill} />
+      <path d="M22.4 3.2h1.2a3.4 3.4 0 0 1 3.4 3.4v19a3.4 3.4 0 0 1-3.4 3.4h-1.2z" fill={c.shade} />
+      <circle cx={9} cy={7.2} r={1.3} fill={c.ink} />
+      <circle cx={12.8} cy={7.2} r={1.3} fill={c.ink} />
+      <rect x={17} y={6.2} width={6.4} height={2} rx={1} fill={c.ink} />
+      <circle cx={16} cy={18.8} r={7.2} fill={c.ink} />
+      <circle cx={16} cy={18.8} r={5} fill={c.light} />
+      <path d="M11 19.6c1.6 1.2 3.4 1.2 5 0s3.4-1.2 5 0a5 5 0 0 1-10 0z" fill={c.fill} />
     </g>
   ),
   dishes: (c) => (
     <g>
-      {/* A clean stack of plates, soap bubbles and a sponge. */}
-      <ellipse cx={13} cy={24.4} rx={10.4} ry={3.6} fill={c.fill} />
-      <ellipse cx={13} cy={20.6} rx={10.4} ry={3.6} fill={c.fill} />
-      <ellipse cx={13} cy={20.2} rx={6.2} ry={1.8} fill={c.soft} stroke-width={FINE} />
-      <Shine d="M5.4 21.8c.6.8 1.6 1.4 2.8 1.8" width={1.3} />
-      <g fill="#fff">
-        <circle cx={7.6} cy={18.2} r={2.4} />
-        <circle cx={11.2} cy={16.6} r={3.1} />
-        <circle cx={14.8} cy={18.2} r={2.2} />
-        <circle cx={18.4} cy={9.6} r={2.2} />
-        <circle cx={13.2} cy={8.4} r={1.3} />
-      </g>
-      <g transform="rotate(-14 24.4 23.6)">
-        <rect x={19.4} y={20.4} width={10} height={6.4} rx={1.8} fill={ACCENT.star} />
-        <path d="M20.3 20.4h8.2a.9.9 0 0 1 .9.9v1.6h-10v-1.6a.9.9 0 0 1 .9-.9z" fill={ACCENT.leaf} stroke="none" />
-        <path d="M19.4 22.9h10" fill="none" stroke-width={FINE} />
-        <rect x={19.4} y={20.4} width={10} height={6.4} rx={1.8} fill="none" />
-      </g>
+      <path d="M11.2 5.6h9.6v3.8a4.2 4.2 0 0 1-4.2 4.2h-1.2a4.2 4.2 0 0 1-4.2-4.2z" fill={c.light} />
+      <path d="M20.8 6.8h.8a2.2 2.2 0 0 1 0 4.4h-1.2" fill="none" stroke={c.light} stroke-width={1.8} />
+      <path d="M3.2 14.4h25.6c-.4 2.6-2.6 4.2-5 4.2H8.2c-2.4 0-4.6-1.6-5-4.2z" fill={c.fill} />
+      <path d="M4.4 19.6h23.2c-.4 2.4-2.4 3.8-4.6 3.8H9c-2.2 0-4.2-1.4-4.6-3.8z" fill={c.ink} />
+      <path d="M3.2 24.4h25.6c-.4 2.6-2.6 4.2-5 4.2H8.2c-2.4 0-4.6-1.6-5-4.2z" fill={c.fill} />
+      <path d="M22 24.4h6.8c-.4 2.6-2.6 4.2-5 4.2h-3.4c.8-1 1.4-2.4 1.6-4.2zM22 14.4h6.8c-.4 2.6-2.6 4.2-5 4.2h-3.4c.8-1 1.4-2.4 1.6-4.2z" fill={c.shade} />
     </g>
   ),
   'watering-can': (c) => (
     <g>
-      <path d="M7.4 14.4C3.4 14 2.2 19.6 6.2 21.8" fill="none" stroke-width={2.6} />
-      <Tube d="M19 24.2l7.6-10.6" color={c.fill} width={2.2} ink={c.ink} />
-      <path d="M24.2 11.6l4.9 3.6 1-1.4c.8-1.1.4-2.6-.8-3.3l-2-1.3c-1.2-.7-2.7-.4-3.4.8z" fill={c.soft} />
-      <path d="M8 12.6h11.4l1.4 12.8a2.4 2.4 0 0 1-2.4 2.6H9a2.4 2.4 0 0 1-2.4-2.6z" fill={c.fill} />
-      <ellipse cx={13.7} cy={12.6} rx={5.7} ry={1.6} fill={c.soft} stroke-width={FINE} />
-      <path d={CAN_HEART} fill={c.soft} stroke-width={FINE} />
-      <Shine d="M9.3 16.2l-.3 4" />
-      <g fill={c.soft} stroke-width={1.2}>
-        <path d="M27.8 18.6c.7 1 1 1.6 1 2a1 1 0 0 1-2 0c0-.4.3-1 1-2z" />
-        <path d="M24.6 20.4c.7 1 1 1.6 1 2a1 1 0 0 1-2 0c0-.4.3-1 1-2z" />
+      <Thin d="M7.2 12c0-5.6 9.4-5.6 9.4 0" c={c} w={2.4} />
+      <path d="M18.4 22.8l7.2-10.4 2.3 1.5-8 12z" fill={c.fill} />
+      <rect x={24.2} y={8.2} width={6.4} height={3.4} rx={1.2} transform="rotate(34 27.4 9.9)" fill={c.ink} />
+      <path d="M4.2 13.8a2 2 0 0 1 2-2h11.4a2 2 0 0 1 2 2v10.6a3.6 3.6 0 0 1-3.6 3.6H7.8a3.6 3.6 0 0 1-3.6-3.6z" fill={c.fill} />
+      <path d="M15.4 11.8h2.2a2 2 0 0 1 2 2v10.6a3.6 3.6 0 0 1-3.6 3.6h-.6z" fill={c.shade} />
+      <g fill={c.light}>
+        <ellipse cx={29.4} cy={16.4} rx={1} ry={1.5} />
+        <ellipse cx={27.4} cy={19.6} rx={1} ry={1.5} />
       </g>
     </g>
   ),
   wrench: (c) => (
-    <g>
-      <g transform="rotate(45 16 16)">
-        <path
-          d="M13.8 12.8c-2.2-1-3.5-3-3.3-5.5.2-2.1 1.5-3.7 3.3-4.3v4.6h4.4V3c1.8.6 3.1 2.2 3.3 4.3.2 2.5-1.1 4.5-3.3 5.5V26a2.2 2.2 0 0 1-4.4 0z"
-          fill={c.fill}
-        />
-        <circle cx={16} cy={25.6} r={1} fill={c.soft} stroke-width={FINE} />
-        <Shine d="M15 14.5v6.5" width={1.2} />
-      </g>
-      <Sparkle x={7.5} y={7.5} r={2.6} fill={c.soft} />
+    <g transform="rotate(-45 16 16)">
+      <rect x={8} y={13.8} width={15} height={4.4} rx={1.6} fill={c.fill} />
+      <path d={`${circlePath(6.8, 16, 4.8)}${circlePath(6.8, 16, 2)}`} fill={c.fill} fill-rule="evenodd" />
+      <path d="M29 12.8L25.2 14.3V17.7L29 19.2A6 6 0 1 1 29 12.8Z" fill={c.fill} />
+      <path d="M8 16h15v2.2H8zM2 16h2.8a2 2 0 0 0 4 0h2.8a4.8 4.8 0 0 1-9.6 0zM17.6 16h7.6v1.7l3.8 1.5a6 6 0 0 1-11.4-3.2z" fill={c.shade} />
+      <rect x={11.4} y={15.2} width={8.4} height={1.6} rx={0.8} fill={c.ink} />
     </g>
   ),
   cart: (c) => (
     <g>
-      <path d="M13.4 8.6c-.6-2.6.7-5 3.3-5.6.5 2.6-.9 4.9-3.3 5.6z" fill={ACCENT.leaf} />
-      <circle cx={19.2} cy={6.4} r={2.8} fill={ACCENT.red} stroke-width={FINE} />
-      <path d="M2.5 5h2a1.8 1.8 0 0 1 1.8 1.4l3 14.1c.2.9 1 1.5 1.9 1.5H24" fill="none" />
-      <path d="M6 8.5h20.5c.8 0 1.3.8 1 1.5l-2.7 8c-.3.9-1.1 1.5-2 1.5H9.2z" fill={c.fill} />
-      <path d="M7.4 13.5h18.4M14 8.5l.6 11M20.2 8.5l-.5 11" fill="none" stroke-width={FINE} />
-      <circle cx={12} cy={25.6} r={2.3} fill={c.soft} />
-      <circle cx={22} cy={25.6} r={2.3} fill={c.soft} />
+      <rect x={13.4} y={1.6} width={4.6} height={15} rx={2.3} transform="rotate(24 15.7 9.1)" fill={c.light} />
+      <path d="M9.6 12.2c-1.8-3-1.2-6.4 1.4-8.2 1.4 2.8.8 6-1.4 8.2zM11.6 12.4c.2-3.2 2.4-5.4 5.2-5.8 0 3-2 5.2-5.2 5.8z" fill={c.ink} />
+      <path d="M6.2 11.4h19.6l-1.4 15.6a2 2 0 0 1-2 1.8H9.6a2 2 0 0 1-2-1.8z" fill={c.fill} />
+      <path d="M21 11.4h4.8l-1.4 15.6a2 2 0 0 1-2 1.8h-1.2z" fill={c.shade} />
+      <rect x={5.8} y={10.8} width={20.4} height={2.8} rx={0.6} fill={c.ink} />
     </g>
   ),
   house: (c) => (
     <g>
-      <path d="M20.5 10.5V6.8h3.6v6.9" fill={c.soft} />
-      <path d="M6.5 16v10a2 2 0 0 0 2 2h15a2 2 0 0 0 2-2V16" fill={c.soft} />
-      <path d="M3.5 15.5L14.6 5.9a2.1 2.1 0 0 1 2.8 0l11.1 9.6c.5.5.2 1.3-.5 1.3H4c-.7 0-1-.8-.5-1.3z" fill={c.fill} />
-      <path d="M13.3 28v-5.2a2.7 2.7 0 0 1 5.4 0V28" fill={c.fill} />
-      <path d={HOUSE_HEART} fill={c.fill} stroke-width={FINE} />
-      <Shine d="M8.2 13.2l4.6-4" width={1.3} />
+      <rect x={20.8} y={5.2} width={3.2} height={6.2} fill={c.shade} />
+      <rect x={6.4} y={13.6} width={19.2} height={14.8} rx={1.4} fill={c.light} />
+      <path d="M21.2 13.6h3a1.4 1.4 0 0 1 1.4 1.4v12a1.4 1.4 0 0 1-1.4 1.4h-3z" fill={c.fill} />
+      <rect x={6.4} y={17} width={19.2} height={1.4} fill={c.ink} />
+      <path d="M3.4 15.2L16 4.2l12.6 11c.8.7.3 2-.8 2H4.2c-1.1 0-1.6-1.3-.8-2z" fill={c.fill} />
+      <path d="M16 4.2l12.6 11c.8.7.3 2-.8 2H16z" fill={c.shade} />
+      <rect x={13.8} y={20} width={4.4} height={8.4} rx={1.2} fill={c.ink} />
+      <rect x={8.8} y={20} width={3.6} height={3.6} rx={0.6} fill={c.soft} />
     </g>
   ),
   paw: (c) => (
-    <g fill={c.fill}>
-      <path d="M16 14.6c4.1 0 7.2 3.7 7.2 6.8 0 2.9-2.3 4.1-7.2 4.1s-7.2-1.2-7.2-4.1c0-3.1 3.1-6.8 7.2-6.8z" />
-      <ellipse cx={7.4} cy={13.4} rx={2.7} ry={3.2} transform="rotate(-25 7.4 13.4)" />
-      <ellipse cx={12.3} cy={8} rx={2.8} ry={3.4} transform="rotate(-8 12.3 8)" />
-      <ellipse cx={19.7} cy={8} rx={2.8} ry={3.4} transform="rotate(8 19.7 8)" />
-      <ellipse cx={24.6} cy={13.4} rx={2.7} ry={3.2} transform="rotate(25 24.6 13.4)" />
-      <path d={PAD_HEART} fill={c.soft} stroke-width={FINE} />
-      <Shine d="M11.2 18.2c.6-1.1 1.5-1.8 2.6-2.1" width={1.3} />
+    <g>
+      <circle cx={11.4} cy={13.2} r={2.4} fill={c.light} />
+      <circle cx={16} cy={12} r={2.6} fill={c.light} />
+      <circle cx={20.6} cy={13.2} r={2.2} fill={c.light} />
+      <path d="M4.2 16.4h23.6l-2.2 9.8a2.4 2.4 0 0 1-2.4 1.8H8.8a2.4 2.4 0 0 1-2.4-1.8z" fill={c.fill} />
+      <path d="M22.2 16.4h5.6l-2.2 9.8a2.4 2.4 0 0 1-2.4 1.8h-2.4z" fill={c.shade} />
+      <rect x={3} y={14.4} width={26} height={3.4} rx={1.7} fill={c.ink} />
+      <g transform="translate(14.6 21.8) scale(.62)" fill={c.light}>
+        <path d={PAW} />
+        {TOES.map(([x, y]) => (
+          <ellipse key={x} cx={x} cy={y} rx={1.6} ry={2} />
+        ))}
+      </g>
     </g>
   ),
 };

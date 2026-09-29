@@ -18,17 +18,16 @@
 .wallpaper {
   fill: var(--sky-100);
 }
+/* Flat and matte: a menu lifts off the screen with a hairline and a darker paper, not a shadow. */
 .dropdown {
   fill: var(--card);
-  stroke: var(--line);
-  stroke-width: 1.5;
-  filter: drop-shadow(0 4px 6px rgba(74, 53, 64, 0.12));
+  stroke: var(--control-border);
+  stroke-width: 1.2;
 }
 
 .url {
   font-family: var(--font-display);
   font-size: 11px;
-  font-weight: 600;
   fill: var(--ink-2);
 }
 
@@ -52,14 +51,7 @@
   fill: none;
   stroke: var(--blush-500);
   stroke-width: 2;
-  animation: pulse 1.8s var(--ease-out) infinite;
-}
-
-.spark {
-  fill: var(--butter-500);
-  animation: twinkle 1.8s var(--ease-in-out) infinite;
-  transform-box: fill-box;
-  transform-origin: center;
+  animation: pulse 2.4s var(--ease-out) infinite;
 }
 
 .rowHl {
@@ -86,7 +78,7 @@
   font-weight: 800;
 }
 .rowTextSolid {
-  fill: var(--on-pastel);
+  fill: var(--on-accent);
   font-weight: 800;
 }
 .menu,
@@ -101,7 +93,6 @@
 
 .dock {
   fill: var(--card);
-  opacity: 0.85;
   stroke: var(--line);
   stroke-width: 1.5;
 }
@@ -122,12 +113,31 @@
 .appLabel {
   font-family: var(--font-display);
   font-size: 9.5px;
-  font-weight: 600;
   fill: var(--ink);
 }
 
+/* Other apps on the home screen and in the Dock: quiet pastel tiles. */
+.appSky {
+  fill: var(--sky-300);
+}
+.appSage {
+  fill: var(--sage-300);
+}
+.appButter {
+  fill: var(--butter-300);
+}
+.appLavender {
+  fill: var(--lavender-300);
+}
+.appPeach {
+  fill: var(--peach-300);
+}
+.appMint {
+  fill: var(--mint-300);
+}
+
 .newApp {
-  animation: arrive 900ms var(--ease-pop) backwards;
+  animation: arrive 700ms var(--ease-pop) backwards;
   transform-box: fill-box;
   transform-origin: center;
 }
@@ -135,29 +145,36 @@
 @keyframes pulse {
   from {
     transform: scale(1);
-    opacity: 0.9;
+    opacity: 0.8;
   }
   to {
-    transform: scale(1.7);
+    transform: scale(1.5);
     opacity: 0;
-  }
-}
-
-@keyframes twinkle {
-  0%,
-  100% {
-    transform: scale(0.7);
-    opacity: 0.7;
-  }
-  50% {
-    transform: scale(1.15) rotate(20deg);
-    opacity: 1;
   }
 }
 
 @keyframes arrive {
   from {
-    transform: scale(0.3);
+    transform: scale(0.6);
+    opacity: 0;
+  }
+}
+
+/* Reduced motion: the ring holds still and the new icon is simply there. */
+:global([data-motion='reduced']) .pulse,
+:global([data-motion='reduced']) .newApp {
+  animation: none;
+}
+:global([data-motion='reduced']) .pulse {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :global(:root:not([data-motion='full'])) .pulse,
+  :global(:root:not([data-motion='full'])) .newApp {
+    animation: none;
+  }
+  :global(:root:not([data-motion='full'])) .pulse {
     opacity: 0;
   }
 }
