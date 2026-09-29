@@ -62,7 +62,7 @@ assert once, with a 30 s timeout (about 0.3 s each now, was 2–6 s and timing o
 
 ## Requests (files outside my ownership)
 
-1. **Two fx tests assert the old pin name and will fail after merge.** Renaming "Fifty & Flourishing" is in
+1. **Done (M1).** Was: two fx tests asserted the old pin name and would fail after merge. Renaming "Fifty & Flourishing" is in
    the brief, so these need updating:
    - `tests/unit/fx/celebrationPlan.test.ts:65` expects `'Fifty & Flourishing badge'`.
    - `tests/unit/fx/host.test.tsx:88` expects the banner text to contain `'Fifty & Flourishing badge'`.
@@ -70,17 +70,17 @@ assert once, with a 30 s timeout (about 0.3 s each now, was 2–6 s and timing o
    With the VOICE.md pin copy, `celebrationPlan.ts` would say eyebrow "A new pin", title the pin's name
    (the fallback `'A new badge!'` loses the "!"), and the also-line `${name}, a new pin`, so the expectations
    become `'Fifty waterings, a new pin'`.
-2. **`src/fx/celebrationPlan.ts` copy** should come from lines.ts: `STAGE_LINES` (with {Plant}) and
+2. **Done (M1 integration):** fx/copy words stages, blooms, exclusives, rungs (runText), perfect day, welcome home, keepsakes, companions, stories, looks and the season note from lines.ts. Was: **`src/fx/celebrationPlan.ts` copy** should come from lines.ts: `STAGE_LINES` (with {Plant}) and
    `BLOOM_LINES` in place of `STAGE_PHRASE`, `EXCLUSIVE_LINES` for the `exclusive` event, rung and ladder
    toasts from VOICE.md §5, `MILESTONE_LINES` deleted, and `formatTally` saying stamps and swaps.
 3. **Callers of `pickLine`/`pickFrom`** should pass `{ stage, level, night }`: the habit plant's stage for
    `checkin` and `resident`, the pet's level always, `night` for the asides. Context precedence: `night`
    always wins; `rainy` replaces tap, morning, afternoon and evening. Use `knownFor(icon)` rather than
    indexing `KNOWN_FOR`, and level 8's `solo` line when the pet has no friend yet.
-4. **`src/catalog/machines.ts`: set the five `seasonal.emoji` values to `''`**, and stop rendering them in
+4. **Done (M1):** `seasonal.emoji` is gone and the voice lint has no exceptions left. Was: **`src/catalog/machines.ts`: set the five `seasonal.emoji` values to `''`**, and stop rendering them in
    `src/features/capsules/MachineInfo.tsx:33` and `WishingWell.tsx:161`. Then delete the one entry in
    `KNOWN_EXCEPTIONS` in `tests/unit/voice.test.ts`.
-5. **`src/catalog/collectibles.ts` flavor and names**, then delete `KNOWN_TEXT_EXCEPTIONS` and
+5. **Done (M1).** Was: **`src/catalog/collectibles.ts` flavor and names**, then delete `KNOWN_TEXT_EXCEPTIONS` and
    `KNOWN_FLAVOR_EXCEPTIONS` in the test:
    - `pet-frog-peeper`: "A tiny frog with an X on its back. Loud for its size." gives the pet "its" →
      "A tiny frog with an X on the back. Loud, for the size."
@@ -90,7 +90,7 @@ assert once, with a 30 s timeout (about 0.3 s each now, was 2–6 s and timing o
      above) → "Shaggy apricot fringe and wide horns."
    - `pet-dog-samoyed`: the Secret line opens "white all over" too → "Smiling the way Samoyeds do."
    - Curly apostrophes in "sou’wester", "Jack-o’-lantern" and "Robin’s Nest".
-6. **`src/features/capsules/copy.ts`**: use the catalog's tier names, `REVEAL_LINES`, `SECRET_REVEAL` and
+6. **Done (M1):** capsules copy imports REVEAL_LINES, SECRET_REVEAL, DUPLICATE_LINES, CAPSULE_NOTICES and CATEGORY_LABELS. Was: **`src/features/capsules/copy.ts`**: use the catalog's tier names, `REVEAL_LINES`, `SECRET_REVEAL` and
    `DUPLICATE_LINES`, and VOICE.md §10's notices, including the zero variants (never "There are 0 in the
    jar").
 7. **DESIGN.md**, to match the deck:
@@ -104,7 +104,7 @@ assert once, with a 30 s timeout (about 0.3 s each now, was 2–6 s and timing o
      step 5 "Find {name} a plant". §7.2 step 7: "Find {name} a place" / "Let {name} choose". §14.1: "Find
      {name} a plant". §8.2: L7 "naps at the front of the sill, nearest you" and L8 "naps next to a best
      friend" (no pronoun, and no "screen").
-8. **Pins UI**: keep "Key under the mat" hidden until it's earned; an outline only a lapse can fill reads as
+8. **Done (M1, logic):** `BadgeVM.hidden`. Was: **Pins UI**: keep "Key under the mat" hidden until it's earned; an outline only a lapse can fill reads as
    a "you left" badge.
 9. **Sunday Note**: quote only a note she has starred (the new setting "Quote my notes in the Sunday Note" in
    VOICE.md §22), skip the count sentence under `WATERINGS_MIN`, and use `stageUpCompanion` only at Potted

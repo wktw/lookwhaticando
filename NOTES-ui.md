@@ -10,18 +10,18 @@ Useful params: `fxui-notes&live=1`, `fxui-fx&fx=petals|petals-point|coin|glint|c
 
 ## Contract-change requests (files outside ui ownership)
 
-1. **`src/styles/tokens.css`: adopt four kit values.** `src/ui/tones.css` declares, in one place, what the
+1. **Done (M1):** the kit values live in tokens.css (`--shadow-card`, `--error-ink`, `--butter-soft-night`…). Was: **`src/styles/tokens.css`: adopt four kit values.** `src/ui/tones.css` declares, in one place, what the
    kit needs and tokens.css lacks: `--kit-card-shadow` (the style frames' card shadow:
    `0 1px 0 rgba(59,50,54,.03), 0 6px 16px -14px rgba(59,50,54,.35)`), `--kit-float-shadow` (notes, sheets),
    `--error-ink` (`#a9501f`, AA on paper, oat and card; `var(--peach-700)` at night) and
    `--butter-soft-night` (`#74622f`: night butter-300 is 3.98:1 under light text). Night values are in the
    same file. Request: move them (with their night and auto-dark overrides) into tokens.css, ideally as
    `--shadow-card`, `--shadow-float`, `--error-ink`, and add them to the contrast test.
-2. **`index.html` pre-paint script is still Mochi Meadow.** It reads `localStorage['mochi-meadow:v1']`
+2. **Done (M1):** the pre-paint script reads `catkin:theme` with the catkin paper colours, and shoot.mjs seeds `catkin:v1`. Was: **`index.html` pre-paint script is still Mochi Meadow.** It reads `localStorage['mochi-meadow:v1']`
    (DESIGN §11 names the save `catkin:v1`) and writes `theme-color` `#FFF9F2` / `#221C30`. Request: read
    `catkin:v1` and use `#FAF6EF` / `#1E1A22` (what `src/app/theme.ts` `THEME_COLOR` now sets after boot, and
    the tokens' `--bg`). `scripts/shoot.mjs --seed` writes the old key too.
-3. **`gallery.html`**: title "Mochi Meadow · Art Gallery (dev)" → "catkin · gallery".
+3. **Done (M1):** "catkin · gallery (dev)". Was: **`gallery.html`**: title "Mochi Meadow · Art Gallery (dev)" → "catkin · gallery".
 4. **`src/dev/sections.tsx`**: the `mascot` and `wearables` sections render `pet-mochi` (and other v2 ids),
    which the v3 catalog no longer has. catkin has no mascot (DESIGN §1): remove `mascot`, and point
    `wearables` at v3 ids (`pet-cat-orange`, `pet-cow-holstein`, `pet-bunny-dutch`, `pet-frog-tree`,

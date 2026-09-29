@@ -12,7 +12,7 @@
    entirely (`globPatterns` already covers `icons/*`) or at least remove `'splash/*.png'` from it.
    Meanwhile `scripts/generate-icons.mjs` now writes the launch images as 256-color palette PNGs:
    2.1 MB → 0.75 MB for all 22 (about 34 KB each), pixel-identical flat colors.
-2. **`src/styles/tokens.css`: adopt the kit tokens.** `src/ui/tones.css` declares, in one place, the colors
+2. **Done (M1, m1/ui):** the kit block lives in tokens.css. Was: **`src/styles/tokens.css`: adopt the kit tokens.** `src/ui/tones.css` declares, in one place, the colors
    the kit needs that tokens.css doesn't have: candy lips (`--blush-lip` … `--lilac-lip`), the coral danger
    family (`--danger-100/300/500/700/lip`), raised neutral surfaces (`--raised`, `--raised-lip`), form colors
    (`--error-ink` #A9501F is AA on `--bg` and `--bg-2`; `--control-off`, `--control-stroke`),

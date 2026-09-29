@@ -8,7 +8,7 @@
 import type { Category, CollectibleDef, MachineDef, MachineId, Rarity, Species } from '@/catalog/types';
 import { RARITY_FINISH, RARITY_LABEL as TIER } from '@/catalog/types';
 import { seriesLabel } from '@/catalog/machines';
-import { CATEGORY_LABELS, DUPLICATE_LINES, REVEAL_LINES, SECRET_LINES, SECRET_REVEAL, capitalise, fillLine, withArticle } from '@/catalog/lines';
+import { CAPSULE_NOTICES as N, CATEGORY_LABELS, DUPLICATE_LINES, REVEAL_LINES, SECRET_LINES, SECRET_REVEAL, capitalise, fillLine, withArticle } from '@/catalog/lines';
 import type { PullError } from '@/state/api';
 import type { Payment } from './payment';
 
@@ -174,16 +174,16 @@ export function pullErrorNotice(error: PullError, m: MachineDef, have?: number, 
   switch (error) {
     case 'not-enough-coins':
       return {
-        text: `${series} is ${m.price} coins a capsule. ${have ? (have === 1 ? 'There’s 1 in the jar.' : `There are ${have} in the jar.`) : 'Watering fills the jar.'}`,
-        link: { href: '#/today', label: 'Water something on Today' },
+        text: fillLine(N.coins[have ? (have === 1 ? 'one' : 'some') : 'none'], { series, price: m.price, count: have ?? 0 }),
+        link: { href: '#/today', label: N.coins.link },
       };
     case 'not-enough-stars':
       return {
-        text: `${series} is ${priceLabel(m)}. ${have ? (have === 1 ? 'There’s 1 on the card.' : `There are ${have} on the card.`) : 'The card fills from showing up.'}`,
-        link: { href: '#/progress', label: 'Where stamps come from' },
+        text: fillLine(N.stamps[have ? (have === 1 ? 'one' : 'some') : 'none'], { series, price: m.price, count: have ?? 0 }),
+        link: { href: '#/progress', label: N.stamps.link },
       };
     case 'no-ticket':
-      return { text: 'Tickets come from the Showing-up ladder, welcome-home days and your birthday.' };
+      return { text: N.ticket };
     case 'machine-unavailable':
       return {
         text: m.seasonal
@@ -191,7 +191,7 @@ export function pullErrorNotice(error: PullError, m: MachineDef, have?: number, 
           : `${series} is resting for now.`,
       };
     case 'reveal-pending':
-      return { text: 'There’s a capsule in the tray. Open that one first.' };
+      return { text: N.tray };
     case 'storage-full':
       return { text: 'This capsule couldn’t be saved, so it wasn’t opened. Nothing was spent.' };
   }
@@ -205,13 +205,13 @@ export function orderErrorText(
 ): string {
   switch (error) {
     case 'not-enough-stars':
-      return `${withArticle(TIER[item.rarity], true)} is ${item.price} stamps at the counter. ${stamps ? (stamps === 1 ? 'There’s 1 on the card.' : `There are ${stamps} on the card.`) : 'The card fills from showing up.'}`;
+      return fillLine(N.order[stamps ? (stamps === 1 ? 'one' : 'some') : 'none'], { tier: TIER[item.rarity], price: item.price, count: stamps });
     case 'already-owned':
-      return 'Already in the Field Guide.';
+      return N.owned;
     case 'season-not-visited':
-      return item.machine ? `The ${item.machine.name} hasn’t visited yet. Its things can be ordered once it has.` : 'That season hasn’t visited yet. Its things can be ordered once it has.';
+      return item.machine ? fillLine(N.notVisited, { season: item.machine.name }) : 'That season hasn’t visited yet. Its things can be ordered once it has.';
     case 'not-wishable':
-      return 'This one isn’t sold at the counter. It comes from showing up.';
+      return N.notSold;
   }
 }
 
