@@ -1,5 +1,5 @@
 /** Words and small formatters for the capsules screens (DESIGN §1 voice: warm, brief, never guilt). */
-import type { Category, CollectibleDef, MachineDef, MachineId, Rarity } from '@/catalog/types';
+import type { Category, CollectibleDef, MachineDef, MachineId, Rarity, Species } from '@/catalog/types';
 import type { PullError } from '@/state/api';
 import type { CandyColors } from './ui/CandyButton';
 import type { Payment } from './payment';
@@ -32,19 +32,20 @@ export const CATEGORY_LABEL: Record<Category, string> = {
 
 const SLOT_LABEL = { head: 'Head wear', face: 'Face wear', neck: 'Neckwear', body: 'Outfit' } as const;
 
-const capitalize = (w: string) => w.charAt(0).toUpperCase() + w.slice(1);
+/** The everyday noun for each species ("bunny" is only an internal id). */
+export const SPECIES_NOUN: Record<Species, string> = { cat: 'Cat', cow: 'Cow', dog: 'Dog', bunny: 'Rabbit', frog: 'Frog', bear: 'Bear', hamster: 'Hamster', duck: 'Duck' };
 
-/** "Calico · Cat", "Strawberry Cat" (no "· Cat" twice), "Head wear", "Treat"… */
+/** "Calico · Cat", "French Bulldog" (never the species twice), "Head wear", "Treat"… */
 export function kindLabel(def: CollectibleDef): string {
   switch (def.category) {
     case 'pet':
-      return new RegExp(`\\b${def.species}\\b`, 'i').test(def.name) ? def.name : `${def.name} · ${capitalize(def.species)}`;
+      return def.name.toLowerCase().includes(SPECIES_NOUN[def.species].toLowerCase()) ? def.name : `${def.name} · ${SPECIES_NOUN[def.species]}`;
     case 'wearable':
       return SLOT_LABEL[def.slot];
     case 'treat':
       return 'Treat';
     case 'decor':
-      return 'Meadow decor';
+      return 'Decor';
     case 'plant':
       return 'New plant for your habits';
     case 'pot':
@@ -54,17 +55,18 @@ export function kindLabel(def: CollectibleDef): string {
 
 /** Short machine names for filter chips. */
 export const MACHINE_SHORT: Record<MachineId, string> = {
-  kitty: 'Kitty',
-  moo: 'Moo Moo',
-  puppy: 'Puppy',
-  sakura: 'Sakura',
-  sweets: 'Sweets',
-  dreamy: 'Dreamy',
-  pumpkin: 'Pumpkin',
-  snow: 'Snow',
-  love: 'Love',
-  rainy: 'Rainy',
-  beach: 'Beach',
+  cats: 'Cats',
+  cows: 'Cows',
+  dogs: 'Dogs',
+  pond: 'Pond',
+  garden: 'Garden',
+  pantry: 'Pantry',
+  night: 'Night',
+  autumn: 'Autumn',
+  winter: 'Winter',
+  valentine: 'Valentine',
+  spring: 'Spring',
+  summer: 'Summer',
 };
 
 export function wishErrorText(

@@ -109,10 +109,10 @@ function meadows(params: URLSearchParams, w: number, h: number, bare = false) {
 
 const SILL_PLANTS: readonly { species: PlantSpeciesId; stage: number; pot: PotId }[] = [
   { species: 'tulip', stage: 5, pot: 'blush' },
-  { species: 'succulent', stage: 3, pot: 'terracotta' },
+  { species: 'pilea', stage: 3, pot: 'terracotta' },
   { species: 'sunflower', stage: 6, pot: 'cream' },
   { species: 'monstera', stage: 4, pot: 'terracotta' },
-  { species: 'daisy', stage: 2, pot: 'blush' },
+  { species: 'begonia', stage: 2, pot: 'blush' },
 ];
 const BUDDY_SIZE = 60;
 const POT_SIZE = 46;

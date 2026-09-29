@@ -14,7 +14,7 @@ const SPECIES = [...PLANT_SPECIES_WITH_ART] as PlantSpeciesId[];
 const POTS = [...POTS_WITH_ART] as PotId[];
 /** The gold bow's left loop, as drawn by the Evergreen charm. */
 const BOW = 'M0 0 C-1.6 -2.4 -4.4 -2.4 -4.4 -0.2';
-const CLASSIC_POTS: PotId[] = ['terracotta', 'cream', 'blush', 'sage', 'cowprint', 'snowy', 'starlight'];
+const CLASSIC_POTS: PotId[] = ['terracotta', 'cream', 'blush', 'speckled', 'ticking', 'eggshell', 'midnight'];
 
 /** Renders into a detached host, hands the host to `read`, then unmounts. */
 function inspect<T>(node: JSX.Element, read: (host: HTMLElement) => T): T {
@@ -113,7 +113,7 @@ describe('PlantArt', () => {
 
   it('grows extra blooms after Evergreen, capped at six with a golden sparkle', () => {
     for (const species of SPECIES) {
-      const counts = [0, 3, 6, 9].map((blooms) => normalize(markup(plant({ species, stage: 7, blooms, pot: 'sage' }))));
+      const counts = [0, 3, 6, 9].map((blooms) => normalize(markup(plant({ species, stage: 7, blooms, pot: 'speckled' }))));
       expect(counts[1], `${species} blooms 3`).not.toBe(counts[0]);
       expect(counts[2], `${species} blooms 6`).not.toBe(counts[1]);
       expect(counts[3], `${species} blooms beyond the cap`).toBe(counts[2]);
@@ -122,9 +122,9 @@ describe('PlantArt', () => {
   });
 
   it('ignores blooms before Evergreen and clamps out-of-range input', () => {
-    const plain = normalize(markup(plant({ stage: 6, pot: 'heart' })));
-    expect(normalize(markup(plant({ stage: 6, blooms: 4, pot: 'heart' })))).toBe(plain);
-    expect(normalize(markup(plant({ stage: 12, progress: 3, pot: 'heart' })))).toBe(normalize(markup(plant({ stage: 7, progress: 1, pot: 'heart' }))));
+    const plain = normalize(markup(plant({ stage: 6, pot: 'rosy' })));
+    expect(normalize(markup(plant({ stage: 6, blooms: 4, pot: 'rosy' })))).toBe(plain);
+    expect(normalize(markup(plant({ stage: 12, progress: 3, pot: 'rosy' })))).toBe(normalize(markup(plant({ stage: 7, progress: 1, pot: 'rosy' }))));
   });
 
   it('dresses every Evergreen pot in its reward: a gold bow and charm, plus a ribbon on pots without a face', () => {
@@ -154,7 +154,7 @@ describe('PlantArt', () => {
 
   it('waters the plant only when pulse goes up after mount', () => {
     const host = document.createElement('div');
-    const show = (pulse: number) => act(() => render(plant({ species: 'daisy', stage: 4, pot: 'kitty', pulse }), host));
+    const show = (pulse: number) => act(() => render(plant({ species: 'begonia', stage: 4, pot: 'mug', pulse }), host));
     const watered = () => host.querySelector('.plant-water') !== null;
     show(3);
     expect(watered()).toBe(false);
@@ -171,8 +171,8 @@ describe('PlantArt', () => {
   });
 
   it('is decorative by default and labelled when titled', () => {
-    inspect(plant({ species: 'lemon', stage: 5, pot: 'frog' }), (host) => expect(host.querySelector('svg')!.getAttribute('aria-hidden')).toBe('true'));
-    inspect(plant({ species: 'lemon', stage: 5, pot: 'frog', title: 'Meal prep lemon tree, blooming' }), (host) => {
+    inspect(plant({ species: 'catnip', stage: 5, pot: 'tincan' }), (host) => expect(host.querySelector('svg')!.getAttribute('aria-hidden')).toBe('true'));
+    inspect(plant({ species: 'catnip', stage: 5, pot: 'tincan', title: 'Meal prep lemon tree, blooming' }), (host) => {
       const svg = host.querySelector('svg')!;
       expect(svg.getAttribute('role')).toBe('img');
       expect(svg.getAttribute('aria-label')).toBe('Meal prep lemon tree, blooming');
@@ -182,8 +182,8 @@ describe('PlantArt', () => {
   it('gives each instance its own clip-path ids', () => {
     const html = markup(
       <div>
-        {plant({ stage: 3, pot: 'cowprint' })}
-        {plant({ stage: 3, pot: 'cowprint' })}
+        {plant({ stage: 3, pot: 'ticking' })}
+        {plant({ stage: 3, pot: 'ticking' })}
       </div>,
     );
     const ids = [...html.matchAll(/<clipPath id="([^"]+)"/g)].map((m) => m[1]);

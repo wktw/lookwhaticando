@@ -13,7 +13,7 @@ import { PlantArt, PotArt, PLANT_STAGE_NAMES } from '@/art/plants';
 import { TREAT_ART } from '@/art/items';
 import type { GallerySection } from './sections';
 
-const SPECIES: PlantSpeciesId[] = ['tulip', 'daisy', 'sunflower', 'succulent', 'monstera', 'sakura', 'strawberry', 'lavender', 'cactus', 'lily', 'mushroom', 'lemon'];
+const SPECIES: PlantSpeciesId[] = ['pothos', 'pilea', 'begonia', 'snakeplant', 'catgrass', 'monstera', 'strawberry', 'lavender', 'catnip', 'hoya', 'orchid', 'calathea', 'violet', 'tulip', 'xmascactus', 'sunflower'];
 const POT_IDS = POTS.map((p) => p.pot);
 const STAGES = [0, 1, 2, 3, 4, 5, 6, 7];
 
@@ -128,7 +128,7 @@ function PotsDemo({ params }: { params: URLSearchParams }) {
           <div class="gal-row" style={{ gap: '6px', flexWrap: 'nowrap' }}>
             <PotArt pot={p.pot} size={size} title={p.name} />
             <PlantArt species="tulip" stage={5} progress={0.5} pot={p.pot} size={size} />
-            <PlantArt species="daisy" stage={7} pot={p.pot} size={size} title={`Evergreen daisy in the ${p.name}`} />
+            <PlantArt species="begonia" stage={7} pot={p.pot} size={size} title={`Evergreen daisy in the ${p.name}`} />
             <PotArt pot={p.pot} size={40} />
           </div>
           <b>{p.name}</b>
@@ -144,17 +144,17 @@ function PotsDemo({ params }: { params: URLSearchParams }) {
 /** Demo habits whose subtitles match their growth stage (DESIGN §5.5 thresholds for a daily habit). */
 const CARD_DEMO: { name: string; sub: string; species: PlantSpeciesId; stage: number; pot: PotId; blooms?: number; done?: boolean }[] = [
   { name: 'Drink water', sub: '2 weeks', species: 'monstera', stage: 3, pot: 'cream' },
-  { name: 'Take vitamins', sub: '7 weeks', species: 'succulent', stage: 5, pot: 'blush', done: true },
+  { name: 'Take vitamins', sub: '7 weeks', species: 'pilea', stage: 5, pot: 'blush', done: true },
   { name: 'Go for a walk', sub: '3 months', species: 'sunflower', stage: 6, pot: 'terracotta', done: true },
-  { name: 'Stretch', sub: 'Day 2', species: 'tulip', stage: 1, pot: 'kitty' },
-  { name: 'Yoga', sub: '1 of 2 this week', species: 'lavender', stage: 4, pot: 'sage' },
-  { name: 'In bed by 11', sub: '8 weeks', species: 'lily', stage: 5, pot: 'starlight' },
-  { name: 'Read', sub: '7 months', species: 'daisy', stage: 7, blooms: 2, pot: 'cowprint', done: true },
-  { name: 'Strength training', sub: '2 of 3 this week', species: 'cactus', stage: 2, pot: 'frog' },
-  { name: 'Practice a hobby', sub: 'Just planted', species: 'strawberry', stage: 0, pot: 'heart' },
-  { name: 'Meal prep', sub: '4 months', species: 'lemon', stage: 6, pot: 'pumpkin' },
-  { name: 'Journal', sub: '9 weeks', species: 'sakura', stage: 5, pot: 'snowy' },
-  { name: 'Water the plants', sub: '6 months', species: 'mushroom', stage: 7, pot: 'kitty' },
+  { name: 'Stretch', sub: 'Day 2', species: 'tulip', stage: 1, pot: 'mug' },
+  { name: 'Yoga', sub: '1 of 2 this week', species: 'lavender', stage: 4, pot: 'speckled' },
+  { name: 'In bed by 11', sub: '8 weeks', species: 'pothos', stage: 5, pot: 'midnight' },
+  { name: 'Read', sub: '7 months', species: 'begonia', stage: 7, blooms: 2, pot: 'ticking', done: true },
+  { name: 'Strength training', sub: '2 of 3 this week', species: 'snakeplant', stage: 2, pot: 'tincan' },
+  { name: 'Practice a hobby', sub: 'Just planted', species: 'strawberry', stage: 0, pot: 'rosy' },
+  { name: 'Meal prep', sub: '4 months', species: 'catnip', stage: 6, pot: 'gourd' },
+  { name: 'Journal', sub: '9 weeks', species: 'hoya', stage: 5, pot: 'eggshell' },
+  { name: 'Water the plants', sub: '6 months', species: 'calathea', stage: 7, pot: 'mug' },
 ];
 
 function HabitCards() {
@@ -201,7 +201,7 @@ function WaterDemo() {
         {(['tulip', 'sunflower', 'succulent', 'lemon', 'mushroom'] as PlantSpeciesId[]).map((sp, i) => (
           <PlantArt key={sp} species={sp} stage={i + 3} pot={POT_IDS[i]!} size={140} pulse={pulse} animated />
         ))}
-        <PlantArt species="daisy" stage={0} progress={0.8} pot="kitty" size={140} pulse={pulse} animated />
+        <PlantArt species="begonia" stage={0} progress={0.8} pot="mug" size={140} pulse={pulse} animated />
       </div>
       <div class="gal-row" style={{ width: '100%' }}>
         {(['tulip', 'sunflower', 'succulent', 'lemon', 'mushroom', 'daisy'] as PlantSpeciesId[]).map((sp, i) => (

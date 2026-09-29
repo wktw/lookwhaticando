@@ -44,3 +44,34 @@ designers proposed it independently), Blooms Like You with the Garden Journal an
 proposals were refuted as gimmicks or off-center (see DESIGN §14.4). Key evidence cited: Pocket Camp > 75% women (Nintendo
 IR, Feb 2018); Quantic Foundry: women over-index on Design, Fantasy, Story and Completion; New Horizons satisfied
 autonomy/competence/relatedness (Yee & Sng 2022).
+
+## Creative re-direction: from Mochi Meadow to catkin
+
+**Trigger.** The client rejected the mascot-led "Mochi Meadow" direction: "It's been done so many times in different
+ways. Come up with something novel, yet relatable. Nothing cheesy. No gimmicks."
+
+**Method.** Five concept teams each pitched a complete identity (name, world, character model, art language, voice).
+A jury scored each on novelty, relatability, anti-cheese, habit centrality, craft ceiling and fit with the concept
+file. A separate visual jury rendered style frames for the top three and critiqued the crops.
+
+| Concept | Jury total | Verdict |
+|---|---|---|
+| catkin: a windowsill of houseplants propagated from habits, real animals that never speak | **261.5** | Adopted |
+| Everyday objects at pet scale | 243.5 | Grafted: capsule-scale household decor, found-object wearables |
+| Craft / paper-cut studio | 242 | Grafted: paper inserts, print finishes per rarity |
+| Companion-first (one animal, deep bond) | 231 | Grafted: residency (a pet keeps a habit company) |
+| A place (village map) | 214 | Rejected: pulls attention away from the habits |
+
+The visual jury recommended the catkin world with the "Good Light" treatment: one window, one sunbeam, flat matte
+shapes without outlines, and precomputed lavender shade crescents.
+
+**What changed.**
+- The name and brand became catkin (DESIGN §1).
+- There is no mascot. The animals never speak, and copy never gives a pet a pronoun.
+- Real breeds make up at least 70% of pets; fantasy lives only in colour and pattern.
+- The catalog is pet-safe: no chocolate, cats eat only cat grass and catnip, and there are no lilies.
+- The currencies were renamed: Stamps replace stars, Swaps replace stardust, and Special Order replaces the Wishing Well.
+- The capsule series were renumbered No. 01–07, with five seasonal editions.
+- The meadow zones became Places on the Shelf.
+
+The catalog tests now enforce the voice, pronoun, pet-safety and real-breed rules, so a regression fails the build.

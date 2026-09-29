@@ -19,7 +19,7 @@ function block(selector: RegExp): Record<string, string> {
 
 const light = block(/:root\s*\{([\s\S]*?)\n\}/);
 const nightOnly = block(/:root\[data-theme='night'\]\s*\{([\s\S]*?)\n\}/);
-const night = { ...light, ...nightOnly };
+const night: Record<string, string> = { ...light, ...nightOnly };
 const media = block(/:root:not\(\[data-theme='light'\]\):not\(\[data-theme='night'\]\)\s*\{([\s\S]*?)\n  \}/);
 
 function lum(hex: string): number {

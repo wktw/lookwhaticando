@@ -1,60 +1,62 @@
 /* ==========================================================================
-   Mochi Meadow design tokens (see docs/DESIGN.md §10)
-   Light = "Morning Meadow", Night = "Moonlight Meadow".
-   Theme resolution: <html data-theme="light|night"> set by the app;
-   with no attribute we follow the OS.
+   catkin design tokens (docs/DESIGN.md §10). Daylight = "Paper", night = "Lamplight".
+   Theme resolution: <html data-theme="light|night"> is set before first paint by the
+   inline head script; with no attribute we follow the OS.
+   Token NAMES are stable across themes and rebrands; only values change.
+   Every text pair is ≥ 4.5:1 and every UI pair ≥ 3:1 (tests/unit/contrast.test.ts).
    ========================================================================== */
 
 :root {
   color-scheme: light;
 
-  /* Surfaces & ink */
-  --bg: #fff9f2;
-  --bg-2: #fff1e6;
-  --card: #ffffff;
-  --card-2: #fffcf8;
-  --ink: #4a3540;
-  --ink-2: #6e5764;
-  --ink-3: #806472;
-  /* Disabled controls & decorative glyphs only; never readable text. */
-  --ink-disabled: #b7a3ad;
-  --line: #f0e2da;
-  --scrim: rgba(74, 53, 64, 0.32);
-  --cocoa: #5a3e45; /* illustration outline */
+  /* Surfaces & ink: warm paper, warm graphite ink (never pure black) */
+  --bg: #faf6ef;
+  --bg-2: #f1e9dd;
+  --card: #fffdf9;
+  --card-2: #fbf7f1;
+  --ink: #3b3236;
+  --ink-2: #66585d;
+  --ink-3: #6f6065;
+  --ink-disabled: #b9ada8;
+  --line: #e6dcd0;
+  --on-accent: #3b3236;
+  --focus: #5e4c9a;
+  --control-border: #8a7b75;
+  --scrim: rgba(59, 50, 54, 0.34);
 
-  /* Pastel families: 100 tint · 300 soft · 500 hero · 700 accessible text */
-  --blush-100: #ffe9ef;
-  --blush-300: #ffc4d3;
-  --blush-500: #f58caa;
-  --blush-700: #ba3c64;
-  --peach-100: #ffeedf;
-  --peach-300: #ffcba8;
-  --peach-500: #ff9e6e;
-  --peach-700: #ab5428;
-  --butter-100: #fff7d9;
-  --butter-300: #ffe593;
-  --butter-500: #f6c544;
-  --butter-700: #8c6800;
-  --sage-100: #ebf5e6;
-  --sage-300: #c3dfb4;
-  --sage-500: #8ec07c;
-  --sage-700: #4a773d;
-  --mint-100: #e3f7f1;
-  --mint-300: #b3e6d6;
-  --mint-500: #6ccbae;
-  --mint-700: #2d7a64;
-  --sky-100: #e7f3fd;
-  --sky-300: #bbdcf6;
-  --sky-500: #7db7e8;
-  --sky-700: #2f6e9e;
-  --lavender-100: #f2edfe;
-  --lavender-300: #d6c8f8;
-  --lavender-500: #a993ea;
-  --lavender-700: #6a51bf;
-  --lilac-100: #fbeafb;
-  --lilac-300: #f0c6f0;
-  --lilac-500: #d98ed9;
-  --lilac-700: #8e4a8e;
+  /* Ink families: 100 tint · 300 soft · 500 hero fill · 700 text-safe */
+  --blush-100: #fbe9ec;
+  --blush-300: #f5cdd6;
+  --blush-500: #efb4c1;
+  --blush-700: #a3405b;
+  --peach-100: #f9ebe3;
+  --peach-300: #efcdbd;
+  --peach-500: #dda088;
+  --peach-700: #91492c;
+  --butter-100: #fbf3da;
+  --butter-300: #f6e6b4;
+  --butter-500: #f2d98a;
+  --butter-700: #735a0b;
+  --sage-100: #eef3e7;
+  --sage-300: #d5e3c7;
+  --sage-500: #b5cc9c;
+  --sage-700: #46653a;
+  --mint-100: #e8f3ee;
+  --mint-300: #cde6da;
+  --mint-500: #a9d3c0;
+  --mint-700: #2d6653;
+  --sky-100: #eaf2f9;
+  --sky-300: #d2e4f2;
+  --sky-500: #b3d1e8;
+  --sky-700: #2d6186;
+  --lavender-100: #f1edf9;
+  --lavender-300: #ddd4f1;
+  --lavender-500: #c8bae6;
+  --lavender-700: #5a4896;
+  --lilac-100: #f8ecf6;
+  --lilac-300: #edd3ea;
+  --lilac-500: #ddb6da;
+  --lilac-700: #834281;
 
   /* Semantic */
   --accent: var(--blush-500);
@@ -62,44 +64,47 @@
   --accent-soft: var(--blush-100);
   --success: var(--sage-500);
   --success-ink: var(--sage-700);
-  --coin: var(--butter-500);
+  --coin: #d9b45a;
   --coin-ink: var(--butter-700);
-  --star: #ffd65c;
-  /* Labels/icons on any -500 face (buttons, pills, chips). Same in both themes; never white. */
-  --on-accent: #3a2a33;
-  --focus: #6a51bf;
-  /* Unchecked rings, input borders, toggle tracks: ≥3:1 on every surface. */
-  --control-border: #9a7f8c;
+  --star: #f2c94c;
 
-  /* Rarity */
+  /* Windowlight (art): one light source; shade is a lavender ink, never grey */
+  --sun: rgba(255, 231, 168, 0.55);
+  --lamp: #ffc98a;
+  --shade: rgba(94, 76, 154, 0.16);
+  --contact: rgba(59, 50, 54, 0.08);
+
+  /* Rarity (always paired with a printed tier word and a static finish) */
   --rarity-common: var(--sage-500);
   --rarity-uncommon: var(--sky-500);
   --rarity-rare: var(--lavender-500);
-  --rarity-ultra: #f5a9c8;
-  --holo: linear-gradient(115deg, #ffb3c7 0%, #ffe593 25%, #b3e6d6 50%, #bbdcf6 75%, #d6c8f8 100%);
+  --rarity-ultra: #e9b8cf;
+  --holo: linear-gradient(115deg, #f5cdd6 0%, #f6e6b4 25%, #cde6da 50%, #d2e4f2 75%, #ddd4f1 100%);
 
-  /* Type */
-  --font-display: 'Fredoka', 'Nunito', ui-rounded, 'SF Pro Rounded', system-ui, sans-serif;
-  --font-body: 'Nunito', ui-rounded, 'SF Pro Rounded', system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --fs-display: 2.125rem; /* 34 */
-  --fs-title: 1.75rem; /* 28 */
-  --fs-headline: 1.375rem; /* 22 */
-  --fs-body-lg: 1.125rem; /* 18 */
-  --fs-body: 1rem; /* 16 */
-  --fs-caption: 0.875rem; /* 14 */
-  --fs-micro: 0.75rem; /* 12 */
+  /* Type: Castoro (a voice: names, headings, notes) + Nunito (interface) */
+  --font-display: 'Castoro', 'Iowan Old Style', Georgia, serif;
+  --font-body: 'Nunito', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --fs-display: min(2rem, 48px);
+  --fs-title: min(1.65rem, 40px);
+  --fs-headline: min(1.3rem, 32px);
+  --fs-body-lg: 1.0625rem;
+  --fs-body: 1rem;
+  --fs-caption: 0.875rem;
+  --fs-micro: 0.75rem;
+  --tracking-caps: 0.08em;
 
-  /* Shape */
+  /* Shape: paper cards, hairlines, soft sheets */
   --r-sm: 10px;
-  --r-md: 16px;
-  --r-lg: 22px;
-  --r-xl: 30px;
+  --r-md: 14px;
+  --r-lg: 18px;
+  --r-xl: 24px;
   --r-pill: 999px;
+  --hairline: 1px solid var(--line);
 
-  /* Depth: warm-tinted, never grey */
-  --shadow-sm: 0 1px 0 rgba(74, 53, 64, 0.05), 0 4px 12px -6px rgba(74, 53, 64, 0.18);
-  --shadow-md: 0 1px 0 rgba(74, 53, 64, 0.05), 0 10px 30px -12px rgba(74, 53, 64, 0.22);
-  --shadow-lg: 0 2px 0 rgba(74, 53, 64, 0.04), 0 24px 60px -20px rgba(74, 53, 64, 0.35);
+  /* Depth: barely-there, warm */
+  --shadow-sm: 0 1px 0 rgba(59, 50, 54, 0.04), 0 2px 8px -4px rgba(59, 50, 54, 0.12);
+  --shadow-md: 0 1px 0 rgba(59, 50, 54, 0.04), 0 8px 24px -14px rgba(59, 50, 54, 0.22);
+  --shadow-lg: 0 2px 0 rgba(59, 50, 54, 0.04), 0 20px 48px -22px rgba(59, 50, 54, 0.32);
 
   /* Spacing (4pt grid) */
   --s-1: 4px;
@@ -112,12 +117,12 @@
   --s-10: 40px;
   --gutter: 16px;
 
-  /* Motion */
-  --ease-pop: cubic-bezier(0.34, 1.56, 0.64, 1);
-  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  /* Motion: unhurried; no overshoot in the interface */
+  --ease-pop: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
   --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
   --t-micro: 150ms;
-  --t-std: 280ms;
+  --t-std: 260ms;
   --t-slow: 480ms;
 
   /* Layout */
@@ -136,98 +141,110 @@
   }
 }
 
-/* ---------- Night: "Moonlight Meadow" ---------- */
+/* ---------- Night: "Lamplight" (indigo walls, an amber pool of lamp light) ---------- */
 :root[data-theme='night'] {
   color-scheme: dark;
-  --bg: #221c30;
-  --bg-2: #2b2440;
-  --card: #342c4b;
-  --card-2: #3a3152;
-  --ink: #f8eef3;
-  --ink-2: #cbbcd0;
-  --ink-3: #b0a6ba;
-  --ink-disabled: #8d7f9c;
-  --line: #43395c;
-  --scrim: rgba(10, 6, 20, 0.55);
-  --focus: #a993ea;
-  --control-border: #9083b5;
-
-  --blush-100: #4a3048;
-  --blush-300: #8a4d6e;
-  --blush-500: #f58caa;
-  --blush-700: #ffb3c8;
-  --peach-100: #4a3438;
-  --peach-300: #8c5a4a;
-  --peach-500: #ff9e6e;
-  --peach-700: #ffc2a0;
-  --butter-100: #463d30;
+  --bg: #1e1a22;
+  --bg-2: #26212c;
+  --card: #2d2733;
+  --card-2: #342d3b;
+  --ink: #f4ede6;
+  --ink-2: #cfc5c9;
+  --ink-3: #afa3a9;
+  --ink-disabled: #7d7280;
+  --line: #3d3545;
+  --focus: #c8bae6;
+  --control-border: #8e829a;
+  --scrim: rgba(8, 6, 14, 0.58);
+  --blush-100: #4a2f3a;
+  --blush-300: #86506a;
+  --blush-500: #efb4c1;
+  --blush-700: #f6c9d3;
+  --peach-100: #4a352d;
+  --peach-300: #8a5e4c;
+  --peach-500: #dda088;
+  --peach-700: #f2c6b3;
+  --butter-100: #453c27;
   --butter-300: #7a6536;
-  --butter-500: #f6c544;
-  --butter-700: #ffe08a;
-  --sage-100: #2f3b36;
-  --sage-300: #4d6a4f;
-  --sage-500: #8ec07c;
-  --sage-700: #b9e0a8;
-  --mint-100: #283b3c;
-  --mint-300: #3f6b62;
-  --mint-500: #6ccbae;
-  --mint-700: #a6ecd6;
-  --sky-100: #2b3450;
-  --sky-300: #435a85;
-  --sky-500: #7db7e8;
-  --sky-700: #b5d8f7;
-  --lavender-100: #352d55;
-  --lavender-300: #5a4b8f;
-  --lavender-500: #a993ea;
-  --lavender-700: #d2c5fb;
-  --lilac-100: #412d4f;
-  --lilac-300: #744a7e;
-  --lilac-500: #d98ed9;
-  --lilac-700: #f3c4f3;
-
-  --shadow-sm: 0 1px 0 rgba(0, 0, 0, 0.2), 0 4px 12px -6px rgba(0, 0, 0, 0.5);
-  --shadow-md: 0 1px 0 rgba(0, 0, 0, 0.2), 0 10px 30px -12px rgba(0, 0, 0, 0.6);
-  --shadow-lg: 0 2px 0 rgba(0, 0, 0, 0.2), 0 24px 60px -20px rgba(0, 0, 0, 0.7);
+  --butter-500: #f2d98a;
+  --butter-700: #f6e3a8;
+  --sage-100: #313b2e;
+  --sage-300: #5a7050;
+  --sage-500: #b5cc9c;
+  --sage-700: #cfe0bd;
+  --mint-100: #28392f;
+  --mint-300: #4b6b5c;
+  --mint-500: #a9d3c0;
+  --mint-700: #c4e4d6;
+  --sky-100: #28323f;
+  --sky-300: #4a6480;
+  --sky-500: #b3d1e8;
+  --sky-700: #cde1f1;
+  --lavender-100: #332c45;
+  --lavender-300: #5e5084;
+  --lavender-500: #c8bae6;
+  --lavender-700: #dcd2f2;
+  --lilac-100: #3d2b3d;
+  --lilac-300: #735071;
+  --lilac-500: #ddb6da;
+  --lilac-700: #edd1ea;
+  --sun: rgba(255, 201, 138, 0.18);
+  --shade: rgba(10, 8, 22, 0.3);
+  --contact: rgba(0, 0, 0, 0.22);
+  --shadow-sm: 0 1px 0 rgba(0, 0, 0, 0.2), 0 2px 8px -4px rgba(0, 0, 0, 0.5);
+  --shadow-md: 0 1px 0 rgba(0, 0, 0, 0.2), 0 8px 24px -14px rgba(0, 0, 0, 0.6);
+  --shadow-lg: 0 2px 0 rgba(0, 0, 0, 0.2), 0 20px 48px -22px rgba(0, 0, 0, 0.7);
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']):not([data-theme='night']) {
     color-scheme: dark;
-    --bg: #221c30;
-    --bg-2: #2b2440;
-    --card: #342c4b;
-    --card-2: #3a3152;
-    --ink: #f8eef3;
-    --ink-2: #cbbcd0;
-    --ink-3: #b0a6ba;
-    --ink-disabled: #8d7f9c;
-    --line: #43395c;
-    --scrim: rgba(10, 6, 20, 0.55);
-    --focus: #a993ea;
-    --control-border: #9083b5;
-    --blush-100: #4a3048;
-    --blush-300: #8a4d6e;
-    --blush-700: #ffb3c8;
-    --peach-100: #4a3438;
-    --peach-300: #8c5a4a;
-    --peach-700: #ffc2a0;
-    --butter-100: #463d30;
+    --bg: #1e1a22;
+    --bg-2: #26212c;
+    --card: #2d2733;
+    --card-2: #342d3b;
+    --ink: #f4ede6;
+    --ink-2: #cfc5c9;
+    --ink-3: #afa3a9;
+    --ink-disabled: #7d7280;
+    --line: #3d3545;
+    --focus: #c8bae6;
+    --control-border: #8e829a;
+    --scrim: rgba(8, 6, 14, 0.58);
+    --blush-100: #4a2f3a;
+    --blush-300: #86506a;
+    --blush-500: #efb4c1;
+    --blush-700: #f6c9d3;
+    --peach-100: #4a352d;
+    --peach-300: #8a5e4c;
+    --peach-500: #dda088;
+    --peach-700: #f2c6b3;
+    --butter-100: #453c27;
     --butter-300: #7a6536;
-    --butter-700: #ffe08a;
-    --sage-100: #2f3b36;
-    --sage-300: #4d6a4f;
-    --sage-700: #b9e0a8;
-    --mint-100: #283b3c;
-    --mint-300: #3f6b62;
-    --mint-700: #a6ecd6;
-    --sky-100: #2b3450;
-    --sky-300: #435a85;
-    --sky-700: #b5d8f7;
-    --lavender-100: #352d55;
-    --lavender-300: #5a4b8f;
-    --lavender-700: #d2c5fb;
-    --lilac-100: #412d4f;
-    --lilac-300: #744a7e;
-    --lilac-700: #f3c4f3;
+    --butter-500: #f2d98a;
+    --butter-700: #f6e3a8;
+    --sage-100: #313b2e;
+    --sage-300: #5a7050;
+    --sage-500: #b5cc9c;
+    --sage-700: #cfe0bd;
+    --mint-100: #28392f;
+    --mint-300: #4b6b5c;
+    --mint-500: #a9d3c0;
+    --mint-700: #c4e4d6;
+    --sky-100: #28323f;
+    --sky-300: #4a6480;
+    --sky-500: #b3d1e8;
+    --sky-700: #cde1f1;
+    --lavender-100: #332c45;
+    --lavender-300: #5e5084;
+    --lavender-500: #c8bae6;
+    --lavender-700: #dcd2f2;
+    --lilac-100: #3d2b3d;
+    --lilac-300: #735071;
+    --lilac-500: #ddb6da;
+    --lilac-700: #edd1ea;
+    --sun: rgba(255, 201, 138, 0.18);
+    --shade: rgba(10, 8, 22, 0.3);
+    --contact: rgba(0, 0, 0, 0.22);
   }
 }

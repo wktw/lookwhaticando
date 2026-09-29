@@ -13,7 +13,7 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 import { onGameEvent } from '@/state/events';
 import { state } from '@/state/store';
 import type { GameEvent } from '@/state/api';
-import { getCollectible, MOCHI_ID } from '@/catalog/collectibles';
+import { getCollectible } from '@/catalog/collectibles';
 import { BADGE_BY_ID } from '@/catalog/badges';
 import { CoinIcon } from '@/art/icons';
 import { overlayRoot } from '@/ui/overlay';
@@ -89,7 +89,7 @@ function context(): CelebrationContext {
     itemName: (id) => getCollectible(id)?.name ?? 'A surprise',
     itemFlavor: (id) => getCollectible(id)?.flavor ?? '',
     badge: (id) => BADGE_BY_ID.get(id),
-    buddy: s.profile.buddy ?? MOCHI_ID,
+    buddy: s.profile.buddy ?? '',
     locallyCelebrated: new Set(claims.keys()),
   };
 }

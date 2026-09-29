@@ -115,7 +115,7 @@ export function machineStatus(id: MachineId): MachineStatus {
   };
 }
 export function availableMachines(): MachineId[] {
-  return ['kitty', 'moo', 'puppy', 'sakura', 'sweets', 'dreamy', 'pumpkin'];
+  return ['cats', 'cows', 'dogs', 'pond', 'garden', 'pantry', 'night', 'autumn'];
 }
 /** Decides the pull, commits it immediately (pendingReveal), then returns it for the reveal. */
 export function pull(_machineId: MachineId, _opts: { useTicket?: boolean; free?: boolean } = {}): PullOutcome {

@@ -7,6 +7,8 @@
 export type Rarity = 'common' | 'uncommon' | 'rare' | 'ultra';
 /** Blind-box display labels (internal ids stay common/uncommon/rare/ultra). The series Secret shows 'Secret'. */
 export const RARITY_LABEL: Record<Rarity, string> = { common: 'Classic', uncommon: 'Special', rare: 'Rare', ultra: 'Super rare' };
+/** Static print finish per tier (never color alone; DESIGN §7.1). */
+export const RARITY_FINISH: Record<Rarity, string> = { common: 'matte paper', uncommon: 'two-colour print', rare: 'foil edge', ultra: 'holographic' };
 export const RARITIES: readonly Rarity[] = ['common', 'uncommon', 'rare', 'ultra'] as const;
 
 export type Species = 'cat' | 'cow' | 'dog' | 'bunny' | 'frog' | 'bear' | 'hamster' | 'duck';
@@ -29,39 +31,47 @@ export const DECOR_SLOTS: readonly DecorSlot[] = [
 
 export type TreatTag = 'fruity' | 'sweet' | 'savory' | 'drink' | 'crunchy' | 'fresh';
 
-export type StandardMachineId = 'kitty' | 'moo' | 'puppy' | 'sakura' | 'sweets' | 'dreamy';
-export type SeasonalMachineId = 'pumpkin' | 'snow' | 'love' | 'rainy' | 'beach';
+/** Numbered series (No. 01 … No. 07). */
+export type StandardMachineId = 'cats' | 'cows' | 'dogs' | 'pond' | 'garden' | 'pantry' | 'night';
+/** Seasonal editions, returning every year on fixed calendar dates. */
+export type SeasonalMachineId = 'autumn' | 'winter' | 'valentine' | 'spring' | 'summer';
 export type MachineId = StandardMachineId | SeasonalMachineId;
 
 /** Items that come from no machine. */
-export type Source = MachineId | 'starter' | 'exclusive' | 'garden';
+/** 'harvest' = grown on her own plants, never from a machine. */
+export type Source = MachineId | 'starter' | 'exclusive' | 'harvest';
 
 export type PlantSpeciesId =
-  | 'tulip'
-  | 'daisy'
-  | 'sunflower'
-  | 'succulent'
+  | 'pothos'
+  | 'pilea'
+  | 'begonia'
+  | 'snakeplant'
+  | 'catgrass'
   | 'monstera'
-  | 'sakura'
   | 'strawberry'
   | 'lavender'
-  | 'cactus'
-  | 'lily'
-  | 'mushroom'
-  | 'lemon';
+  | 'catnip'
+  | 'hoya'
+  | 'orchid'
+  | 'calathea'
+  | 'violet'
+  | 'tulip'
+  | 'xmascactus'
+  | 'sunflower';
 
 export type PotId =
   | 'terracotta'
   | 'cream'
   | 'blush'
-  | 'sage'
-  | 'cowprint'
-  | 'kitty'
-  | 'frog'
-  | 'pumpkin'
-  | 'snowy'
-  | 'heart'
-  | 'starlight';
+  | 'speckled'
+  | 'ticking'
+  | 'mug'
+  | 'teacup'
+  | 'midnight'
+  | 'gourd'
+  | 'rosy'
+  | 'eggshell'
+  | 'tincan';
 
 export type Personality =
   | 'sleepy'
@@ -123,6 +133,8 @@ export type CollectibleDef = PetDef | WearableDef | TreatDef | DecorDef | PlantD
 
 export interface MachineDef {
   id: MachineId;
+  /** 'No. 01' … 'No. 07' for numbered series; undefined for seasonal editions. */
+  number?: string;
   name: string;
   tagline: string;
   /** 'coins' machines cost `price` coins; 'stars' machines cost `price` stars. */
@@ -170,3 +182,6 @@ export interface HabitTemplate {
 
 export type PastelKey = 'blush' | 'peach' | 'butter' | 'sage' | 'mint' | 'sky' | 'lavender' | 'lilac';
 export const PASTELS: readonly PastelKey[] = ['blush', 'peach', 'butter', 'sage', 'mint', 'sky', 'lavender', 'lilac'] as const;
+
+/** Places on the Shelf (DESIGN §8.4). The Sill is free; the rest are the long-term coin goal. */
+export type PlaceId = 'sill' | 'pond' | 'grass' | 'bookshelf' | 'balcony' | 'quilt';

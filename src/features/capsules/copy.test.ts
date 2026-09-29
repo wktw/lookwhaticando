@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { MACHINES } from '@/catalog/machines';
 import { PETS } from '@/catalog/collectibles';
 import { contrast } from '@/art/machines/color';
-import { kindLabel, machineCandy, monthDay, pityHint, pullErrorNotice } from './copy';
+import { kindLabel, machineCandy, monthDay, pityHint, pullErrorNotice, SPECIES_NOUN } from './copy';
 import { nextPayment } from './payment';
 import { capsuleShell, isWhiteish } from './reveal';
 
@@ -32,10 +32,12 @@ describe('capsules copy', () => {
   it('pet subtitles never say the species twice', () => {
     for (const p of PETS) {
       const label = kindLabel(p);
-      expect(label.toLowerCase().split(p.species).length - 1, label).toBe(1);
+      expect(label.toLowerCase().split(SPECIES_NOUN[p.species].toLowerCase()).length - 1, label).toBe(1);
     }
     expect(kindLabel(PETS.find((p) => p.id === 'pet-cat-calico')!)).toBe('Calico · Cat');
-    expect(kindLabel(PETS.find((p) => p.id === 'pet-frog-green')!)).toBe('Pond Frog');
+    expect(kindLabel(PETS.find((p) => p.id === 'pet-frog-tree')!)).toBe('Tree Frog');
+    expect(kindLabel(PETS.find((p) => p.id === 'pet-bunny-dutch')!)).toBe('Dutch Rabbit');
+    expect(kindLabel(PETS.find((p) => p.id === 'pet-bear-panda')!)).toBe('Panda Cub · Bear');
   });
 });
 

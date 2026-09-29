@@ -44,7 +44,7 @@ describe('Wishing Well', () => {
   it('opens on the machine you are looking at, and builds its grid a page at a time', async () => {
     await click(buttonWithText('Make a wish'), 'Make a wish');
     await until(wellSheet, 'the Wishing Well');
-    expect(wellSheet()!.querySelector('[aria-pressed="true"]')?.textContent).toBe('Kitty');
+    expect(wellSheet()!.querySelector('[aria-pressed="true"]')?.textContent).toBe('Cats');
 
     await click(button('All machines'), 'All machines');
     expect(tiles()).toBe(24);

@@ -401,16 +401,18 @@ const heart: PotArtDef = {
   ),
 };
 
+/** Placeholder mapping onto the Mochi-era pots until the catkin pot restyle lands. */
 export const POTS: Record<PotId, PotArtDef> = {
   terracotta,
   cream,
   blush,
-  sage,
-  cowprint,
-  kitty,
-  frog,
-  pumpkin,
-  snowy,
-  heart,
-  starlight,
+  speckled: sage,
+  ticking: cowprint,
+  mug: kitty,
+  teacup: heart,
+  midnight: starlight,
+  gourd: pumpkin,
+  rosy: heart,
+  eggshell: snowy,
+  tincan: frog,
 };

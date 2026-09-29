@@ -14,8 +14,8 @@ vi.mock('@/state/store', async (importOriginal) => {
   return { ...store, pull: vi.fn(), renamePet: vi.fn() };
 });
 
-const kitty = getMachine('kitty');
-const common = itemsInMachine('kitty').find((i) => i.rarity === 'common' && i.category !== 'pet')!;
+const kitty = getMachine('cats');
+const common = itemsInMachine('cats').find((i) => i.rarity === 'common' && i.category !== 'pet')!;
 
 /** A store-like pull: pays (coins or a ticket) and always finds a common item. */
 function fakePull(id: MachineId, opts: { useTicket?: boolean } = {}): PullOutcome {
@@ -84,7 +84,7 @@ describe('the pull', () => {
   it('pays, turns, drops a capsule, reveals it, and hands focus back on close', async () => {
     view = mount(<CapsuleMachine machine={kitty} active />);
     await pullOnce();
-    expect(pull).toHaveBeenCalledWith('kitty', {});
+    expect(pull).toHaveBeenCalledWith('cats', {});
     expect(state.value.wallet.coins).toBe(75);
 
     await openToCard();
@@ -169,13 +169,13 @@ describe('pull again says how it will be paid', () => {
     setWallet(100, 1);
     view = mount(<CapsuleMachine machine={kitty} active />);
     await pullOnce('Use a ticket');
-    expect(pull).toHaveBeenLastCalledWith('kitty', { useTicket: true });
+    expect(pull).toHaveBeenLastCalledWith('cats', { useTicket: true });
     await openToCard();
     await click(button('Pull again for 25 coins'), 'Pull again');
     await until(() => crank().getAttribute('aria-disabled') === 'false', 'the next turn');
     await click(crank(), 'crank');
     await until(() => vi.mocked(pull).mock.calls.length === 2, 'the second pull');
-    expect(pull).toHaveBeenLastCalledWith('kitty', {});
+    expect(pull).toHaveBeenLastCalledWith('cats', {});
     await finishReveal();
   });
 
@@ -188,7 +188,7 @@ describe('pull again says how it will be paid', () => {
     await until(() => crank().getAttribute('aria-disabled') === 'false', 'the next turn');
     await click(crank(), 'crank');
     await until(() => vi.mocked(pull).mock.calls.length === 2, 'the second pull');
-    expect(pull).toHaveBeenLastCalledWith('kitty', { useTicket: true });
+    expect(pull).toHaveBeenLastCalledWith('cats', { useTicket: true });
     await finishReveal();
   });
 
@@ -215,7 +215,7 @@ describe('the reveal card', () => {
 
   it('introduces a new pet even without pet state, and names them', async () => {
     view = mount(<RevealOverlay data={newPet} initialStage="card" onClose={() => {}} />);
-    expect(document.querySelector('h2')?.textContent).toBe('Meet Marmalade!');
+    expect(document.querySelector('h2')?.textContent).toBe('Meet Pudding!');
     expect(button('To the meadow')).toBeTruthy();
     await click(button('Name them'), 'Name them');
     await type(document.querySelector('input')!, 'Biscuit');
