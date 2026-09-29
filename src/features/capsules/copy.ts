@@ -67,12 +67,18 @@ export const MACHINE_SHORT: Record<MachineId, string> = {
   beach: 'Beach',
 };
 
-export function wishErrorText(error: 'not-enough-stars' | 'already-owned' | 'not-wishable', price: number, stars: number): string {
+export function wishErrorText(
+  error: 'not-enough-stars' | 'already-owned' | 'not-wishable' | 'season-not-visited',
+  price: number,
+  stars: number,
+): string {
   switch (error) {
     case 'not-enough-stars':
       return `This wish takes ${price} stars and you have ${stars}. Stars come from milestones, weekly letters and badges ⭐`;
     case 'already-owned':
       return 'Good news: this one is already yours!';
+    case 'season-not-visited':
+      return 'That series hasn’t visited yet. It becomes wishable after its first visit.';
     case 'not-wishable':
       return 'This one is earned another way, so the well can’t grant it.';
   }
@@ -98,7 +104,8 @@ export function paymentPhrase(pay: Payment, m: MachineDef): string {
   return pay === 'ticket' ? 'with a ticket' : `for ${priceLabel(m)}`;
 }
 
-export function pityHint(rareIn: number): string {
+export function pityHint(rareIn: number | null): string {
+  if (rareIn === null) return 'Every Rare collected ✨';
   if (rareIn <= 1) return 'Next pull is Rare or better ✨';
   return `Rare+ within ${rareIn} pulls ✨`;
 }
@@ -131,6 +138,8 @@ export function pullErrorNotice(error: PullError, m: MachineDef): FriendlyNotice
       return { text: 'No tickets right now. They come from 21-day (and longer) milestones 🎟️' };
     case 'machine-unavailable':
       return { text: `${m.name} is resting until its season comes back. Its friends are in the Wishing Well anytime 💫` };
+    case 'reveal-pending':
+      return { text: 'One capsule is still waiting to be opened.' };
   }
 }
 

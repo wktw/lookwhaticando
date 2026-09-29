@@ -122,7 +122,7 @@ export function walletDelta(e: GameEvent): { kind: 'coins' | 'stars'; amount: nu
 export function eventWeight(e: GameEvent): 'big' | 'small' | null {
   switch (e.type) {
     case 'exclusive':
-    case 'milestone':
+    case 'showUp':
     case 'perfectDay':
     case 'badge':
       return 'big';
@@ -133,7 +133,8 @@ export function eventWeight(e: GameEvent): 'big' | 'small' | null {
     case 'stars':
       return e.reason === 'fusion' ? 'small' : null;
     case 'favoriteFound':
-    case 'welcomeBack':
+    case 'welcomeHome':
+    case 'rung':
     case 'periodGoal':
     case 'letter':
       return 'small';
@@ -142,7 +143,7 @@ export function eventWeight(e: GameEvent): 'big' | 'small' | null {
   }
 }
 
-const UNIT_LABEL = { days: ['day', 'days'], weeks: ['week', 'weeks'], months: ['month', 'months'] } as const;
+const UNIT_LABEL = { days: ['day', 'days'], times: ['time in a row', 'in a row'], weeks: ['week', 'weeks'], months: ['month', 'months'] } as const;
 const MILESTONE_LINES = ['Look at you go!', 'That is real, lovely consistency.', 'Your plant is beaming.', 'Your future self says thank you.', 'Tiny steps, big bloom.'];
 
 /** Rung → day-equivalent, for sizing the party (DESIGN §5.4). */
@@ -188,23 +189,30 @@ export function planCelebration(events: readonly GameEvent[], ctx: CelebrationCo
       case 'exclusive':
         exclusives.add(e.collectibleId);
         break;
-      case 'milestone': {
-        if (e.exclusive) exclusives.add(e.exclusive);
+      case 'rung': {
         const [one, many] = UNIT_LABEL[e.unit];
         const name = habitName(e.habitId);
-        const big = dayEquivalent(e.rung, e.unit) >= 30;
+        moments.push({
+          priority: 40,
+          line: `${e.streak} ${e.streak === 1 ? one : many} of ${name}`,
+          toast: { key: `rung-${e.habitId}`, message: `${name}: ${e.streak} ${e.streak === 1 ? one : many}.`, tone: 'sage', art: { type: 'currency', kind: 'coins' }, sound: 'chime' },
+        });
+        break;
+      }
+      case 'showUp': {
+        if (e.exclusive) exclusives.add(e.exclusive);
         moments.push({
           priority: 80,
-          line: `${e.rung} ${e.rung === 1 ? one : many} of ${name}`,
+          line: `${e.days} days of showing up`,
           banner: {
             kind: 'milestone',
-            eyebrow: 'Milestone',
-            title: `${e.rung} ${e.rung === 1 ? one : many} of ${name}!`,
-            text: MILESTONE_LINES[e.rung % MILESTONE_LINES.length]!,
+            eyebrow: 'Showing up',
+            title: `${e.days} days with a check-in`,
+            text: MILESTONE_LINES[e.days % MILESTONE_LINES.length]!,
             art: { type: 'pet', petId: ctx.buddy, expression: 'love' },
             tone: 'blush',
             epic: false,
-            confetti: big ? 'big' : 'medium',
+            confetti: dayEquivalent(e.days, 'days') >= 30 ? 'big' : 'medium',
             sound: 'fanfare',
           },
         });
@@ -319,11 +327,11 @@ export function planCelebration(events: readonly GameEvent[], ctx: CelebrationCo
         });
         break;
       }
-      case 'welcomeBack':
+      case 'welcomeHome':
         moments.push({
           priority: 30,
-          line: `Welcome back to ${habitName(e.habitId)}`,
-          toast: { key: `welcome-${e.habitId}`, message: `Welcome back to ${habitName(e.habitId)}! 🌷`, tone: 'blush', art: { type: 'pet', petId: ctx.buddy, expression: 'happy' }, sound: 'chime' },
+          line: 'Everything kept',
+          toast: { key: 'welcome-home', message: 'Everything kept. There’s a ticket on the sill.', tone: 'blush', art: { type: 'pet', petId: ctx.buddy, expression: 'happy' }, sound: 'chime' },
         });
         break;
       case 'periodGoal':

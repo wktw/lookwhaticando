@@ -29,6 +29,8 @@ function fakePull(id: MachineId, opts: { useTicket?: boolean } = {}): PullOutcom
     machineId: id,
     itemId: common.id,
     rarity: 'common',
+    secret: false,
+    dupStreak: 0,
     isNew: true,
     stardust: 0,
     fusedStars: 0,

@@ -190,10 +190,12 @@ function seedDemoState() {
     color,
     plant,
     pot,
-    schedule: { kind: 'daily' },
-    target: 1,
+    rules: [{ from: '2026-06-01', schedule: { kind: 'daily' }, target: 1, step: 1 }],
     effort: 'steady',
-    createdOn: '2026-06-01',
+    timeOfDay: 'anytime',
+    polarity: 'build',
+    createdAt: Date.parse('2026-06-01'),
+    startedOn: '2026-06-01',
     pauses: [],
     order,
   }));
@@ -654,7 +656,7 @@ function Fx() {
     // Like a screen: checkIn() commits and emits, then the flourish claims its coins.
     const events: GameEvent[] = [{ type: 'coins', amount: 5, reason: 'checkin', habitId: 'h-walk' }];
     commitAndEmit(events);
-    celebrateCheckIn({ events, coins: 5, completed: true, rewarded: true }, 'h-walk', el);
+    celebrateCheckIn({ events, coins: 5, completed: true, partial: false, rewarded: true }, 'h-walk', el);
   };
   return (
     <div class="fxui-stack">
@@ -807,11 +809,10 @@ const CELEBRATIONS: Record<string, { label: string; events: GameEvent[] }> = {
     ],
   },
   milestone: {
-    label: 'Milestone (7 days)',
+    label: 'Streak rung (7 days)',
     events: [
-      { type: 'milestone', habitId: 'h-walk', rung: 7, unit: 'days', coins: 25, stars: 1, tickets: 0 },
-      { type: 'coins', amount: 25, reason: 'milestone' },
-      { type: 'stars', amount: 1, reason: 'milestone' },
+      { type: 'rung', habitId: 'h-walk', streak: 7, unit: 'days', tierDays: 7, coins: 20 },
+      { type: 'coins', amount: 20, reason: 'rung' },
     ],
   },
   badge: {
@@ -835,9 +836,10 @@ const CELEBRATIONS: Record<string, { label: string; events: GameEvent[] }> = {
     events: [
       { type: 'perfectDay', date: '2026-09-29', coins: 12 },
       { type: 'coins', amount: 12, reason: 'perfect' },
-      { type: 'milestone', habitId: 'h-water', rung: 30, unit: 'days', coins: 60, stars: 2, tickets: 1 },
-      { type: 'coins', amount: 60, reason: 'milestone' },
-      { type: 'stars', amount: 2, reason: 'milestone' },
+      { type: 'rung', habitId: 'h-water', streak: 30, unit: 'days', tierDays: 30, coins: 40 },
+      { type: 'coins', amount: 40, reason: 'rung' },
+      { type: 'showUp', days: 30, stars: 3, tickets: 1 },
+      { type: 'stars', amount: 3, reason: 'showup' },
       { type: 'tickets', amount: 1 },
       { type: 'badge', badgeId: 'checkins-50', stars: 2 },
       { type: 'periodGoal', habitId: 'h-yoga', period: 'week', coins: 10 },
@@ -846,9 +848,9 @@ const CELEBRATIONS: Record<string, { label: string; events: GameEvent[] }> = {
   exclusive: {
     label: 'Exclusive (epic)',
     events: [
-      { type: 'milestone', habitId: 'h-walk', rung: 90, unit: 'days', coins: 120, stars: 4, tickets: 1, exclusive: 'wear-evergreen-crown' },
-      { type: 'coins', amount: 120, reason: 'milestone' },
-      { type: 'stars', amount: 4, reason: 'milestone' },
+      { type: 'showUp', days: 365, stars: 12, tickets: 3, exclusive: 'wear-blossom-sprout' },
+      { type: 'exclusive', collectibleId: 'wear-blossom-sprout' },
+      { type: 'stars', amount: 12, reason: 'showup' },
     ],
   },
   bestFriends: { label: 'Best friends (pet L10)', events: [{ type: 'petLevel', petId: 'pet-mochi', level: 10 }] },
@@ -861,10 +863,10 @@ const CELEBRATIONS: Record<string, { label: string; events: GameEvent[] }> = {
     ],
   },
   welcome: {
-    label: 'Welcome back (toast)',
+    label: 'Welcome home (toast)',
     events: [
-      { type: 'welcomeBack', habitId: 'h-walk', coins: 3 },
-      { type: 'coins', amount: 3, reason: 'welcome' },
+      { type: 'welcomeHome', coins: 20, tickets: 1 },
+      { type: 'coins', amount: 20, reason: 'home' },
     ],
   },
   petLevel: { label: 'Friendship level (toast)', events: [{ type: 'petLevel', petId: 'pet-mochi', level: 3 }] },

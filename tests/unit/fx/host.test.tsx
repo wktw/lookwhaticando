@@ -93,7 +93,7 @@ describe('CelebrationHost', () => {
     act(() =>
       emitGameEvents([
         { type: 'coins', amount: 5, reason: 'checkin', habitId: 'h-walk' },
-        { type: 'coins', amount: 3, reason: 'welcome' },
+        { type: 'coins', amount: 3, reason: 'home' },
       ]),
     );
     expect(pendingFor('coins')).toBe(8);

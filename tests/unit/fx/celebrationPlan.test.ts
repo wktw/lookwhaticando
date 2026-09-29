@@ -17,7 +17,7 @@ const checkin = (habitId: string, amount = 5): GameEvent => ({ type: 'coins', am
 
 describe('planCelebration', () => {
   it('stays quiet about check-in coins the screen already celebrated', () => {
-    const plan = planCelebration([checkin('h-walk'), { type: 'checkin', habitId: 'h-walk', date: '2026-09-29', completed: true, count: 1, target: 1 }], ctx(['h-walk']));
+    const plan = planCelebration([checkin('h-walk'), { type: 'checkin', habitId: 'h-walk', date: '2026-09-29', completed: true, tiny: false, count: 1, target: 1 }], ctx(['h-walk']));
     expect(plan.banner).toBeNull();
     expect(plan.toasts).toEqual([]);
     expect(plan.wallet).toEqual(EMPTY_TALLY);
@@ -50,16 +50,17 @@ describe('planCelebration', () => {
     const events: GameEvent[] = [
       { type: 'perfectDay', date: '2026-09-29', coins: 12 },
       { type: 'coins', amount: 12, reason: 'perfect' },
-      { type: 'milestone', habitId: 'h-walk', rung: 30, unit: 'days', coins: 60, stars: 2, tickets: 1 },
-      { type: 'coins', amount: 60, reason: 'milestone' },
-      { type: 'stars', amount: 2, reason: 'milestone' },
+      { type: 'showUp', days: 30, stars: 2, tickets: 1 },
+      { type: 'rung', habitId: 'h-walk', streak: 30, unit: 'days', tierDays: 30, coins: 60 },
+      { type: 'coins', amount: 60, reason: 'rung' },
+      { type: 'stars', amount: 2, reason: 'showup' },
       { type: 'tickets', amount: 1 },
       { type: 'badge', badgeId: 'checkins-50', stars: 2 },
       { type: 'periodGoal', habitId: 'h-yoga', period: 'week', coins: 10 },
     ];
     const plan = planCelebration(events, ctx());
     expect(plan.banner?.kind).toBe('milestone');
-    expect(plan.banner?.title).toBe('30 days of Walk!');
+    expect(plan.banner?.title).toBe('30 days with a check-in');
     expect(plan.banner?.confetti).toBe('big');
     expect(plan.banner?.also).toEqual(['Perfect day', 'Fifty & Flourishing badge']);
     expect(plan.banner?.rewards).toEqual({ coins: 72, stars: 2, tickets: 1, stardust: 0 });
@@ -67,9 +68,9 @@ describe('planCelebration', () => {
   });
 
   it('exclusive rewards become the epic moment, even when they arrive inside a milestone', () => {
-    const plan = planCelebration([{ type: 'milestone', habitId: 'h-walk', rung: 90, unit: 'days', coins: 120, stars: 4, tickets: 1, exclusive: 'wear-evergreen-crown' }], ctx());
+    const plan = planCelebration([{ type: 'showUp', days: 90, stars: 5, tickets: 1, exclusive: 'wear-evergreen-crown' }], ctx());
     expect(plan.banner).toMatchObject({ kind: 'exclusive', epic: true, title: 'Evergreen Crown', confetti: 'epic', sound: 'reveal-ultra' });
-    expect(plan.banner?.also).toEqual(['90 days of Walk']);
+    expect(plan.banner?.also).toEqual(['90 days of showing up']);
   });
 
   it('only Blooming and Evergreen plants get banners; other stages are gentle toasts', () => {
@@ -102,13 +103,13 @@ describe('planCelebration', () => {
   it('one small moment carries its own bonus: one toast, not a second "+3 coins" one', () => {
     const plan = planCelebration(
       [
-        { type: 'welcomeBack', habitId: 'h-walk', coins: 3 },
-        { type: 'coins', amount: 3, reason: 'welcome' },
+        { type: 'welcomeHome', coins: 3, tickets: 0 },
+        { type: 'coins', amount: 3, reason: 'home' },
       ],
       ctx(),
     );
     expect(plan.banner).toBeNull();
-    expect(plan.toasts.map((t) => t.message)).toEqual(['Welcome back to Walk! 🌷']);
+    expect(plan.toasts.map((t) => t.message)).toEqual(['Everything kept. There’s a ticket on the sill.']);
     expect(plan.toasts[0]?.rewards).toEqual({ coins: 3, stars: 0, tickets: 0, stardust: 0 });
     expect(plan.wallet).toEqual(EMPTY_TALLY);
   });
@@ -116,8 +117,8 @@ describe('planCelebration', () => {
   it('several small moments keep the shared wallet toast for their coins', () => {
     const plan = planCelebration(
       [
-        { type: 'welcomeBack', habitId: 'h-walk', coins: 3 },
-        { type: 'coins', amount: 3, reason: 'welcome' },
+        { type: 'welcomeHome', coins: 3, tickets: 0 },
+        { type: 'coins', amount: 3, reason: 'home' },
         { type: 'letter', letterId: 'w1' },
       ],
       ctx(),
@@ -146,8 +147,8 @@ describe('planCelebration', () => {
   it('copy never uses guilt words', () => {
     const everything: GameEvent[] = [
       { type: 'perfectDay', date: 'x', coins: 5 },
-      { type: 'welcomeBack', habitId: 'h-walk', coins: 3 },
-      { type: 'milestone', habitId: 'h-walk', rung: 7, unit: 'days', coins: 25, stars: 1, tickets: 0 },
+      { type: 'welcomeHome', coins: 20, tickets: 1 },
+      { type: 'rung', habitId: 'h-walk', streak: 7, unit: 'days', tierDays: 7, coins: 20 },
       { type: 'plantStage', habitId: 'h-walk', stage: 7, stageName: 'Evergreen' },
     ];
     const plan = planCelebration(everything, ctx());
@@ -159,7 +160,7 @@ describe('planCelebration', () => {
 describe('event helpers (used in the gesture, before planning)', () => {
   it('reserves exactly the coins and stars that will fly (never refunds or fused stars)', () => {
     expect(walletDelta(checkin('h-walk'))).toEqual({ kind: 'coins', amount: 5 });
-    expect(walletDelta({ type: 'stars', amount: 2, reason: 'milestone' })).toEqual({ kind: 'stars', amount: 2 });
+    expect(walletDelta({ type: 'stars', amount: 2, reason: 'showup' })).toEqual({ kind: 'stars', amount: 2 });
     expect(walletDelta({ type: 'coins', amount: 5, reason: 'refund' })).toBeNull();
     expect(walletDelta({ type: 'stars', amount: 1, reason: 'fusion' })).toBeNull();
     expect(walletDelta({ type: 'tickets', amount: 1 })).toBeNull();
