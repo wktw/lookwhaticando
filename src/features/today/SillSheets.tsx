@@ -32,7 +32,8 @@ export function LetterSheet({ id, onClose }: { id: string | null; onClose: () =>
       open={!!v}
       onClose={close}
       title={text?.title ?? ''}
-      detents={['medium', 'large']}
+      hideTitle
+      detents={['content']}
       size="md"
       peek={v ? <NoteCard kind={v.kind} size={84} {...(text?.pressings ? { pressings: text.pressings.slice(0, 3) } : {})} /> : undefined}
       footer={
@@ -90,9 +91,10 @@ export function StorySheet({ target, onClose }: { target: StoryTarget | null; on
     const base = { name, habit: habit.name, plant, Plant: capitalise(plant), date: monthDayLabel(c.since), Count: numberWord(Math.max(1, c.waterings), true) };
     if (target.story === 'start') body = fillLine(STORIES.start, base);
     else if (target.story === 'lookAtUs') body = c.moment ? fillLine(STORIES.lookAtUs.withMoment, { ...base, momentDate: monthDayLabel(c.moment.date), moment: c.moment.text }) : fillLine(STORIES.lookAtUs.withoutMoment, base);
-    else body = c.askWhy || asking ? fillLine(STORIES.why.ask, base) : habit.why ? fillLine(STORIES.why.kept, { why: habit.why }) : fillLine(STORIES.why.ask, base);
+    else body = (c.askWhy || asking || !habit.why) ? fillLine(STORIES.why.ask, base) : fillLine(STORIES.why.kept, { why: habit.why });
   }
-  const askNow = target?.story === 'why' && !!c?.askWhy;
+  // Asked once; while nothing is kept yet, the field stays (a "Not now" earlier doesn't close the story).
+  const askNow = target?.story === 'why' && !!c && (c.askWhy || !habit?.why);
   const answer = (text: string | null) => {
     if (target) answerWhy(target.habitId, text);
     onClose();

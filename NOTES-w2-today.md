@@ -110,11 +110,25 @@ this file.
    of every day before its `startedOn`, so on a past day of the strip a newer habit is simply not there and
    the question never comes up from Today. If it should, the view model needs those habits in `notToday`
    (or a flag) for past days; Habit Detail's "Start tracking from…" covers it meanwhile.
-9. **Manifest screenshots** (NOTES-open item 8): Today is built; `SCREENSHOTS[0].route` can be `today`.
+9. **Art: a spot for the month jar in the band.** `todayVM.monthJar` (NOTES-open item 3) is ready, but the
+   band's pinned end (jamb, the Cutting, the note, the coin jar, the lamp, a found thing, the cake) has no
+   room left for `MonthJar`, and an overlay from the screen would sit on the pots. A `monthJar?: { stems }`
+   prop on `WindowsillBand` (drawn at the sill's front by the coin jar, say) would let Today pass it through.
+10. **Art: `PlantArt` composes on every render.** On a 3-year × 20-habit save most of Today's first render
+   is `composePlant`/`composeBase` (the band's six pots and the cards). Today now draws only the first six
+   card plants at once and the rest as they scroll near, and never re-renders an unchanged card, but a
+   memo inside `PlantArt` keyed on (species, stage, pot, progress bucket, light) would help every screen.
+11. **Manifest screenshots** (NOTES-open item 8): Today is built; `SCREENSHOTS[0].route` can be `today`.
 
 ## Known gaps
 
 - The desktop layout follows the shell's (too narrow) column; see request 2.
 - The Season Review's time-lapse grows each plant from its first stage to its last (150 ms a stage);
   residents sit beside them but don't move.
+- The month jar isn't on Today yet (request 9).
+- Timing, measured on this (heavily shared, load average near 20) machine against a production build and
+  the 3-year × 20-habit save: the view model is 22 ms cold and 2 ms warm; switching to Today paints its
+  first card in about 105–150 ms, and a tap reaches the next frame in 40–75 ms (the store's check-in and
+  its immediate save are about half of it). Both should be several times faster on an idle laptop; they
+  still need a measurement there against the < 50 ms and one-frame targets.
 - The number pad's quick adds are +1, +step and +2×step (no free typing).
