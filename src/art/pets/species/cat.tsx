@@ -1,13 +1,15 @@
 import type { SpeciesArt, ArtCtx } from '../types';
 import { OUTLINE, STROKE } from '../geometry';
-import { OpenMouth } from '../face';
+import { faceInk, OpenMouth } from '../face';
+import { MIRROR, StrokeTail } from './parts';
 
 /** Rounded cat ear, drawn behind the body so the head hides its base. Left ear; mirror for right. */
 function Ear({ ctx, mirror }: { ctx: ArtCtx; mirror?: boolean }) {
   const p = ctx.look.palette;
   const outer = p.ear ?? p.body;
   return (
-    <g transform={mirror ? 'translate(100 0) scale(-1 1)' : undefined} class={mirror ? 'pet-ear-r' : 'pet-ear-l'}>
+    <g transform={mirror ? MIRROR : undefined}>
+      <g class={mirror ? 'pet-ear-r' : 'pet-ear-l'} style={{ '--ear-origin': '33px 36px' }}>
       <path
         d="M22.5 47 C22 38 23.5 28 26.5 22.8 C27.6 20.9 29.6 20.8 31 22.2 C35.5 26.2 40.5 30.5 44 34"
         fill={outer}
@@ -16,45 +18,24 @@ function Ear({ ctx, mirror }: { ctx: ArtCtx; mirror?: boolean }) {
         stroke-linejoin="round"
         stroke-linecap="round"
       />
-      <path d="M27 37 C27 32 27.8 28 29 26 C31.6 28.4 34.8 31.2 37.2 33.6 C33 34.2 29.6 35.4 27 37 Z" fill={p.earInner} />
-    </g>
-  );
-}
-
-/** Tail drawn as a doubled stroke (outline + fill) so it stays perfectly smooth at any size. */
-export function StrokeTail({
-  d,
-  color,
-  width = 7.5,
-  className = 'pet-tail',
-  origin = '76px 88px',
-}: {
-  d: string;
-  color: string;
-  width?: number;
-  className?: string;
-  /** Pivot for the sway animation, in canvas px. */
-  origin?: string;
-}) {
-  return (
-    <g class={className} style={{ '--tail-origin': origin }}>
-      <path d={d} fill="none" stroke={OUTLINE} stroke-width={width + STROKE * 2} stroke-linecap="round" />
-      <path d={d} fill="none" stroke={color} stroke-width={width} stroke-linecap="round" />
+        <path d="M27 37 C27 32 27.8 28 29 26 C31.6 28.4 34.8 31.2 37.2 33.6 C33 34.2 29.6 35.4 27 37 Z" fill={p.earInner} />
+      </g>
     </g>
   );
 }
 
 export const cat: SpeciesArt = {
-  back: (ctx) => {
+  back: () => null,
+  tail: (ctx) => {
     const p = ctx.look.palette;
-    return (
-      <g>
-        <StrokeTail d="M74 88 C86 90 93 82 92 72 C91.5 67 89 64.5 86.5 64" color={p.tail ?? p.body} />
-        <Ear ctx={ctx} />
-        <Ear ctx={ctx} mirror />
-      </g>
-    );
+    return <StrokeTail d="M74 88 C86 90 93 82 92 72 C91.5 67 89 64.5 86.5 64" color={p.tail ?? p.body} />;
   },
+  ears: (ctx) => (
+    <g>
+      <Ear ctx={ctx} />
+      <Ear ctx={ctx} mirror />
+    </g>
+  ),
   front: () => (
     <g stroke={OUTLINE} stroke-width={1.3} stroke-linecap="round" opacity={0.55}>
       <path d="M11.5 60.5 L20 62" />
@@ -91,7 +72,7 @@ export const cat: SpeciesArt = {
           <path
             d={`M${x - 3.6} ${y - 0.2} Q${x - 1.8} ${y + 2.2} ${x} ${y - 0.2} Q${x + 1.8} ${y + 2.2} ${x + 3.6} ${y - 0.2}`}
             fill="none"
-            stroke={OUTLINE}
+            stroke={faceInk(ctx)}
             stroke-width={1.6}
             stroke-linecap="round"
             stroke-linejoin="round"
@@ -106,7 +87,7 @@ export const cat: SpeciesArt = {
         <path
           d={`M${x - 3.4} ${y - 0.3} Q${x - 1.7} ${y + 2.1} ${x} ${y - 0.3} Q${x + 1.7} ${y + 2.1} ${x + 3.4} ${y - 0.3}`}
           fill="none"
-          stroke={OUTLINE}
+          stroke={faceInk(ctx)}
           stroke-width={1.6}
           stroke-linecap="round"
           stroke-linejoin="round"

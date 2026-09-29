@@ -3,7 +3,9 @@ import { BLUSH, EYE, OUTLINE } from './geometry';
 
 /** One eye at (x, y) for the current expression. `side` mirrors asymmetric shapes. */
 export function Eye({ x, y, ctx, side, scale = 1 }: { x: number; y: number; ctx: ArtCtx; side: 'l' | 'r'; scale?: number }) {
+  const { iris } = ctx.look.palette;
   const color = ctx.look.palette.eye ?? EYE;
+  const line = ctx.look.palette.ink ?? color;
   const e = ctx.expression;
   const wink = e === 'wink' && side === 'r';
   const s = scale;
@@ -13,7 +15,7 @@ export function Eye({ x, y, ctx, side, scale = 1 }: { x: number; y: number; ctx:
       <path
         d={`M${x - 3.6 * s} ${y + 1.4 * s} Q${x} ${y - 3.8 * s} ${x + 3.6 * s} ${y + 1.4 * s}`}
         fill="none"
-        stroke={color}
+        stroke={line}
         stroke-width={2.3 * s}
         stroke-linecap="round"
       />
@@ -24,7 +26,7 @@ export function Eye({ x, y, ctx, side, scale = 1 }: { x: number; y: number; ctx:
       <path
         d={`M${x - 3.6 * s} ${y - 0.4 * s} Q${x} ${y + 3 * s} ${x + 3.6 * s} ${y - 0.4 * s}`}
         fill="none"
-        stroke={color}
+        stroke={line}
         stroke-width={2.1 * s}
         stroke-linecap="round"
       />
@@ -51,12 +53,16 @@ export function Eye({ x, y, ctx, side, scale = 1 }: { x: number; y: number; ctx:
   const ry = 4.5 * s * big;
   return (
     <g>
-      <ellipse cx={x} cy={y} rx={rx} ry={ry} fill={color} />
+      <ellipse cx={x} cy={y} rx={rx} ry={ry} fill={iris ?? color} />
+      {iris && <ellipse cx={x} cy={y + 0.2 * s} rx={rx * 0.5} ry={ry * 0.78} fill={color} />}
       <circle cx={x + 1.3 * s * big} cy={y - 1.7 * s * big} r={1.45 * s * big} fill="#fff" />
       <circle cx={x - 1.3 * s * big} cy={y + 1.9 * s * big} r={0.6 * s * big} fill="#fff" opacity={0.7} />
     </g>
   );
 }
+
+/** Line color for mouths drawn straight on the fur (light on dark coats). */
+export const faceInk = (ctx: ArtCtx) => ctx.look.palette.ink ?? OUTLINE;
 
 /** Default eyes at the species' eye anchors, in a group that blinks when idle. */
 export function DefaultEyes({ ctx }: { ctx: ArtCtx }) {
@@ -70,13 +76,15 @@ export function DefaultEyes({ ctx }: { ctx: ArtCtx }) {
   );
 }
 
-export function Blush({ ctx, dy = 6.5, spread = 7.5, opacity = 0.55 }: { ctx: ArtCtx; dy?: number; spread?: number; opacity?: number }) {
-  const { eyes } = ctx.anchors;
+export function Blush({ ctx, opacity = 0.55 }: { ctx: ArtCtx; opacity?: number }) {
+  const { eyes, cheeks } = ctx.anchors;
+  const c = cheeks ?? { y: eyes.y + 6.5, left: eyes.left - 7.5, right: eyes.right + 7.5 };
+  const k = c.size ?? 1;
   const strong = ctx.expression === 'love' || ctx.expression === 'happy';
   return (
     <g opacity={strong ? Math.min(1, opacity + 0.2) : opacity}>
-      <ellipse cx={eyes.left - spread} cy={eyes.y + dy} rx={5} ry={2.9} fill={BLUSH} />
-      <ellipse cx={eyes.right + spread} cy={eyes.y + dy} rx={5} ry={2.9} fill={BLUSH} />
+      <ellipse cx={c.left} cy={c.y} rx={5 * k} ry={2.9 * k} fill={BLUSH} />
+      <ellipse cx={c.right} cy={c.y} rx={5 * k} ry={2.9 * k} fill={BLUSH} />
     </g>
   );
 }
