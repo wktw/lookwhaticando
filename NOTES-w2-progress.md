@@ -11,20 +11,25 @@ Branch `w2/progress`. Everything here is inside `src/features/progress/**`, `src
   Detail), the calendar (habit filter radiogroup, day glyphs, a table with roving focus and arrow keys, a day's notes,
   history edits with "Fixes history. No coins for this one.", the last 6 days pointed to the week strip, "Start
   tracking from…" before the start), the year (one SVG, 53 × 7 from 600 px, scrolls on phones, aria-hidden with its
-  summary), records, insights, pins (earned, "not yet" outlines, hidden ones off the shelf, a sheet with how each is
-  earned) and the memory shelf (notes, pages, anniversary, retired plants, seasons).
+  summary), records, insights, pins (earned, then the 4 nearest "not yet" outlines and one "{n} more pins" button,
+  hidden ones off the shelf, a sheet with how each is earned) and the memory shelf (notes, pages, anniversary,
+  seasons, and a link to the balcony tier for retired plants, which are drawn once, on Plants).
 - **Habit Detail** (`HabitDetailHost`, default export, opened by `openHabitDetail(id)`): large plant with its
   companion on the rim, stage line and forecast in waterings, graduation offers, the time nudge, the plant tag with the
   look in plain words and the look chooser, the Garden Journal (ink and pencil), stat tiles, Why it matters, Moments
   (newest first, star for the Sunday Note), the history calendar, the rung ladder, the companion and its three stories
   (read, the "Why it matters" question), and the actions (Edit, Pause "Back on…", Bring it back, Start tracking from…,
-  Tune my habits, Archive, Delete → "Keep the plant on the balcony shelf?"; an archived habit comes back to the sill).
+  Tune my habits, Archive, Delete → straight to "Keep the plant on the balcony shelf?"; an archived habit comes back
+  to the sill, and its Delete says "The plant and its history go too."). The rung ladder shows for day-based habits
+  (daily, certain days); weekly and monthly habits get their longest run in words.
 - **Rituals** (`src/features/rituals/`): `openRitual(letterId)` / `openSeason(key)` (`open.ts`), the reader
   (`RitualReaderHost`, default export, lazy), and `words.ts`, which words a Sunday Note, a Herbarium page, the
   anniversary note and a season from their frozen data with the lines.ts templates.
 
-First render on a 3-year × 20-habit save (production build, 390 px): 36–54 ms to the screen on the page (the calendar,
-the year, records, pins and the memory shelf follow one frame later).
+Render time on a 3-year × 20-habit save (production build, 390 px, `perf.cjs`, machine load 6–10): the hero,
+months and plants in 35–90 ms warm (about 180 ms cold, most of it `progressView`, request 11); the rest follows in
+four idle steps (calendar · year · records and pins · memory shelf), the whole screen at 200–400 ms warm, with 0–2
+long tasks of 50–57 ms. The owned unit tests are 157 in 4 files (Progress 20, Habit Detail 13, copy, rituals words); an earlier note said 220, which was wrong.
 
 ## Requests for the lead
 
@@ -57,6 +62,13 @@ the year, records, pins and the memory shelf follow one frame later).
      {date}, with a ribbon", "Until you bring it back", "Start tracking from…", "Bring it back to the sill", "Archive",
      "Delete", "Edit"); the journal's {when} words ("before 9 am, usually", "in the middle of the day, usually", "after
      6 pm, usually", "at all sorts of times"); clock times ("7:30 am", `clockText`).
+   - added in review round 1, want VOICE rows: the ring's caption "of this month’s waterings"; the calendar's
+     ", a note" for a day with a note ("Monday, September 14, watered, a note"); pins "1 more pin" / "{count} more
+     pins"; the memory shelf's "1 plant on the balcony shelf" / "{count} plants on the balcony shelf"; Habit Detail
+     "Pause" (the visible word; "Pause {habit}" stays the accessible name), "Rungs reached: {count} of {total}"
+     (screen readers), "{habit} is tinier now." (after "Make it tinier"), and "New" on an unread story.
+   - removed as unused: "Days showing up, month by month.", "Notes on {date}", "Open", "This week", "This month",
+     "Days", and "not yet" as a visible line (it stays only in a pin's accessible name, "{name}, not yet").
    - `SEASON_LABEL` (Spring…) and the P.S. counts ("four evenings", "every day", `psTimes`) are in `rituals/words.ts`.
 5. **format.ts plurals on a one-day window.** `showedUpLine({days: 1, span: 1})` gives "You showed up 1 of the last 1
    days", and `CONSISTENCY_LINES.days.one` gives "1 of the last 1 day". Progress hides both on day one; the
@@ -77,3 +89,19 @@ the year, records, pins and the memory shelf follow one frame later).
 - `node scripts/shoot.mjs "/#/progress" out.png --seed-file=<save.json> [--w=1280 --h=800] [--dark] [--full]`
   (the flag takes a save envelope; `--seed=<n>` in the brief isn't a mode of the script).
   A demo envelope: `encodeEnvelope(buildDemo({ today, now }), 1, now, 'x')` (see `e2e/progress.spec.ts`).
+
+## Added in review round 1
+
+9. **Logic: decline an offer.** "Keep it as it is" on "A bigger pot?" and "Make it tinier?" can only close the card
+   for this visit; the offer is back the next time Habit Detail opens. Suggest `declineOffer(habitId, kind: 'grow' |
+   'tinier')` in the store (remembered until the offer's conditions are met afresh, e.g. another 4 steady weeks).
+10. **Art: Herbarium pressings per species.** `Pressing` draws the same green sprig for every foliage plant (only
+    flowering species get a petal ink), so a page can't tell the plants apart. A per-species silhouette (pothos
+    trail, monstera split leaf, snake plant blade, pilea coins…) in the plant's own inks, flattened, would meet
+    DESIGN §13's "flattened silhouettes in the plant's colours". The reader passes `species` already, so it would
+    pick them up with no change here.
+11. **Logic: a cheaper `progressView`.** On a 3-year × 20-habit save it costs about 155–175 ms cold and about 50 ms
+    after any store change (a coin, a pet moving), since it recomputes whole from `state`. Splitting it into parts
+    keyed on `habits`/`logs` (records, recent months, garden) would let a coin change cost nothing here. The screen
+    already keeps the plants, the month's jar and the calendar from redrawing when their own inputs are unchanged.
+
