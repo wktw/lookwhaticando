@@ -42,8 +42,8 @@
    skipped, 0 failed** (the shared 31 plus You and onboarding on all four screen projects).
    Without it, 24 of the shared 31 fail at `openRoute`. The `@pwa` test in `e2e/you.spec.ts`
    **fails on the current config** ("not a download: catkin") and **passes with the vite part**
-   (`E2E_TARGET=preview`, after `npm run build`). A unit test that pins the precache list may need
-   `ics` added.
+   (`E2E_TARGET=preview`, after `npm run build`); `tests/unit/build/viteConfig.test.ts` still
+   passes with it.
 ```diff
 diff --git a/e2e/support.ts b/e2e/support.ts
 index e2d1624..d3238cd 100644
