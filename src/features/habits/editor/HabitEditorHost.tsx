@@ -3,7 +3,7 @@
  * `openHabitEditor({ id?, templateId? })` (src/features/habits/open.ts). A large sheet on phones (the
  * keyboard lifts it), a dialog on wide screens; the primary button stays in reach in its footer.
  */
-import { useEffect, useRef, useState } from 'preact/hooks';
+import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { SETTINGS, fillLine } from '@/catalog/lines';
 import { selectHabitEditor } from '@/state/selectors';
 import { Sheet } from '@/ui/Sheet';
@@ -14,18 +14,17 @@ import { HabitEditor } from './HabitEditor';
 import { EDITOR_COPY } from './copy';
 
 const FORM_ID = 'habit-editor-form';
+let sessions = 0;
 
 export default function HabitEditorHost() {
   const req = habitEditorRequest.value;
   // Keep the last request while the sheet slides away, so its contents don't vanish mid-close.
   const [shown, setShown] = useState<HabitEditorRequest | null>(req);
-  const opened = useRef(0);
   useEffect(() => {
-    if (req) {
-      opened.current++;
-      setShown(req);
-    }
+    if (req) setShown(req);
   }, [req]);
+  // A fresh form per request (each open is a new request object); a re-render never remounts it.
+  const session = useMemo(() => ++sessions, [shown]);
   // A form with something in it asks before closing ("Keep editing" is the default, and Esc).
   const dirty = useRef(false);
   const [leaving, setLeaving] = useState(false);
@@ -38,36 +37,40 @@ export default function HabitEditorHost() {
   };
   const vm = shown ? selectHabitEditor(shown.id ?? null, shown.templateId).value : null;
   const title = vm?.mode === 'edit' ? fillLine(EDITOR_COPY.editTitle, { habit: vm.input.name }) : EDITOR_COPY.newTitle;
+  // The question is a sibling of the sheet, not inside it: a portal nested in the sheet's own portal
+  // would remount the form under it.
   return (
-    <Sheet
-      open={req !== null && vm !== null}
-      onClose={close}
-      onClosed={() => {
-        dirty.current = false;
-        setShown(null);
-      }}
-      title={title}
-      detents={['large']}
-      size="lg"
-      initialFocus="[data-autofocus]"
-      footer={
-        <Button block size="lg" type="submit" form={FORM_ID}>
-          {vm?.mode === 'edit' ? SETTINGS.editor.save : SETTINGS.editor.create}
-        </Button>
-      }
-    >
-      {vm && (
-        <HabitEditor
-          key={`${opened.current}-${shown?.id ?? ''}-${shown?.templateId ?? ''}`}
-          vm={vm}
-          formId={FORM_ID}
-          onDirty={(d) => (dirty.current = d)}
-          onDone={() => {
-            dirty.current = false;
-            closeHabitEditor();
-          }}
-        />
-      )}
+    <>
+      <Sheet
+        open={req !== null && vm !== null}
+        onClose={close}
+        onClosed={() => {
+          dirty.current = false;
+          setShown(null);
+        }}
+        title={title}
+        detents={['large']}
+        size="lg"
+        initialFocus="[data-autofocus]"
+        footer={
+          <Button block size="lg" type="submit" form={FORM_ID}>
+            {vm?.mode === 'edit' ? SETTINGS.editor.save : SETTINGS.editor.create}
+          </Button>
+        }
+      >
+        {vm && (
+          <HabitEditor
+            key={session}
+            vm={vm}
+            formId={FORM_ID}
+            onDirty={(d) => (dirty.current = d)}
+            onDone={() => {
+              dirty.current = false;
+              closeHabitEditor();
+            }}
+          />
+        )}
+      </Sheet>
       <ConfirmDialog
         open={leaving}
         title={EDITOR_COPY.leaveTitle}
@@ -82,6 +85,6 @@ export default function HabitEditorHost() {
           closeHabitEditor();
         }}
       />
-    </Sheet>
+    </>
   );
 }
