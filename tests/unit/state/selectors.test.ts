@@ -129,6 +129,20 @@ describe('Today: layout', () => {
   });
 });
 
+describe('Today: a selected past day shows its own period', () => {
+  it('a day of last week reads that week’s goal, counting every check-in in it', () => {
+    const g = new Game({ start: '2026-02-23' });
+    const y = g.addHabit({ name: 'Yoga', schedule: { kind: 'weekly', times: 2, every: 1 } });
+    g.goTo('2026-03-03'); // Tuesday
+    g.checkIn(y, '2026-02-27'); // last Friday
+    g.checkIn(y, '2026-03-01'); // last Sunday: goal met for the week of Feb 23
+    const c = card(g, y, '2026-02-27');
+    expect(c.pace).toMatchObject({ met: true, periodLabel: 'that week', progressText: '2 of 2 that week', paceText: null, deadline: '2026-03-01' });
+    expect(c.subtitle.text).toBe('Done for the week ✓');
+    expect(card(g, y).pace).toMatchObject({ met: false, periodLabel: 'this week', paceText: '2 more by Sun' });
+  });
+});
+
 describe('Habit detail', () => {
   it('growth line, streaks, ladder, moments and history', () => {
     const g = new Game({ start: '2026-03-01' });
@@ -220,7 +234,7 @@ describe('Calendar & quilt', () => {
     expect(patches.map((p) => p!.date)).toEqual(['2026-03-02']);
     expect(patches[0]).toMatchObject({ level: 4, state: 'done' });
     expect(q.months[0]).toEqual({ month: '2026-01', label: 'Jan', column: 0 });
-    expect(q.summary.text).toBe('1 check-ins in 2026, across 1 days');
+    expect(q.summary.text).toBe('1 check-in in 2026, across 1 day');
   });
 });
 
@@ -308,6 +322,22 @@ describe('Pets, meadow, letters, badges', () => {
     const badges = badgesVM(g.state);
     expect(badges.badges.find((b) => b.id === 'checkins-10')).toMatchObject({ earned: false, progress: { have: 8, need: 10 } });
     expect(badges.badges.find((b) => b.id === 'first-checkin')).toMatchObject({ earned: true, progress: null });
+  });
+});
+
+describe('memoised Progress records agree with the domain’s records()', () => {
+  it('on the demo meadow: totals, best streak, best month and closed-month tallies', async () => {
+    const { buildDemo } = await import('@/state/demo');
+    const { records } = await import('@/domain/insights');
+    const { aggregateTally, monthWindow, trackingOf } = await import('@/domain/consistency');
+    const { progressRecords } = await import('@/state/selectors');
+    const s = buildDemo({ today: '2026-09-29', now: at('2026-09-29', 21), local: UTC });
+    const mine = progressRecords(s, '2026-09-29');
+    const ref = records(trackingOf(s), '2026-09-29');
+    expect([mine.totalCheckins, mine.tinyCheckins]).toEqual([ref.totalCheckins, ref.tinyCheckins]);
+    expect({ habitId: mine.best!.habit.id, run: mine.best!.run }).toEqual(ref.bestStreak);
+    expect(mine.bestMonth).toEqual(ref.bestMonth && { month: ref.bestMonth.month, tally: ref.bestMonth.tally });
+    for (const [m, t] of mine.closedMonths) expect(t).toEqual(aggregateTally(trackingOf(s), monthWindow(m), '2026-09-29').total);
   });
 });
 

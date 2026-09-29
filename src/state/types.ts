@@ -225,7 +225,7 @@ export interface AppState {
    * - sunshine: per-habit lifetime sunshine total (monotone except refunds inside the window).
    * - bestStage: per-habit highest plant stage ever reached (plants never shrink).
    * - once: once-only grant keys → value (true, or a number noted below). Key formats:
-   *   'perfect|<date>' (coins paid) · 'period|<habitId>|<periodStart>' · 'rung|<habitId>|<tierDays>' ·
+   *   'perfect|<date>' (coins paid) · 'period|<habitId>|<periodStart>' (day number of its last day) · 'rung|<habitId>|<tierDays>' ·
    *   'showup|<n>' · 'weekly|<weekStart>' (stars paid) · 'bloom|<YYYY-MM>' (stars paid) ·
    *   'home|<gapStart>' (day number of the grant, for the 14-day cooldown) · 'exclusive|<collectibleId>' ·
    *   'birthday|<YYYY>' · 'album|<albumId>' · 'harvest|<habitId>|<date>' · 'gift|first-sprout' (coins) ·

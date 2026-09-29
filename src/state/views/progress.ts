@@ -5,11 +5,15 @@
  */
 import type { PastelKey } from '@/catalog/types';
 import { BADGES } from '@/catalog/badges';
-import type { AppState, DateKey } from '../types';
-import { aggregateTally, monthToDateComparison, monthWindow, monthlySeries, trackingOf, weekWindow, trailingWindow } from '@/domain/consistency';
-import { WEEKDAY_NAMES, eachDay, endOfMonth, monthLabel, spanLabel, type MonthKey } from '@/domain/dates';
+import type { AppState, DateKey, Habit } from '../types';
+import { EMPTY_TALLY, addTally, aggregateTally, habitTally, isPctReady, monthToDateComparison, monthWindow, percent, trackingOf, weekWindow, trailingWindow, type Tally } from '@/domain/consistency';
+import { WEEKDAY_NAMES, eachDay, endOfMonth, monthFromIndex, monthIndex, monthLabel, spanLabel, type MonthKey } from '@/domain/dates';
 import { meadowSprout, type MeadowSprout } from '@/domain/growth';
-import { busiestTimeOfDay, checkinCounts, firstTrackedDay, goalsOnTrack, mostCheckedHabit, mostConsistentHabit, records, showedUpDays, strongestWeekday, type TimeBlock } from '@/domain/insights';
+import { busiestTimeOfDay, checkinCounts, firstTrackedDay, goalsOnTrack, mostConsistentHabit, showedUpDays, strongestWeekday, type TimeBlock } from '@/domain/insights';
+import { inLifetime, logStatus, showedUp } from '@/domain/activity';
+import { logsOf, memoByHabit, streakOf, trackingCtx } from '@/domain/economy';
+import { ruleAt } from '@/domain/rules';
+import type { StreakRun } from '@/domain/streaks';
 import { tallyVM, type TallyVM } from './calendar';
 import { habitName, plantVM, streakLabel, type PlantVM, type ViewEnv } from './common';
 
@@ -82,6 +86,60 @@ export function bestFact(s: AppState, month: MonthKey, today: DateKey, current: 
   return steadyName ? `${head} ${steadyName} ${current ? 'is' : 'was'} your steadiest 🌿` : head;
 }
 
+/** One habit's record material, memoised per (habit, logs, day): check-ins, best streak, closed-month tallies. */
+interface HabitRecords {
+  checkins: number;
+  tiny: number;
+  best: StreakRun | null;
+  /** Tallies of the closed months of its lifetime (a closed month's tally never changes). */
+  months: Map<MonthKey, Tally>;
+}
+
+function habitRecords(s: AppState, habit: Habit, today: DateKey): HabitRecords {
+  const logs = logsOf(s, habit.id);
+  const ctx = trackingCtx(s, today);
+  return memoByHabit(habit, logs, ctx, 'records', () => {
+    let checkins = 0;
+    let tiny = 0;
+    for (const [date, log] of Object.entries(logs)) {
+      if (date > today || !inLifetime(habit, date)) continue;
+      const st = logStatus(log, ruleAt(habit, date), date < today);
+      if (showedUp(st)) checkins++;
+      if (st === 'tiny') tiny++;
+    }
+    const months = new Map<MonthKey, Tally>();
+    const last = monthIndex(today) - 1;
+    const end = habit.archivedOn ? Math.min(last, monthIndex(habit.archivedOn)) : last;
+    for (let i = monthIndex(habit.startedOn); i <= end; i++) {
+      const m = monthFromIndex(i);
+      months.set(m, habitTally(habit, logs, monthWindow(m), ctx));
+    }
+    return { checkins, tiny, best: streakOf(habit, logs, ctx).best, months };
+  });
+}
+
+/** Records (§9.2) from the memoised per-habit bundles: same rules as insights.records. */
+export function progressRecords(s: AppState, today: DateKey): { totalCheckins: number; tinyCheckins: number; best: { habit: Habit; run: StreakRun } | null; bestMonth: { month: MonthKey; tally: Tally } | null; closedMonths: Map<MonthKey, Tally> } {
+  let totalCheckins = 0;
+  let tinyCheckins = 0;
+  let best: { habit: Habit; run: StreakRun } | null = null;
+  const closedMonths = new Map<MonthKey, Tally>();
+  for (const h of s.habits) {
+    const r = habitRecords(s, h, today);
+    totalCheckins += r.checkins;
+    tinyCheckins += r.tiny;
+    if (r.best && (!best || r.best.occurrences > best.run.occurrences || (r.best.occurrences === best.run.occurrences && r.best.end > best.run.end))) best = { habit: h, run: r.best };
+    for (const [m, t] of r.months) closedMonths.set(m, addTally(closedMonths.get(m) ?? EMPTY_TALLY, t));
+  }
+  let bestMonth: { month: MonthKey; tally: Tally } | null = null;
+  for (const m of [...closedMonths.keys()].sort()) {
+    const t = closedMonths.get(m)!;
+    if (!isPctReady(t)) continue;
+    if (!bestMonth || t.achieved / t.expected >= bestMonth.tally.achieved / bestMonth.tally.expected - 1e-12) bestMonth = { month: m, tally: t };
+  }
+  return { totalCheckins, tinyCheckins, best, bestMonth, closedMonths };
+}
+
 export function progressVM(s: AppState, env: ViewEnv): ProgressVM {
   const today = env.today;
   const t = trackingOf(s);
@@ -98,9 +156,15 @@ export function progressVM(s: AppState, env: ViewEnv): ProgressVM {
   else trend = { kind: 'fact', deltaPts: cmp.deltaPts, text: bestFact(s, month, today, true), comparedWith };
 
   const first = firstTrackedDay(t);
-  const series = monthlySeries(t, today, { months: 6 })
-    .filter((p) => first !== null && p.month >= first.slice(0, 7))
-    .map((p) => ({ month: p.month, label: monthLabel(p.month, 'short'), tally: tallyVM(p.tally), current: p.current }));
+  const rec = progressRecords(s, today);
+  const cur = monthIndex(today);
+  const series: ProgressVM['recentMonths'] = [];
+  for (let i = cur - 6; i <= cur; i++) {
+    const m = monthFromIndex(i);
+    if (first === null || m < first.slice(0, 7)) continue;
+    const tally = i === cur ? monthTally : tallyVM(rec.closedMonths.get(m) ?? EMPTY_TALLY);
+    series.push({ month: m, label: monthLabel(m, 'short'), tally, current: i === cur });
+  }
   const shown = showedUpDays(t, today, 30);
   const goals = goalsOnTrack(t, today);
 
@@ -110,8 +174,6 @@ export function progressVM(s: AppState, env: ViewEnv): ProgressVM {
   const offDays = eachDay(window30.start, today).filter((d) => s.offDays[d]).length;
   const restBits = [rests > 0 ? `${rests} rest${rests === 1 ? '' : 's'} 🌙` : null, offDays > 0 ? `${offDays} day${offDays === 1 ? '' : 's'} off` : null].filter(Boolean);
 
-  const rec = records(t, today);
-  const bestHabit = rec.bestStreak ? s.habits.find((h) => h.id === rec.bestStreak!.habitId) : undefined;
   const strongest = strongestWeekday(t, today);
   const steady = mostConsistentHabit(t, today);
   const busiest = busiestTimeOfDay(t, today, env.local);
@@ -123,8 +185,13 @@ export function progressVM(s: AppState, env: ViewEnv): ProgressVM {
   ].map((h) => ({ habitId: h.id, habitName: h.name, icon: h.icon, greenhouse: h.archivedOn !== undefined, plant: plantVM(s, h, today) }));
 
   const totalSunshine = Object.values(s.ledger.sunshine).reduce((a, b) => a + b, 0);
-  const most = mostCheckedHabit(t, today);
-  const mostColor = most ? s.habits.find((h) => h.id === most.habitId)?.color ?? null : null;
+  // Mochi's bloom colour: the most-checked habit (ties → listed first), from the memoised bundles.
+  let mostColor: PastelKey | null = null;
+  let mostChecks = 0;
+  for (const h of [...s.habits].sort((a, b) => a.order - b.order)) {
+    const n = habitRecords(s, h, today).checkins;
+    if (n > mostChecks) [mostColor, mostChecks] = [h.color, n];
+  }
 
   return {
     hero: {
@@ -142,8 +209,8 @@ export function progressVM(s: AppState, env: ViewEnv): ProgressVM {
     records: {
       totalCheckins: rec.totalCheckins,
       tinyCheckins: rec.tinyCheckins,
-      bestStreak: rec.bestStreak && bestHabit ? { habitId: bestHabit.id, name: bestHabit.name, label: streakLabel(rec.bestStreak.run.length, rec.bestStreak.run.unit, bestHabit.polarity) } : null,
-      bestMonth: rec.bestMonth ? { month: rec.bestMonth.month, label: monthLabel(rec.bestMonth.month), percent: rec.bestMonth.percent } : null,
+      bestStreak: rec.best ? { habitId: rec.best.habit.id, name: rec.best.habit.name, label: streakLabel(rec.best.run.length, rec.best.run.unit, rec.best.habit.polarity) } : null,
+      bestMonth: rec.bestMonth ? { month: rec.bestMonth.month, label: monthLabel(rec.bestMonth.month), percent: percent(rec.bestMonth.tally)! } : null,
       perfectDays: s.lifetime.perfectDays,
       showUpDays: s.lifetime.showUpDays,
     },

@@ -20,6 +20,7 @@ import { evaluateBadges } from './badges';
 import { aggregateTally, isPctReady, logsFor, monthWindow, percent, trackingOf, weekWindow, type Tally } from './consistency';
 import { inLifetime, logStatus, showedUp } from './activity';
 import { addDays, appDayKey, eachDay, endOfMonth, minDateKey, monthFromIndex, monthIndex, startOfMonth, startOfWeek, type MonthKey } from './dates';
+import { memoByHabit } from './economy';
 import { plantStage, sunshineFromHistory } from './growth';
 import { checkinCounts } from './insights';
 import { ruleAt } from './rules';
@@ -108,10 +109,14 @@ export function weeklyFacts(s: AppState, weekStart: DateKey, today: DateKey, loc
   const plantsGrown = s.habits
     .filter((h) => h.startedOn <= end)
     .filter((h) => {
+      // History-derived stages at the week's edges (memoised: the same walks recur daily and on top-ups).
       const logs = logsFor(t, h.id);
-      const a = sunshineFromHistory(h, logs, before);
-      const b = sunshineFromHistory(h, logs, after);
-      return plantStage(b.sunshine, b.completedOccurrences) > plantStage(a.sunshine, a.completedOccurrences);
+      const stageAt = (ctx: typeof before) =>
+        memoByHabit(h, logs, ctx, 'stage-at', () => {
+          const x = sunshineFromHistory(h, logs, ctx);
+          return plantStage(x.sunshine, x.completedOccurrences);
+        });
+      return stageAt(after) > stageAt(before);
     })
     .map((h) => h.id);
   const quote = newestNote(s, weekStart, end);
@@ -170,6 +175,15 @@ function upsertLetter(tx: Tx, letter: Letter): void {
   else inbox.push(letter);
 }
 
+/**
+ * A letter already covers some of these days: changing the week-start setting regroups weeks, and a
+ * week overlapping an earlier letter's week gets no second letter (§13.10 letters are once per week).
+ */
+function overlapsLetteredWeek(s: AppState, weekStart: DateKey): boolean {
+  for (let d = -6; d <= 6; d++) if (d !== 0 && s.ledger.once[`weekly|${addDays(weekStart, d)}`] !== undefined) return true;
+  return false;
+}
+
 /** Writes last week's letter, or tops it up. */
 export function ensureWeeklyLetter(tx: Tx): void {
   const s = tx.s;
@@ -182,7 +196,7 @@ export function ensureWeeklyLetter(tx: Tx): void {
   const stars = weeklyStars({ achieved: facts.achieved, expected: facts.expected, tiny: 0 }, facts.showUpDays);
   const id = `weekly-${weekStart}`;
   if (paid === undefined) {
-    if (facts.showUpDays < 1) return;
+    if (facts.showUpDays < 1 || overlapsLetteredWeek(s, weekStart)) return;
     setOnce(tx, key, stars);
     upsertLetter(tx, { kind: 'weekly', id, ...facts, stars });
     tx.emit({ type: 'letter', letterId: id });

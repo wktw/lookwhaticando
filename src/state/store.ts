@@ -406,7 +406,10 @@ export function hydrate(): void {
   }
   queue = makeQueue(SAVE_KEY, rev);
   setState(initial, rt.now());
-  if (writable()) actVoid(() => undefined);
+  if (writable()) {
+    actVoid(() => undefined);
+    mirrorTheme(store, state.value.settings);
+  }
   if (readOnly.value !== 'newer-version') acquireLock();
   if (rt.listen) {
     unlisteners.push(

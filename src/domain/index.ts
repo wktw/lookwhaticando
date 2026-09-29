@@ -6,7 +6,7 @@
  * Game layer (stage 2), reducers that run in a copy-on-write transaction (tx.ts) and return
  * `{ state, events, ...result }`:
  *   tx → wallet → levels / collection / seasons → badges → pantry / friendship / meadow →
- *   economy → letters → logging → gacha / habits → rollover
+ *   economy → letters → logging → gacha / habits / profile → rollover
  * Nothing here reads Date.now(), Math.random() or browser APIs: time, the app day, the local clock
  * and randomness are injected (`Env`).
  */
@@ -35,4 +35,5 @@ export * from './letters';
 export * from './logging';
 export * from './gacha';
 export * from './habits';
+export * from './profile';
 export * from './rollover';

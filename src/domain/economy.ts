@@ -42,7 +42,7 @@ import type { AppState, DateKey, Effort, Habit } from '@/state/types';
 import { EMPTY_LOGS, evaluateDay, inLifetime, isInBackfillWindow, logStatus, showedUp, type EvalContext, type HabitLogs } from './activity';
 import { addDays, appDayKey, dayNumber, eachDay, minDateKey, startOfWeek, type LocalTimeReader } from './dates';
 import { EVERGREEN, plantStage, stageName, stagesCrossed, sunshineFromHistory, sunshinePerOccurrence } from './growth';
-import { evaluatePeriod, flexPeriodAt, flexPeriodsOverlapping } from './periods';
+import { evaluatePeriod, flexPeriodAt } from './periods';
 import { ruleAt } from './rules';
 import { isDayBased } from './schedule';
 import { RUNGS, streakInfo, type StreakInfo } from './streaks';
@@ -163,9 +163,14 @@ const memo = new WeakMap<object, WeakMap<object, WeakMap<object, Map<string, unk
 
 /**
  * Caches a pure history computation by the identity of (habit, logs, offDays) plus the scalars that
- * matter. State objects are never mutated after they are shared (and `seal` makes a transaction copy
- * them before writing), so identity is a sound key.
+ * matter (`kind`, today, week start). State objects are never mutated after they are shared (and
+ * `seal` makes a transaction copy them before writing), so identity is a sound key: a check-in
+ * replaces one habit's logs object and only that habit's entries recompute. Views use it too.
  */
+export function memoByHabit<T>(habit: Habit, logs: HabitLogs, ctx: EvalContext, kind: string, compute: () => T): T {
+  return cached(habit, logs, ctx, kind, compute);
+}
+
 function cached<T>(habit: Habit, logs: HabitLogs, ctx: EvalContext, kind: string, compute: () => T): T {
   seal(habit);
   seal(logs);
@@ -354,7 +359,9 @@ export function promoteOverDays(tx: Tx, habitId: string, date: DateKey): void {
  * rule pay — the habit existed before the period began (created before its first day) and no
  * mid-period rule edit cut it short. So deleting and re-creating a habit, or switching a habit
  * between weekly and monthly "this period", can never mint a second bonus for the same stretch.
- * Goal bonuses therefore start with a habit's first full week/month.
+ * Goal bonuses therefore start with a habit's first full week/month. The key stores the period's
+ * last day (as a day number), and a period overlapping one already paid never pays: changing the
+ * week-start setting regroups weeks, but can't pay the same days twice.
  */
 export function payPeriodGoal(tx: Tx, habitId: string, date: DateKey): number {
   const s = tx.s;
@@ -365,13 +372,28 @@ export function payPeriodGoal(tx: Tx, habitId: string, date: DateKey): number {
   const key = `period|${habitId}|${p.key}`;
   if (hasOnce(s, key) || p.from !== p.start) return 0;
   if (habitCreatedOn(habit, s.settings.dayStartsAt, tx.env.local) >= p.start) return 0;
+  if (overlapsPaidPeriod(s, habitId, p.start, p.end)) return 0;
   const e = evaluatePeriod(habit, logsOf(s, habitId), p, trackingCtx(s, tx.env.today));
   if (!e.met) return 0;
   const coins = p.unit === 'week' ? PERIOD_GOAL_COINS.week : PERIOD_GOAL_COINS.month;
-  setOnce(tx, key);
+  setOnce(tx, key, dayNumber(p.end));
   grantCoins(tx, coins, 'period', habitId);
   tx.emit({ type: 'periodGoal', habitId, period: p.unit, coins });
   return coins;
+}
+
+/** A goal bonus was already paid for a period of this habit overlapping [start, end]. */
+export function overlapsPaidPeriod(s: AppState, habitId: string, start: DateKey, end: DateKey): boolean {
+  const prefix = `period|${habitId}|`;
+  const lo = dayNumber(start);
+  const hi = dayNumber(end);
+  for (const [k, v] of Object.entries(s.ledger.once)) {
+    if (!k.startsWith(prefix)) continue;
+    const otherStart = dayNumber(k.slice(prefix.length));
+    const otherEnd = typeof v === 'number' ? v : otherStart;
+    if (otherStart <= hi && otherEnd >= lo) return true;
+  }
+  return false;
 }
 
 export interface PerfectDayStatus {
@@ -581,13 +603,10 @@ export function onceKeyExpired(s: AppState, key: string, value: number | true, t
       return parts[1]! < addDays(today, -21);
     case 'bloom':
       return parts[1]! < addDays(today, -62).slice(0, 7);
-    case 'period': {
-      const habit = findHabit(s, parts[1]!);
-      if (!habit) return true;
-      const start = parts[2]!;
-      const live = flexPeriodsOverlapping(habit, start, start, s.settings.weekStart).some((p) => p.key === start && p.to >= addDays(today, -LEDGER_DAYS));
-      return !live;
-    }
+    case 'period':
+      // Kept while its period could still take a rewardable check-in (or overlap one that can).
+      if (!findHabit(s, parts[1]!)) return true;
+      return (typeof value === 'number' ? value : dayNumber(parts[2]!)) < dayNumber(addDays(today, -LEDGER_DAYS));
     default:
       return false;
   }

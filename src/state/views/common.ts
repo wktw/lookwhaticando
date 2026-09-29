@@ -5,12 +5,12 @@
 import type { AppState, DateKey, Habit, Schedule } from '../types';
 import type { LocalTimeReader } from '@/domain/dates';
 import {
-  MONTH_SHORT,
   WEEKDAY_SHORT,
   addDays,
   diffDays,
   monthDayLabel,
   parseDateKey,
+  startOfWeek,
   weekday,
   weekdaysLabel,
   type WeekStart,
@@ -18,8 +18,8 @@ import {
 import { canSetRest, logStatus, restStanding, showedUp, type LogStatus } from '@/domain/activity';
 import { formatHabitPhrase, habitPhrase, habitTally, trailingWindow, isPctReady } from '@/domain/consistency';
 import { completedOccurrences, logsOf, streakOf, trackingCtx } from '@/domain/economy';
-import { growthInfo, stageName, sunshinePerOccurrence, type GrowthInfo } from '@/domain/growth';
-import { periodPace } from '@/domain/periods';
+import { growthInfo, sunshinePerOccurrence, type GrowthInfo } from '@/domain/growth';
+import { evaluatePeriod, flexPeriodAt } from '@/domain/periods';
 import { isPausedOn, pauseReturnDay } from '@/domain/pauses';
 import { ruleAt, scheduleStatusOn } from '@/domain/rules';
 import { effectiveTarget, everyOf, isDayBased, restAllowancePerWeek } from '@/domain/schedule';
@@ -228,26 +228,31 @@ export function habitCard(s: AppState, habit: Habit, date: DateKey, env: ViewEnv
   const scheduled = scheduleStatusOn(habit, date) === 'scheduled';
   const allowance = restAllowancePerWeek(rule);
   let usedRests = 0;
-  const weekStartDay = addDays(date, -((weekday(date) - s.settings.weekStart + 7) % 7));
+  const weekStartDay = startOfWeek(date, s.settings.weekStart);
   for (let i = 0; i < 7; i++) if (restStanding(habit, logs, addDays(weekStartDay, i), ctx) === 'allowed') usedRests++;
 
   let pace: PaceVM | null = null;
   let met = false;
   if (flexible) {
-    const p = periodPace(habit, logs, { ...ctx, today: date > today ? today : date });
-    if (p) {
+    // The period containing `date` (a selected past day may sit in an earlier period), as of today.
+    const period = flexPeriodAt(habit, date, s.settings.weekStart);
+    if (period) {
+      const e = evaluatePeriod(habit, logs, period, ctx);
+      const goal = Math.max(1, e.target);
+      const needed = Math.max(0, e.target - e.checkinDays);
       const word = periodWord(rule.schedule);
-      met = p.met;
+      const label = e.state === 'current' ? `this ${word}` : `that ${word}`;
+      met = e.met;
       pace = {
-        checkins: p.checkinDays,
-        target: Math.max(1, p.target),
-        needed: p.needed,
-        deadline: p.deadline,
-        deadlineLabel: deadlineLabel(p.deadline, today),
-        met: p.met,
-        periodLabel: `this ${word}`,
-        progressText: `${Math.min(p.checkinDays, Math.max(1, p.target))} of ${Math.max(1, p.target)} this ${word}`,
-        paceText: p.met ? null : `${p.needed} more by ${deadlineLabel(p.deadline, today)}`,
+        checkins: e.checkinDays,
+        target: goal,
+        needed,
+        deadline: e.to,
+        deadlineLabel: deadlineLabel(e.to, today),
+        met: e.met,
+        periodLabel: label,
+        progressText: `${Math.min(e.checkinDays, goal)} of ${goal} ${label}`,
+        paceText: e.met || e.state !== 'current' ? null : `${needed} more by ${deadlineLabel(e.to, today)}`,
       };
     }
   }
@@ -354,7 +359,6 @@ export function returnLabel(habit: Habit, today: DateKey): string | null {
   return back ? `back ${monthDayLabel(back)}` : null;
 }
 
-export const stageLabel = stageName;
 
 /** 'Sep 27' → 'Saturday, September 27'. */
 export function longDateLabel(date: DateKey): string {
@@ -364,4 +368,3 @@ export function longDateLabel(date: DateKey): string {
   return `${names[weekday(date)]}, ${months[month - 1]} ${day}`;
 }
 
-export const monthShort = (m: number): string => MONTH_SHORT[m - 1]!;

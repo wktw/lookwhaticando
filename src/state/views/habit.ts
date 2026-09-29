@@ -4,7 +4,7 @@
  */
 import type { AppState, DateKey, Habit, HabitRule } from '../types';
 import { logStatus, showedUp } from '@/domain/activity';
-import { habitTally, monthWindow, trailingWindow, weekWindow, formatHabitPhrase, habitPhrase, type Tally } from '@/domain/consistency';
+import { habitTally, monthWindow, weekWindow, formatHabitPhrase, habitPhrase, type Tally } from '@/domain/consistency';
 import { monthDayLabel, monthFromIndex, monthIndex, monthLabel, shortDateLabel, type MonthKey } from '@/domain/dates';
 import { habitCreatedOn, logsOf, streakOf, trackingCtx } from '@/domain/economy';
 import { RUNGS } from '@/domain/streaks';
@@ -144,11 +144,3 @@ export function habitDetailVM(s: AppState, env: ViewEnv, id: string): HabitDetai
     })),
   };
 }
-
-/** Last-30-days line for the detail stat tile (same numbers as the card's consistency phrase). */
-export function last30Tally(s: AppState, env: ViewEnv, id: string): TallyVM | null {
-  const habit = s.habits.find((h) => h.id === id);
-  if (!habit) return null;
-  return tallyVM(habitTally(habit, logsOf(s, id), trailingWindow(env.today, 30), trackingCtx(s, env.today)));
-}
-

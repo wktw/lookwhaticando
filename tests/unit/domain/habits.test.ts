@@ -8,6 +8,18 @@ import { Game, baseInput } from './game';
 
 const issues = (g: Game, over: Parameters<typeof baseInput>[0]) => habits.validateHabitInput(g.state, baseInput(over)).map((i) => `${i.field}:${i.code}`);
 
+describe('editor pickers', () => {
+  it('offer only owned plant species and pots (capsule unlocks join them)', async () => {
+    const { ownedPlantSpecies, ownedPots } = await import('@/domain/collection');
+    const g = new Game();
+    expect(ownedPlantSpecies(g.state.collection)).toEqual(['tulip', 'daisy', 'sunflower', 'succulent', 'monstera']);
+    expect(ownedPots(g.state.collection)).toEqual(['terracotta', 'cream', 'blush']);
+    g.state = { ...g.state, collection: { ...g.state.collection, 'plant-lavender': { count: 1, firstAt: 0 } } };
+    expect(ownedPlantSpecies(g.state.collection)).toContain('lavender');
+    expect(issues(g, { plant: 'lavender' })).toEqual([]);
+  });
+});
+
 describe('creating habits', () => {
   it('validates the input', () => {
     const g = new Game();

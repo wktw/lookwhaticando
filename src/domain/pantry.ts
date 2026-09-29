@@ -25,10 +25,6 @@ export const BAKE = { servings: 5, coins: 10 } as const;
 
 type PantryEntry = AppState['pantry'][string];
 
-export function servingsOf(s: AppState, treatId: string): number {
-  return s.pantry[treatId]?.servings ?? 0;
-}
-
 /** The entry after the mornings between its last restock and `today` (pure). */
 export function restocked(entry: PantryEntry | undefined, today: DateKey): PantryEntry {
   if (!entry) return { servings: RESTOCK_PER_MORNING, restockedOn: today };

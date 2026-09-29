@@ -15,7 +15,7 @@
  */
 import type { CheckInResult } from '@/state/api';
 import type { DateKey, DayLog, Habit } from '@/state/types';
-import { canLogOn, canSetRest, inLifetime, isInBackfillWindow, logStatus, offDaysRemaining, showedUp } from './activity';
+import { canLogOn, canSetRest, inLifetime, logStatus, offDaysRemaining, showedUp } from './activity';
 import { evaluateBadges, type BadgeTrigger } from './badges';
 import { addDays } from './dates';
 import {
@@ -101,6 +101,7 @@ const isLive = (tx: Tx, date: DateKey): boolean => date === tx.env.today && !rew
 /* ------------------------------------------------------------------ */
 
 export interface RewardPass {
+  /** Coins were earned by this change (a re-check of coins never refunded earns none). */
   rewarded: boolean;
   settlement: Settlement | null;
   /** Coins granted by this pass (check-in + every bonus). */
@@ -148,7 +149,8 @@ export function rewardPass(tx: Tx, habitId: string, date: DateKey, opts: PassOpt
   payRungs(tx, habitId, opts.bestBefore);
   if (touchesLetters(tx.s, date, tx.env.today)) ensureLetters(tx);
   evaluateBadges(tx, trigger);
-  return { rewarded: st.paid > 0 || st.sunshine > 0, settlement: st, coins: coinsIn(tx, mark) };
+  const coins = coinsIn(tx, mark);
+  return { rewarded: coins > 0, settlement: st, coins };
 }
 
 /** Records a check-in action's time for Welcome home (after the pass read the previous one). */
@@ -280,10 +282,9 @@ export function toggleRest(tx: Tx, habitId: string, date: DateKey): boolean {
       : undefined;
   writeLog(tx, habitId, date, next);
   const trigger: BadgeTrigger = resting ? { rested: true } : {};
-  if (date <= tx.env.today && isInBackfillWindow(date, tx.env.today)) {
-    rewardPass(tx, habitId, date, { user: true, bestBefore, trigger });
-    if (payPerfectDay(tx, date) && isPerfectWeek(tx.s, date)) evaluateBadges(tx, { perfectWeek: true });
-  } else evaluateBadges(tx, trigger);
+  const pass = date <= tx.env.today ? rewardPass(tx, habitId, date, { user: true, bestBefore, trigger }) : null;
+  if (!pass?.settlement) evaluateBadges(tx, trigger); // the pass didn't run (a future or non-rewardable day)
+  if (pass?.settlement && payPerfectDay(tx, date) && isPerfectWeek(tx.s, date)) evaluateBadges(tx, { perfectWeek: true });
   return true;
 }
 

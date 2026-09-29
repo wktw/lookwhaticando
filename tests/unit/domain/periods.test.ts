@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { withRuleEdit } from '@/domain/rules';
 import { attributionMonth, evaluatePeriod, flexPeriodAt, flexPeriodsOverlapping, periodEvaluations, periodPace } from '@/domain/periods';
-import { DAILY, REST, ctx, done, habit, logs, monthly, on, range, rule, tiny, weekly } from './helpers';
+import { DAILY, REST, ctx, habit, logs, monthly, on, range, rule, tiny, weekly } from './helpers';
 
 /** Evaluates the flexible period containing `date` as of `today`. */
 function periodAt(h: ReturnType<typeof habit>, l: ReturnType<typeof logs>, date: string, today: string, weekStart: 0 | 1 = 1, offDays: string[] = []) {

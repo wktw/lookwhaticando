@@ -27,7 +27,7 @@
  *    and goes to the meadow if there is room. A new treat becomes a pantry recipe.
  * 6. Commit before animate: the result is stored as `pendingReveal` before the UI plays it.
  */
-import { MOCHI_ID, SECRET_IDS, getCollectible, moonlitBase } from '@/catalog/collectibles';
+import { SECRET_IDS, getCollectible, moonlitBase } from '@/catalog/collectibles';
 import { NEW_ITEM_WEIGHT, PITY_RARE, PITY_ULTRA, STARDUST_FOR_DUPLICATE, WISH_PRICE, getMachine } from '@/catalog/machines';
 import type { CollectibleDef, MachineId, Rarity } from '@/catalog/types';
 import { RARITIES } from '@/catalog/types';
@@ -385,5 +385,3 @@ export function sparkleExchange(tx: Tx, machineId: MachineId): { ok: boolean } {
   return { ok: true };
 }
 
-/** Mochi never comes out of a machine and can't be wished for (she is unique, §13.10). */
-export const isUniqueMascot = (id: string): boolean => id === MOCHI_ID;

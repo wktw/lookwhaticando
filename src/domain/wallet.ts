@@ -85,10 +85,6 @@ export function grantStardust(tx: Tx, amount: number): number {
 /* Once-only keys                                                      */
 /* ------------------------------------------------------------------ */
 
-export function onceValue(s: AppState, key: string): number | true | undefined {
-  return s.ledger.once[key];
-}
-
 export function hasOnce(s: AppState, key: string): boolean {
   return s.ledger.once[key] !== undefined;
 }

@@ -228,5 +228,7 @@ export function yearQuiltVM(s: AppState, env: ViewEnv, year: number, habitId: st
   }
   const daysShowedUp = shownUp.size;
   const span = Math.max(0, diffDays(jan1, today < dec31 ? today : dec31) + 1);
-  return { year, weeks, months, summary: { checkins, daysShowedUp, text: `${checkins} check-ins in ${year}${span > 0 ? `, across ${daysShowedUp} days` : ''}` }, todayColumn };
+  const plural = (n: number, one: string, many: string) => `${n.toLocaleString('en-US')} ${n === 1 ? one : many}`;
+  const text = `${plural(checkins, 'check-in', 'check-ins')} in ${year}${span > 0 && checkins > 0 ? `, across ${plural(daysShowedUp, 'day', 'days')}` : ''}`;
+  return { year, weeks, months, summary: { checkins, daysShowedUp, text }, todayColumn };
 }

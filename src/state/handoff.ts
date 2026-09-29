@@ -103,8 +103,6 @@ async function through(bytes: Uint8Array, ctor: StreamCtor): Promise<Uint8Array>
   return new Uint8Array(await new Response(stream).arrayBuffer());
 }
 
-export const canCompress = (): boolean => streamCtor('CompressionStream') !== null;
-
 /** 'MM1:' + base64url(gzip(json)), or 'MM0:' + base64url(json) without CompressionStream. */
 export async function encodePayload(json: string, opts: { compress?: boolean } = {}): Promise<string> {
   const bytes = new TextEncoder().encode(json);

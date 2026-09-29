@@ -138,7 +138,7 @@ export function petPet(tx: Tx, petId: string): Omit<PetInteractionResult, 'event
 /** Feed a treat from the pantry (see module doc for the caps). */
 export function feedPet(tx: Tx, petId: string, treatId: string): Omit<PetInteractionResult, 'events'> {
   const pet = tx.s.pets[petId];
-  if (!pet || getCollectible(treatId)?.category !== 'treat') return NO_PET;
+  if (!pet || getCollectible(treatId)?.category !== 'treat' || (tx.s.collection[treatId]?.count ?? 0) < 1) return NO_PET;
   const daily = dailyFor(pet, tx.env.today);
   if (daily.treats >= PET_XP.treatsPerDay) {
     return { xpGained: 0, level: levelForXp(pet.xp), leveledUp: false, reaction: 'full', line: petLine(tx.s, pet, tx.env.rng) };

@@ -273,6 +273,40 @@ describe('Showing-up ladder', () => {
   });
 });
 
+describe('Showing-up ladder rewards', () => {
+  it('pays stars at 7 and 14, stars + a ticket at 21', () => {
+    const g = new Game({ start: '2026-03-02' });
+    const a = g.addHabit();
+    for (let d = 0; d < 21; d++) {
+      g.checkIn(a);
+      g.advance(1);
+    }
+    expect(g.allOf('showUp').map((e) => [e.days, e.stars, e.tickets])).toEqual([
+      [7, 1, 0],
+      [14, 2, 0],
+      [21, 2, 1],
+    ]);
+    expect(g.state.wallet.tickets).toBe(1);
+    expect(Object.keys(g.state.ledger.once).filter((k) => k.startsWith('showup|'))).toEqual(['showup|7', 'showup|14', 'showup|21']);
+  });
+});
+
+describe('tiny → full', () => {
+  it('a check-in on a tiny-logged one-tap habit upgrades it and pays only the difference', () => {
+    const g = new Game();
+    g.setWallet({ coins: 100 });
+    const a = g.addHabit({ tiny: { label: 'Shoes on' } });
+    g.tiny(a);
+    const afterTiny = g.coins;
+    const r = g.checkIn(a);
+    expect(r.completed).toBe(false); // it had already counted as showing up
+    expect(g.state.logs[a]![g.today]).toMatchObject({ kind: 'log', count: 1 });
+    expect(g.state.logs[a]![g.today]!).not.toHaveProperty('level');
+    expect(g.coins - afterTiny).toBe(PAY.steady - Math.ceil(PAY.steady / 2));
+    expect(g.checkIn(a).rewarded).toBe(false); // and only once
+  });
+});
+
 describe('PAY table', () => {
   it('matches §13.5', () => expect(PAY).toEqual({ light: 4, steady: 5, big: 7 }));
 });

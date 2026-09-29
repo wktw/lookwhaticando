@@ -94,6 +94,30 @@ describe('period goal (+10 weekly / +20 monthly, once per period)', () => {
   });
 });
 
+describe('changing the week start cannot pay the same days twice', () => {
+  it('no second goal bonus for a regrouped week, no second letter for an overlapping week', async () => {
+    const { updateSettings } = await import('@/domain/profile');
+    const g = new Game({ start: '2026-02-02' });
+    const y = g.addHabit({ name: 'Yoga', schedule: { kind: 'weekly', times: 1, every: 1 } });
+    g.goTo('2026-03-03'); // Tuesday; week Mon Mar 2 – Sun Mar 8
+    g.checkIn(y);
+    expect(g.allOf('periodGoal')).toHaveLength(1);
+    g.goTo('2026-03-04');
+    g.run((tx) => updateSettings(tx, { weekStart: 0 })); // now Sun Mar 1 – Sat Mar 7
+    g.undo(y, '2026-03-03');
+    g.checkIn(y);
+    expect(g.allOf('periodGoal')).toHaveLength(1);
+    // Letters: Monday weeks first…
+    g.run((tx) => updateSettings(tx, { weekStart: 1 }));
+    g.goTo('2026-03-09');
+    expect(g.state.inbox.map((l) => l.id)).toContain('weekly-2026-03-02');
+    // …then Sunday weeks: the week of Sun Mar 8 overlaps nothing, the week of Sun Mar 1 would.
+    g.run((tx) => updateSettings(tx, { weekStart: 0 }));
+    g.goTo('2026-03-10');
+    expect(g.state.inbox.filter((l) => l.kind === 'weekly').map((l) => l.id)).toEqual(['weekly-2026-03-02']);
+  });
+});
+
 describe('streak rungs (coins only, once per habit and tier)', () => {
   it('pays 3 → 10 and 7 → 20, once', () => {
     const g = new Game({ start: '2026-03-02' });

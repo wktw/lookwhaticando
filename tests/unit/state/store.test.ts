@@ -135,6 +135,16 @@ describe('the clock', () => {
     expect((await store.listSnapshots()).map((m) => m.id)).toContain('daily-2026-09-30');
   });
 
+  it('a later day start keeps today where it is (never earlier than a day already seen)', () => {
+    boot({ start: '2026-09-29', hour: 4 }); // 4 am: already Sep 29 with the default 3:00 start
+    expect(store.today.value).toBe('2026-09-29');
+    store.updateSettings({ dayStartsAt: 360 }); // days now start at 6:00 → 4 am would be Sep 28
+    expect(store.state.value.settings.dayStartsAt).toBe(360);
+    expect(store.today.value).toBe('2026-09-29');
+    store.updateSettings({ dayStartsAt: 9999 });
+    expect(store.state.value.settings.dayStartsAt).toBe(360);
+  });
+
   it('never goes backwards when the device clock does', () => {
     const { b } = boot({ start: '2026-09-29', hour: 12 });
     b.clock.now = at('2026-09-25', 12);
