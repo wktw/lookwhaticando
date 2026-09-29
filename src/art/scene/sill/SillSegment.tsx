@@ -38,6 +38,8 @@ export interface SillSegmentProps {
   potClass?: string;
   /** The Today band pins the jar and the lamp at its right edge and lights the night itself. */
   pinned?: boolean;
+  /** Where the moon hangs (see SillBackdrop). */
+  moonX?: number;
   children?: ComponentChildren;
 }
 
@@ -47,14 +49,14 @@ function tagSideFor(world: SillWorld, habitId: string): 'left' | 'right' {
   return rim?.facing === 'right' ? 'left' : 'right';
 }
 
-export function SillSegment({ world, room, view, light, pots, coins, uid, tags, animated, damp, pulses, potRef, jarRef, potClass, pinned, children }: SillSegmentProps) {
+export function SillSegment({ world, room, view, light, pots, coins, uid, tags, animated, damp, pulses, potRef, jarRef, potClass, pinned, moonX, children }: SillSegmentProps) {
   const { layout, beam, casts, cast, decor } = world;
   const { rows, scale } = layout.spec;
   const jar = layout.jar;
   const lamp = layout.lamp;
   return (
     <>
-      <SillBackdrop layout={layout} room={room} view={view} beam={beam} casts={casts} cast={cast} uid={uid} pool={!pinned} />
+      <SillBackdrop layout={layout} room={room} view={view} beam={beam} casts={casts} cast={cast} uid={uid} pool={!pinned} moonX={moonX} />
       {decor
         .filter((d) => d.hanging)
         .map((d) => (

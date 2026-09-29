@@ -9,7 +9,9 @@ import type { PlaceId } from '@/catalog/types';
 import { baseline, byDepth, depthOf, depthScale, depthZ, PLANT_BASELINE, POT_RIM } from './room';
 import { BAND_MAX_POTS, BAND_SPEC, SILL_SPEC, beamQuad, castVector, inBeam, potCut, sillLayout, sunbeam } from './sill/layout';
 import { BEAM_BY_SEASON, lightTarget, sillWorld } from './sill/world';
-import { nightMoonX } from './sill/Backdrop';
+import { GLASS_CLIP, nightMoonX, WindowView } from './sill/Backdrop';
+import { BAND_MOON_INSET, bandMoonX } from './WindowsillBand';
+import { readdirSync } from 'node:fs';
 import { boughsFor, FACADE_PAINTS, skyFor, starCount, streetFor, terraceFor } from './sill/scenery';
 import { childLight, lightAtSun } from './lighting';
 import { mirrored } from './fit';
@@ -189,7 +191,39 @@ describe('the view through the glass', () => {
   });
 });
 
+describe('the glass clips the view', () => {
+  it('clips the street and the boughs to the glass with an inline style (the global svg rule beats the attribute)', () => {
+    const el = WindowView({ x0: 20, x1: 200, bottom: 60, view: outsidePalette('night', 'autumn'), fill: '#000' }) as unknown as { type: string; props: { style?: { overflow?: string } } };
+    expect(el.type).toBe('svg');
+    expect(el.props.style?.overflow).toBe('hidden');
+  });
+
+  it('never leans on an overflow attribute alone anywhere in the Shelf', () => {
+    const dir = fileURLToPath(new URL('.', import.meta.url));
+    const files = (sub: string): string[] =>
+      readdirSync(dir + sub, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? (e.name === 'decor' ? [] : files(`${sub}${e.name}/`)) : e.name.endsWith('.tsx') ? [`${sub}${e.name}`] : []));
+    for (const file of files('')) {
+      for (const line of readFileSync(dir + file, 'utf8').split('\n')) {
+        if (line.includes('overflow="hidden"')) expect(line, file).toContain(`style={GLASS_CLIP}`);
+      }
+    }
+    expect(GLASS_CLIP.overflow).toBe('hidden');
+  });
+});
+
 describe('the Today band framing', () => {
+  it('hangs the night moon whole inside the glass, clear of the pinned jamb', () => {
+    for (let view = 140; view <= 300; view += 10) {
+      const world = sillWorld(BAND_SPEC, POTS.slice(0, 4), [], ROOM.night, 1, view);
+      const win = world.layout.window;
+      const sky = skyFor(win.x0, win.x1, BAND_SPEC.rows.glassBottom, 3, bandMoonX(view));
+      // The crescent reaches one radius either side of its centre.
+      expect(sky.moon.x + sky.moon.r, `${view} units`).toBeLessThanOrEqual(view - 3);
+      expect(sky.moon.x - sky.moon.r).toBeGreaterThanOrEqual(win.x0);
+    }
+    expect(BAND_MOON_INSET).toBeGreaterThan(0);
+  });
+
   it('keeps the top two fifths for the greeting chip and the wallet: no pot canvas reaches above them', () => {
     const top = baseline(BAND_SPEC.rows, BAND_SPEC.backRow) - (PLANT_BASELINE / 100) * BAND_SPEC.scale.pot * depthScale(BAND_SPEC.backRow);
     expect(top).toBeGreaterThanOrEqual(24);
@@ -355,6 +389,21 @@ describe('the seasons through the glass', () => {
     expect(outsidePalette('day', 'winter').bough).toMatchObject({ leaf: null, snow: expect.any(String) });
     expect(outsidePalette('day', 'spring').bough.dots).toBeTruthy();
     expect(boughsFor(0, 300, 60).wood.length).toBeGreaterThan(0);
+  });
+
+  it('keeps every season apart after dark too: its own sky, and boughs a clear step off it', () => {
+    const nights = SEASONS.map((season) => outsidePalette('night', season));
+    expect(new Set(nights.map((v) => v.sky.join())).size).toBe(4);
+    expect(new Set(nights.map((v) => JSON.stringify(v.bough))).size).toBe(4);
+    const lum = (hex: string) => {
+      const n = parseInt(hex.slice(1), 16);
+      return 0.2126 * ((n >> 16) & 255) + 0.7152 * ((n >> 8) & 255) + 0.0722 * (n & 255);
+    };
+    for (const v of nights) {
+      const leaf = v.bough.leaf ?? v.bough.snow!;
+      expect(Math.abs(lum(leaf) - lum(v.sky[0])), leaf).toBeGreaterThan(12);
+    }
+    expect(outsidePalette('night', 'winter').snow).toBe(true);
   });
 
   it('throws a long low patch of sun in winter and a short one in summer', () => {

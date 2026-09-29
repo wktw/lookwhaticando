@@ -66,6 +66,8 @@ export interface PetSpot {
   perch?: 'rim' | 'bed' | 'back' | 'shelf' | 'water';
   /** Which perch, when on one. */
   perchId?: string;
+  /** Stretched up and leaning the way it faces (a rabbit reaching to sniff a leaf). */
+  reach?: boolean;
   /** Paint order override (perches sit just above what they sit on). */
   z?: number;
 }

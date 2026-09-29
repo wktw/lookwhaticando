@@ -191,13 +191,24 @@ const BOUGHS: Record<Season, OutsidePalette['bough']> = {
   winter: { wood: '#A4948F', leaf: null, leafDeep: null, dots: null, snow: '#FFFFFF' },
 };
 
-/** After dark the tree is a quiet silhouette a shade off the sky, never a lit shape. */
-const NIGHT_BOUGH: OutsidePalette['bough'] = { wood: '#24213A', leaf: '#2D2A48', leafDeep: '#28253F', dots: null, snow: null };
+/**
+ * After dark the tree is a silhouette a clear step lighter than the top of the sky (the street lamp
+ * and the moon catch it), never a lit shape; each season keeps one cue: pale blossom in spring, full
+ * blue-green leaves in summer, a few warm leaves in autumn, snow along bare wood in winter.
+ */
 const NIGHT_BOUGHS: Record<Season, OutsidePalette['bough']> = {
-  spring: NIGHT_BOUGH,
-  summer: NIGHT_BOUGH,
-  autumn: NIGHT_BOUGH,
-  winter: { wood: '#2F2B48', leaf: null, leafDeep: null, dots: null, snow: '#8E8BB0' },
+  spring: { wood: '#1B1930', leaf: '#3A3556', leafDeep: '#302C4A', dots: '#9A86A6', snow: null },
+  summer: { wood: '#1A1B2E', leaf: '#324460', leafDeep: '#293750', dots: null, snow: null },
+  autumn: { wood: '#1D1A2E', leaf: '#4B3A52', leafDeep: '#3E3047', dots: '#8A6464', snow: null },
+  winter: { wood: '#2F2B48', leaf: null, leafDeep: null, dots: null, snow: '#9C99BE' },
+};
+
+/** The night sky by season: a rose-dusk spring, a short pale summer night, a plum autumn, a deep clear winter. */
+const NIGHT_SKY: Record<Season, readonly [string, string]> = {
+  spring: ['#262240', '#433A5E'],
+  summer: ['#28305A', '#4B5687'],
+  autumn: ['#261F3A', '#403352'],
+  winter: ['#1E2040', '#34395E'],
 };
 
 const TREES: Record<Season, readonly [string, string, string | null]> = {
@@ -214,7 +225,7 @@ const NIGHT_FACADES = ['#312A48', '#2D2843', '#342B49', '#2B2741'] as const;
 function outside(time: TimeOfDay, season: Season): OutsidePalette {
   const night = time === 'night';
   const [haze, top, low] = SEASON_HAZE[season];
-  const sky: readonly [string, string] = night ? SKY.night : [mix(SKY[time][0], haze, top), mix(SKY[time][1], haze, low)];
+  const sky: readonly [string, string] = night ? NIGHT_SKY[season] : [mix(SKY[time][0], haze, top), mix(SKY[time][1], haze, low)];
   const far = (c: string, k = 0.45) => (night ? c : mix(c, sky[1], k));
   const [tree, treeDeep, accent] = TREES[season];
   if (night) {
@@ -225,7 +236,7 @@ function outside(time: TimeOfDay, season: Season): OutsidePalette {
       house: '#322B47',
       tree: '#2A3146',
       treeDeep: '#262C40',
-      accent: season === 'winter' ? '#4A4566' : null,
+      accent: season === 'winter' ? '#77739A' : null,
       snow: season === 'winter',
       moon: '#F6E7B6',
       star: '#F2D98A',

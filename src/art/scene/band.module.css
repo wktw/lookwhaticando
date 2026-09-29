@@ -47,6 +47,14 @@
   scroll-padding-inline: 12%;
 }
 
+/*
+ * Collapsing, the pots, pets and pours slide right from under the screen's short date chip while the
+ * window and the sill stay put. The `translate` property composes with their own transforms.
+ */
+.scroll > * > :not(:first-child) {
+  translate: var(--band-shift, 0px) 0;
+}
+
 .snap {
   scroll-snap-align: center;
 }
@@ -210,7 +218,24 @@
   }
 }
 
+/*
+ * The pot row's focus ring: drawn over the whole band (the pinned end included), above the art,
+ * since the scroller's own outline would be painted over by what it holds.
+ */
 .scroll:focus-visible {
-  outline: 3px solid var(--focus);
-  outline-offset: -3px;
+  outline: none;
+}
+
+.follow::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  box-shadow: inset 0 0 0 3px var(--focus);
+  pointer-events: none;
+  opacity: 0;
+}
+
+.follow:has(> .scroll:focus-visible)::after {
+  opacity: 1;
 }

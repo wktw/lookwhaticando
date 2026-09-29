@@ -160,17 +160,23 @@ const bunnyLeaf: Vignette = {
   },
   stage: (ctx, [key]) => {
     const g = ctx.ground;
-    const rims = g.perches.filter((p) => p.kind === 'rim');
+    // A pot nobody is sitting on, nearest the rabbit.
+    const taken = new Set(ctx.actors.filter((a) => a.key !== key && a.spot.perch === 'rim').map((a) => a.spot.perchId));
+    const all = g.perches.filter((p) => p.kind === 'rim');
+    const rims = all.filter((p) => !taken.has(p.id));
     const bunny = ctx.actors.find((a) => a.key === key)!;
-    const rim = rims.reduce((best, p) => (Math.abs(p.x - bunny.spot.x) < Math.abs(best.x - bunny.spot.x) ? p : best), rims[0]!);
-    // Up on its haunches right beside the pot, facing it, nose to the lowest leaves over the rim.
-    const side = rim.x + rim.w / 2 + g.petSize * 0.24 <= g.x1 ? 1 : -1;
-    const x = rim.x + side * (rim.w / 2 + g.petSize * 0.2);
-    const depth = Math.min(g.d1, rim.depth + 0.18);
-    const spot: PetSpot = { x, depth, y: baseline(g.rows, depth), pose: 'sit', facing: side > 0 ? 'left' : 'right', asleep: false, z: rim.z + 3 };
+    const pool = rims.length ? rims : all;
+    const rim = pool.reduce((best, p) => (Math.abs(p.x - bunny.spot.x) < Math.abs(best.x - bunny.spot.x) ? p : best), pool[0]!);
+    // Up on the pot's rim at its edge, stretched tall and leaning in, nose to the lowest leaves.
+    const side = bunny.spot.x >= rim.x ? 1 : -1;
+    const x = rim.x + side * rim.w * BUNNY_ON_RIM;
+    const spot: PetSpot = { x, depth: rim.depth, y: rim.y, pose: 'sit', facing: side > 0 ? 'left' : 'right', asleep: false, perch: 'rim', perchId: rim.id, reach: true, z: rim.z + 3 };
     return new Map([[key!, spot]]);
   },
 };
+
+/** How far out from the pot's middle the rabbit stands on the rim, as a share of the rim's width. */
+const BUNNY_ON_RIM = 0.4;
 
 export const VIGNETTES: Vignette[] = [catOnCow, duckLine, napPile, bunnyLeaf];
 

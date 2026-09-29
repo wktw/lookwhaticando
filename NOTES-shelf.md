@@ -113,3 +113,12 @@ the places (`places/`), the pets' behaviour (`behavior/`) and the vignette regis
 - Pets: one `@preact/signals` signal per pet; a move is one update and CSS carries it (transform only). The director
   runs on timers, stops off screen (IntersectionObserver) and in hidden tabs, and under reduced motion relocates one
   pet by crossfade (Web Animations, which the global reduced-motion CSS does not cancel) at most every 30 s.
+
+14. **ui / Today screen, collapsed chip** (round 2): the band's pots, residents and pours slide right as it
+    collapses, by `chipInset` px at 64 px (default `BAND_CHIP_INSET` = 116, a "Tue 29 · 3 of 5" chip at 16 px
+    from the left plus a gap), so the short date chip never sits over a resident. Pass the real chip's width
+    if it differs. The window and sill stay put (the `translate` property, no re-layout).
+
+15. **global CSS** (round 2, FYI): `src/styles/global.css` sets `svg { overflow: visible }`, which beats any
+    `overflow="hidden"` attribute on a nested `<svg>`. The Shelf now clips with an inline style
+    (`GLASS_CLIP`); other modules relying on the attribute to clip are silently unclipped.

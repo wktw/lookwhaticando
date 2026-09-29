@@ -63,6 +63,11 @@ export interface WindowsillBandProps {
   /** 0 open (168 px) … 1 collapsed (64 px). A signal is applied without re-rendering. */
   collapse?: number | ReadonlySignal<number>;
   onWindowTap?: () => void;
+  /**
+   * Pixels the screen's short date chip takes at the left when collapsed: the pot row slides right by
+   * this much as the band collapses, so the chip never sits over a resident.
+   */
+  chipInset?: number;
   class?: string;
   style?: JSX.CSSProperties;
 }
@@ -81,11 +86,15 @@ const COIN_MS = 600;
 /** Where the watering can's spout pours from, in band units (just under the chips' top edge). */
 const SPOUT_Y = 12;
 
-function applyCollapse(el: HTMLElement | null, collapse: number) {
+/** The collapsed chip's width by default (a "Tue 29 · 3 of 5" chip and its margin). */
+export const BAND_CHIP_INSET = 116;
+
+function applyCollapse(el: HTMLElement | null, collapse: number, inset: number) {
   if (!el) return;
   const c = bandCollapse(collapse);
   el.style.setProperty('--band-clip', `${c.clip}px`);
   el.style.setProperty('--band-follow', `${c.follow}px`);
+  el.style.setProperty('--band-shift', `${+(c.t * inset).toFixed(2)}px`);
 }
 
 /** A reduced-motion acknowledgement: fade in, hold, fade out (opacity only). */
@@ -94,7 +103,7 @@ function fadeInOut(el: HTMLElement | null) {
 }
 
 export const WindowsillBand = forwardRef(function WindowsillBand(props: WindowsillBandProps, ref: Ref<WindowsillBandHandle>) {
-  const { pets = [], coins, collapse = 0, onWindowTap } = props;
+  const { pets = [], coins, collapse = 0, onWindowTap, chipInset = BAND_CHIP_INSET } = props;
   const pots = useMemo(() => props.pots.slice(0, BAND_MAX_POTS), [props.pots]);
   const band = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<HTMLDivElement>(null);
@@ -114,11 +123,11 @@ export const WindowsillBand = forwardRef(function WindowsillBand(props: Windowsi
   // Collapse: a number re-applies on render; a signal writes the two variables directly.
   useEffect(() => {
     if (typeof collapse === 'number') {
-      applyCollapse(band.current, collapse);
+      applyCollapse(band.current, collapse, chipInset);
       return;
     }
-    return effect(() => applyCollapse(band.current, collapse.value));
-  }, [collapse]);
+    return effect(() => applyCollapse(band.current, collapse.value, chipInset));
+  }, [collapse, chipInset]);
 
   // Choreography state: pours in flight, soil watered, plant pulses, a coin, passing looks.
   const [pours, setPours] = useState<Pour[]>([]);
@@ -205,7 +214,7 @@ export const WindowsillBand = forwardRef(function WindowsillBand(props: Windowsi
         <div class={b.follow} style={{ ...sceneTokens(room.tokens), background: room.wall }}>
           <div ref={sceneRef} class={[s.scene, b.scroll, room.night ? s.night : ''].filter(Boolean).join(' ')} style={{ right: u(E.width), background: room.wall }} data-time={moment.time} tabIndex={0} role="group" aria-label="Today’s plants" onKeyDown={onScrollKey}>
             <div class={s.track} style={{ width: u(world.layout.width) }}>
-              <SillSegment world={world} room={room} view={view} light={light} pots={pots} coins={coins} uid={uid} animated damp={damp} pulses={pulses} potClass={b.snap} pinned>
+              <SillSegment world={world} room={room} view={view} light={light} pots={pots} coins={coins} uid={uid} animated damp={damp} pulses={pulses} potClass={b.snap} pinned moonX={bandMoonX(widthU)}>
                 <PetLayer pets={residents} views={views} size={BAND_SPEC.scale.pet} light={light} animated expressions={looks} />
                 {pours.map((p) => (
                   <Fragment key={p.id}>
@@ -259,6 +268,17 @@ export const WindowsillBand = forwardRef(function WindowsillBand(props: Windowsi
     </div>
   );
 });
+
+/**
+ * Where the band's moon hangs: in the last pane before the pinned jamb, as the band opens (scrolled to
+ * its start), with the whole crescent clear of the jamb.
+ */
+export function bandMoonX(viewU: number): number {
+  return viewU - BAND_MOON_INSET;
+}
+
+/** How far left of the pinned jamb the band's moon hangs (its centre), in units. */
+export const BAND_MOON_INSET = 16;
 
 /** Keys of the pets a band shows (the residents of its pots), for choreography callers. */
 export function bandResidents(pots: readonly SillPot[], pets: readonly ShelfPet[]): string[] {

@@ -11,7 +11,7 @@ import { outsidePalette, ROOM } from './palette';
 import { childLight } from './lighting';
 import { SILL_SPEC } from './sill/layout';
 import { sillWorld } from './sill/world';
-import { SillBackdrop } from './sill/Backdrop';
+import { GLASS_CLIP, SillBackdrop } from './sill/Backdrop';
 import { CoinJar } from './props/CoinJar';
 import { TableLamp } from './props/TableLamp';
 import { PLACE_SCENES, type RoomPlaceId } from './places';
@@ -56,7 +56,7 @@ function SillPicture({ moment, uid }: { moment: Moment; uid: string }) {
   const at = (x: number, depth: number, size: number) => ({ x: x - size / 2, y: baseline(rows, depth) - (size * OBJECT_BASE) / 100, width: size, height: size });
   return (
     <>
-      <svg x={0} y={0} width={world.layout.width} height={100} overflow="hidden">
+      <svg x={0} y={0} width={world.layout.width} height={100} overflow="hidden" style={GLASS_CLIP}>
         <SillBackdrop layout={world.layout} room={room} view={view} beam={world.beam} casts={[]} cast={world.cast} uid={uid} />
       </svg>
       {world.layout.pots.map((p, i) => (

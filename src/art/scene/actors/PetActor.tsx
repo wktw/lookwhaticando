@@ -94,7 +94,7 @@ export function PetActor({ id, petId, species, view, size, light, outfit, castCo
           />
         </svg>
       )}
-      <div class={[s.body, gait, view.hop ? s.hop : ''].filter(Boolean).join(' ')}>
+      <div class={[s.body, gait, view.hop ? s.hop : '', view.reach ? (view.facing === 'left' ? s.reachLeft : s.reachRight) : ''].filter(Boolean).join(' ')}>
         <Pet
           petId={petId}
           pose={view.pose}

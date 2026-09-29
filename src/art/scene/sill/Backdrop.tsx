@@ -37,6 +37,8 @@ export interface SillBackdropProps {
   uid: string;
   /** Draw the lamp's pool (the Today band pins its lamp and draws the pool itself). */
   pool?: boolean;
+  /** Where the moon hangs, if not a pane left of the lamp (the Today band: just inside its pinned jamb). */
+  moonX?: number;
 }
 
 const f = (n: number) => +n.toFixed(2);
@@ -52,7 +54,7 @@ export function nightMoonX(layout: SillLayout): number {
 /** How far left of the lamp the moon hangs, in units. */
 export const NIGHT_MOON_LEFT_OF_LAMP = 52;
 
-export const SillBackdrop = memo(function SillBackdrop({ layout, room, view, beam, casts, cast, uid, pool = true }: SillBackdropProps) {
+export const SillBackdrop = memo(function SillBackdrop({ layout, room, view, beam, casts, cast, uid, pool = true, moonX }: SillBackdropProps) {
   const { width, window: win, spec } = layout;
   const rows = spec.rows;
   const lamp = layout.lamp;
@@ -66,7 +68,7 @@ export const SillBackdrop = memo(function SillBackdrop({ layout, room, view, bea
         {room.night && pool && <LampPoolGradient id={`${uid}-pool`} cx={f(lamp.x)} cy={f(rows.sillBack - 20)} r={84} />}
       </defs>
       <rect width={f(width)} height={100} fill={room.wall} />
-      <WindowView x0={win.x0} x1={win.x1} bottom={rows.glassBottom} view={view} fill={`url(#${uid}-sky)`} moonX={nightMoonX(layout)} />
+      <WindowView x0={win.x0} x1={win.x1} bottom={rows.glassBottom} view={view} fill={`url(#${uid}-sky)`} moonX={moonX ?? nightMoonX(layout)} />
       <Frame layout={layout} room={room} />
       {win.x0 >= 10 && <Curtain x1={win.x0 + 1.5} bottom={rows.sillBack + 0.6} room={room} />}
       <SillBoard width={width} rows={rows} room={room} />
@@ -78,6 +80,12 @@ export const SillBackdrop = memo(function SillBackdrop({ layout, room, view, bea
   );
 });
 
+/**
+ * The glass clips the view. The global `svg { overflow: visible }` rule beats an `overflow`
+ * attribute, so the clip is an inline style, which beats the rule in turn.
+ */
+export const GLASS_CLIP = { overflow: 'hidden' } as const;
+
 /** The view through a pane from x0 to x1, down to `bottom`: sky, clouds or stars, the street across the road. */
 export function WindowView({ x0, x1, bottom, view, fill, seed = 7, moonX }: { x0: number; x1: number; bottom: number; view: OutsidePalette; fill: string; seed?: number; moonX?: number }) {
   const street = terraceFor(x0, x1, bottom, seed);
@@ -85,7 +93,7 @@ export function WindowView({ x0, x1, bottom, view, fill, seed = 7, moonX }: { x0
   const m = sky.moon;
   const s = m.r / 20;
   return (
-    <svg x={f(x0)} y={0} width={f(x1 - x0)} height={f(bottom)} viewBox={`${f(x0)} 0 ${f(x1 - x0)} ${f(bottom)}`} overflow="hidden">
+    <svg x={f(x0)} y={0} width={f(x1 - x0)} height={f(bottom)} viewBox={`${f(x0)} 0 ${f(x1 - x0)} ${f(bottom)}`} overflow="hidden" style={GLASS_CLIP}>
       <rect x={f(x0)} width={f(x1 - x0)} height={f(bottom)} fill={fill} />
       {view.cloud && <path d={sky.clouds} fill={view.cloud} opacity={0.82} />}
       {view.star && <path d={sky.stars} fill={view.star} opacity={0.8} />}

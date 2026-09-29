@@ -156,8 +156,12 @@ describe('vignettes', () => {
     const spots = stageVignette('bunny-leaf', 'sill', g, at(0.5), pets, arrangePets(g, pets, at(0.5)));
     const bunny = spots.get('pet-bunny-lop')!;
     const rim = g.perches.filter((p) => p.kind === 'rim').reduce((a, b) => (Math.abs(a.x - bunny.x) < Math.abs(b.x - bunny.x) ? a : b));
-    // Beside the nearest pot, facing it, up on its haunches.
+    // Up on the nearest pot's rim at its edge, facing the plant, stretched up and leaning in.
     expect(Math.abs(bunny.x - rim.x)).toBeLessThan(g.petSize);
+    expect(Math.abs(bunny.x - rim.x)).toBeLessThanOrEqual(rim.w / 2);
+    expect(bunny.y).toBeCloseTo(rim.y);
+    expect(bunny.perch).toBe('rim');
+    expect(bunny.reach).toBe(true);
     expect(bunny.facing).toBe(bunny.x > rim.x ? 'left' : 'right');
     expect(bunny.pose).toBe('sit');
     // Not staged while it waits for its art.
