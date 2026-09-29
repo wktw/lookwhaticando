@@ -7,3 +7,4 @@
 .gal-cell small { font-size: 11px; color: var(--ink-2); text-align: center; line-height: 1.2; }
 .gal-cell b { font-size: 12px; text-align: center; line-height: 1.2; }
 .gal-row { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-end; }
+.gal-nav { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; } .gal-nav a { font-size: 12px; padding: 4px 10px; border-radius: 99px; background: var(--card); color: var(--ink-2); text-decoration: none; }
