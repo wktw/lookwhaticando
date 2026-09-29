@@ -8,14 +8,17 @@
 import { daysInMonth, monthIndex } from '@/domain/dates';
 import { goalsLine, monthBarLabel, monthSoFarLine, restsLine, showedUpLine, soFarLine, trendLine, weekLine } from '@/catalog/format';
 import { EMPTY } from '@/catalog/lines';
-import type { ProgressVM } from '@/state/selectors';
+import { monthJarStems, type ProgressVM } from '@/state/selectors';
+import { state, today } from '@/state/store';
+import { MonthJar } from '@/art/progress';
 import { ProgressRing } from '@/ui/ProgressRing';
 import { cx } from '@/ui/cx';
 import { PROGRESS_UI } from './copy';
 import s from './ProgressScreen.module.css';
 
 export function Hero({ vm }: { vm: ProgressVM }) {
-  const showed = showedUpLine(vm.showedUp);
+  // A one-day window reads as a grade of one ("1 of the last 1 days"): the month line says it.
+  const showed = vm.showedUp.span > 1 ? showedUpLine(vm.showedUp) : null;
   const t = vm.hero.tally;
   const soFar = t.ready ? monthSoFarLine({ month: vm.hero.month, ...vm.hero.daysSoFar }) : soFarLine(t);
   const trend = trendLine(vm.trend);
@@ -29,7 +32,11 @@ export function Hero({ vm }: { vm: ProgressVM }) {
   }
   return (
     <div class={s.hero} data-hero>
-      {showed && <p class={s.heroLine}>{showed}</p>}
+      <div class={s.heroTop}>
+        {showed ? <p class={s.heroLine}>{showed}</p> : <span />}
+        {/* This month's flowers: a stem from each habit watered so far (DESIGN §13). */}
+        <MonthJar stems={monthJarStems(state.value, today.value)} size={88} class={s.jar} />
+      </div>
       <div class={s.heroMonth}>
         {t.ready && t.percent !== null && (
           <ProgressRing value={t.percent / 100} label={vm.hero.label} valueText={`${t.percent}%`} size={76} thickness={6} tone="sage" class={s.ring}>

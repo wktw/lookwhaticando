@@ -8,7 +8,7 @@
  * Drawn as one SVG with a handful of paths (every flower of a kind in one path), so a full year is a
  * few DOM nodes, not 371 components.
  */
-import { useLayoutEffect, useMemo, useRef, useState } from 'preact/hooks';
+import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { GLYPH_INKS } from '@/art/progress';
 import { nightTone } from '@/art/scene/decor/kit';
 import { useArtLight } from '@/art/scene/moment';
@@ -106,13 +106,20 @@ export function YearStrip() {
   const scroller = useRef<HTMLDivElement>(null);
   const summary = yearSummaryLine({ year, ...vm.summary });
 
-  // Open on this week (or the year's end), a little in from the right edge.
-  useLayoutEffect(() => {
+  // Open on this week (or the year's end), a little in from the right edge. Measured in a
+  // ResizeObserver callback (after layout, before paint), so opening never forces a layout.
+  useEffect(() => {
     const el = scroller.current;
-    if (!el || el.scrollWidth <= el.clientWidth) return;
-    const col = vm.todayColumn ?? vm.weeks.length - 1;
-    const x = ((col + 1) / vm.weeks.length) * el.scrollWidth - el.clientWidth + 24;
-    el.scrollLeft = Math.max(0, x);
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(() => {
+      if (el.clientWidth === 0) return; // not laid out yet (below the fold)
+      ro.disconnect();
+      if (el.scrollWidth <= el.clientWidth) return;
+      const col = vm.todayColumn ?? vm.weeks.length - 1;
+      el.scrollLeft = Math.max(0, ((col + 1) / vm.weeks.length) * el.scrollWidth - el.clientWidth + 24);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
   }, [year]);
 
   return (

@@ -14,17 +14,25 @@
   margin: 0 0 var(--s-4);
   padding: var(--s-6) var(--s-5) var(--s-5);
   border-radius: 6px;
-  background:
-    repeating-linear-gradient(to bottom, transparent 0, transparent 29px, var(--paper-rule) 29px, var(--paper-rule) 30px) 0 58px / 100% 100% no-repeat,
-    var(--paper);
+  background: var(--paper);
   box-shadow:
     inset 0 0 0 1px var(--line),
     var(--shadow-sm);
   color: var(--ink);
 }
 
+/* A note is written on ruled paper: every line of text sits on a rule 30 px apart. */
+.note {
+  padding-top: 24px;
+  padding-bottom: 24px;
+  background:
+    repeating-linear-gradient(to bottom, transparent 0 29px, var(--paper-rule) 29px 30px) 0 24px / 100% calc(100% - 48px) no-repeat,
+    var(--paper);
+}
+
 .note .line,
-.note .opener {
+.note .opener,
+.note .stamps {
   line-height: 30px;
 }
 
@@ -62,7 +70,8 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  margin: var(--s-4) 0 0;
+  min-height: 30px;
+  margin: 30px 0 0;
   font-family: var(--font-display);
   font-size: var(--fs-body);
   color: var(--ink);

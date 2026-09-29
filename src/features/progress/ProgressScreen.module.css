@@ -43,15 +43,27 @@
   position: relative;
 }
 
+.heroTop {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--s-3);
+}
+
+.jar {
+  flex: none;
+  margin: -8px -6px -6px 0;
+}
+
 .heroEmpty {
   padding: var(--s-6) var(--s-5);
 }
 
 .heroLine {
   margin: 0;
-  max-width: 22ch;
+  min-width: 0;
   font-family: var(--font-display);
-  font-size: var(--fs-display);
+  font-size: min(var(--fs-display), max(1.55rem, 7vw));
   line-height: 1.15;
   color: var(--ink);
   text-wrap: balance;
@@ -150,6 +162,17 @@
 /* ---------- sections ---------- */
 .section {
   margin-top: var(--s-8);
+}
+
+/* Room for what follows a frame later (below the fold), so the page doesn't jump. */
+.pending {
+  min-height: 1800px;
+}
+
+/* Below the fold: laid out and painted when scrolled near (a first paint that stays quick). */
+.later {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 480px;
 }
 
 .sectionHead {
@@ -581,26 +604,22 @@
 }
 
 @media (min-width: 900px) {
+  /*
+   * The DESIGN §4 column: 720 px beside the sidebar. Centred on the shell's own column whatever its
+   * padding (see NOTES-w2-progress.md: the shell's column is narrower than --content-max today).
+   */
   .screen {
+    --col: min(var(--content-max), calc(100vw - var(--sidebar-w) - 64px));
+    width: var(--col);
+    margin-inline: calc((100% - var(--col)) / 2);
     padding-top: calc(var(--safe-top) + 32px);
+    padding-inline: 0;
   }
   .hero {
-    flex-direction: row;
-    flex-wrap: wrap;
-    align-items: flex-end;
-    column-gap: var(--s-6);
+    padding: var(--s-6) var(--s-6) var(--s-5);
   }
-  .heroLine {
-    flex: 1 1 22ch;
-  }
-  .heroMonth {
-    flex: 0 1 auto;
-    padding-top: 0;
-    border-top: 0;
-  }
-  .chips {
-    flex-basis: 100%;
-    padding-top: var(--s-3);
-    border-top: 1px solid var(--line);
+  .jar {
+    width: 112px;
+    height: 112px;
   }
 }

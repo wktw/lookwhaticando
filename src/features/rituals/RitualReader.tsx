@@ -37,7 +37,7 @@ export function RitualReader({ request }: { request: RitualRequest | null }) {
 
   const title = letter ? titleOf(letter, look) : season ? seasonWords(season, look).title : SUNDAY_NOTE_TITLE;
   return (
-    <Sheet open={open} onClose={closeRitual} title={title} hideTitle size="md" detents={['large']} peek={letter ? peekOf(letter) : undefined} class={s.sheet}>
+    <Sheet open={open} onClose={closeRitual} title={title} hideTitle size="md" detents={letter?.kind === 'herbarium' ? ['large'] : ['content']} peek={letter ? peekOf(letter) : undefined} class={s.sheet}>
       {letter?.kind === 'sundayNote' && <SundayNote note={letter} look={look} />}
       {letter?.kind === 'herbarium' && <HerbariumPage page={letter} look={look} />}
       {letter?.kind === 'anniversary' && <Anniversary note={letter} look={look} />}

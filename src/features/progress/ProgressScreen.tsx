@@ -55,6 +55,21 @@ function useRitualReader(): ComponentType | null {
   return Host;
 }
 
+/**
+ * The screen's first frame is the hero, the months and the plants; everything below the fold
+ * (the calendar, the year, records, pins, the memory shelf) follows a frame later, so opening
+ * Progress on a long history stays quick.
+ */
+function useAfterFirstPaint(): boolean {
+  const [done, setDone] = useState(false);
+  useEffect(() => {
+    let t = 0;
+    const raf = requestAnimationFrame(() => (t = window.setTimeout(() => setDone(true), 0)));
+    return () => (cancelAnimationFrame(raf), clearTimeout(t));
+  }, []);
+  return done;
+}
+
 /** The calendar's habit filter: "All habits" and each habit, as one radio group with roving focus. */
 function HabitFilter({ value, onChange }: { value: string | null; onChange: (id: string | null) => void }) {
   const habits = [...state.value.habits].sort((a, b) => Number(a.archivedOn !== undefined) - Number(b.archivedOn !== undefined) || a.order - b.order);
@@ -93,6 +108,7 @@ export function ProgressScreen() {
   const shelf = memoryShelfView.value;
   const [calHabit, setCalHabit] = useState<string | null>(null);
   const Reader = useRitualReader();
+  const rest = useAfterFirstPaint();
   const live = vm.garden.filter((g) => !g.retired);
   const retired = vm.garden.filter((g) => g.retired);
   const hasHabits = vm.garden.length > 0;
@@ -129,20 +145,24 @@ export function ProgressScreen() {
             )}
           </Section>
 
-          <Section id="calendar" title={T.calendar}>
+          {!rest ? (
+            <div class={s.pending} aria-hidden="true" />
+          ) : (
+            <>
+          <Section id="calendar" class={s.later} title={T.calendar}>
             <HabitFilter value={filter} onChange={setCalHabit} />
             <div class={s.card}>
               <Calendar key={filter ?? 'all'} habitId={filter} idPrefix="progress-cal" />
             </div>
           </Section>
 
-          <Section id="year" title={T.year}>
+          <Section id="year" class={s.later} title={T.year}>
             <div class={s.card}>
               <YearStrip />
             </div>
           </Section>
 
-          <div class={s.pair}>
+          <div class={cx(s.pair, s.later)}>
             <Section id="records" title={T.records}>
               <Records records={vm.records} />
             </Section>
@@ -151,13 +171,15 @@ export function ProgressScreen() {
             </Section>
           </div>
 
-          <Section id="pins" title={T.pins} meta={badges.earned > 0 ? String(badges.earned) : null}>
+          <Section id="pins" class={s.later} title={T.pins} meta={badges.earned > 0 ? String(badges.earned) : null}>
             <Pins badges={badges.badges} />
           </Section>
 
-          <Section id="memory" title={T.memory}>
+          <Section id="memory" class={s.later} title={T.memory}>
             <MemoryShelf shelf={shelf} garden={vm.garden} />
           </Section>
+            </>
+          )}
         </>
       )}
       {Reader && <Reader />}
