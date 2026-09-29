@@ -118,4 +118,23 @@ describe('check-in announcements (burst rule)', () => {
     ).toBe('Walk, Read and Stretch watered. Plus 10 coins. Undo available.');
     expect(settledCheckInLine([])).toBe('');
   });
+
+  it('keeps the pet and plant reactions in a multi-habit burst, the latest two distinct', async () => {
+    const { settledCheckInLine, MAX_SETTLED_NOTES } = await import('@/fx/checkin');
+    expect(MAX_SETTLED_NOTES).toBe(2);
+    expect(
+      settledCheckInLine([
+        { name: 'Walk', coins: 5, tiny: false, note: 'Pudding opened one eye.' },
+        { name: 'Read', coins: 5, tiny: false },
+      ]),
+    ).toBe('Walk and Read watered. Plus 10 coins. Pudding opened one eye. Undo available.');
+    expect(
+      settledCheckInLine([
+        { name: 'Walk', coins: 5, tiny: false, note: 'Pudding opened one eye.' },
+        { name: 'Read', coins: 0, tiny: false, note: 'The pothos put out a new leaf.' },
+        { name: 'Yoga', coins: 0, tiny: false, note: 'The pothos put out a new leaf.' },
+        { name: 'Water', coins: 0, tiny: false, note: 'Clover rolled into the sun.' },
+      ]),
+    ).toBe('Walk, Read, Yoga and Water watered. Plus 5 coins. The pothos put out a new leaf. Clover rolled into the sun. Undo available.');
+  });
 });

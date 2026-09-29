@@ -47,6 +47,8 @@ import {
 import { ToastNote } from '@/ui/Toaster';
 import { CuttingGlass, EmptyPot, ObjectArt, PaperNote, themeLight, WaterDrop, type ObjectName } from '@/ui/art/objects';
 import { PASTELS, RARITIES } from '@/catalog/types';
+import { COLLECTIBLES } from '@/catalog/collectibles';
+import { CollectibleArt } from '@/art/CollectibleArt';
 import { burst, PETAL_SHAPES } from '@/fx/confetti';
 import { petalAt, planPetals } from '@/fx/particles';
 import { petalMix, type PetalMix } from '@/fx/petalColours';
@@ -686,6 +688,29 @@ const LIGHTS: [string, Light][] = [
   ['window right', { from: 'right', night: false }],
   ['lamplight', NIGHT_LIGHT],
 ];
+
+/** Every lockable collectible, owned (colour) beside locked (the ink silhouette SeriesSheet and MachineInfo show). */
+const LOCKABLE = COLLECTIBLES.filter((c) => c.category !== 'pet');
+
+function Locked() {
+  return (
+    <Panels>
+      {() => (
+        <div class="fxui-art">
+          {LOCKABLE.map((c) => (
+            <div key={c.id}>
+              <div class="fxui-row" style={{ gap: '6px', flexWrap: 'nowrap' }}>
+                <CollectibleArt id={c.id} size={52} />
+                <CollectibleArt id={c.id} size={52} silhouette />
+              </div>
+              <small>{c.name}</small>
+            </div>
+          ))}
+        </div>
+      )}
+    </Panels>
+  );
+}
 
 function Objects() {
   return (
@@ -1329,6 +1354,7 @@ export const SECTIONS: GallerySection[] = [
   { id: 'fxui-surfaces', title: 'UI kit · cards, section headers, list rows, empty states', render: () => <Surfaces /> },
   { id: 'fxui-status', title: 'UI kit · progress, pills, tier labels, numbers', render: () => <Status /> },
   { id: 'fxui-objects', title: 'UI kit · small drawings, under every light', render: () => <Objects /> },
+  { id: 'fxui-locked', title: 'UI kit · locked collectibles as ink silhouettes', render: () => <Locked /> },
   { id: 'fxui-sheets', title: 'UI kit · sheets and the confirm dialog', render: (p) => <Sheets params={p} /> },
   { id: 'fxui-notes', title: 'Notes (toasts)', render: (p) => <Notes params={p} /> },
   { id: 'fxui-fx', title: 'FX · petals, the coin, the foil glint', render: (p) => <Fx params={p} /> },

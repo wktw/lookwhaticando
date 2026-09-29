@@ -57,7 +57,10 @@ export interface CheckInNoteOptions {
 const heard = new Map<string, { name: string; coins: number; tiny: boolean; note?: string }>();
 const SETTLE_GROUP = 'checkin';
 
-/** "Walk and Read watered. Plus 10 coins." — one sentence for every check-in since the last quiet. */
+/** How many reactions a settled burst reads out after the list of habits. */
+export const MAX_SETTLED_NOTES = 2;
+
+/** "Walk and Read watered. Plus 10 coins. Pudding opened one eye." — one sentence for every check-in since the last quiet. */
 export function settledCheckInLine(entries: readonly { name: string; coins: number; tiny: boolean; note?: string }[]): string {
   if (entries.length === 0) return '';
   const coins = entries.reduce((sum, e) => sum + e.coins, 0);
@@ -68,7 +71,9 @@ export function settledCheckInLine(entries: readonly { name: string; coins: numb
   }
   const names = entries.map((e) => e.name);
   const list = `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
-  return `${list} watered.${plus} ${FX_UI.undo} available.`;
+  // The pet and plant reactions sighted users read on each note: the latest distinct ones, at most two.
+  const notes = [...new Set(entries.map((e) => e.note?.trim()).filter((n): n is string => !!n))].slice(-MAX_SETTLED_NOTES);
+  return [`${list} watered.${plus}`, ...notes, `${FX_UI.undo} available.`].join(' ');
 }
 
 function announceCheckIns() {

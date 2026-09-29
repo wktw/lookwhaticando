@@ -176,12 +176,26 @@ select {
 .collectible-silhouette {
   opacity: 0.13;
 }
-.collectible-silhouette svg *:not([fill='none']) {
+/*
+ * CollectibleArt puts the class on a wrapper span (plants, pots) or on the root <svg> itself
+ * (wearables, treats, decor), so both placements are matched. The root is inked, every painted
+ * shape is inked, and shapes without a fill of their own inherit, so anything meant to stay
+ * unpainted (fill="none", or inside a fill="none" group) stays unpainted.
+ */
+:is(svg.collectible-silhouette, .collectible-silhouette svg),
+:is(svg.collectible-silhouette, .collectible-silhouette svg) [fill]:not([fill='none']) {
   fill: var(--ink) !important;
 }
-.collectible-silhouette svg [stroke]:not([stroke='none']) {
+:is(svg.collectible-silhouette, .collectible-silhouette svg) :not([fill]) {
+  fill: inherit !important;
+}
+:is(svg.collectible-silhouette, .collectible-silhouette svg) [stroke]:not([stroke='none']) {
   stroke: var(--ink) !important;
 }
-:root[data-theme='night'] .collectible-silhouette {
+:is(svg.collectible-silhouette, .collectible-silhouette svg) * {
+  fill-opacity: 1 !important;
+  stroke-opacity: 1 !important;
+}
+[data-theme='night'] .collectible-silhouette {
   opacity: 0.16;
 }
