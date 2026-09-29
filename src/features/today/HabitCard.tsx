@@ -53,12 +53,20 @@ export function ringStateOf(card: Pick<HabitCardVM, 'rested' | 'tiny' | 'done' |
   return undefined;
 }
 
+/** A unit for one step: "glasses" → "glass", "pages" → "page", "km" stays (VOICE §23: "Add 1 glass to Drink water"). */
+export function unitFor(unit: string | null, n: number): string {
+  if (!unit || n !== 1) return unit ?? '';
+  if (/(ss|sh|ch|x)es$/i.test(unit)) return unit.slice(0, -2);
+  if (/[^s]s$/i.test(unit)) return unit.slice(0, -1);
+  return unit;
+}
+
 /** The ring's accessible name (VOICE §23): "Walk" · "Add 1 glass to Drink water" · "Walk for Saturday". */
 export function ringLabel(card: Pick<HabitCardVM, 'name' | 'flexible' | 'target' | 'step' | 'unit' | 'count' | 'rested' | 'tiny'>, date: DateKey, past: boolean): string {
   const name = past ? forDayLabel(card.name, date) : card.name;
   const counting = !card.flexible && card.target > 1 && !card.rested && !card.tiny && card.count < card.target;
   if (!counting) return name;
-  return fillLine(TODAY_LINES.addOne, { step: num(card.step), unit: card.unit ?? '', habit: name }).replace(/ {2,}/g, ' ');
+  return fillLine(TODAY_LINES.addOne, { step: num(card.step), unit: unitFor(card.unit, card.step), habit: name }).replace(/ {2,}/g, ' ');
 }
 
 /** What the ring's description reads after its name: "5 of 8 glasses", or the status line. */

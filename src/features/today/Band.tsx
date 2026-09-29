@@ -16,7 +16,8 @@ import type { SillPot, ShelfPet } from '@/art/scene';
 import { BAND_CLOSED_PX, BAND_OPEN_PX } from '@/art/scene';
 import { CoinIcon } from '@/art/icons';
 import { COUNTS, GREETINGS, TODAY_LINES, fillLine } from '@/catalog/lines';
-import { counted, dayProgressAria, vineChip } from '@/catalog/format';
+import { dayProgressAria, vineChip } from '@/catalog/format';
+import { amountHead } from './WalletSheet';
 import type { AppState } from '@/state/types';
 import type { TodayVM } from '@/state/selectors';
 import { AnimatedNumber } from '@/ui/AnimatedNumber';
@@ -150,7 +151,7 @@ export const Band = forwardRef(function Band({ vm, state, coins, onOpenNote, onW
   };
 
   const quiet = vm.quietRewards;
-  const vine = vineChip(vm.progress, quiet ? 0 : vm.coinsToday);
+  const vine = vineChip(vm.progress, quiet || !vm.isToday ? 0 : vm.coinsToday);
   const valueText = dayProgressAria(vm.progress);
   const day = Number(vm.date.slice(8, 10));
   const greeting = greetingLine(vm.greeting, day);
@@ -161,7 +162,7 @@ export const Band = forwardRef(function Band({ vm, state, coins, onOpenNote, onW
     : vm.storyWaiting
       ? { kind: 'story' as const, label: fillLine(TODAY_LINES.storyWaiting, { habit: state.habits.find((h) => h.id === vm.storyWaiting!.habitId)?.name ?? '' }), onOpen: () => onOpenNote?.() }
       : undefined;
-  const walletLabel = `${counted(coins, COUNTS.coins)}. ${TODAY_COPY.whatCanIGet}`;
+  const walletLabel = `${amountHead(coins, COUNTS.coins)}. ${TODAY_COPY.whatCanIGet}`;
 
   return (
     <div ref={wrap} class={s.wrap} data-quiet={quiet ? '' : undefined}>

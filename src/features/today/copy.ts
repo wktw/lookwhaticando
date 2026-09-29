@@ -4,6 +4,11 @@
  * person reads as copy comes from src/catalog/lines.ts via format.ts; see NOTES-w2-today.md for the
  * request to move these into lines.ts.
  */
+import { SETTINGS } from '@/catalog/lines';
+
+/** "Save" (the Habit Editor's button), for the Season Review's changed chips. */
+export const SETTINGS_SAVE = SETTINGS.editor.save;
+
 export const TODAY_COPY = {
   /** The day's progressbar name. */
   today: 'Today',
