@@ -4,6 +4,7 @@ import { currentTab } from './router';
 import { routeFor } from './routes';
 import { preloadAllWhenIdle } from './screens';
 import { ScreenHost } from './ScreenHost';
+import { SheetHosts } from './SheetHosts';
 import { Sidebar } from './Sidebar';
 import { TabBar } from './TabBar';
 import { SHELL_COPY } from './copy';
@@ -33,6 +34,7 @@ export function App() {
         <ScreenHost tab={tab} />
       </main>
       <TabBar tab={tab} />
+      <SheetHosts />
     </div>
   );
 }
