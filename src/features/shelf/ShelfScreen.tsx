@@ -18,6 +18,7 @@ import { openHabitDetail, openPetCard } from '@/features/habits/open';
 import { AnimatedNumber } from '@/ui/AnimatedNumber';
 import { Button } from '@/ui/Button';
 import { EmptyState } from '@/ui/EmptyState';
+import { SectionHeader } from '@/ui/SectionHeader';
 import { announce, announceSettled } from '@/ui/announce';
 import { toast } from '@/ui/toast';
 import { haptic } from '@/fx/haptics';
@@ -360,17 +361,19 @@ export function ShelfScreen() {
       )}
 
       {!below ? null : empty ? (
-        <EmptyState
-          class={s.empty}
-          title={EMPTY_TITLE}
-          action={
-            <Button variant="secondary" onClick={() => (location.hash = '#/capsules')}>
-              {SHELF_COPY.capsules}
-            </Button>
-          }
-        >
-          {EMPTY_TEXT}
-        </EmptyState>
+        <section class={s.roster} aria-labelledby="shelf-pets">
+          <SectionHeader id="shelf-pets" title={SHELF_COPY.pets} class={s.sectionHead} />
+          <EmptyState
+            title={EMPTY_TITLE}
+            action={
+              <Button variant="secondary" onClick={() => (location.hash = '#/capsules')}>
+                {SHELF_COPY.capsules}
+              </Button>
+            }
+          >
+            {EMPTY_TEXT}
+          </EmptyState>
+        </section>
       ) : (
         <PetRoster out={shelf.out} indoors={shelf.indoors} capacity={shelf.capacity} onOpen={openPetCard} />
       )}
