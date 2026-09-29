@@ -2026,6 +2026,41 @@ export const SCHEDULE_LINES = {
   targetBare: '{schedule} · {target}',
 } as const;
 
+/**
+ * The Habit Editor's field notes (VOICE.md §22), by `HabitIssue.code` (domain/habits.ts): what to
+ * do, never "invalid" or "error". Slot: {max}.
+ */
+export const HABIT_ISSUES = {
+  name: 'Give it a name, up to {max} characters.',
+  icon: 'Pick an icon.',
+  color: 'Pick a colour.',
+  'plant-locked': 'That plant is still in a capsule.',
+  'pot-locked': 'That pot is still in a capsule.',
+  effort: 'Pick about how long it takes.',
+  'too-many-big': '{max} long habits is the most at once. Pick a shorter time, or pause one of the others.',
+  'time-of-day': 'Pick a time of day.',
+  polarity: 'Do it, or avoid it?',
+  'due-day': 'Pick a day from 1 to 31, or the last day of the month.',
+  anchor: 'Keep it under {max} characters.',
+  unit: 'Keep it under {max} characters.',
+  notes: 'Keep it under {max} characters.',
+  why: 'Keep it under {max} characters.',
+  'anchor-self': 'Pick another habit to follow.',
+  'anchor-unknown': 'Pick another habit to follow.',
+  'anchor-archived': 'Pick another habit to follow.',
+  'anchor-cycle': 'Pick another habit to follow.',
+  'ends-on': 'Pick a last day from today on.',
+  'days-empty': 'Pick at least one day.',
+  'days-invalid': 'Pick days of the week.',
+  'every-invalid': 'Pick how often.',
+  'times-range': 'That’s more times than the stretch has days for.',
+  'flexible-target': 'A few-times-a-week habit counts one watering a day.',
+  'target-range': 'Pick an amount from 1 to {max}.',
+  'step-range': 'Pick a step of at least 1.',
+  'tiny-label': 'The tiny version needs a few words.',
+  'tiny-count-range': 'Make the tiny version smaller than the whole amount.',
+} as const;
+
 /** Flexible periods by `every` (weekly: 1–4 weeks; monthly: 1, 2, 3, 6, 12 months). */
 export const PERIOD_WORDS = {
   weekly: { 1: 'week', 2: 'fortnight', 3: '3 weeks', 4: '4 weeks' },

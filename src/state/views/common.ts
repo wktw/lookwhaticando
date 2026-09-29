@@ -364,16 +364,19 @@ export function cardSubtitle(i: SubtitleInput): StatusLine {
   if (i.streak && i.streak.length >= 3) return { kind: 'streak', length: i.streak.length, unit: i.streak.unit, polarity: i.habit.polarity };
   const ctx = trackingCtx(i.s, i.env.today);
   const logs = logsOf(i.s, i.habit.id);
-  const t = habitTally(i.habit, logs, trailingWindow(i.env.today, 30), ctx);
+  // Both walk the habit's history: memoised by the identity of (habit, logs, off days), so a warm
+  // Today re-renders without re-walking (a check-in replaces only that habit's logs).
+  const t = memoByHabit(i.habit, logs, ctx, 'card-tally30', () => habitTally(i.habit, logs, trailingWindow(i.env.today, 30), ctx));
+  const phraseOf = () => memoByHabit(i.habit, logs, ctx, 'card-phrase', () => habitPhrase(i.habit, logs, ctx));
   let phrase: HabitPhrase | null | undefined;
   if (isPctReady(t)) {
-    phrase = habitPhrase(i.habit, logs, ctx);
+    phrase = phraseOf();
     if (phrase && phraseHasSome(phrase)) return { kind: 'consistency', phrase };
   }
   const plant = i.plant ?? plantVM(i.s, i.habit, i.env.today, i.env.local);
   if (plant.displayStage >= ROOTING && plant.displayStage < POTTED && plant.checkinsToNext !== null) return { kind: 'rooting', count: plant.checkinsToNext };
   if (plant.displayStage < ROOTING) return { kind: 'new' };
-  if (phrase === undefined) phrase = habitPhrase(i.habit, logs, ctx);
+  if (phrase === undefined) phrase = phraseOf();
   if (phrase && phraseHasSome(phrase)) return { kind: 'consistency', phrase };
   return { kind: 'none' };
 }

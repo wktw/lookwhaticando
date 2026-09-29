@@ -1073,6 +1073,11 @@ or avoid" ("Do it" · "Avoid it") · "Why it matters" · "Who keeps it company?"
 "Plant it" (new) / "Save" (edit). With 3 long habits already: "3 long habits is the most at once. Pick a
 shorter time, or pause one of the others."
 
+The editor's field notes say what to do, never "invalid": "Give it a name, up to 60 characters." · "Pick an
+icon." · "That plant is still in a capsule." · "Pick at least one day." · "Pick another habit to follow." ·
+"The tiny version needs a few words." · "Make the tiny version smaller than the whole amount." (all in
+`HABIT_ISSUES`, lines.ts, by issue code).
+
 How often, as a habit's summary (Habit Detail, the history): "Every day" · "Mon/Wed/Fri" · "3 times a
 week" · "Once every 2 weeks" · "Twice a month" · "Once a quarter" · "Once a year". A change: "From Oct 6:
 Mon/Wed/Fri"; the first rule: "Since Sep 22: Every day"; a count habit adds its amount: "Every day · 8
