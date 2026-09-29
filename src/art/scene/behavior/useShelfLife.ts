@@ -1,0 +1,52 @@
+/**
+ * Runs the pets' director for a scene: live while the scene is on screen and its tab visible, still
+ * under reduced motion (DESIGN §10.5), and not at all when `live` is off (the gallery, photo mode).
+ */
+import type { RefObject } from 'preact';
+import { useCallback, useEffect, useMemo } from 'preact/hooks';
+import type { Signal } from '@preact/signals';
+import { prefersReducedMotion } from '@/fx/motion';
+import type { PetSpot } from '../model';
+import type { ActorView } from '../actors/PetActor';
+import type { Moment } from '../time';
+import { useVisible } from '../hooks';
+import { Director, type DirectorPet } from './director';
+
+export function useShelfLife(
+  pets: readonly DirectorPet[],
+  start: ReadonlyMap<string, PetSpot>,
+  { moment, live, sceneRef, vignettes = true }: { moment: Moment; live: boolean; sceneRef: RefObject<HTMLElement>; vignettes?: boolean },
+): ReadonlyMap<string, Signal<ActorView>> {
+  const director = useMemo(
+    () =>
+      new Director(pets, start, {
+        moment,
+        vignettes,
+        reduced: prefersReducedMotion,
+        element: (key) => sceneRef.current?.querySelector<HTMLElement>(`[data-pet="${CSS.escape(key)}"]`) ?? null,
+      }),
+    // A new cast or a new stage makes a new director; the moment is passed on below.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [pets, start],
+  );
+
+  useEffect(() => director.setMoment(moment), [director, moment]);
+
+  const onVisible = useCallback(
+    (visible: boolean) => {
+      if (!live) return;
+      if (visible) director.start();
+      else director.stop();
+    },
+    [director, live],
+  );
+  useVisible(sceneRef, onVisible);
+
+  useEffect(() => {
+    if (!live) return;
+    director.start();
+    return () => director.stop();
+  }, [director, live]);
+
+  return director.views;
+}

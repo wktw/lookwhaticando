@@ -1,0 +1,251 @@
+/*
+ * The Shelf's scenes. Everything is sized in room units: 1 unit = 1cqh of the scene, so a scene is
+ * laid out once by its height and scrolls sideways. Motion is transform and opacity only, and every
+ * animation pauses while the scene is off screen or the tab is hidden ([data-paused]).
+ */
+
+.scene {
+  position: relative;
+  container-type: size;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  isolation: isolate;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.scene::-webkit-scrollbar {
+  display: none;
+}
+
+.track {
+  position: relative;
+  height: 100%;
+  overflow: hidden;
+}
+
+.segment {
+  position: absolute;
+  top: 0;
+  height: 100%;
+}
+
+.pot,
+.decor,
+.prop {
+  pointer-events: none;
+}
+
+.decor {
+  overflow: visible;
+}
+
+/* ── Plant tags: paper on a stake, real text ─────────────────────────────────── */
+
+.tag {
+  position: absolute;
+  translate: -20% -100%;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.tag::after {
+  content: '';
+  width: max(1.5px, 0.55cqh);
+  height: 5cqh;
+  margin-left: 2.4cqh;
+  background: #efe3cf;
+  border-radius: 0 0 1px 1px;
+}
+
+.tagCard {
+  display: flex;
+  flex-direction: column;
+  max-width: 24cqh;
+  padding: 0.5cqh 1.3cqh 0.7cqh;
+  border-radius: 0.7cqh;
+  background: #fffdf9;
+  box-shadow: 0.55cqh 0.55cqh 0 var(--shade);
+  rotate: -4deg;
+  color: #3b3236;
+  font-family: var(--font-display);
+  line-height: 1.12;
+}
+
+.tagName,
+.tagNote {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tagName {
+  font-size: max(9px, 3.1cqh);
+}
+
+.tagNote {
+  font-size: max(8px, 2.5cqh);
+  font-style: italic;
+  color: #66585d;
+}
+
+.night .tagCard {
+  background: #efe6dc;
+}
+
+/* ── Pets ─────────────────────────────────────────────────────────────────────── */
+
+.actor {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transition-property: transform, opacity;
+  transition-timing-function: linear;
+  will-change: transform;
+}
+
+.cast {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.body {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform-origin: 50% 94%;
+}
+
+.body > svg {
+  display: block;
+}
+
+/* A cow's four-beat walk: one small bob per footfall. */
+.gaitCow {
+  animation: gait-cow 1.2s linear infinite;
+}
+
+@keyframes gait-cow {
+  0%, 25%, 50%, 75%, 100% {
+    transform: translateY(0);
+  }
+  12.5%, 62.5% {
+    transform: translateY(-1%) rotate(0.5deg);
+  }
+  37.5%, 87.5% {
+    transform: translateY(-1%) rotate(-0.5deg);
+  }
+}
+
+/* Cats, dogs, bears: a soft two-beat pad. */
+.gaitPad {
+  animation: gait-pad 0.72s ease-in-out infinite;
+}
+
+@keyframes gait-pad {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-0.8%);
+  }
+}
+
+.gaitDuck {
+  animation: gait-duck 0.56s ease-in-out infinite alternate;
+}
+
+@keyframes gait-duck {
+  from {
+    transform: rotate(-4deg);
+  }
+  to {
+    transform: rotate(4deg);
+  }
+}
+
+/* Frogs and rabbits hop along. */
+.gaitHop {
+  animation: gait-hop 0.5s cubic-bezier(0.3, 0, 0.5, 1) infinite;
+}
+
+@keyframes gait-hop {
+  0%, 100% {
+    transform: translateY(0) scaleY(1);
+  }
+  15% {
+    transform: translateY(0) scaleY(0.94);
+  }
+  50% {
+    transform: translateY(-6%) scaleY(1.03);
+  }
+  85% {
+    transform: translateY(0) scaleY(0.97);
+  }
+}
+
+.gaitScurry {
+  animation: gait-pad 0.26s ease-in-out infinite;
+}
+
+/* A cat's two-stage hop: a crouch, then the leap while the move carries it across. */
+.hop {
+  animation: hop 0.72s cubic-bezier(0.2, 0.8, 0.2, 1) 1;
+}
+
+@keyframes hop {
+  0% {
+    transform: translateY(0) scale(1, 1);
+  }
+  25% {
+    transform: translateY(0) scale(1.04, 0.9);
+  }
+  60% {
+    transform: translateY(-16%) scale(0.98, 1.04);
+  }
+  88% {
+    transform: translateY(0) scale(1.03, 0.96);
+  }
+  100% {
+    transform: translateY(0) scale(1, 1);
+  }
+}
+
+/* A resident looks up when its plant is watered. */
+.react {
+  animation: react 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) 1;
+}
+
+@keyframes react {
+  0%, 100% {
+    transform: translateY(0) rotate(0);
+  }
+  30% {
+    transform: translateY(-2%) rotate(-3deg);
+  }
+  60% {
+    transform: translateY(-1%) rotate(-2deg);
+  }
+}
+
+/* Off screen or in a hidden tab, nothing moves. */
+.scene[data-paused] * {
+  animation-play-state: paused !important;
+}
+
+/* Lamplight: the room darkens away from the lamp (over everything, never catching taps). */
+.dusk {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 900;
+}

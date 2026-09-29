@@ -1,46 +1,20 @@
 /**
- * Scene art: the Meadow (where pets live) and the Today windowsill header.
+ * Scene art: the Shelf (DESIGN §8.4, §9.4) and the Today windowsill band (§9.1).
  *
- * <MeadowScene> fills its container and renders sky (by time of day), hills, the big tree,
- * fence and gate, wildflowers, placed decor and a planter box. Pets and other live actors are
- * rendered by the Meadow screen as `children` in the ground layer, positioned with GROUND
- * coordinates via `groundToStyle(x, y)` (x 0..1 across, y 0..1 from the horizon to the front
- * edge; see ./ground.ts for the full contract). Decor goes where `placeDecor` / `decorDefaultPos`
- * say for the scene's aspect, and `decorGroundRect` / `planterGroundRect` map what pets should
- * walk around (see ./placement.ts).
+ * Everything is laid out in room units (1 unit = 1% of the scene's height) and lit by one window:
+ * `sceneLight`/`windowLight` by day, the lamp from the right at night.
  */
-export { timeOfDayAt, TIMES_OF_DAY, type TimeOfDay } from './time';
-export { MeadowScene, type MeadowSceneProps, type PlacedDecor } from './MeadowScene';
-export {
-  WindowsillScene,
-  sillLayout,
-  sillRow,
-  sillSlotStyle,
-  SILL_SURFACE,
-  SILL_MAX_ITEMS,
-  type SillRow,
-  type WindowsillSceneProps,
-} from './WindowsillScene';
-export {
-  groundToStyle,
-  groundPoint,
-  pointToGround,
-  depthAt,
-  HORIZON,
-  PET_UNITS,
-  type GroundPoint,
-  type GroundStyleOptions,
-} from './ground';
-export {
-  decorDefaultPos,
-  placeDecor,
-  decorGroundRect,
-  planterGroundRect,
-  pathAt,
-  DECOR_DEFAULT_POS,
-  type GroundPos,
-  type GroundRect,
-} from './placement';
-export { unitScale, decorUnitScale } from './layout';
-export { MAX_PLANTERS, type PlanterPlant } from './meadow/Planter';
+export { timeOfDayAt, skyTime, seasonAt, momentAt, TIMES_OF_DAY, SEASONS, type TimeOfDay, type Season, type Moment } from './time';
+export { SillScene, type SillSceneProps } from './SillScene';
+export type { SillPot, ShelfPet, ShelfDecor, PetSpot } from './model';
+export { lightAtSun, childLight, towardLight, LIGHT_FROMS } from './lighting';
+export { CoinJar, jarLevel, JAR_FULL } from './props/CoinJar';
+export { TableLamp } from './props/TableLamp';
+export { PET_UNITS } from './room';
 export { decorFootprint } from './decor';
+export { WindowsillBand, bandResidents, type WindowsillBandHandle, type WindowsillBandProps } from './WindowsillBand';
+export { bandCollapse, BAND_OPEN_PX, BAND_CLOSED_PX, type BandCollapse } from './band';
+export { ShelfScene, type ShelfSceneProps } from './ShelfScene';
+export { PlaceArt, type PlaceArtProps } from './PlaceArt';
+export { PLACE_SCENES, type RoomPlaceId } from './places';
+export { VIGNETTES, registerVignette, findVignette, vignetteById, type Vignette, type VignetteContext } from './behavior/vignettes';

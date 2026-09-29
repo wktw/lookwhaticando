@@ -1,0 +1,235 @@
+/**
+ * The Today band (DESIGN §9.1): the nearest stretch of the sill, 168 px tall, collapsing to 64 px as
+ * the page scrolls. The real sky through the window, the sunbeam crossing the sill, today's habit pots
+ * (up to six, scrolling sideways with snap) and whoever lives in them, peeking over the rim. Tapping
+ * the window opens the Shelf. The screen lays the greeting chip (top left) and the wallet (top right)
+ * over it.
+ *
+ * The check-in choreography drives it through a ref (`WindowsillBandHandle`): `pour` a stream of water
+ * onto a pot, `coinToJar`, and let a resident `react`. Under reduced motion the state changes at once.
+ */
+import { Fragment, type JSX, type Ref } from 'preact';
+import { forwardRef } from 'preact/compat';
+import { useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'preact/hooks';
+import { effect, signal, type ReadonlySignal } from '@preact/signals';
+import type { Hemisphere } from '@/art/light';
+import { prefersReducedMotion } from '@/fx/motion';
+import type { ShelfPet, SillPot } from './model';
+import { petKey } from './model';
+import { momentAt, type Moment } from './time';
+import { outsidePalette, ROOM } from './palette';
+import { childLight } from './lighting';
+import { arrangePets } from './arrange';
+import { BAND_END, BAND_MAX_POTS, BAND_SPEC } from './sill/layout';
+import { sillWorld } from './sill/world';
+import { SillSegment } from './sill/SillSegment';
+import { PetLayer } from './actors/PetLayer';
+import type { ActorView } from './actors/PetActor';
+import { u } from './actors/stand';
+import { useWidthUnits } from './hooks';
+import { baseline, depthScale, PLANT_BASELINE, POT_RIM } from './room';
+import { OBJECT_BASE } from './props/shapes';
+import { CoinJar } from './props/CoinJar';
+import { TableLamp } from './props/TableLamp';
+import { standAt } from './actors/stand';
+import { bandCollapse } from './band';
+import { sceneTokens } from './SillScene';
+import { useUid } from './uid';
+import s from './shelf.module.css';
+import b from './band.module.css';
+
+export interface WindowsillBandHandle {
+  /** A thin stream of water onto that habit's pot; the soil darkens and the plant reacts. */
+  pour(habitId: string): void;
+  /** A brass coin drops into the jar. */
+  coinToJar(): void;
+  /** That pet looks up (a resident, by its key). */
+  react(petKey: string): void;
+}
+
+export interface WindowsillBandProps {
+  /** Today's habit pots, left to right (up to six are shown). */
+  pots: readonly SillPot[];
+  /** The pets living in them (each with `home` set to its habit). */
+  pets?: readonly ShelfPet[];
+  coins: number;
+  now?: Date;
+  hemisphere?: Hemisphere;
+  /** Pin the moment (gallery, tests). Overrides `now`. */
+  moment?: Moment;
+  /** 0 open (168 px) … 1 collapsed (64 px). A signal is applied without re-rendering. */
+  collapse?: number | ReadonlySignal<number>;
+  onWindowTap?: () => void;
+  class?: string;
+  style?: JSX.CSSProperties;
+}
+
+interface Pour {
+  id: number;
+  x: number;
+  y: number;
+}
+
+let pourIds = 0;
+
+const POUR_MS = 680;
+const SOIL_AT_MS = 260;
+const COIN_MS = 600;
+
+function applyCollapse(el: HTMLElement | null, collapse: number) {
+  if (!el) return;
+  const c = bandCollapse(collapse);
+  el.style.setProperty('--band-clip', `${c.clip}px`);
+  el.style.setProperty('--band-follow', `${c.follow}px`);
+}
+
+export const WindowsillBand = forwardRef(function WindowsillBand(props: WindowsillBandProps, ref: Ref<WindowsillBandHandle>) {
+  const { pets = [], coins, collapse = 0, onWindowTap } = props;
+  const pots = useMemo(() => props.pots.slice(0, BAND_MAX_POTS), [props.pots]);
+  const band = useRef<HTMLDivElement>(null);
+  const sceneRef = useRef<HTMLDivElement>(null);
+  const uid = useUid('band');
+  const widthU = useWidthUnits(sceneRef, 168);
+  const moment = props.moment ?? momentAt(props.now ?? new Date(), props.hemisphere);
+  const room = ROOM[moment.time];
+  const view = outsidePalette(moment.time, moment.season);
+  const light = childLight(moment.light);
+
+  const world = useMemo(() => sillWorld(BAND_SPEC, pots, [], room, moment.light.sun, widthU), [pots, room, moment.light.sun, widthU]);
+  const residents = useMemo(() => pets.filter((p) => p.home && pots.some((q) => q.habitId === p.home)), [pets, pots]);
+  const start = useMemo(() => arrangePets(world.ground, residents, moment), [world, residents, moment.time]); // eslint-disable-line react-hooks/exhaustive-deps
+  const views = useMemo(() => new Map([...start].map(([k, v]) => [k, signal<ActorView>(v)])), [start]);
+
+  // Collapse: a number re-applies on render; a signal writes the two variables directly.
+  useEffect(() => {
+    if (typeof collapse === 'number') {
+      applyCollapse(band.current, collapse);
+      return;
+    }
+    return effect(() => applyCollapse(band.current, collapse.value));
+  }, [collapse]);
+
+  // Choreography state: pours in flight, soil watered, plant pulses, a coin, passing looks.
+  const [pours, setPours] = useState<Pour[]>([]);
+  const [damp, setDamp] = useState<ReadonlySet<string>>(() => new Set());
+  const [pulses, setPulses] = useState<Record<string, number>>({});
+  const [coin, setCoin] = useState(0);
+  const [looks, setLooks] = useState<Record<string, ActorView['expression']>>({});
+  const jar = useRef<HTMLDivElement>(null);
+  const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
+  useEffect(() => () => timers.current.forEach(clearTimeout), []);
+  const later = useCallback((fn: () => void, ms: number) => {
+    timers.current.push(setTimeout(fn, ms));
+  }, []);
+
+  const water = useCallback((habitId: string) => {
+    setDamp((d) => new Set(d).add(habitId));
+    setPulses((p) => ({ ...p, [habitId]: (p[habitId] ?? 0) + 1 }));
+  }, []);
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      pour(habitId) {
+        const i = pots.findIndex((p) => p.habitId === habitId);
+        const at = world.layout.pots[i];
+        if (!at) return;
+        if (prefersReducedMotion()) return water(habitId);
+        const size = BAND_SPEC.scale.pot * depthScale(at.depth);
+        const soil = baseline(BAND_SPEC.rows, at.depth) - ((PLANT_BASELINE - POT_RIM.y + 2) / 100) * size;
+        const id = ++pourIds;
+        // Beside the resident, onto the soil at the back of the pot.
+        setPours((list) => [...list, { id, x: at.x + size * 0.16, y: soil }]);
+        later(() => water(habitId), SOIL_AT_MS);
+        later(() => setPours((list) => list.filter((p) => p.id !== id)), POUR_MS + 400);
+      },
+      coinToJar() {
+        if (prefersReducedMotion()) return;
+        setCoin((n) => n + 1);
+        later(() => {
+          const el = jar.current;
+          if (!el) return;
+          el.classList.remove(b.clink!);
+          void el.offsetWidth;
+          el.classList.add(b.clink!);
+        }, COIN_MS * 0.8);
+      },
+      react(key) {
+        setLooks((l) => ({ ...l, [key]: 'surprised' }));
+        later(() => setLooks((l) => ({ ...l, [key]: undefined })), 900);
+        if (prefersReducedMotion()) return;
+        const body = sceneRef.current?.querySelector<HTMLElement>(`[data-pet="${CSS.escape(key)}"] > div`);
+        if (!body) return;
+        body.classList.remove(s.react!);
+        void body.offsetWidth;
+        body.classList.add(s.react!);
+      },
+    }),
+    [pots, world, water, later],
+  );
+
+  const win = world.layout.window;
+  const jarTop = baseline(BAND_SPEC.rows, BAND_SPEC.backRow + 0.06) - ((OBJECT_BASE - 36) / 100) * BAND_SPEC.scale.jar;
+  // The band's right end is pinned: the window's jamb, the wall, the jar and the lamp. The pots scroll
+  // in the window to its left, so the coin always has somewhere visible to land (under the wallet).
+  const rows = BAND_SPEC.rows;
+  const E = BAND_END;
+  const jarDepth = BAND_SPEC.backRow + 0.06;
+  const lampDepth = BAND_SPEC.backRow - 0.1;
+  return (
+    <div ref={band} class={[b.band, props.class].filter(Boolean).join(' ')} style={props.style}>
+      <div class={b.follow} style={{ ...sceneTokens(room.tokens), background: room.wall }}>
+        <div ref={sceneRef} class={[s.scene, b.scroll, room.night ? s.night : ''].filter(Boolean).join(' ')} style={{ right: u(E.width), background: room.wall }} data-time={moment.time}>
+          <div class={s.track} style={{ width: u(world.layout.width) }}>
+            <SillSegment world={world} room={room} view={view} light={light} pots={pots} coins={coins} uid={uid} animated damp={damp} pulses={pulses} potClass={b.snap} pinned>
+              <PetLayer pets={residents} views={views} size={BAND_SPEC.scale.pet} light={light} animated expressions={looks} />
+              {pours.map((p) => (
+                <Fragment key={p.id}>
+                  <div class={b.stream} style={{ left: u(p.x - 0.8), top: u(-2), width: u(1.6), height: u(p.y + 2) }} />
+                  {[-1.6, 0.4, 1.9].map((dx, i) => (
+                    <div key={i} class={b.splash} style={{ left: u(p.x - 0.65 + dx * 0.4), top: u(p.y - 1.2), '--dx': u(dx) } as JSX.CSSProperties} />
+                  ))}
+                </Fragment>
+              ))}
+            </SillSegment>
+            {onWindowTap && (
+              <button type="button" class={b.window} aria-label="Open the Shelf" onClick={onWindowTap} style={{ left: u(win.x0), width: u(win.x1 - win.x0), height: u(rows.glassBottom) }} />
+            )}
+          </div>
+        </div>
+        <div class={b.end} style={{ width: u(E.width) }}>
+          <svg viewBox={`0 0 ${E.width} 100`} width="100%" height="100%" preserveAspectRatio="none" aria-hidden="true" focusable="false" style={{ position: 'absolute', inset: 0 }}>
+            <rect width={E.width} height={rows.sillBack} fill={room.wall} />
+            <rect width={E.jamb} height={rows.sillBack} fill={room.frame} />
+            <rect x={E.jamb - 0.9} width={0.9} height={rows.sillBack} fill={room.frameShade} />
+            <rect y={rows.sillBack} width={E.width} height={rows.sillFront - rows.sillBack} fill={room.sill} />
+            <rect y={rows.sillBack} width={E.width} height={0.8} fill={room.sillSeam} />
+            <rect y={rows.sillFront} width={E.width} height={rows.nosing - rows.sillFront} fill={room.nosing} />
+            <rect y={rows.nosing} width={E.width} height={100 - rows.nosing} fill={room.wallLow} />
+            <rect y={rows.nosing} width={E.width} height={1.6} fill={room.underNosing} />
+          </svg>
+          {room.night && <div class={b.pool} style={{ left: u(E.lamp - 70), top: u(rows.sillBack - 100), width: u(140), height: u(140) }} />}
+          <div class={s.prop} style={standAt(E.lamp, baseline(rows, lampDepth), BAND_SPEC.scale.lamp, OBJECT_BASE, 2, depthScale(lampDepth))}>
+            <TableLamp light={light} on={room.night} />
+          </div>
+          <div ref={jar} class={s.prop} style={standAt(E.jar, baseline(rows, jarDepth), BAND_SPEC.scale.jar, OBJECT_BASE, 3, depthScale(jarDepth))}>
+            <CoinJar coins={coins} light={light} />
+          </div>
+          {coin > 0 && (
+            <svg key={coin} class={b.coin} viewBox="0 0 10 10" style={{ left: u(E.jar - 2.2), top: u(jarTop - 3), width: u(4.4), height: u(4.4) }} aria-hidden="true">
+              <circle cx={5} cy={5} r={4.6} fill="#D2A24B" />
+              <circle cx={4.7} cy={4.7} r={4.1} fill="#EDCB72" />
+              <path d="M4.7 2.4C6.2 3.4 6.2 5.6 4.7 7M4.7 4.6l1.1-0.8" fill="none" stroke="#C99A3E" stroke-width={0.6} stroke-linecap="round" />
+            </svg>
+          )}
+        </div>
+        {room.night && <div class={s.dusk} style={{ background: 'radial-gradient(circle at 88% 20%, rgba(26, 22, 48, 0) 20%, rgba(26, 22, 48, 0.42) 82%)' }} />}
+      </div>
+    </div>
+  );
+});
+
+/** Keys of the pets a band shows (the residents of its pots), for choreography callers. */
+export function bandResidents(pots: readonly SillPot[], pets: readonly ShelfPet[]): string[] {
+  return pets.filter((p) => p.home && pots.slice(0, BAND_MAX_POTS).some((q) => q.habitId === p.home)).map(petKey);
+}
