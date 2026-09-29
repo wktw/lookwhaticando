@@ -293,7 +293,7 @@ SECTIONS.push(
   },
   {
     id: 'shelf-vignettes',
-    title: 'Vignettes · the ducks walk on under normal motion (a cat asleep on a cow’s back waits for the lying cow)',
+    title: 'Vignettes · the ducks walk on under normal motion; a cat asleep on a lying cow’s back',
     render: () => (
       <div class="gal-row" style={{ alignItems: 'flex-start' }}>
         <Frame w={390} h={300} label="Ducks walking in a line">
@@ -301,6 +301,9 @@ SECTIONS.push(
         </Frame>
         <Frame w={390} h={300} label="The nap pile on the Quilt, late">
           <ShelfScene pots={POTS.slice(0, 1)} pets={HOUSEHOLD.filter((p) => p.place === 'quilt').concat([{ petId: 'pet-cat-calico', place: 'quilt' }])} places={['quilt']} open="quilt" moment={at(1, true, 23.5)} vignette={{ id: 'nap-pile', place: 'quilt' }} style={{ width: '100%', height: '100%' }} />
+        </Frame>
+        <Frame w={390} h={300} label="A cat asleep on a cow’s back, in the grass">
+          <ShelfScene pots={POTS.slice(0, 1)} pets={[{ petId: 'pet-cow-beltie', place: 'grass' as const }, { petId: 'pet-cat-orange', place: 'grass' as const }]} places={['grass']} open="grass" moment={at(0.55)} vignette={{ id: 'cat-on-cow', place: 'grass' }} live={false} style={{ width: '100%', height: '100%' }} />
         </Frame>
         <Frame w={390} h={300} label="A rabbit sniffing a new leaf">
           <SillScene pots={POTS.slice(0, 3)} pets={[{ petId: 'pet-bunny-lop', name: 'Biscuit' }]} coins={30} moment={at(0.35)} vignette="bunny-leaf" style={{ width: '100%', height: '100%' }} />

@@ -208,12 +208,12 @@ export const SECTIONS: GallerySection[] = [
   },
   {
     id: 'pets-overview',
-    title: 'Pets · every species in every pose, window light from the left',
+    title: 'Pets · every species in every pose (and carried, DESIGN §8.2), window light from the left',
     render: (params) => (
       <div>
         {pickSpecies(params).map((s) => (
           <div style={ROW} key={s}>
-            {POSES.map((pose) => (
+            {[...POSES, 'carry' as const].map((pose) => (
               <Cell key={pose} label={`${s} · ${pose}`}>
                 <PetArt petId={modelFor(params, s)} pose={pose} size={sizeOf(params, 120)} facing={facingOf(params)} animated={params.has('animate')} />
               </Cell>

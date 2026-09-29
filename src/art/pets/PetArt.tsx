@@ -66,6 +66,9 @@ export type ArtPose = Pose | 'carry';
 /** How far a carried pet's legs hang below their hips, as a stretch of the leg (DESIGN §8.2 "dangling feet"). */
 export const DANGLE = 1.24;
 
+/** How far a carried pet is lifted above where it stood (canvas units), past the stretch of its legs. */
+export const CARRY_LIFT = 5;
+
 /** Stable pseudo-random 0..1 from a string (desynchronised idle timings). */
 function hash01(s: string): number {
   let h = 2166136261;
@@ -467,10 +470,12 @@ export function PetArt(props: PetArtProps) {
 
   if (dangle) {
     // Held by the scruff: the figure hangs from just above the neck, tipped a little nose-up, and swings.
+    // Lifted off the ground by the stretch of its legs and a little more, so the dangling feet stay on the canvas.
     const [hx, hy] = [p.neck.x, p.neck.y - 8];
+    const lift = (BASELINE - hy) * (DANGLE - 1) + CARRY_LIFT;
     return svg(
       <g transform={scaleT}>
-        <g transform={`translate(${fmt(hx)} ${fmt(hy)})`}>
+        <g transform={`translate(${fmt(hx)} ${fmt(hy - lift)})`}>
           <g class={live ? 'pet-dangle' : undefined}>
             <g transform={`rotate(-7) translate(${fmt(-hx)} ${fmt(-hy)})`}>{figure}</g>
           </g>
