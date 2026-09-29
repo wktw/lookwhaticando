@@ -57,7 +57,7 @@ export function mount(ui: ComponentChild): { root: HTMLElement; unmount: () => v
   };
 }
 
-export async function until<T>(get: () => T | null | undefined | false, what: string, timeout = 3000): Promise<T> {
+export async function until<T>(get: () => T | null | undefined | false, what: string, timeout = 15_000): Promise<T> {
   const t0 = Date.now();
   for (;;) {
     const v = get();

@@ -13,7 +13,10 @@ let view: ReturnType<typeof mount> | null = null;
 const idOf = (name: string) => state.value.habits.find((h) => h.name === name)!.id;
 const detail = () => document.querySelector<HTMLElement>('[data-habit-detail]');
 
-beforeAll(() => installDom());
+beforeAll(() => {
+  installDom();
+  demoState(); // built once, up front, with room for a busy machine
+}, 60_000);
 beforeEach(() => {
   useState_(demoState());
   toasts.value = [];
@@ -30,7 +33,7 @@ afterEach(() => {
 
 async function openFor(name: string) {
   openHabitDetail(idOf(name));
-  return until(detail, `${name}’s detail`);
+  return until(() => document.querySelector<HTMLElement>(`[data-habit-detail="${idOf(name)}"]`), `${name}’s detail`);
 }
 
 describe('Habit Detail', () => {
@@ -88,7 +91,24 @@ describe('Habit Detail', () => {
     await until(() => button('Bring it back'), 'Bring it back');
   });
 
-  it('Delete asks, then offers to keep the plant on the balcony shelf', async () => {
+  it('Delete asks once: keep the plant on the balcony shelf, or delete everything', async () => {
+    await openFor('Deep clean');
+    const spy = vi.spyOn(store, 'deleteHabit');
+    await click(button('Delete'), 'Delete');
+    const keep = await until(() => document.querySelector('[role="alertdialog"]'), 'the keep question');
+    expect(document.querySelectorAll('[role="alertdialog"]')).toHaveLength(1);
+    expect(keep.textContent).toMatch(/Keep the plant on the balcony shelf\?/);
+    expect(keep.textContent).not.toMatch(/history go too/);
+    expect(Array.from(keep.querySelectorAll('button')).map((b) => b.textContent)).toEqual(['Keep it on the balcony', 'Delete everything', 'Not now']);
+    await click(Array.from(keep.querySelectorAll('button')).find((b) => b.textContent === 'Keep it on the balcony'), 'keep');
+    expect(spy).toHaveBeenCalledWith(idOf('Deep clean'), { keepPlant: true });
+    expect(habitDetailRequest.value).toBeNull();
+  });
+
+  it('an archived habit’s delete says the plant and its history go too', async () => {
+    const s = demoState();
+    const id = idOf('Deep clean');
+    useState_({ ...s, habits: s.habits.map((h) => (h.id === id ? { ...h, archivedOn: '2026-09-20' } : h)) });
     await openFor('Deep clean');
     const spy = vi.spyOn(store, 'deleteHabit');
     await click(button('Delete'), 'Delete');
@@ -96,10 +116,24 @@ describe('Habit Detail', () => {
     expect(ask.textContent).toMatch(/Delete Deep clean\?/);
     expect(ask.textContent).toMatch(/The plant and its history go too\./);
     await click(Array.from(ask.querySelectorAll('button')).find((b) => b.textContent === 'Delete'), 'confirm');
-    const keep = await until(() => Array.from(document.querySelectorAll('[role="alertdialog"]')).find((d) => d.textContent?.includes('Keep the plant on the balcony shelf?')), 'the keep question');
-    await click(Array.from(keep.querySelectorAll('button')).find((b) => b.textContent === 'Keep it on the balcony'), 'keep');
-    expect(spy).toHaveBeenCalledWith(idOf('Deep clean'), { keepPlant: true });
-    expect(habitDetailRequest.value).toBeNull();
+    expect(spy).toHaveBeenCalledWith(id, { keepPlant: false });
+  });
+
+  it('the rung ladder is for habits counted in days; a weekly habit gets its longest run in words', async () => {
+    const yoga = await openFor('Yoga');
+    const words = yoga.querySelector('[data-detail="ladder"]')!;
+    expect(words.querySelector('ol')).toBeNull();
+    expect(words.textContent).toMatch(/Longest run: \d+ weeks in a row$/);
+    const walk = await openFor('Go for a walk');
+    const rungs = walk.querySelector('[data-detail="ladder"]')!;
+    expect(rungs.querySelector('ol')!.getAttribute('aria-hidden')).toBe('true');
+    expect(rungs.querySelector('.sr-only')!.textContent).toMatch(/^Rungs reached: [1-9]\d* of 11$/);
+  });
+
+  it('Pause shows a short word and names the habit for screen readers', async () => {
+    await openFor('Yoga');
+    const b = button('Pause Yoga')!;
+    expect(b.textContent).toBe('Pause');
   });
 
   it('an archived habit can come back to the sill', async () => {

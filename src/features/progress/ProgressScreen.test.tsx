@@ -3,18 +3,27 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite
 import { habitDetailRequest } from '@/features/habits/open';
 import { ritualRequest } from '@/features/rituals/open';
 import { createInitialState } from '@/state/defaults';
+import { completeOnboarding } from '@/domain/habits';
+import { transact } from '@/domain/tx';
+import { mulberry32 } from '@/domain/rng';
+import type { AppState } from '@/state/types';
 import { state } from '@/state/store';
 import * as store from '@/state/store';
 import { toasts } from '@/ui/toast';
 import { ProgressScreen } from './ProgressScreen';
-import { TODAY, button, click, demoState, dialog, installDom, key, mount, until, useState_ } from './testing';
+import { NOW, TODAY, UTC, button, click, demoState, dialog, installDom, key, mount, until, useState_ } from './testing';
 
 vi.setConfig({ testTimeout: 30_000 });
 
 let view: ReturnType<typeof mount> | null = null;
 const sections = () => Array.from(document.querySelectorAll('[data-section]')).map((el) => el.getAttribute('data-section'));
 
-beforeAll(() => installDom());
+// The demo (120 days) and the reader's chunk are built once, up front, with room for a busy machine.
+beforeAll(async () => {
+  installDom();
+  demoState();
+  await import('@/features/rituals/RitualReaderHost');
+}, 60_000);
 beforeEach(() => {
   useState_(demoState());
   habitDetailRequest.value = null;
@@ -176,5 +185,78 @@ describe('first days and quiet', () => {
     await click(document.querySelector('[data-pin][data-earned="true"]'), 'an earned pin');
     const d = await until(dialog, 'the pin sheet');
     expect(d.textContent).not.toMatch(/stamp/);
+  });
+
+  it('a first day after one watering: the watering is the headline, said once, with no week chip repeating it', async () => {
+    const s0 = createInitialState(NOW);
+    const out = transact(s0, { now: NOW, today: TODAY, local: UTC, rng: mulberry32(1) }, (tx) => ({ ids: completeOnboarding(tx, { name: 'Sam', templateIds: ['walk', 'read', 'water'] }) }));
+    useState_(out.state as AppState);
+    const first = state.value.habits[0]!;
+    store.checkIn(first.id);
+    await open();
+    const hero = document.querySelector('[data-hero]')!;
+    expect(hero.getAttribute('data-hero')).not.toBe('empty');
+    expect(hero.textContent).not.toMatch(/This fills in as you water\./);
+    expect(hero.querySelector('p')!.textContent).toBe('1 of 1 so far');
+    expect(hero.textContent!.match(/1 of 1/g)).toHaveLength(1);
+    // this month now has a day, so its bar is there
+    expect(document.querySelector('[data-section="months"]')).not.toBeNull();
+  });
+
+  it('a first day with nothing watered says “This fills in as you water.” once', async () => {
+    const s0 = createInitialState(NOW);
+    const out = transact(s0, { now: NOW, today: TODAY, local: UTC, rng: mulberry32(1) }, (tx) => ({ ids: completeOnboarding(tx, { name: 'Sam', templateIds: ['walk', 'read', 'water'] }) }));
+    useState_(out.state as AppState);
+    await open();
+    expect(document.body.textContent!.match(/This fills in as you water\./g)).toHaveLength(1);
+    expect(document.querySelector('[data-section="months"]')).toBeNull();
+    expect(document.querySelector('[data-section="year"]')).toBeNull();
+    const today = document.querySelector(`[data-section="calendar"] [data-date="${TODAY}"]`)!;
+    expect(today.querySelector('svg')).toBeNull();
+  });
+});
+
+describe('pins and the memory shelf', () => {
+  it('shows the earned pins, then the 4 nearest “not yet” ones; the rest wait behind one button', async () => {
+    await open();
+    const notYet = () => document.querySelectorAll('[data-pin][data-earned="false"]').length;
+    expect(notYet()).toBe(4);
+    expect(document.querySelector('[data-section="pins"]')!.textContent).not.toMatch(/not yet/);
+    const more = document.querySelector<HTMLButtonElement>('[data-more-pins]')!;
+    expect(more.textContent).toMatch(/^\d+ more pins?$/);
+    await click(more, 'more pins');
+    expect(notYet()).toBeGreaterThan(4);
+    expect(document.querySelector('[data-more-pins]')).toBeNull();
+  });
+
+  it('a “not yet” pin with nothing towards it says only how it is earned', async () => {
+    await open();
+    await click(document.querySelector('[data-more-pins]'), 'more pins');
+    const pin = Array.from(document.querySelectorAll<HTMLButtonElement>('[data-pin][data-earned="false"]')).pop()!;
+    await click(pin, 'a not-yet pin');
+    const d = await until(dialog, 'the pin sheet');
+    expect(d.textContent).not.toMatch(/not yet/);
+  });
+
+  it('retired plants stand on the balcony tier once; the memory shelf points there', async () => {
+    const s = demoState();
+    const id = s.habits.find((h) => h.name === 'Deep clean')!.id;
+    useState_({ ...s, habits: s.habits.map((h) => (h.id === id ? { ...h, archivedOn: '2026-09-20' } : h)) });
+    await open();
+    expect(document.querySelectorAll('[data-shelf="balcony"] li')).toHaveLength(1);
+    const link = document.querySelector<HTMLAnchorElement>('[data-section="memory"] [data-memory="retired"]')!;
+    expect(link.textContent).toBe('1 plant on the balcony shelf');
+    expect(document.querySelectorAll('[data-section="memory"] [data-memory="retired"] li')).toHaveLength(0);
+    await click(link, 'the balcony link');
+    expect(document.activeElement?.id).toBe('progress-balcony');
+  });
+
+  it('a day with a note says so to screen readers', async () => {
+    await open();
+    const labels = Array.from(document.querySelectorAll('[data-section="calendar"] [data-date]')).map((b) => b.getAttribute('aria-label')!);
+    const withNote = labels.filter((l) => l.endsWith(', a note'));
+    const s0 = state.value;
+    const noted = new Set(s0.habits.flatMap((h) => Object.entries(s0.logs[h.id] ?? {}).filter(([d, l]) => d.startsWith(TODAY.slice(0, 7)) && l.note).map(([d]) => d)));
+    expect(withNote).toHaveLength(noted.size);
   });
 });

@@ -24,7 +24,7 @@ import { DetailSection } from './Parts';
 import s from './HabitDetail.module.css';
 
 type Panel = null | 'pause' | 'start' | 'tune';
-type Ask = null | 'archive' | 'delete' | 'keep';
+type Ask = null | 'archive' | 'delete';
 
 /** "Archive Walk? The plant moves…" → the question as the title, the consequence as the message. */
 function splitQuestion(line: string): [string, string] {
@@ -97,8 +97,9 @@ export function Actions({ vm, onGone }: { vm: HabitDetailVM; onGone: () => void 
             {D.actions.bringBack}
           </Button>
         ) : (
-          <Button variant="secondary" icon="pause" aria-expanded={panel === 'pause'} onClick={() => toggle('pause')}>
-            {fillLine(D.actions.pause, { habit: h.name })}
+          // The visible word is short so a long name isn't cut; the whole line is its accessible name.
+          <Button variant="secondary" icon="pause" aria-expanded={panel === 'pause'} aria-label={fillLine(D.actions.pause, { habit: h.name })} onClick={() => toggle('pause')}>
+            {D.actions.pauseShort}
           </Button>
         )}
         <Button variant="secondary" icon="calendar" aria-expanded={panel === 'start'} onClick={() => toggle('start')}>
@@ -128,8 +129,8 @@ export function Actions({ vm, onGone }: { vm: HabitDetailVM; onGone: () => void 
             <span>{D.actions.pauseOpen}</span>
           </label>
           <div class={s.offerButtons}>
-            <Button size="sm" type="submit">
-              {fillLine(D.actions.pause, { habit: h.name })}
+            <Button size="sm" type="submit" aria-label={fillLine(D.actions.pause, { habit: h.name })}>
+              {D.actions.pauseShort}
             </Button>
             <Button size="sm" variant="quiet" onClick={() => setPanel(null)}>
               {D.actions.cancel}
@@ -195,7 +196,11 @@ export function Actions({ vm, onGone }: { vm: HabitDetailVM; onGone: () => void 
   );
 }
 
-/** Delete → "Keep the plant on the balcony shelf?" (an archived habit's plant is already there). */
+/**
+ * Delete asks once. A habit on the sill goes straight to "Keep the plant on the balcony shelf?"
+ * (keep it there, or delete everything); an archived habit's plant is already on the balcony, so it
+ * gets the plain "Delete {habit}? The plant and its history go too."
+ */
 function DeleteFlow({ ask, setAsk, vm, onGone, archived = false }: { ask: Ask; setAsk: (a: Ask) => void; vm: HabitDetailVM; onGone: () => void; archived?: boolean }) {
   const h = vm.habit;
   const [q, msg] = splitQuestion(fillLine(DATA.delete, { habit: h.name }));
@@ -208,16 +213,16 @@ function DeleteFlow({ ask, setAsk, vm, onGone, archived = false }: { ask: Ask; s
   return (
     <>
       <ConfirmDialog
-        open={ask === 'delete'}
+        open={archived && ask === 'delete'}
         title={q}
         message={msg}
         tone="danger"
         confirmLabel={D.actions.delete}
         cancelLabel={D.actions.cancel}
-        onConfirm={() => (archived ? gone(false) : setAsk('keep'))}
+        onConfirm={() => gone(false)}
         onCancel={() => setAsk(null)}
       />
-      <Sheet open={ask === 'keep'} onClose={() => setAsk(null)} title={DATA.keepPlant} hideTitle size="sm" role="alertdialog" showClose={false} initialFocus="[data-keep]">
+      <Sheet open={!archived && ask === 'delete'} onClose={() => setAsk(null)} title={DATA.keepPlant} hideTitle size="sm" role="alertdialog" showClose={false} initialFocus="[data-keep]">
         <div class={s.keep}>
           <p class={s.keepTitle} aria-hidden="true">
             {DATA.keepPlant}

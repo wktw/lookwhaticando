@@ -6,7 +6,7 @@
 import type { ComponentChildren } from 'preact';
 import { useState } from 'preact/hooks';
 import { PetArt } from '@/art/pets/PetArt';
-import { Icon } from '@/art/icons';
+import { CoinIcon, Icon } from '@/art/icons';
 import { COMPANION, EMPTY, LOOKS, STORIES, fillLine } from '@/catalog/lines';
 import { consistencyText, num, runText } from '@/catalog/format';
 import { monthDayLabel } from '@/domain/dates';
@@ -18,7 +18,6 @@ import { toast } from '@/ui/toast';
 import { announce } from '@/ui/announce';
 import { cx } from '@/ui/cx';
 import { haptic } from '@/fx/haptics';
-import { sfx } from '@/fx/sound';
 import { DETAIL_UI as D, journalLine, lookName, lookTag, nudgeWords, storyRemaining, storyText, wateringsText } from '@/features/progress/copy';
 import { lookArtOf } from '@/features/progress/looks';
 import { HeroPlant } from './HeroPlant';
@@ -109,7 +108,11 @@ export function NudgeCard({ vm }: { vm: HabitDetailVM }) {
 /* ------------------------------------------------------------------ */
 
 export function Journal({ vm }: { vm: HabitDetailVM }) {
-  const lines = vm.journal.map((e) => ({ e, text: journalLine(e, anchorNameOf) })).filter((x): x is { e: (typeof vm.journal)[number]; text: string } => !!x.text);
+  // The plant tag above already says why it looks the way it does.
+  const tagShown = vm.looks.looks.length > 0 && !!vm.looks.tag;
+  const lines = vm.journal
+    .filter((e) => !(tagShown && e.kind === 'whyItLooks'))
+    .map((e) => ({ e, text: journalLine(e, anchorNameOf) })).filter((x): x is { e: (typeof vm.journal)[number]; text: string } => !!x.text);
   if (lines.length === 0) return null;
   return (
     <DetailSection id="journal" title={D.sections.journal}>
@@ -215,16 +218,38 @@ export function Moments({ vm }: { vm: HabitDetailVM }) {
 export function Ladder({ vm }: { vm: HabitDetailVM }) {
   const quiet = state.value.settings.quietRewards;
   const best = vm.stats.best;
-  if (!best && vm.ladder.bestOccurrences < 1) return null;
+  const longest = best && best.length >= 3 ? fillLine(D.stats.longestLine, { run: runText(best, 'long') }) : null;
+  // The rungs are counted in occurrences, which is what a day-based run counts (daily: "21 days
+  // in a row"; certain days: "12 in a row"). A habit counted in weeks or months would read against
+  // its run ("10 weeks in a row" beside a lit 14), so until the logic can say a rung in the run's
+  // own unit (NOTES request 8), those habits get the longest run in words and no ladder.
+  const unit = best?.unit ?? vm.stats.current?.unit ?? 'days';
+  const inDays = unit === 'days' || unit === 'times';
+  const reached = vm.ladder.rungs.filter((r) => r.reached).length;
+  if (!inDays) {
+    if (!longest) return null;
+    return (
+      <DetailSection id="ladder" title={D.sections.ladder}>
+        <p class={s.ladderLine}>{longest}</p>
+      </DetailSection>
+    );
+  }
+  if (reached === 0) return null;
   return (
     <DetailSection id="ladder" title={D.sections.ladder}>
-      {best && best.length >= 3 && <p class={s.ladderLine}>{fillLine(D.stats.longestLine, { run: runText(best, 'long') })}</p>}
+      {longest && <p class={s.ladderLine}>{longest}</p>}
+      <p class="sr-only">{fillLine(D.ladder.reached, { count: num(reached), total: num(vm.ladder.rungs.length) })}</p>
       <ol class={s.ladder} aria-hidden="true">
         {vm.ladder.rungs.map((r) => (
           <li key={r.tier} class={cx(s.rung, r.reached && s.rungOn)}>
             <span class={s.rungDot} />
             <span class={s.rungTier}>{r.tier}</span>
-            {!quiet && <span class={s.rungCoins}>+{r.coins}</span>}
+            {!quiet && (
+              <span class={s.rungCoins}>
+                <CoinIcon size={11} />
+                {r.coins}
+              </span>
+            )}
           </li>
         ))}
       </ol>
@@ -249,19 +274,18 @@ export function Offer({ vm }: { vm: HabitDetailVM }) {
         <p class={s.offerText}>{fillLine(quiet ? D.grow.textQuiet : D.grow.text, { habit: name })}</p>
         <div class={s.offerButtons}>
           <Button
-            size="sm"
+            size="md"
             disabled={!patch}
             onClick={() => {
               if (patch && acceptGrowOffer(vm.habit.id, patch)) {
                 haptic('success');
-                sfx.play('sparkle');
                 announce(D.grow.yes);
               }
             }}
           >
             {D.grow.yes}
           </Button>
-          <Button size="sm" variant="quiet" onClick={() => setClosed('grow')}>
+          <Button size="md" variant="quiet" onClick={() => setClosed('grow')}>
             {D.grow.no}
           </Button>
         </div>
@@ -275,18 +299,19 @@ export function Offer({ vm }: { vm: HabitDetailVM }) {
       <p class={s.offerText}>{D.tinier.text}</p>
       <div class={s.offerButtons}>
         <Button
-          size="sm"
+          size="md"
           disabled={!patch}
           onClick={() => {
             if (!patch) return;
             updateHabit(vm.habit.id, patch, 'today');
             haptic('light');
+            toast({ message: fillLine(D.tinier.done, { habit: name }) });
             setClosed('tinier');
           }}
         >
           {D.tinier.yes}
         </Button>
-        <Button size="sm" variant="quiet" onClick={() => setClosed('tinier')}>
+        <Button size="md" variant="quiet" onClick={() => setClosed('tinier')}>
           {D.tinier.no}
         </Button>
       </div>

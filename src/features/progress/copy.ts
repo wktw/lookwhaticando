@@ -85,6 +85,7 @@ export const DETAIL_UI = {
   actions: {
     edit: 'Edit',
     pause: 'Pause {habit}',
+    pauseShort: 'Pause',
     backOn: 'Back on…',
     backOnLabel: 'Back on',
     pauseOpen: 'Until you bring it back',
