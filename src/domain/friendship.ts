@@ -84,6 +84,19 @@ export function featuredPetId(s: Pick<AppState, 'pets'>): string | null {
   return best?.id ?? null;
 }
 
+/**
+ * Your closest pet: the most friendship XP, ties to the pet who came home first. The Shelf tab
+ * shows its silhouette (DESIGN §1 Many animals: the tab shows *your* closest pet, not always a cat).
+ * Null before the first pet.
+ */
+export function closestPetId(s: Pick<AppState, 'pets'>): string | null {
+  let best: PetState | null = null;
+  for (const p of Object.values(s.pets)) {
+    if (!best || p.xp > best.xp || (p.xp === best.xp && (p.obtainedAt < best.obtainedAt || (p.obtainedAt === best.obtainedAt && p.id < best.id)))) best = p;
+  }
+  return best?.id ?? null;
+}
+
 /** The level at which a pet claims its favourite spot, and the one from which it naps next to a best friend (§8.2). */
 export const SPOT_LEVEL = 4;
 export const BEST_FRIEND_LEVEL = 8;

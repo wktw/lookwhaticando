@@ -399,11 +399,11 @@ describe('Capsules, wallet, Special Order, Field Guide', () => {
 describe('Pets, the Shelf, rituals, pins', () => {
   it('pets list, pet card, the Shelf', () => {
     const g = new Game();
-    expect(petsVM(g.state)).toEqual({ pets: [], out: 0, capacity: 8, featured: null });
+    expect(petsVM(g.state)).toEqual({ pets: [], out: 0, capacity: 8, featured: null, closest: null });
     const r = g.run((tx) => (gacha.pull(tx, 'cows', { free: true }) as { ok: true; itemId: string }));
     const id = r.itemId;
     const list = petsVM(g.state);
-    expect(list).toMatchObject({ out: 1, capacity: 8, featured: id });
+    expect(list).toMatchObject({ out: 1, capacity: 8, featured: id, closest: { id, species: 'cow' } });
     expect(list.pets[0]).toMatchObject({ id, out: true, featured: true, favorite: false, level: 1, hearts: 1, moonlit: false, species: 'cow' });
     const pet = petVM(g.state, envOf(g), id)!;
     expect(pet).toMatchObject({ favoriteTreat: { known: false, treatId: null, name: null }, today: { petsLeft: 5, treatsLeft: 3, favoriteBonusLeft: true } });

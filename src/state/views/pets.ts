@@ -14,7 +14,7 @@ import { chooseBestFriend, claimSpot, petPlace, suggestPlaceFor } from '@/domain
 import { BEST_FRIEND_LEVEL, SPOT_LEVEL } from '@/domain/friendship';
 import { capsuleCollectiblesOwned, ownedTreats, ownedWearables } from '@/domain/collection';
 import { appDayKey, monthDayLabel } from '@/domain/dates';
-import { PET_XP, dailyFor, featuredPetId } from '@/domain/friendship';
+import { PET_XP, closestPetId, dailyFor, featuredPetId } from '@/domain/friendship';
 import type { CuttingVM } from '@/domain/growth';
 import { cuttingOf } from '@/domain/economy';
 import { LEVEL_PERKS, MAX_FRIEND_LEVEL, levelProgress, memoriesFor, type LevelPerk, type LevelProgress } from '@/domain/levels';
@@ -91,6 +91,8 @@ export interface PetsVM {
   capacity: number;
   /** The featured pet (null before the first pet). */
   featured: string | null;
+  /** Your closest pet and its species, for the Shelf tab's silhouette (§1 Many animals); null before the first pet. */
+  closest: { id: string; species: Species | null } | null;
 }
 
 export function petsVM(s: AppState): PetsVM {
@@ -98,7 +100,9 @@ export function petsVM(s: AppState): PetsVM {
   const pets = Object.values(s.pets)
     .map((p) => petSummary(s, p, featured))
     .sort((a, b) => Number(b.favorite) - Number(a.favorite) || a.obtainedAt - b.obtainedAt || (a.id < b.id ? -1 : 1));
-  return { pets, out: petsOutCount(s), capacity: petsOutCapacity(s), featured };
+  const closestId = closestPetId(s);
+  const closest = closestId ? { id: closestId, species: pets.find((p) => p.id === closestId)?.species ?? null } : null;
+  return { pets, out: petsOutCount(s), capacity: petsOutCapacity(s), featured, closest };
 }
 
 /** The favourite-treat hint before it is found: by the treat's first tag, or the plant it is harvested from. */

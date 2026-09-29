@@ -162,3 +162,19 @@ describe('places hold a few pets each (§8.4)', () => {
     expect(valid(g.state)).toEqual([]);
   });
 });
+
+describe('never-placed pets settle into the places they love, once a day (§8.4)', () => {
+  it('a duck that comes home after the pond opened moves in the next day; a pet that chose the Sill stays', () => {
+    const g = new Game({ start: '2026-03-02' });
+    g.setWallet({ coins: 5_000 });
+    g.run((tx) => shelf.buyPlace(tx, 'pond'));
+    const duck = addPet(g, 'pet-duck-mallard');
+    const duck2 = addPet(g, 'pet-duck-call');
+    g.run((tx) => shelf.setPetPlace(tx, duck2, null)); // chose the Sill
+    expect(petPlace(g.state, g.state.pets[duck]!)).toBe('sill');
+    g.advance(1);
+    expect(g.state.pets[duck]!.place).toBe('pond');
+    expect(g.state.pets[duck2]!.place).toBe('sill');
+    expect(valid(g.state)).toEqual([]);
+  });
+});

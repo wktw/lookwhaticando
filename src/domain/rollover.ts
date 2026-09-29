@@ -26,6 +26,7 @@ import { ensureEarlyWeeklyNote, ensureLetters } from './letters';
 import { pruneOldStamps, rewardPass } from './logging';
 import { pruneFoundThings } from './friendship';
 import { restockPantry } from './pantry';
+import { settleUnplacedPets } from './shelf';
 import { anniversaryNote } from './rituals';
 import { openSeason, retireEndedHabits } from './seasonReview';
 import { ruleAt } from './rules';
@@ -106,6 +107,7 @@ export function openDay(tx: Tx): boolean {
   }
   if (!fresh) closeDays(tx, previous);
   restockPantry(tx);
+  settleUnplacedPets(tx);
   retireEndedHabits(tx);
   ensureLetters(tx);
   if (!fresh) openSeason(tx, previous, tx.env.timeZone);

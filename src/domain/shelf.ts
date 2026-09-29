@@ -10,6 +10,7 @@
  * - Each pet out spends the day in a place (places.ts): `setPetPlace` moves it (the place must be
  *   open and have room), "Let {name} choose" picks by species (`suggestPlaceFor`), and opening a
  *   place moves in the never-placed pets who love it most, up to its room (`buyPlace` → `movedIn`).
+ *   Each new day, never-placed pets settle the same way (`settleUnplacedPets`).
  * - Decor is placed freely: one placement per owned copy, up to 24 per place, coordinates 0..1
  *   within the place, optionally flipped. Placement ids are unique and stable. A companion's
  *   keepsake (§14.1) places like decor, as 'keepsake:<id>' (one copy).
@@ -70,6 +71,17 @@ function settleNewPlace(tx: Tx, place: PlaceId): string[] {
     .slice(0, Math.max(0, room));
   for (const p of movers) tx.pet(p.id).place = place;
   return movers.map((p) => p.id);
+}
+
+/**
+ * Once a day (rollover.ts): pets out that have never been placed (a pet that came home after its
+ * favourite place opened, or a save from before places held pets) settle into the open places
+ * their species loves, up to each place's room. A pet that was moved, or chose the Sill, stays put.
+ */
+export function settleUnplacedPets(tx: Tx): string[] {
+  const moved: string[] = [];
+  for (const place of tx.s.shelf.places) if (place !== 'sill') moved.push(...settleNewPlace(tx, place));
+  return moved;
 }
 
 /**

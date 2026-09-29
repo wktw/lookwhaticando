@@ -352,3 +352,19 @@ describe('how often, in words (VOICE.md §22)', () => {
     for (const sc of SCHEDULES) expect(voiceProblems(scheduleText(sc)), scheduleText(sc)).toEqual([]);
   });
 });
+
+describe('the Shelf tab shows your closest pet (DESIGN §1 Many animals)', () => {
+  it('petsVM.closest: the most friendship, ties to who came home first; null before any pet', async () => {
+    const { petsVM } = await import('@/state/views/pets');
+    const g = new Game();
+    expect(petsVM(g.state).closest).toBeNull();
+    const cow = 'pet-cow-jersey';
+    const cat = 'pet-cat-orange';
+    g.state = { ...g.state, pets: { [cat]: newPetState(cat, g.rng, g.now, g.today, true), [cow]: newPetState(cow, g.rng, g.now + 1, g.today, true) } };
+    expect(petsVM(g.state).closest).toEqual({ id: cat, species: 'cat' });
+    g.state = { ...g.state, pets: { ...g.state.pets, [cow]: { ...g.state.pets[cow]!, xp: 60 } } };
+    expect(petsVM(g.state).closest).toEqual({ id: cow, species: 'cow' });
+    const demoClosest = petsVM(demo).closest!;
+    expect(demoClosest.id).toBe(Object.values(demo.pets).sort((a, b) => b.xp - a.xp || a.obtainedAt - b.obtainedAt)[0]!.id);
+  });
+});
