@@ -21,9 +21,11 @@ const VIEWS = [
 async function seedDemo(page: Page, patch: Record<string, unknown> = {}): Promise<void> {
   await page.goto('./#/today');
   await page.evaluate(async (settings) => {
-    const demo = await import(/* @vite-ignore */ '/src/state/demo.ts');
-    const persist = await import(/* @vite-ignore */ '/src/state/persist.ts');
-    const dates = await import(/* @vite-ignore */ '/src/domain/dates.ts');
+    // The dev server serves the app's own modules by path (typed loosely: this runs in the page).
+    const load = (path: string): Promise<any> => import(/* @vite-ignore */ path); // eslint-disable-line @typescript-eslint/no-explicit-any
+    const demo = await load('/src/state/demo.ts');
+    const persist = await load('/src/state/persist.ts');
+    const dates = await load('/src/domain/dates.ts');
     const now = Date.now();
     const today = dates.appDayKey(now, 180, dates.runtimeLocalTime);
     const s = demo.buildDemo({ today, now, name: 'Sam' });
