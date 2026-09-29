@@ -1,3 +1,22 @@
+diff --git a/scripts/size-budget.mjs b/scripts/size-budget.mjs
+index 607f837..eedbd1b 100644
+--- a/scripts/size-budget.mjs
++++ b/scripts/size-budget.mjs
+@@ -19,12 +19,8 @@ import { gzipSync } from 'node:zlib';
+ /** gzip KB (1 KB = 1000 B, as Vite reports) allowed for the first-paint JavaScript. */
+ export const ENTRY_BUDGET_KB = 150;
+ 
+-/**
+- * TODO(m1-build → lead): delete once NOTES-m1-build.md request 1 lands (CelebrationArt loaded on
+- * demand, NOTES-m1-build.lazy-celebration-art.patch); the entry then measures about 95 KB.
+- * Set to null when there is no open allowance.
+- */
+-export const KNOWN_OVERAGE = { reason: 'CelebrationArt is still imported statically by src/fx (NOTES-m1-build.md request 1)', ceilingKB: 320 };
++/** An allowance over budget while a known fix is pending ({ reason, ceilingKB }), or null. */
++export const KNOWN_OVERAGE = null;
+ 
+ /** Relative chunk paths a minified ES module loads statically: imports and re-exports, not `import()`. */
+ export function staticImports(code) {
 diff --git a/src/fx/CelebrationBanner.tsx b/src/fx/CelebrationBanner.tsx
 index 20fd6d6..feb92a9 100644
 --- a/src/fx/CelebrationBanner.tsx
