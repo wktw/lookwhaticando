@@ -61,13 +61,16 @@ this file.
 
 ## Tests
 
-- `src/features/today/today.logic.test.ts` (20): the snapshot never regroups, the ring's actions and
+- `src/features/today/today.logic.test.ts` (25): the snapshot never regroups, the ring's actions and
   names, the band's greeting and inputs, rows, the strip, letters and the season in words, the editor's
   form rules.
-- `src/features/today/TodayScreen.test.tsx` (8): one h1, the empty sill, watering + Undo + the notes, no
+- `src/features/today/TodayScreen.test.tsx` (12: also slow taps and the hold, ⋯ › How many…, the strip
+  that stays put, the editor's focus on a note and its question before closing): one h1, the empty sill, watering + Undo + the notes, no
   regrouping on taps, the count ring and the number pad, the strip's arrows and the banner, the ⋯ menu and
   a rest day, planting a habit in the editor (field note, then the card on Today).
-- `e2e/today.spec.ts` (10): phone and desktop × light and dark (empty sill → plant from an idea → water →
+- `e2e/today.spec.ts` (14, phone = iPhone 13 with touch: also a slow tap, the long press and ⋯ to the
+  pad, the strip on a past day, a pour bringing its pot into view, and a timing check behind
+  `E2E_PERF=1`): phone and desktop × light and dark (empty sill → plant from an idea → water →
   Undo; a busy demo household: axe, first-card budget, menu, past day, collapse), 320 px reflow, quiet
   rewards.
 
@@ -120,15 +123,90 @@ this file.
    memo inside `PlantArt` keyed on (species, stage, pot, progress bucket, light) would help every screen.
 11. **Manifest screenshots** (NOTES-open item 8): Today is built; `SCREENSHOTS[0].route` can be `today`.
 
+### Added in review round 1
+
+12. **Route: make Today `wide`** (`src/app/routes.ts`), or fix request 2. At ≥ 1100 px Today now lays out
+    two columns (the list, and the sill's rail at 320 px, sticky) in up to 1040 px centred on the shell's
+    column: it widens itself past the shell's padding (`width: min(1040px, 100vw − sidebar − 64px)`,
+    centred with a negative margin), which works before and after the padding fix. With `wide: true`
+    (or the fixed padding) it would no longer need to reach past the shell.
+13. **Sound: start the engine before the first tap** (`src/fx/sound.ts`). Creating the `AudioContext`
+    takes about 75 ms and `installAudioUnlock` does it inside the first pointerdown. Today now calls
+    `sfx.unlock()` from `requestIdleCallback` after it first draws (it starts suspended and the first tap
+    only resumes it); Chrome logs "The AudioContext was not allowed to start" as a warning for that. A
+    build-without-start in the fx layer (create at idle, resume on the gesture, no silent buffer) would
+    do it for every screen and without the warning.
+14. **fx: `celebrateCheckIn` under reduced motion runs its float text and coin flight inside the tap**
+    (its own `later` calls `fn()` at once). Today's own choreography now waits for the frame after the
+    tap; the fx layer's could do the same (the reservation still has to be made in the tap).
+15. **Store: save after the frame.** On a 3-year × 20-habit save about 8 ms of a check-in's 16 ms in
+    the store is `saveNow` (`encodeEnvelope` + `localStorage.setItem`) inside the tap; an idle or
+    next-task save (with the unload flush it already has) would halve a tap's cost.
+16. **Voice lint timeout** (`tests/unit/voice.test.ts`): the "every UI string" case needs 4–5.5 s of its
+    5 s default when run alone and times out in a full `npx vitest run` on a busy machine. Give it
+    `{ timeout: 30_000 }`.
+17. **Band: a pot beyond the sixth.** Today now fills the band's six with the cards still to water at
+    snapshot time (current block first), and scrolls the pot into view before `pour`. A tap on a
+    seventh habit still pours nowhere (`WindowsillBand` slices to `BAND_MAX_POTS`; the fallback is the
+    jar). A "guest" pot, or letting the band swap the tapped pot in, would finish §9.1's choreography.
+18. **Art: 44 px hit areas** for the note on the sill (29 × 29) and the found thing (20 × 20) in
+    `WindowsillBand` (invisible rects around the drawings).
+19. **Logic: a flexible habit's status line.** Yoga reads "3 weeks in a row" until watered, then "1 of
+    2 this week" (DESIGN §9.1.1 puts the pace line first). `todayVM` could return the pace kind for
+    flexible habits from 0 ("2 this week" if "0 of 2" is off-voice). The vine chip also doesn't move on
+    a flexible check-in; a small "this week" tick, or counting it in `progress`, would show the tap
+    counted.
+20. **Copy: the Season Review's ask after its first day.** `SEASON_REVIEW.ask` says "Autumn starts
+    today" on every day the card waits. Today uses a local `'{Season} is here. How should each habit go
+    on?'` (`copy.ts`, `SEASON_ASK_LATER`) when today is past `next.start`; it belongs in lines.ts as
+    `askLater`. Also new in `copy.ts` for lines.ts: `menu.howMany` ("How many…"), `filed` ("It’s on the
+    {shelf} now, in Progress."), and in the editor's `copy.ts`: `ideaGroups`, `more` ("Colour, plant,
+    amount and more"), `leaveTitle`, `leaveNew`, `leaveEdit`, `keepEditing`, `leave`.
+21. **Toasts over sheets.** A check-in note still up when a sheet opens sits over the sheet's title
+    and close button. The Habit Editor now puts Today's check-in notes away when it opens; the toaster
+    could sit under an open sheet (or below its header) everywhere.
+22. **Playwright: a touch phone project.** `e2e/today.spec.ts` sets an iPhone 13 (Chromium, touch) on
+    its phone describes itself, so request 1's single `screens` project (Desktop Chrome) is enough.
+
+## Review round 1 (what changed)
+
+- Card: ⋯ sits over the words' top right (still 44 × 44), so the status and anchor lines wrap to full
+  width instead of truncating; the ring comes before ⋯ for VoiceOver and Tab. A hold is armed only
+  where it does something (`holdAction`: the pad for a count, the tiny version), at 500 ms, cancelled
+  past 8 px, with a cue (the ring settles to 0.94, a faint sprout fades in for the tiny version).
+- The band: the greeting (h1) comes first in the DOM; the wallet pill is 44 px tall, shows 0, and
+  steps aside on a Mac or PC (the sidebar has the wallet; the jar still takes the coins); the six pots
+  are the ones still to water at snapshot time; a pot out of view scrolls in before the pour.
+- The past-day banner sits under the strip (the strip never moves). Folded rows and block labels are
+  named in words ("Morning, 1 of 1 watered: Take vitamins"). ⋯ › "How many…" opens the number pad.
+- Wide screens (≥ 1100 px): two columns, the sill's notes in a sticky rail.
+- Speed: the band's scene and the notes draw one frame after the list; plants beyond the first three
+  draw in idle batches (never on scroll); a watering redraws the band after the tap's frame; the
+  choreography (and a partial tap's chime) never runs inside the tap; sound warms up while idle.
+- Sheets: the letter and story art inside the sheet, the letter's title visible, a toast says where
+  a filed letter went, and only "Not now" answers the story's question. The companion offer's chips
+  run across the card. 44 px buttons throughout. "Take today off?" says it once.
+- The Habit Editor: long choices (ideas' groups, how often, how long, from when) as wrapping chips;
+  name, ideas, how often and when first, the rest behind "Colour, plant, amount and more" (open for an
+  edit, and opened by a note in it); focus moves to the first field to fix; closing a form with
+  something in it asks ("Keep editing" is the default and Esc); "Just this season" has its visible
+  label; no placeholder in Unit. A latent bug is gone: the form remounted (losing what was typed) on
+  the host's first re-render after opening.
+- Measured on this machine (load average 8–14) against a production build and the 3-year × 20-habit
+  save: switching to Today paints its first card in 40–60 ms (was 177–340); a tap reaches its frame in
+  23–48 ms (median 31 with motion, 48 with reduced motion; was 32–76); scrolling stays at 16.7 ms
+  frames with motion on (one 50–66 ms frame with reduced motion). The rest of a tap is the store (see
+  request 15) and native style for the card.
+
 ## Known gaps
 
-- The desktop layout follows the shell's (too narrow) column; see request 2.
+- The desktop layout reaches past the shell's column on its own; see requests 2 and 12.
 - The Season Review's time-lapse grows each plant from its first stage to its last (150 ms a stage);
   residents sit beside them but don't move.
 - The month jar isn't on Today yet (request 9).
-- Timing, measured on this (heavily shared, load average near 20) machine against a production build and
-  the 3-year × 20-habit save: the view model is 22 ms cold and 2 ms warm; switching to Today paints its
-  first card in about 105–150 ms, and a tap reaches the next frame in 40–75 ms (the store's check-in and
-  its immediate save are about half of it). Both should be several times faster on an idle laptop; they
-  still need a measurement there against the < 50 ms and one-frame targets.
+- Timing: see "Review round 1" above. The one-frame tap target (16.7 ms) is not met yet on this
+  machine: about half of a tap is the store's check-in and its immediate save (request 15), and with
+  reduced motion the fx layer's float text and coin run inside the tap (request 14).
+- The first tap after a cold load still pays for sound's engine if it comes before the page's first
+  idle moment (request 13).
 - The number pad's quick adds are +1, +step and +2×step (no free typing).

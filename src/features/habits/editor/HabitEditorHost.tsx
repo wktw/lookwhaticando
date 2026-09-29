@@ -9,6 +9,7 @@ import { selectHabitEditor } from '@/state/selectors';
 import { Sheet } from '@/ui/Sheet';
 import { Button } from '@/ui/Button';
 import { ConfirmDialog } from '@/ui/ConfirmDialog';
+import { dismissToast, toasts } from '@/ui/toast';
 import { closeHabitEditor, habitEditorRequest, type HabitEditorRequest } from '../open';
 import { HabitEditor } from './HabitEditor';
 import { EDITOR_COPY } from './copy';
@@ -21,7 +22,10 @@ export default function HabitEditorHost() {
   // Keep the last request while the sheet slides away, so its contents don't vanish mid-close.
   const [shown, setShown] = useState<HabitEditorRequest | null>(req);
   useEffect(() => {
-    if (req) setShown(req);
+    if (!req) return;
+    setShown(req);
+    // A check-in note still up would sit over the sheet's title and close button: it goes.
+    for (const n of toasts.value) if (n.key && /^(checkin|uncheck)-/.test(n.key)) dismissToast(n.id);
   }, [req]);
   // A fresh form per request (each open is a new request object); a re-render never remounts it.
   const session = useMemo(() => ++sessions, [shown]);
