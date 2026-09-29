@@ -5,6 +5,7 @@ import type { TimeOfDay } from './time';
  * layer can be serialized on its own, e.g. by photo mode.
  */
 export interface ScenePalette {
+  time: TimeOfDay;
   /** Sky gradient: top, middle, horizon. */
   sky: readonly [string, string, string];
   /** Sun (or moon) disc and the soft halo around it. */
@@ -35,12 +36,17 @@ export interface ScenePalette {
   line: string;
   /** Opacity of wildflower petals (dimmed at night). */
   bloom: number;
+  /** Long shadows cast by the low sun: color, opacity, and which way they fall (-1 left, 1 right, 0 none). */
+  shadow: { color: string; opacity: number; toward: -1 | 0 | 1 };
+  /** Warm or cool light washed over the far meadow (null for none). */
+  wash: { color: string; opacity: number } | null;
   night: boolean;
 }
 
 const COCOA = '#5A3E45';
 
 const DAY: ScenePalette = {
+  time: 'day',
   sky: ['#9FCFF3', '#C6E5FA', '#EEF8FB'],
   orb: '#FFE27F',
   halo: '#FFF6C9',
@@ -66,76 +72,98 @@ const DAY: ScenePalette = {
   woodShade: '#EED8BA',
   line: COCOA,
   bloom: 1,
+  shadow: { color: '#6E9F5E', opacity: 0.22, toward: 0 },
+  wash: null,
   night: false,
 };
 
+/** Dawn: cool and dewy. A periwinkle-to-blush sky, a pale sun rising on the left, misty minty greens. */
 const DAWN: ScenePalette = {
   ...DAY,
-  sky: ['#E7CDEE', '#FFD6DE', '#FFEBD3'],
-  orb: '#FFD9A3',
-  halo: '#FFE9D2',
-  cloud: '#FFF5F3',
-  cloudShade: '#FFD8E1',
-  cloudLine: '#EFB6C6',
-  hillFar: '#E6D2E3',
-  hillFarDetail: '#D8C1D6',
-  hillNear: '#B9D6A7',
-  hillNearShade: '#A8CB95',
-  hillLine: '#8FB67D',
-  meadowBack: '#BCDBA6',
-  meadowNear: '#C9E3B1',
-  meadowFront: '#AED496',
+  time: 'dawn',
+  sky: ['#C3CBF0', '#F6D3E4', '#FFEBD8'],
+  orb: '#FFE6B8',
+  halo: '#FFF3E0',
+  cloud: '#FFF7FA',
+  cloudShade: '#F2DDEF',
+  cloudLine: '#D9BCDD',
+  hillFar: '#D9D6EE',
+  hillFarDetail: '#C8C4E4',
+  hillNear: '#B4DAB8',
+  hillNearShade: '#A0CDA6',
+  hillLine: '#86B990',
+  meadowBack: '#BCE0BC',
+  meadowNear: '#C9E8C3',
+  meadowFront: '#AED6AA',
+  grass: '#94C795',
+  grassLine: '#6C9F72',
+  leaf: '#A6D59A',
+  leafShade: '#88C080',
+  leafLight: '#CDEBC4',
+  shadow: { color: '#8F9BD0', opacity: 0.22, toward: 1 },
+  wash: { color: '#FFFFFF', opacity: 0.4 },
 };
 
+/** Golden hour: warm and glowing. A big apricot sun setting on the right, honeyed greens, long lavender shadows. */
 const GOLDEN: ScenePalette = {
   ...DAY,
-  sky: ['#C5B3EC', '#F7C0CF', '#FFD9A8'],
-  orb: '#FFC989',
-  halo: '#FFE1B8',
-  cloud: '#FFE9DE',
-  cloudShade: '#F9C4C8',
-  cloudLine: '#E6A6B6',
-  hillFar: '#EACBD2',
-  hillFarDetail: '#DDB9C3',
-  hillNear: '#C3D89E',
-  hillNearShade: '#B2CB8B',
-  hillLine: '#97B377',
-  meadowBack: '#C3DB9E',
-  meadowNear: '#D0E3A9',
-  meadowFront: '#B1D18F',
-  grass: '#9CC47D',
-  leaf: '#AFD28A',
-  leafShade: '#92BC72',
-  leafLight: '#D7EAB2',
-  wood: '#FFEBD6',
+  time: 'golden',
+  sky: ['#B7A2E4', '#F6B3C7', '#FFCB92'],
+  orb: '#FFB978',
+  halo: '#FFD7A6',
+  cloud: '#FFE3D6',
+  cloudShade: '#F8BCC6',
+  cloudLine: '#E3A1B4',
+  hillFar: '#EDBFCB',
+  hillFarDetail: '#DFAABB',
+  hillNear: '#C3D899',
+  hillNearShade: '#B1CA86',
+  hillLine: '#94AF6C',
+  meadowBack: '#C6DC98',
+  meadowNear: '#D1E4A3',
+  meadowFront: '#B5D08B',
+  grass: '#A2C27A',
+  grassLine: '#809B58',
+  leaf: '#B2D185',
+  leafShade: '#96BB6D',
+  leafLight: '#D9EBAE',
+  trunk: '#D6A27E',
+  wood: '#FFE9D2',
+  woodShade: '#F2CFAE',
+  shadow: { color: '#9A7FC6', opacity: 0.3, toward: -1 },
+  wash: { color: '#FFC49A', opacity: 0.3 },
 };
 
+/** Night: moonlit and magical. Deep indigo sky, sage-lavender meadow, warm lights in the dark. */
 const NIGHT: ScenePalette = {
+  time: 'night',
   sky: ['#272151', '#3F3679', '#7464AA'],
   orb: '#FFF1C4',
   halo: '#B7A8F0',
   cloud: '#7168A8',
   cloudShade: '#5E5594',
   cloudLine: '#4E4684',
-  hillFar: '#56508F',
-  hillFarDetail: '#4A4482',
-  hillNear: '#43698A',
-  hillNearShade: '#3B5F7E',
-  hillLine: '#314F6C',
-  meadowBack: '#4E7C86',
-  meadowNear: '#5A8A8E',
-  meadowFront: '#46717C',
-  grass: '#62938F',
-  grassLine: '#335A63',
-  leaf: '#4F8079',
-  leafShade: '#416D69',
-  leafLight: '#6D9E95',
+  hillFar: '#58528F',
+  hillFarDetail: '#4C4684',
+  hillNear: '#4B6588',
+  hillNearShade: '#435C7E',
+  hillLine: '#36496C',
+  meadowBack: '#50707E',
+  meadowNear: '#586E8E',
+  meadowFront: '#4B5F84',
+  grass: '#5F7E92',
+  grassLine: '#34496A',
+  leaf: '#4F7A7C',
+  leafShade: '#42686D',
+  leafLight: '#6A9496',
   trunk: '#86696E',
   trunkShade: '#6F555B',
   wood: '#BCADCB',
   woodShade: '#A091B5',
   line: '#3B2B3F',
-  bloom: 0.8,
+  bloom: 0.85,
+  shadow: { color: '#241E48', opacity: 0.25, toward: 0 },
+  wash: null,
   night: true,
 };
 

@@ -43,24 +43,34 @@ function Moon({ palette }: { palette: ScenePalette }) {
 
 export interface OrbProps {
   palette: ScenePalette;
-  /** Centre position and size as CSS lengths (percentages of the container). */
+  /** Centre position and size (the orb canvas edge) as CSS lengths. */
   x: string;
   y: string;
   size: string;
 }
 
+/**
+ * The halo: bright around the sun's disc; around the moon it is softer and leans toward the lit
+ * limb, so the crescent's bite still reads as sky.
+ */
+const HALO = {
+  sun: { cx: 50, cy: 50, r: 50, stops: [0.95, 0.38] },
+  moon: { cx: 42, cy: 56, r: 42, stops: [0.5, 0.2] },
+} as const;
+
 /** The sun (dawn/day/golden) or the crescent moon (night), with a softly breathing halo. */
 export function Orb({ palette, x, y, size }: OrbProps) {
   const id = useUid('halo');
   const box = { left: x, top: y, height: size };
+  const halo = palette.night ? HALO.moon : HALO.sun;
   return (
     <>
       {/* the halo is its own element so its breathing stays on the compositor */}
       <svg class={`${s.orb} ${s.halo}`} style={box} viewBox="0 0 100 100" aria-hidden="true" focusable="false">
         <defs>
-          <radialGradient id={id}>
-            <stop offset="0.3" stop-color={palette.halo} stop-opacity={0.95} />
-            <stop offset="0.62" stop-color={palette.halo} stop-opacity={0.38} />
+          <radialGradient id={id} cx={halo.cx / 100} cy={halo.cy / 100} r={halo.r / 100}>
+            <stop offset="0.3" stop-color={palette.halo} stop-opacity={halo.stops[0]} />
+            <stop offset="0.62" stop-color={palette.halo} stop-opacity={halo.stops[1]} />
             <stop offset="1" stop-color={palette.halo} stop-opacity={0} />
           </radialGradient>
         </defs>

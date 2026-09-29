@@ -10,7 +10,13 @@ const LAYERS = [
   { tile: 1010, seed: 13, dur: 3.3, delay: -0.4 },
 ];
 
+const fields = new Map<string, JSX.Element[]>();
+
+/** One tile of stars; seeded, so each tile is built once and reused by every render. */
 function starField(tile: number, seed: number, bottom: number, size: number) {
+  const key = `${tile}-${seed}-${bottom}-${size}`;
+  const hit = fields.get(key);
+  if (hit) return hit;
   const rand = seeded(seed);
   const stars: JSX.Element[] = [];
   for (let k = 0; k < 6; k++) {
@@ -23,6 +29,7 @@ function starField(tile: number, seed: number, bottom: number, size: number) {
       stars.push(<circle key={k} cx={x.toFixed(1)} cy={y.toFixed(1)} r={((2 + rand() * 1.6) * size).toFixed(2)} fill="#FFF9E8" />);
     }
   }
+  fields.set(key, stars);
   return stars;
 }
 

@@ -1,5 +1,6 @@
-/* Meadow scene layout. Everything is sized from the scene height (cqh), so wide scenes
-   show more meadow instead of stretching. Only transform/opacity animate. */
+/* Meadow scene layout. Everything is sized in meadow units (--u, see layout.ts), so wide scenes
+   show more meadow instead of stretching. Only transform/opacity animate, and only on small
+   outer elements, so the compositor does the work. */
 
 .scene {
   position: relative;
@@ -9,9 +10,9 @@
   -webkit-user-select: none;
   user-select: none;
   -webkit-touch-callout: none;
+  /* --u and --du are set inline from layout.ts (resolved against this container by children). */
 }
 
-.layer,
 .fill {
   position: absolute;
   inset: 0;
@@ -33,38 +34,41 @@
   pointer-events: auto;
 }
 
-/* The tree hugs the left edge: on narrow portrait screens it slides partly out of frame so
-   the meadow keeps its room; on wide screens it steps a little inward. */
-.tree {
+/* The land canvas: 100U tall with its horizon (canvas y 460) on the scene's horizon line (46%).
+   Its meadow floor runs on below the canvas for tall portrait scenes. */
+.land {
   position: absolute;
-  bottom: 0;
-  height: 100%;
-  aspect-ratio: 700 / 1000;
+  left: 0;
+  width: 100%;
+  top: calc(46% - 46 * var(--u));
+  height: calc(100 * var(--u));
   max-width: none;
-  left: -4%;
-  left: clamp(-24cqh, 46cqw - 41cqh, 4cqh);
+  overflow: visible;
   pointer-events: none;
 }
 
-.fence {
+/* The big tree's box (left is set inline from layout.ts). */
+.tree {
   position: absolute;
-  bottom: 0;
-  right: 0;
-  height: 100%;
-  aspect-ratio: 1400 / 1000;
-  max-width: none;
+  top: calc(46% - 46 * var(--u));
+  height: calc(100 * var(--u));
+  aspect-ratio: 700 / 1000;
   pointer-events: none;
+}
+
+.swing,
+.lantern {
+  position: absolute;
+  max-width: none;
+  overflow: visible;
+  will-change: transform;
 }
 
 .swing {
-  transform-box: view-box;
-  transform-origin: 339px 360px;
   animation: swing 4.2s ease-in-out infinite alternate;
 }
 
 .lantern {
-  transform-box: view-box;
-  transform-origin: 282px 368px;
   animation: swing 5.2s ease-in-out -1.6s infinite alternate;
 }
 
@@ -77,39 +81,32 @@
   }
 }
 
-.mist {
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 29%;
-  height: 22%;
-  background: linear-gradient(to bottom, rgba(255, 255, 255, 0), rgba(255, 250, 246, 0.5) 55%, rgba(255, 255, 255, 0));
-  pointer-events: none;
-}
-
 .decor {
   position: absolute;
   max-width: none;
+  overflow: visible;
   pointer-events: none;
 }
 
+/* Tied-down floaters (balloons) lean out into the open sky and sway about their knot
+   (transform-origin is set inline from the art's tie point). */
 .bob {
+  rotate: 9deg;
   animation: bob 5s ease-in-out infinite alternate;
+  will-change: transform;
 }
 
 @keyframes bob {
   from {
-    transform: translateY(-2%) rotate(-1.5deg);
+    transform: rotate(-2.5deg);
   }
   to {
-    transform: translateY(2%) rotate(1.5deg);
+    transform: rotate(2.5deg);
   }
 }
 
 .planter {
   position: absolute;
-  left: 3%;
-  bottom: -1%;
   pointer-events: none;
 }
 
@@ -118,22 +115,99 @@
   top: 0;
 }
 
-/* Night fireflies: a slow wander plus a glow pulse. */
-.fireflies {
+/* Front-edge framing: a grass fringe along the bottom and a bush in each bottom corner. */
+.fringe {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  height: calc(12 * var(--u));
+  max-width: none;
+  pointer-events: none;
+}
+
+.corner {
+  position: absolute;
+  left: calc(-5 * var(--u));
+  bottom: calc(-4 * var(--u));
+  height: calc(21 * var(--u));
+  aspect-ratio: 180 / 150;
+  max-width: none;
+  pointer-events: none;
+}
+
+.cornerRight {
+  left: auto;
+  right: calc(-5 * var(--u));
+}
+
+/* Little critters over the meadow: butterflies by day, fireflies by night. */
+.critters {
   composes: band;
   pointer-events: none;
 }
 
+/* Night fireflies: a slow wander plus a glow pulse. */
+
 .firefly {
   position: absolute;
-  width: 3.2cqh;
-  height: 3.2cqh;
-  border-radius: 50%;
-  background: radial-gradient(circle, #fffbe0 0 13%, rgba(255, 236, 150, 0.9) 22%, rgba(255, 229, 147, 0.32) 42%, rgba(255, 229, 147, 0) 70%);
+  width: calc(3.4 * var(--u));
+  height: calc(3.4 * var(--u));
+  max-width: none;
   animation:
     wander var(--dur) ease-in-out var(--delay) infinite,
     glow 3.1s ease-in-out var(--delay) infinite alternate;
   will-change: transform, opacity;
+}
+
+/* Narrow scenes need fewer fireflies. */
+@container (aspect-ratio < 1) {
+  .firefly:nth-child(n + 8) {
+    display: none;
+  }
+}
+
+/* Daytime butterflies: a lazy figure-of-eight drift, flapping by squashing sideways. */
+.flutter {
+  position: absolute;
+  width: calc(3.2 * var(--u));
+  height: calc(2.7 * var(--u));
+  animation: flutter var(--dur) ease-in-out var(--delay) infinite;
+  will-change: transform;
+}
+
+.butterfly {
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  animation: flap 0.34s ease-in-out infinite alternate;
+  will-change: transform;
+}
+
+@keyframes flutter {
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+  25% {
+    transform: translate(calc(var(--dir) * 7 * var(--u)), calc(-4 * var(--u)));
+  }
+  50% {
+    transform: translate(calc(var(--dir) * 12 * var(--u)), calc(1 * var(--u)));
+  }
+  75% {
+    transform: translate(calc(var(--dir) * 5 * var(--u)), calc(3 * var(--u)));
+  }
+}
+
+@keyframes flap {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0.35);
+  }
 }
 
 @keyframes wander {
@@ -142,13 +216,13 @@
     transform: translate(0, 0);
   }
   25% {
-    transform: translate(calc(var(--dir) * 3cqh), -2.5cqh);
+    transform: translate(calc(var(--dir) * 3 * var(--u)), calc(-2.5 * var(--u)));
   }
   50% {
-    transform: translate(calc(var(--dir) * 5cqh), 0.5cqh);
+    transform: translate(calc(var(--dir) * 5 * var(--u)), calc(0.5 * var(--u)));
   }
   75% {
-    transform: translate(calc(var(--dir) * 1.5cqh), 2.5cqh);
+    transform: translate(calc(var(--dir) * 1.5 * var(--u)), calc(2.5 * var(--u)));
   }
 }
 
