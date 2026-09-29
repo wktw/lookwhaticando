@@ -60,7 +60,8 @@
   font-weight: 400;
   line-height: 1.15;
   color: var(--ink);
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
+  hyphens: auto;
 }
 .nameEmpty {
   color: var(--ink-2);
@@ -365,7 +366,8 @@
   font-size: var(--fs-body-lg);
   line-height: 1.2;
   color: var(--ink);
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
+  hyphens: auto;
 }
 
 .habitMeta {
@@ -599,7 +601,8 @@
   padding: 10px var(--s-4);
   border-top: 1px solid var(--line);
   font-size: var(--fs-caption);
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
+  hyphens: auto;
 }
 .diag dt {
   font-weight: 700;
