@@ -84,5 +84,5 @@ export interface RandomEdit {
 export function randomEdits(rng: Rng, w: World): RandomEdit[] {
   const n = randomInt(rng, 1, 5);
   const offsets = Array.from({ length: n }, () => randomInt(rng, 0, 140)).sort((a, b) => a - b);
-  return offsets.map((o) => ({ day: addDays(w.habit.startedOn, o), content: randomContent(rng), timing: pick(rng, ['today', 'next-period'] as const) }));
+  return offsets.map((o) => ({ day: addDays(w.habit.startedOn, o), content: randomContent(rng), timing: pick(rng, ['today', 'next-period', 'tomorrow'] as const) }));
 }

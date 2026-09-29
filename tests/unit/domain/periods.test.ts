@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { withRuleEdit } from '@/domain/rules';
 import { attributionMonth, evaluatePeriod, flexPeriodAt, flexPeriodsOverlapping, periodEvaluations, periodPace } from '@/domain/periods';
 import { DAILY, REST, ctx, done, habit, logs, monthly, on, range, rule, tiny, weekly } from './helpers';
 
@@ -138,6 +139,15 @@ describe('rule versions clip periods', () => {
     const e = periodAt(h, logs(on(['2026-09-29'])), '2026-09-29', '2026-09-30');
     expect(e).toMatchObject({ from: '2026-09-28', to: '2026-09-29', state: 'closed', activeDays: 2, target: 1, achieved: 1, expected: 1 });
     expect(flexPeriodAt(h, '2026-09-30', 1)).toBeNull();
+  });
+
+  it('graduating a weekly habit mid-week closes its period tonight with a scaled goal', () => {
+    const h = habit({ startedOn: '2026-08-03', schedule: weekly(3) });
+    const grown = withRuleEdit(h, { schedule: weekly(4), target: 1, step: 1 }, '2026-09-30', 'tomorrow', 1);
+    const l = logs(on(['2026-09-28', '2026-10-02']));
+    // Mon–Wed under 3×: round(3 × 3/7) = 1 → met. Thu–Sun under 4×: round(4 × 4/7) = 2.
+    expect(periodAt(grown, l, '2026-09-29', '2026-10-05')).toMatchObject({ from: '2026-09-28', to: '2026-09-30', target: 1, achieved: 1, met: true });
+    expect(periodAt(grown, l, '2026-10-02', '2026-10-05')).toMatchObject({ from: '2026-10-01', to: '2026-10-04', target: 2, achieved: 1, expected: 2 });
   });
 
   it('archiving mid-week shrinks the last period', () => {

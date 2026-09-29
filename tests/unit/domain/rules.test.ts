@@ -128,6 +128,9 @@ describe('edit timing (DESIGN §13.2)', () => {
     ['weekly begun mid-week', [rule('2026-08-01', DAILY), rule('2026-09-29', weekly(3))], '2026-08-01', 'today', 1, '2026-09-29'],
     // Created this week: the edit replaces the first rule (from stays = startedOn).
     ['created this week', [rule('2026-09-30', weekly(3))], '2026-09-30', 'today', 1, '2026-09-30'],
+    // Graduation ("Ready to grow?"): the new rule starts tomorrow, whatever the kind.
+    ['daily: tomorrow', [rule('2026-08-01', DAILY)], '2026-08-01', 'tomorrow', 1, '2026-10-01'],
+    ['weekly: tomorrow', [rule('2026-08-03', weekly(3))], '2026-08-03', 'tomorrow', 1, '2026-10-01'],
   ] as const)('%s', (_d, rules, startedOn, timing, weekStart, expected) => {
     expect(editEffectiveFrom({ rules: [...rules], startedOn }, today, timing, weekStart)).toBe(expected);
   });

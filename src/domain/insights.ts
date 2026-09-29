@@ -15,6 +15,7 @@ import {
   addDays,
   daysInRange,
   eachDay,
+  isDateKey,
   maxDateKey,
   monthFromIndex,
   monthIndex,
@@ -104,7 +105,7 @@ export function checkinCounts(t: Tracking, start: DateKey, end: DateKey, today: 
   for (const h of t.habits) {
     const c: CheckinCount = { checkins: 0, tiny: 0 };
     for (const [date, log] of Object.entries(logsFor(t, h.id))) {
-      if (date < start || date > last || !inLifetime(h, date)) continue;
+      if (date < start || date > last || !inLifetime(h, date) || !isDateKey(date)) continue;
       const s = logStatus(log, ruleAt(h, date), date < today);
       if (showedUp(s)) c.checkins++;
       if (s === 'tiny') c.tiny++;
@@ -286,10 +287,11 @@ export function busiestTimeOfDay(
   let total = 0;
   for (const h of t.habits) {
     for (const [date, log] of Object.entries(logsFor(t, h.id))) {
-      if (date < start || date > today || log.kind !== 'log' || !log.at || log.at.length === 0) continue;
+      if (date < start || date > today || log.kind !== 'log' || !log.at || log.at.length === 0 || !isDateKey(date)) continue;
       const weight = 1 / log.at.length;
       for (const ms of log.at) {
-        const hour = local(ms).hour;
+        if (!Number.isFinite(ms)) continue;
+      const hour = local(ms).hour;
         hours[hour]! += weight;
         blocks[timeBlockOf(hour)] += weight;
       }

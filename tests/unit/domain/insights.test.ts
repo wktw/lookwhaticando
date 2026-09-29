@@ -63,6 +63,11 @@ describe('check-in counts (Monthly Bouquet, most-checked habit)', () => {
     expect(checkinCounts(t, '2026-09-01', '2026-09-30', '2026-09-05').walk).toEqual({ checkins: 5, tiny: 0 });
   });
 
+  it('ignores malformed log keys (corrupt imports)', () => {
+    const corrupt = tracking([[walk, { ...logs(range('2026-09-01', '2026-09-03')), '2026-9-2': { kind: 'log', count: 1 }, '2026-09-1': { kind: 'log', count: 1 } }]]);
+    expect(checkinCounts(corrupt, '2026-09-01', '2026-09-30', '2026-09-30').walk).toEqual({ checkins: 3, tiny: 0 });
+  });
+
   it('most-checked habit over all time (archived included); null before any check-in', () => {
     expect(mostCheckedHabit(t, '2026-09-30')).toEqual({ habitId: 'read', checkins: 51 });
     expect(mostCheckedHabit(tracking([[habit({ startedOn: '2026-09-01' }), logs()]]), '2026-09-30')).toBeNull();

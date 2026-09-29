@@ -97,20 +97,40 @@ export function formatDateKey(year: number, month: number, day: number): DateKey
 /* Day numbers & arithmetic (UTC noon)                                 */
 /* ------------------------------------------------------------------ */
 
+function assertInt(n: number, what: string): void {
+  if (!Number.isInteger(n)) throw new RangeError(`${what} must be an integer, got ${n}`);
+}
+
+/*
+ * Key ↔ day-number conversions are memoised: stats walk the same few thousand dates for every
+ * habit and window, and parsing/formatting dominated the profile. The caches are pure (same input,
+ * same output), hold only valid keys, and are bounded.
+ */
+const CACHE_LIMIT = 20_000;
+const dayNumberCache = new Map<DateKey, number>();
+const keyCache = new Map<number, DateKey>();
+
+function remember<K, V>(cache: Map<K, V>, k: K, v: V): V {
+  if (cache.size >= CACHE_LIMIT) cache.clear();
+  cache.set(k, v);
+  return v;
+}
+
 /** Whole days since 1970-01-01 (computed at 12:00 UTC, so DST can never shift it). */
 export function dayNumber(key: DateKey): number {
+  const hit = dayNumberCache.get(key);
+  if (hit !== undefined) return hit;
   const { year, month, day } = parseDateKey(key);
-  return Math.floor(Date.UTC(year, month - 1, day, 12) / DAY_MS);
+  return remember(dayNumberCache, key, Math.floor(Date.UTC(year, month - 1, day, 12) / DAY_MS));
 }
 
 /** Inverse of `dayNumber`. */
 export function fromDayNumber(n: number): DateKey {
+  const hit = keyCache.get(n);
+  if (hit !== undefined) return hit;
+  assertInt(n, 'day number');
   const d = new Date(n * DAY_MS + NOON_MS);
-  return formatDateKey(d.getUTCFullYear(), d.getUTCMonth() + 1, d.getUTCDate());
-}
-
-function assertInt(n: number, what: string): void {
-  if (!Number.isInteger(n)) throw new RangeError(`${what} must be an integer, got ${n}`);
+  return remember(keyCache, n, formatDateKey(d.getUTCFullYear(), d.getUTCMonth() + 1, d.getUTCDate()));
 }
 
 /** `key` moved by `n` calendar days (n may be negative). */

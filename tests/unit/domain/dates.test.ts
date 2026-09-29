@@ -113,6 +113,17 @@ describe('day arithmetic (UTC noon)', () => {
     expect(fromDayNumber(dayNumber('2026-09-29'))).toBe('2026-09-29');
   });
 
+  it('stays exact across more distinct dates than the memo holds (60 years)', () => {
+    const days = eachDay('1990-01-01', '2049-12-31');
+    expect(days).toHaveLength(21_915);
+    for (let i = 0; i < days.length; i += 997) {
+      expect(dayNumber(days[i]!)).toBe(dayNumber('1990-01-01') + i);
+      expect(fromDayNumber(dayNumber(days[i]!))).toBe(days[i]);
+    }
+    expect([days.includes('2000-02-29'), days.includes('2001-02-29'), days.includes('2048-02-29')]).toEqual([true, false, true]);
+    expect(() => fromDayNumber(1.5)).toThrow(RangeError);
+  });
+
   it('diffDays across DST and years; daysInRange is inclusive', () => {
     expect(diffDays('2026-03-01', '2026-04-01')).toBe(31);
     expect(diffDays('2026-10-01', '2026-11-30')).toBe(60);

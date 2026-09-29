@@ -161,8 +161,10 @@ export function validateHabitRules(habit: WithRulesAndStart): RuleIssue[] {
  *   period ("this period": the period is re-evaluated under the new rule).
  * - 'next-period': flexible habits change from the day after the current period ends. Day-based
  *   habits ignore it and change from today (DESIGN §13.2).
+ * - 'tomorrow': any habit changes from tomorrow (accepting "Ready to grow?", §13.2 graduation).
+ *   A flexible habit's current period then closes tonight with its goal scaled to the days it had.
  */
-export type RuleEditTiming = 'today' | 'next-period';
+export type RuleEditTiming = 'today' | 'next-period' | 'tomorrow';
 
 /**
  * The first day an edit made on `today` governs. It is never earlier than the current rule's own
@@ -175,7 +177,9 @@ export function editEffectiveFrom(habit: WithRulesAndStart, today: DateKey, timi
   if (!first) throw new Error('Habit has no rules');
   const current = ruleAt(habit, today);
   let from: DateKey;
-  if (isDayBased(current)) {
+  if (timing === 'tomorrow') {
+    from = addDays(today, 1);
+  } else if (isDayBased(current)) {
     from = today;
   } else {
     const slot = periodSlotAt(periodGrid(current, current.from, weekStart), today);
