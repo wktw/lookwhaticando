@@ -26,9 +26,9 @@ export interface Layer {
   /** Gets its own crescent (near legs, so a white leg still reads against white paper). */
   lit?: boolean;
   /**
-   * The leg below the elbow. When set, the whole shape is painted in the coat and only this part
-   * in the leg tone, so a colourpoint's sitting foreleg is dark from the elbow down, not a bar
-   * down the chest. Invisible when the legs are the coat colour.
+   * The leg below the elbow. When set, the whole shape is painted a step between the coat and the
+   * leg tone and only this part in the leg tone, so a colourpoint's sitting foreleg reads as a
+   * leg against the chest, darkening from the elbow down. Invisible when the legs are the coat colour.
    */
   lower?: string;
 }
@@ -59,6 +59,8 @@ export interface TailRig {
   d: string;
   /** The tip, drawn in the tip tone and clipped to the tail (or, with `tuft`, standing proud of it). */
   tip: string;
+  /** A band just before the tip, drawn half-way between the tail and tip tones, so the tip darkens in one step. */
+  fade?: string;
   /** A cow's tuft is wider than the tail, so it is not clipped. */
   tuft?: boolean;
   /** Tabby rings across the tail, clipped to it. */
@@ -154,8 +156,8 @@ function along(spine: readonly P[], frac: number): { p: P; dir: P } {
 
 /**
  * A tail along a spine, tapering from `w0` to `w1`. Its tip is a short capsule over the end, so
- * its edge across the tail reads as a rounded cap (not a square-cut block), and three tabby rings sit
- * across it; both are clipped to the tail when drawn. With `joint`, the last part of the tail
+ * its edge across the tail reads as a rounded cap (not a square-cut block), with a half-tone band
+ * before it, and three tabby rings sit across it; both are clipped to the tail when drawn. With `joint`, the last part of the tail
  * past that fraction of its length is also given as its own piece, so a tip flick moves only it.
  */
 export function tailRig(spine: readonly P[], w0: number, w1: number, pivot: P, layer: TailRig['layer'], tipFrac = 0.28, joint?: number): TailRig {
@@ -171,9 +173,18 @@ export function tailRig(spine: readonly P[], w0: number, w1: number, pivot: P, l
     .join('');
   // The tip is a short tube laid over the end of the tail: its round back cap makes the colour
   // boundary a rounded cap rather than a square-cut block.
-  const len = Math.min(total * tipFrac, w1 * 1.7);
+  // The tip covers about the last 15% of the tail (with its round end), after a half-tone band.
+  const len = Math.min(total * Math.min(tipFrac, 0.15), w1 * 1.2);
   const back = along(spine, Math.max(0, 1 - len / total)).p;
-  const out: TailRig = { d: tube(spine, w0, w1), tip: tube([back, end], w1 * 1.2, w1 * 1.2), rings, pivot, layer };
+  const fade = along(spine, Math.max(0, 1 - (len * 2.3) / total)).p;
+  const out: TailRig = {
+    d: tube(spine, w0, w1),
+    tip: tube([back, end], w1 * 1.2, w1 * 1.2),
+    fade: tube([fade, end], w1 * 1.3, w1 * 1.3),
+    rings,
+    pivot,
+    layer,
+  };
   if (joint !== undefined) {
     const { p: j, dir } = along(spine, joint);
     const n: P = [-dir[1], dir[0]];

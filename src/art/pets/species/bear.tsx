@@ -86,20 +86,30 @@ function sprite({ tones: t, has }: SpriteCtx) {
 }
 
 /**
- * The Sun Bear's pale-gold bib: a broad U across the upper chest, per pose (canvas frame). It is
- * drawn over the near foreleg's shoulder so the whole U shows on the chest.
+ * The Sun Bear's pale-gold bib: a broad, shallow crescent across the chest, about 60% of its
+ * width, per pose (canvas frame, clipped to the torso). It is drawn over the near foreleg's
+ * shoulder so the whole crescent shows; lying down it sits low on the chest, in front of the
+ * forelegs, not under the chin.
  */
 const BIB: Record<Pose, string> = {
-  sit: 'M47.6 57C48.6 65.4 53 70.4 58.8 70.4C64 70.4 66.8 66 67.2 59.2L62.4 58.6C62 62.4 60.8 64.4 58.6 64.4C55.4 64.4 53.4 61.4 53 56.6Z',
-  loaf: 'M58 74C58.8 81.4 62.6 86 67.4 86C72 86 75 82 75.4 75.6L70.8 75.2C70.4 78.8 69.4 80.4 67.4 80.4C64.6 80.4 63 77.6 62.6 73.6Z',
-  stand: 'M62.6 68.6C63.2 75.2 66.4 79.4 70.6 79.4C74.4 79.4 76.6 75.8 77 70.6L72.8 70.2C72.6 73 71.8 74.4 70.6 74.4C68.4 74.4 67.2 71.8 67 68.2Z',
-  walk: 'M62.6 68.6C63.2 75.2 66.4 79.4 70.6 79.4C74.4 79.4 76.6 75.8 77 70.6L72.8 70.2C72.6 73 71.8 74.4 70.6 74.4C68.4 74.4 67.2 71.8 67 68.2Z',
+  sit: 'M40.6 58.6C43.4 66 50 69.6 57.4 69.6C64.8 69.6 70.4 66 73 59L68 57.8C66 62 62.2 64.2 57.4 64.2C52.6 64.2 48.4 62 46 57.4Z',
+  loaf: 'M53 79.6C55.4 85.8 61 89.4 67.4 89.4C73 89.4 77 86.8 78.6 82.2L74.2 81C72.8 83.8 70.4 85 67.4 85C63.4 85 60 83 58.2 78.8Z',
+  stand: 'M58.6 70.4C60.6 76.4 65.2 79.8 70.4 79.8C74.6 79.8 77.4 77.4 78.6 73.2L74.6 72.2C73.6 74.6 72.2 75.6 70.4 75.6C67.2 75.6 64.6 73.4 63.4 69.6Z',
+  walk: 'M58.6 70.4C60.6 76.4 65.2 79.8 70.4 79.8C74.6 79.8 77.4 77.4 78.6 73.2L74.6 72.2C73.6 74.6 72.2 75.6 70.4 75.6C67.2 75.6 64.6 73.4 63.4 69.6Z',
   sleep: '',
 };
 
 function overBody(c: DrawCtx) {
   const bib = !c.silhouette && c.has('crescent') && BIB[c.pose];
-  return bib ? <path d={bib} fill={c.tones.mark} /> : null;
+  if (!bib) return null;
+  return (
+    <>
+      <clipPath id={`${c.uid}-bib`}>
+        <path d={c.p.body} />
+      </clipPath>
+      <path d={bib} fill={c.tones.mark} clip-path={`url(#${c.uid}-bib)`} />
+    </>
+  );
 }
 
 /** A panda's black hindquarters, so the hind leg reads as part of the body, not a loose ball. */

@@ -2,24 +2,20 @@ import { CAT_EARS, CAT_RIG } from './cat.rig';
 import type { DrawCtx, SpeciesArt } from './art';
 import { Blush, Eyes, Mouth, Whiskers } from '../face';
 import { band, blotch, dots, heart } from './marks';
-import { blob, circle, ellipse, fmt, rrect, tube } from '../shape';
+import { circle, ellipse, fmt, rrect, tube } from '../shape';
+import { mix } from '../palette';
 
 /**
- * A colourpoint's mask (head frame): darkest over the nose and whisker pads, spreading round the
- * eyes and narrowing up to a soft point on the forehead, which keeps the coat colour.
+ * A colourpoint's mask (head frame, clipped to the head). The point colour covers the face below
+ * the brow, out to the head outline at the cheeks and whisker pads and under the chin, and meets
+ * the ears at the sides. Over the brow it fades in one flat step (half coat, half point) to the
+ * coat colour, which stays only on the crown. Even-odd: the head's box with the brow cut out.
  */
-const POINT_MASK = blob([
-  [3, -5.4],
-  [8.8, -1.4],
-  [14, 2],
-  [14.6, 8.6],
-  [9.8, 14.4],
-  [3.2, 16.6],
-  [-3.8, 14.6],
-  [-8.2, 8.8],
-  [-8, 2.2],
-  [-2.8, -1.4],
-]);
+const BROW =
+  'M-26 -28H26V-9L18.4 -8.2C16 -7.2 13.6 -6.8 11.4 -6.6C8 -6.2 5.4 -5.2 3 -2.2C0.6 -5.2 -2 -6.2 -6 -6.4C-9 -6.6 -13 -8 -17.6 -9.2L-26 -9.2Z';
+const CROWN = 'M-12 -28H16L13.4 -15.4C11.4 -12.4 7.4 -10.4 3 -9.6C-1.4 -10.4 -5.6 -12.6 -8 -15.8Z';
+const POINT_MASK = 'M-26 -28H26V24H-26Z' + BROW;
+const POINT_BROW = BROW + CROWN;
 /** Cat nose: a small rounded triangle. */
 const NOSE = 'M-1.9 -1C-0.2 -1.8 1.8 -1.2 2 -0.8C1.4 0.5 0.7 1.2 0 1.3C-0.8 1.2 -1.5 0.5 -1.9 -1Z';
 
@@ -107,7 +103,12 @@ const marks: SpeciesArt['marks'] = {
     ),
   },
   points: {
-    head: (c) => <path d={POINT_MASK} fill={c.tones.point} />,
+    head: (c) => (
+      <g fill-rule="evenodd">
+        <path d={POINT_MASK} fill={c.tones.point} />
+        <path d={POINT_BROW} fill={mix(c.tones.head, c.tones.point, 0.45)} />
+      </g>
+    ),
     body: (c) => <path d={blotch(40, 2, 60, 22, 0)} fill={c.tones.point} opacity={0.35} />,
   },
   van: {

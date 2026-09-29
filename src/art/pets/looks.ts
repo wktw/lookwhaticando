@@ -102,7 +102,7 @@ export const LOOKS: Record<string, PetLook> = {
   'pet-dog-shiba': dog({ coat: '#DC955A', under: '#F7E8D3', muzzle: '#F7E8D3', tail: '#DC955A' }, { marks: ['urajiro'], traits: ['pointy-ears', 'curled-tail'] }),
   'pet-dog-golden': dog({ coat: '#E7B770', ear: '#DDA35F', muzzle: '#EFC98C' }, { marks: ['muzzle'] }),
   'pet-dog-dalmatian': dog({ coat: WHITE, mark: SOOT, ear: SOOT, tail: WHITE }, { marks: ['spots'] }),
-  'pet-dog-frenchie': dog({ coat: '#DCC3A2', ear: '#D2B592', earIn: '#E7B6A6', muzzle: '#B39579' }, { marks: ['muzzle'], traits: ['bat-ears', 'short-muzzle', 'stub-tail'], scale: 0.92, stocky: 1.22 }),
+  'pet-dog-frenchie': dog({ coat: '#DCC3A2', ear: '#D2B592', earIn: '#E7B6A6', muzzle: '#977A67' }, { marks: ['muzzle'], traits: ['bat-ears', 'short-muzzle', 'stub-tail'], scale: 0.94 }),
   'pet-dog-bernese': dog({ coat: '#3F3638', mark: '#C98552', under: WHITE, paw: WHITE, tip: WHITE }, { marks: ['tricolour'], dark: true, scale: 1.06 }),
   'pet-dog-samoyed': dog({ coat: '#F8F2EA', under: '#FFFCF6', muzzle: '#FFFCF6', earIn: '#EFC4C0' }, { traits: ['fluffy', 'pointy-ears', 'curled-tail'], scale: 1.04 }),
   'pet-dog-beagle': dog({ coat: '#D69B5F', mark: SOOT, under: WHITE, muzzle: WHITE, paw: WHITE, tip: WHITE, ear: '#C98A50' }, { marks: ['saddle', 'muzzle', 'belly', 'blaze'], traits: ['long-ears'] }),

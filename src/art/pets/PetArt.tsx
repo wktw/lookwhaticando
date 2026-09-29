@@ -8,7 +8,7 @@ import { canonicalExpression, type Expression, type MarkId, type PetLook, type P
 import { getLook } from './looks';
 import { SPECIES_ART } from './species';
 import type { DrawCtx } from './species/art';
-import { spriteTones, tonesFor, type PaletteMode } from './palette';
+import { mix, spriteTones, tonesFor, type PaletteMode } from './palette';
 import { pathBox, poseBounds, type Box } from './bounds';
 import { crescentPath } from './crescents';
 import { BASELINE, frameTransform, SHADE_FOR, type Layer, type LitKey, type PoseRig, type TailRig } from './rig';
@@ -93,7 +93,7 @@ function Layers({ layers, c, part, cls }: { layers?: Layer[]; c: DrawCtx; part: 
   const t = c.tones;
   const rim = t.dark && !c.silhouette;
   // Birman gloves and Ragdoll mitts: white paws that reach up the leg.
-  const glove = c.has('mitts') ? 1.9 : c.has('gloves') ? 1.5 : 0;
+  const glove = c.has('mitts') ? 1.9 : c.has('gloves') ? 1.7 : 0;
   const items = layers.map((l, i) => {
     const sockTone = l.sockTone ? t[l.sockTone] : l.tone === 'legFar' ? t.pawFar : l.tone === 'foot' || l.tone === 'footFar' ? null : t.paw;
     const shade = l.lit && !c.silhouette ? c.crescent(`${part}${i}` as never, c.shade) : '';
@@ -103,7 +103,7 @@ function Layers({ layers, c, part, cls }: { layers?: Layer[]; c: DrawCtx; part: 
     const gloved = glove && l.sock && sockTone && !l.sockTone;
     const shapes = (
       <>
-        <path d={l.d} fill={lower ? t.coat : tone} />
+        <path d={l.d} fill={lower ? mix(t.coat, tone, 0.38) : tone} />
         {lower && <path d={l.lower} fill={tone} />}
         {l.sock && sockTone && <path d={l.sock} fill={sockTone} transform={gloved ? gloveT(l.sock, glove) : undefined} />}
         {shade && <path d={shade} fill="var(--shade)" />}
@@ -159,6 +159,7 @@ function Tail({ c, tail, part }: { c: DrawCtx; tail: TailRig; part: 'tail' | 'ta
           </clipPath>
           <g clip-path={`url(#${id})`}>
             {rings && <path d={tail.rings} fill={t.mark} />}
+            {tipped && tail.fade && <path d={tail.fade} fill={mix(t.tail, t.tip, 0.5)} />}
             {tipped && <path d={tail.tip} fill={t.tip} />}
           </g>
         </>

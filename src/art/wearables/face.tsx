@@ -12,7 +12,7 @@ export const sleepMask = item({
       <path class="pet-line" d="M-9.4 0.2Q-7 2.2 -4.6 0.2M4.6 0.2Q7 2.2 9.4 0.2" fill="none" stroke={C.lavenderDeep} stroke-width="0.8" stroke-linecap="round" />
     </g>
   ),
-  icon: 'translate(54 52) scale(3.2)',
+  icon: 'translate(59 51.5) scale(2.6)',
 });
 
 export const heartShades = item({

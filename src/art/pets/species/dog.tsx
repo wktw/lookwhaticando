@@ -19,7 +19,12 @@ function ears(c: DrawCtx) {
   const lift = c.face.expr === 'surprised' ? 'translate(0 -1.2)' : undefined;
   if (kind === 'pointy' || kind === 'bat') {
     const inner = c.face.full && !c.silhouette;
-    const E = kind === 'pointy' ? [DOG_EARS.pointyNear, DOG_EARS.pointyFar, DOG_EARS.pointyNearIn, DOG_EARS.pointyFarIn] : [DOG_EARS.batNear, DOG_EARS.batFar, DOG_EARS.batNearIn, DOG_EARS.batFarIn];
+    const E =
+      kind === 'pointy'
+        ? [DOG_EARS.pointyNear, DOG_EARS.pointyFar, DOG_EARS.pointyNearIn, DOG_EARS.pointyFarIn]
+        : c.trait('short-muzzle')
+          ? [DOG_EARS.frenchNear, DOG_EARS.frenchFar, DOG_EARS.frenchNearIn, DOG_EARS.frenchFarIn]
+          : [DOG_EARS.batNear, DOG_EARS.batFar, DOG_EARS.batNearIn, DOG_EARS.batFarIn];
     return (
       <g transform={lift}>
         <path d={E[0]} fill={t.ear} />
@@ -53,6 +58,11 @@ function overHead(c: DrawCtx) {
 }
 
 const NOSE = 'M-2.8 -1.6C-1 -2.6 1.6 -2.4 2.8 -1.2C3 1 1.4 2.4 0 2.6C-1.6 2.4 -3.2 0.8 -2.8 -1.6Z';
+/** The French Bulldog's broad, flat nose. */
+const FLAT_NOSE = 'M-4 -1.2C-1.6 -2.6 1.6 -2.6 4 -1.2C4.2 1 2 2.6 0 2.8C-2 2.6 -4.2 1 -4 -1.2Z';
+/** The French Bulldog's mask: a wide, flat muzzle inside the head outline, reaching up between the eyes. */
+const FLAT_MUZZLE =
+  'M-4.6 6C-4.6 2.4 -1.4 0.4 1.2 0.4C2.6 -2.6 4.2 -3.8 5.8 -3.8C7.4 -3.8 9 -2.6 10.4 0.4C13 0.4 16.2 2.4 16.2 6C16.2 11 11.6 14.2 5.8 14.2C0 14.2 -4.6 11 -4.6 6Z';
 
 /** A narrow white blaze from the crown between the eyes, opening into the muzzle (head frame). */
 const BLAZE =
@@ -67,17 +77,17 @@ function face(c: DrawCtx) {
   const flat = c.trait('short-muzzle');
   return (
     <g>
-      <Blush f={f} y={4.6} left={-9.6} right={12.4} rx={2.8} ry={1.6} />
+      <Blush f={f} y={flat ? 3.6 : 4.6} left={flat ? -11 : -9.6} right={flat ? 16.4 : 12.4} rx={2.8} ry={1.6} />
       <Eyes f={f} y={a.eyes.y} left={a.eyes.left} right={a.eyes.right} r={a.eyes.r} />
-      <path d={NOSE} transform={`translate(${a.nose[0]} ${a.nose[1]})${flat ? ' scale(0.8)' : ''}`} fill={t.nose} />
-      <Mouth f={f} x={flat ? 15.2 : 17.4} y={flat ? 10 : 10.6} s={flat ? 0.9 : 1} />
+      <path d={flat ? FLAT_NOSE : NOSE} transform={`translate(${a.nose[0]} ${a.nose[1]})`} fill={t.nose} />
+      <Mouth f={f} x={flat ? a.nose[0] : 17.4} y={flat ? 8.4 : 10.6} s={flat ? 0.9 : 1} />
     </g>
   );
 }
 
 const marks: SpeciesArt['marks'] = {
   muzzle: {
-    head: (c) => <path d={MUZZLE} fill={c.tones.muzzle} />,
+    head: (c) => <path d={c.trait('short-muzzle') ? FLAT_MUZZLE : MUZZLE} fill={c.tones.muzzle} />,
   },
   belly: { chest: true },
   socks: {},
@@ -147,19 +157,29 @@ const marks: SpeciesArt['marks'] = {
 
 function sprite({ tones: t, trait, has }: SpriteCtx) {
   const pointy = trait('pointy-ears') || trait('bat-ears');
+  const flat = trait('short-muzzle');
   return (
     <g>
       <path d={rrect(14, 60, 58, 34, 17)} fill={t.far} />
-      <path d={`${circle(64, 52, 20)}${rrect(66, 50, 30, 20, 10)}`} fill={t.head} />
+      <path d={flat ? circle(64, 53, 21) : `${circle(64, 52, 20)}${rrect(66, 50, 30, 20, 10)}`} fill={t.head} />
       {pointy ? (
         <path d="M46 44L50 22C51 19 54 19 56 22L62 34ZM66 32L74 20C76 18 78 19 79 22L82 40Z" fill={t.ear} />
       ) : (
         <path d="M44 40C38 42 36 58 42 66C46 70 52 62 52 50Z" fill={t.ear} />
       )}
-      <path d={rrect(72, 56, 24, 16, 8)} fill={has('muzzle') || has('urajiro') || has('mask') ? t.muzzle : t.head} />
-      <circle cx={91} cy={58} r={4} fill={t.nose} />
-      <circle cx={60} cy={50} r={3.2} fill={t.ink} />
-      <circle cx={75} cy={49} r={3.2} fill={t.ink} />
+      {trait('short-muzzle') ? (
+        <>
+          <path d={rrect(58, 54, 24, 15, 7.5)} fill={t.muzzle} />
+          <ellipse cx={70} cy={56.4} rx={5} ry={3.4} fill={t.nose} />
+        </>
+      ) : (
+        <>
+          <path d={rrect(72, 56, 24, 16, 8)} fill={has('muzzle') || has('urajiro') || has('mask') ? t.muzzle : t.head} />
+          <circle cx={91} cy={58} r={4} fill={t.nose} />
+        </>
+      )}
+      <circle cx={flat ? 57 : 60} cy={flat ? 47 : 50} r={3.2} fill={t.ink} />
+      <circle cx={75} cy={flat ? 46 : 49} r={3.2} fill={t.ink} />
     </g>
   );
 }

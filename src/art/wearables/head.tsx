@@ -184,7 +184,7 @@ export const earmuffs = item({
       <path d={circle(-12.4, 4.4, 2.2) + circle(12.4, 4.4, 2.2)} fill={C.blushDeep} opacity={0.5} />
     </g>
   ),
-  icon: 'translate(50 58) scale(2.8)',
+  icon: 'translate(50 56) scale(2.5)',
 });
 
 export const leafUmbrella = item({
