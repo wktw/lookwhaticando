@@ -78,6 +78,24 @@ describe('the cabinet art', () => {
     }
   }, 20_000);
 
+  it('gives the capsules in a cabinet a thin lit-side arc, not a glossy white glint', () => {
+    for (const light of LIGHTS) {
+      const svg = draw(<CabinetArt machine={MACHINES[0]!} light={light} />);
+      const pile = svg.querySelector('symbol[id$="-glint"]')!;
+      expect(pile.querySelector('ellipse')).toBeNull();
+      expect(pile.querySelector('path')!.getAttribute('fill')).toBe('none');
+      // The close-up glint is there for the one capsule in the chute, never used by the pile itself.
+      expect(svg.querySelector('symbol[id$="-glint-close"] ellipse')).not.toBeNull();
+      for (const u of svg.querySelectorAll('.window-capsules use')) expect(u.getAttribute('href')).not.toMatch(/glint-close$/);
+    }
+  });
+
+  it('keeps the glint for a capsule in close-up, and drops it below 120 px', () => {
+    expect(draw(<CapsuleArt finish="rare" color="#DDD4F1" size={130} />).querySelector('.cap-glint')).not.toBeNull();
+    expect(draw(<CapsuleArt finish="rare" color="#DDD4F1" size={64} />).querySelector('.cap-glint')).toBeNull();
+    expect(draw(<CapsuleArt finish="rare" color="#DDD4F1" size="100%" />).querySelector('.cap-glint')).not.toBeNull();
+  });
+
   it('warms the side facing the lamp at night, and only at night', () => {
     const count = (light: Light) => draw(<CabinetArt machine={MACHINES[0]!} light={light} />).querySelectorAll('path[fill]').length;
     // Three lamp-side bands (body, plinth, bezel) at night.

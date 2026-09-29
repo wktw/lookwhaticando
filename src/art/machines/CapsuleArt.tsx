@@ -58,6 +58,11 @@ export interface CapsuleShellProps {
   /** The silhouette's ink (the series ink); graphite by default. */
   figureInk?: string;
   light?: Light;
+  /**
+   * The white specular glint (default true). It belongs to the capsule in close-up (DESIGN §10.5's glint on a reveal);
+   * `CapsuleArt` leaves it off below 120 px, and a capsule among many never has one.
+   */
+  glint?: boolean;
   class?: string;
 }
 
@@ -114,6 +119,7 @@ export function CapsuleShell({
   light = DAY_LIGHT,
   figure,
   figureInk = '#3B3236',
+  glint = true,
   class: cls,
 }: CapsuleShellProps) {
   const L = lighting(light);
@@ -175,7 +181,7 @@ export function CapsuleShell({
 
       {cracks > 0 && <rect class="cap-crack" x={-R + 2} y={-0.9 - lift * 0.9} width={2 * R - 4} height={1.8 + lift * 1.6} rx={1} fill={L.lit('#FFF3D2')} />}
       <path class="cap-shade" d={lowerMoon(R, L.side, 9, 1.8)} style={{ fill: L.shade }} />
-      <Glint L={L} />
+      {glint && <Glint L={L} />}
     </g>
   );
 }
@@ -282,10 +288,13 @@ export function CapsuleArt({ size = 120, title, style, svgClass, ...shell }: Cap
       aria-hidden={title ? undefined : true}
       focusable="false"
     >
-      <CapsuleShell {...shell} />
+      <CapsuleShell {...shell} glint={shell.glint ?? !(typeof size === 'number' && size < CLOSE_UP_PX)} />
     </svg>
   );
 }
+
+/** Below this size a standalone capsule is one of many (a list, a chip), not a close-up: no glint. */
+export const CLOSE_UP_PX = 120;
 
 /**
  * The capsule after it has opened: the tinted half upright like a small bowl, and the clear
