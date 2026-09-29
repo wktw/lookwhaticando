@@ -70,20 +70,23 @@ export const HOME_ICONS: Record<string, HabitDrawing> = {
   ),
   dishes: (c) => (
     <g>
-      <circle cx={13.5} cy={17.5} r={10.5} fill={c.fill} />
-      <circle cx={13.5} cy={17.5} r={6.8} fill="#fff" stroke-width={FINE} />
-      <Shine d="M5.6 14.4a8.8 8.8 0 0 1 3.8-4.9" />
-      <Sparkle x={13.5} y={17.5} r={2.8} fill={c.soft} />
+      {/* A clean stack of plates, soap bubbles and a sponge. */}
+      <ellipse cx={13} cy={24.4} rx={10.4} ry={3.6} fill={c.fill} />
+      <ellipse cx={13} cy={20.6} rx={10.4} ry={3.6} fill={c.fill} />
+      <ellipse cx={13} cy={20.2} rx={6.2} ry={1.8} fill={c.soft} stroke-width={FINE} />
+      <Shine d="M5.4 21.8c.6.8 1.6 1.4 2.8 1.8" width={1.3} />
       <g fill="#fff">
-        <circle cx={24.5} cy={8} r={3} />
-        <circle cx={28} cy={13} r={1.7} />
-        <circle cx={20.4} cy={4.6} r={1.6} />
+        <circle cx={7.6} cy={18.2} r={2.4} />
+        <circle cx={11.2} cy={16.6} r={3.1} />
+        <circle cx={14.8} cy={18.2} r={2.2} />
+        <circle cx={18.4} cy={9.6} r={2.2} />
+        <circle cx={13.2} cy={8.4} r={1.3} />
       </g>
-      <g transform="rotate(-18 24 25)">
-        <rect x={19} y={21.8} width={10} height={6.4} rx={1.8} fill={ACCENT.star} />
-        <path d="M19 24.3h10" fill="none" stroke-width={FINE} />
-        <path d="M19.9 21.8h8.2a.9.9 0 0 1 .9.9v1.6H19v-1.6a.9.9 0 0 1 .9-.9z" fill={ACCENT.leaf} stroke="none" />
-        <rect x={19} y={21.8} width={10} height={6.4} rx={1.8} fill="none" />
+      <g transform="rotate(-14 24.4 23.6)">
+        <rect x={19.4} y={20.4} width={10} height={6.4} rx={1.8} fill={ACCENT.star} />
+        <path d="M20.3 20.4h8.2a.9.9 0 0 1 .9.9v1.6h-10v-1.6a.9.9 0 0 1 .9-.9z" fill={ACCENT.leaf} stroke="none" />
+        <path d="M19.4 22.9h10" fill="none" stroke-width={FINE} />
+        <rect x={19.4} y={20.4} width={10} height={6.4} rx={1.8} fill="none" />
       </g>
     </g>
   ),
@@ -129,7 +132,6 @@ export const HOME_ICONS: Record<string, HabitDrawing> = {
   house: (c) => (
     <g>
       <path d="M20.5 10.5V6.8h3.6v6.9" fill={c.soft} />
-      <circle cx={24.6} cy={3.8} r={1.4} fill="#fff" stroke-width={FINE} />
       <path d="M6.5 16v10a2 2 0 0 0 2 2h15a2 2 0 0 0 2-2V16" fill={c.soft} />
       <path d="M3.5 15.5L14.6 5.9a2.1 2.1 0 0 1 2.8 0l11.1 9.6c.5.5.2 1.3-.5 1.3H4c-.7 0-1-.8-.5-1.3z" fill={c.fill} />
       <path d="M13.3 28v-5.2a2.7 2.7 0 0 1 5.4 0V28" fill={c.fill} />

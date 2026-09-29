@@ -1,10 +1,61 @@
-/* Locked medals are pale lavender-grey; on night surfaces they'd glow like silver, so soften them. */
-:global(:root[data-theme='night']) .locked {
-  opacity: 0.66;
+/*
+ * Locked medals are drawn in the LOCKED swatches (palette.ts). These rules match those exact
+ * hexes and repaint them from custom properties, so night can deepen the lavenders (instead of
+ * dimming the medal) without a second render. In light theme the properties equal the hexes.
+ */
+.locked {
+  --locked-ink: #9e90b2;
+  --locked-light: #f6f3fa;
+  --locked-mid: #e4ddef;
+  --locked-deep: #cec4df;
+  --locked-face: #fbfafd;
+  --locked-gleam: #fff;
+}
+
+/* Night: deep lavender shapes with a soft light line, the heart lock stays lavender-300. */
+:global([data-theme='night']) .locked {
+  --locked-ink: #b4a6df;
+  --locked-light: #4a3f70;
+  --locked-mid: #594b8a;
+  --locked-deep: #6c5da3;
+  --locked-face: #3e355d;
+  --locked-gleam: #cabdf0;
 }
 
 @media (prefers-color-scheme: dark) {
   :global(:root:not([data-theme='light'])) .locked {
-    opacity: 0.66;
+    --locked-ink: #b4a6df;
+    --locked-light: #4a3f70;
+    --locked-mid: #594b8a;
+    --locked-deep: #6c5da3;
+    --locked-face: #3e355d;
+    --locked-gleam: #cabdf0;
   }
+}
+
+.locked [stroke='#9E90B2' i] {
+  stroke: var(--locked-ink);
+}
+.locked [fill='#9E90B2' i] {
+  fill: var(--locked-ink);
+}
+.locked [fill='#F6F3FA' i] {
+  fill: var(--locked-light);
+}
+.locked [fill='#E4DDEF' i] {
+  fill: var(--locked-mid);
+}
+.locked [fill='#CEC4DF' i] {
+  fill: var(--locked-deep);
+}
+.locked [fill='#FBFAFD' i] {
+  fill: var(--locked-face);
+}
+.locked [stroke='#fff' i] {
+  stroke: var(--locked-gleam);
+}
+
+/* Compact medals (shelf sizes) drop the decorative sparkles around emblems. */
+.compact .spark {
+  display: none;
 }

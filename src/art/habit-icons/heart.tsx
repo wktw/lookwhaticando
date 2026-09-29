@@ -82,7 +82,7 @@ export const HEART_ICONS: Record<string, HabitDrawing> = {
     <g>
       <circle cx={16} cy={8.4} r={6.2} fill={c.soft} stroke="none" opacity={0.9} />
       <path d="M16 3.5c2.5 3 3 4.8 3 5.8 0 1.7-1.3 2.7-3 2.7s-3-1-3-2.7c0-1 .5-2.8 3-5.8z" fill={ACCENT.star} />
-      <path d="M16 7.4c1 1.2 1.2 1.9 1.2 2.3 0 .7-.5 1.1-1.2 1.1s-1.2-.4-1.2-1.1c0-.4.2-1.1 1.2-2.3z" fill="#FFB36B" stroke="none" />
+      <path d="M16 7.4c1 1.2 1.2 1.9 1.2 2.3 0 .7-.5 1.1-1.2 1.1s-1.2-.4-1.2-1.1c0-.4.2-1.1 1.2-2.3z" fill={ACCENT.flame} stroke="none" />
       <path d="M16 12.2v2" fill="none" stroke-width={FINE} />
       <path d="M5.5 26.6c0-1 .8-1.6 1.8-1.6h17.4c1 0 1.8.6 1.8 1.6 0 1.2-1 2-2.2 2H7.7c-1.2 0-2.2-.8-2.2-2z" fill={c.soft} />
       <rect x={11} y={14.2} width={10} height={11} rx={1.8} fill={c.fill} />
@@ -95,7 +95,7 @@ export const HEART_ICONS: Record<string, HabitDrawing> = {
       <circle cx={16} cy={16} r={12} fill={c.fill} />
       <ClosedEyes l={11.4} r={20.6} y={13.8} />
       <Cheeks l={9} r={23} y={17.8} />
-      <path d="M11.8 18.4h8.4c-.3 2.8-2.1 4.5-4.2 4.5s-3.9-1.7-4.2-4.5z" fill="#C75B73" stroke-width={FINE} />
+      <path d="M11.8 18.4h8.4c-.3 2.8-2.1 4.5-4.2 4.5s-3.9-1.7-4.2-4.5z" fill={ACCENT.mouth} stroke-width={FINE} />
       <path d="M13.9 21.8c1.3-.9 2.9-.9 4.2 0-1.3 1-2.9 1-4.2 0z" fill={ACCENT.cheek} stroke="none" />
       <Shine d="M7.2 11.2a10 10 0 0 1 3.8-4" />
     </g>

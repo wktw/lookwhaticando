@@ -7,6 +7,8 @@ const GLASS = 'M8.5 7h15l-1.7 19a2.2 2.2 0 0 1-2.2 2h-7.2a2.2 2.2 0 0 1-2.2-2z';
 const WATER = 'M9.17 14.5c2.2-1.3 4.5 1.3 6.83 0s4.6-1.3 6.83 0L21.8 26a2.2 2.2 0 0 1-2.2 2h-7.2a2.2 2.2 0 0 1-2.2-2z';
 
 const TABLET_HEART = heartPath(23.5, 24.1, 4);
+/** Pool water with a wavy surface and soft corners. */
+const POOL = 'M3 18.6c2.2-1.5 4.3-1.5 6.5 0s4.3 1.5 6.5 0 4.3-1.5 6.5 0 4.3 1.5 6.5 0V26a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3z';
 const SLEEPY_MOON = crescentPath(15, 16, 10.5, 20.5, 11, 8.5);
 
 /** A sneaker sole print centered on its origin (toe up). */
@@ -43,7 +45,7 @@ export const BODY_ICONS: Record<string, HabitDrawing> = {
       </g>
       <circle cx={23.5} cy={23.8} r={4.2} fill={c.soft} />
       <path d={TABLET_HEART} fill={c.fill} stroke-width={1.2} />
-      <Sparkle x={7} y={23.5} r={2.6} fill={c.fill} />
+      <Sparkle x={7} y={7.5} r={2.6} fill={c.fill} />
     </g>
   ),
   walk: (c) => (
@@ -70,27 +72,32 @@ export const BODY_ICONS: Record<string, HabitDrawing> = {
   ),
   stretch: (c) => (
     <g>
-      {/* A cat in a big front stretch: paws forward, bottom up, tail high. */}
-      <path d="M26 13.2c1.3-2.3 1.4-5.5-.3-8.3" fill="none" stroke-width={2.6} />
-      <path
-        d="M4.2 27.2h7.3c1-.9 2.2-1.5 3.6-1.8 2.8-.6 5.2-1.6 7-3.2l.4 4.6c.1 .6.6 1 1.2 1h2.2c.6 0 1-.5 1-1.1l-.3-6.4c1.6-2 2.1-4.6 1.1-6.7-1.4-2.8-5-3.3-7.3-1.2-2.4 2.2-5 4.3-8 5.2l-1.8-2.5-1.2 2.9c-1.6.1-3 .8-3.8 2l-2.7-.6 1 2.5c-.5 1-.6 2.2-.3 3.3-1.9.3-3.3 1.1-3.3 2z"
-        fill={c.fill}
-      />
-      <path d="M10.8 22.4l.1.1M8 23.1l.1.1" stroke-width={2} />
-      <Cheeks l={7.2} r={11.8} y={25} />
-      <Shine d="M18.2 16.4c1.2-.9 2.4-1.8 3.4-2.8" width={1.3} />
+      {/* A cat mid big-stretch: arms flung up, eyes squeezed shut, a tiny yawn. */}
+      <path d="M23.6 26.4c3.2.6 5.4-1.3 4.8-4.4" fill="none" stroke-width={2.6} />
+      <Tube d="M10.6 20.6L5 7.6M21.4 20.6L27 7.6" color={c.fill} ink={c.ink} />
+      <g fill={c.fill}>
+        <circle cx={4.8} cy={6.6} r={2.4} />
+        <circle cx={27.2} cy={6.6} r={2.4} />
+        <path d="M10.2 16.2l-.2-5.6 4.6 2.7zM21.8 16.2l.2-5.6-4.6 2.7z" />
+        <path d="M16 12.4c-5 0-7.8 3.6-7.8 8.2 0 4.6 2.8 7.8 7.8 7.8s7.8-3.2 7.8-7.8c0-4.6-2.8-8.2-7.8-8.2z" />
+      </g>
+      <ClosedEyes l={12.8} r={19.2} y={19.6} />
+      <Cheeks l={10.8} r={21.2} y={22.4} />
+      <ellipse cx={16} cy={23.2} rx={1.3} ry={1.5} fill={ACCENT.mouth} stroke-width={FINE} />
+      <Shine d="M10.8 17.6c.5-1.4 1.4-2.4 2.6-2.9" width={1.3} />
     </g>
   ),
   yoga: (c) => (
     <g>
-      {/* A mat unrolled toward us, its roll resting on the far edge. */}
-      <path d="M8.8 18.6h17.6c.9 0 1.5.9 1.1 1.7l-3.2 6.6c-.3.6-.9 1-1.6 1H4.6c-.9 0-1.5-.9-1.1-1.7l3.7-6.6c.3-.6 1-1 1.6-1z" fill={c.fill} />
-      <path d="M7.4 25.4h15" fill="none" stroke="#fff" stroke-width={1.5} opacity={0.85} />
-      <path d="M9 12.4h15.6a3.8 3.8 0 0 1 0 7.6H9z" fill={c.fill} />
-      <ellipse cx={9} cy={16.2} rx={3.4} ry={3.8} fill={c.soft} />
-      <path d="M9 17.8a1.6 1.6 0 1 1 1.6-1.6" fill="none" stroke-width={FINE} />
-      <path d="M17.8 12.4v7.6" fill="none" stroke-width={FINE} />
-      <Sparkle x={24} y={6} r={2.8} fill={c.soft} />
+      {/* Warrior pose on a mat: arms stretched wide, front knee bent. */}
+      <rect x={3.5} y={27} width={25} height={3} rx={1.5} fill={c.fill} />
+      <Tube d="M5 13.6h22" color={c.soft} width={1.4} ink={c.ink} />
+      <Tube d="M14.6 20L9.8 21.8l-.8 4.8M17.4 20l6.2 6.4" color={c.fill} width={1.4} ink={c.ink} />
+      <path d="M13.6 11.6h4.8c1.1 0 1.9 1 1.7 2.1l-1.1 5.6c-.2.8-.8 1.3-1.6 1.3h-2.8c-.8 0-1.4-.5-1.6-1.3l-1.1-5.6c-.2-1.1.6-2.1 1.7-2.1z" fill={c.fill} />
+      <circle cx={16} cy={3.6} r={1.7} fill={c.fill} />
+      <circle cx={16} cy={7.9} r={3.7} fill={c.soft} />
+      <Eyes l={14.6} r={17.4} y={8.2} ink={c.ink} />
+      <Sparkle x={26.4} y={6.4} r={2.4} fill={c.soft} />
     </g>
   ),
   dumbbell: (c) => (
@@ -120,13 +127,17 @@ export const BODY_ICONS: Record<string, HabitDrawing> = {
   ),
   swim: (c) => (
     <g>
-      <circle cx={16} cy={14} r={6.3} fill="none" stroke={c.ink} stroke-width={4.6 + 3.8} />
-      <circle cx={16} cy={14} r={6.3} fill="none" stroke="#fff" stroke-width={4.6} />
-      <circle cx={16} cy={14} r={6.3} fill="none" stroke={c.fill} stroke-width={4.6} stroke-dasharray="4.95 4.95" stroke-linecap="butt" />
-      <path d="M2.5 21.5c2.3-1.6 4.4-1.6 6.7 0s4.4 1.6 6.8 0 4.4-1.6 6.8 0 4.4 1.6 6.7 0V29H2.5z" fill={c.soft} stroke="none" />
-      <path d="M2.5 21.5c2.3-1.6 4.4-1.6 6.7 0s4.4 1.6 6.8 0 4.4-1.6 6.8 0 4.4 1.6 6.7 0" fill="none" />
-      <path d="M7 26h4M17.5 26.5h5" stroke-width={FINE} />
-      <Shine d="M10.9 9.4a6.4 6.4 0 0 1 3-2.6" width={1.3} />
+      {/* A striped swim ring bobbing half under the water. */}
+      <circle cx={16} cy={15.6} r={6.3} fill="none" stroke={c.ink} stroke-width={4.6 + 3.8} />
+      <circle cx={16} cy={15.6} r={6.3} fill="none" stroke="#fff" stroke-width={4.6} />
+      <circle cx={16} cy={15.6} r={6.3} fill="none" stroke={c.fill} stroke-width={4.6} stroke-dasharray="4.95 4.95" stroke-linecap="butt" />
+      <path d={POOL} fill={c.soft} fill-opacity={0.82} />
+      <path d="M6.4 23.6c1.3-.8 2.5-.8 3.8 0M20.2 26c1.3-.8 2.5-.8 3.8 0" fill="none" stroke-width={FINE} />
+      <Shine d="M10.5 11.4a6.4 6.4 0 0 1 3-3.4" width={1.3} />
+      <g fill={c.soft} stroke-width={1.2}>
+        <path d="M5 9.4c.8 1.1 1.2 1.8 1.2 2.3a1.2 1.2 0 0 1-2.4 0c0-.5.4-1.2 1.2-2.3z" />
+        <path d="M27 5.4c.8 1.1 1.2 1.8 1.2 2.3a1.2 1.2 0 0 1-2.4 0c0-.5.4-1.2 1.2-2.3z" />
+      </g>
     </g>
   ),
   'moon-sleep': (c) => (
@@ -141,13 +152,15 @@ export const BODY_ICONS: Record<string, HabitDrawing> = {
   ),
   apple: (c) => (
     <g>
-      <path d="M16 11c.2-2.3 1-4.2 2.4-5.7" fill="none" />
-      <path d="M17.2 8.6c1.4-3 4.8-3.8 7.5-2.8-1.2 3-4.6 4.2-7.5 2.8z" fill={c.fill} />
+      <ellipse cx={16} cy={26.4} rx={12.4} ry={3.3} fill={c.fill} />
+      <ellipse cx={16} cy={26} rx={7.6} ry={1.6} fill={c.soft} stroke-width={FINE} />
+      <path d="M16 10.6c.2-2 .9-3.7 2.1-5" fill="none" />
+      <path d="M17.1 8.4c1.2-2.6 4.2-3.3 6.6-2.5-1.1 2.6-4 3.7-6.6 2.5z" fill={ACCENT.leaf} />
       <path
-        d="M16 10.4c-2.6-1.6-9-1.8-10 4.3-.8 5 2.5 12.4 6.5 12.9 1.5.2 2.5-.5 3.5-.5s2 .7 3.5.5c4-.5 7.3-7.9 6.5-12.9-1-6.1-7.4-5.9-10-4.3z"
+        d="M16 10.2c-2.3-1.4-8-1.6-8.9 3.8-.7 4.4 2.2 10.9 5.7 11.3 1.3.2 2.2-.4 3.2-.4s1.9.6 3.2.4c3.5-.4 6.4-6.9 5.7-11.3-.9-5.4-6.6-5.2-8.9-3.8z"
         fill={ACCENT.red}
       />
-      <Shine d="M9 14.4c.4-1.6 1.5-2.5 3-2.8" />
+      <Shine d="M9.8 14.2c.4-1.4 1.3-2.3 2.6-2.6" />
     </g>
   ),
   salad: (c) => (

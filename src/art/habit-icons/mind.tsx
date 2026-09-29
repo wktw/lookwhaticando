@@ -15,7 +15,7 @@ export const MIND_ICONS: Record<string, HabitDrawing> = {
       <path d="M16 8.6C13 6.6 8.8 6 5 7v17c3.8-.9 8-.4 11 1.6z" fill={c.soft} />
       <path d="M16 8.6c3-2 7.2-2.6 11-1.6v17c-3.8-.9-8-.4-11 1.6z" fill={c.soft} />
       <path d="M22 7.3v6.2l1.6-1.3 1.6 1.3V6.9" fill={PASTEL.blush[500]} stroke-width={FINE} />
-      <path d="M7.5 12c2-.3 4 0 6 .9M7.5 15.5c2-.3 4 0 6 .9M7.5 19c2-.3 4 0 6 .9M18.5 16.4c2-.9 4-1.2 6-.9M18.5 19.9c2-.9 4-1.2 6-.9" fill="none" stroke-width={FINE} />
+      <path d="M7.5 13c2-.3 4 0 6 .9M7.5 17c2-.3 4 0 6 .9M18.5 17.4c2-.9 4-1.2 6-.9" fill="none" stroke-width={FINE} />
       <path d="M16 8.6v17" fill="none" />
     </g>
   ),

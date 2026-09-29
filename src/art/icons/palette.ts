@@ -39,5 +39,14 @@ export const ACCENT = {
   cheek: '#FF9FB8',
   cream: '#FFFBF5',
   wood: '#E8B98C',
+  brown: '#B98A6E',
+  flame: '#FFB36B',
+  mouth: '#C75B73',
   white: '#FFFFFF',
 } as const;
+
+/** Die-cut sticker backing (the light theme's cream --bg): keeps the cocoa line readable on dark. */
+export const STICKER = '#FFF9F2';
+
+/** The ultra-rare holographic sweep (DESIGN §10.1). */
+export const HOLO = ['#FFB3C7', '#FFE593', '#B3E6D6', '#BBDCF6', '#D6C8F8'] as const;

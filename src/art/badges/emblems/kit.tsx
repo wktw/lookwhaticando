@@ -1,7 +1,8 @@
 /** Shared pieces for badge emblems, drawn in a 40×40 box (center 20,20; keep within r ≈ 20). */
 import type { JSX } from 'preact';
-import { sparklePath } from '@/art/icons/shapes';
+import { memo, sparklePath } from '@/art/icons/shapes';
 import type { EmblemPalette } from '../palette';
+import css from '../badge.module.css';
 
 export interface EmblemCtx {
   p: EmblemPalette;
@@ -22,9 +23,11 @@ export function Gleam({ d, width = 1.8 }: { d: string; width?: number }) {
   return <path d={d} fill="none" stroke="#fff" stroke-width={width} stroke-linecap="round" opacity={0.85} />;
 }
 
-/** A ✦ sparkle with a fine outline. */
+const sparkle = memo((x: number, y: number, r: number) => sparklePath(x, y, r, 0.24));
+
+/** A decorative ✦ sparkle with a fine outline (compact medals hide these). */
 export function Spark({ x, y, r, fill }: { x: number; y: number; r: number; fill: string }) {
-  return <path d={sparklePath(x, y, r, 0.24)} fill={fill} stroke-width={1.3} />;
+  return <path class={css.spark} d={sparkle(x, y, r)} fill={fill} stroke-width={1.3} />;
 }
 
 /** Two small cocoa eyes. */

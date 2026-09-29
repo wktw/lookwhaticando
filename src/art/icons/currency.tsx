@@ -6,7 +6,7 @@
 import type { ComponentChildren, JSX } from 'preact';
 import { useId } from 'preact/hooks';
 import { ACCENT, COCOA, PASTEL } from './palette';
-import { heartPath, sparklePath, starPath } from './shapes';
+import { sparklePath, starPath } from './shapes';
 
 export interface CurrencyIconProps {
   size?: number | string;
@@ -16,7 +16,10 @@ export interface CurrencyIconProps {
 }
 
 export interface StardustIconProps extends CurrencyIconProps {
-  /** How full the jar is, 0..1 (e.g. stardust / 10). Defaults to a cheerful 0.7. */
+  /**
+   * How full the jar is, 0..1 (e.g. stardust / 10). Defaults to a cheerful 0.7. Any non-zero
+   * level shows at least a visible layer, so a single stardust never looks like an empty jar.
+   */
   level?: number;
 }
 
@@ -81,6 +84,7 @@ const JAR =
 /** The dust rises from the jar floor (y 28.2) to just below the neck (y 12). */
 const JAR_FLOOR = 28.2;
 const JAR_SPAN = 16.2;
+const MIN_LEVEL = 0.15;
 /** Sparkles suspended in the dust; each shows only once the dust rises past it. */
 const DUST_SPARKLES = [
   { y: 22.8, d: sparklePath(12.2, 22.8, 2.6), fill: '#fff' },
@@ -93,7 +97,9 @@ const FLOATING = sparklePath(26.4, 5.6, 3, 0.22);
 /** A little jar of lavender stardust. `level` visibly fills it. */
 export function StardustIcon({ level = 0.7, ...props }: StardustIconProps) {
   const uid = `sd${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`;
-  const top = JAR_FLOOR - Math.min(1, Math.max(0, level)) * JAR_SPAN;
+  const shown = level > 0 ? Math.min(1, Math.max(MIN_LEVEL, level)) : 0;
+  const top = JAR_FLOOR - shown * JAR_SPAN;
+  const surface = `M0 ${top + 0.8}Q8 ${top - 1} 16 ${top + 0.4}T32 ${top}`;
   return (
     <CurrencySvg {...props}>
       <defs>
@@ -103,10 +109,10 @@ export function StardustIcon({ level = 0.7, ...props }: StardustIconProps) {
       </defs>
       <path d={JAR} fill={PASTEL.lavender[100]} />
       <g clip-path={`url(#${uid}-jar)`}>
-        {level > 0 && (
+        {shown > 0 && (
           <g>
-            <path d={`M0 ${top + 0.8}Q8 ${top - 1} 16 ${top + 0.4}T32 ${top}V32H0z`} fill={PASTEL.lavender[300]} />
-            <path d={`M0 ${top + 0.8}Q8 ${top - 1} 16 ${top + 0.4}T32 ${top}`} fill="none" stroke={PASTEL.lavender[500]} stroke-width={1.2} />
+            <path d={`${surface}V32H0z`} fill={PASTEL.lavender[500]} />
+            <path d={surface} fill="none" stroke={PASTEL.lavender[300]} stroke-width={2.6} />
             {DUST_SPARKLES.filter((sp) => sp.y > top + 1.5).map((sp) => (
               <path key={sp.d} d={sp.d} fill={sp.fill} />
             ))}
@@ -124,32 +130,33 @@ export function StardustIcon({ level = 0.7, ...props }: StardustIconProps) {
 }
 
 const TICKET =
-  'M5.5 9h21A2.5 2.5 0 0 1 29 11.5v2.1a2.4 2.4 0 0 0 0 4.8v2.1a2.5 2.5 0 0 1-2.5 2.5h-21A2.5 2.5 0 0 1 3 20.5v-2.1a2.4 2.4 0 0 0 0-4.8v-2.1A2.5 2.5 0 0 1 5.5 9z';
-const TICKET_SPARKLE = sparklePath(19.2, 11.4, 1.7, 0.24);
-const CAPSULE_HEART = heartPath(12.4, 13.4, 3.4);
+  'M5.3 7.5h21.4a2.8 2.8 0 0 1 2.8 2.8v3.3a2.4 2.4 0 0 0 0 4.8v3.3a2.8 2.8 0 0 1-2.8 2.8H5.3a2.8 2.8 0 0 1-2.8-2.8v-3.3a2.4 2.4 0 0 0 0-4.8v-3.3a2.8 2.8 0 0 1 2.8-2.8z';
+/** The tear-off stub: the ticket's right end, beyond the perforation. */
+const STUB = 'M22.5 7.5h4.2a2.8 2.8 0 0 1 2.8 2.8v3.3a2.4 2.4 0 0 0 0 4.8v3.3a2.8 2.8 0 0 1-2.8 2.8h-4.2z';
+const TICKET_SPARKLE = sparklePath(19.4, 11.2, 1.8, 0.24);
 
-/** Pink capsule ticket, tilted, with a perforated stub and a tiny capsule print. */
+/** Pink capsule ticket, slightly tilted, with a perforated stub and a capsule-toy print. */
 export function TicketIcon(props: CurrencyIconProps) {
-  const uid = `tk${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`;
   return (
     <CurrencySvg {...props}>
-      <defs>
-        <clipPath id={`${uid}-t`}>
-          <path d={TICKET} />
-        </clipPath>
-      </defs>
-      <g transform="rotate(-12 16 16)">
+      <g transform="rotate(-8 16 16)">
         <path d={TICKET} fill={PASTEL.blush[300]} />
-        <rect x={22} y={8} width={8} height={16} fill="#FBA8BF" clip-path={`url(#${uid}-t)`} />
+        <path d={STUB} fill={PASTEL.blush[500]} />
         <path d={TICKET} fill="none" {...OUTLINE} />
-        <path d="M22 10.8v10.4" stroke={COCOA} stroke-width={1.4} stroke-dasharray="1.4 1.9" stroke-linecap="round" opacity={0.6} />
-        <path d="M6.6 11.6h4.2" stroke="#fff" stroke-width={1.5} stroke-linecap="round" opacity={0.85} />
-        {/* A tiny capsule toy: clear dome with a heart inside, a lip band, pink base. */}
-        <g stroke={COCOA} stroke-width={1.3} stroke-linejoin="round">
-          <path d="M8.6 15.4a3.8 4.4 0 0 1 7.6 0z" fill="#fff" />
-          <path d={CAPSULE_HEART} fill={PASTEL.blush[500]} stroke="none" />
-          <path d="M8.6 16.6a3.8 4.4 0 0 0 7.6 0z" fill={PASTEL.blush[500]} />
-          <rect x={7.9} y={15.1} width={9} height={1.8} rx={0.9} fill={PASTEL.blush[500]} />
+        <path d="M22.5 10.4v11.2" stroke={COCOA} stroke-width={1.4} stroke-dasharray="1.4 1.9" stroke-linecap="round" opacity={0.6} />
+        <path d="M6.2 10.8h3.6" stroke="#fff" stroke-width={1.6} stroke-linecap="round" opacity={0.85} />
+        {/* A capsule toy: a clear dome with a kitty peeking out, over a solid pink half. */}
+        <g transform="rotate(-16 12.6 16.6)" stroke={COCOA} stroke-width={1.3} stroke-linejoin="round">
+          <ellipse cx={12.6} cy={16.6} rx={5.2} ry={5.8} fill={PASTEL.sky[100]} stroke="none" />
+          <path d="M10.5 14l-.2-2.7 2 1.2zM14.7 14l.2-2.7-2 1.2z" fill={PASTEL.butter[300]} />
+          <circle cx={12.6} cy={14.9} r={2.4} fill={PASTEL.butter[300]} />
+          <g fill={COCOA} stroke="none">
+            <circle cx={11.7} cy={15} r={0.45} />
+            <circle cx={13.5} cy={15} r={0.45} />
+          </g>
+          <path d="M7.4 16.6q5.2 2.6 10.4 0a5.2 5.8 0 0 1-10.4 0z" fill={PASTEL.blush[500]} />
+          <ellipse cx={12.6} cy={16.6} rx={5.2} ry={5.8} fill="none" />
+          <path d="M9.4 13a3.8 3.8 0 0 1 1.8-2" stroke="#fff" stroke-width={1.1} stroke-linecap="round" />
         </g>
         <path d={TICKET_SPARKLE} fill="#fff" />
       </g>

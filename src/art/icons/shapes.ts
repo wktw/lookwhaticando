@@ -1,9 +1,21 @@
 /**
  * Path builders shared by icons, currency, habit icons and badges. Each returns SVG path data,
- * so callers can memoize results at module level (they never change at runtime).
+ * so callers can memoize results at module level (they never change at runtime), or wrap a
+ * builder in `memo` when it is called from render with a handful of recurring arguments.
  */
 
 type Pt = readonly [number, number];
+
+/** Caches a path builder by its arguments. */
+export function memo<A extends number[]>(build: (...args: A) => string): (...args: A) => string {
+  const cache = new Map<string, string>();
+  return (...args) => {
+    const key = args.join(' ');
+    let d = cache.get(key);
+    if (d === undefined) cache.set(key, (d = build(...args)));
+    return d;
+  };
+}
 
 /** Round to 2 decimals so generated paths stay compact. */
 const r2 = (n: number) => Math.round(n * 100) / 100;
@@ -49,6 +61,22 @@ export function scallopPath(cx: number, cy: number, r: number, n: number, bulge 
   for (let k = 1; k <= n; k++) {
     const p = pt(k);
     d += `A${ar} ${ar} 0 0 1 ${r2(p[0])} ${r2(p[1])}`;
+  }
+  return `${d}Z`;
+}
+
+/**
+ * A cog with `n` flat-topped teeth: tooth tops on radius `outer`, the rim between teeth on
+ * radius `inner`. Round stroke joins soften the corners.
+ */
+export function cogPath(cx: number, cy: number, inner: number, outer: number, n: number): string {
+  const step = (2 * Math.PI) / n;
+  const polar = (rad: number, a: number) => `${r2(cx + rad * Math.cos(a))} ${r2(cy + rad * Math.sin(a))}`;
+  let d = `M${polar(inner, -Math.PI / 2 - step * 0.3)}`;
+  for (let k = 0; k < n; k++) {
+    const a = -Math.PI / 2 + k * step;
+    d += `L${polar(outer, a - step * 0.2)}L${polar(outer, a + step * 0.2)}L${polar(inner, a + step * 0.3)}`;
+    d += `A${inner} ${inner} 0 0 1 ${polar(inner, a + step * 0.7)}`;
   }
   return `${d}Z`;
 }

@@ -3,7 +3,6 @@
  * strokes (./glyphs.tsx); the five tab icons are two-state illustrations (./tabs.tsx).
  */
 import type { JSX } from 'preact';
-import { useId } from 'preact/hooks';
 import { UI_GLYPHS, type Glyph } from './glyphs';
 import { TAB_GLYPHS } from './tabs';
 
@@ -21,8 +20,8 @@ export interface IconProps {
   class?: string;
   style?: JSX.CSSProperties;
   /**
-   * Active/solid state. Tab icons bloom into full-color pastel illustrations (outline stays
-   * currentColor, inner details turn cocoa); `heart` becomes solid. Other glyphs ignore it.
+   * Active/solid state. Tab icons become full-color stickers (pastel fills, cocoa line, cream
+   * die-cut edge that may paint slightly past the box); `heart` becomes solid. Other glyphs ignore it.
    */
   filled?: boolean;
   /** Stroke width in grid units (default 2, crisp at 24 px). */
@@ -35,7 +34,6 @@ const GLYPHS: Record<IconName, Glyph> = { ...TAB_GLYPHS, ...UI_GLYPHS };
 export const ICON_NAMES = Object.keys(GLYPHS) as IconName[];
 
 export function Icon({ name, size = 24, title, class: cls, style, filled = false, strokeWidth = 2 }: IconProps) {
-  const uid = `ic${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`;
   const px = typeof size === 'number' ? `${size}px` : size;
   return (
     <svg
@@ -53,8 +51,9 @@ export function Icon({ name, size = 24, title, class: cls, style, filled = false
       aria-label={title}
       aria-hidden={title ? undefined : true}
       focusable="false"
+      overflow={filled ? 'visible' : undefined}
     >
-      {GLYPHS[name]({ filled, uid })}
+      {GLYPHS[name]({ filled, sw: strokeWidth })}
     </svg>
   );
 }

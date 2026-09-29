@@ -1,11 +1,13 @@
 /**
  * Custom habit icons (see catalog/habitIcons.ts), drawn in the brand style on a 32-unit canvas:
  * two tones from the habit's pastel family, cocoa outlines and a few tiny fixed accents.
- * Legible at 22 px, charming at 40 px.
+ * Legible at 22 px, charming at 40 px. At night each icon sits on a cream die-cut sticker edge
+ * so the cocoa line keeps reading on dark chips.
  */
 import type { JSX } from 'preact';
 import type { PastelKey } from '@/catalog/types';
 import { COCOA, PASTEL } from '@/art/icons/palette';
+import { StickerBacking } from '@/art/icons/sticker';
 import { LINE, type HabitColors, type HabitDrawing } from './kit';
 import { BODY_ICONS } from './body';
 import { MIND_ICONS } from './mind';
@@ -20,6 +22,11 @@ export interface HabitIconProps {
   title?: string;
   class?: string;
   style?: JSX.CSSProperties;
+  /**
+   * Cream die-cut sticker edge behind the drawing. By default it shows only at night (see
+   * icons/sticker.module.css); `true` always shows it, `false` leaves it out entirely.
+   */
+  sticker?: boolean;
 }
 
 /** Draws on a 32×32 canvas; receives fill colors for the chosen tone. */
@@ -39,15 +46,19 @@ const inked =
     </g>
   );
 
+/** Total width of the sticker edge stroke (it reaches past the outline by half the extra). */
+const STICKER_WIDTH = LINE + 2.6;
+
 const DRAWINGS: Record<string, HabitDrawing> = { ...BODY_ICONS, ...MIND_ICONS, ...HOME_ICONS, ...HEART_ICONS };
 
 export const HABIT_ICON_ART: Record<string, HabitIconRenderer> = Object.fromEntries(
   Object.entries(DRAWINGS).map(([id, draw]) => [id, inked(draw)]),
 );
 
-export function HabitIcon({ id, size = 28, tone = 'blush', title, class: cls, style }: HabitIconProps) {
+export function HabitIcon({ id, size = 28, tone = 'blush', title, class: cls, style, sticker }: HabitIconProps) {
   const px = typeof size === 'number' ? `${size}px` : size;
   const render = HABIT_ICON_ART[id] ?? HABIT_ICON_ART.sparkle!;
+  const colors = habitIconColors(tone);
   return (
     <svg
       viewBox="0 0 32 32"
@@ -59,8 +70,14 @@ export function HabitIcon({ id, size = 28, tone = 'blush', title, class: cls, st
       aria-label={title}
       aria-hidden={title ? undefined : true}
       focusable="false"
+      overflow={sticker === false ? undefined : 'visible'}
     >
-      {render(habitIconColors(tone))}
+      {sticker !== false && (
+        <StickerBacking width={STICKER_WIDTH} auto={sticker === undefined}>
+          {render(colors)}
+        </StickerBacking>
+      )}
+      {render(colors)}
     </svg>
   );
 }

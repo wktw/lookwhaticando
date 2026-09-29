@@ -8,10 +8,11 @@ const HEART_A = heartPath(14.6, 21.4, 17);
 const HEART_B = heartPath(26.2, 17.8, 13);
 const OWL_MOON = crescentPath(7.2, 11.4, 4.2, 9.8, 8.8, 3.6);
 
+/** A small morning sun at (10, 11.6) with four short rays, kept inside the medal face. */
 const SUN_RAYS = [150, 195, 240, 285].map((deg) => {
   const a = (deg * Math.PI) / 180;
-  const p = (r: number) => `${(8.6 + r * Math.cos(a)).toFixed(2)} ${(11 + r * Math.sin(a)).toFixed(2)}`;
-  return `M${p(5.8)}L${p(7.8)}`;
+  const p = (r: number) => `${(10 + r * Math.cos(a)).toFixed(2)} ${(11.6 + r * Math.sin(a)).toFixed(2)}`;
+  return `M${p(5.4)}L${p(6.8)}`;
 }).join('');
 
 export const FRIEND_EMBLEMS: Record<string, Emblem> = {
@@ -66,18 +67,16 @@ export const FRIEND_EMBLEMS: Record<string, Emblem> = {
   'early-bird': ({ p }) => (
     <g>
       <path d={SUN_RAYS} fill="none" stroke-width={EF} />
-      <circle cx={8.6} cy={11} r={4.2} fill={p.peach} />
-      <g transform="translate(1.6 0)">
-        <path d="M16.4 34.2v2.2M22.8 34.2v2.2" fill="none" stroke={p.peachDeep} stroke-width={2} />
-        <path d="M19.4 11.6c-.6-2.6.4-4.2 2-4.6-.4 1.4 0 2.8 1 4" fill="none" stroke-width={EF} />
-        <path d="M20 11.4c7 0 11 4.8 11 11.6s-4.5 11.4-11 11.4S9 30 9 23s4-11.6 11-11.6z" fill={p.butter} />
-        <path d="M11.6 24c1.6 3.4 5 4.4 7 3-1-2.6-4-4-7-3z" fill={p.gold} stroke-width={EF} />
-        <circle cx={23} cy={20.4} r={1.4} fill={p.ink} stroke="none" />
-        <circle cx={23.5} cy={19.9} r={0.5} fill="#fff" stroke="none" />
-        <path d="M27 21.6l3.8 1.3-3.8 1.4z" fill={p.peachDeep} stroke-width={EF} />
-        <ellipse cx={25.2} cy={25.4} rx={1.8} ry={1.1} fill={p.cheek} opacity={0.8} stroke="none" />
-        <Gleam d="M12.4 17.4a8 8 0 0 1 3.4-3.6" />
-      </g>
+      <circle cx={10} cy={11.6} r={3.8} fill={p.peach} />
+      <path d="M17.4 33.6v2.2M23.4 33.6v2.2" fill="none" stroke={p.peachDeep} stroke-width={2} />
+      <path d="M19.6 12.2c-.9-2.4-.1-4.2 1.7-4.8M21.4 12c.1-1.8 1.3-3 3-3.3" fill="none" stroke-width={EF} />
+      <path d="M20.6 12c6.6 0 10.4 4.8 10.4 11 0 6.8-4.4 10.8-10.4 10.8S10.2 29.8 10.2 23c0-6.2 3.8-11 10.4-11z" fill={p.gold} />
+      <path d="M12.6 24.4c1.4 3.4 4.8 4.6 7 3.2-.9-2.8-4-4.2-7-3.2z" fill={p.peach} stroke-width={EF} />
+      <circle cx={23.6} cy={20.2} r={1.5} fill={p.ink} stroke="none" />
+      <circle cx={24.1} cy={19.6} r={0.55} fill="#fff" stroke="none" />
+      <path d="M27.8 21.2l4 1.4-4 1.5z" fill={p.peachDeep} stroke-width={EF} />
+      <ellipse cx={25.6} cy={25} rx={1.8} ry={1.1} fill={p.cheek} opacity={0.8} stroke="none" />
+      <Gleam d="M13.2 17.4a8 8 0 0 1 3.4-3.4" />
     </g>
   ),
   'night-owl': ({ p }) => (
@@ -93,8 +92,8 @@ export const FRIEND_EMBLEMS: Record<string, Emblem> = {
       <circle cx={23.8} cy={16.4} r={3.8} fill={p.white} stroke-width={EF} />
       <path d="M14.6 16.6q1.6 1.5 3.2 0M22.2 16.6q1.6 1.5 3.2 0" fill="none" stroke-width={EF} />
       <path d="M18.8 19.4h2.4L20 21.6z" fill={p.gold} stroke-width={1.3} />
-      <path d="M4.6 32.6c8-1.6 22.6-1.4 30.8.2" fill="none" stroke={p.ink} stroke-width={5.2} />
-      <path d="M4.6 32.6c8-1.6 22.6-1.4 30.8.2" fill="none" stroke={p.wood} stroke-width={1.8} />
+      <path d="M6.6 32.4c7.4-1.4 19.6-1.3 26.8.2" fill="none" stroke={p.ink} stroke-width={5.2} />
+      <path d="M6.6 32.4c7.4-1.4 19.6-1.3 26.8.2" fill="none" stroke={p.wood} stroke-width={1.8} />
       <path d="M16.4 31.6v1.6M18.2 31.6v1.6M21.8 31.6v1.6M23.6 31.6v1.6" fill="none" stroke={p.peachDeep} stroke-width={1.4} />
     </g>
   ),

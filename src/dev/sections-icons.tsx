@@ -1,8 +1,10 @@
 /**
  * Gallery sections for the icons module: UI glyphs, tab icons, currency, habit icons, badge
  * medals and an in-context mock. View all with /gallery.html?only=icons, one with ?only=<id>.
- * Review helpers: `&zoom=<px>` enlarges the UI, habit and badge grids; `&ids=a,b` filters the
- * habit showcase and badge grid.
+ * Review helpers: `&zoom=<px>` resizes the UI, habit and badge grids; `&ids=a,b` filters the
+ * habit showcase and badge grid; `&theme=night` renders the whole page in Moonlight Meadow.
+ * The dark panels carry data-theme="night", so theme-aware art (habit stickers, locked medals)
+ * shows its night look there too.
  */
 import type { ComponentChildren, JSX } from 'preact';
 import { Icon, ICON_NAMES, CoinIcon, StarIcon, StardustIcon, TicketIcon, type IconName } from '@/art/icons';
@@ -16,9 +18,10 @@ import type { GallerySection } from './sections';
 const TAB_NAMES = ICON_NAMES.filter((n) => n.startsWith('tab-'));
 const UI_NAMES = ICON_NAMES.filter((n) => !n.startsWith('tab-'));
 
-/** A self-contained "Moonlight Meadow" surface, so night colors can sit beside light ones. */
+/** A self-contained "Moonlight Meadow" surface (night --bg, --card, --ink, --ink-2), so night art can sit beside light. */
 const NIGHT: JSX.CSSProperties = { background: '#221C30', color: '#F8EEF3', borderRadius: '18px', padding: '14px' };
 const NIGHT_CARD = '#342C4B';
+const NIGHT_INK_2 = '#CBBCD0';
 const zoomOf = (params: URLSearchParams) => Number(params.get('zoom')) || 0;
 
 function Label({ children }: { children: ComponentChildren }) {
@@ -80,7 +83,7 @@ export const SECTIONS: GallerySection[] = [
         <div style={{ display: 'grid', gap: '16px' }}>
           <GlyphGrid color="var(--ink)" zoom={zoom} />
           <GlyphGrid color="var(--blush-700)" zoom={zoom} />
-          <div style={NIGHT}>
+          <div data-theme="night" style={NIGHT}>
             <GlyphGrid color="#F8EEF3" card={NIGHT_CARD} zoom={zoom} />
           </div>
         </div>
@@ -89,16 +92,16 @@ export const SECTIONS: GallerySection[] = [
   },
   {
     id: 'icons-tabs',
-    title: 'Tab icons · outline & filled (active)',
+    title: 'Tab icons · outline & filled (active sticker) · tab bars use --ink-2 / --ink',
     render: () => (
       <div style={{ display: 'grid', gap: '16px' }}>
         <div class="gal-row">
           {TAB_NAMES.map((n) => (
-            <div class="gal-cell" key={n} style={{ color: 'var(--ink)' }}>
+            <div class="gal-cell" key={n} style={{ color: 'var(--ink-2)' }}>
               <div class="gal-row" style={{ gap: '10px' }}>
                 <Icon name={n} size={24} />
                 <Icon name={n} size={24} filled />
-                <Icon name={n} size={48} style={{ color: 'var(--ink-3)' }} />
+                <Icon name={n} size={48} />
                 <Icon name={n} size={48} filled />
                 <Icon name={n} size={120} />
                 <Icon name={n} size={120} filled />
@@ -109,13 +112,21 @@ export const SECTIONS: GallerySection[] = [
         </div>
         <div class="gal-row">
           {TAB_NAMES.map((n) => (
-            <TabBar key={n} active={n} ink="var(--ink-3)" activeInk="var(--ink)" surface="var(--card)" />
+            <TabBar key={n} active={n} ink="var(--ink-2)" activeInk="var(--ink)" surface="var(--card)" />
           ))}
         </div>
-        <div class="gal-row" style={NIGHT}>
+        <div class="gal-row" data-theme="night" style={NIGHT}>
           {TAB_NAMES.map((n) => (
-            <TabBar key={n} active={n} ink="#8D7F9C" activeInk="#F8EEF3" surface={NIGHT_CARD} />
+            <TabBar key={n} active={n} ink={NIGHT_INK_2} activeInk="#F8EEF3" surface={NIGHT_CARD} />
           ))}
+          <div class="gal-row" style={{ color: NIGHT_INK_2, gap: '14px' }}>
+            {TAB_NAMES.map((n) => (
+              <span key={n} style={{ display: 'inline-flex', gap: '6px' }}>
+                <Icon name={n} size={64} />
+                <Icon name={n} size={64} filled />
+              </span>
+            ))}
+          </div>
         </div>
       </div>
     ),
@@ -147,7 +158,7 @@ export const SECTIONS: GallerySection[] = [
             </div>
             <Label>Stardust level 0 · 0.1 · 0.3 · 0.5 · 0.7 · 0.9 · 1</Label>
           </div>
-          <div class="gal-cell" style={{ background: NIGHT_CARD }}>
+          <div class="gal-cell" data-theme="night" style={{ background: NIGHT_CARD }}>
             <div class="gal-row" style={{ gap: '10px' }}>
               {CURRENCY.map(({ name, C }) => (
                 <C key={name} size={32} />
@@ -173,14 +184,14 @@ export const SECTIONS: GallerySection[] = [
   },
   {
     id: 'icons-habits',
-    title: 'Habit icons · every tone at 28 px (light + night card)',
+    title: 'Habit icons · every tone at 28 px (&zoom=22 for the legibility floor) · light + night (sticker edge)',
     render: (params) => {
       const size = zoomOf(params) || 28;
       const grid: JSX.CSSProperties = { display: 'grid', gridTemplateColumns: `140px repeat(${PASTELS.length}, ${size + 6}px)`, gap: '4px 6px', alignItems: 'center' };
       return (
         <div class="gal-row" style={{ alignItems: 'flex-start', gap: '16px' }}>
-          {[{ bg: 'var(--card)', ink: 'var(--ink-2)' }, { bg: NIGHT_CARD, ink: '#CBBCD0' }].map(({ bg, ink }) => (
-            <div key={bg} style={{ ...grid, background: bg, color: ink, padding: '12px', borderRadius: '18px' }}>
+          {[{ bg: 'var(--card)', ink: 'var(--ink-2)', theme: undefined }, { bg: NIGHT_CARD, ink: NIGHT_INK_2, theme: 'night' }].map(({ bg, ink, theme }) => (
+            <div key={bg} data-theme={theme} style={{ ...grid, background: bg, color: ink, padding: '12px', borderRadius: '18px' }}>
               {HABIT_ICONS.map((icon) => [
                 <small key={icon.id} style={{ fontSize: '11px' }}>
                   {icon.id}
@@ -253,7 +264,7 @@ export const SECTIONS: GallerySection[] = [
             {row(true)}
             {row(false)}
           </div>
-          <div class="gal-cell" style={{ alignItems: 'flex-start', background: NIGHT_CARD }}>
+          <div class="gal-cell" data-theme="night" style={{ alignItems: 'flex-start', background: NIGHT_CARD }}>
             {row(true)}
             {row(false)}
           </div>
@@ -263,32 +274,23 @@ export const SECTIONS: GallerySection[] = [
   },
   {
     id: 'icons-context',
-    title: 'In context · habit rows, streak glyph, wallet, badge shelf (light & night)',
-    render: () => (
-      <div class="gal-row" style={{ alignItems: 'flex-start', gap: '16px' }}>
-        <ContextCard />
-        <div style={{ ...NIGHT, padding: 0 }}>
-          <ContextCard night />
-        </div>
-      </div>
-    ),
+    title: 'In context · habit rows, streak glyph, wallet, badge shelf (real tokens: add &theme=night)',
+    render: () => <ContextCard />,
   },
 ];
 
 const SAMPLE_HABITS = [
   { icon: 'water', name: 'Drink water', tone: 'sky', sub: '5 / 8 glasses', streak: false },
   { icon: 'yoga', name: 'Yoga', tone: 'lavender', sub: '2 of 3 this week', streak: false },
+  { icon: 'stretch', name: 'Morning stretch', tone: 'blush', sub: '4 days', streak: true },
   { icon: 'book', name: 'Read', tone: 'peach', sub: '12 days', streak: true },
   { icon: 'watering-can', name: 'Water the plants', tone: 'sage', sub: '26 of last 30 days', streak: false },
 ] as const;
 
-/** A tiny mock of Today + a badge shelf, to judge the icon sets side by side. */
-function ContextCard({ night = false }: { night?: boolean }) {
-  const c = night
-    ? { card: NIGHT_CARD, ink: '#F8EEF3', ink2: '#CBBCD0', chip: (t: string) => ({ sky: '#2B3450', lavender: '#352D55', peach: '#4A3438', sage: '#2F3B36' })[t]! }
-    : { card: 'var(--card)', ink: 'var(--ink)', ink2: 'var(--ink-2)', chip: (t: string) => `var(--${t}-100)` };
+/** A tiny mock of Today + a badge shelf on the real theme tokens, to judge the sets side by side. */
+function ContextCard() {
   return (
-    <div style={{ background: c.card, color: c.ink, borderRadius: '22px', padding: '14px 16px', width: '360px', display: 'grid', gap: '10px' }}>
+    <div style={{ background: 'var(--card)', color: 'var(--ink)', borderRadius: '22px', padding: '14px 16px', width: '360px', display: 'grid', gap: '10px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <span style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: '20px' }}>Today</span>
         <span style={{ display: 'inline-flex', gap: '10px', fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: '15px' }}>
@@ -302,17 +304,17 @@ function ContextCard({ night = false }: { night?: boolean }) {
       </div>
       {SAMPLE_HABITS.map((h) => (
         <div key={h.icon} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <span style={{ background: c.chip(h.tone), borderRadius: '14px', padding: '6px', display: 'inline-flex' }}>
+          <span style={{ background: `var(--${h.tone}-100)`, borderRadius: '14px', padding: '6px', display: 'inline-flex' }}>
             <HabitIcon id={h.icon} tone={h.tone} size={34} />
           </span>
           <span style={{ flex: 1, display: 'grid' }}>
             <b style={{ fontSize: '15px' }}>{h.name}</b>
-            <small style={{ color: c.ink2, display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '13px' }}>
-              {h.streak && <Icon name="streak" size={15} style={{ color: 'var(--peach-500)' }} />}
+            <small style={{ color: 'var(--ink-2)', display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '13px' }}>
+              {h.streak && <Icon name="streak" size={15} style={{ color: 'var(--peach-700)' }} />}
               {h.sub}
             </small>
           </span>
-          <button type="button" aria-label={`More actions for ${h.name}`} style={{ color: c.ink2, padding: '6px' }}>
+          <button type="button" aria-label={`More actions for ${h.name}`} style={{ color: 'var(--ink-2)', padding: '6px' }}>
             <Icon name="more" size={20} />
           </button>
         </div>

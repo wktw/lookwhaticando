@@ -1,22 +1,27 @@
 /** Emblems for capsule and collection badges. */
+import { HOLO } from '@/art/icons/palette';
 import { heartPath, starPath } from '@/art/icons/shapes';
 import { Blush, Dots, EF, Gleam, Spark, type Emblem } from './kit';
 
-const CAPSULE_STAR = starPath(20, 13.4, 4.6, 2.4, 5, 0.3);
 const ULTRA_STAR = starPath(20, 21.4, 16.4, 8.8, 5, 0.3);
 const TROPHY_STAR = starPath(20, 15.6, 4.4, 2.3, 5, 0.3);
 const LOCK_HEART = heartPath(20, 21.6, 6.8);
 const MUSEUM_HEART = heartPath(20, 11.4, 4.4);
-const HOLO = ['#FFB3C7', '#FFE593', '#B3E6D6', '#BBDCF6', '#D6C8F8'];
 
 export const COLLECTION_EMBLEMS: Record<string, Emblem> = {
   'first-capsule': ({ p }) => (
     <g>
-      <path d="M7 19.6a13 13 0 0 1 26 0z" fill={p.lavender} />
-      <path d={CAPSULE_STAR} fill={p.butter} stroke-width={EF} />
-      <path d="M7 22.8a13 13 0 0 0 26 0z" fill={p.blushDeep} />
-      <rect x={5.6} y={19.2} width={28.8} height={3.8} rx={1.9} fill={p.blush} />
-      <Gleam d="M10.8 14.6a10 10 0 0 1 4-4.6" />
+      {/* A capsule toy: a clear dome with a kitty peeking out, over a solid half. */}
+      <g transform="rotate(-18 20 20.4)">
+        <ellipse cx={20} cy={20.4} rx={12} ry={13.4} fill={p.white} stroke="none" />
+        <path d="M13.8 16.4l-.6-6.2 4.8 2.8zM26.2 16.4l.6-6.2-4.8 2.8z" fill={p.butter} />
+        <circle cx={20} cy={18.2} r={6.4} fill={p.butter} />
+        <Dots l={17.6} r={22.4} y={18} ink={p.ink} size={0.8} />
+        <Blush l={15.6} r={24.4} y={20.4} color={p.cheek} />
+        <path d="M8 20.4q12 5.6 24 0a12 13.4 0 0 1-24 0z" fill={p.blush} />
+        <ellipse cx={20} cy={20.4} rx={12} ry={13.4} fill="none" />
+        <Gleam d="M11.4 13.2a10.4 10.4 0 0 1 3.6-5" />
+      </g>
       <Spark x={6.4} y={7.6} r={2.8} fill={p.butter} />
       <Spark x={34} y={30} r={2.2} fill={p.white} />
     </g>
@@ -74,7 +79,7 @@ export const COLLECTION_EMBLEMS: Record<string, Emblem> = {
     <g>
       <path d="M13.6 9.2L20 4l6.4 5.2" fill="none" stroke-width={EF} />
       <circle cx={20} cy={4} r={1.3} fill={p.gold} stroke-width={1.2} />
-      <rect x={8} y={9} width={24} height={26.4} rx={3.4} fill={p.gold} />
+      <rect x={8} y={9} width={24} height={26.4} rx={3.4} fill={p.wood} />
       <rect x={12} y={13} width={16} height={18.4} rx={1.6} fill={p.mint} stroke-width={EF} />
       <path d="M14.8 22.4l.4-5.2 3.8 3.2h2l3.8-3.2.4 5.2" fill={p.white} stroke-width={EF} />
       <ellipse cx={20} cy={24.6} rx={5.8} ry={4.8} fill={p.white} stroke-width={EF} />
@@ -101,7 +106,7 @@ export const COLLECTION_EMBLEMS: Record<string, Emblem> = {
     </g>
   ),
   'collect-100': ({ p }) => (
-    <g>
+    <g transform="translate(0 -1)">
       <path d="M5.6 14.6L20 5.4l14.4 9.2z" fill={p.white} />
       <path d={MUSEUM_HEART} fill={p.blushDeep} stroke="none" />
       <rect x={6.4} y={14.6} width={27.2} height={3.6} rx={1} fill={p.lavender} />
@@ -110,8 +115,8 @@ export const COLLECTION_EMBLEMS: Record<string, Emblem> = {
           <rect key={x} x={x - 1.6} y={18.2} width={3.2} height={10.6} />
         ))}
       </g>
-      <rect x={6.4} y={28.8} width={27.2} height={3} rx={1} fill={p.lavender} />
-      <rect x={4.8} y={31.8} width={30.4} height={3} rx={1.2} fill={p.lavenderDeep} />
+      <rect x={7.6} y={28.8} width={24.8} height={3} rx={1} fill={p.lavender} />
+      <rect x={6.2} y={31.8} width={27.6} height={3} rx={1.2} fill={p.lavenderDeep} />
       <Spark x={33} y={7.4} r={2.4} fill={p.butter} />
     </g>
   ),

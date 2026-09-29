@@ -3,9 +3,10 @@ import { crescentPath, flowerPath, heartPath, scallopPath } from '@/art/icons/sh
 import { Blush, Dots, EF, Gleam, Spark, type Emblem } from './kit';
 
 const DAISY = flowerPath(20, 20, 7.5, 17, 8);
-const SUNFLOWER = flowerPath(20, 20, 9, 17.5, 12, 15);
-const ROSETTE_OUT = flowerPath(20, 20, 12, 18.6, 12);
-const ROSETTE_MID = flowerPath(20, 20, 7.4, 12.8, 8, 22.5);
+const SUNFLOWER = flowerPath(20, 20, 10, 17.6, 9);
+const ROSETTE_OUT = flowerPath(20, 20, 12.6, 18.4, 7);
+const ROSETTE_MID = flowerPath(20, 20, 7.6, 12.6, 7, 180 / 7);
+const GARDEN_BLOOM = flowerPath(20, 10.4, 2.4, 6, 5);
 const MOON = crescentPath(17, 21.5, 12.5, 24.8, 13.6, 10.6);
 const CANOPY = scallopPath(20, 15.4, 9.8, 7);
 const MONTH_HEART = heartPath(28, 28.2, 5.6);
@@ -34,6 +35,12 @@ const LEAF_UP = 'M0 0C-3.2-3-3.4-8.6 0-12 3.4-8.6 3.2-3 0 0z';
 
 /** A cherry-blossom petal (notched tip) pointing up from the flower center. */
 const BLOSSOM_PETAL = 'M0-2C-5-4.5-7.5-10-4-14.2c1.4-1.4 3-.8 4 1 1-1.8 2.6-2.4 4-1 3.5 4.2 1 9.7-4 12.2z';
+const BLOSSOM_ANGLES = [0, 72, 144, 216, 288];
+/** Stamen dots between the blossom's petals. */
+const BLOSSOM_STAMENS = BLOSSOM_ANGLES.map((a) => {
+  const rad = (a * Math.PI) / 180;
+  return { key: a, cx: 20 + 6.2 * Math.sin(rad), cy: 20.6 - 6.2 * Math.cos(rad) };
+});
 
 export const GROWTH_EMBLEMS: Record<string, Emblem> = {
   'first-checkin': ({ p }) => (
@@ -92,24 +99,28 @@ export const GROWTH_EMBLEMS: Record<string, Emblem> = {
       <Gleam d="M14.2 29.2l.6 3.4" width={1.6} />
     </g>
   ),
-  'checkins-100': ({ p }) => {
-    const glyphs = 'M8.6 15.6l3.2-2.4V27.4M8 31.6q12-2 24.6-.6M10.6 35.2q9.6-1.4 19.6-.4';
-    return (
-      <g transform="rotate(-8 20 22)" fill="none">
-        <g stroke={p.ink} stroke-width={6.2}>
-          <path d={glyphs} />
-          <ellipse cx={19.6} cy={20.4} rx={3.8} ry={6.8} />
-          <ellipse cx={29.2} cy={20.4} rx={3.8} ry={6.8} />
-        </g>
-        <g stroke={p.blushDeep} stroke-width={2.8}>
-          <path d={glyphs} />
-          <ellipse cx={19.6} cy={20.4} rx={3.8} ry={6.8} />
-          <ellipse cx={29.2} cy={20.4} rx={3.8} ry={6.8} />
-        </g>
-        <Spark x={33.4} y={9.4} r={2.8} fill={p.butter} />
+  'checkins-100': ({ p }) => (
+    <g>
+      {/* A little garden planter, labelled 100. */}
+      <path d={LEAF_UP} transform="translate(12 23.4) rotate(-34) scale(.62)" fill={p.leaf} />
+      <path d={LEAF_UP} transform="translate(12.6 23.4) rotate(8) scale(.72)" fill={p.leafDeep} />
+      <path d={LEAF_UP} transform="translate(27.4 23.4) rotate(-8) scale(.72)" fill={p.leafDeep} />
+      <path d={LEAF_UP} transform="translate(28 23.4) rotate(34) scale(.62)" fill={p.leaf} />
+      <path d="M20 23V14" fill="none" />
+      <path d="M20 20.2c-2.6.4-4.6-.8-5.2-3.2 2.6-.4 4.6.8 5.2 3.2z" fill={p.leaf} stroke-width={EF} />
+      <path d={GARDEN_BLOOM} fill={p.blush} />
+      <circle cx={20} cy={10.4} r={1.8} fill={p.gold} stroke-width={1.2} />
+      <path d="M8 23.4h24l-1.8 10a2 2 0 0 1-2 1.6H11.8a2 2 0 0 1-2-1.6z" fill={p.wood} />
+      <rect x={6.6} y={21.6} width={26.8} height={3.6} rx={1.6} fill={p.brown} />
+      <rect x={13.4} y={26.8} width={13.2} height={5.8} rx={1.4} fill={p.white} stroke-width={EF} />
+      <g fill="none" stroke={p.blushDeep} stroke-width={1.5}>
+        <path d="M15.6 28.6l1-.7v3.4" />
+        <ellipse cx={19.9} cy={29.6} rx={1.2} ry={1.7} />
+        <ellipse cx={23.8} cy={29.6} rx={1.2} ry={1.7} />
       </g>
-    );
-  },
+      <Spark x={32.6} y={10} r={2.6} fill={p.butter} />
+    </g>
+  ),
   'checkins-250': ({ p }) => (
     <g>
       <path d={SUNFLOWER} fill={p.butter} />
@@ -176,13 +187,13 @@ export const GROWTH_EMBLEMS: Record<string, Emblem> = {
   ),
   'first-bloom': ({ p }) => (
     <g>
-      {[0, 72, 144, 216, 288].map((a) => (
+      {BLOSSOM_ANGLES.map((a) => (
         <path key={a} d={BLOSSOM_PETAL} transform={`translate(20 20.6) rotate(${a})`} fill={p.blush} />
       ))}
       <circle cx={20} cy={20.6} r={3.6} fill={p.blushDeep} stroke-width={EF} />
       <g fill={p.gold} stroke="none">
-        {[0, 72, 144, 216, 288].map((a) => (
-          <circle key={a} cx={20 + 6.2 * Math.sin((a * Math.PI) / 180)} cy={20.6 - 6.2 * Math.cos((a * Math.PI) / 180)} r={1.1} />
+        {BLOSSOM_STAMENS.map(({ key, cx, cy }) => (
+          <circle key={key} cx={cx} cy={cy} r={1.1} />
         ))}
       </g>
     </g>

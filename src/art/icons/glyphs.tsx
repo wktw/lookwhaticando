@@ -1,16 +1,17 @@
 /**
  * UI glyphs on a 24-unit grid. The parent <svg> sets stroke=currentColor, width 2, round caps
- * and joins, so each glyph only draws geometry. Straight strokes sit on whole or half units so
- * they stay crisp at 20–24 px. Key shapes carry a gentle currentColor tint for a chunky feel.
+ * and joins, so each glyph only draws geometry. Straight 2-unit strokes are centred on whole
+ * units, so both edges land on pixel boundaries at 24 px on 1x screens. Key shapes carry a
+ * gentle currentColor tint for a chunky feel.
  */
 import type { JSX } from 'preact';
-import { flowerPath, heartPath, scallopPath, sparklePath, starPath } from './shapes';
+import { cogPath, flowerPath, heartPath, sparklePath, starPath } from './shapes';
 
 export interface GlyphState {
   /** Solid/active variant (hearts, tabs). Glyphs without one ignore it. */
   filled: boolean;
-  /** Unique id prefix for masks inside this icon instance. */
-  uid: string;
+  /** The icon's stroke width; fine details are drawn relative to it. */
+  sw: number;
 }
 
 export type Glyph = (s: GlyphState) => JSX.Element;
@@ -20,8 +21,8 @@ export const TINT = { fill: 'currentColor', 'fill-opacity': 0.16 } as const;
 /** Solid currentColor dots and details. */
 export const SOLID = { fill: 'currentColor', stroke: 'none' } as const;
 
-const GEAR = scallopPath(12, 12, 6.3, 8);
-const STREAK_PETALS = flowerPath(12, 12, 3.3, 8.6, 5);
+const GEAR = cogPath(12, 12, 6.6, 9.2, 8);
+const STREAK_PETALS = flowerPath(12, 12, 3.4, 9, 8, 22.5);
 const HEART = heartPath(12, 12.6, 18);
 const CAL_HEART = heartPath(12, 15.3, 6.2);
 const SPARKLE_BIG = sparklePath(10.5, 13, 8.5, 0.2);
@@ -60,21 +61,21 @@ export const UI_GLYPHS = {
   play: () => <path d="M8 5.9c0-.9 1-1.5 1.8-1L19 11c.7.5.7 1.5 0 2l-9.2 6.1c-.8.5-1.8-.1-1.8-1z" {...TINT} />,
   archive: () => (
     <g>
-      <path d="M5 9.5V17.5a2.5 2.5 0 0 0 2.5 2.5h9a2.5 2.5 0 0 0 2.5-2.5V9.5" {...TINT} />
-      <rect x={3.5} y={4.5} width={17} height={5} rx={1.8} {...TINT} />
-      <path d="M10 13.5h4" />
+      <path d="M5 9v8.5A2.5 2.5 0 0 0 7.5 20h9a2.5 2.5 0 0 0 2.5-2.5V9" {...TINT} />
+      <rect x={4} y={4} width={16} height={5} rx={1.8} {...TINT} />
+      <path d="M10 13h4" />
     </g>
   ),
   trash: () => (
     <g>
-      <path d="M6 6.5l.9 11.9A2 2 0 0 0 8.9 20h6.2a2 2 0 0 0 2-1.6L18 6.5" {...TINT} />
-      <path d="M4 6.5h16M9.5 6.5V5a1.5 1.5 0 0 1 1.5-1.5h2A1.5 1.5 0 0 1 14.5 5v1.5M10 10.5v5.5M14 10.5v5.5" />
+      <path d="M6 7l.9 11.4A2 2 0 0 0 8.9 20h6.2a2 2 0 0 0 2-1.6L18 7" {...TINT} />
+      <path d="M4 7h16M9 7V5a1.5 1.5 0 0 1 1.5-1.5h3A1.5 1.5 0 0 1 15 5v2M10 11v5M14 11v5" />
     </g>
   ),
   calendar: () => (
     <g>
-      <rect x={3.5} y={5} width={17} height={15.5} rx={3.5} {...TINT} />
-      <path d="M3.5 10h17M8 3v4M16 3v4" />
+      <rect x={4} y={5} width={16} height={15} rx={3.5} {...TINT} />
+      <path d="M4 10h16M8 3v4M16 3v4" />
       <path d={CAL_HEART} {...SOLID} />
     </g>
   ),
@@ -86,7 +87,7 @@ export const UI_GLYPHS = {
   ),
   share: () => (
     <g>
-      <path d="M8.5 9.5h-1A2.5 2.5 0 0 0 5 12v5.5A2.5 2.5 0 0 0 7.5 20h9a2.5 2.5 0 0 0 2.5-2.5V12a2.5 2.5 0 0 0-2.5-2.5h-1" {...TINT} />
+      <path d="M8.5 10h-1A2.5 2.5 0 0 0 5 12.5v5A2.5 2.5 0 0 0 7.5 20h9a2.5 2.5 0 0 0 2.5-2.5v-5a2.5 2.5 0 0 0-2.5-2.5h-1" {...TINT} />
       <path d="M12 14V3.5M8.5 7L12 3.5 15.5 7" />
     </g>
   ),
@@ -103,7 +104,7 @@ export const UI_GLYPHS = {
   gear: () => (
     <g>
       <path d={GEAR} {...TINT} />
-      <circle cx={12} cy={12} r={2.6} />
+      <circle cx={12} cy={12} r={2.5} />
     </g>
   ),
   info: () => (
@@ -123,7 +124,7 @@ export const UI_GLYPHS = {
   streak: () => (
     <g>
       <path d={STREAK_PETALS} {...TINT} />
-      <circle cx={12} cy={12} r={2.3} fill="currentColor" />
+      <circle cx={12} cy={12} r={2.4} fill="currentColor" />
     </g>
   ),
   moon: () => (
@@ -138,11 +139,11 @@ export const UI_GLYPHS = {
       <path d="M12 2.8v2M12 19.2v2M2.8 12h2M19.2 12h2M5.5 5.5l1.4 1.4M17.1 17.1l1.4 1.4M5.5 18.5l1.4-1.4M17.1 6.9l1.4-1.4" />
     </g>
   ),
-  undo: () => <path d="M9 14L4.5 9.5 9 5M4.5 9.5h10a5.5 5.5 0 0 1 0 11H10" />,
+  undo: () => <path d="M9 14.5L4.5 10 9 5.5M4.5 10h10a5 5 0 0 1 0 10H10" />,
   note: () => (
     <g>
-      <path d="M18.5 3.5h-13a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h9l6-6v-9a2 2 0 0 0-2-2z" {...TINT} />
-      <path d="M14.5 20.5v-4a2 2 0 0 1 2-2h4M7.5 8.5h9M7.5 12h5" />
+      <path d="M18 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8l6-6V6a2 2 0 0 0-2-2z" {...TINT} />
+      <path d="M14 20v-4a2 2 0 0 1 2-2h4M8 9h8M8 13h4" />
     </g>
   ),
   search: () => (
@@ -161,28 +162,28 @@ export const UI_GLYPHS = {
       <circle cx={15} cy={18} r={1.7} />
     </g>
   ),
-  download: () => <path d="M4 14.5V17a3.5 3.5 0 0 0 3.5 3.5h9A3.5 3.5 0 0 0 20 17v-2.5M12 3.5V14M7.5 9.5L12 14l4.5-4.5" />,
-  upload: () => <path d="M4 14.5V17a3.5 3.5 0 0 0 3.5 3.5h9A3.5 3.5 0 0 0 20 17v-2.5M12 14.5V4M7.5 8.5L12 4l4.5 4.5" />,
+  download: () => <path d="M4 15v2a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3v-2M12 4v10M7.5 9.5L12 14l4.5-4.5" />,
+  upload: () => <path d="M4 15v2a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3v-2M12 14V4M7.5 8.5L12 4l4.5 4.5" />,
   lock: () => (
     <g>
-      <path d="M8 10.5V8a4 4 0 0 1 8 0v2.5" />
-      <rect x={5} y={10.5} width={14} height={10} rx={3} {...TINT} />
-      <circle cx={12} cy={14.8} r={1.5} {...SOLID} />
-      <path d="M12 15.5v2" />
+      <path d="M8 10V8a4 4 0 0 1 8 0v2" />
+      <rect x={5} y={10} width={14} height={10} rx={3} {...TINT} />
+      <circle cx={12} cy={14.4} r={1.5} {...SOLID} />
+      <path d="M12 15v2" />
     </g>
   ),
   gift: () => (
     <g>
-      <path d="M5 11.5V18a2.5 2.5 0 0 0 2.5 2.5h9A2.5 2.5 0 0 0 19 18v-6.5" {...TINT} />
-      <rect x={3.5} y={7.5} width={17} height={4} rx={1.6} {...TINT} />
-      <path d="M12 7.5v13M12 7.5C10.8 5.2 8.6 3.7 7.5 4.6 6.4 5.5 7.5 7.3 12 7.5c4.5-.2 5.6-2 4.5-2.9-1.1-.9-3.3.6-4.5 2.9z" />
+      <path d="M5 12v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6" {...TINT} />
+      <rect x={4} y={8} width={16} height={4} rx={1.6} {...TINT} />
+      <path d="M12 8v12M12 8C10.8 5.7 8.6 4.2 7.5 5.1 6.4 6 7.5 7.8 12 8c4.5-.2 5.6-2 4.5-2.9-1.1-.9-3.3.6-4.5 2.9z" />
     </g>
   ),
-  wand: () => (
+  wand: ({ sw }) => (
     <g>
       <path d="M4 20l8.2-8.2" />
       <path d={WAND_STAR} {...TINT} />
-      <path d="M6.5 5v2.5M5.25 6.25h2.5" stroke-width={1.6} />
+      <path d="M6.5 5v2.5M5.25 6.25h2.5" stroke-width={sw * 0.8} />
       <circle cx={20} cy={16} r={1.1} {...SOLID} />
     </g>
   ),

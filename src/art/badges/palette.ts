@@ -1,6 +1,7 @@
 /**
  * Badge colors. Emblems paint with semantic swatches so an unearned medal can be redrawn in
- * soft lavender-grey (three values keep every shape readable) without any CSS filter.
+ * soft lavender-grey (three values keep every shape readable) without any CSS filter. At night
+ * badge.module.css repaints those same hexes in deeper lavenders.
  */
 import type { BadgeDef } from '@/catalog/badges';
 import { ACCENT, COCOA, PASTEL } from '@/art/icons/palette';
@@ -55,17 +56,24 @@ export const EARNED: EmblemPalette = {
   lilac: PASTEL.lilac[300],
   red: ACCENT.red,
   wood: ACCENT.wood,
-  brown: '#B98A6E',
+  brown: ACCENT.brown,
   cheek: ACCENT.cheek,
 };
 
-const M_LIGHT = '#F6F3FA';
-const M_MID = '#E4DDEF';
-const M_DEEP = '#CEC4DF';
+/** The locked (unearned) swatches. badge.module.css matches these exact hexes for its night repaint. */
+export const LOCKED = {
+  ink: '#9E90B2',
+  light: '#F6F3FA',
+  mid: '#E4DDEF',
+  deep: '#CEC4DF',
+  face: '#FBFAFD',
+} as const;
+
+const { light: M_LIGHT, mid: M_MID, deep: M_DEEP } = LOCKED;
 
 /** The unearned look: soft lavender-grey, still friendly. */
 export const MUTED: EmblemPalette = {
-  ink: '#9E90B2',
+  ink: LOCKED.ink,
   white: M_LIGHT,
   gold: M_MID,
   goldLight: M_LIGHT,
@@ -101,6 +109,6 @@ export interface MedalColors {
 }
 
 export function medalColors(color: BadgeDef['color'], earned: boolean): MedalColors {
-  if (!earned) return { ribbon: M_MID, ribbonDeep: M_DEEP, crust: M_MID, crustLight: M_LIGHT, face: '#FBFAFD' };
+  if (!earned) return { ribbon: M_MID, ribbonDeep: M_DEEP, crust: M_MID, crustLight: M_LIGHT, face: LOCKED.face };
   return { ribbon: PASTEL[color][300], ribbonDeep: PASTEL[color][500], crust: ACCENT.gold, crustLight: ACCENT.goldLight, face: PASTEL[color][100] };
 }

@@ -4,7 +4,7 @@
  */
 import type { JSX } from 'preact';
 import { ACCENT } from '@/art/icons/palette';
-import { sparklePath } from '@/art/icons/shapes';
+import { memo, sparklePath } from '@/art/icons/shapes';
 
 /** Colors handed to every renderer: the tone's 300 (fill) and 100 (soft) shades plus cocoa ink. */
 export interface HabitColors {
@@ -56,9 +56,11 @@ export function Smile({ x, y, w = 2.4 }: { x: number; y: number; w?: number }) {
   return <path d={`M${x - w / 2} ${y}q${w / 2} ${w * 0.6} ${w} 0`} fill="none" stroke-width={FINE} />;
 }
 
+const sparkle = memo((x: number, y: number, r: number) => sparklePath(x, y, r, 0.24));
+
 /** A ✦ sparkle with an outline. */
 export function Sparkle({ x, y, r, fill }: { x: number; y: number; r: number; fill: string }) {
-  return <path d={sparklePath(x, y, r, 0.24)} fill={fill} stroke-width={FINE} />;
+  return <path d={sparkle(x, y, r)} fill={fill} stroke-width={FINE} />;
 }
 
 /** A tube drawn as an outlined stroke (straws, handles, frames): crisp at every size. */

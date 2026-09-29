@@ -3,7 +3,8 @@ import { describe, expect, it } from 'vitest';
 import { render } from 'preact';
 import type { VNode } from 'preact';
 import { Icon, ICON_NAMES, CoinIcon, StarIcon, StardustIcon, TicketIcon } from '@/art/icons';
-import { crescentPath, flowerPath, heartPath, scallopPath, sparklePath, starPath } from '@/art/icons/shapes';
+import { COCOA, STICKER } from '@/art/icons/palette';
+import { cogPath, crescentPath, flowerPath, heartPath, memo, scallopPath, sparklePath, starPath } from '@/art/icons/shapes';
 
 function mount(node: VNode): HTMLElement {
   const host = document.createElement('div');
@@ -28,6 +29,22 @@ describe('UI icons', () => {
       expect(outline, name).toBeGreaterThan(0);
       expect(filled, name).toBeLessThan(outline);
     }
+  });
+
+  it('draws active tabs as cocoa stickers and inactive ones in currentColor', () => {
+    for (const name of ICON_NAMES.filter((n) => n.startsWith('tab-'))) {
+      const active = mount(<Icon name={name} filled />).querySelector('svg')!;
+      expect(active.querySelector(`g[stroke="${STICKER}"]`), name).not.toBeNull();
+      expect(active.querySelector(`g[stroke="${COCOA}"]`), name).not.toBeNull();
+      expect(active.getAttribute('overflow')).toBe('visible');
+      const idle = mount(<Icon name={name} />).querySelector('svg')!;
+      expect(idle.innerHTML, name).not.toContain(COCOA);
+      expect(idle.innerHTML, name).not.toContain(STICKER);
+    }
+  });
+
+  it('never needs element ids (safe to render many per page)', () => {
+    for (const name of ICON_NAMES) expect(mount(<Icon name={name} filled />).querySelector('[id]'), name).toBeNull();
   });
 
   it('is decorative without a title and labelled with one', () => {
@@ -64,6 +81,9 @@ describe('currency art', () => {
     expect(dustTop(0)).toBeNull();
     expect(dustTop(1)!).toBeLessThan(dustTop(0.5)!);
     expect(dustTop(3)).toBe(dustTop(1));
+    // A single stardust (0.1) still shows a visible layer.
+    expect(dustTop(0.05)).toBe(dustTop(0.15));
+    expect(dustTop(0.2)!).toBeLessThan(dustTop(0.15)!);
   });
 });
 
@@ -77,10 +97,22 @@ describe('path builders', () => {
       sparklePath(10, 10, 5),
       heartPath(12, 12, 18),
       crescentPath(15, 16, 10.5, 20.5, 11, 8.5),
+      cogPath(12, 12, 6.6, 9.2, 8),
     ]) {
       clean(d);
       expect(d).not.toMatch(/NaN|Infinity/);
     }
+  });
+
+  it('memoizes builders by their arguments', () => {
+    let calls = 0;
+    const cached = memo((x: number, y: number) => {
+      calls++;
+      return `M${x} ${y}Z`;
+    });
+    expect(cached(1, 2)).toBe(cached(1, 2));
+    expect(cached(2, 1)).toBe('M2 1Z');
+    expect(calls).toBe(2);
   });
 
   it('builds the crescent from the two circle intersections', () => {
