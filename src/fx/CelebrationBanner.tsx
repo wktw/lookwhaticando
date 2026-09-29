@@ -5,6 +5,7 @@ import { IconButton } from '@/ui/IconButton';
 import { cx } from '@/ui/cx';
 import { toneClass } from '@/ui/tone';
 import { toastLaneTop } from '@/ui/toast';
+import { layerCount, onLayersChange } from '@/ui/sheetStack';
 import { burst } from './confetti';
 import { flyPayout } from './coinFly';
 import { LazyCelebrationArt } from './celebrationArtLoader';
@@ -120,6 +121,18 @@ export function CelebrationBanner({ spec, payouts = [], onDone }: { spec: Banner
     return () => {
       toastLaneTop.value = 0;
     };
+  }, []);
+
+  // A sheet opened while the note is up (a check-in, then ⋯ → Details) would sit under it, header
+  // and close button covered: the note is put away instead. One already open when the note arrived
+  // (a moment from inside a sheet) keeps it.
+  useEffect(() => {
+    let open = layerCount();
+    return onLayersChange(() => {
+      const now = layerCount();
+      if (now > open) leave();
+      open = now;
+    });
   }, []);
 
   useEffect(() => {
