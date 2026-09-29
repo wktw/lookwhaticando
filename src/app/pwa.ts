@@ -16,11 +16,11 @@
 import { signal } from '@preact/signals';
 import { toast } from '@/ui/toast';
 import { anyLayerOpen } from '@/ui/sheetStack';
-import { INSTALL } from '@/catalog/lines';
+import { SHELL_LINES } from '@/features/you/shellCopy';
 import { UPDATE_COPY } from './copy';
 
 /** "A new version is ready · Reload" (VOICE §19): the note's words and its button. */
-const [READY_TEXT = UPDATE_COPY.ready, RELOAD_LABEL = UPDATE_COPY.refresh] = INSTALL.updateReady.split(' · ');
+const [READY_TEXT = UPDATE_COPY.ready, RELOAD_LABEL = UPDATE_COPY.refresh] = SHELL_LINES.updateReady.split(' · ');
 
 /** A new version is installed and waiting to take over. */
 export const updateReady = signal(false);

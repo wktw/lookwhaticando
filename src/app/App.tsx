@@ -1,8 +1,7 @@
 import type { ComponentType } from 'preact';
 import { useEffect, useState } from 'preact/hooks';
 import { cx } from '@/ui/cx';
-import { DATA, ERRORS } from '@/catalog/lines';
-import { DATA_COPY } from '@/features/you/copy';
+import { SHELL_LINES } from '@/features/you/shellCopy';
 import { clockBehind, demoMode, exitDemo, readOnly, saveStatus, useHere } from '@/state/store';
 import { openHabitEditor } from '@/features/habits/open';
 import { onboardingActive } from '@/features/onboarding/progress';
@@ -28,11 +27,11 @@ export function ShellBanners() {
   const ro = readOnly.value;
   const notes: { key: string; text: string; action?: { label: string; run: () => void } }[] = [];
   if (ro === 'other-window') {
-    const [text = ERRORS.otherWindow] = ERRORS.otherWindow.split(' · ');
-    notes.push({ key: 'other-window', text, action: { label: ERRORS.useHere, run: useHere } });
-  } else if (ro === 'newer-version') notes.push({ key: 'newer', text: ERRORS.newerSave });
-  else if (ro === 'storage-full' || saveStatus.value.status === 'storage-full') notes.push({ key: 'save', text: ERRORS.save });
-  if (clockBehind.value) notes.push({ key: 'clock', text: ERRORS.clock });
+    const [text = SHELL_LINES.otherWindow] = SHELL_LINES.otherWindow.split(' · ');
+    notes.push({ key: 'other-window', text, action: { label: SHELL_LINES.useHere, run: useHere } });
+  } else if (ro === 'newer-version') notes.push({ key: 'newer', text: SHELL_LINES.newerSave });
+  else if (ro === 'storage-full' || saveStatus.value.status === 'storage-full') notes.push({ key: 'save', text: SHELL_LINES.save });
+  if (clockBehind.value) notes.push({ key: 'clock', text: SHELL_LINES.clock });
   const demo = demoMode.value;
   if (!notes.length && !demo) return null;
   return (
@@ -41,10 +40,10 @@ export function ShellBanners() {
         <div class={s.demo} role="status" data-demo-pill="">
           <span class={s.demoLabel}>
             <Icon name="sparkle" size={16} />
-            {DATA_COPY.demoPill}
+            {SHELL_LINES.demoPill}
           </span>
           <button type="button" class={s.bannerButton} onClick={exitDemo}>
-            {DATA.leaveDemo}
+            {SHELL_LINES.leaveDemo}
           </button>
         </div>
       )}

@@ -5,6 +5,7 @@
  * is listed in NOTES-w2-you.md for the copy deck.
  */
 import { fillLine } from '@/catalog/lines';
+import { SHELL_LINES } from './shellCopy';
 
 export const YOU = {
   title: 'You',
@@ -63,7 +64,7 @@ export const DATA_COPY = {
   startOverAgainTitle: 'Start over now?',
   startOverAgain: 'Everything here goes. The daily copies stay on this device.',
   demoLine: 'A made-up sill with a few months of watering. Your own plants stay as they are.',
-  demoPill: 'The demo',
+  demoPill: SHELL_LINES.demoPill,
   copyTitle: 'Your backup',
   copyHelper: 'Select it all, copy it, and keep it somewhere safe.',
   csvSaved: 'Waterings saved.',
