@@ -8,6 +8,8 @@ import { Icon, ICON_ALIASES, ICON_NAMES, CoinIcon, StampIcon, SwapIcon, TicketIc
 import { SOFT_OPACITY } from '@/art/icons/glyphs';
 import { circlePath, cogPath, crescentPath, flowerPath, heartPath, memo, ringSegmentPath, roundRectPath, scallopPath, sparklePath, starPath } from '@/art/icons/shapes';
 import tabsCss from '@/art/icons/tabs.module.css';
+import { SHELF_CAT_PARTS } from '@/art/icons/tabs';
+import { STAMP_RIM } from '@/art/icons/currency';
 
 function mount(node: VNode): HTMLElement {
   const host = document.createElement('div');
@@ -114,6 +116,17 @@ describe('tab icons', () => {
     }
   });
 
+  it('draws the Shelf cat as separate shapes, so overlapping pieces never cancel into holes', () => {
+    for (const filled of [false, true]) {
+      const svg = mount(<Icon name="tab-shelf" filled={filled} />).querySelector('svg')!;
+      const ds = [...svg.querySelectorAll('path')].map((p) => p.getAttribute('d'));
+      for (const part of SHELF_CAT_PARTS) expect(ds).toContain(part);
+      // The head is one circle, and neither the ears nor the body carry it inside them.
+      expect(SHELF_CAT_PARTS[1]).not.toContain(SHELF_CAT_PARTS[0]);
+      expect(SHELF_CAT_PARTS[2]).not.toContain(SHELF_CAT_PARTS[0]);
+    }
+  });
+
   it('switches the active mass for lamplight in CSS', () => {
     const css = readFileSync('src/art/icons/tabs.module.css', 'utf8');
     expect(css).toMatch(/\[data-theme='night'\]\) \.mass/);
@@ -147,6 +160,16 @@ describe('currency tokens', () => {
     expect(filled(<SwapIcon count={-2} />)).toBe(0);
     // The old stardust API: level is swaps / 10.
     expect(filled(<StardustIcon level={0.3} />)).toBe(3);
+  });
+
+  it('draws the stamp as an ink impression: an open rim with a sprig, never a check', () => {
+    const svg = mount(<StampIcon />).querySelector('svg')!;
+    const rim = svg.querySelector('path[fill-rule="evenodd"]');
+    expect(rim?.getAttribute('d')).toBe(STAMP_RIM);
+    // No solid disc under the rim: the paper shows through the middle.
+    expect(svg.querySelector('circle')).toBeNull();
+    expect(svg.querySelectorAll('ellipse')).toHaveLength(3);
+    expect(svg.innerHTML).not.toContain('M11.2 16.4l3.3 3.3');
   });
 
   it('draws the ticket with a perforated edge (holes punched through)', () => {
@@ -194,7 +217,6 @@ describe('path builders', () => {
   it('matches the crescents committed in the art (they are precomputed, not computed at runtime)', () => {
     const coin = readFileSync('src/art/icons/currency.tsx', 'utf8');
     expect(coin).toContain(crescentPath(16, 16, 13, 13.9, 14.3, 13));
-    expect(coin).toContain(crescentPath(16, 16, 12.8, 14.3, 14.6, 12.8));
   });
 });
 

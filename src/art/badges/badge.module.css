@@ -20,3 +20,15 @@
 .notYet .detail {
   display: none;
 }
+
+/*
+ * Grid sizes: the emblem's line thickens as the pin shrinks, so it still reads at 48 and 32 px.
+ * (The emblem box is scaled about 1.3× onto the 100-unit plate, and 100 units are the pin's width.)
+ */
+.notYet.small .emblem * {
+  stroke-width: 1.8px;
+}
+
+.notYet.tiny .emblem * {
+  stroke-width: 2.5px;
+}

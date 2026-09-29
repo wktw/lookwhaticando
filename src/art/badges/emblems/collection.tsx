@@ -1,13 +1,11 @@
 /** Emblems for capsules and the collection: capsules, a foil insert, frames, tins, a bell jar, a book. */
 import { E, shade } from '../palette';
-import { Capsule, Detail, Flower, LoafCat, Paw, glintPath, type Emblem } from './kit';
-
-const GLINT = glintPath(35.4, 10.4, 5.2);
+import { Capsule, Detail, Flower, LoafCat, Paw, type Emblem } from './kit';
 
 export const COLLECTION_EMBLEMS: Record<string, Emblem> = {
   /** The first capsule: one clear half, and someone inside. */
   'first-capsule': () => <Capsule color={E.blush} cat />,
-  /** Rare: the folded paper insert with its foil edge, and one glint. */
+  /** Rare: the folded paper insert with its foil edge, the edge catching the light along the top. */
   'first-rare': () => (
     <g>
       <g transform="rotate(-8 22 22)">
@@ -19,13 +17,13 @@ export const COLLECTION_EMBLEMS: Record<string, Emblem> = {
         <Detail>
           <rect x={9.8} y={27.4} width={24.4} height={0.9} fill={shade(E.paper)} />
           <rect x={33.8} y={8.6} width={2.6} height={26} rx={1} fill={E.brassDeep} />
+          <rect x={7.6} y={8.6} width={26.2} height={1.3} rx={0.6} fill={E.brassLight} />
         </Detail>
       </g>
-      <path d={GLINT} fill={E.paper} />
     </g>
   ),
-  /** Super rare: a capsule in holographic stripes. */
-  'first-ultra': () => <Capsule holo />,
+  /** Super rare: a capsule with one clear half and one gold-foil half, crossed by a single glint. */
+  'first-ultra': () => <Capsule foil />,
   /** Ten: three capsule toys in a little wooden tray (a 64 × 40 box). */
   'collect-10': () => (
     <g>

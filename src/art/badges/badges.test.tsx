@@ -4,7 +4,7 @@ import { render } from 'preact';
 import { BADGES } from '@/catalog/badges';
 import { BadgeMedal, EnamelPin, PIN_PLATE, PLATES, plateFor } from '@/art/badges';
 import { BADGE_EMBLEMS } from '@/art/badges/emblems';
-import { METAL, NOT_YET, plateEnamel } from '@/art/badges/palette';
+import { E, METAL, NOT_YET, plateEnamel } from '@/art/badges/palette';
 import css from '@/art/badges/badge.module.css';
 
 function pin(badgeId: string, earned: boolean, size = 88) {
@@ -77,6 +77,23 @@ describe('pins', () => {
     expect(rim(48)).toBeGreaterThan(rim(120));
     expect(rim(64)).toBe(rim(48));
     expect(rim(48, false)).toBe(rim(120));
+  });
+
+  it('thickens the "not yet" line as the pin shrinks, so emblems still read at 48 and 32 px', () => {
+    const dash = (size: number) => Number(pin('checkins-100', false, size).querySelector('path[stroke-dasharray]')!.getAttribute('stroke-width'));
+    expect(dash(32)).toBeGreaterThan(dash(64));
+    expect(dash(64)).toBeGreaterThan(dash(120));
+    expect(pin('checkins-100', false, 32).getAttribute('class')).toContain(css.tiny);
+    expect(pin('checkins-100', false, 48).getAttribute('class')).toContain(css.small);
+    expect(pin('checkins-100', false, 48).getAttribute('class')).not.toContain(css.tiny);
+    expect(pin('checkins-100', false, 120).getAttribute('class')).not.toContain(css.small);
+  });
+
+  it('draws Ultra Lucky as a gold-foil capsule with one glint, not rainbow stripes', () => {
+    const html = pin('first-ultra', true).innerHTML;
+    expect(html).toContain(E.brass);
+    expect(html).toContain(E.brassLight);
+    for (const stripe of [E.mint, E.sky, E.butter]) expect(html).not.toContain(stripe);
   });
 
   it('still renders a pin for an unknown badge id', () => {

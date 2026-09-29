@@ -74,9 +74,15 @@ function Brand() {
   );
 }
 
+/** Fixed wallpaper fills (not theme tokens), so each panel reads the same in either gallery theme. */
 const WALLPAPERS = [
-  { name: 'light wallpaper', bg: '#EDE7DF' },
-  { name: 'dark wallpaper', bg: '#1C1A24' },
+  { name: 'On a light wallpaper', bg: '#EDE7DF', ink: '#3B3236' },
+  { name: 'On a dark wallpaper', bg: '#2A2530', ink: '#EEE8EC' },
+];
+/** Browser tab strips for the favicon: a pale one and a dark one. */
+const TAB_STRIPS = [
+  { name: 'Favicon on a light tab strip', bg: '#F1F3F4', ink: '#3B3236' },
+  { name: 'Favicon on a dark tab strip', bg: '#35363A', ink: '#EEE8EC' },
 ];
 
 function AppIcons({ params }: { params: URLSearchParams }) {
@@ -94,7 +100,8 @@ function AppIcons({ params }: { params: URLSearchParams }) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
       <AppIconArt size={1024} shape="squircle" title="catkin app icon, 1024 px" />
       {WALLPAPERS.map((w) => (
-        <div key={w.name} style={{ background: w.bg, borderRadius: '18px', padding: '22px', color: w.bg === '#1C1A24' ? '#EEE' : '#333' }}>
+        <div key={w.name} style={{ background: w.bg, borderRadius: '18px', padding: '18px 22px 22px', color: w.ink }}>
+          <h3 style={{ margin: '0 0 14px', font: '600 13px/1.2 var(--font-ui, system-ui)', color: w.ink }}>{w.name}</h3>
           <div class="gal-row" style={{ gap: '26px', alignItems: 'flex-end' }}>
             {[180, 60, 29].map((s) => (
               <div key={s} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
@@ -108,10 +115,24 @@ function AppIcons({ params }: { params: URLSearchParams }) {
                 <Caption>{shape}</Caption>
               </div>
             ))}
-            <Caption>{w.name}</Caption>
           </div>
         </div>
       ))}
+      <div class="gal-row" style={{ gap: '18px' }}>
+        {TAB_STRIPS.map((t) => (
+          <div key={t.name} style={{ background: t.bg, borderRadius: '12px', padding: '14px 18px', color: t.ink }}>
+            <h3 style={{ margin: '0 0 10px', font: '600 13px/1.2 var(--font-ui, system-ui)', color: t.ink }}>{t.name}</h3>
+            <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+              {[16, 32, 64].map((s) => (
+                <div key={s} style={{ display: 'flex', alignItems: 'center', gap: '6px', font: '12px system-ui' }}>
+                  <AppIconArt size={s} shape="favicon" />
+                  <span>{s}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

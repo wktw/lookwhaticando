@@ -35,17 +35,28 @@ const progress: Glyph = (s) => (
   </g>
 );
 
-/* ---------- Capsules: a small capsule cabinet, glass front, knob and chute ---------- */
+/* ---------- Capsules: a small capsule cabinet, capsules behind the glass, knob and chute ---------- */
 const CABINET = `${roundRectPath(4.8, 2.4, 14.4, 17.8, 2.4)}${roundRectPath(7, 4.6, 10, 7.4, 1.3)}`;
+/** Two-tone capsules behind the glass: [cx, cy, r]. The top half is solid, the lower half soft. */
+const GLASS_CAPSULES: [number, number, number][] = [
+  [9.7, 9.9, 1.9],
+  [14.3, 9.9, 1.9],
+  [12, 6.9, 1.7],
+];
+const capTop = ([x, y, r]: [number, number, number]) => `M${x - r} ${y}a${r} ${r} 0 0 1 ${2 * r} 0z`;
+const capBottom = ([x, y, r]: [number, number, number]) => `M${x - r} ${y + 0.45}h${2 * r}a${r} ${r} 0 0 1 ${-2 * r} 0z`;
+const CAPSULE_TOPS = GLASS_CAPSULES.map(capTop).join('');
+const CAPSULE_BOTTOMS = GLASS_CAPSULES.map(capBottom).join('');
+/** The chute: a hooded mouth with a dark opening. */
+const CHUTE = `${roundRectPath(12.8, 13.9, 4.6, 4, 1.1)}${roundRectPath(13.7, 15.5, 2.8, 1.6, 0.5)}`;
 const capsules: Glyph = (s) => (
   <g>
     <path d={CABINET} {...HOLED} {...mass(s)} />
+    <path d={CAPSULE_BOTTOMS} {...mass(s)} />
     <g {...structure(s)}>
-      <circle cx={9.6} cy={10} r={1.75} />
-      <circle cx={13.2} cy={10.1} r={1.75} />
-      <circle cx={11.5} cy={7.2} r={1.6} />
-      <path d={`${circlePath(9.8, 15.6, 2.2)}M8.6 15.1h2.4v1H8.6z`} {...HOLED} />
-      <rect x={13.4} y={14.1} width={3.6} height={3.2} rx={0.9} />
+      <path d={CAPSULE_TOPS} />
+      <path d={`${circlePath(9.4, 15.9, 2.2)}M8.2 15.4h2.4v1H8.2z`} {...HOLED} />
+      <path d={CHUTE} {...HOLED} />
       <rect x={6.4} y={20.2} width={2.4} height={1.6} rx={0.6} />
       <rect x={15.2} y={20.2} width={2.4} height={1.6} rx={0.6} />
     </g>
@@ -53,15 +64,24 @@ const capsules: Glyph = (s) => (
 );
 
 /* ---------- Shelf: a cat loafing on a pot rim, tail over the side ---------- */
-const CAT =
-  `${circlePath(8.9, 9.6, 3.3)}` +
-  'M6 8.4l-.3-3.7c0-.5.5-.8.9-.5l2.6 2.1zM9.6 6.1l2.4-2c.4-.3 1 0 .9.5l-.3 3.6z' +
-  'M8.4 13.2c-.6-3.2 1.7-5.2 5.4-5.2 3.2 0 5.3 1.7 5.3 4v1.2z';
+/*
+ * The cat is three separate shapes (head, ears, body) rather than one compound path: overlapping
+ * subpaths that wind in opposite directions would cancel under the nonzero rule and punch holes.
+ */
+const CAT_HEAD = circlePath(8.9, 9.6, 3.3);
+const CAT_EARS = 'M6 8.4l-.3-3.7c0-.5.5-.8.9-.5l2.6 2.1zM9.6 6.1l2.4-2c.4-.3 1 0 .9.5l-.3 3.6z';
+const CAT_BODY = 'M8.4 13.2c-.6-3.2 1.7-5.2 5.4-5.2 3.2 0 5.3 1.7 5.3 4v1.2z';
+/** Every piece of the Shelf cat, for tests: each must be its own element. */
+export const SHELF_CAT_PARTS = [CAT_HEAD, CAT_EARS, CAT_BODY] as const;
 const shelf: Glyph = (s) => (
   <g>
     <rect x={5.2} y={13.2} width={13.6} height={2.6} rx={1} {...mass(s)} />
     <path d="M6.1 16.4h11.8l-.9 5.1a1.1 1.1 0 0 1-1.1.9H8.1a1.1 1.1 0 0 1-1.1-.9z" {...mass(s)} />
-    <path d={CAT} {...structure(s)} />
+    <g {...structure(s)}>
+      <path d={CAT_BODY} />
+      <path d={CAT_HEAD} />
+      <path d={CAT_EARS} />
+    </g>
     <path d="M18.6 12c1.4.7 1.8 2.3 1.3 3.9-.3 1-.2 1.9.5 2.3" {...line(s)} stroke-width={s.sw * 0.7} />
   </g>
 );

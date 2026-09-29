@@ -70,9 +70,20 @@ in `index.html` is unchanged.
 
 ## Known gaps
 
-- Crescents are hand-authored or computed offline and committed as path strings (the coin, stamp, moon,
+- Crescents are hand-authored or computed offline and committed as path strings (the coin, moon,
   capsule, tag, catkin and the app icon's strips). The app icon's black cat gets its lavender rim light by
   layering its plum coat nudged away from the window over a lavender copy (no clip, mask or filter).
 - The app icon's squircle variant clips with one static `clipPath` (the icon outline), as before.
 - Habit icons are drawn for light-from-the-left only; they do not take a `light` prop (they are printed labels
   on a stake, not standing objects in the scene).
+
+## Review fixes (round 1)
+
+- **Shell (`src/app/TabBar.tsx`, `src/app/Sidebar.tsx`, not mine)**: `GumballArt` now takes an optional
+  `light?: Light`. Without it the cabinet follows the page theme (its inks live in
+  `src/art/icons/cabinet.module.css`), so nothing needs to change; pass `light` only to pin day or lamplight.
+- The stamp is now a flat ink impression (no shade crescent); the catkin sprig's lit shapes are precomputed per
+  light direction (`CATKIN_LIT.left | top | right`) in sprig space, from an offline generator (disc-intersection),
+  and committed.
+- `AppIconArt` has a `favicon` shape (cropped cat and pot on a deeper lavender tile, no beam or cast shadow);
+  `scripts/generate-icons.mjs` serializes favicon.svg from it.

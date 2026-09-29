@@ -1,5 +1,5 @@
 import { useId } from 'preact/hooks';
-import { MATERIAL, SHADE_INK } from '@/art/icons/palette';
+import { MATERIAL, SHADE_INK, mix } from '@/art/icons/palette';
 
 /**
  * The app icon (DESIGN §1): a small black cat loafing on the rim of a terracotta pot with two leaves,
@@ -9,8 +9,10 @@ import { MATERIAL, SHADE_INK } from '@/art/icons/palette';
  *  - squircle: transparent corners (desktop / "any" icons, in-app)
  *  - square:   full-bleed (iOS applies its own mask)
  *  - maskable: full-bleed, the cat and pot kept inside the 80% safe circle (Android)
+ *  - favicon:  the squircle cropped to the cat and pot on a deeper lavender tile, without the beam,
+ *              the bars or the cast shadow, so it still reads at 16 px on a pale tab strip
  */
-export type AppIconShape = 'squircle' | 'square' | 'maskable';
+export type AppIconShape = 'squircle' | 'square' | 'maskable' | 'favicon';
 
 /** Superellipse (n = 5) path, the continuous-corner "squircle" shape. */
 export function squirclePath(cx: number, cy: number, r: number, n = 5, steps = 96): string {
@@ -83,6 +85,13 @@ const EYES: [number, number][] = [
 ];
 
 const WALL_SHADOW_OFFSET = 'translate(6.5 2.4)';
+/** How strong the hard shadow thrown on the wall and sill is (one flat layer of the shade ink). */
+export const WALL_SHADOW_OPACITY = 0.2;
+/** Where the loaf meets the rim: a thin flat contact shadow, only on the rim's top face. */
+const CAT_CONTACT = 'M29.6 57H67.6A19 2 0 0 1 29.6 57Z';
+const CAT_CONTACT_INK = mix(MATERIAL.terracottaRim, SHADE_INK, 0.34);
+/** The favicon's tile: a deeper lavender than the wall, so the square holds on a pale tab strip. */
+export const FAVICON_TILE = '#D3C5E5';
 
 function Foreground({ shadow = false }: { shadow?: boolean }) {
   // `shadow` repeats the silhouettes in one flat ink for the cast shadow on the wall.
@@ -99,7 +108,7 @@ function Foreground({ shadow = false }: { shadow?: boolean }) {
           {!shadow && <path d={LEAF_RIB} fill="none" stroke="#F4F2DE" stroke-opacity={0.75} stroke-width={0.8} stroke-linecap="round" />}
         </g>
       ))}
-      <path d={POT_RIM} fill={f(MATERIAL.terracottaRim)} />
+      {shadow && <path d={POT_RIM} />}
       <path d={POT_BODY} fill={f(MATERIAL.terracotta)} />
       {!shadow && (
         <g>
@@ -107,6 +116,7 @@ function Foreground({ shadow = false }: { shadow?: boolean }) {
           <path d={POT_UNDER_RIM} fill={MATERIAL.terracottaRimShade} />
           <path d={POT_RIM} fill={MATERIAL.terracottaRim} />
           <path d={POT_RIM_SHADE} fill={MATERIAL.terracottaRimShade} />
+          <path d={CAT_CONTACT} fill={CAT_CONTACT_INK} />
         </g>
       )}
       <g transform={CAT_FRAME}>
@@ -159,12 +169,14 @@ const PLACE: Record<AppIconShape, string | undefined> = {
   square: undefined,
   squircle: undefined,
   maskable: 'translate(50 58) scale(0.76) translate(-50 -58)',
+  favicon: 'translate(50 51) scale(1.28) translate(-49 -57.5)',
 };
 
 export function AppIconArt({ size = 96, shape = 'squircle', title, class: cls }: { size?: number | string; shape?: AppIconShape; title?: string; class?: string }) {
   const uid = `ai${useId().replace(/[^a-zA-Z0-9]/g, '')}`;
   const px = typeof size === 'number' ? `${size}px` : size;
   const clip = `${uid}-clip`;
+  const favicon = shape === 'favicon';
   return (
     <svg
       viewBox="0 0 100 100"
@@ -178,18 +190,20 @@ export function AppIconArt({ size = 96, shape = 'squircle', title, class: cls }:
     >
       <defs>
         <clipPath id={clip}>
-          <path d={shape === 'squircle' ? SQUIRCLE : SQUARE} />
+          <path d={shape === 'squircle' || shape === 'favicon' ? SQUIRCLE : SQUARE} />
         </clipPath>
       </defs>
       <g clip-path={`url(#${clip})`}>
-        <Room />
+        {favicon ? <rect x={-2} y={-2} width={104} height={104} fill={FAVICON_TILE} /> : <Room />}
         <g transform={PLACE[shape]}>
-          <g opacity={0.13} fill={SHADE_INK}>
-            <g transform={WALL_SHADOW_OFFSET}>
-              <Foreground shadow />
+          {!favicon && (
+            <g opacity={WALL_SHADOW_OPACITY} fill={SHADE_INK}>
+              <g transform={WALL_SHADOW_OFFSET}>
+                <Foreground shadow />
+              </g>
+              <path d={FLOOR_SHADOW} />
             </g>
-            <path d={FLOOR_SHADOW} />
-          </g>
+          )}
           <Foreground />
         </g>
       </g>

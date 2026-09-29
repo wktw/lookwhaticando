@@ -1,0 +1,157 @@
+/*
+ * The capsule cabinet mark's inks (src/app/GumballArt.tsx). Day: strawberry milk lit from the window
+ * on the left, shade on the right. Lamplight: a dusky body warmed toward the lamp on the right, the
+ * shade on the left, the glass dimmed and the capsule tops toned down from paper white.
+ * `.auto` follows the page theme; `.day` / `.night` are pinned by the `light` prop.
+ */
+.cab {
+  display: block;
+  flex: none;
+}
+
+.day,
+.auto {
+  --cab-body: #efb4c1;
+  --cab-shade-r: #d19eb1;
+  --cab-shade-l: transparent;
+  --cab-recess: #d19eb1;
+  --cab-glass: #eaf2f9;
+  --cab-top: #fffdf9;
+  --cab-knob: #fffdf9;
+  --cab-knob-shade: #e9dfdf;
+  --cab-print: #a3405b;
+  --cab-brass: #d8b769;
+  --cab-brass-deep: #b8954a;
+  --cab-c0: #c8bae6;
+  --cab-c1: #dda088;
+  --cab-c2: #f2d98a;
+  --cab-c3: #a3405b;
+  --cab-c4: #b5cc9c;
+}
+
+.night {
+  --cab-body: #bf8f97;
+  --cab-shade-r: transparent;
+  --cab-shade-l: #82626f;
+  --cab-recess: #8e6a78;
+  --cab-glass: #4a5566;
+  --cab-top: #dcd1cc;
+  --cab-knob: #dcd1cc;
+  --cab-knob-shade: #b3a6a8;
+  --cab-print: #8e4a5e;
+  --cab-brass: #c4a669;
+  --cab-brass-deep: #967a42;
+  --cab-c0: #a89cc4;
+  --cab-c1: #bf8a76;
+  --cab-c2: #cdb877;
+  --cab-c3: #b86a80;
+  --cab-c4: #97aa83;
+}
+
+:global([data-theme='night']) .auto {
+  --cab-body: #bf8f97;
+  --cab-shade-r: transparent;
+  --cab-shade-l: #82626f;
+  --cab-recess: #8e6a78;
+  --cab-glass: #4a5566;
+  --cab-top: #dcd1cc;
+  --cab-knob: #dcd1cc;
+  --cab-knob-shade: #b3a6a8;
+  --cab-print: #8e4a5e;
+  --cab-brass: #c4a669;
+  --cab-brass-deep: #967a42;
+  --cab-c0: #a89cc4;
+  --cab-c1: #bf8a76;
+  --cab-c2: #cdb877;
+  --cab-c3: #b86a80;
+  --cab-c4: #97aa83;
+}
+
+@media (prefers-color-scheme: dark) {
+  :global(:root:not([data-theme='light'])) .auto {
+    --cab-body: #bf8f97;
+    --cab-shade-r: transparent;
+    --cab-shade-l: #82626f;
+    --cab-recess: #8e6a78;
+    --cab-glass: #4a5566;
+    --cab-top: #dcd1cc;
+    --cab-knob: #dcd1cc;
+    --cab-knob-shade: #b3a6a8;
+    --cab-print: #8e4a5e;
+    --cab-brass: #c4a669;
+    --cab-brass-deep: #967a42;
+    --cab-c0: #a89cc4;
+    --cab-c1: #bf8a76;
+    --cab-c2: #cdb877;
+    --cab-c3: #b86a80;
+    --cab-c4: #97aa83;
+  }
+}
+
+/* A pinned light from the other side (or overhead) moves the shade with it. */
+.fromLeft {
+  --cab-shade-l: transparent;
+}
+.fromLeft.day {
+  --cab-shade-r: #d19eb1;
+}
+.fromLeft.night {
+  --cab-shade-r: #82626f;
+}
+.fromRight.day {
+  --cab-shade-r: transparent;
+  --cab-shade-l: #d19eb1;
+}
+.fromTop {
+  --cab-shade-r: transparent;
+  --cab-shade-l: transparent;
+}
+
+.body {
+  fill: var(--cab-body);
+}
+.shadeR {
+  fill: var(--cab-shade-r);
+}
+.shadeL {
+  fill: var(--cab-shade-l);
+}
+.recess {
+  fill: var(--cab-recess);
+}
+.glass {
+  fill: var(--cab-glass);
+}
+.top {
+  fill: var(--cab-top);
+}
+.knob {
+  fill: var(--cab-knob);
+}
+.knobShade {
+  fill: var(--cab-knob-shade);
+}
+.print {
+  fill: var(--cab-print);
+}
+.brass {
+  fill: var(--cab-brass);
+}
+.brassDeep {
+  fill: var(--cab-brass-deep);
+}
+.c0 {
+  fill: var(--cab-c0);
+}
+.c1 {
+  fill: var(--cab-c1);
+}
+.c2 {
+  fill: var(--cab-c2);
+}
+.c3 {
+  fill: var(--cab-c3);
+}
+.c4 {
+  fill: var(--cab-c4);
+}

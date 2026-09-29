@@ -83,19 +83,40 @@ export function CoinIcon(props: CurrencyIconProps) {
 
 /** Stamp ink: lavender, deep enough to read at 14 px on paper and on the night card. */
 export const STAMP_INK = mix(FAMILY.lavender[500], FAMILY.lavender[700], 0.3);
-const STAMP_PAPER = '#F3EFFA';
-const STAMP_SHADE = 'M7.04 25.14A12.8 12.8 0 1 0 23.26 5.46A12.8 12.8 0 0 1 7.04 25.14Z';
-const STAMP_RING = `${circlePath(16, 16, 10.3)}${circlePath(16, 16, 9.1)}`;
+/**
+ * The inked rim: a heavy ring whose inner edge sits a little off-centre (the stamp was pressed harder
+ * on one side), with three tiny nicks where the ink missed. Even-odd, so the paper shows through.
+ */
+export const STAMP_RIM =
+  circlePath(16, 16, 13) +
+  circlePath(16.4, 15.6, 10.2) +
+  circlePath(23.6, 6.9, 0.55) +
+  circlePath(5.4, 19.3, 0.5) +
+  circlePath(20.6, 27.3, 0.45);
+/** A short second rim on one side, where the stamp rocked as it lifted. */
+const STAMP_ECHO = ringSegmentPath(16.4, 15.6, 8.5, 9.2, 206, 322);
+/** The shop's mark in the middle: a catkin sprig. */
+const STAMP_TWIG = 'M13.5 23.4c.8-3.9 2.3-7.2 5-10.1M14.7 18.3c-1.1-.5-1.9-1.4-2.4-2.6';
+const STAMP_CATKINS: [number, number, number][] = [
+  [11.9, 14.3, -24],
+  [17.4, 16.7, 50],
+  [19.4, 10.9, 22],
+];
 
-/** A loyalty-card stamp: a round inked impression in lavender with a check pressed out of it. */
+/**
+ * A loyalty-card stamp: a round impression in lavender ink, pressed at a slight tilt, with the shop's
+ * sprig in the middle and the paper showing through. Flat ink on paper, so it takes no shade.
+ */
 export function StampIcon(props: CurrencyIconProps) {
   return (
     <CurrencySvg {...props}>
-      <g transform="rotate(-10 16 16)">
-        <circle cx={16} cy={16} r={12.8} fill={STAMP_INK} />
-        <path d={STAMP_SHADE} fill={mix(STAMP_INK, '#5A4870', 0.14)} />
-        <path d={STAMP_RING} fill={STAMP_PAPER} fill-rule="evenodd" />
-        <path d="M11.2 16.4l3.3 3.3 6.4-6.8" fill="none" stroke={STAMP_PAPER} stroke-width={2.3} stroke-linecap="round" stroke-linejoin="round" />
+      <g transform="rotate(-14 16 16)" fill={STAMP_INK}>
+        <path d={STAMP_RIM} fill-rule="evenodd" />
+        <path d={STAMP_ECHO} />
+        <path d={STAMP_TWIG} fill="none" stroke={STAMP_INK} stroke-width={1.5} stroke-linecap="round" />
+        {STAMP_CATKINS.map(([x, y, a]) => (
+          <ellipse key={a} cx={x} cy={y} rx={1.6} ry={3} transform={`rotate(${a} ${x} ${y})`} />
+        ))}
       </g>
     </CurrencySvg>
   );

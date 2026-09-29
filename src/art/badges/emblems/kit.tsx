@@ -122,29 +122,27 @@ export function LoafCat({ x, y, s = 1 }: { x: number; y: number; s?: number }) {
 
 /** The capsule's shade: its disc minus itself nudged toward the window (computed offline). */
 const CAPSULE_SHADE = 'M12.5 30.87A13 13 0 1 0 29.7 11.53A13 13 0 0 1 12.5 30.87Z';
-/** Holographic bands across the lower half (computed offline: horizontal slices of the disc). */
-export const HOLO_BANDS = [
-  'M9 22H35A13 13 0 0 1 34.74 24.6H9.26A13 13 0 0 1 9 22Z',
-  'M9.26 24.6H34.74A13 13 0 0 1 33.91 27.2H10.09A13 13 0 0 1 9.26 24.6Z',
-  'M10.09 27.2H33.91A13 13 0 0 1 32.4 29.8H11.6A13 13 0 0 1 10.09 27.2Z',
-  'M11.6 29.8H32.4A13 13 0 0 1 29.8 32.4H14.2A13 13 0 0 1 11.6 29.8Z',
-  'M14.2 32.4H29.8A13 13 0 0 1 22 35H22A13 13 0 0 1 14.2 32.4Z',
-];
-const HOLO_COLORS = [E.blush, E.butter, E.mint, E.sky, E.lavender];
+/** The single foil glint across the gold half (computed offline: a horizontal slice of the disc). */
+export const FOIL_GLINT = 'M9.26 24.6H34.74A13 13 0 0 1 33.91 27.2H10.09A13 13 0 0 1 9.26 24.6Z';
 
 /**
  * A capsule toy, drawn at (22, 22) r 13 and placed at (x, y) with radius r: one half clear glass,
- * one half coloured (or holographic stripes), a seam, and the shade on the side away from the window.
+ * one half coloured (or gold foil with one glint), a seam, and the shade on the side away from the window.
  */
-export function Capsule({ x = 22, y = 22, r = 13, a = -16, color = E.blush, holo = false, cat = false }: { x?: number; y?: number; r?: number; a?: number; color?: string; holo?: boolean; cat?: boolean }) {
+export function Capsule({ x = 22, y = 22, r = 13, a = -16, color = E.blush, foil = false, cat = false }: { x?: number; y?: number; r?: number; a?: number; color?: string; foil?: boolean; cat?: boolean }) {
   const k = r / 13;
   return (
     <g transform={`translate(${x} ${y}) scale(${k}) translate(-22 -22)`}>
       <g transform={`rotate(${a} 22 22)`}>
         <path d="M9 22a13 13 0 0 1 26 0z" fill={E.glass} />
         {cat && <LoafCat x={23.4} y={22} s={0.9} />}
-        {holo ? HOLO_BANDS.map((d, i) => <path key={d} d={d} fill={HOLO_COLORS[i]} />) : <path d="M9 22h26a13 13 0 0 1-26 0z" fill={color} />}
-        <rect x={9} y={20.9} width={26} height={2.2} fill={holo ? E.lavenderDeep : shade(color)} />
+        <path d="M9 22h26a13 13 0 0 1-26 0z" fill={foil ? E.brass : color} />
+        {foil && (
+          <Detail>
+            <path d={FOIL_GLINT} fill={E.brassLight} />
+          </Detail>
+        )}
+        <rect x={9} y={20.9} width={26} height={2.2} fill={foil ? E.brassDeep : shade(color)} />
       </g>
       <Detail>
         <path d={CAPSULE_SHADE} fill={SHADE} fill-opacity={0.14} />

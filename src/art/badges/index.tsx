@@ -74,11 +74,13 @@ export interface BadgeMedalProps {
 export function BadgeMedal({ badgeId, earned, size = 64, title, class: cls, style, compact }: BadgeMedalProps) {
   const px = typeof size === 'number' ? `${size}px` : size;
   const small = compact ?? (typeof size === 'number' && size <= 64);
+  /** Pins at 40 px and under (a dense grid, an inline list) get the heaviest "not yet" line. */
+  const tiny = typeof size === 'number' && size <= 40;
   const plate = PLATES[plateFor(badgeId)];
   const color: BadgeDef['color'] = BADGE_BY_ID.get(badgeId)?.color ?? 'butter';
   const emblem = BADGE_EMBLEMS[badgeId] ?? FALLBACK;
   const rim = small ? 3.8 : 3.2;
-  const classes = [css.pin, earned ? undefined : css.notYet, cls].filter(Boolean).join(' ');
+  const classes = [css.pin, earned ? undefined : css.notYet, small ? css.small : undefined, tiny ? css.tiny : undefined, cls].filter(Boolean).join(' ');
   return (
     <svg
       viewBox="0 0 100 100"
@@ -98,7 +100,7 @@ export function BadgeMedal({ badgeId, earned, size = 64, title, class: cls, styl
           <path d={plate.d} fill={plateEnamel(color)} stroke={METAL.rim} stroke-width={rim} />
         </g>
       ) : (
-        <path d={plate.d} fill="none" stroke={NOT_YET} stroke-width={small ? 2.6 : 2.2} stroke-dasharray={small ? '6 5' : '5 4.2'} stroke-linecap="round" />
+        <path d={plate.d} fill="none" stroke={NOT_YET} stroke-width={tiny ? 3.6 : small ? 2.8 : 2.2} stroke-dasharray={tiny ? '8 6.5' : small ? '6.5 5' : '5 4.2'} stroke-linecap="round" />
       )}
       <g class={css.emblem} transform={plate.emblem}>
         {emblem({ earned })}

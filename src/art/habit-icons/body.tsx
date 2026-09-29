@@ -59,25 +59,26 @@ export const BODY_ICONS: Record<string, HabitDrawing> = {
       </g>
     </g>
   ),
+  /** A resistance band: an elastic sagging between two foam grips. */
   stretch: (c) => (
     <g>
-      <g transform="rotate(-14 16 16)">
-        <path d="M16 6.4c7.2 0 12.6 4 12.6 9.2S23.2 24.8 16 24.8 3.4 20.8 3.4 15.6 8.8 6.4 16 6.4zm0 4.2c-5 0-8.8 2.4-8.8 5.4s3.8 5.2 8.8 5.2 8.8-2.2 8.8-5.2-3.8-5.4-8.8-5.4z" fill={c.fill} fill-rule="evenodd" />
-        <path d="M3.4 15.6c0-5.2 5.4-9.2 12.6-9.2s12.6 4 12.6 9.2h-3.8c0-3-3.8-5-8.8-5s-8.8 2-8.8 5z" fill={c.shade} />
-      </g>
-      <g transform="rotate(10 16 22)">
-        <path d="M16 17.6c5.4 0 9.4 2.4 9.4 5.6s-4 5.6-9.4 5.6-9.4-2.4-9.4-5.6 4-5.6 9.4-5.6zm0 3c-3.4 0-6 1.2-6 2.6s2.6 2.6 6 2.6 6-1.2 6-2.6-2.6-2.6-6-2.6z" fill={c.ink} fill-rule="evenodd" />
-      </g>
+      <path d="M7.4 13.4C10.4 26.4 21.6 26.4 24.6 13.4" fill="none" stroke={c.fill} stroke-width={3.4} stroke-linecap="round" />
+      <path d="M16 23.2c3.4 0 7-3.2 8.6-9.8" fill="none" stroke={c.shade} stroke-width={3.4} stroke-linecap="round" />
+      <rect x={3.4} y={6.4} width={4.6} height={13.4} rx={2.3} transform="rotate(-12 5.7 13.1)" fill={c.ink} />
+      <rect x={24} y={6.4} width={4.6} height={13.4} rx={2.3} transform="rotate(12 26.3 13.1)" fill={c.ink} />
     </g>
   ),
+  /** A yoga mat half unrolled: the flat end toward us, the rest still in a roll at the back. */
   yoga: (c) => (
-    <g transform="rotate(-18 16 16)">
-      <path d="M8 9.4h15.4v13.2H8a6.6 6.6 0 0 1 0-13.2z" fill={c.fill} />
-      <path d="M17 9.4h6.4v13.2H17z" fill={c.shade} />
-      <circle cx={23.4} cy={16} r={6.6} fill={c.light} />
-      <path d="M23.4 16.8a1 1 0 0 1-.6-1.8 2.2 2.2 0 0 1 3 1.4 3.6 3.6 0 0 1-3.2 4 4.8 4.8 0 0 1-4.6-3.8" fill="none" stroke={c.ink} stroke-width={1.3} stroke-linecap="round" />
-      <rect x={9.4} y={8.6} width={2.4} height={14.8} rx={0.8} fill={c.ink} />
-      <rect x={15.2} y={8.6} width={2.4} height={14.8} rx={0.8} fill={c.ink} />
+    <g>
+      <path d="M6 16.2h20l4.2 10.2H1.8z" fill={c.fill} />
+      <path d="M1.8 26.4h28.4l-.3 1.7H2.1z" fill={c.shade} />
+      <path d="M6 16.2h20l.6 2.2H5.4z" fill={c.shade} />
+      <rect x={5.4} y={8} width={21.2} height={8.6} rx={4.3} fill={c.fill} />
+      <path d="M5.4 12.3a4.3 4.3 0 0 0 4.3 4.3h12.6a4.3 4.3 0 0 0 4.3-4.3z" fill={c.shade} />
+      <rect x={10} y={7.6} width={2.2} height={9.4} rx={0.8} fill={c.ink} />
+      <circle cx={22.3} cy={12.3} r={4.3} fill={c.light} />
+      <path d="M22.3 12.9a.8.8 0 0 1-.5-1.4 1.8 1.8 0 0 1 2.4 1.1 2.9 2.9 0 0 1-2.6 3.1 3.8 3.8 0 0 1-3.6-3" fill="none" stroke={c.ink} stroke-width={1.2} stroke-linecap="round" />
     </g>
   ),
   dumbbell: (c) => (

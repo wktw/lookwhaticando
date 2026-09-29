@@ -114,16 +114,18 @@ export const UI_GLYPHS = {
       <path d="M12 14.6V3.8M8.3 7.3L12 3.6l3.7 3.7" {...LINE} />
     </g>
   ),
+  /** Export: an open box at lower left, the arrow leaving it up and out to the right. */
   export: () => (
     <g>
-      <path d="M5.6 3h6.8l3.6 3.6V19a2 2 0 0 1-2 2H5.6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z" {...SOFT} />
-      <path d="M9 12h11.2M17 8.6l3.4 3.4-3.4 3.4" {...LINE} />
+      <rect x={3.2} y={9.4} width={13} height={11.4} rx={2.6} {...SOFT} />
+      <path d="M9.2 15L19.6 4.6M13.6 4.4h6.2v6.2" {...LINE} />
     </g>
   ),
+  /** Import: an in-tray across the bottom, the arrow dropping into it from the upper right. */
   import: () => (
     <g>
-      <path d="M10.6 3h6.8l3.6 3.6V19a2 2 0 0 1-2 2h-8.4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z" {...SOFT} />
-      <path d="M3 12h11.2M10.8 8.6l3.4 3.4-3.4 3.4" {...LINE} />
+      <path d="M2.8 13.4h5l1.5 2.5h5.4l1.5-2.5h5v4.1a3.4 3.4 0 0 1-3.4 3.4H6.2a3.4 3.4 0 0 1-3.4-3.4z" {...SOFT} />
+      <path d="M19.8 3.4l-8.2 8.2M11.4 5.4v6.4h6.4" {...LINE} />
     </g>
   ),
   camera: () => (

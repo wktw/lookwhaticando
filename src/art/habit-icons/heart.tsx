@@ -1,11 +1,11 @@
 /** Habit icons: people, feelings and plans. A telephone, a letter, a piggy bank, yarn, a candle, a flag. */
-import { flowerPath, heartPath, scallopPath } from '@/art/icons/shapes';
+import { flowerPath, heartPath } from '@/art/icons/shapes';
 import { Thin, type HabitDrawing } from './kit';
 
 const SEAL = heartPath(16, 17.6, 7);
 const BLOOM = flowerPath(16, 12.2, 3.8, 9.8, 8, 22.5);
-/** A vanity mirror's scalloped frame. */
-const MIRROR_FRAME = scallopPath(16, 11.8, 9.2, 16, 0.75);
+/** Face cream, swirled to a soft peak above the jar rim. */
+const CREAM = 'M7.6 16.4c0-2.6 3.2-4.2 7.4-4.4.6-1.2 1.6-1.8 2.8-1.7-.4.6-.4 1.2-.1 1.8 4.3.5 6.7 2.1 6.7 4.3z';
 
 export const HEART_ICONS: Record<string, HabitDrawing> = {
   phone: (c) => (
@@ -68,14 +68,15 @@ export const HEART_ICONS: Record<string, HabitDrawing> = {
       <rect x={4.8} y={25.8} width={22.4} height={3.4} rx={1.7} fill={c.ink} />
     </g>
   ),
+  /** Self care: a squat jar of face cream, its lid lifted and resting on the rim. */
   smile: (c) => (
     <g>
-      <rect x={14} y={20.4} width={4} height={9.8} rx={2} fill={c.ink} />
-      <circle cx={16} cy={21.4} r={2.4} fill={c.ink} />
-      <path d={MIRROR_FRAME} fill={c.fill} />
-      <path d="M21 3.8a9.6 9.6 0 0 1-8.6 16.8c7 .8 12.4-5.8 8.6-16.8z" fill={c.shade} />
-      <circle cx={16} cy={11.8} r={6.6} fill={c.light} />
-      <Thin d="M12.4 10.8l3-3M13 14.2l5.4-5.4" c={c} w={1.4} color={c.soft} />
+      <path d={CREAM} fill={c.light} />
+      <path d="M6.5 16.2h19v8.4a3.4 3.4 0 0 1-3.4 3.4H9.9a3.4 3.4 0 0 1-3.4-3.4z" fill={c.fill} />
+      <path d="M20.6 16.2h4.9v8.4a3.4 3.4 0 0 1-3.4 3.4h-1.5z" fill={c.shade} />
+      <rect x={6.5} y={16.2} width={19} height={1.6} fill={c.shade} />
+      <rect x={9.2} y={19.6} width={9.4} height={5.4} rx={1.4} fill={c.soft} />
+      <rect x={4.5} y={11.6} width={21} height={4.6} rx={1.8} transform="rotate(22 25.5 16.2)" fill={c.ink} />
     </g>
   ),
   calendar: (c) => (

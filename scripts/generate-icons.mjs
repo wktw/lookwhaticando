@@ -4,7 +4,7 @@
  *   npm run icons
  * Starts a Vite dev server and screenshots the bare stages in src/dev/sections-icons.tsx:
  *  - icons-appicon&stage=<shape>&size=<px>  → public/icons/*.png (AppIconArt)
- *  - icons-appicon&stage=squircle            → public/icons/favicon.svg (the same SVG, serialized)
+ *  - icons-appicon&stage=favicon             → public/icons/favicon.svg (the cropped SVG, serialized)
  *  - icons-splash&splash=<theme>&w&h          → public/splash/*.png (SplashArt: paper, sprig, wordmark)
  * Then rewrites index.html between the <!--favicon--> markers (the favicon inlined as a data: URI, so
  * the single-file build carries it) and the <!--startup-images--> markers.
@@ -228,9 +228,10 @@ try {
     console.log(`  ${icon.file} (${icon.size}×${icon.size}, ${icon.shape})`);
   }
 
-  // The favicon is the icon's own SVG (squircle, transparent corners), serialized from the page.
+  // The favicon is the icon's own SVG at its favicon stage (cropped to the cat and pot on a deeper tile,
+  // squircle with transparent corners), serialized from the page.
   {
-    const page = await open(iconCtx, '/gallery.html?only=icons-appicon&stage=squircle&size=64');
+    const page = await open(iconCtx, '/gallery.html?only=icons-appicon&stage=favicon&size=64');
     const svg = await page.locator('#icon-stage svg').evaluate((el) => {
       const copy = el.cloneNode(true);
       for (const a of ['width', 'height', 'class', 'aria-hidden', 'focusable', 'role', 'aria-label']) copy.removeAttribute(a);

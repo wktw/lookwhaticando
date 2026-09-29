@@ -236,7 +236,8 @@ export function MacDockArt() {
         Add to Dock…
       </text>
       <rect class={s.well} x="150" y="102" width="74" height="18" rx="7" />
-      <svg x="178" y="98" width="20" height="20" viewBox="0 0 100 100">
+      {/* Centred on the Dock pill (x 150–224, y 102–120), inside its top edge. */}
+      <svg x="180" y="104" width="14" height="14" viewBox="0 0 100 100">
         <AppIconArt size="100" shape="squircle" />
       </svg>
     </Frame>

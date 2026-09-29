@@ -103,12 +103,14 @@ export const HOME_ICONS: Record<string, HabitDrawing> = {
   ),
   house: (c) => (
     <g>
-      <rect x={20.8} y={5.2} width={3.2} height={6.2} fill={c.ink} />
-      <rect x={6.4} y={13.6} width={19.2} height={14.8} rx={1.4} fill={c.fill} />
-      <path d="M21.2 13.6h3a1.4 1.4 0 0 1 1.4 1.4v12a1.4 1.4 0 0 1-1.4 1.4h-3z" fill={c.shade} />
-      <path d="M3.4 15.2L16 4.2l12.6 11c.8.7.3 2-.8 2H4.2c-1.1 0-1.6-1.3-.8-2z" fill={c.ink} />
+      <rect x={20.8} y={5.2} width={3.2} height={6.2} fill={c.shade} />
+      <rect x={6.4} y={13.6} width={19.2} height={14.8} rx={1.4} fill={c.light} />
+      <path d="M21.2 13.6h3a1.4 1.4 0 0 1 1.4 1.4v12a1.4 1.4 0 0 1-1.4 1.4h-3z" fill={c.fill} />
+      <rect x={6.4} y={17} width={19.2} height={1.4} fill={c.ink} />
+      <path d="M3.4 15.2L16 4.2l12.6 11c.8.7.3 2-.8 2H4.2c-1.1 0-1.6-1.3-.8-2z" fill={c.fill} />
+      <path d="M16 4.2l12.6 11c.8.7.3 2-.8 2H16z" fill={c.shade} />
       <rect x={13.8} y={20} width={4.4} height={8.4} rx={1.2} fill={c.ink} />
-      <rect x={8.8} y={19.2} width={3.6} height={3.6} rx={0.6} fill={c.light} />
+      <rect x={8.8} y={20} width={3.6} height={3.6} rx={0.6} fill={c.soft} />
     </g>
   ),
   paw: (c) => (

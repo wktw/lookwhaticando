@@ -4,30 +4,53 @@
  * text, with the sprig as an optional lead-in. No faces, no ears on letters.
  */
 import type { JSX } from 'preact';
-import { DAY_LIGHT, type Light } from '@/art/light';
+import { DAY_LIGHT, type Light, type LightFrom } from '@/art/light';
 import css from './brand.module.css';
 
 /**
  * One catkin on its own 9.2 × 18 frame (base at 0,9; tip at 0,−9): a soft oval with a scalloped,
- * fuzzy edge. `LIT` is the same outline on the window side, closed by a smooth arc, so the shade
- * shows as a hard crescent where the two differ. Generated offline (14 bumps, bulge 0.8, taper 0.1)
- * and committed; never computed at runtime.
+ * fuzzy edge. Generated offline (14 bumps, bulge 0.8, taper 0.1) and committed.
  */
 export const CATKIN_BODY =
   'M0 -9A1.37 1.37 0 0 1 2 -8.11A1.85 1.85 0 0 1 3.6 -5.61A2.32 2.32 0 0 1 4.48 -2A2.5 2.5 0 0 1 4.38 2A2.34 2.34 0 0 1 3.37 5.61A1.84 1.84 0 0 1 1.82 8.11A1.26 1.26 0 0 1 0 9A1.26 1.26 0 0 1 -1.82 8.11A1.84 1.84 0 0 1 -3.37 5.61A2.34 2.34 0 0 1 -4.38 2A2.5 2.5 0 0 1 -4.48 -2A2.32 2.32 0 0 1 -3.6 -5.61A1.85 1.85 0 0 1 -2 -8.11A1.37 1.37 0 0 1 0 -9Z';
-export const CATKIN_LIT =
-  'M0 9A1.26 1.26 0 0 1 -1.82 8.11A1.84 1.84 0 0 1 -3.37 5.61A2.34 2.34 0 0 1 -4.38 2A2.5 2.5 0 0 1 -4.48 -2A2.32 2.32 0 0 1 -3.6 -5.61A1.85 1.85 0 0 1 -2 -8.11A1.37 1.37 0 0 1 0 -9A1.3 9 0 0 1 0 9Z';
 /** The little brown bud scale each catkin sits in. */
 export const CATKIN_BRACT = 'M-2.5 7.2C-1.6 10 1.6 10 2.5 7.2C1.4 8.6 -1.4 8.6 -2.5 7.2Z';
 
-/** The twig, its side spur and where each catkin sits on it: [base x, base y, angle°]. */
+/**
+ * The twig, and the three catkins seated straight on it (pussy-willow catkins have no stalk):
+ * [base x, base y, angle°], the base being where the bract meets the twig.
+ */
 const TWIG = 'M9.5 57C10.6 47.5 13 38.6 17.4 30C20.3 24.4 23.4 19.8 27.2 16.2';
-const SPUR = 'M11.7 44.6C9.6 43.2 7.9 41.2 6.8 38.8';
-const CATKINS: [number, number, number][] = [
-  [6.9, 39.2, -30],
-  [14.1, 37.6, 42],
+export const SPRIG_CATKINS: readonly [number, number, number][] = [
+  [10.5, 49.8, -26],
+  [14.1, 37.6, 30],
   [27, 16.4, 12],
 ];
+
+/**
+ * Each catkin's lit side, per light direction, in the catkin's own frame (so it sits over
+ * CATKIN_BODY, which shows through as the shade). Generated offline: the catkin body intersected with a
+ * large disc (r 16) whose edge is the terminator, placed in sprig space so that every crescent falls on
+ * the same side, away from the window (right for "left", left for "right", underneath for "top").
+ * Positions match SPRIG_CATKINS; regenerate both together.
+ */
+export const CATKIN_LIT: Record<LightFrom, readonly [string, string, string]> = {
+  left: [
+    'M-3.49 6.22A1.84 1.84 0 0 1 -3.37 5.61A2.34 2.34 0 0 1 -4.38 2A2.5 2.5 0 0 1 -4.48 -2A2.32 2.32 0 0 1 -3.6 -5.61A1.85 1.85 0 0 1 -2 -8.11A1.37 1.37 0 0 1 0 -9A1.37 1.37 0 0 1 2 -8.11A1.85 1.85 0 0 1 2.71 -7.91A16 16 0 0 1 -3.49 6.22Z',
+    'M3.25 7.2A1.84 1.84 0 0 1 1.82 8.11A1.26 1.26 0 0 1 0 9A1.26 1.26 0 0 1 -1.82 8.11A1.84 1.84 0 0 1 -3.37 5.61A2.34 2.34 0 0 1 -4.38 2A2.5 2.5 0 0 1 -4.48 -2A2.32 2.32 0 0 1 -3.6 -5.61A1.85 1.85 0 0 1 -3.67 -5.83A16 16 0 0 1 3.25 7.2Z',
+    'M0.41 9.13A1.26 1.26 0 0 1 0 9A1.26 1.26 0 0 1 -1.82 8.11A1.84 1.84 0 0 1 -3.37 5.61A2.34 2.34 0 0 1 -4.38 2A2.5 2.5 0 0 1 -4.48 -2A2.32 2.32 0 0 1 -3.6 -5.61A1.85 1.85 0 0 1 -2.76 -7.88A16 16 0 0 1 0.41 9.13Z',
+  ],
+  top: [
+    'M-4.58 2.3A2.34 2.34 0 0 1 -4.38 2A2.5 2.5 0 0 1 -4.48 -2A2.32 2.32 0 0 1 -3.6 -5.61A1.85 1.85 0 0 1 -2 -8.11A1.37 1.37 0 0 1 0 -9A1.37 1.37 0 0 1 2 -8.11A1.85 1.85 0 0 1 3.6 -5.61A2.32 2.32 0 0 1 4.48 -2A2.5 2.5 0 0 1 4.38 2A2.34 2.34 0 0 1 3.63 5.49A16 16 0 0 1 -4.58 2.3Z',
+    'M-3.42 5.77A1.84 1.84 0 0 1 -3.37 5.61A2.34 2.34 0 0 1 -4.38 2A2.5 2.5 0 0 1 -4.48 -2A2.32 2.32 0 0 1 -3.6 -5.61A1.85 1.85 0 0 1 -2 -8.11A1.37 1.37 0 0 1 0 -9A1.37 1.37 0 0 1 2 -8.11A1.85 1.85 0 0 1 3.6 -5.61A2.32 2.32 0 0 1 4.48 -2A2.5 2.5 0 0 1 4.38 2A2.34 2.34 0 0 1 4.5 2.18A16 16 0 0 1 -3.42 5.77Z',
+    'M-4.62 4.46A2.34 2.34 0 0 1 -4.38 2A2.5 2.5 0 0 1 -4.48 -2A2.32 2.32 0 0 1 -3.6 -5.61A1.85 1.85 0 0 1 -2 -8.11A1.37 1.37 0 0 1 0 -9A1.37 1.37 0 0 1 2 -8.11A1.85 1.85 0 0 1 3.6 -5.61A2.32 2.32 0 0 1 4.48 -2A2.5 2.5 0 0 1 4.38 2A2.34 2.34 0 0 1 4.81 2.91A16 16 0 0 1 -4.62 4.46Z',
+  ],
+  right: [
+    'M3.71 -6.4A1.85 1.85 0 0 1 3.6 -5.61A2.32 2.32 0 0 1 4.48 -2A2.5 2.5 0 0 1 4.38 2A2.34 2.34 0 0 1 3.37 5.61A1.84 1.84 0 0 1 1.82 8.11A1.26 1.26 0 0 1 0 9A1.26 1.26 0 0 1 -1.82 8.11A1.84 1.84 0 0 1 -2.72 7.78A16 16 0 0 1 3.71 -6.4Z',
+    'M-3.26 -7.49A1.85 1.85 0 0 1 -2 -8.11A1.37 1.37 0 0 1 0 -9A1.37 1.37 0 0 1 2 -8.11A1.85 1.85 0 0 1 3.6 -5.61A2.32 2.32 0 0 1 4.48 -2A2.5 2.5 0 0 1 4.38 2A2.34 2.34 0 0 1 3.37 5.61A16 16 0 0 1 -3.26 -7.49Z',
+    'M-0.4 -9.15A1.37 1.37 0 0 1 0 -9A1.37 1.37 0 0 1 2 -8.11A1.85 1.85 0 0 1 3.6 -5.61A2.32 2.32 0 0 1 4.48 -2A2.5 2.5 0 0 1 4.38 2A2.34 2.34 0 0 1 3.37 5.61A1.84 1.84 0 0 1 2.67 7.81A16 16 0 0 1 -0.4 -9.15Z',
+  ],
+};
 
 export const SPRIG_VIEWBOX = '-3 -3.5 39 62';
 /** Width ÷ height of the mark. */
@@ -40,7 +63,7 @@ export interface CatkinSprigProps {
   class?: string;
   style?: JSX.CSSProperties;
   /**
-   * Windowlight. The shade crescent sits on the side away from `from`; `night` switches to the lamp
+   * Windowlight. Every catkin's shade crescent sits on the side away from `from` (left, top or right); `night` switches to the lamp
    * palette (a lighter twig and warmed catkins). By default the colours follow the page theme.
    */
   light?: Light;
@@ -49,9 +72,7 @@ export interface CatkinSprigProps {
 export function CatkinSprig({ size = 32, title, class: cls, style, light }: CatkinSprigProps) {
   const px = typeof size === 'number' ? `${size}px` : size;
   const width = typeof size === 'number' ? `${Math.round(size * SPRIG_ASPECT * 100) / 100}px` : `calc(${size} * ${SPRIG_ASPECT})`;
-  const from = (light ?? DAY_LIGHT).from;
-  // The catkin frames are drawn lit from the left; mirror each one in place when the lamp is on the right.
-  const flip = from === 'right' ? ' scale(-1 1)' : '';
+  const lit = CATKIN_LIT[(light ?? DAY_LIGHT).from];
   const tone = light === undefined ? css.auto : light.night ? css.night : css.day;
   return (
     <svg
@@ -64,11 +85,10 @@ export function CatkinSprig({ size = 32, title, class: cls, style, light }: Catk
       focusable="false"
     >
       <path class={css.twig} d={TWIG} fill="none" stroke-width={2.1} stroke-linecap="round" />
-      <path class={css.twig} d={SPUR} fill="none" stroke-width={1.6} stroke-linecap="round" />
-      {CATKINS.map(([x, y, a]) => (
-        <g key={a} transform={`translate(${x} ${y}) rotate(${a}) translate(0 -9)${flip}`}>
+      {SPRIG_CATKINS.map(([x, y, a], i) => (
+        <g key={a} transform={`translate(${x} ${y}) rotate(${a}) translate(0 -9)`}>
           <path class={css.shade} d={CATKIN_BODY} />
-          <path class={css.lit} d={CATKIN_LIT} />
+          <path class={css.lit} d={lit[i]} />
           <path class={css.bract} d={CATKIN_BRACT} />
         </g>
       ))}

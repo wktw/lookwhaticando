@@ -33,6 +33,7 @@ export const E = {
   terracottaShade: MATERIAL.terracottaShade,
   terracottaRim: MATERIAL.terracottaRim,
   brass: MATERIAL.brass,
+  brassLight: MATERIAL.brassLight,
   brassDeep: MATERIAL.brassDeep,
   wood: MATERIAL.wood,
   woodDeep: MATERIAL.woodDeep,
