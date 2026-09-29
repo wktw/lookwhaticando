@@ -1,327 +1,486 @@
-/* Capsule reveal: a dim, warm stage; the capsule, then the item, float center; the card below. */
+/* The reveal: the capsule in a pool of window light (lamp light at night), then the figure
+   standing on its opened-out paper insert. Calm: no rays, no confetti. */
 .overlay {
-  --glow: rgba(255, 243, 196, 0.55);
-  --rays: 0.85;
   position: fixed;
   inset: 0;
   z-index: 80;
   display: flex;
   flex-direction: column;
-  padding: calc(var(--safe-top) + 12px) var(--gutter) calc(var(--safe-bottom) + 16px);
+  padding: calc(var(--safe-top) + 16px) var(--gutter) calc(var(--safe-bottom) + 16px);
   overflow-y: auto;
   overscroll-behavior: contain;
-  background: radial-gradient(120% 80% at 50% 34%, #5d4672 0%, #3b2b4a 52%, #211829 100%);
-  color: #fff9f2;
+  background: var(--bg);
+  color: var(--ink);
   outline: none;
-  animation: overlay-in 320ms ease both;
+  animation: fade-in 260ms ease both;
 }
 
-/* Safe centering: centered when it fits, scrollable from the top when it doesn't. */
+/* Light, not decoration: a soft pool of window sun (or the lamp) where the capsule sits. */
+.pool {
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(64% 40% at 50% 46%, var(--sun) 0%, transparent 100%);
+  pointer-events: none;
+}
+
+.night .pool {
+  background: radial-gradient(64% 40% at 56% 44%, rgba(255, 201, 138, 0.2) 0%, transparent 100%);
+}
+
+/* Safe centring: centred when it fits, scrollable from the top when it doesn't. */
 .content {
   position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   width: 100%;
   margin: auto 0;
 }
 
-.common {
-  --rays: 0.5;
+.kicker {
+  color: var(--ink-2);
+  font-family: var(--font-body);
+  font-weight: 800;
+  font-size: var(--fs-micro);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
 }
 
-.uncommon {
-  --glow: rgba(187, 220, 246, 0.6);
-  --rays: 0.65;
-}
-
-.rare {
-  --glow: rgba(214, 200, 248, 0.7);
-}
-
-.ultra {
-  --glow: rgba(255, 214, 230, 0.7);
-  --rays: 0.95;
-}
-
-.stage {
-  position: relative;
-  display: grid;
-  grid-template: 100% / 100%;
-  place-items: center;
-  flex: none;
-  width: 100%;
-  height: min(46dvh, 360px);
-  min-height: 250px;
-}
-
-.stage > * {
-  grid-area: 1 / 1;
-}
-
-.withCard {
-  height: min(36dvh, 300px);
-  min-height: 220px;
-}
-
-.dim {
-  opacity: 0.55;
-}
-
-/* ---------- anticipation ---------- */
+/* ---------- the capsule, close up ---------- */
 .flyer {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 18px;
+  gap: 14px;
 }
 
 .capsule {
-  width: clamp(150px, 44vw, 196px);
+  width: clamp(200px, 58vw, 260px);
   aspect-ratio: 1;
   border-radius: 50%;
-  animation: float 2.4s var(--ease-in-out) infinite;
+  background: transparent;
+  cursor: grab;
+  touch-action: none;
   -webkit-tap-highlight-color: transparent;
 }
 
-.capsule:focus-visible {
-  outline: 3px solid #fff9f2;
-  outline-offset: 10px;
-  border-radius: 50%;
-}
-
 .capsule:active {
-  scale: 0.96;
+  cursor: grabbing;
 }
 
-.shakeA {
-  animation:
-    shake-a 380ms var(--ease-out),
-    float 2.4s var(--ease-in-out) 380ms infinite;
+.capsule:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 6px;
+  border-radius: 50%;
+  box-shadow: none;
 }
 
-.shakeB {
-  animation:
-    shake-b 380ms var(--ease-out),
-    float 2.4s var(--ease-in-out) 380ms infinite;
+.capsuleArt {
+  width: 100%;
+  height: 100%;
 }
 
 .hint {
+  color: var(--ink-2);
   font-family: var(--font-display);
-  font-weight: 600;
+  font-style: italic;
   font-size: var(--fs-body-lg);
-  letter-spacing: 0.01em;
-  color: #fff9f2;
-  text-shadow: 0 2px 10px rgba(20, 10, 30, 0.45);
-  animation: hint-pulse 1.8s ease-in-out infinite;
 }
 
-/* ---------- the pop ---------- */
-.rays {
-  will-change: transform;
-  width: min(128vw, 560px);
-  height: min(128vw, 560px);
-  opacity: var(--rays);
-  pointer-events: none;
-  animation:
-    rays-in 600ms var(--ease-out) both,
-    rays-spin 22s linear infinite;
-}
-
-.glow {
-  width: min(70vw, 300px);
-  transition: opacity var(--t-slow) ease;
+/* ---------- the halves part ---------- */
+.opening {
+  display: grid;
+  place-items: center;
+  width: clamp(200px, 58vw, 260px);
   aspect-ratio: 1;
-  border-radius: 50%;
-  background: radial-gradient(circle, var(--glow) 0%, rgba(255, 255, 255, 0) 68%);
-  pointer-events: none;
-  animation: fade-in 400ms ease both;
 }
 
-.halves {
-  width: clamp(150px, 44vw, 196px);
+.opening > * {
+  grid-area: 1 / 1;
+}
+
+.rising {
+  width: 76%;
   aspect-ratio: 1;
-  pointer-events: none;
+  animation: rise 720ms var(--ease-pop) 140ms both;
 }
 
-.popping :global(.capsule-top) {
-  animation: half-top 620ms cubic-bezier(0.2, 0.8, 0.3, 1) forwards;
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(26px) scale(0.72);
+  }
 }
 
-.popping :global(.capsule-bottom) {
-  animation: half-bottom 620ms cubic-bezier(0.2, 0.8, 0.3, 1) forwards;
-}
-
-.popping :global(.capsule-seam) {
-  display: none;
-}
-
-.popping :global(.capsule-inside) {
-  opacity: 1;
-}
-
-.popping :global(.capsule-aura),
-.popping :global(.capsule-orbit) {
-  animation: fade-out 300ms ease forwards;
-}
-
-.flash {
-  width: 120px;
-  aspect-ratio: 1;
-  border-radius: 50%;
-  background: radial-gradient(circle, #fff 0%, rgba(255, 255, 255, 0.7) 40%, rgba(255, 255, 255, 0) 70%);
-  pointer-events: none;
-  animation: flash 520ms ease-out forwards;
-}
-
-.item {
-  width: clamp(150px, 42vw, 190px);
-  aspect-ratio: 1;
-  animation: spring-up 760ms var(--ease-pop) 90ms both;
-}
-
-.withCard .item {
-  width: clamp(140px, 38vw, 176px);
-  transition: width var(--t-slow) var(--ease-out);
-}
-
-.itemQuick {
-  animation-delay: 0ms;
-}
-
-/* ---------- card ---------- */
-.card {
-  position: relative;
-  flex: none;
+/* ---------- the card: the figure on its opened-out insert ---------- */
+.scene {
   display: flex;
   flex-direction: column;
   align-items: center;
-  width: min(100%, 440px);
-  padding: 22px 20px 20px;
-  border-radius: var(--r-xl);
-  background: var(--card);
-  color: var(--ink);
-  box-shadow: var(--shadow-lg);
-  text-align: center;
-  animation: card-up 480ms var(--ease-out) both;
+  width: min(100%, 420px);
 }
 
-.rarityPill {
-  margin-bottom: 8px;
+.table {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  width: 100%;
+  height: clamp(150px, 26dvh, 190px);
+  /* The figure's feet rest on the card's top edge. */
+  margin-bottom: -16px;
+  z-index: 1;
+  pointer-events: none;
 }
 
-.newSticker {
+.figure {
+  width: clamp(140px, 40vw, 176px);
+  aspect-ratio: 1;
+}
+
+.stepOut {
+  animation: step-out 520ms var(--ease-pop) both;
+}
+
+@keyframes step-out {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+}
+
+.halves {
   position: absolute;
-  top: -12px;
-  right: 18px;
-  padding: 5px 12px 6px;
-  border-radius: 12px;
-  /* Fixed colors: the night blush-700 is a light pink that white text can't sit on. */
-  background: #c23f68;
-  color: #fff;
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: var(--fs-body);
-  letter-spacing: 0.04em;
-  box-shadow:
-    0 3px 0 #8a2448,
-    0 8px 16px -8px rgba(74, 53, 64, 0.6);
-  transform: rotate(7deg);
-  animation: sticker 520ms var(--ease-pop) 260ms both;
+  left: 0;
+  bottom: 18px;
+  width: clamp(96px, 28vw, 124px);
+  animation: fade-in 420ms ease 120ms both;
 }
 
-.title {
+.sparkle {
+  position: absolute;
+  top: 14%;
+  right: 24%;
+  width: 22px;
+  height: 22px;
+  animation: twinkle 1.6s var(--ease-in-out) 500ms 2 both;
+}
+
+@keyframes twinkle {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(0.72);
+  }
+}
+
+.card {
+  position: relative;
+  width: 100%;
+  padding: 26px 20px 18px;
+  border-radius: 6px;
+  background: var(--card);
+  box-shadow:
+    inset 0 0 0 1px var(--line),
+    var(--shadow-md);
+  overflow: hidden;
+  /* Its own stacking context, so the Secret's emboss can sit under the print but over the paper. */
+  isolation: isolate;
+  animation: card-up 420ms var(--ease-pop) both;
+}
+
+@keyframes card-up {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+}
+
+/* Special: a two-colour print, the series colour printed across the top, and its ink on it. */
+.scene[data-finish='special'] .cardHead {
+  margin: -26px -20px 0;
+  padding: 26px 20px 10px;
+  background: var(--series-band, var(--blush-100));
+  box-shadow: inset 0 -2px 0 var(--series, var(--blush-500));
+}
+
+.scene[data-finish='special'] .series,
+.scene[data-finish='special'] .count {
+  color: var(--series-ink, var(--ink));
+}
+
+/* Under lamplight the band is the series colour let down into the night card, printed in the light ink. */
+:global(:root[data-theme='night']) .scene[data-finish='special'] .cardHead {
+  background: var(--series-band-night, var(--blush-100));
+}
+
+:global(:root[data-theme='night']) .scene[data-finish='special'] :is(.series, .count) {
+  color: var(--series-ink-night, var(--ink));
+}
+
+@media (prefers-color-scheme: dark) {
+  :global(:root:not([data-theme='light']):not([data-theme='night'])) .scene[data-finish='special'] .cardHead {
+    background: var(--series-band-night, var(--blush-100));
+  }
+
+  :global(:root:not([data-theme='light']):not([data-theme='night'])) .scene[data-finish='special'] :is(.series, .count) {
+    color: var(--series-ink-night, var(--ink));
+  }
+}
+
+/* Rare and up: a foil edge. */
+.scene[data-finish='rare'] .card,
+.scene[data-finish='super'] .card,
+.scene[data-finish='secret'] .card {
+  box-shadow:
+    inset 0 0 0 3px #d8b769,
+    inset 0 0 0 4px #ebd39a,
+    var(--shadow-md);
+}
+
+/* Super rare and the Secret: holographic foil, as static printed bands across the top. */
+.scene[data-finish='super'] .card::before,
+.scene[data-finish='secret'] .card::before {
+  content: '';
+  position: absolute;
+  inset: 4px 4px auto;
+  height: 8px;
+  background: repeating-linear-gradient(115deg, #f5cdd6 0 12px, #f6e6b4 12px 24px, #cde6da 24px 36px, #d2e4f2 36px 48px, #ddd4f1 48px 60px);
+}
+
+/* The Secret's "?" is blind-embossed into the paper, low in the card and under everything
+   printed on it: a lit edge and a shaded edge, no ink. */
+.scene[data-finish='secret'] .card::after {
+  content: '?';
+  position: absolute;
+  right: 16px;
+  bottom: 12px;
+  z-index: -1;
+  color: var(--card);
+  font-family: var(--font-display);
+  font-size: 72px;
+  line-height: 1;
+  text-shadow:
+    -1px -1px 0 rgba(255, 255, 255, 0.7),
+    1px 1px 0 rgba(94, 76, 154, 0.12);
+  pointer-events: none;
+}
+
+:global(:root[data-theme='night']) .scene[data-finish='secret'] .card::after {
+  text-shadow:
+    -1px -1px 0 rgba(255, 201, 138, 0.1),
+    1px 1px 0 rgba(0, 0, 0, 0.25);
+}
+
+@media (prefers-color-scheme: dark) {
+  :global(:root:not([data-theme='light']):not([data-theme='night'])) .scene[data-finish='secret'] .card::after {
+    text-shadow:
+      -1px -1px 0 rgba(255, 201, 138, 0.1),
+      1px 1px 0 rgba(0, 0, 0, 0.25);
+  }
+}
+
+/* One foil glint, once. */
+.glint {
+  position: absolute;
+  top: -30%;
+  left: -30%;
+  width: 22%;
+  height: 160%;
+  background: rgba(255, 255, 255, 0.55);
+  transform: rotate(18deg) translateX(0);
+  opacity: 0;
+  pointer-events: none;
+  animation: glint 1100ms var(--ease-in-out) 600ms 1 both;
+}
+
+@keyframes glint {
+  0% {
+    opacity: 0;
+    transform: rotate(18deg) translateX(0);
+  }
+  15% {
+    opacity: 1;
+  }
+  85% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: rotate(18deg) translateX(620%);
+  }
+}
+
+.cardHead {
+  position: relative;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.series,
+.count {
+  color: var(--ink-2);
+  font-family: var(--font-body);
+  font-weight: 800;
+  font-size: var(--fs-micro);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+}
+
+.count {
+  flex: none;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* "The secret one!" on its own line under the kicker, in the display italic. */
+.secretOne {
+  display: block;
+  margin-top: 2px;
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 400;
+  font-size: var(--fs-body-lg);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* Doubled class: outranks host-page heading styles (e.g. the dev gallery's). */
+.card .title {
+  position: relative;
+  margin: 8px 0 0;
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-weight: 400;
   font-size: var(--fs-title);
   line-height: 1.1;
 }
 
-/* Focus lands here programmatically so screen readers read the result; no ring needed. */
 .title:focus,
 .title:focus-visible {
   outline: none;
 }
 
-/* ---------- background twinkles ---------- */
-.twinkles {
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-}
-
-.twinkles svg {
-  position: absolute;
-  width: 14px;
-  height: 14px;
-  animation: twinkle 2.6s ease-in-out infinite;
-}
-
 .kind {
-  margin-top: 4px;
+  position: relative;
+  margin-top: 2px;
   color: var(--ink-2);
   font-weight: 700;
   font-size: var(--fs-caption);
 }
 
-.personality {
+.flavor {
+  position: relative;
+  margin-top: 8px;
+  color: var(--ink-2);
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: var(--fs-body-lg);
+  line-height: 1.35;
+}
+
+.fold {
+  position: relative;
+  margin: 14px -20px 12px;
+  border-top: 1px dashed var(--line);
+}
+
+.tier {
+  position: relative;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: center;
-  gap: 6px 8px;
-  margin-top: 10px;
+  gap: 6px 10px;
   color: var(--ink-2);
+  font-weight: 700;
   font-size: var(--fs-caption);
-  font-weight: 600;
 }
 
-.flavor {
-  margin-top: 10px;
-  max-width: 34ch;
-  color: var(--ink-2);
-  font-size: var(--fs-body);
+.new {
+  color: var(--ink);
 }
 
 .progress {
+  position: relative;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  margin-top: 14px;
+  align-items: flex-start;
+  gap: 6px;
+  margin-top: 12px;
 }
 
-.dupe {
+.dupe,
+.fusion {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 14px;
-  border-radius: var(--r-pill);
-  background: var(--lavender-100);
-  color: color-mix(in srgb, var(--lavender-700) 75%, var(--ink));
+  color: var(--ink);
   font-weight: 700;
   font-size: var(--fs-caption);
 }
 
 .fusion {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 7px 16px;
+  padding: 4px 12px 4px 6px;
   border-radius: var(--r-pill);
   background: var(--butter-100);
   color: color-mix(in srgb, var(--butter-700) 75%, var(--ink));
+}
+
+/* A new pet's paper name tag. */
+.nameTag {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.tag {
+  display: inline-flex;
+  flex-direction: column;
+  padding: 6px 16px 7px 22px;
+  background: var(--butter-100);
+  clip-path: polygon(12px 0, 100% 0, 100% 100%, 12px 100%, 0 50%);
+  color: var(--ink);
+}
+
+.tagName {
   font-family: var(--font-display);
-  font-weight: 600;
-  font-size: var(--fs-body);
-  box-shadow: 0 0 0 2px var(--butter-300);
-  animation: sticker 560ms var(--ease-pop) 600ms both;
+  font-size: var(--fs-body-lg);
+  line-height: 1.1;
+}
+
+.tagDate {
+  color: color-mix(in srgb, var(--butter-700) 75%, var(--ink));
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: var(--fs-caption);
 }
 
 .nameForm {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.nameLabel {
+  color: var(--ink-2);
+  font-weight: 700;
+  font-size: var(--fs-caption);
+}
+
+.nameRow {
   display: flex;
   gap: 8px;
-  width: 100%;
-  margin-top: 14px;
 }
 
 .nameInput {
@@ -329,40 +488,67 @@
   min-width: 0;
   min-height: 44px;
   padding: 8px 16px;
-  border: 2px solid var(--line);
+  border: 1px solid var(--control-border);
   border-radius: var(--r-pill);
   background: var(--bg);
   color: var(--ink);
   font-family: var(--font-display);
-  font-weight: 600;
   font-size: var(--fs-body-lg);
 }
 
-.nameInput:focus {
-  border-color: var(--lavender-500);
+.nameInput:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 1px;
 }
 
-.petActions,
-.actions {
+.ideas {
   display: flex;
   flex-wrap: wrap;
-  justify-content: center;
-  gap: 12px;
-  width: 100%;
-  margin-top: 18px;
+  gap: 6px;
+}
+
+.idea {
+  min-height: 36px;
+  padding: 6px 12px;
+  border-radius: var(--r-pill);
+  background: var(--bg-2);
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-size: var(--fs-body);
+}
+
+.idea:last-child {
+  background: transparent;
+  color: var(--ink-2);
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-size: var(--fs-caption);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.idea:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 1px;
 }
 
 .actions {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
   margin-top: 14px;
 }
 
-.petActions > *,
-.actions > * {
-  flex: 1 1 0;
-  max-width: 220px;
+.actions:empty {
+  display: none;
 }
 
-/* The price of another pull, right on its button. */
+.actions > * {
+  flex: 1 1 auto;
+}
+
+/* The price of another pull, on its button. */
 .cost {
   display: inline-flex;
   align-items: center;
@@ -371,175 +557,24 @@
   padding: 2px 8px 2px 4px;
   border-radius: var(--r-pill);
   background: var(--bg-2);
-  font-size: var(--fs-body);
 }
 
-/* ---------- reduced motion: cross-fades only ---------- */
-.reduced .item,
+/* ---------- reduced motion: a 200 ms fade on a static glow ---------- */
+.reduced,
+.reduced .rising,
 .reduced .card,
-.reduced .newSticker,
-.reduced .fusion {
-  animation: fade-in 260ms ease both;
+.reduced .stepOut,
+.reduced .halves {
+  animation: fade-in 200ms ease both;
 }
 
-.reduced .capsule,
-.reduced .hint {
+.reduced .sparkle,
+.reduced .glint {
   animation: none;
-}
-
-@keyframes overlay-in {
-  from {
-    opacity: 0;
-  }
 }
 
 @keyframes fade-in {
   from {
-    opacity: 0;
-  }
-}
-
-@keyframes fade-out {
-  to {
-    opacity: 0;
-  }
-}
-
-@keyframes float {
-  0%,
-  100% {
-    transform: translateY(0) rotate(-2deg);
-  }
-  50% {
-    transform: translateY(-10px) rotate(2deg);
-  }
-}
-
-@keyframes shake-a {
-  0% {
-    transform: rotate(0) scale(1);
-  }
-  20% {
-    transform: rotate(-9deg) scale(1.06);
-  }
-  45% {
-    transform: rotate(7deg) scale(1.03);
-  }
-  70% {
-    transform: rotate(-4deg);
-  }
-  100% {
-    transform: rotate(0);
-  }
-}
-
-@keyframes shake-b {
-  0% {
-    transform: rotate(0) scale(1);
-  }
-  20% {
-    transform: rotate(9deg) scale(1.06);
-  }
-  45% {
-    transform: rotate(-7deg) scale(1.03);
-  }
-  70% {
-    transform: rotate(4deg);
-  }
-  100% {
-    transform: rotate(0);
-  }
-}
-
-@keyframes twinkle {
-  0%,
-  100% {
-    opacity: 0.25;
-    transform: scale(0.6);
-  }
-  50% {
-    opacity: 0.9;
-    transform: scale(1);
-  }
-}
-
-@keyframes hint-pulse {
-  0%,
-  100% {
-    opacity: 0.75;
-  }
-  50% {
-    opacity: 1;
-  }
-}
-
-@keyframes rays-in {
-  from {
-    opacity: 0;
-    scale: 0.4;
-  }
-  to {
-    opacity: var(--rays);
-  }
-}
-
-@keyframes rays-spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-@keyframes half-top {
-  to {
-    transform: translate(-46px, -70px) rotate(-54deg);
-    opacity: 0;
-  }
-}
-
-@keyframes half-bottom {
-  to {
-    transform: translate(40px, 66px) rotate(38deg);
-    opacity: 0;
-  }
-}
-
-@keyframes flash {
-  0% {
-    transform: scale(0.3);
-    opacity: 1;
-  }
-  100% {
-    transform: scale(3.2);
-    opacity: 0;
-  }
-}
-
-@keyframes spring-up {
-  0% {
-    transform: translateY(46px) scale(0.2);
-    opacity: 0;
-  }
-  45% {
-    opacity: 1;
-  }
-  70% {
-    transform: translateY(-10px) scale(1.08);
-  }
-  100% {
-    transform: translateY(0) scale(1);
-  }
-}
-
-@keyframes card-up {
-  from {
-    transform: translateY(40px);
-    opacity: 0;
-  }
-}
-
-@keyframes sticker {
-  from {
-    transform: rotate(-20deg) scale(0.2);
     opacity: 0;
   }
 }

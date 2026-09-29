@@ -1,14 +1,25 @@
 import type { MachineDef } from '@/catalog/types';
-import { MOTIFS } from './motifs';
+import { luminance } from './color';
+import { MOTIF_ACCENT } from './labels';
 
-/** The palette a machine is drawn in: its catalog theme plus its motif's adjustments. */
+/** The palette a cabinet is drawn in: its catalog theme (each series already has its own body colour). */
 export function machineTheme(machine: MachineDef): MachineDef['theme'] {
-  const adjust = MOTIFS[machine.id].theme;
-  return adjust ? { ...machine.theme, ...adjust } : machine.theme;
+  return machine.theme;
 }
 
-/** The machine's signature color (its body, or its trim when the body is white). */
+/** The cabinet's signature colour: its painted body. */
 export function machineHue(machine: MachineDef): string {
-  const t = machineTheme(machine);
-  return t.body.toUpperCase() === '#FFFFFF' ? t.trim : t.body;
+  return machine.theme.body;
+}
+
+/** Brass fittings: the handle, the slot plate, the plate rim and the feet. */
+export const BRASS = { base: '#D8B769', deep: '#B8954A', light: '#EBD39A' } as const;
+
+/**
+ * The fill for a series' primary pill (graphite label): its painted colour, or, for the palest
+ * bodies (oat, ice, cream), the second colour of its printed label, so the pill still reads
+ * as a button on paper.
+ */
+export function pillFace(machine: MachineDef): string {
+  return luminance(machine.theme.body) > 0.72 ? MOTIF_ACCENT[machine.id] : machine.theme.body;
 }

@@ -1,14 +1,14 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import type { MachineDef, MachineId } from '@/catalog/types';
-import type { DomeBody, DomeSim } from '@/fx/physics';
+import type { CapsuleSim, DomeBody } from '@/fx/physics';
 import { createMachineSim } from '@/art/machines/pile';
-import { capsuleTransforms, type CapsuleNodes } from '@/art/machines/DomeCapsules';
+import { capsuleTransforms, type CapsuleNodes } from '@/art/machines/WindowCapsules';
 import { prefersReducedMotion } from './motion';
 
-/** One sim per machine for the whole session, so a machine keeps its pile across swipes and tabs. */
-const sims = new Map<MachineId, DomeSim>();
+/** One sim per cabinet for the whole session, so a cabinet keeps its pile across swipes and tabs. */
+const sims = new Map<MachineId, CapsuleSim>();
 
-function machineSim(machine: MachineDef): DomeSim {
+function machineSim(machine: MachineDef): CapsuleSim {
   let sim = sims.get(machine.id);
   if (!sim) {
     sim = createMachineSim(machine);
@@ -28,7 +28,7 @@ export interface DomeController {
 }
 
 /**
- * Runs the dome physics while it is awake and the page is visible, writing each capsule's
+ * Runs the window's physics while it is awake and the page is visible, writing each capsule's
  * transform straight to its SVG nodes (never through Preact state), then goes idle.
  */
 export function useDome(machine: MachineDef, active: boolean): DomeController {

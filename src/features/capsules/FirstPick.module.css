@@ -1,0 +1,66 @@
+.pick {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 100%;
+  padding: 8px var(--gutter) 16px;
+}
+
+/* Doubled class: outranks host-page heading styles (e.g. the dev gallery's). */
+.pick .title {
+  margin: 0;
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: var(--fs-title);
+}
+
+.lead {
+  color: var(--ink-2);
+  text-align: center;
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: var(--fs-body-lg);
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: clamp(12px, 5vw, 28px);
+  width: min(100%, 440px);
+  margin-top: 12px;
+}
+
+.cabinet {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 6px 12px;
+  border-radius: var(--r-md);
+  transition:
+    background-color var(--t-micro) ease,
+    transform var(--t-micro) var(--ease-out);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.cabinet:active {
+  transform: translateY(1px);
+  background: var(--bg-2);
+}
+
+.cabinet:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.tagline {
+  color: var(--ink-2);
+  text-align: center;
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: var(--fs-body);
+  line-height: 1.3;
+}

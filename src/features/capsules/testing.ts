@@ -1,7 +1,7 @@
 /**
  * jsdom helpers for the capsules component tests: a Web Animations stub whose animations
- * finish at once, reduced motion (so choreography takes its short paths), and small
- * render / query / wait utilities.
+ * finish at once, pointer event names, reduced motion (so choreography takes its short paths),
+ * and small render / query / wait utilities.
  */
 import type { ComponentChild } from 'preact';
 import { render } from 'preact';
@@ -13,6 +13,11 @@ export function installDom(): void {
     return { finished: Promise.resolve(), cancel() {}, play() {}, pause() {} } as unknown as Animation;
   };
   proto.getAnimations = () => [];
+  // jsdom has no on-pointer handler properties, so Preact would listen for "PointerDown" instead
+  // of "pointerdown". Declaring them lets tests dispatch real pointer event names.
+  for (const name of ['onpointerdown', 'onpointermove', 'onpointerup', 'onpointercancel']) {
+    if (!(name in HTMLElement.prototype)) Object.defineProperty(HTMLElement.prototype, name, { value: null, writable: true, configurable: true });
+  }
   document.documentElement.dataset.motion = 'reduced';
 }
 

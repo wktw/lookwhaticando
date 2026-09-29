@@ -1,27 +1,33 @@
+import type { JSX } from 'preact';
 import { useEffect, useRef } from 'preact/hooks';
 import type { MachineDef } from '@/catalog/types';
+import { seriesLabel } from '@/catalog/machines';
+import type { Light } from '@/art/light';
 import { Icon } from '@/art/icons';
-import { machineHue } from '@/art/machines/theme';
 import { sfx } from '@/fx/sound';
 import { CapsuleMachine } from './CapsuleMachine';
+import { LeafletCard } from './Leaflet';
+import type { PlaceHandlers } from './RevealOverlay';
 import { cx } from './ui/CandyButton';
 import { prefersReducedMotion } from './motion';
 import s from './CapsulesScreen.module.css';
 
-export interface MachineCarouselProps {
+export interface MachineCarouselProps extends PlaceHandlers {
   machines: readonly MachineDef[];
   index: number;
   onIndex: (i: number) => void;
   busy: boolean;
   onBusyChange: (busy: boolean) => void;
+  onLineup: () => void;
+  light: Light;
 }
 
 /**
- * One machine per page with scroll-snap, pagination dots, arrow buttons and ←/→ keys.
- * Only the visible machine is interactive; its neighbors render at rest so a swipe shows
- * them, and pages further away are empty placeholders to keep the DOM lean.
+ * The cabinets on the counter, one per page with scroll-snap, each with its lineup leaflet
+ * beside it (DESIGN §7.2 step 1). Arrows and dots below, and ←/→ keys. Only the cabinet on
+ * screen takes input; its neighbours render at rest, and pages further away stay empty.
  */
-export function MachineCarousel({ machines, index, onIndex, busy, onBusyChange }: MachineCarouselProps) {
+export function MachineCarousel({ machines, index, onIndex, busy, onBusyChange, onLineup, light, onPlace, onLetThemChoose }: MachineCarouselProps) {
   const track = useRef<HTMLDivElement>(null);
   const frame = useRef(0);
   /** Focus was inside the outgoing page (which turns inert), so hand it to the new one. */
@@ -38,15 +44,13 @@ export function MachineCarousel({ machines, index, onIndex, busy, onBusyChange }
     el.scrollTo({ left, behavior: smooth && !prefersReducedMotion() ? 'smooth' : 'auto' });
   };
 
-  // Come back to the machine you were last looking at.
+  // Come back to the cabinet you were last looking at.
   useEffect(() => {
     const el = track.current;
-    if (el && Math.round(el.scrollLeft / el.clientWidth) !== index) scrollToIndex(index, false);
+    if (el && el.clientWidth && Math.round(el.scrollLeft / el.clientWidth) !== index) scrollToIndex(index, false);
   }, []);
 
   useEffect(() => {
-    const el = track.current;
-    if (!el) return;
     const onResize = () => scrollToIndex(index, false);
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
@@ -63,7 +67,7 @@ export function MachineCarousel({ machines, index, onIndex, busy, onBusyChange }
     const next = Math.max(0, Math.min(n - 1, i));
     if (next === index) return;
     carryFocus.current = !!track.current?.contains(document.activeElement);
-    sfx.play('pop', { volume: 0.5 });
+    sfx.play('pop', { volume: 0.4 });
     scrollToIndex(next, true);
     onIndex(next);
   };
@@ -73,7 +77,7 @@ export function MachineCarousel({ machines, index, onIndex, busy, onBusyChange }
     frame.current = requestAnimationFrame(() => {
       frame.current = 0;
       const el = track.current;
-      if (!el) return;
+      if (!el || !el.clientWidth) return;
       const at = el.scrollLeft / el.clientWidth;
       if (heading.current !== null) {
         if (Math.abs(at - heading.current) > 0.01) return;
@@ -85,7 +89,7 @@ export function MachineCarousel({ machines, index, onIndex, busy, onBusyChange }
   };
 
   const onKeyDown = (e: KeyboardEvent) => {
-    if ((e.target as HTMLElement).closest('input, textarea')) return;
+    if ((e.target as HTMLElement).closest('input, textarea, [role="slider"]')) return;
     if (e.key === 'ArrowLeft') {
       e.preventDefault();
       go(index - 1);
@@ -96,7 +100,7 @@ export function MachineCarousel({ machines, index, onIndex, busy, onBusyChange }
   };
 
   return (
-    <div class={s.carousel} role="region" aria-roledescription="carousel" aria-label="Capsule machines" onKeyDown={onKeyDown}>
+    <div class={s.carousel} role="region" aria-roledescription="carousel" aria-label="Capsule cabinets" onKeyDown={onKeyDown}>
       <div
         ref={track}
         class={cx(s.track, busy && s.locked)}
@@ -107,18 +111,34 @@ export function MachineCarousel({ machines, index, onIndex, busy, onBusyChange }
       >
         {machines.map((m, i) => {
           const current = i === index;
+          const near = Math.abs(i - index) <= 1;
           return (
             <div
               key={m.id}
-              class={s.page}
+              class={cx(s.page, light.night && s.pageNight)}
               role="group"
               aria-roledescription="slide"
-              aria-label={`${m.name}, ${i + 1} of ${n}`}
+              aria-label={`${seriesLabel(m)}, ${i + 1} of ${n}`}
               inert={!current}
               aria-hidden={!current}
+              style={{ '--series': m.theme.body } as JSX.CSSProperties}
             >
-              {Math.abs(i - index) <= 1 ? (
-                <CapsuleMachine machine={m} active={current} onBusyChange={current ? onBusyChange : undefined} />
+              {near ? (
+                <div class={s.pageInner}>
+                  <div class={s.cabinetSlot}>
+                    <CapsuleMachine
+                      machine={m}
+                      active={current}
+                      light={light}
+                      onBusyChange={current ? onBusyChange : undefined}
+                      onPlace={onPlace}
+                      onLetThemChoose={onLetThemChoose}
+                    />
+                  </div>
+                  <div class={s.leafletSlot}>
+                    <LeafletCard machine={m} onOpen={onLineup} />
+                  </div>
+                </div>
               ) : (
                 <div class={s.pagePlaceholder} />
               )}
@@ -127,28 +147,29 @@ export function MachineCarousel({ machines, index, onIndex, busy, onBusyChange }
         })}
       </div>
 
-      <button type="button" class={cx(s.arrow, s.arrowPrev)} onClick={() => go(index - 1)} disabled={busy || index === 0} aria-label="Previous machine">
-        <Icon name="chevron-left" size={24} />
-      </button>
-      <button type="button" class={cx(s.arrow, s.arrowNext)} onClick={() => go(index + 1)} disabled={busy || index === n - 1} aria-label="Next machine">
-        <Icon name="chevron-right" size={24} />
-      </button>
-
-      <div class={s.dots} role="group" aria-label="Choose a machine" style={{ '--n': n } as Record<string, number>}>
-        {machines.map((m, i) => (
-          <button
-            key={m.id}
-            type="button"
-            class={s.dot}
-            onClick={() => go(i)}
-            disabled={busy}
-            aria-label={m.name}
-            aria-current={i === index ? 'true' : undefined}
-            style={{ '--dot': machineHue(m) } as Record<string, string>}
-          >
-            <span />
-          </button>
-        ))}
+      <div class={s.pager}>
+        <button type="button" class={s.arrow} onClick={() => go(index - 1)} disabled={busy || index === 0} aria-label="Previous cabinet">
+          <Icon name="chevron-left" size={22} />
+        </button>
+        <div class={s.dots} role="group" aria-label="Choose a cabinet">
+          {machines.map((m, i) => (
+            <button
+              key={m.id}
+              type="button"
+              class={s.dot}
+              onClick={() => go(i)}
+              disabled={busy}
+              aria-label={seriesLabel(m)}
+              aria-current={i === index ? 'true' : undefined}
+              style={{ '--dot': m.theme.body } as JSX.CSSProperties}
+            >
+              <span />
+            </button>
+          ))}
+        </div>
+        <button type="button" class={s.arrow} onClick={() => go(index + 1)} disabled={busy || index === n - 1} aria-label="Next cabinet">
+          <Icon name="chevron-right" size={22} />
+        </button>
       </div>
     </div>
   );

@@ -2,42 +2,60 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 import type { MachineDef } from '@/catalog/types';
 import type { DomeBody } from '@/fx/physics';
 import type { PullError } from '@/state/api';
-import { machineStatus, pull, state } from '@/state/store';
-import { CRANK_REST } from '@/art/machines/geometry';
+import { finishReveal, machineStatus, pull, state } from '@/state/store';
+import { HANDLE_REST } from '@/art/machines/geometry';
 import { sfx } from '@/fx/sound';
 import { haptic } from '@/fx/haptics';
 import { useDome } from './useDome';
 import { useCrank } from './useCrank';
 import { TICK_DEG, TURN_TARGET, ticksCrossed } from './ratchet';
-import { animateChute, animateCoin, animateDrop, animateSink, jolt } from './choreography';
+import { animateChute, animateCoin, animateSink, closeFlap, jolt } from './choreography';
 import { nudgeText, pullErrorNotice, type FriendlyNotice } from './copy';
-import { nextPayment, type Payment } from './payment';
+import { nextPayment, pullOptions, type Payment } from './payment';
 import { prefersReducedMotion, wait } from './motion';
-import { capsuleShell, isWhiteish, revealFromPull, type RevealData } from './reveal';
+import { capsuleShell, isWhiteish, revealFromPending, revealFromPull, type RevealData } from './reveal';
+import type { TokenKind } from './Token';
 
-export type Phase = 'idle' | 'inserting' | 'ready' | 'turning' | 'dropping' | 'landed' | 'revealing';
+export type Phase = 'idle' | 'inserting' | 'ready' | 'turning' | 'dropping' | 'waiting' | 'revealing';
 
 /**
- * A pull that hasn't been opened yet. The item is already yours once the crank completes, so if
- * you leave mid-drop (another tab, say), the capsule is waiting for you when you come back.
+ * A pull that hasn't been opened yet. The item is already yours once the handle completes its
+ * turn, so if you leave mid-drop (another tab, say), the capsule is waiting when you come back.
+ * After a reload the store's pendingReveal does the same (commit before animate, §7.1).
  */
 const unopened = new Map<MachineDef['id'], RevealData>();
 
+export interface PullOptions {
+  /** The first capsule is on the house (onboarding): no price, and no second pull offered. */
+  free?: boolean;
+  /** Stands in for the store's pull (the dev gallery's demo counter). */
+  pull?: typeof pull;
+}
+
+function resumeFor(machine: MachineDef): RevealData | null {
+  const held = unopened.get(machine.id);
+  if (held) return held;
+  const pending = state.value.pendingReveal;
+  if (pending?.machineId !== machine.id) return null;
+  return revealFromPending(pending, capsuleShell(machine.theme.capsules, 0));
+}
+
 /**
- * The pull's phase machine (DESIGN §9.3): pay → coin into the slot → turn the crank →
- * ka-chunk → a capsule sinks, comes down the chute, rolls out → reveal → reset (or pull again).
- * The result is decided only when the crank completes. Returns state for rendering and the
- * refs the choreography animates.
+ * The pull's phase machine (DESIGN §7.2): pay → the token into the slot → turn the handle →
+ * ka-chunk → a capsule sinks out of the window and drops into the chute → the reveal → reset
+ * (or pull again). The store decides and commits the result at the ka-chunk, before anything
+ * drops. Returns state for rendering and the refs the choreography animates.
  */
-export function usePull(machine: MachineDef, active: boolean) {
+export function usePull(machine: MachineDef, active: boolean, options: PullOptions = {}) {
   const dome = useDome(machine, active);
-  const [phase, setPhase] = useState<Phase>(() => (active && unopened.has(machine.id) ? 'revealing' : 'idle'));
-  const [payment, setPayment] = useState<Payment>('price');
+  const [phase, setPhase] = useState<Phase>(() => (active && resumeFor(machine) ? 'revealing' : 'idle'));
+  const [payment, setPayment] = useState<Payment>(options.free ? 'free' : 'price');
   const [notice, setNotice] = useState<FriendlyNotice | null>(null);
   const [say, setSay] = useState('');
   const [nudging, setNudging] = useState(false);
-  const [reveal, setReveal] = useState<RevealData | null>(() => (active ? (unopened.get(machine.id) ?? null) : null));
+  const [reveal, setReveal] = useState<RevealData | null>(() => (active ? resumeFor(machine) : null));
   const [sinking, setSinking] = useState<DomeBody | null>(null);
+  const [chuteTint, setChuteTint] = useState(0);
   const [origin, setOrigin] = useState<DOMRect | null>(null);
   // Async choreography reads the live phase, not the one captured when it started.
   const phaseNow = useRef(phase);
@@ -45,26 +63,36 @@ export function usePull(machine: MachineDef, active: boolean) {
 
   const refs = {
     stage: useRef<HTMLDivElement>(null),
-    crank: useRef<SVGGElement>(null),
+    handle: useRef<SVGGElement>(null),
+    handleShadow: useRef<SVGGElement>(null),
     slot: useRef<SVGGElement>(null),
     flap: useRef<SVGGElement>(null),
     coin: useRef<SVGGElement>(null),
     sink: useRef<SVGGElement>(null),
     chute: useRef<SVGGElement>(null),
-    out: useRef<SVGGElement>(null),
-    crankButton: useRef<HTMLButtonElement>(null),
+    handleControl: useRef<HTMLDivElement>(null),
     insertButton: useRef<HTMLButtonElement>(null),
   };
-  const run = useRef({ progress: 0, completing: false, autoTurning: false, refocus: false, nudgeTimer: 0 }).current;
+  const run = useRef({ progress: 0, completing: false, autoTurning: false, refocus: false, nudgeTimer: 0, openTimer: 0 }).current;
 
   const turnable = phase === 'ready' || phase === 'turning';
-  const setCrankAngle = (deg: number) => refs.crank.current?.setAttribute('transform', `rotate(${deg.toFixed(1)})`);
+  const token: TokenKind = payment === 'ticket' ? 'ticket' : machine.currency === 'stars' && payment !== 'free' ? 'stamp' : 'coin';
+
+  const setHandle = (progress: number, dir: number) => {
+    const t = `rotate(${(HANDLE_REST + dir * progress).toFixed(1)})`;
+    refs.handle.current?.setAttribute('transform', t);
+    refs.handleShadow.current?.setAttribute('transform', t);
+    const pct = Math.round((progress / TURN_TARGET) * 100);
+    const el = refs.handleControl.current;
+    el?.setAttribute('aria-valuenow', String(Math.min(100, pct)));
+    el?.setAttribute('aria-valuetext', pct >= 100 ? 'One full turn' : `${pct}% of a turn`);
+  };
 
   const crank = useCrank(turnable, {
     onGrab: () => setPhase('turning'),
     onAdvance: (progress, delta, dir) => {
-      setCrankAngle(CRANK_REST + dir * progress);
-      // The wheel inside stirs the pile in proportion to how fast you turn.
+      setHandle(progress, dir);
+      // Turning stirs the capsules in proportion to how fast the handle goes round.
       dome.stir(Math.min(0.5, (delta / 360) * 4), dir * 0.9);
       const clicks = ticksCrossed(run.progress, progress);
       for (let i = 0; i < clicks; i++) {
@@ -84,12 +112,14 @@ export function usePull(machine: MachineDef, active: boolean) {
 
   /* ---------------- insert ---------------- */
 
-  const payError = (pay: Payment): PullError | null => {
-    if (pay === 'ticket') return state.value.wallet.tickets > 0 ? null : 'no-ticket';
+  const payError = (pay: Payment): { error: PullError; have?: number } | null => {
     const status = machineStatus(machine.id);
-    if (!status.available) return 'machine-unavailable';
-    if (!status.canAfford) return machine.currency === 'coins' ? 'not-enough-coins' : 'not-enough-stars';
-    return null;
+    if (!status.available) return { error: 'machine-unavailable' };
+    if (pay === 'free') return null;
+    if (pay === 'ticket') return state.value.wallet.tickets > 0 ? null : { error: 'no-ticket' };
+    if (status.canAfford) return null;
+    const w = state.value.wallet;
+    return machine.currency === 'coins' ? { error: 'not-enough-coins', have: w.coins } : { error: 'not-enough-stars', have: w.stars };
   };
 
   const insert = async (pay: Payment) => {
@@ -98,7 +128,7 @@ export function usePull(machine: MachineDef, active: boolean) {
     sfx.unlock();
     const err = payError(pay);
     if (err) {
-      const n = pullErrorNotice(err, machine);
+      const n = pullErrorNotice(err.error, machine, err.have);
       phaseNow.current = 'idle';
       setNotice(n);
       setSay(n.text);
@@ -112,44 +142,39 @@ export function usePull(machine: MachineDef, active: boolean) {
     setPhase('inserting');
     await wait(0);
     const reduced = prefersReducedMotion();
+    const kind: TokenKind = pay === 'ticket' ? 'ticket' : machine.currency === 'stars' && pay !== 'free' ? 'stamp' : 'coin';
     if (refs.coin.current) {
-      await animateCoin(refs.coin.current, reduced, () => {
-        sfx.play('coin');
-        haptic('light');
-        jolt(refs.stage.current, 'clink', reduced);
-      });
+      await animateCoin(
+        refs.coin.current,
+        reduced,
+        () => {
+          sfx.play('coin');
+          haptic('light');
+          jolt(refs.stage.current, 'clink', reduced);
+        },
+        kind,
+      );
     }
     setPhase('ready');
-    setSay('In it goes! Now turn the crank: drag it around, or press it.');
+    setSay(`The ${kind === 'ticket' ? 'ticket' : kind} is in. Now turn the handle: drag it round, or press it.`);
   };
 
-  /** The crank was tapped before paying: point at the slot. */
+  /** The handle was tried before paying: point at the slot. */
   const nudge = () => {
     if (phaseNow.current !== 'idle') return;
     setNudging(true);
     clearTimeout(run.nudgeTimer);
     run.nudgeTimer = window.setTimeout(() => setNudging(false), 1800);
-    setSay(`${nudgeText(machine)} Tap Insert, then turn the crank.`);
+    setSay(`${nudgeText(machine)} Press Insert, then turn the handle.`);
     haptic('light');
     if (prefersReducedMotion()) return;
-    refs.slot.current?.animate(
-      [
-        { transform: 'rotate(0deg) scale(1)' },
-        { transform: 'rotate(-10deg) scale(1.1)' },
-        { transform: 'rotate(8deg) scale(1.1)' },
-        { transform: 'rotate(-4deg) scale(1.04)' },
-        { transform: 'rotate(0deg) scale(1)' },
-      ],
-      { duration: 520, easing: 'ease-out' },
-    );
-    refs.insertButton.current?.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.07)' }, { transform: 'scale(1)' }], {
-      duration: 380,
-      delay: 120,
-      easing: 'cubic-bezier(.34,1.56,.64,1)',
+    refs.slot.current?.animate([{ transform: 'translateY(0)' }, { transform: 'translateY(-2px)' }, { transform: 'translateY(0)' }], {
+      duration: 420,
+      easing: 'cubic-bezier(.2,.8,.2,1)',
     });
   };
 
-  /* ---------------- crank ---------------- */
+  /* ---------------- the handle ---------------- */
 
   const autoTurn = () => {
     if (run.autoTurning || run.completing) return;
@@ -157,7 +182,7 @@ export function usePull(machine: MachineDef, active: boolean) {
     setPhase('turning');
     const from = crank.progress();
     const remaining = TURN_TARGET - from;
-    const duration = prefersReducedMotion() ? 420 : 380 + remaining * 3.2;
+    const duration = prefersReducedMotion() ? 420 : 420 + remaining * 3.4;
     const t0 = performance.now();
     let turned = 0;
     const step = (now: number) => {
@@ -172,25 +197,28 @@ export function usePull(machine: MachineDef, active: boolean) {
     requestAnimationFrame(step);
   };
 
-  /** Spin the handle the last bit round to a full turn (back to its resting angle). */
+  /** Carry the handle the last bit round to a full turn (back to its resting angle). */
   const finishTurn = (dir: 1 | -1, reduced: boolean) =>
     new Promise<void>((resolve) => {
       if (reduced) {
-        setCrankAngle(CRANK_REST);
+        setHandle(0, dir);
         resolve();
         return;
       }
       const t0 = performance.now();
       const step = (now: number) => {
-        const k = Math.min(1, (now - t0) / 200);
-        setCrankAngle(CRANK_REST + dir * (TURN_TARGET + (360 - TURN_TARGET) * (1 - (1 - k) ** 3)));
+        const k = Math.min(1, (now - t0) / 240);
+        setHandle(TURN_TARGET + (360 - TURN_TARGET) * (1 - (1 - k) ** 3), dir);
         if (k < 1) requestAnimationFrame(step);
-        else resolve();
+        else {
+          setHandle(0, dir);
+          resolve();
+        }
       };
       requestAnimationFrame(step);
     });
 
-  /* ---------------- ka-chunk → drop ---------------- */
+  /* ---------------- ka-chunk → the chute ---------------- */
 
   const complete = async (dir: 1 | -1) => {
     if (run.completing) return;
@@ -202,98 +230,111 @@ export function usePull(machine: MachineDef, active: boolean) {
     jolt(refs.stage.current, 'chunk', reduced);
     void finishTurn(dir, reduced);
 
-    // The result is decided now, at the drop.
-    const outcome = pull(machine.id, payment === 'ticket' ? { useTicket: true } : {});
+    // Commit before animate: the store decides and saves the pull now, before anything drops.
+    const outcome = (options.pull ?? pull)(machine.id, pullOptions(payment));
     if (!outcome.ok) {
-      const n = pullErrorNotice(outcome.error, machine);
+      const w = state.value.wallet;
+      const n = pullErrorNotice(outcome.error, machine, machine.currency === 'coins' ? w.coins : w.stars);
       setNotice(n);
-      setSay(`Your ${payment === 'ticket' ? 'ticket' : machine.currency === 'stars' ? 'star' : 'coin'} popped back out. ${n.text}`);
+      setSay(`Your ${token === 'ticket' ? 'ticket' : token} came back out. ${n.text}`);
       sfx.play('undo');
       resetMachine();
       return;
     }
 
-    // A colored capsule near the exit goes before a white one: it's the one you'll open.
+    // A coloured capsule near the exit goes before a white one: it's the one you'll open.
     const colors = machine.theme.capsules;
     const body = dome.release((b) => !isWhiteish(colors[b.tint % colors.length]!));
-    const pulled = revealFromPull(outcome, capsuleShell(colors, body?.tint ?? 0));
+    const tint = body?.tint ?? 0;
+    const pulled = revealFromPull(outcome, capsuleShell(colors, tint));
     unopened.set(machine.id, pulled);
     setReveal(pulled);
     setSinking(body);
+    setChuteTint(tint);
     dome.stir(0.2, dir * 0.5);
     await wait(reduced ? 0 : 60);
     if (refs.sink.current) await animateSink(refs.sink.current, reduced);
     setSinking(null);
-    if (refs.chute.current) await animateChute(refs.chute.current, refs.flap.current, reduced);
-    if (refs.out.current) {
-      await animateDrop(refs.out.current, reduced, (strength) => {
+    if (refs.chute.current) {
+      await animateChute(refs.chute.current, refs.flap.current, reduced, (strength) => {
         sfx.play('thunk', { volume: strength });
         haptic(strength > 0.5 ? 'light' : 'tick');
       });
     }
-    setPhase('landed');
-    phaseNow.current = 'landed';
-    setSay('A capsule rolled out!');
-    await wait(reduced ? 250 : 520);
-    openReveal();
+    setPhase('waiting');
+    phaseNow.current = 'waiting';
+    setSay('A capsule dropped into the chute.');
+    run.openTimer = window.setTimeout(openReveal, reduced ? 300 : 700);
   };
 
-  /** Lift the landed capsule into the reveal (after a beat, or right away if it's tapped). */
+  /** Take the capsule out of the chute and into the reveal (after a beat, or right away when tapped). */
   const openReveal = () => {
-    if (phaseNow.current !== 'landed') return;
+    clearTimeout(run.openTimer);
+    if (phaseNow.current !== 'waiting') return;
     phaseNow.current = 'revealing';
-    setOrigin(refs.out.current?.getBoundingClientRect() ?? null);
+    setOrigin(refs.chute.current?.getBoundingClientRect() ?? null);
     setPhase('revealing');
   };
 
   const resetMachine = () => {
-    for (const a of refs.out.current?.getAnimations?.() ?? []) a.cancel();
+    for (const a of refs.chute.current?.getAnimations?.() ?? []) a.cancel();
     for (const a of refs.coin.current?.getAnimations?.() ?? []) a.cancel();
+    closeFlap(refs.flap.current);
     crank.reset();
     run.progress = 0;
     run.completing = false;
     run.autoTurning = false;
-    setCrankAngle(CRANK_REST);
+    setHandle(0, 1);
     phaseNow.current = 'idle';
     setPhase('idle');
   };
 
-  /* ---------------- reveal ---------------- */
+  /* ---------------- the reveal ---------------- */
 
-  /** Close the reveal; `again` goes straight into the next pull, paid as the button said. */
+  /** Close the reveal; `again` goes straight into the next pull, paid as its button said. */
   const closeReveal = (again?: Payment) => {
     unopened.delete(machine.id);
+    finishReveal();
     setReveal(null);
     setOrigin(null);
     resetMachine();
     // A fresh capsule tumbles in to take its place.
     setTimeout(() => dome.refill(), 260);
-    // Straight into the next coin, so the carousel never unlocks in between.
+    // Straight into the next token, so the carousel never unlocks in between.
     if (again) void insert(again);
     else run.refocus = true;
   };
 
-  const again = phase === 'revealing' ? nextPayment(payment, machineStatus(machine.id).canAfford, state.value.wallet.tickets) : null;
+  const again = phase === 'revealing' && !options.free ? nextPayment(payment, machineStatus(machine.id).canAfford, state.value.wallet.tickets) : null;
 
-  // Hide the rolled-out capsule once the overlay has lifted it away; move focus with the flow.
+  // The chute empties once the reveal has taken the capsule; focus moves with the flow.
   useEffect(() => {
-    if (phase === 'revealing') for (const a of refs.out.current?.getAnimations?.() ?? []) a.cancel();
-    if (phase === 'ready') refs.crankButton.current?.focus({ preventScroll: true });
+    if (phase === 'revealing') {
+      for (const a of refs.chute.current?.getAnimations?.() ?? []) a.cancel();
+      closeFlap(refs.flap.current);
+    }
+    if (phase === 'ready') refs.handleControl.current?.focus({ preventScroll: true });
     if (phase === 'idle' && run.refocus) {
       run.refocus = false;
       refs.insertButton.current?.focus({ preventScroll: true });
     }
   }, [phase]);
 
-  useEffect(() => () => clearTimeout(run.nudgeTimer), []);
+  useEffect(
+    () => () => {
+      clearTimeout(run.nudgeTimer);
+      clearTimeout(run.openTimer);
+    },
+    [],
+  );
 
-  // Space turns the crank (DESIGN §11.1) when nothing else wants the key.
+  // Space turns the handle (DESIGN §7.2) when nothing else wants the key.
   useEffect(() => {
     if (!active || !turnable) return;
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement | null;
-      if (e.key !== ' ' || e.repeat || t?.closest('button, a, input, textarea, select, [contenteditable]')) return;
-      // Not while a sheet or dialog is open over the machine.
+      if (e.key !== ' ' || e.repeat || t?.closest('button, a, input, textarea, select, [contenteditable], [role="slider"]')) return;
+      // Not while a sheet or dialog is open over the cabinet.
       if (document.querySelector('[aria-modal="true"]')) return;
       e.preventDefault();
       autoTurn();
@@ -302,5 +343,24 @@ export function usePull(machine: MachineDef, active: boolean) {
     return () => window.removeEventListener('keydown', onKey);
   }, [active, turnable]);
 
-  return { phase, turnable, payment, notice, say, nudging, reveal, sinking, origin, again, dome, crank, refs, insert, openReveal, closeReveal };
+  return {
+    phase,
+    turnable,
+    payment,
+    token,
+    notice,
+    say,
+    nudging,
+    reveal,
+    sinking,
+    chuteTint,
+    origin,
+    again,
+    dome,
+    crank,
+    refs,
+    insert,
+    openReveal,
+    closeReveal,
+  };
 }

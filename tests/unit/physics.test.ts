@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DomeSim, mulberry32, type DomeConfig } from '@/fx/physics';
+import { CapsuleSim, DomeSim, mulberry32, type BoxConfig, type DomeConfig } from '@/fx/physics';
 
 const DOME: DomeConfig = { cx: 120, cy: 128, radius: 80, floor: 196, count: 24, bodyRadius: 12.5, tints: 5, seed: 7 };
 const FRAME = 1 / 60;
@@ -188,5 +188,94 @@ describe('DomeSim', () => {
     expect(sim.bodies).toHaveLength(25);
     sim.settle();
     expectContained(sim);
+  });
+});
+
+/** A capsule cabinet's window: a glass box the capsules tumble in. */
+const WINDOW: BoxConfig = { box: { left: 48, top: 92, right: 192, bottom: 206 }, count: 20, bodyRadius: 12, tints: 5, seed: 3, exitX: 132 };
+
+function expectInBox(sim: CapsuleSim, tolerance = 0.25) {
+  const box = sim.box!;
+  for (const b of sim.bodies) {
+    expect(b.x - b.r).toBeGreaterThanOrEqual(box.left - tolerance);
+    expect(b.x + b.r).toBeLessThanOrEqual(box.right + tolerance);
+    expect(b.y - b.r).toBeGreaterThanOrEqual(box.top - tolerance);
+    expect(b.y + b.r).toBeLessThanOrEqual(box.bottom + tolerance);
+  }
+}
+
+describe('CapsuleSim in a cabinet window (box)', () => {
+  it('is the same class as DomeSim, with a box and its center', () => {
+    const sim = new CapsuleSim(WINDOW);
+    expect(sim).toBeInstanceOf(DomeSim);
+    expect(sim.box).toEqual(WINDOW.box);
+    expect(sim.cx).toBe(120);
+    expect(sim.floor).toBe(206);
+    expect(sim.bodies).toHaveLength(20);
+    expectInBox(sim, 1);
+  });
+
+  it('settles into a pile on the window floor without deep overlaps', () => {
+    const sim = new CapsuleSim(WINDOW);
+    const t = sim.settle(10);
+    expect(sim.awake).toBe(false);
+    expect(t).toBeLessThan(4);
+    expectInBox(sim);
+    const bodies = sim.bodies;
+    for (let i = 0; i < bodies.length; i++) {
+      for (let j = i + 1; j < bodies.length; j++) {
+        const a = bodies[i]!;
+        const b = bodies[j]!;
+        expect(Math.hypot(a.x - b.x, a.y - b.y)).toBeGreaterThan(a.r + b.r - 1);
+      }
+    }
+    // A pile, not a tower: the lowest row touches the floor.
+    expect(Math.max(...bodies.map((b) => b.y + b.r))).toBeGreaterThan(WINDOW.box.bottom - 0.5);
+  });
+
+  it('keeps every capsule inside the glass while the handle is turned hard', () => {
+    const sim = new CapsuleSim(WINDOW);
+    let frame = 0;
+    run(sim, 6, (s) => {
+      if (frame++ % 4 === 0) s.agitate(1.2, frame % 120 < 60 ? 1 : -1);
+      expectInBox(s as CapsuleSim);
+    });
+    expectFinite(sim);
+    // Six simulated seconds with a check every step: generous room for a loaded CI machine.
+  }, 20_000);
+
+  it('never produces NaN under absurd agitation and huge frame gaps', () => {
+    const sim = new CapsuleSim({ ...WINDOW, seed: 99 });
+    for (let i = 0; i < 200; i++) {
+      sim.agitate(i % 7 === 0 ? 50 : 3, (i % 3) - 1);
+      sim.step(i % 10 === 0 ? 5 : FRAME);
+    }
+    expectFinite(sim);
+    expectInBox(sim);
+  });
+
+  it('releases the capsule nearest the chute (exitX), and a new one drops in from the top', () => {
+    const sim = new CapsuleSim(WINDOW);
+    sim.settle();
+    const score = (b: { x: number; y: number }) => b.y - Math.abs(b.x - WINDOW.exitX!) * 0.35;
+    const best = Math.max(...sim.bodies.map(score));
+    const out = sim.removeOne()!;
+    expect(score(out)).toBe(best);
+    const added = sim.addOne();
+    expect(added.y).toBeLessThan(WINDOW.box.top + 20);
+    sim.settle();
+    expect(sim.bodies).toHaveLength(20);
+    expectInBox(sim);
+  });
+
+  it('is deterministic for a seed', () => {
+    const a = new CapsuleSim(WINDOW);
+    const b = new CapsuleSim(WINDOW);
+    for (const s of [a, b]) {
+      s.settle();
+      s.agitate(1, 1);
+      run(s, 1);
+    }
+    expect(snapshot(a)).toEqual(snapshot(b));
   });
 });

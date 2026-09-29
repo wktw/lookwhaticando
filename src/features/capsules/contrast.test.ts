@@ -1,8 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { MACHINES } from '@/catalog/machines';
-import { contrast, mix, tint } from '@/art/machines/color';
-import { machineHue } from '@/art/machines/theme';
+import { contrast, mix } from '@/art/machines/color';
+import { specialBandVars } from './RevealCard';
 
 /**
  * Text contrast for the capsules screens in both themes (WCAG AA: 4.5:1, 3:1 for large text),
@@ -30,12 +30,10 @@ describe.each(Object.entries(THEMES))('%s theme contrast', (_name, t) => {
     }
   });
 
-  it('NEW! sticker: fixed white on deep blush', () => {
-    expect(contrast('#FFFFFF', '#C23F68')).toBeGreaterThanOrEqual(4.5);
-  });
-
-  it('star count chip on "Make a wish": cocoa ink on white 60% over lavender-300', () => {
-    expect(contrast('#4A3540', mix(t['lavender-300']!, '#FFFFFF', 0.6))).toBeGreaterThanOrEqual(4.5);
+  it('tier chips: holographic print under graphite, and the two-colour Special', () => {
+    for (const band of ['#F5CDD6', '#F6E6B4', '#CDE6DA', '#D2E4F2', '#DDD4F1']) expect(contrast('#3B3236', band), band).toBeGreaterThanOrEqual(4.5);
+    for (const half of ['blush-100', 'sky-100']) expect(contrast(pillInk(t, 'sky'), t[half]!), half).toBeGreaterThanOrEqual(4.5);
+    expect(contrast(t.ink!, t.card!)).toBeGreaterThanOrEqual(4.5);
   });
 
   it('body text on the page and cards', () => {
@@ -46,13 +44,36 @@ describe.each(Object.entries(THEMES))('%s theme contrast', (_name, t) => {
   });
 });
 
-describe('series lineup poster', () => {
-  // Sheets.module.css: tint(hue, .55), dimmed at night by rgba(34, 28, 48, .08).
-  it('kicker and title stay legible on every machine, day and night', () => {
+describe('lineup leaflets', () => {
+  // Leaflet.module.css: by day the series paper (theme.trim) in its ink (theme.ink); a collected
+  // cell prints the paper out of the ink. At night the sheet is the series colour let down 28% into
+  // the Lamplight card and warmed 6% by the lamp, with the print reversed out in the paper colour.
+  const nightPaper = (m: (typeof MACHINES)[number]) => mix(mix('#2D2733', m.theme.body, 0.28), '#FFC98A', 0.06);
+
+  it('the ink reads on its paper for every series, by day', () => {
+    for (const m of MACHINES) expect(contrast(m.theme.ink, m.theme.trim), m.id).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it('the reversed print reads on the lamplit sheet for every series, at night', () => {
+    for (const m of MACHINES) expect(contrast(m.theme.trim, nightPaper(m)), m.id).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it('the night sheet stays well below the glare of day paper', () => {
+    for (const m of MACHINES) expect(contrast(nightPaper(m), '#2D2733'), m.id).toBeLessThan(2.5);
+  });
+});
+
+describe('reveal cards', () => {
+  // RevealCard.tsx specialBandVars: a Special print's band is the series colour let down 55% with
+  // paper by day, and 68% into the night card under lamplight, printed in the light ink.
+  it('the series ink reads on the Special band for every series, by day', () => {
+    for (const m of MACHINES) expect(contrast(m.theme.ink, specialBandVars(m.theme)['--series-band']!), m.id).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it('the light ink reads on the night Special band for every series', () => {
     for (const m of MACHINES) {
-      const poster = tint(machineHue(m), 0.55);
-      const night = mix(poster, '#221C30', 0.08);
-      for (const bg of [poster, night]) expect(contrast(m.theme.ink, bg), m.id).toBeGreaterThanOrEqual(4.5);
+      const v = specialBandVars(m.theme);
+      expect(contrast(v['--series-ink-night']!, v['--series-band-night']!), m.id).toBeGreaterThanOrEqual(4.5);
     }
   });
 });
