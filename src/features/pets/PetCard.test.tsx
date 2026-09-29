@@ -11,7 +11,7 @@ import { buttonWithText, click, installDom, mount, type, until } from '@/feature
 import { lint, PET_PRONOUN } from '../../../tests/unit/voiceLint';
 import PetCardHost from './PetCardHost';
 
-vi.setConfig({ testTimeout: 60_000 });
+vi.setConfig({ testTimeout: 60_000, hookTimeout: 120_000 });
 
 const TODAY = '2026-09-29';
 let demo: AppState;

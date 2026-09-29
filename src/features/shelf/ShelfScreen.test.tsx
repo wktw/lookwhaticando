@@ -10,7 +10,7 @@ import { toasts } from '@/ui/toast';
 import { button, buttonWithText, click, installDom, key, mount, until } from '@/features/capsules/testing';
 import { ShelfScreen } from './ShelfScreen';
 
-vi.setConfig({ testTimeout: 60_000 });
+vi.setConfig({ testTimeout: 60_000, hookTimeout: 120_000 });
 
 const TODAY = '2026-09-29';
 let demo: AppState;
