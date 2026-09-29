@@ -6,6 +6,7 @@
 import { mix } from './color';
 import { channels, fromHsl, toHsl } from '@/art/plants/math';
 import type { Season, TimeOfDay } from './time';
+import { CONTACT_DAY, CONTACT_LAMP, SHADE_DAY, SHADE_LAMP } from '@/art/shade';
 
 export interface RoomPalette {
   time: TimeOfDay;
@@ -44,7 +45,7 @@ const DAY: RoomPalette = {
   floor: '#E3D0B6',
   floorSeam: '#D6C0A3',
   beam: { color: '#FFF0C6', opacity: 0.95 },
-  tokens: { shade: 'rgba(94, 76, 154, 0.16)', contact: 'rgba(59, 50, 54, 0.08)', sun: 'rgba(255, 231, 168, 0.55)' },
+  tokens: { shade: SHADE_DAY, contact: CONTACT_DAY, sun: 'rgba(255, 231, 168, 0.55)' },
 };
 
 /** Morning: cooler and softer, the beam pale. */
@@ -100,7 +101,7 @@ const NIGHT: RoomPalette = {
   floor: '#342E52',
   floorSeam: '#2B2646',
   beam: null,
-  tokens: { shade: 'rgba(10, 8, 22, 0.3)', contact: 'rgba(0, 0, 0, 0.22)', sun: 'rgba(255, 201, 138, 0.18)' },
+  tokens: { shade: SHADE_LAMP, contact: CONTACT_LAMP, sun: 'rgba(255, 201, 138, 0.18)' },
 };
 
 /**

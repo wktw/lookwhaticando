@@ -43,15 +43,17 @@ let seeded = false;
 
 /** A few finds across the counter so progress, ticks and the swap ring have something to show. */
 const DEMO_OWNED: Record<string, number> = {
-  'pet-cat-orange': 2,
+  'pet-dog-corgi': 2,
+  'pet-duck-yellow': 1,
   'pet-cat-calico': 1,
-  'pet-cat-tuxedo': 1,
-  'pet-cat-grey': 1,
+  'pet-cow-holstein': 1,
+  'pet-frog-tree': 1,
+  'pet-dog-shiba': 1,
   'wear-bell-collar': 3,
   'treat-fish-crackers': 1,
   'decor-cardboard-box': 1,
-  'pet-cow-holstein': 1,
   'pet-cow-beltie': 2,
+  'pet-duck-mallard': 1,
   'treat-strawberry-milk': 1,
   'wear-cowbell': 1,
 };
@@ -149,24 +151,28 @@ function demo(itemId: string, o: { dupe?: boolean; fused?: number; shell?: [stri
   };
 }
 
-/** One reveal per tier and the Secret, plus decor, a stamp made from swaps, and a Special Order. */
+/**
+ * One reveal per tier and the Secret, plus decor, a stamp made from swaps, and a Special Order. A mixed cast, as every
+ * demo is (DESIGN §1 "Many animals"): a dog, a cow, a cat, a dog, a cow, a duck and a frog.
+ */
 const DEMOS: Record<string, RevealData> = {
-  classic: demo('pet-cow-holstein', { shell: ['#F6E6B4', '#D5E3C7'] }),
+  classic: demo('pet-dog-beagle', { shell: ['#F6E6B4', '#D5E3C7'] }),
   special: demo('pet-cow-beltie', { dupe: true, shell: ['#F5CDD6', '#D2E4F2'] }),
   rare: demo('pet-cat-siamese', { shell: ['#DDD4F1', '#F6E6B4'] }),
-  super: demo('pet-cat-oddeyed', { shell: ['#D2E4F2', '#F5CDD6'] }),
+  // The Bernese: the Samoyed is No. 03's Secret, so it would show as a Secret, not a Super rare.
+  super: demo('pet-dog-bernese', { shell: ['#D2E4F2', '#F5CDD6'] }),
   secret: demo('pet-cow-highland', { shell: ['#F5CDD6', '#F6E6B4'] }),
   item: demo('decor-matchbox-bed', { shell: ['#F6E6B4', '#F5CDD6'] }),
-  swaps: demo('treat-fish-crackers', { dupe: true, fused: 1, shell: ['#D2E4F2', '#F6E6B4'] }),
-  order: { ...demo('pet-cow-jersey'), via: 'order' },
+  swaps: demo('pet-duck-yellow', { dupe: true, fused: 1, shell: ['#D2E4F2', '#F6E6B4'] }),
+  order: { ...demo('pet-frog-tree'), via: 'order' },
 };
 
 const FINISHES: CapsuleFinish[] = ['classic', 'special', 'rare', 'super', 'secret'];
 const FIGURE_OF: Record<CapsuleFinish, string> = {
-  classic: 'pet-cow-holstein',
+  classic: 'pet-dog-beagle',
   special: 'pet-cow-beltie',
   rare: 'pet-cat-siamese',
-  super: 'pet-cat-oddeyed',
+  super: 'pet-dog-bernese',
   secret: 'pet-cow-highland',
 };
 
@@ -175,7 +181,8 @@ function Sequence({ machine, light }: { machine: MachineDef; light: Light }) {
   const L = lighting(light);
   const uid = `seq${machine.id}${light.night ? 'n' : 'd'}`;
   const colors = machine.theme.capsules;
-  const inside = machine.id === 'night' ? 'pet-cat-smoke' : 'pet-cow-beltie';
+  // Its own series' first animal (a cow in No. 02, a cat in No. 07).
+  const inside = itemsInMachine(machine.id).find((d) => d.category === 'pet')?.id ?? 'pet-dog-corgi';
   const pile = settledPile(machine);
   const shaken = pile.map((b, i) => ({ ...b, y: b.y - (i % 3 === 0 ? 10 : i % 3 === 1 ? 4 : 0), angle: b.angle + i * 0.6 }));
   const window = (bodies: typeof pile, key: string) => <WindowCapsules uid={`${uid}${key}`} colors={colors} bodies={bodies} lighting={L} />;
@@ -289,7 +296,7 @@ function RevealDemos({ params }: { params: URLSearchParams }) {
           initialCracks={cracks}
           light={light}
           onClose={() => setOpen(null)}
-          pullAgain={{ pay, machine: getMachine(data.machineId ?? 'cows'), onPull: () => setOpen(null) }}
+          pullAgain={{ pay, machine: getMachine(data.machineId ?? 'dogs'), onPull: () => setOpen(null) }}
         />
       )}
     </div>
@@ -342,10 +349,10 @@ export const SECTIONS: GallerySection[] = [
   },
   {
     id: 'capsules-sequence',
-    title: 'The pull, frame by frame (No. 02 by day, No. 07 by lamplight)',
+    title: 'The pull, frame by frame (No. 04 by day, No. 07 by lamplight)',
     render: () => (
       <div class="gal-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))' }}>
-        <Sequence machine={getMachine('cows')} light={DAY_LIGHT} />
+        <Sequence machine={getMachine('pond')} light={DAY_LIGHT} />
         <Sequence machine={getMachine('night')} light={NIGHT_LIGHT} />
       </div>
     ),
@@ -383,7 +390,7 @@ export const SECTIONS: GallerySection[] = [
               machineId="garden"
               light={light}
               size={130}
-              figure={<CapsuleFigure id="pet-cat-orange" />}
+              figure={<CapsuleFigure id="pet-duck-yellow" />}
               figureInk={getMachine('garden').theme.ink}
             />
             <small>{name}</small>
@@ -468,7 +475,7 @@ export const SECTIONS: GallerySection[] = [
     title: 'Special Order sheet',
     render: (params) => (
       <SheetDemo id="capsules-sheet-order" params={params}>
-        <SpecialOrderSheet open machineId={(params.get('machine') as MachineDef['id']) ?? 'cows'} onClose={() => {}} onOrdered={() => {}} />
+        <SpecialOrderSheet open machineId={(params.get('machine') as MachineDef['id']) ?? 'dogs'} onClose={() => {}} onOrdered={() => {}} />
       </SheetDemo>
     ),
   },
@@ -477,7 +484,7 @@ export const SECTIONS: GallerySection[] = [
     title: 'Odds sheet',
     render: (params) => (
       <SheetDemo id="capsules-sheet-odds" params={params}>
-        <OddsSheet machine={getMachine((params.get('machine') as MachineDef['id']) ?? 'cows')} open onClose={() => {}} />
+        <OddsSheet machine={getMachine((params.get('machine') as MachineDef['id']) ?? 'pond')} open onClose={() => {}} />
       </SheetDemo>
     ),
   },
@@ -486,16 +493,16 @@ export const SECTIONS: GallerySection[] = [
     title: 'Lineup sheet: the leaflet, full size',
     render: (params) => (
       <SheetDemo id="capsules-sheet-lineup" params={params}>
-        <LineupSheet machine={getMachine((params.get('machine') as MachineDef['id']) ?? 'cats')} open onClose={() => {}} />
+        <LineupSheet machine={getMachine((params.get('machine') as MachineDef['id']) ?? 'dogs')} open onClose={() => {}} />
       </SheetDemo>
     ),
   },
   {
     id: 'capsules-pull',
-    title: 'Interactive cabinet (&machine=cows &coins=10 &tickets=0 &quick=1)',
+    title: 'Interactive cabinet (&machine=pond &coins=10 &tickets=0 &quick=1)',
     render: (params) => {
       seedWallet(params);
-      const m = MACHINES.find((x) => x.id === (params.get('machine') ?? 'cats')) ?? MACHINES[0]!;
+      const m = MACHINES.find((x) => x.id === (params.get('machine') ?? 'pond')) ?? MACHINES[0]!;
       return (
         <div style={{ maxWidth: '390px', margin: '0 auto', padding: '12px 0 24px', background: 'var(--bg)' }}>
           <CapsuleMachine machine={m} active pullWith={demoPull(params)} />

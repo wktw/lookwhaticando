@@ -1,9 +1,12 @@
+import { lighting as machineLighting } from '@/art/machines/lighting';
+import { paint } from './decor/kit';
+import { CONTACT_DAY, SHADE_DAY } from '@/art/shade';
 /**
  * The Shelf's geometry and light: layout of the Sill and the band, depth order, the sunbeam against
  * the sun, placement bounds in every place, the night lamp, and the band's collapse math.
  */
 import { describe, expect, it } from 'vitest';
-import { NIGHT_LIGHT, windowLight } from '@/art/light';
+import { DAY_LIGHT, NIGHT_LIGHT, windowLight } from '@/art/light';
 import { PLACES } from '@/catalog/places';
 import type { PlaceId } from '@/catalog/types';
 import { baseline, byDepth, depthOf, depthScale, depthZ, potMetrics } from './room';
@@ -504,5 +507,19 @@ describe('the scene’s art tokens', () => {
     };
     for (const t of ['dawn', 'day', 'golden'] as const) check(ROOM[t], day);
     check(ROOM.night, night);
+  });
+
+  it('give the cabinets, the decor and the scenes one shade and one contact ink in each light', () => {
+    const day = block(':root {');
+    const night = block(":root[data-theme='night']");
+    const lamp = machineLighting(NIGHT_LIGHT);
+    expect(norm(lamp.shade)).toBe(norm(token(night, '--shade')));
+    expect(norm(lamp.contact)).toBe(norm(token(night, '--contact')));
+    expect(norm(machineLighting(DAY_LIGHT).shade)).toBe(norm(`var(--shade,${token(day, '--shade')})`));
+    const decorNight = paint({ night: true });
+    expect(norm(decorNight.shade)).toBe(norm(token(night, '--shade')));
+    expect(norm(decorNight.contact)).toBe(norm(token(night, '--contact')));
+    expect(norm(SHADE_DAY)).toBe(norm(token(day, '--shade')));
+    expect(norm(CONTACT_DAY)).toBe(norm(token(day, '--contact')));
   });
 });

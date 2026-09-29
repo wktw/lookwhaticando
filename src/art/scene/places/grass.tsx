@@ -11,14 +11,14 @@ import { painter as basePainter, Solid, oval } from './kit';
 import { toneChroma } from '../palette';
 import type { Light } from '@/art/light';
 import type { TimeOfDay } from '../time';
+import { GRASS, GRASS_W } from './shapes';
+import type { PlaceDrawProps, PlaceScene } from './types';
 
 /** After dark the grass keeps its green, tinted toward the lamplit indigo room rather than greyed (DESIGN §10.1). */
 function painter(time: TimeOfDay, light: Light) {
   const p = basePainter(time, light);
   return time === 'night' ? { ...p, c: (hex: string) => toneChroma(time, hex) } : p;
 }
-import { GRASS, GRASS_W } from './shapes';
-import type { PlaceDrawProps, PlaceScene } from './types';
 
 const ROWS: RoomRows = { glassBottom: 58, sillBack: GRASS.soil, sillFront: GRASS.lip, nosing: 83 };
 

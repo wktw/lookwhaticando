@@ -13,6 +13,7 @@ import { ICON_FRAMES, iconFrame, SCENE_FRAME } from './iconFrames';
 import { WateringCanCharm } from './charm';
 import { Bee, petalMap, PETITE_BLOOM, repaint, type PlantLookArt } from './looks';
 import { flourishLayers } from './flourishes';
+import { muteTree } from '../muted';
 import type { Composed, Growth } from './types';
 import './plant.css';
 
@@ -61,6 +62,8 @@ export interface PlantArtProps {
    * canvas, so stacked at the same place they make the whole plant.
    */
   layer?: PlantLayer;
+  /** Field Guide "not yet": the same drawing at 35% saturation (a repaint, never a CSS filter). */
+  muted?: boolean;
   /** Desynchronises the idle sway; give both layers of one plant the same seed so they sway together. */
   seed?: string;
   title?: string;
@@ -180,7 +183,8 @@ export function PlantArt(props: PlantArtProps) {
 
   const icon = props.fit === 'icon';
   const box = icon ? iconFrame(species, g.stage) : SCENE_FRAME;
-  const emptyPot = !icon && props.withPot && c.kind !== 'pot' ? <EmptyPot pot={pot} k={k} /> : null;
+  const mute = (el: JSX.Element | null | undefined) => (props.muted && el ? (muteTree(el) as JSX.Element) : el);
+  const emptyPot = !icon && props.withPot && c.kind !== 'pot' ? mute(<g>{EmptyPot({ pot, k })}</g>) : null;
   const back = layer !== 'front';
   const front = layer !== 'back';
 
@@ -218,9 +222,9 @@ export function PlantArt(props: PlantArtProps) {
     >
       {back && <path d={contactD(c.foot, k, icon)} class={CONTACT} />}
       {back && emptyPot}
-      {back && sway(c.back)}
-      {back && c.vessel}
-      {front && sway(c.front)}
+      {back && sway(mute(c.back))}
+      {back && mute(c.vessel)}
+      {front && sway(mute(c.front))}
       {front && waterings > 0 && <path key={waterings} class="plant-glint" d={ell(c.pivot[0] - c.surface * 0.34, c.pivot[1] + 0.2, Math.max(2.4, c.surface * 0.3), 0.8)} fill="#FFFFFF" />}
     </svg>
   );
@@ -253,13 +257,15 @@ export interface PotArtProps {
   size?: number | string;
   light?: Light;
   damp?: boolean;
+  /** Field Guide "not yet" (35% saturation). */
+  muted?: boolean;
   title?: string;
   class?: string;
   style?: JSX.CSSProperties;
 }
 
 /** A standalone pot with its soil (collection book, pot picker, the empty pot beside a cutting). */
-export function PotArt({ pot, size = 64, light, damp = false, title, class: cls, style }: PotArtProps) {
+export function PotArt({ pot, size = 64, light, damp = false, muted = false, title, class: cls, style }: PotArtProps) {
   const k = kitFor(light ?? DAY_LIGHT);
   const def = POTS[pot] ?? POTS.terracotta;
   return (
@@ -276,7 +282,7 @@ export function PotArt({ pot, size = 64, light, damp = false, title, class: cls,
     >
       <path d={contactD(def.foot, k)} class={CONTACT} />
       <g data-vessel="pot" data-pot={pot}>
-        {def.render(k, damp)}
+        {muted ? muteTree(def.render(k, damp)) : def.render(k, damp)}
       </g>
     </svg>
   );
