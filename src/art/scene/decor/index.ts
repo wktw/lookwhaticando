@@ -38,6 +38,11 @@ export interface DecorEntry {
    * swing branch, or rising from behind the far hills (drawn behind them).
    */
   sky?: 'canopy' | 'branch' | 'hills';
+  /**
+   * catkin: hangs instead of standing, from the window frame (a window hammock, a paper star, a moon night-light).
+   * Replaces `sky` and `tied`, which are Meadow-era and will be removed by the catkin restyle.
+   */
+  hang?: 'window';
 }
 
 export const DECOR_ENTRIES: Record<string, DecorEntry> = {

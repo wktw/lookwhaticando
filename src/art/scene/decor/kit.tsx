@@ -16,6 +16,8 @@ export { OUTLINE, STROKE };
 export interface DecorArtOptions {
   /** Night scene: surfaces take on the moonlight, lamps and windows glow. */
   night?: boolean;
+  /** catkin Windowlight: which side the light comes from (shade crescents sit opposite). Defaults to DAY_LIGHT. */
+  light?: import('@/art/light').Light;
   /** Outline scale: 1 on the icon canvas; the Meadow passes PET_UNITS ÷ size. */
   line?: number;
 }
