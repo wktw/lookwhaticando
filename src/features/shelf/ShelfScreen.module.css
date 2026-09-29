@@ -70,6 +70,10 @@
   text-align: center;
   text-wrap: balance;
 }
+.caption:empty {
+  min-height: 12px;
+  padding: 0;
+}
 
 /* ---------- places and tools under the scene ---------- */
 .tools {

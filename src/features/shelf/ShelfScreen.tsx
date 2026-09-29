@@ -159,12 +159,13 @@ export function ShelfScreen() {
     const raf = requestAnimationFrame(() => {
       const box = el.getBoundingClientRect();
       const actors = Array.from(el.querySelectorAll<HTMLElement>('[data-pet]'));
+      // At least one pet wholly in frame, not just a tail at the edge.
       const inFrame = actors.some((a) => {
         const r = a.getBoundingClientRect();
-        return r.width > 0 && r.right > box.left + 24 && r.left < box.right - 24;
+        return r.width > 0 && r.left >= box.left + 8 && r.right <= box.right - 8;
       });
       if (inFrame || !actors.length) return;
-      const first = actors.find((a) => a.dataset.pet === pets.closest?.id) ?? actors[0]!;
+      const first = actors.find((a) => a.dataset.pet === pets.closest?.id && a.getBoundingClientRect().width > 0) ?? actors[0]!;
       const r = first.getBoundingClientRect();
       el.scrollLeft = Math.max(0, el.scrollLeft + r.left - box.left - (box.width - r.width) / 2);
     });

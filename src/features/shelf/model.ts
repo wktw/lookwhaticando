@@ -4,7 +4,7 @@
  * are unit-tested without a DOM.
  */
 import type { PlaceId, Species } from '@/catalog/types';
-import { getCollectible, HARVEST_BY_PLANT } from '@/catalog/collectibles';
+import { getCollectible } from '@/catalog/collectibles';
 import { PLACE_BY_ID } from '@/catalog/places';
 import type { ShelfDecor, ShelfPet, SillExtras, SillPot } from '@/art/scene';
 import { decorToScene } from '@/art/scene/decorPlace';
@@ -167,15 +167,17 @@ export interface TreatRow {
   harvest: boolean;
 }
 
-/** Harvest treats (the basket) and every other owned recipe (the pantry), by name. */
+/**
+ * Harvest-only treats (the basket: cat grass, catnip, lavender shortbread) and every other owned recipe
+ * (the pantry, strawberries included: a starter that her strawberry plant tops up), by name.
+ */
 export function pantryRows(collection: AppState['collection'], pantry: AppState['pantry']): { basket: TreatRow[]; pantry: TreatRow[] } {
-  const harvests = new Set(Object.values(HARVEST_BY_PLANT));
   const rows: TreatRow[] = [];
   for (const [id, owned] of Object.entries(collection)) {
     if (!owned || owned.count <= 0) continue;
     const def = getCollectible(id);
     if (def?.category !== 'treat') continue;
-    rows.push({ id, name: def.name, servings: pantry[id]?.servings ?? 0, harvest: def.source === 'harvest' || harvests.has(id) });
+    rows.push({ id, name: def.name, servings: pantry[id]?.servings ?? 0, harvest: def.source === 'harvest' });
   }
   rows.sort((a, b) => a.name.localeCompare(b.name));
   return { basket: rows.filter((r) => r.harvest), pantry: rows.filter((r) => !r.harvest) };
