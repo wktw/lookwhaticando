@@ -13,8 +13,12 @@ import { toast } from '@/ui/toast';
 import { AppIconArt } from './AppIconArt';
 import { currentInstallPlatform, installPrompt, promptInstall, safariMajor, type InstallPlatform } from './installPrompt';
 import { AddToHomeArt, AndroidMenuArt, ChromeInstallArt, CompactShareArt, DockArt, HomeScreenArt, MacDockArt, ShareStepArt, ViewMoreArt } from './installArt';
-import { INSTALL_COPY } from './copy';
+import { INSTALL } from '@/catalog/lines';
+import { INSTALL_COPY as SHELL_INSTALL_COPY } from './copy';
+import { SHELL_LINES } from '@/features/you/shellCopy';
 import s from './InstallGuide.module.css';
+
+const INSTALL_COPY = { ...SHELL_INSTALL_COPY, gateStay: SHELL_LINES.gateStay } as const;
 
 export interface InstallStep {
   title: string;
@@ -99,7 +103,9 @@ async function install() {
   if (await promptInstall()) toast({ message: INSTALL_COPY.installedToast, tone: 'sage' });
 }
 
-function Steps({ steps }: { steps: InstallStep[] }) {
+/** The numbered steps; `level` keeps the heading order (h2 under the gate's h1, h3 in a sheet). */
+function Steps({ steps, level = 3 }: { steps: InstallStep[]; level?: 2 | 3 }) {
+  const H = level === 2 ? 'h2' : 'h3';
   return (
     <ol class={s.steps}>
       {steps.map((step, i) => (
@@ -109,7 +115,7 @@ function Steps({ steps }: { steps: InstallStep[] }) {
               {i + 1}
             </span>
             <div>
-              <h3 class={s.stepTitle}>{step.title}</h3>
+              <H class={s.stepTitle}>{step.title}</H>
               <p class={s.stepBody}>{step.text}</p>
             </div>
           </div>
@@ -167,9 +173,11 @@ export function InstallSheet({ open, onClose, platform }: InstallSheetProps) {
 
 /**
  * The install-first gate: a full page before onboarding, with the reason in one line, the steps
- * for this browser, and "Just peek" for anyone who only wants to look around (the demo).
+ * for this browser, "Just peek" for anyone who only wants to look around (the demo), and "Paste
+ * my plants" for a CK1 backup she brought with her, and, quietest, "Keep it in this tab" (the
+ * You screen then says what a Safari tab can do to a save).
  */
-export function InstallGate({ onPeek, platform }: { onPeek: () => void; platform?: InstallPlatform | InstallGuideKey }) {
+export function InstallGate({ onPeek, onPaste, onStay, platform }: { onPeek: () => void; onPaste?: () => void; onStay?: () => void; platform?: InstallPlatform | InstallGuideKey }) {
   const p = platform ?? currentInstallPlatform();
   const key: InstallGuideKey = p === 'installed' ? 'other' : p === 'ios-safari-classic' ? p : guideFor(p, navigator.userAgent);
   const guide = GUIDES[key];
@@ -180,10 +188,20 @@ export function InstallGate({ onPeek, platform }: { onPeek: () => void; platform
         {guide.title}
       </h1>
       <p class={s.gateText}>{key === 'mac-safari' ? INSTALL_COPY.gateTextMac : INSTALL_COPY.gateText}</p>
-      <Steps steps={guide.steps} />
+      <Steps steps={guide.steps} level={2} />
       <Button variant="quiet" size="lg" block class={s.peek} onClick={onPeek}>
         {INSTALL_COPY.gatePeek}
       </Button>
+      {onPaste && (
+        <button type="button" class={s.stay} onClick={onPaste}>
+          {INSTALL.paste}
+        </button>
+      )}
+      {onStay && (
+        <button type="button" class={s.stay} onClick={onStay}>
+          {INSTALL_COPY.gateStay}
+        </button>
+      )}
     </section>
   );
 }

@@ -57,3 +57,108 @@
   pointer-events: auto;
   transform: none;
 }
+
+/* ---------- onboarding: full screen, no tabs ---------- */
+.onboarding {
+  display: block;
+  min-height: 100dvh;
+  outline: none;
+}
+
+/* ---------- the shell's calm notes (VOICE §18) and the demo pill ---------- */
+.banners {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 680px;
+  margin: 0 auto;
+  padding: calc(var(--safe-top) + 12px) var(--gutter) 0;
+}
+/* The screen below already cleared the top inset. */
+.banners + * {
+  --safe-top: 0px;
+}
+
+.banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px 12px;
+  padding: 10px 10px 10px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--butter-100);
+  color: var(--ink);
+}
+:global([data-theme='night']) .banner {
+  background: var(--card-2);
+}
+
+.bannerText {
+  flex: 1 1 220px;
+  margin: 0;
+  font-size: var(--fs-caption);
+  line-height: 1.4;
+}
+
+.bannerButton {
+  flex: none;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: var(--card);
+  box-shadow: inset 0 0 0 1px var(--control-border);
+  color: var(--ink);
+  font: 800 var(--fs-caption) / 1 var(--font-body);
+  cursor: pointer;
+}
+.bannerButton:active {
+  transform: translateY(1px);
+}
+.bannerButton:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.demo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  align-self: center;
+  width: 100%;
+  max-width: 420px;
+  padding: 4px 4px 4px 16px;
+  border-radius: var(--r-pill);
+  background: var(--lavender-100);
+  box-shadow: inset 0 0 0 1px var(--line);
+  color: var(--ink);
+}
+:global([data-theme='night']) .demo {
+  background: var(--card-2);
+}
+
+.demoLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 800;
+  font-size: var(--fs-caption);
+  color: var(--lavender-700);
+}
+:global([data-theme='night']) .demoLabel {
+  color: var(--ink);
+}
+
+/* A note she can put away (the clock): one quiet line on paper, with a close button. */
+.bannerQuiet {
+  flex-wrap: nowrap;
+  padding: 8px 2px 8px 14px;
+  background: var(--card);
+}
+.bannerQuiet .bannerText {
+  flex: 1 1 auto;
+  color: var(--ink-2);
+}
