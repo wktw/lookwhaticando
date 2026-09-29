@@ -13,7 +13,7 @@ import { ICON_FRAMES, iconFrame, SCENE_FRAME } from './iconFrames';
 import { WateringCanCharm } from './charm';
 import { Bee, petalMap, PETITE_BLOOM, repaint, type PlantLookArt } from './looks';
 import { flourishLayers } from './flourishes';
-import { muteTree } from '../muted';
+import { keepPaint, muteTree } from '../muted';
 import type { Composed, Growth } from './types';
 import './plant.css';
 
@@ -287,3 +287,6 @@ export function PotArt({ pot, size = 64, light, damp = false, muted = false, tit
     </svg>
   );
 }
+
+// It uses hooks and has its own `muted`: a repaint never expands it.
+keepPaint(PlantArt);

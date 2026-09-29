@@ -7,6 +7,7 @@ import { NIGHT_LIGHT } from '@/art/light';
 import { CollectibleArt } from '@/art/CollectibleArt';
 import { artBounds } from '@/art/plants/svgBounds.testutil';
 import { mutedInk, muteTree } from '@/art/muted';
+import { SHADE_WHITE_DAY } from '@/art/shade';
 
 function html(node: JSX.Element, read?: (host: HTMLElement) => void): string {
   const host = document.createElement('div');
@@ -69,5 +70,23 @@ describe('CollectibleArt', () => {
     const out = html(<svg>{muteTree(<g><Dot c="#E36A5E" /><path d="M0 0" fill="var(--shade)" /></g>)}</svg>);
     expect(out).not.toContain('#E36A5E');
     expect(out).toContain('var(--shade)');
+  });
+});
+
+describe('white subjects on a cream card', () => {
+  it('give a white coat and a snowman the firmer day crescent, and leave Lamplight alone', () => {
+    const day = { from: 'left', night: false } as const;
+    expect(html(<CollectibleArt id="pet-cat-oddeyed" size={48} light={day} />)).toContain(`--shade: ${SHADE_WHITE_DAY}`);
+    expect(html(<CollectibleArt id="pet-cat-grey" size={48} light={day} />)).not.toContain(SHADE_WHITE_DAY);
+    expect(html(<CollectibleArt id="pet-cat-oddeyed" size={48} light={NIGHT_LIGHT} />)).not.toContain(SHADE_WHITE_DAY);
+    expect(html(<CollectibleArt id="decor-snowman" size={48} light={day} />)).toContain(SHADE_WHITE_DAY);
+    expect(html(<CollectibleArt id="decor-snowman" size={48} light={NIGHT_LIGHT} />)).not.toContain(SHADE_WHITE_DAY);
+  });
+});
+
+describe('muting a light source', () => {
+  it('keeps a glowing item’s halo as it is (a hook-using light is never expanded)', () => {
+    const out = html(<CollectibleArt id="decor-jam-jar" size={48} muted light={NIGHT_LIGHT} />);
+    expect(out).toContain('radialGradient');
   });
 });

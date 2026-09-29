@@ -23,7 +23,8 @@ import { useId } from 'preact/hooks';
 import { DAY_LIGHT, NIGHT_LIGHT, type Light, type LightFrom } from '@/art/light';
 import { SHADE } from './shade.gen';
 import { heart } from './geo';
-import { CONTACT_LAMP, SHADE_LAMP } from '@/art/shade';
+import { CONTACT_LAMP, SHADE_LAMP, SHADE_WHITE_DAY } from '@/art/shade';
+import { keepPaint } from '@/art/muted';
 
 export interface DecorArtOptions {
   /** Lamplight: surfaces dim and warm, dark shapes get a rim light, light sources glow. Defaults to `light.night`. */
@@ -135,6 +136,14 @@ export interface Paint {
   shade: string;
   contact: string;
   rim: string;
+}
+
+/**
+ * The style for a white subject's group (a snowman): by day its `var(--shade)` crescents become the firmer lavender
+ * (`SHADE_WHITE_DAY`), so it keeps an edge on a cream card at 32–48 px. In Lamplight the plain lamp shade already reads.
+ */
+export function pale(p: Paint): JSX.CSSProperties | undefined {
+  return p.night ? undefined : ({ '--shade': SHADE_WHITE_DAY } as JSX.CSSProperties);
 }
 
 /** The light as the art sees it: mirrored art sees left and right swapped. */
@@ -314,6 +323,8 @@ export function Glow({ cx, cy, r, color = LAMP, strength = 0.55 }: { cx: number;
     </>
   );
 }
+// A light source keeps its colour when muted, and it uses a hook (its gradient id).
+keepPaint(Glow);
 
 /** A plump heart centred on 0,0 about 12 wide; place it with a transform. */
 export const HEART = heart(0, 0, 12);

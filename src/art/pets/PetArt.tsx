@@ -8,7 +8,9 @@ import { canonicalExpression, type Expression, type MarkId, type PetLook, type P
 import { getLook } from './looks';
 import { SPECIES_ART } from './species';
 import type { DrawCtx } from './species/art';
-import { mix, spriteTones, tonesFor, type PaletteMode } from './palette';
+import { luma, mix, spriteTones, tonesFor, type PaletteMode } from './palette';
+import { SHADE_WHITE_DAY } from '../shade';
+import { keepPaint } from '../muted';
 import { pathBox, poseBounds, type Box } from './bounds';
 import { crescentPath } from './crescents';
 import { BASELINE, frameTransform, SHADE_FOR, type Layer, type LitKey, type PoseRig, type TailRig } from './rig';
@@ -54,6 +56,9 @@ export interface PetArtProps {
   /** Override look (gallery and tests). */
   look?: PetLook;
 }
+
+/** A coat this light (relative luminance) is a white subject: it takes the firmer day crescent (`SHADE_WHITE_DAY`). */
+export const PALE_COAT = 0.86;
 
 /** Every pose PetArt draws: the rigs' true postures, and `carry` (derived from the stand). */
 export type ArtPose = Pose | 'carry';
@@ -263,6 +268,8 @@ export function PetArt(props: PetArtProps) {
   const lit = litSide(light, facing);
   const shade = SHADE_FOR[lit];
   const live = animated && !silhouette;
+  // A white coat on a cream card keeps its edge with a firmer lavender crescent by day (the M1 art audit).
+  const pale = !silhouette && !night && luma(tones.coat) > PALE_COAT;
 
   const r = hash01(petId);
   const timing = {
@@ -289,7 +296,7 @@ export function PetArt(props: PetArtProps) {
       viewBox="0 0 100 100"
       width={pxStr}
       height={pxStr}
-      style={{ ...timing, ...props.style }}
+      style={{ ...timing, ...(pale ? ({ '--shade': SHADE_WHITE_DAY } as JSX.CSSProperties) : null), ...props.style }}
       role={title ? 'img' : undefined}
       aria-label={title ? label : undefined}
       aria-hidden={title ? undefined : true}
@@ -489,3 +496,6 @@ export function PetArt(props: PetArtProps) {
     pose,
   );
 }
+
+// It uses hooks and has its own `muted` palette: a repaint never expands it.
+keepPaint(PetArt);
