@@ -4,8 +4,9 @@
  * A habit's schedule/target/step/tiny live in `rules[]`, each starting on its `from` date. Every
  * day and period is evaluated with the rule in effect then, so edits never rewrite history:
  * - an edit to a **day-based** habit applies from today;
- * - an edit to a **flexible** habit applies from the start of the current period ("this period")
- *   or from the next period, as the user chooses.
+ * - an edit to a **flexible** habit applies to the current period ("this period") or from the
+ *   next period, as the user chooses (see `RuleEditTiming` for what "this period" means when the
+ *   period geometry changes).
  * The first rule also governs any day before its `from` (lookups are clamped), which keeps
  * evaluation total even if `startedOn` was moved earlier than `rules[0].from`.
  */
@@ -19,6 +20,7 @@ import {
   periodSlotAt,
   rhythmOf,
   sameRuleContent,
+  samePeriodGeometry,
   validateRuleContent,
   type Rhythm,
   type RuleContent,
@@ -157,12 +159,19 @@ export function validateHabitRules(habit: WithRulesAndStart): RuleIssue[] {
 
 /**
  * When an edit applies (store contract `updateHabit(…, applyFrom)`):
- * - 'today': day-based habits change from today; flexible habits from the start of the current
- *   period ("this period": the period is re-evaluated under the new rule).
+ * - 'today': day-based habits change from today. For a flexible habit this is "this period"
+ *   (DESIGN §13.2): when the new rule cuts time into the same periods (same unit and `every`; only
+ *   `times` changes) it takes over the whole current period, which is re-evaluated under it. When
+ *   the geometry changes (weekly ↔ monthly, another `every`, or flexible → day-based) there is no
+ *   shared period to take over, so the new rule starts today: the old rule's period is cut short
+ *   at yesterday and closes under the old rule (periods.ts evaluates such a cut period as it stood
+ *   on the day of the cut), and the new rule's first period starts today, like a habit created
+ *   today. Either way no day before today changes hands, so no past day or closed period can
+ *   become a new shortfall ("edits never rewrite history").
  * - 'next-period': flexible habits change from the day after the current period ends. Day-based
  *   habits ignore it and change from today (DESIGN §13.2).
  * - 'tomorrow': any habit changes from tomorrow (accepting "Ready to grow?", §13.2 graduation).
- *   A flexible habit's current period then closes tonight with its goal scaled to the days it had.
+ *   A flexible habit's current period is then cut short tonight (see above).
  */
 export type RuleEditTiming = 'today' | 'next-period' | 'tomorrow';
 
@@ -170,9 +179,16 @@ export type RuleEditTiming = 'today' | 'next-period' | 'tomorrow';
  * The first day an edit made on `today` governs. It is never earlier than the current rule's own
  * start, so no day that already closed under an earlier rule can change, and never before
  * `startedOn`. An edit reaching back to the very first day replaces the whole history's rule
- * (from = rules[0].from, keeping rules[0].from === startedOn).
+ * (from = rules[0].from, keeping rules[0].from === startedOn). `next` is the new rule's schedule;
+ * without it a flexible "this period" edit is assumed to keep the period geometry.
  */
-export function editEffectiveFrom(habit: WithRulesAndStart, today: DateKey, timing: RuleEditTiming, weekStart: WeekStart): DateKey {
+export function editEffectiveFrom(
+  habit: WithRulesAndStart,
+  today: DateKey,
+  timing: RuleEditTiming,
+  weekStart: WeekStart,
+  next?: Pick<RuleContent, 'schedule'>,
+): DateKey {
   const first = habit.rules[0];
   if (!first) throw new Error('Habit has no rules');
   const current = ruleAt(habit, today);
@@ -183,7 +199,9 @@ export function editEffectiveFrom(habit: WithRulesAndStart, today: DateKey, timi
     from = today;
   } else {
     const slot = periodSlotAt(periodGrid(current, current.from, weekStart), today);
-    from = timing === 'next-period' ? addDays(slot.end, 1) : maxDateKey(slot.start, current.from);
+    if (timing === 'next-period') from = addDays(slot.end, 1);
+    else if (next && !samePeriodGeometry(current, next.schedule)) from = today;
+    else from = maxDateKey(slot.start, current.from);
   }
   from = maxDateKey(from, habit.startedOn);
   return from <= first.from ? first.from : from;
@@ -202,7 +220,7 @@ export function withRuleEdit<H extends WithRulesAndStart>(
   timing: RuleEditTiming,
   weekStart: WeekStart,
 ): H {
-  const from = editEffectiveFrom(habit, today, timing, weekStart);
+  const from = editEffectiveFrom(habit, today, timing, weekStart, content);
   const next: HabitRule = normalizeRuleContent({
     from,
     schedule: content.schedule,

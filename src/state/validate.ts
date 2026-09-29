@@ -89,6 +89,7 @@ function checkHabit(r: Report, h: unknown, path: string): void {
   r.check(oneOf(['morning', 'midday', 'evening', 'anytime'] as const)(o.timeOfDay), `${path}.timeOfDay`, 'unknown time of day');
   r.check(o.polarity === 'build' || o.polarity === 'avoid', `${path}.polarity`, 'unknown polarity');
   r.check(nonNeg(o.createdAt), `${path}.createdAt`, 'not a timestamp');
+  r.check(o.createdOn === undefined || isDateKey(o.createdOn), `${path}.createdOn`, 'not a date');
   r.check(isDateKey(o.startedOn), `${path}.startedOn`, 'not a date');
   r.check(o.archivedOn === undefined || (isDateKey(o.archivedOn) && o.archivedOn >= String(o.startedOn)), `${path}.archivedOn`, 'not a date on/after startedOn');
   r.check(isNum(o.order), `${path}.order`, 'not a number');

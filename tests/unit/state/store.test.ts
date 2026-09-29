@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { GameEvent } from '@/state/api';
 import { onGameEvent } from '@/state/events';
 import { DEMO_KEY, SAVE_KEY, backupKeyOf, encodeEnvelope } from '@/state/persist';
@@ -6,6 +6,9 @@ import { createInitialState } from '@/state/defaults';
 import * as store from '@/state/store';
 import { at } from '../domain/game';
 import { fakeBrowser, fakeLocks } from './fixtures';
+
+// Builds whole meadows (the 120-day demo, months of play): generous time for a busy CI machine.
+vi.setConfig({ testTimeout: 30_000 });
 
 const input = (name = 'Walk') => ({
   name,

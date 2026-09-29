@@ -6,18 +6,25 @@
  * Every action writes the log first, then — only for rewardable days (see economy.ts) — runs one
  * *reward pass*: settle the occurrence (pay / refund), then the bonuses its change can trigger.
  * History edits (`editHistory`, and any log change outside the rewarding window) never touch the
- * wallet, sunshine, once-keys or badges.
+ * wallet, sunshine, once-keys or badges. Every entry point refuses a `date` that is not a real
+ * 'YYYY-MM-DD' day (a malformed key would be a fresh ledger slot and fail validation on reload).
  *
  * Taps: a target-1 habit toggles (checkIn when not done, undoCheckIn when done); a count habit adds
  * `step` per tap and may go over target ("10 / 8", no extra coins); flexible habits are one check-in
- * per day. A check-in on a day logged as the tiny version upgrades it to the full version. Live check-ins (on today, clock trusted) record an `at` stamp (max 24 per day); they are
- * what Early bird / Wind-Down and the busiest-time insight read. Future days can't be logged.
+ * per day. A check-in on a day logged as the tiny version upgrades it to the full version. Live
+ * check-ins (on today, clock trusted) record an `at` stamp (max 24 per day); they are what Early
+ * bird / Wind-Down and the busiest-time insight read. Future days can't be logged. Taps are
+ * monotone for the ledger: a tap that adds never refunds, an un-check never pays.
+ *
+ * The tiny version (§13.2) is a *level* ("stored as level:'tiny'"): logging it never changes the
+ * count, so Undo restores the day exactly (a count habit's tiny tap used to add `tiny.count`, which
+ * Undo kept, and the day-end rule then re-recorded the day as tiny and paid it again).
  */
 import type { CheckInResult } from '@/state/api';
-import type { DateKey, DayLog, Habit } from '@/state/types';
-import { canLogOn, canSetRest, inLifetime, logStatus, offDaysRemaining, showedUp } from './activity';
+import type { AppState, DateKey, DayLog, Habit } from '@/state/types';
+import { BACKFILL_DAYS, canLogOn, canSetRest, inLifetime, isInBackfillWindow, logStatus, offDaysRemaining, showedUp } from './activity';
 import { evaluateBadges, type BadgeTrigger } from './badges';
-import { addDays } from './dates';
+import { addDays, isDateKey } from './dates';
 import {
   bestStreakOccurrences,
   countShowUpDay,
@@ -37,10 +44,11 @@ import {
 } from './economy';
 import { buddyBonus } from './friendship';
 import { BLOOMING } from './growth';
-import { ensureLetters, touchesLetters } from './letters';
+import { topUpLetters } from './letters';
 import { harvest } from './pantry';
 import { ruleAt } from './rules';
 import { effectiveTarget, isDayBased } from './schedule';
+import { flexPeriodAt } from './periods';
 import type { Tx } from './tx';
 import { rewardsPaused } from './wallet';
 
@@ -86,10 +94,10 @@ function withoutLastStamp(log: Log): Log {
   return out;
 }
 
-/** The habit and day accept a log: exists, not in the future, inside its lifetime. */
+/** The habit and day accept a log: a real day, exists, not in the future, inside its lifetime. */
 function loggable(tx: Tx, habitId: string, date: DateKey): Habit | null {
   const habit = findHabit(tx.s, habitId);
-  if (!habit || !canLogOn(date, tx.env.today) || !inLifetime(habit, date)) return null;
+  if (!habit || !isDateKey(date) || !canLogOn(date, tx.env.today) || !inLifetime(habit, date)) return null;
   return habit;
 }
 
@@ -114,6 +122,10 @@ export interface PassOptions {
   /** The habit's best streak before the change (rung measure). */
   bestBefore: number;
   trigger?: BadgeTrigger;
+  /** The state before the log changed: last week's letter and last month's bouquet take the change's delta. */
+  before?: AppState;
+  /** The log only grew ('up') or only shrank ('down'): the settlement may only move that way. */
+  direction?: 'up' | 'down';
 }
 
 const coinsIn = (tx: Tx, from: number): number =>
@@ -121,16 +133,18 @@ const coinsIn = (tx: Tx, from: number): number =>
 
 /**
  * Settles one rewardable (habit, date) after its log changed and pays what the change unlocked:
- * - up: per-action gifts (user only), period goal (in-target flexible), plant stages, harvest on a
- *   Blooming+ plant, perfect day, streak rungs;
+ * - up: per-action gifts (user only; buddy XP only for a first completion of the occurrence, so
+ *   un-checking and re-checking can't farm it), period goal (in-target flexible), plant stages,
+ *   harvest on a Blooming+ plant, perfect day, streak rungs;
  * - down: refund (economy.ts) and promotion of over-target flexible days.
- * Then letters for last week/month are topped up and badges evaluated.
+ * Then last week's letter / last month's bouquet take the change's delta (letters.ts) and badges
+ * are evaluated.
  */
 export function rewardPass(tx: Tx, habitId: string, date: DateKey, opts: PassOptions): RewardPass {
   const habit = findHabit(tx.s, habitId);
   if (!habit || !isRewardableDay(tx.s, habit, date, tx.env)) return { rewarded: false, settlement: null, coins: 0 };
   const mark = tx.events.length;
-  const st = settleOccurrence(tx, habitId, date);
+  const st = settleOccurrence(tx, habitId, date, opts.direction ? { only: opts.direction } : {});
   const up = levelRank(st.next) > levelRank(st.prev);
   const flexible = !isDayBased(ruleAt(habit, date));
   if (!up && flexible && (st.prev === 'tiny' || st.prev === 'full')) promoteOverDays(tx, habitId, date);
@@ -140,14 +154,14 @@ export function rewardPass(tx: Tx, habitId: string, date: DateKey, opts: PassOpt
     if (payWelcomeHome(tx)) trigger = { ...trigger, welcomeHome: true };
     payFirstSprout(tx);
     countShowUpDay(tx);
-    buddyBonus(tx);
+    if (st.fresh) buddyBonus(tx);
   }
   if (up && flexible && st.next !== 'over') payPeriodGoal(tx, habitId, date);
   const stage = updatePlantStage(tx, habitId);
   if (up && opts.user && st.next !== 'over' && stage >= BLOOMING && harvest(tx, habit)) trigger = { ...trigger, harvested: true };
   if (up && payPerfectDay(tx, date) && isPerfectWeek(tx.s, date)) trigger = { ...trigger, perfectWeek: true };
   payRungs(tx, habitId, opts.bestBefore);
-  if (touchesLetters(tx.s, date, tx.env.today)) ensureLetters(tx);
+  if (opts.before) topUpLetters(tx, opts.before, habitId, date);
   evaluateBadges(tx, trigger);
   const coins = coinsIn(tx, mark);
   return { rewarded: coins > 0, settlement: st, coins };
@@ -172,12 +186,13 @@ function applyCheckin(tx: Tx, habit: Habit, date: DateKey, next: Log, stamped: b
   const target = effectiveTarget(rule);
   const today = tx.env.today;
   const before = logStatus(tx.s.logs[habit.id]?.[date], rule, date < today);
-  const bestBefore = bestStreakOccurrences(tx.s, habit.id, today);
+  const bestBefore = bestStreakOccurrences(tx.s, habit.id, today, tx.env.local);
+  const prior = tx.s;
   writeLog(tx, habit.id, date, next);
   const after = logStatus(next, rule, date < today);
   const completed = !showedUp(before) && showedUp(after);
   tx.emit({ type: 'checkin', habitId: habit.id, date, completed, tiny: after === 'tiny', count: next.count, target });
-  const pass = rewardPass(tx, habit.id, date, { user: true, bestBefore, ...(stamped ? { trigger: { liveCheckinAt: tx.env.now } } : {}) });
+  const pass = rewardPass(tx, habit.id, date, { user: true, bestBefore, before: prior, direction: 'up', ...(stamped ? { trigger: { liveCheckinAt: tx.env.now } } : {}) });
   recordCheckinTime(tx);
   return { coins: pass.coins, completed, partial: !showedUp(after) && next.count > 0, rewarded: pass.rewarded };
 }
@@ -200,18 +215,19 @@ export function checkIn(tx: Tx, habitId: string, date: DateKey = tx.env.today): 
   return applyCheckin(tx, habit, date, next, stamped);
 }
 
-/** Logs the tiny version (counts as showing up; half coins, half sunshine). No-op once shown up. */
+/**
+ * Logs the tiny version (counts as showing up; half coins, half sunshine). Only for a rule that has
+ * one; no-op once shown up. Day-based: sets the level and leaves the count as it was (see module doc).
+ */
 export function checkInTiny(tx: Tx, habitId: string, date: DateKey = tx.env.today): Omit<CheckInResult, 'events'> {
   const habit = loggable(tx, habitId, date);
   if (!habit) return NOT_LOGGED;
   const rule = ruleAt(habit, date);
+  if (!rule.tiny) return NOT_LOGGED;
   const cur = asLog(tx.s.logs[habitId]?.[date]);
   if (showedUp(logStatus(cur, rule, date < tx.env.today))) return NOT_LOGGED;
   const flexible = !isDayBased(rule);
-  const count = flexible ? 1 : Math.max(cur.count, rule.tiny?.count ?? 0);
-  let next: Log = { ...cur, count };
-  if (flexible || count < effectiveTarget(rule)) next.level = 'tiny';
-  else delete next.level;
+  let next: Log = { ...cur, count: flexible ? 1 : cur.count, level: 'tiny' };
   const stamped = isLive(tx, date);
   if (stamped) next = withStamp(next, tx.env.now);
   return applyCheckin(tx, habit, date, next, stamped);
@@ -231,9 +247,10 @@ export function undoCheckIn(tx: Tx, habitId: string, date: DateKey = tx.env.toda
   else next.count = Math.max(0, next.count - Math.max(1, rule.step));
   if (next.count === log.count && next.level === log.level) return { refunded: 0 };
   if (date === tx.env.today) next = withoutLastStamp(next);
-  const bestBefore = bestStreakOccurrences(tx.s, habitId, tx.env.today);
+  const bestBefore = bestStreakOccurrences(tx.s, habitId, tx.env.today, tx.env.local);
+  const prior = tx.s;
   writeLog(tx, habitId, date, next);
-  const pass = rewardPass(tx, habitId, date, { user: true, bestBefore });
+  const pass = rewardPass(tx, habitId, date, { user: true, bestBefore, before: prior, direction: 'down' });
   const refunded = pass.settlement?.refunded ?? 0;
   tx.emit({ type: 'uncheck', habitId, date, refunded });
   return { refunded };
@@ -257,9 +274,10 @@ export function setCount(tx: Tx, habitId: string, date: DateKey, count: number):
     applyCheckin(tx, habit, date, next, stamped);
     return;
   }
-  const bestBefore = bestStreakOccurrences(tx.s, habitId, tx.env.today);
+  const bestBefore = bestStreakOccurrences(tx.s, habitId, tx.env.today, tx.env.local);
+  const prior = tx.s;
   writeLog(tx, habitId, date, next);
-  rewardPass(tx, habitId, date, { user: true, bestBefore });
+  rewardPass(tx, habitId, date, { user: true, bestBefore, before: prior, direction: 'down' });
 }
 
 /**
@@ -269,11 +287,12 @@ export function setCount(tx: Tx, habitId: string, date: DateKey, count: number):
  */
 export function toggleRest(tx: Tx, habitId: string, date: DateKey): boolean {
   const habit = findHabit(tx.s, habitId);
-  if (!habit || !canSetRest(date, tx.env.today) || date < habit.startedOn) return false;
+  if (!habit || !isDateKey(date) || !canSetRest(date, tx.env.today) || date < habit.startedOn) return false;
   if (habit.archivedOn !== undefined && date > habit.archivedOn) return false;
   if (!isDayBased(ruleAt(habit, date))) return false;
   const cur = tx.s.logs[habitId]?.[date];
-  const bestBefore = bestStreakOccurrences(tx.s, habitId, tx.env.today);
+  const bestBefore = bestStreakOccurrences(tx.s, habitId, tx.env.today, tx.env.local);
+  const prior = tx.s;
   const resting = cur?.kind !== 'rest';
   const next: DayLog | undefined = resting
     ? { kind: 'rest', ...(cur?.note ? { note: cur.note } : {}) }
@@ -282,7 +301,7 @@ export function toggleRest(tx: Tx, habitId: string, date: DateKey): boolean {
       : undefined;
   writeLog(tx, habitId, date, next);
   const trigger: BadgeTrigger = resting ? { rested: true } : {};
-  const pass = date <= tx.env.today ? rewardPass(tx, habitId, date, { user: true, bestBefore, trigger }) : null;
+  const pass = date <= tx.env.today ? rewardPass(tx, habitId, date, { user: true, bestBefore, trigger, before: prior }) : null;
   if (!pass?.settlement) evaluateBadges(tx, trigger); // the pass didn't run (a future or non-rewardable day)
   if (pass?.settlement && payPerfectDay(tx, date) && isPerfectWeek(tx.s, date)) evaluateBadges(tx, { perfectWeek: true });
   return true;
@@ -290,17 +309,18 @@ export function toggleRest(tx: Tx, habitId: string, date: DateKey): boolean {
 
 /**
  * "Take today off" (global, max 4 per calendar month): today or a day up to 14 ahead. Removing an
- * off day is always allowed. Returns the off days left in that month.
+ * off day is always allowed. Returns the off days left in that month. A day off is transparent for
+ * every habit, so it is never a perfect day either (economy.ts): toggling it pays nothing.
  */
 export function toggleOffDay(tx: Tx, date: DateKey): { ok: boolean; remaining: number } {
   const today = tx.env.today;
+  if (!isDateKey(date)) return { ok: false, remaining: 0 };
   if (date < today || date > addDays(today, 14)) return { ok: false, remaining: offDaysRemaining(tx.s.offDays, date) };
   const off = tx.section('offDays');
   if (off[date]) delete off[date];
   else {
     if (offDaysRemaining(tx.s.offDays, date) <= 0) return { ok: false, remaining: 0 };
     off[date] = true;
-    if (date === today && payPerfectDay(tx, date) && isPerfectWeek(tx.s, date)) evaluateBadges(tx, { perfectWeek: true });
   }
   return { ok: true, remaining: offDaysRemaining(tx.s.offDays, date) };
 }
@@ -319,16 +339,28 @@ export function setNote(tx: Tx, habitId: string, date: DateKey, note: string): v
 
 /**
  * Calendar history edit: marks a day done / not done without any reward effect in either
- * direction (§13.2). Days before `startedOn` need `setStartedOn` first.
+ * direction (§13.2 "The Progress calendar edits older days as history only"). Days before
+ * `startedOn` need `setStartedOn` first. Refused (returns false, nothing changes):
+ * - days inside the 6-day window: they go through the check-in path (checkIn / undoCheckIn /
+ *   setCount), which pays and refunds; a history edit there would hide a paid check-in and free
+ *   its flexible slot for another full grant;
+ * - un-ticking a flexible check-in whose period still reaches into the window: the week strip can
+ *   still pay that period, so removing an older check-in would free a slot it already paid for
+ *   (and once compacted, that grant is no longer visible to stop a second one).
  */
-export function editHistory(tx: Tx, habitId: string, date: DateKey, done: boolean): void {
+export function editHistory(tx: Tx, habitId: string, date: DateKey, done: boolean): boolean {
   const habit = loggable(tx, habitId, date);
-  if (!habit) return;
+  if (!habit || isInBackfillWindow(date, tx.env.today)) return false;
   const rule = ruleAt(habit, date);
+  if (!done && !isDayBased(rule)) {
+    const p = flexPeriodAt(habit, date, tx.s.settings.weekStart);
+    if (p && p.to >= addDays(tx.env.today, -BACKFILL_DAYS)) return false;
+  }
   const cur = asLog(tx.s.logs[habitId]?.[date]);
   const next: Log = { ...cur, count: done ? Math.max(cur.count, effectiveTarget(rule)) : 0 };
   delete next.level;
   writeLog(tx, habitId, date, next);
+  return true;
 }
 
 /* ------------------------------------------------------------------ */

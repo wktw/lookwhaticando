@@ -77,7 +77,8 @@ export interface CheckInResult extends ActionResult {
   rewarded: boolean;
 }
 
-export type PullError = 'not-enough-coins' | 'not-enough-stars' | 'machine-unavailable' | 'no-ticket' | 'reveal-pending';
+/** 'storage-full' (stage 3, additive): the pull couldn't be saved, so it was rolled back rather than shown (§13.6). */
+export type PullError = 'not-enough-coins' | 'not-enough-stars' | 'machine-unavailable' | 'no-ticket' | 'reveal-pending' | 'storage-full';
 
 export interface PullResult extends ActionResult {
   ok: true;

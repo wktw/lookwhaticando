@@ -1,18 +1,27 @@
 /**
  * Habit management and onboarding (DESIGN §5.1, §13.2, §13.5 effort, §13.10 onboarding).
  *
- * - Create: validated input; `createdAt` = now (immutable; no rewards before its app day), and
- *   `startedOn` = the first rule's `from` = today. Plant species and pots must be owned (non-free
- *   ones come from capsules). At most 3 active *big* habits ("Big is for the heavy lifts").
+ * - Create: validated input; `createdAt` = now and `createdOn` = today's app day (both immutable;
+ *   no rewards before that day, however the day boundary moves later), and `startedOn` = the first
+ *   rule's `from` = today. Plant species and pots must be owned (non-free ones come from capsules).
+ *   At most 3 active *big* habits ("Big is for the heavy lifts"), restores included.
  * - Edit: cosmetic fields (name, icon, colour, plant, pot, unit, effort, time of day, anchor,
  *   polarity, due day, notes) apply at once; rule fields (schedule, target, step, tiny) append a
  *   versioned rule (rules.ts), so history never changes. Effort edits affect future pay only (and a
- *   re-check never pays more than the original, economy.ts).
- * - Archive keeps history; restore adds a pause over the archived stretch. Delete removes the habit
- *   and its logs and *un-checks* its rewardable days (refunds where affordable, like un-checking),
- *   so delete-and-recreate can never double-pay; bonuses are never clawed back.
- * - Pauses start today or later; resume ends the covering pause yesterday; overlaps merge.
- * - "Start tracking from…" moves `startedOn` earlier (stats only; no rewards before `createdAt`).
+ *   re-check never pays more than the original, economy.ts). After a rule edit every rewardable
+ *   day in the window is re-settled under the rule now governing it (economy.resettleHabit).
+ *   Stage-3 decisions: a day-based edit made after today's occurrence was already rewarded applies
+ *   from tomorrow (today's check-in is history; a raised target can't turn the next +1 into a
+ *   refund, nor a lowered one turn an un-check into a payment), and a "this period" edit that
+ *   lowers the current period's goal forfeits that period's goal bonus (economy.forfeitLoweredGoal).
+ * - Archive keeps history; restore adds a pause over the archived stretch (as a steady habit when 3
+ *   big habits are already active). Delete removes the habit and its logs and *un-checks* its
+ *   rewardable days (refunds where affordable, like un-checking); the sunshine it grew before stays
+ *   in the meadow's lifetime total (Mochi's sprout never shrinks, §13.10). "Keep the plant in the
+ *   greenhouse?" (§13.10, default yes in the UI) keeps the habit archived instead.
+ * - Pauses start today or later; resume ends the covering pause yesterday (today too, when today's
+ *   perfect day was already paid with this habit excused); overlaps merge.
+ * - "Start tracking from…" moves `startedOn` earlier (stats only; no rewards before `createdOn`).
  */
 import { HABIT_ICON_IDS } from '@/catalog/habitIcons';
 import { TEMPLATES } from '@/catalog/templates';
@@ -22,13 +31,15 @@ import { MOCHI_ID } from '@/catalog/collectibles';
 import type { HabitInput } from '@/state/api';
 import type { AppState, DateKey, Effort, Habit, HabitRule, TimeOfDay } from '@/state/types';
 import { graduationOffer, trackingOf, logsFor, evalContext } from './consistency';
+import { logStatus, showedUp } from './activity';
 import { owns, ownedTreats } from './collection';
-import { clampDayStartsAt, isDateKey } from './dates';
+import { addDays, clampDayStartsAt, isDateKey } from './dates';
 import { mochiPetState } from './friendship';
-import { addPause, archivedStretchPause, resumePauses } from './pauses';
+import { addPause, archivedStretchPause, isPausedOn, resumePauses } from './pauses';
 import { ensureRecipe } from './pantry';
 import { ruleAt, withRuleEdit, withStartedOn, type RuleEditTiming } from './rules';
-import { normalizeRuleContent, validateRuleContent, type RuleContent } from './schedule';
+import { isBiggerRule, isDayBased, normalizeRuleContent, sameRuleContent, validateRuleContent, type RuleContent } from './schedule';
+import { GROW_COOLDOWN_DAYS, forfeitLoweredGoal, ledgerKey, resettleHabit } from './economy';
 import type { Tx } from './tx';
 import { addToCollection, grantStars, hasOnce, refundCoins, setOnce } from './wallet';
 
@@ -127,7 +138,8 @@ function newHabitId(tx: Tx): string {
   const taken = new Set(tx.s.habits.map((h) => h.id));
   for (;;) {
     const id = `h-${Math.floor(tx.env.rng() * 36 ** 8).toString(36).padStart(8, '0')}`;
-    if (!taken.has(id) && !tx.s.logs[id]) return id;
+    // A deleted habit's sunshine stays in the ledger (Mochi's lifetime gauge): never reuse its id.
+    if (!taken.has(id) && !tx.s.logs[id] && tx.s.ledger.sunshine[id] === undefined) return id;
   }
 }
 
@@ -139,7 +151,7 @@ export function createHabit(tx: Tx, input: HabitInput): string {
   const today = tx.env.today;
   const rule: HabitRule = { from: today, ...ruleContentOf(input) };
   const order = tx.s.habits.reduce((m, h) => Math.max(m, h.order), -1) + 1;
-  const habit: Habit = { id, ...cosmetic(input), rules: [rule], createdAt: tx.env.now, startedOn: today, pauses: [], order };
+  const habit: Habit = { id, ...cosmetic(input), rules: [rule], createdAt: tx.env.now, createdOn: today, startedOn: today, pauses: [], order };
   const habits = tx.section('habits');
   habits.push(habit);
   return id;
@@ -172,8 +184,8 @@ const RULE_KEYS = ['schedule', 'target', 'step', 'tiny'] as const;
 
 /**
  * Applies a patch: cosmetic fields at once, rule fields as a new rule from `timing`
- * ('today' = this period for flexible habits, 'next-period', or 'tomorrow'). Throws
- * HabitInputError on invalid input.
+ * ('today' = this period for flexible habits, 'next-period', or 'tomorrow'), then re-settles the
+ * window (see module doc). Throws HabitInputError on invalid input.
  */
 export function updateHabit(tx: Tx, id: string, patch: Partial<HabitInput>, timing: RuleEditTiming = 'today'): void {
   const current = tx.s.habits.find((h) => h.id === id);
@@ -188,12 +200,25 @@ export function updateHabit(tx: Tx, id: string, patch: Partial<HabitInput>, timi
   if (issues.length > 0) throw new HabitInputError(issues);
   let next: Habit = { ...current, ...cosmetic(merged) };
   for (const k of ['unit', 'anchor', 'dueDay', 'notes'] as const) if (merged[k] === undefined) delete next[k];
-  if (RULE_KEYS.some((k) => Object.prototype.hasOwnProperty.call(patch, k))) {
-    next = withRuleEdit(next, ruleContentOf(merged), today, timing, tx.s.settings.weekStart);
+  const ruleEdit = RULE_KEYS.some((k) => Object.prototype.hasOwnProperty.call(patch, k));
+  if (ruleEdit) {
+    const content = ruleContentOf(merged);
+    const pinned = timing !== 'tomorrow' && isDayBased(ruleAt(current, today)) && !sameRuleContent(ruleAt(current, today), content) && todayRewarded(tx, id);
+    next = withRuleEdit(next, content, today, pinned ? 'tomorrow' : timing, tx.s.settings.weekStart);
   }
   const h = tx.habit(id);
   Object.assign(h, next);
   for (const k of ['unit', 'anchor', 'dueDay', 'notes'] as const) if (next[k] === undefined) delete h[k];
+  if (ruleEdit && next.rules !== current.rules) {
+    forfeitLoweredGoal(tx, current, next);
+    resettleHabit(tx, id);
+  }
+}
+
+/** Today's occurrence already holds a grant (it was rewarded, possibly with blocked refunds). */
+function todayRewarded(tx: Tx, id: string): boolean {
+  const e = tx.s.ledger.recent[ledgerKey(id, tx.env.today)];
+  return e !== undefined && (e.lvl !== undefined || e.coins > 0);
 }
 
 export function archiveHabit(tx: Tx, id: string): void {
@@ -202,7 +227,11 @@ export function archiveHabit(tx: Tx, id: string): void {
   tx.habit(id).archivedOn = tx.env.today < h.startedOn ? h.startedOn : tx.env.today;
 }
 
-/** Restores an archived habit; the archived stretch becomes a pause (§13.2). */
+/**
+ * Restores an archived habit; the archived stretch becomes a pause (§13.2). A big habit comes back
+ * as steady when 3 big habits are already active (§13.5 "at most 3 big habits active"; archiving,
+ * creating new big habits and restoring the old ones can't exceed it).
+ */
 export function restoreHabit(tx: Tx, id: string): void {
   const h = tx.s.habits.find((x) => x.id === id);
   if (!h || h.archivedOn === undefined) return;
@@ -210,16 +239,32 @@ export function restoreHabit(tx: Tx, id: string): void {
   const stretch = archivedStretchPause(h.archivedOn, tx.env.today);
   if (stretch) w.pauses = addPause(h.pauses, stretch.start, stretch.end);
   delete w.archivedOn;
+  if (h.effort === 'big' && bigHabitCount(tx.s, id) >= MAX_BIG_HABITS) w.effort = 'steady';
+}
+
+export interface DeleteOptions {
+  /**
+   * "Keep the plant in the greenhouse?" (§13.10; the UI defaults to yes): the habit is archived
+   * instead, so its plant stays on the Greenhouse shelf with its history.
+   */
+  keepPlant?: boolean;
 }
 
 /**
  * Deletes a habit with its logs. Its rewardable grants are un-checked first: coins refunded where
- * the balance allows (all or nothing per day), sunshine and check-in counts removed. Bonuses stay.
+ * the balance allows (all or nothing per day), their sunshine and check-in counts removed. The
+ * sunshine it grew before the window stays in `ledger.sunshine` (Mochi's sprout is a lifetime gauge
+ * of the whole meadow, §13.10; growth is monotonic, §3.1). Bonuses stay.
  */
-export function deleteHabit(tx: Tx, id: string): void {
+export function deleteHabit(tx: Tx, id: string, opts: DeleteOptions = {}): void {
   if (!tx.s.habits.some((h) => h.id === id)) return;
+  if (opts.keepPlant) {
+    archiveHabit(tx, id);
+    return;
+  }
   const prefix = `${id}|`;
   const keys = Object.keys(tx.s.ledger.recent).filter((k) => k.startsWith(prefix));
+  let refundedSunshine = 0;
   if (keys.length > 0) {
     for (const k of keys) {
       const e = tx.s.ledger.recent[k]!;
@@ -228,6 +273,7 @@ export function deleteHabit(tx: Tx, id: string): void {
         const today = tx.env.today;
         daily[today] = Math.max(0, (daily[today] ?? 0) - e.coins);
       }
+      refundedSunshine += e.sunshine;
       if (e.lvl) {
         const life = tx.section('lifetime');
         life.checkins = Math.max(0, life.checkins - 1);
@@ -242,9 +288,14 @@ export function deleteHabit(tx: Tx, id: string): void {
     1,
   );
   if (tx.s.logs[id]) delete tx.section('logs')[id];
-  if (tx.s.ledger.sunshine[id] !== undefined) delete tx.ledger('sunshine')[id];
+  const sun = tx.s.ledger.sunshine[id];
+  if (sun !== undefined && refundedSunshine > 0) {
+    const left = Math.round(Math.max(0, sun - refundedSunshine) * 1e6) / 1e6;
+    if (left > 0) tx.ledger('sunshine')[id] = left;
+    else delete tx.ledger('sunshine')[id];
+  }
   if (tx.s.ledger.bestStage[id] !== undefined) delete tx.ledger('bestStage')[id];
-  const staleOnce = Object.keys(tx.s.ledger.once).filter((k) => k.split('|')[1] === id && /^(period|rung|harvest|grow)\|/.test(k));
+  const staleOnce = Object.keys(tx.s.ledger.once).filter((k) => k.split('|')[1] === id && /^(period|rung|harvest|grow|rest|flourish)\|/.test(k));
   if (staleOnce.length > 0) {
     const once = tx.ledger('once');
     for (const k of staleOnce) delete once[k];
@@ -274,10 +325,20 @@ export function pauseHabit(tx: Tx, id: string, start: DateKey, end?: DateKey): b
   return true;
 }
 
+/**
+ * Resume: the covering pause ends yesterday (§13.2). Stage-3 decision: when today's perfect day was
+ * already paid while this habit was paused and not done, today stays paused (the pause ends today)
+ * and the habit is back tomorrow, so the bonus never outlives the pause it relied on (bonuses are
+ * never clawed back, so pausing the undone habits, collecting and resuming can't mint one).
+ */
 export function resumeHabit(tx: Tx, id: string): void {
   const h = tx.s.habits.find((x) => x.id === id);
   if (!h) return;
-  tx.habit(id).pauses = resumePauses(h.pauses, tx.env.today);
+  const today = tx.env.today;
+  const log = tx.s.logs[id]?.[today];
+  const doneToday = log?.kind === 'log' && showedUp(logStatus(log, ruleAt(h, today), false));
+  const keepToday = hasOnce(tx.s, `perfect|${today}`) && isPausedOn(h.pauses, today) && !doneToday;
+  tx.habit(id).pauses = resumePauses(h.pauses, keepToday ? addDays(today, 1) : today);
 }
 
 /** "Start tracking Walk from Mon, Sep 22?": earlier `startedOn` (stats only). */
@@ -288,10 +349,7 @@ export function setStartedOn(tx: Tx, id: string, date: DateKey): boolean {
   return true;
 }
 
-/**
- * Accepting "Ready to grow?" (§13.2): applies the bigger rule from tomorrow and pays +1★, only while
- * the offer stands (so at most once per 28 days per habit).
- */
+/** Accepting "Ready to grow?" pays +1★ (§13.2 graduation). */
 export const GROW_STARS = 1;
 
 /** A rule edit already scheduled to start after today (e.g. an accepted offer, or a next-period edit). */
@@ -299,22 +357,47 @@ export function hasPendingRule(habit: Pick<Habit, 'rules'>, today: DateKey): boo
   return habit.rules.some((r) => r.from > today);
 }
 
-/** The graduation offer to show today: none while an edit is already pending (§13.2). */
+/** The day "Ready to grow?" was last accepted for this habit within the cooldown, if any. */
+function recentGrowAccept(s: AppState, habitId: string, today: DateKey): DateKey | null {
+  const prefix = `grow|${habitId}|`;
+  const since = addDays(today, -(GROW_COOLDOWN_DAYS - 1));
+  let last: DateKey | null = null;
+  for (const k of Object.keys(s.ledger.once)) {
+    if (!k.startsWith(prefix)) continue;
+    const d = k.slice(prefix.length);
+    if (d >= since && (last === null || d > last)) last = d;
+  }
+  return last;
+}
+
+/**
+ * The graduation offer to show today: none while an edit is already pending, and no "Ready to
+ * grow?" for 28 days after one was accepted, even if the new rule was then withdrawn (§13.2; one
+ * star per real graduation).
+ */
 export function currentOffer(s: AppState, habit: Habit, today: DateKey): 'grow' | 'tinier' | null {
   if (hasPendingRule(habit, today)) return null;
   const t = trackingOf(s);
-  return graduationOffer(habit, logsFor(t, habit.id), evalContext(t, today));
+  const offer = graduationOffer(habit, logsFor(t, habit.id), evalContext(t, today));
+  return offer === 'grow' && recentGrowAccept(s, habit.id, today) !== null ? null : offer;
 }
 
+/**
+ * Accepting "Ready to grow?" (§13.2): applies a *bigger* rule (more occurrences a week or a bigger
+ * target, nothing smaller) from tomorrow and pays +1★, only while the offer stands. False, with
+ * nothing changed, when no offer stands or the patch is not a bigger rule (use `updateHabit` for
+ * other edits). The accept day is recorded (`grow|<id>|<day>`), which keeps the offer closed for 28
+ * days whatever happens to the pending rule.
+ */
 export function acceptGrowOffer(tx: Tx, id: string, patch: Partial<HabitInput>): boolean {
   const h = tx.s.habits.find((x) => x.id === id);
-  if (!h || currentOffer(tx.s, h, tx.env.today) !== 'grow') return false;
+  const today = tx.env.today;
+  if (!h || currentOffer(tx.s, h, today) !== 'grow') return false;
+  const merged: HabitInput = { ...habitInputOf(h, today), ...patch };
+  if (!isBiggerRule(ruleAt(h, today), ruleContentOf(merged))) return false;
   updateHabit(tx, id, patch, 'tomorrow');
-  const key = `grow|${id}|${tx.env.today}`;
-  if (!hasOnce(tx.s, key)) {
-    setOnce(tx, key);
-    grantStars(tx, GROW_STARS, 'gift');
-  }
+  setOnce(tx, `grow|${id}|${today}`);
+  grantStars(tx, GROW_STARS, 'gift');
   return true;
 }
 

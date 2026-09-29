@@ -2,7 +2,10 @@
  * Progress-screen insights and records (DESIGN §9.2 "Records" / "Insights", §13.3 aggregate lines).
  * All results are structured data; none of them is ever phrased negatively by the domain.
  *
- * - "You showed up N of the last 30 days": days with ≥ 1 check-in (done or tiny) on any habit.
+ * - "You showed up N of the last 30 days": days with ≥ 1 check-in (done or tiny) on any habit, over
+ *   the 30 days ending today once today has a check-in, otherwise ending yesterday (a pending today
+ *   never costs a day of the span; upstream §13.11 "Rolling windows end today if today already
+ *   counts, else yesterday").
  * - "Weekly & monthly goals: 3 of 5 on track": current flexible periods that are met or at pace.
  * - Strongest weekday, most consistent habit, busiest time of day (from live `at` stamps only).
  * - Records: total check-ins, best streak ever (+ habit), best closed month. (Perfect days are an
@@ -68,21 +71,25 @@ export interface ShowUpSummary {
   span: number;
 }
 
-/** "You showed up N of the last 30 days" (DESIGN §13.3). */
+/** "You showed up N of the last 30 days" (DESIGN §13.3; see module doc for the window). */
 export function showedUpDays(t: Tracking, today: DateKey, days = 30): ShowUpSummary {
   const first = firstTrackedDay(t);
   if (first === null || first > today) return { days: 0, span: 0 };
-  const start = maxDateKey(addDays(today, -(days - 1)), first);
+  const shownOn = (d: DateKey): boolean =>
+    t.habits.some((h) => inLifetime(h, d) && showedUp(logStatus(logsFor(t, h.id)[d], ruleAt(h, d), d < today)));
+  const last = shownOn(today) ? today : addDays(today, -1);
+  const start = maxDateKey(addDays(last, -(days - 1)), first);
+  if (start > last) return { days: 0, span: 0 };
   const seen = new Set<DateKey>();
   for (const h of t.habits) {
     const logs = logsFor(t, h.id);
-    const end = lifetimeEnd(h, today);
+    const end = lifetimeEnd(h, last);
     if (end === null) continue;
     for (const d of eachDay(maxDateKey(start, h.startedOn), end)) {
       if (!seen.has(d) && showedUp(logStatus(logs[d], ruleAt(h, d), d < today))) seen.add(d);
     }
   }
-  return { days: seen.size, span: daysInRange(start, today) };
+  return { days: seen.size, span: daysInRange(start, last) };
 }
 
 /* ------------------------------------------------------------------ */

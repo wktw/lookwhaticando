@@ -182,7 +182,7 @@ export function progressVM(s: AppState, env: ViewEnv): ProgressVM {
   const garden: GardenPlantVM[] = [
     ...byOrder.filter((h) => h.archivedOn === undefined),
     ...byOrder.filter((h) => h.archivedOn !== undefined),
-  ].map((h) => ({ habitId: h.id, habitName: h.name, icon: h.icon, greenhouse: h.archivedOn !== undefined, plant: plantVM(s, h, today) }));
+  ].map((h) => ({ habitId: h.id, habitName: h.name, icon: h.icon, greenhouse: h.archivedOn !== undefined, plant: plantVM(s, h, today, env.local) }));
 
   const totalSunshine = Object.values(s.ledger.sunshine).reduce((a, b) => a + b, 0);
   // Mochi's bloom colour: the most-checked habit (ties → listed first), from the memoised bundles.

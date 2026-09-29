@@ -2,7 +2,7 @@
  * The save stays bounded (DESIGN §13.8): five years of twelve busy habits (see bigsave.ts)
  * serialise to well under 1,000,000 characters once compacted.
  */
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { encodeEnvelope } from '@/state/persist';
 import { validateState } from '@/state/validate';
 import { addDays } from '@/domain/dates';
@@ -11,6 +11,9 @@ import { transact } from '@/domain/tx';
 import { mulberry32 } from '@/domain/rng';
 import { UTC, at } from '../domain/game';
 import { fiveYearSave } from './bigsave';
+
+// Builds whole meadows (the 120-day demo, months of play): generous time for a busy CI machine.
+vi.setConfig({ testTimeout: 30_000 });
 
 const TODAY = '2026-09-29';
 

@@ -151,6 +151,7 @@ describe('progress, next stage and blooms', () => {
       blooms: 0,
       flourishes: 0,
       heldBack: false,
+      paced: false,
     });
     const monthlyFirst = growthInfo({ sunshine: sunshinePerOccurrence({ schedule: monthly(1) }), completedOccurrences: 1 });
     expect(monthlyFirst).toMatchObject({ stage: 1, name: 'Sprout', heldBack: true, sunshineToNext: 0, progress: 1 });

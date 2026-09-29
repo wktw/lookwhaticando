@@ -5,14 +5,17 @@
  * A pull, in order:
  * 1. Availability & payment: seasonal machines only inside their window; coins or stars at the
  *    machine price, or a ticket (any available machine, Dreamy included), or `free` (only the very
- *    first pull ever, on Kitty Capsule or Moo Moo Milk Bar). A pending reveal blocks new pulls.
+ *    first pull ever, on Kitty Capsule or Moo Moo Milk Bar, and only while First Sprout has not
+ *    been paid: §13.10 onboarding earns the first capsule, which supersedes §9.6's free pull, so
+ *    the two can never add up to two first capsules). A pending reveal blocks new pulls.
  * 2. The first pull ever on Kitty / Moo is a guaranteed Classic or Special **pet** from that series
  *    (tier rolled 60:25, then new-first).
  * 3. Otherwise the tier is rolled from the machine odds, except:
  *    - ultra pity: the 40th pull without an ultra is an ultra;
  *    - rare pity: the 10th pull without a rare-or-better is a **rare** (rare tier only; ultra pity
  *      stays independent and wins when both are due);
- *    - a pity whose tier is fully owned is off (its counter is hidden: `null`);
+ *    - a pity whose tier is fully owned is off (its counter is hidden: `null`) and stays at 0: it
+ *      counts only pulls made while its tier still had something unowned;
  *    - lucky meter: after 4 consecutive duplicates the next pull is guaranteed new (tiers without
  *      anything unowned are left out of the roll) when anything is unowned.
  *    An empty tier falls to the nearest non-empty tier below, then above.
@@ -259,7 +262,7 @@ function acquire(tx: Tx, def: CollectibleDef, viaPull: boolean): Acquired {
 
 export interface PullOptions {
   useTicket?: boolean;
-  /** The onboarding capsule: only for the very first pull ever, on Kitty or Moo. */
+  /** Legacy onboarding capsule: only for the very first pull ever, on Kitty or Moo, before First Sprout. */
   free?: boolean;
 }
 
@@ -271,7 +274,9 @@ export function pull(tx: Tx, machineId: MachineId, opts: PullOptions = {}): Pull
 
   let paidWith: PullResult['paidWith'];
   if (opts.free) {
-    if (s.lifetime.pulls > 0 || !FIRST_CAPSULE_MACHINES.includes(machineId)) return { ok: false, error: 'machine-unavailable' };
+    if (s.lifetime.pulls > 0 || !FIRST_CAPSULE_MACHINES.includes(machineId) || s.ledger.once['gift|first-sprout'] !== undefined) {
+      return { ok: false, error: 'machine-unavailable' };
+    }
     paidWith = 'free';
   } else if (opts.useTicket) {
     if (!spendTicket(tx)) return { ok: false, error: 'no-ticket' };
@@ -286,14 +291,19 @@ export function pull(tx: Tx, machineId: MachineId, opts: PullOptions = {}): Pull
 
   const decision = decidePull(tx.s, machineId, tx.env.rng);
   const def = getCollectible(decision.item.id)!;
+  // Pity only counts pulls while its tier still has something to give (§13.6 "a counter is hidden
+  // once its tier is fully owned"): otherwise it would bank pulls and fire the moment a new item
+  // joins the tier (a Moonlit variant), turning an 8★ wish into a guaranteed pull.
+  const poolBefore = machinePool(machineId, tx.s.collection);
+  const armed = (r: Rarity) => tierOf(poolBefore, r).length > 0 && !tierFullyOwned(poolBefore, r, tx.s.collection);
   const got = acquire(tx, def, true);
 
   const prev = pityOf(tx.s, machineId);
   const rareOrBetter = def.rarity === 'rare' || def.rarity === 'ultra';
   const pity: PityCounter = {
     pulls: prev.pulls + 1,
-    sinceRare: rareOrBetter ? 0 : prev.sinceRare + 1,
-    sinceUltra: def.rarity === 'ultra' ? 0 : prev.sinceUltra + 1,
+    sinceRare: rareOrBetter || !armed('rare') ? 0 : prev.sinceRare + 1,
+    sinceUltra: def.rarity === 'ultra' || !armed('ultra') ? 0 : prev.sinceUltra + 1,
     dupStreak: got.isNew ? 0 : Math.min(4, prev.dupStreak + 1),
   };
   tx.section('pity')[machineId] = pity;

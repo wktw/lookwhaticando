@@ -261,9 +261,13 @@ export type HabitPhrase =
 
 /**
  * The habit card's consistency phrase for the rhythm in effect today. Looks back no further than
- * the current rhythm (a kind change starts a "New rhythm"). Flexible phrases look at the latest
- * periods that count: transparent periods (nothing expected) are skipped, and the current period
- * is included only once met (today pending never counts against you).
+ * the current rhythm (a kind change starts a "New rhythm"). Day-based phrases look at the last 30
+ * days ending today once today counts (done or tiny), otherwise ending yesterday: a pending today
+ * never costs a day of the span ("30 of the last 30 days" every morning for someone who never
+ * misses; §5.3 "Today is never held against you"; upstream §13.11 "Rolling windows end today if
+ * today already counts, else yesterday"). Flexible phrases look at the latest periods that count:
+ * transparent periods (nothing expected) are skipped, and the current period is included only once
+ * met.
  */
 export function habitPhrase(habit: Habit, logs: HabitLogs, ctx: EvalContext): HabitPhrase | null {
   const T = ctx.today;
@@ -271,9 +275,10 @@ export function habitPhrase(habit: Habit, logs: HabitLogs, ctx: EvalContext): Ha
   const rule = ruleAt(habit, T);
   const spanStart = maxDateKey(rhythmSpanAt(habit, T).start ?? habit.startedOn, habit.startedOn);
   if (isDayBased(rule)) {
-    const start = maxDateKey(addDays(T, -(PHRASE_DAYS - 1)), spanStart);
-    const tally = habitTally(habit, logs, { start, end: T, attribution: 'trailing' }, ctx);
-    const base = { achieved: tally.achieved, expected: tally.expected, tiny: tally.tiny, spanDays: daysInRange(start, T) };
+    const end = evaluateDay(habit, logs, T, ctx).outcome === 'achieved' ? T : addDays(T, -1);
+    const start = maxDateKey(addDays(end, -(PHRASE_DAYS - 1)), spanStart);
+    const tally = start <= end ? habitTally(habit, logs, { start, end, attribution: 'trailing' }, ctx) : EMPTY_TALLY;
+    const base = { achieved: tally.achieved, expected: tally.expected, tiny: tally.tiny, spanDays: start <= end ? daysInRange(start, end) : 0 };
     return rule.schedule.kind === 'daily'
       ? { kind: 'days', ...base }
       : { kind: 'weekdays', ...base, days: [...scheduledWeekdays(rule)].sort((a, b) => a - b) };

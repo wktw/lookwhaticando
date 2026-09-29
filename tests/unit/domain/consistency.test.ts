@@ -181,9 +181,11 @@ describe('per-habit phrases (structured, DESIGN §13.3)', () => {
     const h = habit({ startedOn: '2026-08-01' });
     const l = logs(without(range('2026-08-01', '2026-09-29'), '2026-09-10', '2026-09-11'));
     const p = habitPhrase(h, l, ctx('2026-09-30'));
-    // Window Sep 1–30: Sep 10 and 11 not done, today (Sep 30) pending.
-    expect(p).toEqual({ kind: 'days', achieved: 27, expected: 29, tiny: 0, spanDays: 30 });
-    expect(formatHabitPhrase(p!, 1)).toBe('27 of the last 30 days');
+    // Today (Sep 30) is pending, so the window ends yesterday: Aug 31–Sep 29, Sep 10 and 11 not done.
+    expect(p).toEqual({ kind: 'days', achieved: 28, expected: 30, tiny: 0, spanDays: 30 });
+    expect(formatHabitPhrase(p!, 1)).toBe('28 of the last 30 days');
+    // Once today counts, the window ends today (Sep 1–30).
+    expect(habitPhrase(h, logs(l, on(['2026-09-30'])), ctx('2026-09-30'))).toEqual({ kind: 'days', achieved: 28, expected: 30, tiny: 0, spanDays: 30 });
     const young = habitPhrase(habit({ startedOn: '2026-09-25' }), logs(range('2026-09-25', '2026-09-30'), on(['2026-09-26'], tiny())), ctx('2026-09-30'));
     expect(young).toEqual({ kind: 'days', achieved: 6, expected: 6, tiny: 1, spanDays: 6 });
     expect(formatHabitPhrase(young!, 1)).toBe('6 of the last 6 days · 1 tiny');
@@ -192,9 +194,9 @@ describe('per-habit phrases (structured, DESIGN §13.3)', () => {
   it('certain days: N of your last K Mon/Wed/Fri', () => {
     const h = habit({ startedOn: '2026-08-01', schedule: onDays(5, 1, 3) });
     const p = habitPhrase(h, logs(range('2026-08-01', '2026-09-29')), ctx('2026-09-30'));
-    // Aug 31–Sep 30 holds 13 Mon/Wed/Fri; today (Wed) is pending.
-    expect(p).toEqual({ kind: 'weekdays', achieved: 12, expected: 12, tiny: 0, spanDays: 30, days: [1, 3, 5] });
-    expect(formatHabitPhrase(p!, 1)).toBe('12 of your last 12 Mon/Wed/Fri');
+    // Today (Wed) is pending, so the window is Aug 30–Sep 29: 13 Mon/Wed/Fri, all done.
+    expect(p).toEqual({ kind: 'weekdays', achieved: 13, expected: 13, tiny: 0, spanDays: 30, days: [1, 3, 5] });
+    expect(formatHabitPhrase(p!, 1)).toBe('13 of your last 13 Mon/Wed/Fri');
   });
 
   it('weekly: the last 4 weeks that count (paused weeks skipped, current only once met)', () => {

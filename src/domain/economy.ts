@@ -4,9 +4,12 @@
  *
  * ## Which days pay
  * A (habit, date) occurrence can be rewarded only through the check-in path, only inside the 6-day
- * window (today−6 … today), only for days on/after the habit's creation day (its `createdAt` as an
- * app day), inside its lifetime, and never while the clock guard pauses rewards. Anything else is
- * history: it changes stats but never the wallet, sunshine or once-keys, in either direction.
+ * window (today−6 … today), only for days on/after the habit's creation day (`createdOn`, fixed at
+ * creation so a later day-boundary change can't move it), inside its lifetime, and never while the
+ * clock guard pauses rewards. Anything else is history: it changes stats but never the wallet,
+ * sunshine or once-keys, in either direction. The measures rewards are paid on (streak rungs,
+ * completed occurrences for plant stages) count only days since the creation day, so history
+ * filled in before a habit existed can't unlock them either.
  *
  * ## The ledger entry: one per rewarded occurrence
  * `ledger.recent['<habitId>|<date>'] = { coins, sunshine, cap, lvl }` holds what the occurrence has
@@ -20,7 +23,17 @@
  *   allows* (all or nothing). If the coins were already spent, the grant stays recorded, so a
  *   re-check pays nothing. Sunshine always follows the day (only un-checking inside the window
  *   removes it, §13.4).
- * - **Same level**: nothing moves (so tapping +1 past a target, or changing effort, pays nothing).
+ * - **Same level**: no coins move (so tapping +1 past a target, or changing effort, pays nothing);
+ *   only the sunshine is brought in line when a rule edit changed what the day is worth.
+ * - Taps are monotone: a tap that adds never settles down and an un-check never settles up
+ *   (`SettleOptions.only`).
+ * - **Flexible slots** (§5.1, §6.1): a flexible occurrence is a slot in its period. When a paid
+ *   check-in is un-checked but its refund is blocked (coins spent), the grant stays recorded on
+ *   that day as an *orphan*; the next check-in that takes the slot inherits the orphaned coins
+ *   instead of being paid again, so moving a check-in to another day never pays the slot twice.
+ * - **Rule edits** re-settle every rewardable day of the habit (`resettleHabit`), so a day always
+ *   holds what it is worth under the rule governing it: a temporary rule can't leave sunshine or
+ *   an in-target grant behind.
  *
  * ## What a level is worth
  * - Pay by effort: light 4 · steady 5 · big 7; tiny = ⌈pay/2⌉ (§13.5) and 50% sunshine (§13.2).
@@ -39,12 +52,23 @@
  */
 import { EVERGREEN_CROWN_ID, BLOSSOM_SPROUT_ID } from '@/catalog/collectibles';
 import type { AppState, DateKey, Effort, Habit } from '@/state/types';
-import { EMPTY_LOGS, evaluateDay, inLifetime, isInBackfillWindow, logStatus, showedUp, type EvalContext, type HabitLogs } from './activity';
+import {
+  BACKFILL_DAYS,
+  EMPTY_LOGS,
+  evaluateDay,
+  inLifetime,
+  isInBackfillWindow,
+  logStatus,
+  restStanding,
+  showedUp,
+  type EvalContext,
+  type HabitLogs,
+} from './activity';
 import { addDays, appDayKey, dayNumber, eachDay, minDateKey, startOfWeek, type LocalTimeReader } from './dates';
-import { EVERGREEN, plantStage, stageName, stagesCrossed, sunshineFromHistory, sunshinePerOccurrence } from './growth';
-import { evaluatePeriod, flexPeriodAt } from './periods';
+import { EVERGREEN, flourishesFor, plantStage, stageName, stagesCrossed, sunshineFromHistory, sunshinePerOccurrence } from './growth';
+import { evaluatePeriod, flexPeriodAt, type FlexPeriod } from './periods';
 import { ruleAt } from './rules';
-import { isDayBased } from './schedule';
+import { isDayBased, restAllowancePerWeek } from './schedule';
 import { RUNGS, streakInfo, type StreakInfo } from './streaks';
 import { seal, type Tx } from './tx';
 import { grantCoins, grantExclusive, grantStars, grantTickets, hasOnce, refundCoins, rewardsPaused, setOnce } from './wallet';
@@ -66,6 +90,8 @@ export const WELCOME_HOME = { quietDays: 3, coins: 20, tickets: 1, cooldownDays:
 export const FIRST_SPROUT_COINS = 25;
 /** Ledger entries older than today−7 are folded into the totals (§13.8). */
 export const LEDGER_DAYS = 7;
+/** After "Ready to grow?" is accepted, the offer stays closed this long (its 28-day look-back). */
+export const GROW_COOLDOWN_DAYS = 28;
 
 /** Showing-up ladder (account level; the source of stars and tickets, §13.5 + §13.10). */
 export interface ShowUpRung {
@@ -134,9 +160,22 @@ export function findHabit(s: Pick<AppState, 'habits'>, habitId: string): Habit |
   return s.habits.find((h) => h.id === habitId);
 }
 
-/** The app day the habit was created (rewards never pay for earlier days, §13.2). */
-export function habitCreatedOn(habit: Pick<Habit, 'createdAt'>, dayStartsAt: number, local: LocalTimeReader): DateKey {
-  return appDayKey(habit.createdAt, dayStartsAt, local);
+/**
+ * The app day the habit was created (rewards never pay for earlier days, §13.2). Stored at
+ * creation (`createdOn`); saves from before that field derive it from `createdAt`.
+ */
+export function habitCreatedOn(habit: Pick<Habit, 'createdAt' | 'createdOn'>, dayStartsAt: number, local: LocalTimeReader): DateKey {
+  return habit.createdOn ?? appDayKey(habit.createdAt, dayStartsAt, local);
+}
+
+/** Days from the creation day to `today`, both included (0 before it): the plant's calendar pace. */
+export function daysSinceCreation(createdOn: DateKey, today: DateKey): number {
+  return Math.max(0, dayNumber(today) - dayNumber(createdOn) + 1);
+}
+
+/** The habit as rewards see it: nothing before `since` (its creation day) counts. */
+function sinceDay<H extends Habit>(habit: H, since: DateKey): H {
+  return since > habit.startedOn ? { ...habit, startedOn: since } : habit;
 }
 
 /** Whether a (habit, date) can earn rewards now (see module doc "Which days pay"). */
@@ -193,16 +232,31 @@ export function streakOf(habit: Habit, logs: HabitLogs, ctx: EvalContext): Strea
   return cached(habit, logs, ctx, 'streak', () => streakInfo(habit, logs, ctx));
 }
 
-/** Achieved occurrences over the whole history (the "completed occurrences" of §13.4). */
-export function completedOccurrences(habit: Habit, logs: HabitLogs, ctx: EvalContext): number {
-  return cached(habit, logs, ctx, 'completed', () => sunshineFromHistory(habit, logs, ctx).completedOccurrences);
+/**
+ * Achieved occurrences from `since` on (the "completed occurrences" of §13.4). Rewards pass the
+ * creation day: occurrences filled in before the habit existed earned no sunshine, so they can't
+ * let one check-in jump several stages.
+ */
+export function completedOccurrences(habit: Habit, logs: HabitLogs, ctx: EvalContext, since: DateKey = habit.startedOn): number {
+  return cached(habit, logs, ctx, `completed|${since}`, () => sunshineFromHistory(sinceDay(habit, since), logs, ctx).completedOccurrences);
 }
 
-/** The habit's best streak as an occurrence-equivalent (the rung measure). */
-export function bestStreakOccurrences(s: AppState, habitId: string, today: DateKey): number {
+/** Streaks counting only days from `since` (the creation day) on: what streak rungs pay on. */
+export function rewardStreakOf(habit: Habit, logs: HabitLogs, ctx: EvalContext, since: DateKey): StreakInfo {
+  if (since <= habit.startedOn) return streakOf(habit, logs, ctx);
+  return cached(habit, logs, ctx, `reward-streak|${since}`, () => streakInfo(sinceDay(habit, since), logs, ctx));
+}
+
+/**
+ * The habit's best streak since its creation day, as an occurrence-equivalent: the rung measure
+ * (§13.5). A brand-new habit can't collect the 365 rung on its first check-in by ticking a year of
+ * calendar history first (§13.2 "no rewards before createdAt").
+ */
+export function bestStreakOccurrences(s: AppState, habitId: string, today: DateKey, local: LocalTimeReader): number {
   const habit = findHabit(s, habitId);
   if (!habit) return 0;
-  return streakOf(habit, logsOf(s, habitId), trackingCtx(s, today)).best?.occurrences ?? 0;
+  const since = habitCreatedOn(habit, s.settings.dayStartsAt, local);
+  return rewardStreakOf(habit, logsOf(s, habitId), trackingCtx(s, today), since).best?.occurrences ?? 0;
 }
 
 /* ------------------------------------------------------------------ */
@@ -255,37 +309,78 @@ export interface Settlement {
   refundBlocked: boolean;
   /** Sunshine added (negative when removed). */
   sunshine: number;
+  /** A first completion: the occurrence had never been granted anything before (buddy XP). */
+  fresh: boolean;
 }
 
-const NO_CHANGE = (l: GrantLevel): Settlement => ({ prev: l, next: l, paid: 0, refunded: 0, refundBlocked: false, sunshine: 0 });
+/** Restricts a settlement to one direction (a tap that adds never refunds; an un-check never pays). */
+export interface SettleOptions {
+  only?: 'up' | 'down';
+}
+
+const NO_CHANGE = (l: GrantLevel): Settlement => ({ prev: l, next: l, paid: 0, refunded: 0, refundBlocked: false, sunshine: 0, fresh: false });
+
+function addSunshine(tx: Tx, habitId: string, delta: number): void {
+  if (delta === 0) return;
+  const totals = tx.ledger('sunshine');
+  totals[habitId] = Math.max(0, round6((totals[habitId] ?? 0) + delta));
+}
 
 /**
  * Brings the ledger entry of (habit, date) in line with the level the day deserves (see module
  * doc). The caller must have checked `isRewardableDay`.
  */
-export function settleOccurrence(tx: Tx, habitId: string, date: DateKey): Settlement {
+export function settleOccurrence(tx: Tx, habitId: string, date: DateKey, opts: SettleOptions = {}): Settlement {
+  const habit = findHabit(tx.s, habitId);
+  if (!habit) return NO_CHANGE('none');
+  return settleTo(tx, habitId, date, deservedLevel(tx.s, habit, date, tx.env.today), opts);
+}
+
+/** Settles (habit, date) to the given level: pays up, refunds down, and fixes the sunshine held. */
+export function settleTo(tx: Tx, habitId: string, date: DateKey, next: GrantLevel, opts: SettleOptions = {}): Settlement {
   const s = tx.s;
   const habit = findHabit(s, habitId);
   if (!habit) return NO_CHANGE('none');
   const key = ledgerKey(habitId, date);
   const entry = s.ledger.recent[key];
   const prev: GrantLevel = entry?.lvl ?? 'none';
-  const next = deservedLevel(s, habit, date, tx.env.today);
-  if (prev === next) return NO_CHANGE(prev);
+  const rule = ruleAt(habit, date);
+  const heldSun = entry?.sunshine ?? 0;
+  const wantSun = next === 'none' || next === 'over' ? 0 : round6(sunshinePerOccurrence(rule, next === 'tiny'));
+  const up = RANK[next] > RANK[prev];
+  const down = RANK[next] < RANK[prev];
+  if ((up && opts.only === 'down') || (down && opts.only === 'up')) return NO_CHANGE(prev);
+  if (!up && !down) {
+    // Same level: coins stay; the sunshine follows the rule now governing the day (a rule edit).
+    if (!entry || Math.abs(wantSun - heldSun) < 1e-9) return NO_CHANGE(prev);
+    addSunshine(tx, habitId, wantSun - heldSun);
+    tx.ledger('recent')[key] = { ...entry, sunshine: wantSun };
+    return { prev, next, paid: 0, refunded: 0, refundBlocked: false, sunshine: wantSun - heldSun, fresh: false };
+  }
 
   const today = tx.env.today;
-  const rule = ruleAt(habit, date);
   let coins = entry?.coins ?? 0;
   let cap = entry?.cap;
   let paid = 0;
   let refunded = 0;
   let refundBlocked = false;
+  let inherited = false;
 
-  if (RANK[next] > RANK[prev]) {
+  if (up) {
     const fullNow = fullRateCoins(habit.effort, s.ledger.daily[today] ?? 0);
     const base = next === 'over' ? OVER_TARGET_PAY : cap !== undefined ? Math.min(cap, fullNow) : fullNow;
     const want = next === 'tiny' ? Math.ceil(base / 2) : base;
-    paid = Math.max(0, want - coins);
+    let need = Math.max(0, want - coins);
+    if (need > 0 && next !== 'over' && !isDayBased(rule)) {
+      const got = takeOrphanedCoins(tx, habit, date, need);
+      if (got.coins > 0) {
+        inherited = true;
+        coins += got.coins;
+        need -= got.coins;
+        if (cap === undefined) cap = got.cap;
+      }
+    }
+    paid = need;
     if (next !== 'over' && cap === undefined) cap = fullNow;
     if (paid > 0) {
       grantCoins(tx, paid, 'checkin', habitId);
@@ -294,7 +389,8 @@ export function settleOccurrence(tx: Tx, habitId: string, date: DateKey): Settle
       coins += paid;
     }
   } else {
-    const keep = next === 'none' ? 0 : Math.min(coins, Math.ceil(coins / 2));
+    // What the lower level is worth: nothing, the 1-coin over-target pay, or half (tiny, ⌈pay/2⌉).
+    const keep = next === 'none' ? 0 : next === 'over' ? Math.min(coins, OVER_TARGET_PAY) : Math.min(coins, Math.ceil(coins / 2));
     const due = coins - keep;
     if (due > 0) {
       if (refundCoins(tx, due, habitId)) {
@@ -306,13 +402,7 @@ export function settleOccurrence(tx: Tx, habitId: string, date: DateKey): Settle
     }
   }
 
-  const heldSun = entry?.sunshine ?? 0;
-  const wantSun = next === 'none' || next === 'over' ? 0 : round6(sunshinePerOccurrence(rule, next === 'tiny'));
-  const sunDelta = wantSun - heldSun;
-  if (sunDelta !== 0) {
-    const totals = tx.ledger('sunshine');
-    totals[habitId] = Math.max(0, round6((totals[habitId] ?? 0) + sunDelta));
-  }
+  addSunshine(tx, habitId, wantSun - heldSun);
 
   if (prev === 'none' || next === 'none') {
     const life = tx.section('lifetime');
@@ -329,7 +419,99 @@ export function settleOccurrence(tx: Tx, habitId: string, date: DateKey): Settle
       ...(next !== 'none' ? { lvl: next } : {}),
     };
   }
-  return { prev, next, paid, refunded, refundBlocked, sunshine: sunDelta };
+  return { prev, next, paid, refunded, refundBlocked, sunshine: wantSun - heldSun, fresh: up && entry === undefined && !inherited };
+}
+
+/**
+ * Coins still recorded on other days of `date`'s flexible period whose check-in was un-checked
+ * while the refund was blocked (the day no longer shows up, and holds coins but no level). The
+ * slot they paid for is being taken again, so up to `need` of them move to the new day instead of
+ * being paid twice (§6.1 "re-checking won't pay twice"; §5.1 a flexible occurrence is a slot).
+ */
+function takeOrphanedCoins(tx: Tx, habit: Habit, date: DateKey, need: number): { coins: number; cap: number | undefined } {
+  const p = flexPeriodAt(habit, date, tx.s.settings.weekStart);
+  if (!p) return { coins: 0, cap: undefined };
+  const logs = logsOf(tx.s, habit.id);
+  const today = tx.env.today;
+  let got = 0;
+  let cap: number | undefined;
+  for (const d of eachDay(p.from, minDateKey(p.to, today))) {
+    if (got >= need) break;
+    if (d === date) continue;
+    const key = ledgerKey(habit.id, d);
+    const e = tx.s.ledger.recent[key];
+    if (!e || e.lvl !== undefined || !(e.coins > 0)) continue;
+    if (showedUp(logStatus(logs[d], p.rule, d < today))) continue;
+    const take = Math.min(e.coins, need - got);
+    got += take;
+    cap ??= e.cap;
+    const recent = tx.ledger('recent');
+    const left = e.coins - take;
+    if (left === 0 && e.cap === undefined) delete recent[key];
+    else recent[key] = { ...e, coins: left };
+  }
+  return { coins: got, cap };
+}
+
+/**
+ * After a rule edit: brings every rewardable day of the habit in the 6-day window in line with the
+ * rule now governing it (DESIGN §13.2 "every day is evaluated with the rule in effect then", §13.4
+ * "each rewarded occurrence records 7/expectedPerWeek(rule)"). Levels are worked out afresh (in a
+ * flexible period the first `times` check-in days in date order are in-target), so a goal raised
+ * "this period" promotes check-ins beyond the old goal, and a lowered one demotes them (refunded if
+ * the balance allows); every day's sunshine follows its rule. A temporary rule therefore leaves
+ * nothing behind once edited away. Bonuses are untouched (never clawed back).
+ */
+export function resettleHabit(tx: Tx, habitId: string): void {
+  const habit = findHabit(tx.s, habitId);
+  if (!habit) return;
+  const today = tx.env.today;
+  const levels: [DateKey, GrantLevel][] = [];
+  for (let d = addDays(today, -BACKFILL_DAYS); d <= today; d = addDays(d, 1)) {
+    if (!isRewardableDay(tx.s, habit, d, tx.env)) continue;
+    levels.push([d, freshLevel(tx.s, habit, d, today)]);
+  }
+  const held = (d: DateKey): GrantLevel => tx.s.ledger.recent[ledgerKey(habitId, d)]?.lvl ?? 'none';
+  // Demotions first (they refund and free slots), then promotions and sunshine fixes.
+  for (const [d, lvl] of levels) if (RANK[lvl] < RANK[held(d)]) settleTo(tx, habitId, d, lvl);
+  for (const [d, lvl] of levels) settleTo(tx, habitId, d, lvl);
+}
+
+/** The level a day deserves ignoring held places: flexible check-ins ranked by date in their period. */
+function freshLevel(s: AppState, habit: Habit, date: DateKey, today: DateKey): GrantLevel {
+  const rule = ruleAt(habit, date);
+  if (isDayBased(rule)) return deservedLevel(s, habit, date, today);
+  const logs = logsOf(s, habit.id);
+  const status = logStatus(logs[date], rule, date < today);
+  if (!showedUp(status) || !inLifetime(habit, date)) return 'none';
+  const p = flexPeriodAt(habit, date, s.settings.weekStart);
+  if (!p) return status === 'tiny' ? 'tiny' : 'full';
+  let rank = 0;
+  for (const d of eachDay(p.from, date)) {
+    if (d === date) break;
+    if (inLifetime(habit, d) && showedUp(logStatus(logs[d], p.rule, d < today))) rank++;
+  }
+  return rank >= p.times ? 'over' : status === 'tiny' ? 'tiny' : 'full';
+}
+
+/**
+ * A "this period" edit that lowers the current period's goal forfeits that period's goal bonus
+ * (stage-3 decision): the bonus is for meeting the goal the period had, so lowering it, collecting
+ * and raising it back can't mint +10/+20 (§13.5 "paid once per (habit, periodStart)"; bonuses are
+ * never clawed back, so they must not be paid for a goal that is edited away the same period).
+ */
+export function forfeitLoweredGoal(tx: Tx, before: Habit, after: Habit): void {
+  const today = tx.env.today;
+  const weekStart = tx.s.settings.weekStart;
+  const p0 = flexPeriodAt(before, today, weekStart);
+  const p1 = flexPeriodAt(after, today, weekStart);
+  if (!p0 || !p1 || p0.key !== p1.key) return;
+  const key = `period|${after.id}|${p1.key}`;
+  if (hasOnce(tx.s, key)) return;
+  const logs = logsOf(tx.s, after.id);
+  const ctx = trackingCtx(tx.s, today);
+  const goal = (h: Habit, p: FlexPeriod) => Math.max(1, evaluatePeriod(h, logs, p, ctx).target);
+  if (goal(after, p1) < goal(before, p0)) setOnce(tx, key, dayNumber(p1.end));
 }
 
 /**
@@ -400,42 +582,87 @@ export interface PerfectDayStatus {
   perfect: boolean;
   /** Day-based habits scheduled and active that day (allowed rests included). */
   scheduled: number;
-  /** Day-based done/tiny plus flexible check-ins that day. */
+  /** Day-based done/tiny plus in-target flexible check-ins that day. */
   done: number;
   /** Every scheduled day-based habit is done or allowed-rest. */
   allClear: boolean;
+  /** A global day off: transparent, so never a perfect (or an imperfect) day. */
+  offDay: boolean;
 }
 
 /**
  * Perfect day (§13.5): every scheduled day-based habit is done or on an allowed rest, AND
  * done ≥ max(2, ⌈⅔ × scheduled⌉), where flexible check-ins that day count toward done. Paused
- * habits and off days are not scheduled. Today can only be perfect once it is actually complete.
+ * habits are not scheduled. Today can only be perfect once it is actually complete. Stage-3
+ * decisions, so a bonus is never paid for a state that costs nothing to undo:
+ * - a "Take today off" day is transparent for every habit (§13.2): it is neither perfect nor
+ *   imperfect (otherwise toggling the day off and back would pay a perfect day every day and give
+ *   the monthly quota back);
+ * - only *in-target* flexible check-ins count ("beyond times: 1 coin, no bonus", §13.5);
+ * - a rest excuses a habit only within the weekly allowance counting the rests that already
+ *   completed a paid perfect day this week, even if they were removed since (`rest|…` keys): the
+ *   allowance can't be handed back by un-resting.
  */
 export function perfectDayStatus(s: AppState, date: DateKey, today: DateKey): PerfectDayStatus {
   const ctx = trackingCtx(s, today);
+  const offDay = s.offDays[date] === true;
   let scheduled = 0;
   let done = 0;
   let allClear = true;
   for (const h of s.habits) {
     if (!inLifetime(h, date)) continue;
-    const ev = evaluateDay(h, logsOf(s, h.id), date, ctx);
+    const logs = logsOf(s, h.id);
+    const ev = evaluateDay(h, logs, date, ctx);
     if (!ev.dayBased) {
-      if (showedUp(ev.status)) done++;
+      if (showedUp(ev.status) && flexInTarget(s, h, logs, date, today)) done++;
       continue;
     }
     if (!ev.scheduled) continue;
     if (ev.outcome === 'achieved') {
       scheduled++;
       done++;
-    } else if (ev.inactive === 'rest') scheduled++;
-    else if (ev.inactive === 'paused' || ev.inactive === 'off') continue;
+    } else if (ev.inactive === 'rest') {
+      scheduled++;
+      if (!restExcuses(s, h, logs, date, ctx)) allClear = false;
+    } else if (ev.inactive === 'paused' || ev.inactive === 'off') continue;
     else {
       scheduled++;
       allClear = false;
     }
   }
   const needed = Math.max(PERFECT_DAY.minDone, Math.ceil(PERFECT_DAY.share * scheduled - 1e-9));
-  return { perfect: allClear && done >= needed, scheduled, done, allClear };
+  return { perfect: !offDay && allClear && done >= needed, scheduled, done, allClear, offDay };
+}
+
+/** A flexible check-in on `date` is within `times` of its period (as granted, or by date order). */
+function flexInTarget(s: AppState, habit: Habit, logs: HabitLogs, date: DateKey, today: DateKey): boolean {
+  const held = s.ledger.recent[ledgerKey(habit.id, date)]?.lvl;
+  if (held !== undefined) return held === 'tiny' || held === 'full';
+  const p = flexPeriodAt(habit, date, s.settings.weekStart);
+  if (!p) return true;
+  let rank = 0;
+  for (const d of eachDay(p.from, date)) {
+    if (d === date) break;
+    if (inLifetime(habit, d) && showedUp(logStatus(logs[d], p.rule, d < today))) rank++;
+  }
+  return rank < p.times;
+}
+
+/** The once-key recording that an allowed rest completed a paid perfect day. */
+const restUsedKey = (habitId: string, date: DateKey): string => `rest|${habitId}|${date}`;
+
+/** An allowed rest still fits the week's allowance once rests spent on paid perfect days count. */
+function restExcuses(s: AppState, habit: Habit, logs: HabitLogs, date: DateKey, ctx: EvalContext): boolean {
+  const allowance = restAllowancePerWeek(ruleAt(habit, date));
+  const start = startOfWeek(date, ctx.weekStart);
+  let used = 0;
+  for (let i = 0; i < 7; i++) {
+    const d = addDays(start, i);
+    const counting = restStanding(habit, logs, d, ctx) !== null;
+    if (counting && d <= date) used++;
+    else if (!counting && d !== date && hasOnce(s, restUsedKey(habit.id, d))) used++;
+  }
+  return used <= allowance;
 }
 
 export function perfectDayCoins(done: number): number {
@@ -450,6 +677,10 @@ export function payPerfectDay(tx: Tx, date: DateKey): boolean {
   if (!st.perfect) return false;
   const coins = perfectDayCoins(st.done);
   setOnce(tx, key, coins);
+  const ctx = trackingCtx(tx.s, tx.env.today);
+  for (const h of tx.s.habits) {
+    if (inLifetime(h, date) && evaluateDay(h, logsOf(tx.s, h.id), date, ctx).inactive === 'rest') setOnce(tx, restUsedKey(h.id, date));
+  }
   tx.section('lifetime').perfectDays += 1;
   grantCoins(tx, coins, 'perfect');
   tx.emit({ type: 'perfectDay', date, coins });
@@ -492,7 +723,9 @@ export function payWelcomeHome(tx: Tx): boolean {
  * are not check-ins). Pays the ladder rung reached, once per rung.
  */
 export function countShowUpDay(tx: Tx): void {
-  if (tx.s.lifetime.lastShowUpDay === tx.env.today) return;
+  // Days only move forward: a day at or before the last counted one is never counted again.
+  const last = tx.s.lifetime.lastShowUpDay;
+  if (last !== undefined && tx.env.today <= last) return;
   const life = tx.section('lifetime');
   life.showUpDays += 1;
   life.lastShowUpDay = tx.env.today;
@@ -517,13 +750,15 @@ export function payFirstSprout(tx: Tx): void {
 
 /**
  * Streak rungs (§13.5): coins only, once per (habit, tier). A tier pays when a reward-path action
- * lifts the habit's *best* streak (occurrence-equivalent) past it. A rung first reached through
- * history edits "counts as reached but unpaid": the best streak was already past it.
+ * lifts the habit's best streak *since its creation day* (occurrence-equivalent) past it. A rung
+ * first reached through history edits "counts as reached but unpaid": the best streak was already
+ * past it, and days before the habit existed never count toward a paid rung.
  */
 export function payRungs(tx: Tx, habitId: string, bestBefore: number): void {
   const habit = findHabit(tx.s, habitId);
   if (!habit) return;
-  const best = streakOf(habit, logsOf(tx.s, habitId), trackingCtx(tx.s, tx.env.today)).best;
+  const since = habitCreatedOn(habit, tx.s.settings.dayStartsAt, tx.env.local);
+  const best = rewardStreakOf(habit, logsOf(tx.s, habitId), trackingCtx(tx.s, tx.env.today), since).best;
   if (!best || best.occurrences <= bestBefore) return;
   for (const r of RUNGS) {
     if (r.tier <= bestBefore || r.tier > best.occurrences) continue;
@@ -536,21 +771,44 @@ export function payRungs(tx: Tx, habitId: string, bestBefore: number): void {
 }
 
 /**
- * Plant stages (§13.4): stage = min(stageFromSunshine(ledger sunshine), completed occurrences);
- * the high-water mark `bestStage` only rises, one `plantStage` event per stage crossed, and the
- * first Evergreen grants the Evergreen Crown (§13.5). Returns the displayed stage.
+ * Plant stages (§13.4): stage = min(stageFromSunshine(ledger sunshine), completed occurrences
+ * since the creation day, calendar pace (growth.ts)); the high-water mark `bestStage` only rises,
+ * one `plantStage` event per stage crossed, and the first Evergreen grants the Evergreen Crown
+ * (§13.5). Returns the displayed stage.
  */
 export function updatePlantStage(tx: Tx, habitId: string): number {
   const habit = findHabit(tx.s, habitId);
   if (!habit) return 0;
-  const completed = completedOccurrences(habit, logsOf(tx.s, habitId), trackingCtx(tx.s, tx.env.today));
-  const stage = plantStage(tx.s.ledger.sunshine[habitId] ?? 0, completed);
+  const since = habitCreatedOn(habit, tx.s.settings.dayStartsAt, tx.env.local);
+  const completed = completedOccurrences(habit, logsOf(tx.s, habitId), trackingCtx(tx.s, tx.env.today), since);
+  const stage = plantStage(tx.s.ledger.sunshine[habitId] ?? 0, completed, daysSinceCreation(since, tx.env.today));
   const best = tx.s.ledger.bestStage[habitId] ?? 0;
-  if (stage <= best) return best;
-  tx.ledger('bestStage')[habitId] = stage;
-  for (const st of stagesCrossed(best, stage)) tx.emit({ type: 'plantStage', habitId, stage: st, stageName: stageName(st) });
-  if (stage >= EVERGREEN) grantExclusive(tx, EVERGREEN_CROWN_ID);
-  return stage;
+  if (stage > best) {
+    tx.ledger('bestStage')[habitId] = stage;
+    for (const st of stagesCrossed(best, stage)) tx.emit({ type: 'plantStage', habitId, stage: st, stageName: stageName(st) });
+    if (stage >= EVERGREEN) grantExclusive(tx, EVERGREEN_CROWN_ID);
+  }
+  const shown = Math.max(stage, best);
+  recordFlourishes(tx, habitId, flourishesFor(tx.s.ledger.sunshine[habitId] ?? 0, shown));
+  return shown;
+}
+
+/** The once-key holding the most Flourishes a plant has had (they are permanent visitors). */
+export const flourishKey = (habitId: string): string => `flourish|${habitId}`;
+
+/** Flourishes that have arrived for a habit's plant: a high-water mark (§13.10 "permanent visitors"). */
+export function bestFlourishes(s: Pick<AppState, 'ledger'>, habitId: string): number {
+  const v = s.ledger.once[flourishKey(habitId)];
+  return typeof v === 'number' ? v : 0;
+}
+
+/**
+ * Raises the Flourish high-water mark. After Evergreen a visitor arrives every +60 sunshine and
+ * stays (§13.10), so un-checking inside the refund window can take the sunshine back but never a
+ * visitor that already came.
+ */
+function recordFlourishes(tx: Tx, habitId: string, flourishes: number): void {
+  if (flourishes > bestFlourishes(tx.s, habitId)) setOnce(tx, flourishKey(habitId), flourishes);
 }
 
 /* ------------------------------------------------------------------ */
@@ -594,9 +852,14 @@ export function onceKeyExpired(s: AppState, key: string, value: number | true, t
     case 'perfect':
       // Perfect-week checks look back at most 12 days (a window day's week).
       return parts[1]! < addDays(today, -13);
+    case 'rest':
+      // Read by the rest allowance of weeks that still hold a window day.
+      return parts[2]! < addDays(today, -13);
     case 'harvest':
-    case 'grow':
       return parts[2]! < today;
+    case 'grow':
+      // An accepted offer keeps the offer closed for GROW_COOLDOWN_DAYS.
+      return parts[2]! < addDays(today, -(GROW_COOLDOWN_DAYS - 1));
     case 'home':
       return typeof value !== 'number' || todayN - value >= WELCOME_HOME.cooldownDays;
     case 'weekly':
@@ -604,9 +867,11 @@ export function onceKeyExpired(s: AppState, key: string, value: number | true, t
     case 'bloom':
       return parts[1]! < addDays(today, -62).slice(0, 7);
     case 'period':
-      // Kept while its period could still take a rewardable check-in (or overlap one that can).
+      // Kept while its period could overlap one that can still take a rewardable check-in: a week
+      // holding a window day starts no earlier than today−12 (after a week-start change it may
+      // regroup days of an already-paid week), so keys of periods ending before today−13 go.
       if (!findHabit(s, parts[1]!)) return true;
-      return (typeof value === 'number' ? value : dayNumber(parts[2]!)) < dayNumber(addDays(today, -LEDGER_DAYS));
+      return (typeof value === 'number' ? value : dayNumber(parts[2]!)) < dayNumber(addDays(today, -(BACKFILL_DAYS + 7)));
     default:
       return false;
   }

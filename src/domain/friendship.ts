@@ -8,7 +8,9 @@
  *   pay +4). At most 3 counted treats a day; after that the pet is "so full" ('full'): no XP and
  *   the serving is kept. Feeding needs a serving in the pantry ('none' otherwise).
  * - Duplicate pull: +20 XP ("a visit from their twin").
- * - Buddy bonus: the Today buddy gains +1 XP per completing check-in, at most 10 a day.
+ * - Buddy bonus: the Today buddy gains +1 XP per first completion of an occurrence (un-checking and
+ *   re-checking pays nothing again, logging.ts), at most 10 a day across the whole meadow (switching
+ *   buddies doesn't open a new 10 per pet).
  * No decay, no hunger, no sadness. Feeding the favorite reveals it (badge "Favorite Found").
  * Mochi is fixed (DESIGN §13.10): Sunny, loves Strawberry Milk (known from day one), name locked,
  * always in the meadow.
@@ -90,12 +92,15 @@ export function addXp(tx: Tx, petId: string, amount: number): number[] {
   return crossed;
 }
 
-/** Buddy bonus for a completing check-in (+1, max 10 a day). */
+/** Buddy bonus for a completing check-in (+1, max 10 a day for the whole meadow). */
 export function buddyBonus(tx: Tx): void {
   const buddy = tx.s.profile.buddy;
   if (!buddy || !tx.s.pets[buddy]) return;
-  const daily = dailyFor(tx.s.pets[buddy]!, tx.env.today);
-  if (daily.buddy >= PET_XP.buddyPerDay) return;
+  const today = tx.env.today;
+  let given = 0;
+  for (const p of Object.values(tx.s.pets)) given += dailyFor(p, today).buddy;
+  if (given >= PET_XP.buddyPerDay) return;
+  const daily = dailyFor(tx.s.pets[buddy]!, today);
   tx.pet(buddy).daily = { ...daily, buddy: daily.buddy + 1 };
   addXp(tx, buddy, PET_XP.buddy);
 }

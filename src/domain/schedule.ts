@@ -279,6 +279,32 @@ function sameSchedule(a: Schedule, b: Schedule): boolean {
   }
 }
 
+/**
+ * Two flexible schedules cut time into the same periods (same unit and the same `every`), so one
+ * can take over a period from the other without moving any period boundary; only `times` may
+ * differ. False when either is day-based. Decides what "this period" means for an edit (rules.ts).
+ */
+export function samePeriodGeometry(a: ScheduleLike, b: ScheduleLike): boolean {
+  const x = scheduleOf(a);
+  const y = scheduleOf(b);
+  if (x.kind !== y.kind || isDayBased(x)) return false;
+  return everyOf(x) === everyOf(y);
+}
+
+/**
+ * `next` asks for more than `prev`: at least as many occurrences per week and at least as big a
+ * daily target, and strictly more of one of them. Accepting "Ready to grow?" needs such a rule
+ * (DESIGN §13.2 graduation); a cosmetic or smaller edit is not a graduation.
+ */
+export function isBiggerRule(prev: Pick<HabitRule, 'schedule' | 'target'>, next: Pick<HabitRule, 'schedule' | 'target'>): boolean {
+  const eps = 1e-9;
+  const e0 = expectedPerWeek(prev);
+  const e1 = expectedPerWeek(next);
+  const t0 = effectiveTarget(prev);
+  const t1 = effectiveTarget(next);
+  return e1 + eps >= e0 && t1 >= t0 && (e1 > e0 + eps || t1 > t0);
+}
+
 /** True when two rules would evaluate every day identically (ignores `from`). */
 export function sameRuleContent(a: RuleContent, b: RuleContent): boolean {
   return (

@@ -67,6 +67,12 @@ export interface Habit {
   dueDay?: number | 'last';
   /** Immutable creation time (epoch ms). Rewards are never paid for app days before its date. */
   createdAt: number;
+  /**
+   * Stage 3 (additive): the app day of creation, fixed when the habit is created, so a later
+   * `dayStartsAt` change can't move it. Rewards never pay for earlier days. Older saves without it
+   * derive it from `createdAt`.
+   */
+  createdOn?: DateKey;
   /** First day that counts for stats (editable earlier via "Start tracking from…", without rewards). */
   startedOn: DateKey;
   archivedOn?: DateKey;
@@ -222,14 +228,19 @@ export interface AppState {
    * Reward ledger (DESIGN §13.3 "Reward integrity").
    * - recent: per (habitId|date) grant for the refundable window only (today−7 … today);
    *   older entries are folded into totals by compaction.
-   * - sunshine: per-habit lifetime sunshine total (monotone except refunds inside the window).
+   * - sunshine: per-habit lifetime sunshine total (monotone except refunds inside the window). A
+   *   deleted habit's total stays (minus its in-window refunds): Mochi's sprout is a lifetime gauge.
    * - bestStage: per-habit highest plant stage ever reached (plants never shrink).
    * - once: once-only grant keys → value (true, or a number noted below). Key formats:
    *   'perfect|<date>' (coins paid) · 'period|<habitId>|<periodStart>' (day number of its last day) · 'rung|<habitId>|<tierDays>' ·
    *   'showup|<n>' · 'weekly|<weekStart>' (stars paid) · 'bloom|<YYYY-MM>' (stars paid) ·
    *   'home|<gapStart>' (day number of the grant, for the 14-day cooldown) · 'exclusive|<collectibleId>' ·
    *   'birthday|<YYYY>' · 'album|<albumId>' · 'harvest|<habitId>|<date>' · 'gift|first-sprout' (coins) ·
-   *   'grow|<habitId>|<date>'. Badges live in `badges`; plant stages in `bestStage`.
+   *   'grow|<habitId>|<date>' (the accept day; the offer stays closed 28 days) ·
+   *   'rest|<habitId>|<date>' (stage 3: an allowed rest that completed a paid perfect day; it keeps
+   *   using the week's rest allowance for perfect days) · 'flourish|<habitId>' (stage 3: the most
+   *   Flourishes the plant has had; they are permanent visitors). Badges live in `badges`; plant
+   *   stages in `bestStage`.
    *   Keys that can no longer be earned are pruned by compaction (domain/economy.ts).
    * - daily: coins paid by check-ins per WALL-CLOCK action day (the 40-coin full-rate budget).
    */

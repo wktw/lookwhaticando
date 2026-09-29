@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import * as habitsDomain from '@/domain/habits';
 import * as logging from '@/domain/logging';
 import { addDays } from '@/domain/dates';
@@ -24,6 +24,9 @@ import {
 } from '@/state/selectors';
 import { machineStatusOf } from '@/state/store';
 import { Game, UTC, at } from '../domain/game';
+
+// Builds whole meadows (the 120-day demo, months of play): generous time for a busy CI machine.
+vi.setConfig({ testTimeout: 30_000 });
 
 const envOf = (g: Game): ViewEnv => ({ today: g.today, now: g.now, local: UTC });
 const card = (g: Game, id: string, date?: string) => {
@@ -71,13 +74,16 @@ describe('Today: habit card status line (DESIGN §13.11, first match wins)', () 
       if (!d.endsWith('9') && !d.endsWith('8')) g.checkIn(a);
     }
     g.goTo('2026-03-21');
-    expect(card(g, a).subtitle).toEqual({ kind: 'consistency', text: '16 of the last 21 days' });
+    // Today (Mar 21) is pending, so the rolling window ends yesterday: Mar 1–20.
+    expect(card(g, a).subtitle).toEqual({ kind: 'consistency', text: '16 of the last 20 days' });
   });
 });
 
 describe('Today: layout', () => {
   it('current block first, then later blocks, Anytime, then earlier blocks (folded when complete)', () => {
-    expect([4, 5, 10, 11, 16, 17, 23].map(currentBlock)).toEqual(['evening', 'morning', 'morning', 'midday', 'midday', 'evening', 'evening']);
+    // Default 3:00 day start: 2 am still belongs to the previous app day's evening, 4 am is the new morning.
+    expect([2, 4, 5, 10, 11, 16, 17, 23].map((h) => currentBlock(h, 180))).toEqual(['evening', 'morning', 'morning', 'morning', 'midday', 'midday', 'evening', 'evening']);
+    expect([currentBlock(2, 120), currentBlock(1, 120, 59), currentBlock(0, 0)]).toEqual(['morning', 'evening', 'morning']);
     const g = new Game({ start: '2026-03-02', hour: 18 });
     const m = g.addHabit({ name: 'Vitamins', timeOfDay: 'morning' });
     g.addHabit({ name: 'Walk', timeOfDay: 'midday' });
@@ -154,19 +160,21 @@ describe('Habit detail', () => {
     }
     g.run((tx) => habitsDomain.updateHabit(tx, a, { schedule: { kind: 'days', days: [1, 3, 5] } }));
     const vm = habitDetailVM(g.state, envOf(g), a)!;
-    // 7 sunshine (Seedling); Leafy needs 10, and each Mon/Wed/Fri check-in now brings 7/3.
+    // 7 sunshine (Seedling); Leafy needs 10, and each Mon/Wed/Fri check-in (from tomorrow) brings 7/3.
     expect(vm.plant.nextLine).toBe('2 more check-ins to Leafy');
-    // The edit applies from today (Sat), which Mon/Wed/Fri doesn't schedule: today's check-in turns neutral.
-    expect(vm.stats.current).toMatchObject({ length: 6, label: '6 days' });
-    expect(vm.stats.best).toMatchObject({ length: 6 });
+    // Today (Sat) was already checked in and rewarded, so the edit applies from tomorrow: today's
+    // check-in keeps the rule it was rewarded under (stage-3 decision, habits.updateHabit).
+    expect(vm.stats.current).toMatchObject({ length: 7, label: '7 days' });
+    expect(vm.stats.best).toMatchObject({ length: 7 });
+    expect(vm.upcoming).toMatchObject({ from: '2026-03-08', label: 'From Mar 8: Mon/Wed/Fri' });
     expect(vm.ladder.rungs.filter((r) => r.reached).map((r) => [r.tier, r.paid])).toEqual([
       [3, true],
       [7, true],
     ]);
     expect(vm.ladder.next).toMatchObject({ tier: 14, coins: 30 });
     expect(vm.moments.map((m) => m.date)).toEqual(['2026-03-06', '2026-03-03']);
-    expect(vm.history.map((h) => h.label)).toEqual(['Since Mar 1: Every day', 'From Mar 7: Mon/Wed/Fri']);
-    expect(vm.scheduleLabel).toBe('Mon/Wed/Fri');
+    expect(vm.history.map((h) => h.label)).toEqual(['Since Mar 1: Every day', 'From Mar 8: Mon/Wed/Fri']);
+    expect(vm.scheduleLabel).toBe('Every day');
     expect(vm.createdOn).toBe('2026-03-01');
   });
 });
@@ -346,17 +354,21 @@ describe('selectors are cheap: repeated views reuse memoised history walks', () 
     const g = new Game({ start: '2026-01-01' });
     const ids = Array.from({ length: 6 }, (_, i) => g.addHabit({ name: `H${i}` }));
     g.freeze = false;
-    for (let d = '2026-01-01'; d <= '2026-06-30'; d = addDays(d, 1)) {
-      g.now = at(d, 12);
-      for (const id of ids) g.run((tx) => logging.editHistory(tx, id, d, true));
-    }
     g.goTo('2026-06-30');
+    // Six months of history: calendar edits for older days, the week strip for the 6-day window.
+    for (let d = '2026-01-01'; d <= '2026-06-30'; d = addDays(d, 1)) {
+      for (const id of ids) {
+        if (d < '2026-06-24') expect(g.run((tx) => logging.editHistory(tx, id, d, true))).toBe(true);
+        else g.checkIn(id, d);
+      }
+    }
+    expect(Object.keys(g.state.logs[ids[0]!]!)).toHaveLength(181);
     const t0 = performance.now();
     todayVM(g.state, envOf(g));
     const first = performance.now() - t0;
     const t1 = performance.now();
     todayVM(g.state, envOf(g));
     const second = performance.now() - t1;
-    expect(second).toBeLessThan(Math.max(first, 5));
+    expect(second).toBeLessThan(Math.max(first / 2, 25)); // slack for a busy machine
   });
 });

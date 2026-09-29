@@ -58,8 +58,8 @@ describe('current period: only an impossible shortfall counts (DESIGN §13.3)', 
   const oneOnMonday = logs(on(['2026-09-28']));
 
   it.each([
-    // today, remaining active days (today…Sun), expected
-    ['2026-09-28', 7, 1],
+    // today, remaining active days (today…Sun; today only while it can still take a check-in), expected
+    ['2026-09-28', 6, 1], // Monday, already checked in: today is used up
     ['2026-10-01', 4, 1], // Thursday
     ['2026-10-03', 2, 1], // Saturday: 3 − 1 − 2 = 0 shortfall → 1 of 1
     ['2026-10-04', 1, 2], // Sunday: one check-in can no longer happen → 1 of 2
@@ -72,8 +72,22 @@ describe('current period: only an impossible shortfall counts (DESIGN §13.3)', 
   });
 
   it('checking in today helps immediately and never counts against', () => {
+    // Sunday, Monday done: 1 of 2 so far (today could still take one of the 2 missing).
+    expect(periodAt(h, oneOnMonday, '2026-09-28', '2026-10-04')).toMatchObject({ achieved: 1, expected: 2 });
+    // Checking in raises achieved and leaves the shortfall where it was: a used-up today can't take a
+    // second check-in, so the week reads 2 of 3, not a false 2 of 2 (stage-3 decision, periods.ts).
     const l = logs(on(['2026-09-28', '2026-10-04']));
-    expect(periodAt(h, l, '2026-09-28', '2026-10-04')).toMatchObject({ achieved: 2, expected: 2 });
+    expect(periodAt(h, l, '2026-09-28', '2026-10-04')).toMatchObject({ achieved: 2, expected: 3, remainingActiveDays: 0 });
+  });
+
+  it('a day off or a pause never raises the current expectation (DESIGN §13.2 "transparent for every habit")', () => {
+    const friday = '2026-10-02';
+    const plain = periodAt(h, logs(), '2026-09-28', friday);
+    const off = evaluatePeriod(h, logs(), flexPeriodAt(h, friday, 1)!, ctx(friday, { offDays: [friday] }));
+    const paused = periodAt(habit({ startedOn: '2026-08-03', schedule: weekly(3), pauses: [{ start: friday, end: friday }] }), logs(), '2026-09-28', friday);
+    expect(plain).toMatchObject({ target: 3, expected: 0 });
+    // round(3 × 6/7) is still 3, but the day taken off still counts as open until the week closes.
+    for (const e of [off, paused]) expect(e).toMatchObject({ activeDays: 6, target: 3, remainingActiveDays: 2, openDays: 3, expected: 0 });
   });
 
   it('a planned pause lowers both the goal and the remaining days', () => {
@@ -134,20 +148,28 @@ describe('rule versions clip periods', () => {
     expect(e).toMatchObject({ key: '2026-09-28', from: '2026-09-30', to: '2026-10-04', activeDays: 5, target: 2, checkinDays: 1, expected: 2 });
   });
 
-  it('weekly → day-based mid-week: the last week closes the day before the switch', () => {
+  it('weekly → day-based mid-week: the last week is cut the day before the switch and judged as it stood', () => {
     const h = habit({ startedOn: '2026-08-03', rules: [rule('2026-08-03', weekly(3)), rule('2026-09-30', DAILY)] });
     const e = periodAt(h, logs(on(['2026-09-29'])), '2026-09-29', '2026-09-30');
-    expect(e).toMatchObject({ from: '2026-09-28', to: '2026-09-29', state: 'closed', activeDays: 2, target: 1, achieved: 1, expected: 1 });
+    // On Wednesday the week stood at 1 of 3 with 5 days to go: nothing was settled yet, so the cut
+    // week is neither met nor short (the edit can't create a shortfall), and it keeps its full goal.
+    expect(e).toMatchObject({ from: '2026-09-28', to: '2026-09-29', state: 'closed', cut: true, activeDays: 7, target: 3, achieved: 1, openDays: 5, expected: 1, met: false, short: false });
     expect(flexPeriodAt(h, '2026-09-30', 1)).toBeNull();
+    // Had the goal already been out of reach on the day of the cut, that shortfall stays settled.
+    const late = habit({ startedOn: '2026-08-03', rules: [rule('2026-08-03', weekly(3)), rule('2026-10-04', DAILY)] });
+    expect(periodAt(late, logs(), '2026-09-29', '2026-10-05')).toMatchObject({ cut: true, openDays: 1, expected: 2, short: true });
   });
 
-  it('graduating a weekly habit mid-week closes its period tonight with a scaled goal', () => {
+  it('graduating a weekly habit mid-week cuts its period tonight: it is met only by its full goal', () => {
     const h = habit({ startedOn: '2026-08-03', schedule: weekly(3) });
     const grown = withRuleEdit(h, { schedule: weekly(4), target: 1, step: 1 }, '2026-09-30', 'tomorrow', 1);
     const l = logs(on(['2026-09-28', '2026-10-02']));
-    // Mon–Wed under 3×: round(3 × 3/7) = 1 → met. Thu–Sun under 4×: round(4 × 4/7) = 2.
-    expect(periodAt(grown, l, '2026-09-29', '2026-10-05')).toMatchObject({ from: '2026-09-28', to: '2026-09-30', target: 1, achieved: 1, met: true });
-    expect(periodAt(grown, l, '2026-10-02', '2026-10-05')).toMatchObject({ from: '2026-10-01', to: '2026-10-04', target: 2, achieved: 1, expected: 2 });
+    // Mon–Wed under 3×, 1 of 3 with Thu–Sun lost to the new rule: not met, not short (a cheaper
+    // "scaled" goal would let any mid-period edit collect a period-goal bonus). Thu–Sun under 4×:
+    // round(4 × 4/7) = 2.
+    expect(periodAt(grown, l, '2026-09-29', '2026-10-05')).toMatchObject({ from: '2026-09-28', to: '2026-09-30', cut: true, target: 3, achieved: 1, met: false, short: false });
+    expect(periodAt(grown, logs(on(['2026-09-28', '2026-09-29', '2026-09-30'])), '2026-09-29', '2026-10-05')).toMatchObject({ cut: true, met: true });
+    expect(periodAt(grown, l, '2026-10-02', '2026-10-05')).toMatchObject({ from: '2026-10-01', to: '2026-10-04', cut: false, target: 2, achieved: 1, expected: 2 });
   });
 
   it('archiving mid-week shrinks the last period', () => {

@@ -39,6 +39,8 @@ export interface HabitDetailVM {
   rule: HabitRule;
   /** "Every day" · "Mon/Wed/Fri" · "3× a week"… */
   scheduleLabel: string;
+  /** A rule edit waiting to start (next period, tomorrow, or after today's rewarded check-in): "From Oct 1: Mon/Wed/Fri". */
+  upcoming: { from: DateKey; rule: HabitRule; label: string } | null;
   archived: boolean;
   /** First day rewards can pay for (the creation day). */
   createdOn: DateKey;
@@ -109,13 +111,15 @@ export function habitDetailVM(s: AppState, env: ViewEnv, id: string): HabitDetai
   const upcoming = habit.pauses.filter((p) => p.start > today).sort((a, b) => (a.start < b.start ? -1 : 1))[0] ?? null;
   const back = pauseReturnDay(habit.pauses, today) ?? null;
 
+  const pending = habit.rules.find((r) => r.from > today);
   return {
     habit,
     rule,
     scheduleLabel: scheduleLabel(rule.schedule, s.settings.weekStart),
+    upcoming: pending ? { from: pending.from, rule: pending, label: `From ${monthDayLabel(pending.from)}: ${scheduleLabel(pending.schedule, s.settings.weekStart)}` } : null,
     archived: habit.archivedOn !== undefined,
     createdOn: habitCreatedOn(habit, s.settings.dayStartsAt, env.local),
-    plant: plantVM(s, habit, today),
+    plant: plantVM(s, habit, today, env.local),
     stats: {
       current: streakVM(streak.current, habit.polarity),
       best: streakVM(streak.best, habit.polarity),

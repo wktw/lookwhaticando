@@ -57,7 +57,7 @@ export function closeDays(tx: Tx, from: DateKey): void {
       const held = tx.s.ledger.recent[ledgerKey(h.id, d)]?.lvl;
       if (held === 'tiny' || held === 'full') continue;
       // As of `d` itself the day was still pending, which is exactly "before it closed".
-      rewardPass(tx, h.id, d, { user: false, bestBefore: bestStreakOccurrences(tx.s, h.id, d) });
+      rewardPass(tx, h.id, d, { user: false, bestBefore: bestStreakOccurrences(tx.s, h.id, d, tx.env.local) });
     }
   }
 }

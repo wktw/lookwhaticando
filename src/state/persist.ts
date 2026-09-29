@@ -4,17 +4,23 @@
  * - Envelope `{ v, appVersion, rev, savedAt, state }` under `mochi-meadow:v1` (the demo meadow lives
  *   under `mochi-meadow:demo:v1`). `rev` increases with every write, so a window can tell a newer
  *   save written by another window (`storage` events) from its own.
- * - Every storage access is in try/catch; nothing here throws. A QuotaExceeded write compacts and
- *   retries (dropping the `:backup` copy and the state's stale ledger), and reports 'storage-full'
- *   if it still fails.
+ * - Every storage access is in try/catch; nothing here throws. A QuotaExceeded write retries after
+ *   dropping the `:corrupt` copy, then after dropping `:backup` and compacting the state's stale
+ *   ledger; the backup is put back if even that fails (so a failed save never costs the backup),
+ *   and 'storage-full' is reported.
+ * - A queue can be *held* (a window still waiting for the single-writer lock): writes stay pending
+ *   until it is released, and a window that is refused the lock discards them, so it never writes
+ *   over the owner's save. Adopting another window's newer save discards the pending one too.
  * - Saves are debounced (250 ms) except when the caller asks for an immediate write (wallet-changing
  *   actions, commit-before-animate), and `flush()` writes any pending save (pagehide / hidden).
- * - A save stamped with a newer schema is reported as 'newer' (the app opens it read-only).
+ * - A save stamped with a newer schema is reported as 'newer' (the app opens it read-only), with the
+ *   state when it still reads as a current-schema state (a newer version that only added fields),
+ *   so the meadow can be shown rather than an empty one.
  * - Reset removes only `mochi-meadow:*` keys (never `clear()`).
  * - The theme is mirrored to its own tiny key for the pre-paint script in index.html.
  * Storage and timers are injected, so all of this runs under node in tests.
  */
-import type { AppState, Settings } from './types';
+import { SCHEMA_VERSION, type AppState, type Settings } from './types';
 import { migrate } from './migrate';
 import { validateState } from './validate';
 
@@ -110,7 +116,7 @@ function safeRemove(storage: KeyValueStorage, key: string): void {
 export type LoadResult =
   | { kind: 'empty' }
   | { kind: 'ok'; state: AppState; rev: number; savedAt: number; migrated: boolean; raw: string; fromBackup: boolean }
-  | { kind: 'newer'; version: number; raw: string }
+  | { kind: 'newer'; version: number; raw: string; state?: AppState }
   | { kind: 'corrupt'; errors: string[]; raw: string };
 
 /** Parses, migrates and validates an envelope string. */
@@ -127,7 +133,10 @@ export function parseEnvelope(raw: string): Exclude<LoadResult, { kind: 'empty' 
   }
   const m = migrate(env.state);
   if (!m.ok) {
-    if (m.error === 'newer-version') return { kind: 'newer', version: m.version ?? env.v, raw };
+    if (m.error === 'newer-version') {
+      const readable = validateState({ ...(env.state as object), version: SCHEMA_VERSION });
+      return readable.ok ? { kind: 'newer', version: m.version ?? env.v, raw, state: readable.state } : { kind: 'newer', version: m.version ?? env.v, raw };
+    }
     return { kind: 'corrupt', errors: [`migration: ${m.error}`], raw };
   }
   const valid = validateState(m.state);
@@ -225,6 +234,7 @@ export class SaveQueue {
   private pending: AppState | null = null;
   private handle: unknown = null;
   private lastStatus: SaveStatus | null = null;
+  private held = false;
   lastChars = 0;
 
   constructor(private readonly o: SaveQueueOptions) {
@@ -249,12 +259,31 @@ export class SaveQueue {
     return this.flush() ?? 'saved';
   }
 
-  /** Writes the pending state, if any. */
+  /** Keeps writes pending (not written) until `release()`. */
+  hold(): void {
+    this.held = true;
+  }
+
+  /** Ends a hold and writes whatever is pending. */
+  release(): SaveStatus | null {
+    this.held = false;
+    return this.flush();
+  }
+
+  /** Forgets the pending state without writing it (lock refused, or another window's save adopted). */
+  discardPending(): void {
+    if (this.handle !== null) this.o.timers.clearTimeout(this.handle);
+    this.handle = null;
+    this.pending = null;
+  }
+
+  /** Writes the pending state, if any (nothing while held). */
   flush(): SaveStatus | null {
     if (this.handle !== null) {
       this.o.timers.clearTimeout(this.handle);
       this.handle = null;
     }
+    if (this.held) return null;
     const state = this.pending;
     if (state === null) return null;
     this.pending = null;
@@ -270,9 +299,14 @@ export class SaveQueue {
     const now = this.o.now();
     let res = trySet(storage, key, encodeEnvelope(state, rev, now, appVersion));
     if (!res.ok && res.reason === 'quota') {
-      safeRemove(storage, backupKeyOf(key));
       safeRemove(storage, corruptKeyOf(key));
+      res = trySet(storage, key, encodeEnvelope(state, rev, now, appVersion));
+    }
+    if (!res.ok && res.reason === 'quota') {
+      const backup = safeGet(storage, backupKeyOf(key));
+      safeRemove(storage, backupKeyOf(key));
       res = trySet(storage, key, encodeEnvelope(this.o.compact(state), rev, now, appVersion));
+      if (!res.ok && backup !== null) trySet(storage, backupKeyOf(key), backup);
     }
     if (!res.ok) return res.reason === 'quota' ? 'storage-full' : 'unavailable';
     this.rev = rev;

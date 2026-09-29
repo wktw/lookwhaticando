@@ -119,14 +119,53 @@ describe('notes and history edits', () => {
     expect(g.state.logs[a]?.[addDays(g.today, 1)]).toBeUndefined();
   });
 
-  it('history edits never touch rewards, even inside the window', () => {
-    const g = new Game();
+  it('history edits never touch rewards; days inside the window go through the check-in path instead', () => {
+    const g = new Game({ start: '2026-03-02' });
     const a = g.addHabit();
+    g.goTo('2026-03-20');
+    const old = '2026-03-10';
     const before = { wallet: g.state.wallet, ledger: g.state.ledger, lifetime: g.state.lifetime, badges: g.state.badges };
-    g.run((tx) => logging.editHistory(tx, a, g.today, true));
-    expect(g.state.logs[a]![g.today]).toEqual({ kind: 'log', count: 1 });
+    expect(g.run((tx) => logging.editHistory(tx, a, old, true))).toBe(true);
+    expect(g.state.logs[a]![old]).toEqual({ kind: 'log', count: 1 });
     expect({ wallet: g.state.wallet, ledger: g.state.ledger, lifetime: g.state.lifetime, badges: g.state.badges }).toEqual(before);
-    g.run((tx) => logging.editHistory(tx, a, g.today, false));
-    expect(g.state.logs[a]?.[g.today]).toBeUndefined();
+    expect(g.run((tx) => logging.editHistory(tx, a, old, false))).toBe(true);
+    expect(g.state.logs[a]?.[old]).toBeUndefined();
+    // Inside the 6-day window a calendar edit would hide a paid check-in (§13.2 "the Progress
+    // calendar edits older days"): refused, nothing changes.
+    for (const d of [g.today, '2026-03-14']) {
+      expect(g.run((tx) => logging.editHistory(tx, a, d, true))).toBe(false);
+      expect(g.state.logs[a]?.[d]).toBeUndefined();
+    }
+  });
+
+  it('a flexible check-in can\'t be un-ticked in the calendar while its period still reaches into the window', () => {
+    const g = new Game({ start: '2026-08-03' });
+    const y = g.addHabit({ name: 'Deep clean', schedule: { kind: 'monthly', times: 1, every: 1 } });
+    g.goTo('2026-09-02');
+    g.checkIn(y);
+    g.goTo('2026-09-20'); // Sep 2 is history, but September can still be paid through the window
+    expect(g.run((tx) => logging.editHistory(tx, y, '2026-09-02', false))).toBe(false);
+    expect(g.run((tx) => logging.editHistory(tx, y, '2026-09-05', true))).toBe(true); // adding is fine
+    g.goTo('2026-10-08'); // September has left the window
+    expect(g.run((tx) => logging.editHistory(tx, y, '2026-09-02', false))).toBe(true);
+  });
+
+  it('every entry point refuses a key that is not a real day', () => {
+    const g = new Game({ start: '2026-09-20' });
+    const a = g.addHabit({ target: 3 });
+    const before = g.state;
+    for (const bad of ['2026-09-19x', '2026-9-19', '2026-02-30', ' 2026-09-19', '']) {
+      g.checkIn(a, bad);
+      g.tiny(a, bad);
+      g.undo(a, bad);
+      g.setCount(a, bad, 2);
+      g.rest(a, bad);
+      g.run((tx) => logging.setNote(tx, a, bad, 'hi'));
+      g.run((tx) => logging.editHistory(tx, a, bad, true));
+      expect(g.run((tx) => logging.toggleOffDay(tx, bad))).toEqual({ ok: false, remaining: 0 });
+    }
+    expect(g.state.logs).toEqual(before.logs);
+    expect(g.state.ledger).toEqual(before.ledger);
+    expect(g.state.offDays).toEqual(before.offDays);
   });
 });

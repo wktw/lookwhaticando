@@ -15,6 +15,8 @@ import { ruleAt, scheduleStatusOn } from '@/domain/rules';
 import { levelForXp } from '@/domain/levels';
 import { rewardsPaused } from '@/domain/wallet';
 import { habitCard, liveHabits, longDateLabel, monthDayLabel, type HabitCardVM, type ViewEnv } from './common';
+import { aggregateDayState, type DayState } from './calendar';
+import { firstTrackedDay } from '@/domain/insights';
 
 export type DayPart = 'morning' | 'afternoon' | 'evening' | 'night';
 
@@ -32,6 +34,11 @@ export interface WeekStripDay {
   due: number;
   /** A global day off (lavender moon). */
   offDay: boolean;
+  /**
+   * The shared day-state glyph (the calendar's, upstream §13.11): a day whose only check-ins were
+   * flexible reads 'done' rather than "nothing due".
+   */
+  state: DayState;
   /** First day of a calendar week: the strip draws a hairline gap before it (§13.11). */
   weekStart: boolean;
   /** "Saturday, September 27, 3 of 5 done" */
@@ -58,8 +65,13 @@ export interface DayProgressVM {
   done: number;
   /** Day-based occurrences due that day (scheduled, active; allowed rests, pauses and off days excluded). */
   total: number;
-  /** 0..1 (1 when nothing is due). */
+  /**
+   * 0..1. When nothing day-based is due the vine doesn't claim a bloom it wasn't asked for: 1 only
+   * if a flexible habit was checked in that day, else 0 (`nothingDue` lets the card say so).
+   */
   fraction: number;
+  /** No day-based habit is due that day (only flexible habits, rests, pauses or a day off). */
+  nothingDue: boolean;
   /** "3 of 5" */
   label: string;
   /** Flexible check-ins that day (they count toward a perfect day). */
@@ -142,10 +154,17 @@ export interface TodayVM {
 const BLOCK_ORDER: readonly Exclude<TimeOfDay, 'anytime'>[] = ['morning', 'midday', 'evening'];
 const BLOCK_LABEL: Record<TimeOfDay, string> = { morning: 'Morning', midday: 'Midday', evening: 'Evening', anytime: 'Anytime' };
 
-/** Which time block the wall clock is in: morning until 11:00, midday until 17:00, then evening. */
-export function currentBlock(hour: number): Exclude<TimeOfDay, 'anytime'> {
-  if (hour >= 5 && hour < 11) return 'morning';
-  if (hour >= 11 && hour < 17) return 'midday';
+/**
+ * Which time block of the app day the wall clock is in: morning from the day start until 11:00,
+ * midday until 17:00, then evening. Hours before `dayStartsAt` (minutes after midnight) still
+ * belong to the previous app day's evening; from the day start on it is the new day's morning, so
+ * at 4 am with a 3 am day start Morning comes first rather than being folded as "earlier" (§13.2
+ * day boundary + "the current block comes first").
+ */
+export function currentBlock(hour: number, dayStartsAt = 0, minute = 0): Exclude<TimeOfDay, 'anytime'> {
+  if (hour * 60 + minute < dayStartsAt) return 'evening';
+  if (hour < 11) return 'morning';
+  if (hour < 17) return 'midday';
   return 'evening';
 }
 
@@ -178,8 +197,10 @@ export function todayVM(s: AppState, env: ViewEnv, date: DateKey = env.today): T
   const today = env.today;
   const day = date > today ? today : date;
   const t = trackingOf(s);
-  const hour = env.local(env.now).hour;
+  const clock = env.local(env.now);
+  const hour = clock.hour;
   const part = dayPart(hour);
+  const firstTracked = firstTrackedDay(t);
   const isToday = day === today;
 
   // Week strip.
@@ -198,6 +219,7 @@ export function todayVM(s: AppState, env: ViewEnv, date: DateKey = env.today): T
       done: c.done,
       due: c.due,
       offDay: s.offDays[d] === true,
+      state: aggregateDayState(s, d, today, firstTracked).state,
       weekStart: i < 6 && startOfWeek(d, s.settings.weekStart) === d,
       ariaLabel: `${longDateLabel(d)}, ${c.due > 0 ? `${c.done} of ${c.due} done` : 'nothing due'}`,
     });
@@ -225,7 +247,7 @@ export function todayVM(s: AppState, env: ViewEnv, date: DateKey = env.today): T
     else notToday.push(card);
   }
 
-  const cur = currentBlock(hour);
+  const cur = currentBlock(hour, s.settings.dayStartsAt, clock.minute);
   const curIdx = BLOCK_ORDER.indexOf(cur);
   const order: TimeOfDay[] = isToday
     ? [cur, ...BLOCK_ORDER.slice(curIdx + 1), 'anytime', ...BLOCK_ORDER.slice(0, curIdx)]
@@ -253,8 +275,9 @@ export function todayVM(s: AppState, env: ViewEnv, date: DateKey = env.today): T
   const progress: DayProgressVM = {
     done: c.done,
     total: c.due,
-    fraction: c.due > 0 ? c.done / c.due : 1,
-    label: `${c.done} of ${c.due}`,
+    fraction: c.due > 0 ? c.done / c.due : c.flexibleCheckins > 0 ? 1 : 0,
+    nothingDue: c.due === 0,
+    label: c.due > 0 ? `${c.done} of ${c.due}` : c.flexibleCheckins > 0 ? `${c.flexibleCheckins} checked in` : 'Nothing due',
     flexibleCheckins: c.flexibleCheckins,
     perfect: s.ledger.once[`perfect|${day}`] !== undefined,
   };

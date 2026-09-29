@@ -125,7 +125,8 @@ describe('uncheck / recheck / spend / refund (reward integrity)', () => {
     const w = g.addHabit({ name: 'Water', target: 8, tiny: { label: '4 glasses', count: 4 }, effort: 'steady' });
     const coins0 = g.coins;
     g.tiny(w);
-    expect(g.state.logs[w]![g.today]).toMatchObject({ count: 4, level: 'tiny' });
+    // The tiny version is a level (§13.2 "stored as level:'tiny'"): the count is left as it was.
+    expect(g.state.logs[w]![g.today]).toMatchObject({ count: 0, level: 'tiny' });
     const afterTiny = g.coins;
     expect(afterTiny - coins0).toBeGreaterThanOrEqual(3);
     g.setCount(w, g.today, 8);

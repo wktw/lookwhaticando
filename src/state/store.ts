@@ -15,6 +15,9 @@
  *    collection, pending reveal or lifetime changed, else debounced (250 ms); the theme is mirrored
  *    to its own key; the events are emitted after the commit.
  * While another window owns the save, or it was written by a newer app version, actions are no-ops.
+ * A window writes nothing until the single-writer lock is granted (its saves are held, then
+ * discarded if the lock is refused), and adopting another window's newer save drops any pending
+ * save of its own, so a second window can never roll the owner's save back (§13.8).
  *
  * Everything browser-specific (localStorage, IndexedDB, Web Locks, DOM events, timers, crypto) is
  * reached through `StoreRuntime`, which tests replace with `configureStore`.
@@ -62,7 +65,7 @@ import { indexedDbSnapshotStore, memorySnapshotStore, snapshotMeta, takeDailySna
 import { deviceLabel, describeBackup, encodePayload, makeBackup, parseBackupText } from './handoff';
 import { validateState } from './validate';
 import { buildDemo } from './demo';
-import { appDayKey, monotonicDayKey, runtimeLocalTime, type LocalTimeReader } from '@/domain/dates';
+import { CLOCK_ROLLBACK_TOLERANCE_MS, appDayKey, monotonicDayKey, runtimeLocalTime, type LocalTimeReader } from '@/domain/dates';
 import type { Rng } from '@/domain/rng';
 import { transact, type Env, type Tx } from '@/domain/tx';
 import { compactSave, openDay } from '@/domain/rollover';
@@ -249,14 +252,17 @@ function urgent(prev: AppState, next: AppState): boolean {
   return prev.wallet !== next.wallet || prev.collection !== next.collection || prev.pendingReveal !== next.pendingReveal || prev.lifetime !== next.lifetime;
 }
 
-function persist(prev: AppState, next: AppState, force = false): void {
-  if (!writable()) return;
+/** Saves `next` (at once when urgent, else debounced). Returns the write's status when it wrote at once. */
+function persist(prev: AppState, next: AppState, force = false): SaveStatus | null {
+  if (!writable()) return null;
   queue ??= makeQueue(currentKey(), 0);
-  if (force || urgent(prev, next)) queue.saveNow(next);
+  let status: SaveStatus | null = null;
+  if (force || urgent(prev, next)) status = queue.saveNow(next);
   else queue.schedule(next);
   if (!demoMode.value && (prev.settings.theme !== next.settings.theme || prev.settings.reduceMotion !== next.settings.reduceMotion)) {
     mirrorTheme(storage(), next.settings);
   }
+  return status;
 }
 
 function setState(next: AppState, ms: number): void {
@@ -329,37 +335,49 @@ function snapshotToday(): void {
   });
 }
 
-/** Holds the single-writer Web Lock while this window owns the save (best effort without Web Locks). */
+/**
+ * Holds the single-writer Web Lock while this window owns the save (best effort without Web
+ * Locks). Until the lock answers, saves are held; a refused window discards them and never writes.
+ */
 function acquireLock(steal = false): void {
   const locks = rt.locks;
   if (!locks) return;
   releaseLock?.();
   releaseLock = null;
   let granted = false;
+  queue?.hold();
   locks
     .request(LOCK_NAME, steal ? { steal: true } : { ifAvailable: true }, (lock) => {
       if (!lock) {
+        queue?.discardPending();
         queue?.dispose();
         readOnly.value = 'other-window';
         return undefined;
       }
       granted = true;
       if (readOnly.value === 'other-window') readOnly.value = false;
+      queue?.release();
       return new Promise<void>((resolve) => (releaseLock = resolve));
     })
     .catch(() => {
+      // Web Locks failed before answering (e.g. unavailable in this context): best effort without
+      // them, like a browser that has none, so the held saves are written after all.
+      if (!granted) {
+        if (readOnly.value !== 'other-window') queue?.release();
+        return;
+      }
       // Our lock was stolen by another window ("Use here" over there): stop writing.
-      if (!granted) return;
       queue?.dispose();
       queue = null;
       readOnly.value = 'other-window';
     });
 }
 
-/** Adopts a newer save written by another window (`storage` event). */
+/** Adopts a newer save written by another window (`storage` event), dropping our pending save. */
 function adoptFromStorage(): void {
   const res = loadSave(storage(), currentKey());
   if (res.kind !== 'ok') return;
+  queue?.discardPending();
   setState(res.state, rt.now());
   if (queue) queue.rev = res.rev;
 }
@@ -388,7 +406,8 @@ export function hydrate(): void {
       else writeBackup(store, SAVE_KEY, res.raw);
       break;
     case 'newer':
-      initial = createInitialState(rt.now());
+      // Opened read-only (§13.8): the newer meadow is shown when it still reads as this schema.
+      initial = res.state ?? createInitialState(rt.now());
       readOnly.value = 'newer-version';
       loadIssue.value = { kind: 'newer-version' };
       break;
@@ -405,6 +424,7 @@ export function hydrate(): void {
       initial = createInitialState(rt.now());
   }
   queue = makeQueue(SAVE_KEY, rev);
+  if (rt.locks && writable()) queue.hold(); // nothing is written before the writer lock answers
   setState(initial, rt.now());
   if (writable()) {
     actVoid(() => undefined);
@@ -434,9 +454,9 @@ export function useHere(): void {
   acquireLock(true);
 }
 
-/** Writes any pending save now (pagehide / hidden). */
+/** Writes any pending save now (pagehide / hidden). Never from a window that doesn't own the save. */
 export function flushSaves(): void {
-  queue?.flush();
+  if (writable()) queue?.flush();
 }
 
 /** One clock tick: refresh `now`/`today`; on a new app day run the day's work and snapshot. */
@@ -489,8 +509,12 @@ export function archiveHabit(id: string): void {
 export function restoreHabit(id: string): void {
   actVoid((tx) => habitsDomain.restoreHabit(tx, id));
 }
-export function deleteHabit(id: string): void {
-  actVoid((tx) => habitsDomain.deleteHabit(tx, id));
+/**
+ * Deletes a habit. `keepPlant` ("Keep the plant in the greenhouse?", §13.10, default yes in the
+ * UI) archives it instead, so its plant stays on the Greenhouse shelf.
+ */
+export function deleteHabit(id: string, opts: { keepPlant?: boolean } = {}): void {
+  actVoid((tx) => habitsDomain.deleteHabit(tx, id, opts));
 }
 export function reorderHabits(ids: string[]): void {
   actVoid((tx) => habitsDomain.reorderHabits(tx, ids));
@@ -541,9 +565,13 @@ export function toggleOffDay(date: DateKey): { ok: boolean; remaining: number } 
 export function setNote(habitId: string, date: DateKey, note: string): void {
   actVoid((tx) => logging.setNote(tx, habitId, date, note));
 }
-/** Calendar history edit (older than the 6-day window): toggles done/not-done, never touches rewards. */
-export function editHistory(habitId: string, date: DateKey, done: boolean): void {
-  actVoid((tx) => logging.editHistory(tx, habitId, date, done));
+/**
+ * Calendar history edit (older than the 6-day window): toggles done/not-done, never touches rewards.
+ * False when refused: window days go through the week strip (the check-in path), and so does
+ * un-ticking a flexible check-in whose period still reaches into the window (logging.editHistory).
+ */
+export function editHistory(habitId: string, date: DateKey, done: boolean): boolean {
+  return actValue((tx) => logging.editHistory(tx, habitId, date, done), false);
 }
 
 /* ---------------- Capsules ---------------- */
@@ -583,9 +611,27 @@ export function machineStatusOf(s: AppState, day: DateKey, id: MachineId): Machi
 export function availableMachines(): MachineId[] {
   return availableMachineIds(today.value);
 }
-/** Decides the pull, commits it immediately (pendingReveal), then returns it for the reveal. */
+/**
+ * Decides the pull, commits it and writes it at once (pendingReveal), then returns it for the
+ * reveal. Commit before animate (§13.6): when the save can't be written (storage full), the pull is
+ * rolled back and refused ('storage-full'), so a reload can never re-roll a pull already shown.
+ */
 export function pull(machineId: MachineId, opts: { useTicket?: boolean; free?: boolean } = {}): PullOutcome {
-  const out = act((tx) => ({ o: gacha.pull(tx, machineId, opts) as PullOutcome }), { o: { ok: false, error: 'machine-unavailable' } as PullOutcome });
+  if (!writable()) return { ok: false, error: 'machine-unavailable' };
+  const ms = rt.now();
+  const prev = state.value;
+  const out = transact(prev, envAt(ms, prev), (tx) => {
+    openDay(tx);
+    return { o: gacha.pull(tx, machineId, opts) as PullOutcome };
+  });
+  setState(out.state, ms);
+  const status = out.state !== prev ? persist(prev, out.state) : null;
+  if (out.o.ok && (status === 'storage-full' || status === 'unavailable')) {
+    setState(prev, ms);
+    queue?.schedule(prev);
+    return { ok: false, error: 'storage-full' };
+  }
+  if (out.events.length > 0) emitGameEvents(out.events);
   return out.o.ok ? { ...out.o, events: out.events } : out.o;
 }
 /** Clear state.pendingReveal once the reveal has been shown. */
@@ -666,20 +712,33 @@ export function completeOnboarding(opts: { name: string; templateIds: string[]; 
 }
 
 /* ---------------- Data ---------------- */
-function backupJson(): string {
-  return JSON.stringify(makeBackup(state.value, { now: rt.now(), appVersion: rt.appVersion, device: rt.device }));
+/**
+ * The meadow a backup or handoff carries: always the user's own. While peeking at the demo it is the
+ * real save (the demo's made-up history must never become a real meadow, §13.8).
+ */
+function ownMeadow(): AppState {
+  if (!demoMode.value) return state.value;
+  const res = loadSave(storage(), SAVE_KEY);
+  return res.kind === 'ok' ? res.state : (realState ?? createInitialState(rt.now()));
 }
 
-/** Backup file contents (JSON envelope). Marks lastBackupAt. */
+function backupJson(): string {
+  return JSON.stringify(makeBackup(ownMeadow(), { now: rt.now(), appVersion: rt.appVersion, device: rt.device }));
+}
+
+/** Backup file contents (JSON envelope) of the user's own meadow (the real one inside the demo). Marks lastBackupAt. */
 export function exportData(): string {
   const json = backupJson();
-  actVoid((tx) => profileDomain.markBackup(tx));
+  if (!demoMode.value) actVoid((tx) => profileDomain.markBackup(tx));
   return json;
 }
-/** Compact clipboard payload 'MM1:' + base64url(gzip(json)) for Safari→app handoff and device moves. */
+/**
+ * Compact clipboard payload 'MM1:' + base64url(gzip(json)) for Safari→app handoff and device moves.
+ * Always the user's own meadow ("Move my meadow into the app" from the demo moves the real one).
+ */
 export async function exportPayload(): Promise<string> {
   const payload = await encodePayload(backupJson());
-  actVoid((tx) => profileDomain.markBackup(tx));
+  if (!demoMode.value) actVoid((tx) => profileDomain.markBackup(tx));
   return payload;
 }
 /** Validate a backup (file text or MM1 payload) and describe it without applying. */
@@ -700,12 +759,16 @@ async function snapshotCurrent(): Promise<string | null> {
 }
 
 /** Snapshot the current save, then replace it with the backup (never merge). Undo available for 24 h. */
-export async function applyImport(text: string): Promise<{ ok: true } | { ok: false; error: string }> {
+export async function applyImport(text: string, opts: { withoutUndo?: boolean } = {}): Promise<{ ok: true } | { ok: false; error: string }> {
   if (demoMode.value) return { ok: false, error: 'demo-mode' };
   if (!writable()) return { ok: false, error: 'read-only' };
   const parsed = await parseBackupText(text);
   if (!parsed.ok) return { ok: false, error: parsed.error };
   const snapshotId = await snapshotCurrent().catch(() => null);
+  // Import snapshots first (§13.8). When no undo copy could be kept, the current meadow would be
+  // replaced for good: refuse ('no-undo') unless the user confirmed importing anyway (or there is
+  // no meadow yet to lose).
+  if (!snapshotId && !opts.withoutUndo && state.value.profile.onboarded) return { ok: false, error: 'no-undo' };
   if (snapshotId) writeJson(storage(), UNDO_IMPORT_KEY, { id: snapshotId, until: rt.now() + UNDO_IMPORT_MS });
   replaceState(parsed.state);
   return { ok: true };
@@ -742,8 +805,26 @@ export async function restoreSnapshot(id: string): Promise<boolean> {
   return true;
 }
 
-/** Reset removes only mochi-meadow:* keys, never clear(). IndexedDB snapshots are kept as a safety net. */
+/**
+ * Reset removes only mochi-meadow:* keys, never clear(). IndexedDB snapshots are kept as a safety
+ * net. Inside the demo it resets only the demo meadow (its own namespace; "your real meadow is
+ * safe", §13.8). Refused while this window doesn't own the save (another window, or a newer
+ * version's save shown read-only).
+ */
 export function resetAll(): void {
+  if (!writable()) return;
+  if (demoMode.value) {
+    queue?.discardPending();
+    queue?.dispose();
+    for (const k of [DEMO_KEY, `${DEMO_KEY}:backup`, `${DEMO_KEY}:corrupt`]) removeKey(storage(), k);
+    queue = makeQueue(DEMO_KEY, 0);
+    const ms = rt.now();
+    const base = realState ?? state.value;
+    const demo = buildDemo({ today: todayFor(base, ms), now: ms, local: rt.local, name: base.profile.name || 'Sam' });
+    replaceState({ ...demo, settings: { ...demo.settings, theme: base.settings.theme, reduceMotion: base.settings.reduceMotion } });
+    return;
+  }
+  queue?.discardPending();
   queue?.dispose();
   removeNamespace(storage());
   demoMode.value = false;
@@ -785,12 +866,18 @@ export function exitDemo(): void {
   setState(real, rt.now());
 }
 
-/** Resets the clock guard to the device clock (diagnostics escape hatch after a mistaken far-future date). */
-export function repairClock(): void {
-  if (!writable()) return;
-  const ms = rt.now();
+/**
+ * Diagnostics › clock: re-reads the device clock and reports the guard. It never lowers the
+ * guard's high-water marks (DESIGN §13.2: `today` never moves backwards, and while the device clock
+ * is > 36 h behind the latest time seen, no rewards are paid until it catches up), so a forward
+ * date can't be "repaired" into a free second pass over the same days. `resumesAt` is when rewards
+ * come back (null when they aren't paused).
+ */
+export function repairClock(): { behind: boolean; resumesAt: number | null } {
+  tick();
   const s = state.value;
-  replaceState({ ...s, clock: { ...s.clock, maxEpochMs: ms, maxDateKey: appDayKey(ms, s.settings.dayStartsAt, rt.local) } });
+  const behind = rewardsPaused(s, rt.now());
+  return { behind, resumesAt: behind ? s.clock.maxEpochMs - CLOCK_ROLLBACK_TOLERANCE_MS : null };
 }
 
 /** The local wall-clock reader the store runs on (selectors use it for hour-based views). */

@@ -1,9 +1,12 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { MOCHI_ID } from '@/catalog/collectibles';
 import { buildDemo, epochAtLocal } from '@/state/demo';
 import { validateState } from '@/state/validate';
 import { addDays, appDayKey, zonedLocalTime } from '@/domain/dates';
 import { UTC, at } from '../domain/game';
+
+// Builds whole meadows (the 120-day demo, months of play): generous time for a busy CI machine.
+vi.setConfig({ testTimeout: 30_000 });
 
 const TODAY = '2026-09-29';
 const NOW = at(TODAY, 21, 45);

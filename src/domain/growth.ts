@@ -6,7 +6,16 @@
  *   flexible check-ins beyond `times` in a period yield none. Sunshine is a ledger (economy layer);
  *   this module supplies the amounts and the pure stage math.
  * - Stage = min(stageFromSunshine, completedOccurrences): each check-in advances at most one stage,
- *   so a monthly habit cannot jump from Seed to Budding on its first check-in.
+ *   so a monthly habit cannot jump from Seed to Budding on its first check-in. Completed
+ *   occurrences count from the habit's creation day (economy.ts): history filled in before the
+ *   habit existed earned nothing, so it can't unlock stages either (§13.2 "no rewards before
+ *   createdAt").
+ * - Calendar pace (stage-3 decision, from §5.5 "Evergreen at ~6 months of faithful practice"): a
+ *   plant is also capped at the stage a perfectly faithful habit would have reached by now,
+ *   stageFromSunshine(days since creation + 6). Honest play never meets this cap (a faithful daily
+ *   habit earns 1 sunshine a day, and rarer rhythms are held back by completed occurrences first);
+ *   it stops rule flips (a daily habit switched to once-a-year for one check-in banks 364 sunshine)
+ *   from growing a plant faster than real time.
  * - Display stage = max(stage, bestStage): plants never shrink.
  * - After Evergreen: blooms = min(6, floor((sunshine − 180) / 30)), and Flourishes (permanent
  *   visitors) arrive every +60 sunshine, 8 at most (§13.10 "Plants keep living").
@@ -65,9 +74,17 @@ export function stageFromSunshine(sunshine: number): PlantStage {
   return stageOn(STAGE_THRESHOLDS, sunshine);
 }
 
-/** Stage = min(stageFromSunshine, completedOccurrences) (DESIGN §13.4). */
-export function plantStage(sunshine: number, completedOccurrences: number): PlantStage {
-  return clampStage(Math.min(stageFromSunshine(sunshine), Math.max(0, completedOccurrences)));
+/** Days of slack in the calendar-pace cap: a plant may run up to a week ahead of a perfect daily habit. */
+export const PACE_SLACK_DAYS = 6;
+
+/**
+ * Stage = min(stageFromSunshine, completedOccurrences) (DESIGN §13.4), and, when `elapsedDays`
+ * (days since the habit was created, counting that day) is given, at most the calendar-pace stage
+ * stageFromSunshine(elapsedDays + 6) (see module doc).
+ */
+export function plantStage(sunshine: number, completedOccurrences: number, elapsedDays?: number): PlantStage {
+  const pace = elapsedDays === undefined ? EVERGREEN : stageFromSunshine(Math.max(0, elapsedDays) + PACE_SLACK_DAYS);
+  return clampStage(Math.min(stageFromSunshine(sunshine), Math.max(0, completedOccurrences), pace));
 }
 
 /** What the plant shows: never lower than the best stage ever reached. */
@@ -103,7 +120,11 @@ export function stageProgress(sunshine: number, stage: number): number {
 
 const clamp01 = (x: number): number => (x <= 0 ? 0 : x >= 1 ? 1 : x);
 
-/** Flourishes after Evergreen: one permanent visitor per 60 sunshine beyond 180, at most 8 (§13.10). */
+/**
+ * Flourishes after Evergreen: one permanent visitor per 60 sunshine beyond 180, at most 8 (§13.10).
+ * This is what the sunshine held now supports; the economy layer keeps the high-water mark, so a
+ * visitor that arrived stays even if an un-check inside the refund window takes sunshine back.
+ */
 export function flourishesFor(sunshine: number, stage: number): number {
   if (stage < EVERGREEN) return 0;
   return Math.max(0, Math.min(MAX_FLOURISHES, Math.floor((sunshine - STAGE_THRESHOLDS[EVERGREEN] + EPS) / SUNSHINE_PER_FLOURISH)));
@@ -124,7 +145,7 @@ export function stagesCrossed(before: number, after: number): PlantStage[] {
 }
 
 export interface GrowthInfo {
-  /** min(stageFromSunshine, completedOccurrences). */
+  /** min(stageFromSunshine, completedOccurrences, calendar pace). */
   stage: PlantStage;
   /** max(stage, bestStage): what the plant shows. */
   displayStage: PlantStage;
@@ -138,12 +159,21 @@ export interface GrowthInfo {
   flourishes: number;
   /** Sunshine is ahead of the stage: the next check-in grows the plant. */
   heldBack: boolean;
+  /** Sunshine is ahead of the stage but the calendar pace holds it: the plant grows with the days. */
+  paced: boolean;
 }
 
 /** Everything the plant art and the "12 ☀ to Blooming" line need. */
-export function growthInfo(input: { sunshine: number; completedOccurrences: number; bestStage?: number }): GrowthInfo {
-  const { sunshine, completedOccurrences, bestStage } = input;
-  const stage = plantStage(sunshine, completedOccurrences);
+export function growthInfo(input: {
+  sunshine: number;
+  completedOccurrences: number;
+  bestStage?: number;
+  elapsedDays?: number;
+  /** The most Flourishes the plant has had (they are permanent, so never fewer are shown). */
+  bestFlourishes?: number;
+}): GrowthInfo {
+  const { sunshine, completedOccurrences, bestStage, elapsedDays, bestFlourishes } = input;
+  const stage = plantStage(sunshine, completedOccurrences, elapsedDays);
   const shown = displayStage(stage, bestStage);
   return {
     stage,
@@ -153,8 +183,9 @@ export function growthInfo(input: { sunshine: number; completedOccurrences: numb
     sunshineToNext: sunshineToNextStage(sunshine, shown),
     nextName: shown < EVERGREEN ? stageName(shown + 1) : null,
     blooms: bloomsFor(sunshine, shown),
-    flourishes: flourishesFor(sunshine, shown),
-    heldBack: stageFromSunshine(sunshine) > stage,
+    flourishes: Math.max(flourishesFor(sunshine, shown), shown >= EVERGREEN ? Math.min(MAX_FLOURISHES, bestFlourishes ?? 0) : 0),
+    heldBack: stageFromSunshine(sunshine) > stage && plantStage(sunshine, completedOccurrences + 1, elapsedDays) > stage,
+    paced: stageFromSunshine(sunshine) > stage && plantStage(sunshine, completedOccurrences + 1, elapsedDays) === stage,
   };
 }
 

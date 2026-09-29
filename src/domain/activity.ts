@@ -15,7 +15,7 @@
  * - otherwise (incl. over-allowance rest, partial) → missed (counts 0/1)
  */
 import type { DateKey, DayLog, Habit, HabitRule } from '@/state/types';
-import { addDays, eachDay, maxDateKey, minDateKey, monthKey, startOfWeek, type WeekStart } from './dates';
+import { addDays, eachDay, isDateKey, maxDateKey, minDateKey, monthKey, startOfWeek, type WeekStart } from './dates';
 import { isPausedOn } from './pauses';
 import { ruleAt } from './rules';
 import { effectiveTarget, isDayBased, isScheduledDate, restAllowancePerWeek } from './schedule';
@@ -121,19 +121,24 @@ export const REST_AHEAD_DAYS = 14;
 /** Global "Take today off" days allowed per calendar month. */
 export const OFF_DAYS_PER_MONTH = 4;
 
+/*
+ * Day keys are compared as strings, so each check below first insists on a real 'YYYY-MM-DD' day:
+ * '2026-09-28x' sorts between two real days and would otherwise pass as one.
+ */
+
 /** Inside the rewarding backfill window (today−6 … today). Older edits are history-only. */
 export function isInBackfillWindow(date: DateKey, today: DateKey): boolean {
-  return date <= today && date >= addDays(today, -BACKFILL_DAYS);
+  return isDateKey(date) && date <= today && date >= addDays(today, -BACKFILL_DAYS);
 }
 
-/** Future days can never be logged. */
+/** A real day, not in the future: future days can never be logged. */
 export function canLogOn(date: DateKey, today: DateKey): boolean {
-  return date <= today;
+  return isDateKey(date) && date <= today;
 }
 
 /** Rests can be set within the backfill window, today, or up to 14 days ahead. */
 export function canSetRest(date: DateKey, today: DateKey): boolean {
-  return date >= addDays(today, -BACKFILL_DAYS) && date <= addDays(today, REST_AHEAD_DAYS);
+  return isDateKey(date) && date >= addDays(today, -BACKFILL_DAYS) && date <= addDays(today, REST_AHEAD_DAYS);
 }
 
 /** Off days already taken in the calendar month containing `date`. */

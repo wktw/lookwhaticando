@@ -17,7 +17,7 @@ import {
 } from '@/domain/dates';
 import { canSetRest, logStatus, restStanding, showedUp, type LogStatus } from '@/domain/activity';
 import { formatHabitPhrase, habitPhrase, habitTally, trailingWindow, isPctReady } from '@/domain/consistency';
-import { completedOccurrences, logsOf, streakOf, trackingCtx } from '@/domain/economy';
+import { bestFlourishes, completedOccurrences, daysSinceCreation, habitCreatedOn, logsOf, streakOf, trackingCtx } from '@/domain/economy';
 import { growthInfo, sunshinePerOccurrence, type GrowthInfo } from '@/domain/growth';
 import { evaluatePeriod, flexPeriodAt } from '@/domain/periods';
 import { isPausedOn, pauseReturnDay } from '@/domain/pauses';
@@ -100,17 +100,22 @@ export interface PlantVM extends GrowthInfo {
   nextLine: string | null;
 }
 
-export function plantVM(s: AppState, habit: Habit, today: DateKey): PlantVM {
+export function plantVM(s: AppState, habit: Habit, today: DateKey, local: LocalTimeReader): PlantVM {
   const logs = logsOf(s, habit.id);
+  const since = habitCreatedOn(habit, s.settings.dayStartsAt, local);
   const info = growthInfo({
     sunshine: s.ledger.sunshine[habit.id] ?? 0,
-    completedOccurrences: completedOccurrences(habit, logs, trackingCtx(s, today)),
+    completedOccurrences: completedOccurrences(habit, logs, trackingCtx(s, today), since),
     bestStage: s.ledger.bestStage[habit.id],
+    bestFlourishes: bestFlourishes(s, habit.id),
+    elapsedDays: daysSinceCreation(since, today),
   });
   let checkinsToNext: number | null = null;
   if (info.sunshineToNext !== null) {
-    const per = sunshinePerOccurrence(ruleAt(habit, today));
-    checkinsToNext = info.heldBack || info.sunshineToNext <= 1e-9 ? 1 : Math.max(1, Math.ceil(info.sunshineToNext / per - 1e-9));
+    // Priced at the rule of the next check-in: tomorrow's once today is done (an edit may be pending).
+    const nextDay = showedUp(logStatus(logs[today], ruleAt(habit, today), false)) ? addDays(today, 1) : today;
+    const per = sunshinePerOccurrence(ruleAt(habit, nextDay));
+    checkinsToNext = info.heldBack || info.paced || info.sunshineToNext <= 1e-9 ? 1 : Math.max(1, Math.ceil(info.sunshineToNext / per - 1e-9));
   }
   return {
     ...info,
@@ -141,7 +146,7 @@ export interface PaceVM {
   periodLabel: string;
   /** "2 of 3 this week" */
   progressText: string;
-  /** "1 more by Sun" (null once met). */
+  /** "1 more by Sun" (null once met, and when the goal can no longer be met: calm by default, §3.8). */
   paceText: string | null;
 }
 
@@ -239,7 +244,9 @@ export function habitCard(s: AppState, habit: Habit, date: DateKey, env: ViewEnv
     if (period) {
       const e = evaluatePeriod(habit, logs, period, ctx);
       const goal = Math.max(1, e.target);
-      const needed = Math.max(0, e.target - e.checkinDays);
+      // Needed against the goal shown ("0 of 1 this week · 1 more by Sun", never "0 more").
+      const needed = Math.max(0, goal - e.checkinDays);
+      const possible = needed <= e.remainingActiveDays;
       const word = periodWord(rule.schedule);
       const label = e.state === 'current' ? `this ${word}` : `that ${word}`;
       met = e.met;
@@ -252,7 +259,7 @@ export function habitCard(s: AppState, habit: Habit, date: DateKey, env: ViewEnv
         met: e.met,
         periodLabel: label,
         progressText: `${Math.min(e.checkinDays, goal)} of ${goal} ${label}`,
-        paceText: e.met || e.state !== 'current' ? null : `${needed} more by ${deadlineLabel(e.to, today)}`,
+        paceText: e.met || e.state !== 'current' || !possible ? null : `${needed} more by ${deadlineLabel(e.to, today)}`,
       };
     }
   }
@@ -295,7 +302,7 @@ export function habitCard(s: AppState, habit: Habit, date: DateKey, env: ViewEnv
     subtitle,
     pace,
     streak,
-    plant: plantVM(s, habit, today),
+    plant: plantVM(s, habit, today, env.local),
     met,
     ariaLabel: aria,
   };
