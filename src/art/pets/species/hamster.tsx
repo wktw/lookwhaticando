@@ -1,12 +1,13 @@
 import type { ArtCtx, SpeciesArt } from '../types';
 import { OUTLINE, STROKE } from '../geometry';
 import { faceInk, OpenMouth } from '../face';
-import { MIRROR } from './parts';
+import { MIRROR, rim } from './parts';
 
 function SmallEar({ ctx, mirror }: { ctx: ArtCtx; mirror?: boolean }) {
   const p = ctx.look.palette;
   return (
     <g transform={mirror ? MIRROR : undefined}>
+      <circle cx={30} cy={40.2} r={6.6} {...rim()} />
       <circle cx={30} cy={40.2} r={6.6} fill={p.ear ?? p.body} stroke={OUTLINE} stroke-width={STROKE} />
       <circle cx={30.6} cy={40.8} r={3.4} fill={p.earInner} />
     </g>
@@ -37,21 +38,37 @@ export const hamster: SpeciesArt = {
   },
   front: (ctx) => {
     const p = ctx.look.palette;
-    const paw = p.feet ?? '#FFC9D4';
+    const fur = p.feet ?? p.body;
+    const eating = ctx.expression === 'eat';
+    // Little mitts resting on the tummy; they come up to the chin to hold a seed.
+    const paws: [number, number, number][] = eating
+      ? [
+          [45.4, 73.8, -24],
+          [54.6, 73.8, 24],
+        ]
+      : [
+          [41.2, 79, -14],
+          [58.8, 79, 14],
+        ];
     return (
       <g>
-        {ctx.expression === 'eat' && (
+        {eating && (
           // A sunflower seed held up to nibble.
           <g transform="translate(50 70.4) rotate(-8)" stroke={OUTLINE} stroke-width={1.2} stroke-linejoin="round">
             <path d="M0 -4.6 C2.6 -3 2.8 2.6 0 4.2 C-2.8 2.6 -2.6 -3 0 -4.6 Z" fill="#7D6A74" />
             <path d="M0 -3.6 L0 3.4" stroke="#EDE3E6" stroke-width={0.9} />
           </g>
         )}
-        {/* tiny pink paws tucked together under the chin */}
-        <g fill={paw} stroke={OUTLINE} stroke-width={1.3}>
-          <ellipse cx={46.6} cy={73.6} rx={2.5} ry={2.1} transform="rotate(-24 46.6 73.6)" />
-          <ellipse cx={53.4} cy={73.6} rx={2.5} ry={2.1} transform="rotate(24 53.4 73.6)" />
-        </g>
+        {paws.map(([x, y, rot]) => (
+          <g key={x} transform={`translate(${x} ${y}) rotate(${rot})`}>
+            <ellipse rx={3.9} ry={3.3} fill={fur} stroke={OUTLINE} stroke-width={1.6} />
+            <g fill="#FFB3C4">
+              <circle cx={-1.5} cy={-1.3} r={0.75} />
+              <circle cx={0} cy={-1.8} r={0.75} />
+              <circle cx={1.5} cy={-1.3} r={0.75} />
+            </g>
+          </g>
+        ))}
       </g>
     );
   },

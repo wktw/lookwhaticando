@@ -1,6 +1,6 @@
 import type { PetLook, PetPalette } from './types';
 import { getCollectible } from '@/catalog/collectibles';
-import { mix } from './color';
+import { moonlight } from './color';
 
 /**
  * Visual definition of every pet variant, keyed by collectible id.
@@ -192,7 +192,7 @@ export const LOOKS: Record<string, PetLook> = {
   'pet-cow-highland': {
     species: 'cow',
     pattern: 'none',
-    traits: ['bangs'],
+    traits: ['bangs', 'long-horns'],
     palette: soft({ body: '#F5C197', pattern: '#EBA676', nose: '#D9768E', muzzle: '#FFE6D6' }),
   },
   'pet-cow-sprinkle': {
@@ -309,6 +309,7 @@ export const LOOKS: Record<string, PetLook> = {
   'pet-dog-samoyed': {
     species: 'dog',
     pattern: 'none',
+    idleEyes: 'happy',
     traits: ['fluffy', 'curly-tail'],
     palette: pup({ body: '#FFFFFF', belly: '#FFFFFF', muzzle: '#FFFFFF', earInner: EAR }),
   },
@@ -446,6 +447,7 @@ export const LOOKS: Record<string, PetLook> = {
   'pet-bear-sleepy': {
     species: 'bear',
     pattern: 'none',
+    idleEyes: 'drowsy',
     traits: ['nightcap'],
     palette: soft({ body: '#D8CDF3', muzzle: '#F4F0FF', earInner: '#F7C4DA', nose: '#6A5B8A' }),
   },
@@ -537,23 +539,22 @@ export const LOOKS: Record<string, PetLook> = {
 
 /** Code-drawn night variants, 'moonlit:<petId>' (DESIGN §13.6). */
 const MOONLIT = 'moonlit:';
-const NIGHT = '#6F66B8';
 
-/** A pet's Moonlit look: its own design in a starlit night palette, dusted with tiny stars. */
+/** A pet's Moonlit look: its own design in cool moonlight (every fur part alike), dusted with tiny stars. */
 function moonlitLook(base: PetLook): PetLook {
-  const tint = (c: string | undefined, t: number) => (c ? mix(c, NIGHT, t) : undefined);
   const p = base.palette;
+  const cool = (c: string | undefined) => (c ? moonlight(c) : undefined);
   const palette: PetPalette = {
     ...p,
-    body: mix(p.body, NIGHT, 0.18),
-    belly: tint(p.belly, 0.14),
-    ear: tint(p.ear, 0.18),
-    pattern: tint(p.pattern, 0.16),
-    pattern2: tint(p.pattern2, 0.12),
-    muzzle: tint(p.muzzle, 0.12),
-    feet: tint(p.feet, 0.3),
-    tail: tint(p.tail ?? p.body, 0.3),
-    earInner: mix(p.earInner, '#D6C8F8', 0.35),
+    body: moonlight(p.body),
+    belly: cool(p.belly),
+    ear: cool(p.ear),
+    pattern: cool(p.pattern),
+    pattern2: cool(p.pattern2),
+    muzzle: cool(p.muzzle),
+    feet: cool(p.feet),
+    tail: cool(p.tail),
+    earInner: moonlight(p.earInner, 0.6),
   };
   const aura = base.aura === 'glow' || base.aura === 'ghost' ? base.aura : 'sparkle';
   return { ...base, palette, traits: [...(base.traits ?? []), 'moonlit'], aura };

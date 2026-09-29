@@ -17,10 +17,10 @@ function neckLine(ctx: ArtCtx) {
   return { y, hw, pt, band };
 }
 
-/** Icon helper: the back of the loop, so a collar reads as a collar when shown alone. */
+/** Icon helper: the back of the loop, seen from a little above, so a collar reads as a collar when shown alone. */
 function Loop({ color, width, dashed }: { color: string; width: number; dashed?: boolean }) {
   const { neck } = ICON_CTX.anchors;
-  const d = `M${neck.left} ${neck.y - 1} Q50 ${neck.y - 17} ${neck.right} ${neck.y - 1}`;
+  const d = `M${neck.left} ${neck.y - 1} Q50 ${neck.y - 30} ${neck.right} ${neck.y - 1}`;
   return (
     <g fill="none" stroke-linecap="round">
       <path d={d} stroke={INK} stroke-width={width + SW * 1.6} />
@@ -29,13 +29,13 @@ function Loop({ color, width, dashed }: { color: string; width: number; dashed?:
   );
 }
 
-/** A neck item; `loop` draws the back of the band in the icon. */
-function make(render: (ctx: ArtCtx) => JSX.Element, loop?: { color: string; width: number; dashed?: boolean }, zoom = 1.25): WearableArt {
+/** A neck item; `loop` draws the back of the band in the icon, which is zoomed around (50, cy), slightly tilted. */
+function make(render: (ctx: ArtCtx) => JSX.Element, loop?: { color: string; width: number; dashed?: boolean }, zoom = 1.3, cy = 35): WearableArt {
   const front = ctxIcon(render, 1);
   return {
     render,
     icon: () => (
-      <g transform={`translate(50 50) scale(${zoom}) translate(-50 -40)`}>
+      <g transform={`translate(50 50) rotate(-6) scale(${zoom}) translate(-50 ${-cy})`}>
         {loop && <Loop {...loop} />}
         {front()}
       </g>
@@ -153,7 +153,8 @@ export const bowTie = make(
     );
   },
   undefined,
-  2.2,
+  3.2,
+  38.6,
 );
 
 export const cloudScarf = make(
@@ -183,6 +184,7 @@ export const cloudScarf = make(
     );
   },
   { color: '#EEE8FC', width: 7 },
+  1.2,
 );
 
 export const autumnScarf = make(
@@ -203,6 +205,8 @@ export const autumnScarf = make(
     );
   },
   { color: '#F59A64', width: 7 },
+  1.3,
+  38,
 );
 
 export const knitScarf = make(
@@ -232,6 +236,8 @@ export const knitScarf = make(
     );
   },
   { color: '#E88CA4', width: 6.4 },
+  1.3,
+  38,
 );
 
 export const heartLocket = make(
@@ -250,7 +256,8 @@ export const heartLocket = make(
     );
   },
   { color: '#FFE08A', width: 1.2, dashed: true },
-  1.4,
+  1.3,
+  33,
 );
 
 const LEI_COLORS = ['#FF9FB8', '#FFF3D6', '#FFB27A', '#D6C8F8'];
@@ -273,4 +280,5 @@ export const flowerLei = make(
     );
   },
   { color: '#9CCB86', width: 1.8 },
+  1.12,
 );

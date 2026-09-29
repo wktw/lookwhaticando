@@ -1,7 +1,9 @@
 import type { SpeciesArt, ArtCtx } from '../types';
 import { OUTLINE, STROKE } from '../geometry';
 import { faceInk, OpenMouth } from '../face';
-import { MIRROR, StrokeTail } from './parts';
+import { MIRROR, rim, StrokeTail } from './parts';
+
+const EAR = 'M22.5 47 C22 38 23.5 28 26.5 22.8 C27.6 20.9 29.6 20.8 31 22.2 C35.5 26.2 40.5 30.5 44 34';
 
 /** Rounded cat ear, drawn behind the body so the head hides its base. Left ear; mirror for right. */
 function Ear({ ctx, mirror }: { ctx: ArtCtx; mirror?: boolean }) {
@@ -10,8 +12,9 @@ function Ear({ ctx, mirror }: { ctx: ArtCtx; mirror?: boolean }) {
   return (
     <g transform={mirror ? MIRROR : undefined}>
       <g class={mirror ? 'pet-ear-r' : 'pet-ear-l'} style={{ '--ear-origin': '33px 36px' }}>
+        <path d={EAR} {...rim()} />
         <path
-          d="M22.5 47 C22 38 23.5 28 26.5 22.8 C27.6 20.9 29.6 20.8 31 22.2 C35.5 26.2 40.5 30.5 44 34"
+          d={EAR}
           fill={outer}
           stroke={OUTLINE}
           stroke-width={STROKE}

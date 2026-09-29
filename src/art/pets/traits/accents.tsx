@@ -4,7 +4,6 @@ import { heartPath, sparklePath } from '../shapes';
 import { scatter } from '../patterns/layout';
 import { Crown, Sparkle } from '../bits';
 import { MIRROR, OutlinedStroke } from '../species/parts';
-import { SPECIES_ART } from '../species';
 
 /** Accent traits: things a variant holds, wears for good, or shines with. */
 
@@ -174,30 +173,29 @@ export const heartHold: TraitArt = {
   },
 };
 
-/** Sailor Duck's collar: a navy yoke with a white stripe and a red neckerchief. */
+/**
+ * Sailor Duck's collar: a navy sailor collar lying over the shoulders and dipping to a deep V,
+ * trimmed with a white stripe, and a red neckerchief knotted at the V with its tails hanging down.
+ */
 export const sailorCollar: TraitArt = {
   occupies: 'neck',
   surface: (ctx) => {
-    const { y } = ctx.anchors.neck;
+    const n = ctx.anchors.neck.y;
+    const collar = `M0 ${n - 4} Q30 ${n + 1.4} 39.6 ${n - 0.2} L50 ${n + 10.4} L60.4 ${n - 0.2} Q70 ${n + 1.4} 100 ${n - 4} L100 ${n + 11} L65 ${n + 8} L50 ${n + 18} L35 ${n + 8} L0 ${n + 11} Z`;
     return (
-      <g stroke-linejoin="round">
-        <path
-          d={`M0 ${y - 3} Q50 ${y + 3} 100 ${y - 3} L100 ${y + 6} L60 ${y + 6} L50 ${y + 15} L40 ${y + 6} L0 ${y + 6} Z`}
-          fill="#7E95D6"
-          stroke={OUTLINE}
-          stroke-width={STROKE * 0.8}
-        />
-        <path d={`M0 ${y + 3} L39 ${y + 3} L50 ${y + 12.4} L61 ${y + 3} L100 ${y + 3}`} fill="none" stroke="#FFFFFF" stroke-width={1.3} />
+      <g stroke-linejoin="round" stroke-linecap="round">
+        <path d={collar} fill="#7E95D6" stroke={OUTLINE} stroke-width={STROKE * 0.8} />
+        <path d={`M0 ${n + 8.2} L35.6 ${n + 5.4} L50 ${n + 14.8} L64.4 ${n + 5.4} L100 ${n + 8.2}`} fill="none" stroke="#FFFFFF" stroke-width={1.4} />
       </g>
     );
   },
   front: (ctx) => {
-    const { y } = ctx.anchors.neck;
+    const n = ctx.anchors.neck.y;
     return (
-      <g transform={`translate(50 ${y + 9})`} fill="#F07A8F" stroke={OUTLINE} stroke-width={STROKE * 0.8} stroke-linejoin="round">
-        <path d="M-1.4 1.6 L-4.6 8.6 L-1 7.4 Z" />
-        <path d="M1.4 1.6 L4.6 8.6 L1 7.4 Z" />
-        <path d="M-3.4 -2.2 L3.4 -2.2 L2.6 2.4 L-2.6 2.4 Z" />
+      <g transform={`translate(50 ${n + 11})`} fill="#F07A8F" stroke={OUTLINE} stroke-width={STROKE * 0.8} stroke-linejoin="round">
+        <path d="M-1.6 1.4 L-5.4 10.4 L-2.6 9.4 L-1.4 11.8 L0.6 2 Z" />
+        <path d="M1.6 1.4 L5.4 10.4 L2.6 9.4 L1.4 11.8 L-0.6 2 Z" />
+        <path d="M-3.8 -2.6 C-1.4 -3.6 1.4 -3.6 3.8 -2.6 L2.8 2.6 C1 3.4 -1 3.4 -2.8 2.6 Z" />
       </g>
     );
   },
@@ -205,10 +203,9 @@ export const sailorCollar: TraitArt = {
 
 /** Kissy Frog: puckered lips (and a tiny heart) whenever the mouth is at rest. */
 export const kissy: TraitArt = {
-  replaces: ['mouth'],
-  front: (ctx) => {
+  mouth: (ctx) => {
     const e = ctx.expression;
-    if (e === 'eat' || e === 'surprised' || e === 'happy') return SPECIES_ART[ctx.look.species].mouth(ctx);
+    if (e === 'eat' || e === 'surprised' || e === 'happy') return null;
     const { x, y } = ctx.anchors.mouth;
     const ly = y + 1.6;
     return (
@@ -246,7 +243,7 @@ export const moonlit: TraitArt = {
       <g>
         <linearGradient id={id} x1="0" y1="0" x2="0" y2="1">
           <stop offset="0.2" stop-color="#6F66B8" stop-opacity={0} />
-          <stop offset="1" stop-color="#6F66B8" stop-opacity={0.5} />
+          <stop offset="1" stop-color="#7D74C9" stop-opacity={0.32} />
         </linearGradient>
         <rect x={0} y={0} width={100} height={100} fill={`url(#${id})`} />
         {scatter(ctx, 12, 13).map((p) =>

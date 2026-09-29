@@ -2,13 +2,36 @@ import type { ArtCtx, SpeciesArt } from '../types';
 import { OUTLINE, STROKE } from '../geometry';
 import { lighten, shade } from '../color';
 import { OpenMouth } from '../face';
-import { MIRROR, OutlinedStroke } from './parts';
+import { hasTrait, MIRROR, OutlinedStroke, rim } from './parts';
 
 const HORN = '#FFF1C9';
+
+/** A Highland's long horn, sweeping out past the head and curling up (left side). */
+function LongHorn({ color }: { color: string }) {
+  return (
+    <g>
+      <path
+        d="M36.4 34.2 C29.6 34.6 21.6 33.6 16.4 29.6 C13.2 27 11.6 22.6 12.4 18.4 C15 21.4 17.8 24.2 21.6 25.6 C26.6 27.4 32 28 37.4 28.4 Z"
+        fill={color}
+        stroke={OUTLINE}
+        stroke-width={STROKE * 0.9}
+        stroke-linejoin="round"
+      />
+      <path d="M17.6 26.4 C19.8 28.4 23 29.6 26.4 30" fill="none" stroke="#fff" stroke-width={1.2} stroke-linecap="round" opacity={0.75} />
+    </g>
+  );
+}
 
 /** Short rounded horn on the top-left of the head; its base follows the head curve. */
 function Horn({ ctx, mirror }: { ctx: ArtCtx; mirror?: boolean }) {
   const color = ctx.look.palette.accent ?? HORN;
+  if (hasTrait(ctx, 'long-horns')) {
+    return (
+      <g transform={mirror ? MIRROR : undefined}>
+        <LongHorn color={color} />
+      </g>
+    );
+  }
   return (
     <g transform={mirror ? MIRROR : undefined}>
       <path
@@ -23,14 +46,17 @@ function Horn({ ctx, mirror }: { ctx: ArtCtx; mirror?: boolean }) {
   );
 }
 
+const SIDE_EAR = 'M21 40.5 C14.5 38.4 6.8 39.6 4.6 44.2 C3.2 47.4 6.2 50.6 11 51.2 C14.8 51.7 18.4 51 21.4 49.8';
+
 /** Soft floppy side ear with a pink inner, tucked behind the head. */
 function SideEar({ ctx, mirror }: { ctx: ArtCtx; mirror?: boolean }) {
   const p = ctx.look.palette;
   return (
     <g transform={mirror ? MIRROR : undefined}>
       <g class={mirror ? 'pet-ear-r' : 'pet-ear-l'} style={{ '--ear-origin': '19px 45px' }}>
+        <path d={SIDE_EAR} {...rim()} />
         <path
-          d="M21 40.5 C14.5 38.4 6.8 39.6 4.6 44.2 C3.2 47.4 6.2 50.6 11 51.2 C14.8 51.7 18.4 51 21.4 49.8"
+          d={SIDE_EAR}
           fill={p.ear ?? p.body}
           stroke={OUTLINE}
           stroke-width={STROKE}
@@ -55,7 +81,7 @@ export const cow: SpeciesArt = {
     const tuft = p.pattern ?? shade(p.body, 0.25);
     return (
       <g class="pet-tail" style={{ '--tail-origin': '80px 86px' }}>
-        <OutlinedStroke d="M78 87 C85 87.5 89 83 89.5 76 C89.8 72 90.5 69.5 91.5 68" color={p.tail ?? p.body} width={3.2} />
+        <OutlinedStroke d="M78 87 C85 87.5 89 83 89.5 76 C89.8 72 90.5 69.5 91.5 68" color={p.tail ?? p.body} width={3.2} rimmed />
         <path
           d="M91.5 70.2 C88.6 69.2 88.3 65.4 90.4 62.8 C91.3 61.7 92.1 60.8 92.5 59.4 C94.6 61.8 95.9 65 94.9 67.7 C94.3 69.3 93 70.4 91.5 70.2 Z"
           fill={tuft}

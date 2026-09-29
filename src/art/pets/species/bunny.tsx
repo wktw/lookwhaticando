@@ -1,7 +1,11 @@
 import type { ArtCtx, SpeciesArt } from '../types';
 import { OUTLINE, STROKE } from '../geometry';
 import { faceInk, OpenMouth } from '../face';
-import { hasTrait, MIRROR, puffPath } from './parts';
+import { hasTrait, MIRROR, puffPath, rim } from './parts';
+
+const TALL_EAR = 'M34.6 31.4 C32.2 24.4 31.2 15 33 8.6 C34.4 3.8 40 3 42.6 7.2 C45.6 12 46.6 20.6 46 27.8';
+const LOP_EAR =
+  'M42.2 26.6 C35.2 26 27.4 29.2 22.8 35.4 C17.6 42.4 14.8 53.4 15.6 62.2 C16 67 20 69.4 23.6 67.8 C27 66.2 27.8 60.4 28.2 55 C28.8 47 30.4 39.4 34.6 34 C36.6 31.4 39.4 29.8 42.6 29.2';
 
 /** Tall upright ear; drawn in front of head wear, its base blends into the head. */
 function TallEar({ ctx, mirror }: { ctx: ArtCtx; mirror?: boolean }) {
@@ -10,7 +14,7 @@ function TallEar({ ctx, mirror }: { ctx: ArtCtx; mirror?: boolean }) {
     <g transform={mirror ? MIRROR : undefined}>
       <g class={mirror ? 'pet-ear-r' : 'pet-ear-l'} style={{ '--ear-origin': '40px 30px' }}>
         <path
-          d="M34.6 31.4 C32.2 24.4 31.2 15 33 8.6 C34.4 3.8 40 3 42.6 7.2 C45.6 12 46.6 20.6 46 27.8"
+          d={TALL_EAR}
           fill={p.ear ?? p.body}
           stroke={OUTLINE}
           stroke-width={STROKE}
@@ -30,7 +34,7 @@ function LopEar({ ctx, mirror }: { ctx: ArtCtx; mirror?: boolean }) {
     <g transform={mirror ? MIRROR : undefined}>
       <g class={mirror ? 'pet-ear-r' : 'pet-ear-l'} style={{ '--ear-origin': '36px 30px' }}>
         <path
-          d="M42.2 26.6 C35.2 26 27.4 29.2 22.8 35.4 C17.6 42.4 14.8 53.4 15.6 62.2 C16 67 20 69.4 23.6 67.8 C27 66.2 27.8 60.4 28.2 55 C28.8 47 30.4 39.4 34.6 34 C36.6 31.4 39.4 29.8 42.6 29.2"
+          d={LOP_EAR}
           fill={p.ear ?? p.body}
           stroke={OUTLINE}
           stroke-width={STROKE}
@@ -49,6 +53,7 @@ export const bunny: SpeciesArt = {
     const p = ctx.look.palette;
     return (
       <g class="pet-tail" style={{ '--tail-origin': '82px 84px' }}>
+        <path d={puffPath(84.5, 81, 5.6, 7, 0.28)} {...rim(STROKE * 0.9)} />
         <path d={puffPath(84.5, 81, 5.6, 7, 0.28)} fill={p.tail ?? '#FFFFFF'} stroke={OUTLINE} stroke-width={STROKE * 0.9} stroke-linejoin="round" />
       </g>
     );

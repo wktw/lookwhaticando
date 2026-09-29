@@ -10,6 +10,7 @@ import { PATTERNS } from './patterns';
 import { TRAITS } from './traits';
 import { DefaultEyes, Blush } from './face';
 import { Aura, Sparkles } from './aura';
+import { rim } from './species/parts';
 import { WEARABLE_ART } from '../wearables';
 import './pet.css';
 
@@ -94,17 +95,27 @@ export function PetArt(props: PetArtProps) {
     const art = worn(slot);
     return art ? <g class={`pet-wear pet-wear-${slot}`}>{art.render(ctx)}</g> : null;
   };
-  const headWear = wear('head');
+  const headArt = worn('head');
   const wearBehind = WEAR_SLOTS.map((slot) => {
     const layer = worn(slot)?.behind?.(ctx);
     return layer ? <g key={slot}>{layer}</g> : null;
   });
   const bodyOver = worn('body')?.over?.(ctx);
-  // Ears (and horns) stand in front of hats for species that wear hats behind them;
-  // small accessories (bows, clips, wreaths) opt to sit in front of the ears anyway.
+  // Ears (horns, eye bumps) stand in front of hats for species that wear hats behind them;
+  // small accessories (bows, clips, wreaths) may opt to sit in front of the ears anyway.
   const earsFront = anchors.headWearBehindFeatures;
-  const hatBehindEars = earsFront && !worn('head')?.overEars;
+  const overEars = typeof headArt?.overEars === 'function' ? headArt.overEars(ctx) : headArt?.overEars;
+  const hatBehindEars = earsFront && !overEars;
   const ears = hidden.has('ears') ? null : species.ears?.(ctx);
+  // A trait that fills the head slot (a cap, a crown) is layered exactly like a hat.
+  const headLayer = (
+    <>
+      {traits.map((t, i) => t.occupies === 'head' && t.front && <g key={`th${i}`}>{t.front(ctx)}</g>)}
+      {wear('head')}
+    </>
+  );
+  const traitMouth = traits.reduce<JSX.Element | null>((m, t) => m ?? t.mouth?.(ctx) ?? null, null);
+  const mouth = hidden.has('mouth') ? null : (traitMouth ?? species.mouth(ctx));
 
   const classes = [
     'pet-art',
@@ -141,6 +152,14 @@ export function PetArt(props: PetArtProps) {
       <g transform={facing === 'left' ? 'translate(100 0) scale(-1 1)' : undefined}>
         <g class="pet-idle">
           <g class="pet-breathe">
+            {/* night-theme rim light around the silhouette (styled in pet.css; invisible by day) */}
+            <path d={body.path} {...rim()} />
+            {!hidden.has('feet') && !species.feet && (
+              <g>
+                <ellipse {...FOOT_LEFT} {...rim(STROKE * 0.9)} />
+                <ellipse {...FOOT_RIGHT} {...rim(STROKE * 0.9)} />
+              </g>
+            )}
             {wearBehind}
             {traits.map((t, i) => t.back && <g key={`tb${i}`}>{t.back(ctx)}</g>)}
             {!hidden.has('tail') && species.tail?.(ctx)}
@@ -177,14 +196,14 @@ export function PetArt(props: PetArtProps) {
               ))}
             <Blush ctx={ctx} />
             {species.eyes ? species.eyes(ctx) : <DefaultEyes ctx={ctx} />}
-            {!hidden.has('mouth') && species.mouth(ctx)}
-            {hatBehindEars && headWear}
+            {mouth}
+            {hatBehindEars && headLayer}
+            {earsFront && ears}
             {wear('neck')}
             {wear('face')}
-            {earsFront && ears}
             {species.front?.(ctx)}
-            {traits.map((t, i) => t.front && <g key={`tf${i}`}>{t.front(ctx)}</g>)}
-            {!hatBehindEars && headWear}
+            {traits.map((t, i) => t.occupies !== 'head' && t.front && <g key={`tf${i}`}>{t.front(ctx)}</g>)}
+            {!hatBehindEars && headLayer}
             {traits.map((t, i) => t.top && <g key={`tt${i}`}>{t.top(ctx)}</g>)}
           </g>
         </g>

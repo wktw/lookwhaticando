@@ -29,7 +29,7 @@ export const pomBeanie: WearableArt = headItem(
       <path d="M-14 -6 C-11 -10 -7 -12.4 -3.4 -13.2" fill="none" stroke="#FFFFFF" stroke-width={1.6} stroke-linecap="round" opacity={0.7} />
     </g>
   ),
-  { dy: 0.5, iconY: 64, iconScale: 1.9 },
+  { dy: 0.5, iconY: 60, iconScale: 1.76 },
 );
 
 export const bakersHat: WearableArt = headItem(
@@ -50,7 +50,7 @@ export const bakersHat: WearableArt = headItem(
       <path d="M-7 -3.2 L-7.4 5.8 M0 -2.6 L0 6.4 M7 -3.2 L7.4 5.8" fill="none" stroke-width={1} opacity={0.3} />
     </g>
   ),
-  { dy: 2, iconY: 70, iconScale: 1.75 },
+  { dy: 2, iconX: 49, iconY: 69.6, iconScale: 2.06 },
 );
 
 export const strawberryHat: WearableArt = headItem(
@@ -79,7 +79,7 @@ export const strawberryHat: WearableArt = headItem(
       <path d="M-15 -4 C-13.6 -8.4 -10.4 -11.6 -6.6 -13" fill="none" stroke="#FFFFFF" stroke-width={1.6} opacity={0.6} />
     </g>
   ),
-  { dy: 0.5, iconY: 66, iconScale: 1.9 },
+  { dy: 0.5, iconY: 66.3, iconScale: 1.93 },
 );
 
 export const nightcap: WearableArt = headItem(
@@ -103,7 +103,7 @@ export const nightcap: WearableArt = headItem(
       </g>
     );
   },
-  { dy: 1.5, rotate: 6, iconY: 62, iconScale: 1.8, iconRotate: -4 },
+  { dy: 1.5, rotate: 6, iconX: 61, iconY: 60.1, iconScale: 1.67, iconRotate: -4 },
 );
 
 export const witchHat: WearableArt = headItem(
@@ -117,7 +117,7 @@ export const witchHat: WearableArt = headItem(
       <path d="M-7 -4 C-5.4 -10 -3.2 -15.6 -0.4 -20.4" fill="none" stroke="#FFFFFF" stroke-width={1.4} opacity={0.5} />
     </g>
   ),
-  { dy: 1, rotate: -4, iconY: 72, iconScale: 1.65 },
+  { dy: 1, rotate: -4, iconY: 66.7, iconScale: 1.54 },
 );
 
 export const santaHat: WearableArt = headItem(
@@ -132,7 +132,7 @@ export const santaHat: WearableArt = headItem(
       <path d={puffPath(25, -4.6, 4.2, 8, 0.26)} fill="#FFFFFF" />
     </g>
   ),
-  { dy: 1.5, iconY: 64, iconScale: 1.75 },
+  { dy: 1.5, iconX: 43, iconY: 58.3, iconScale: 1.59 },
 );
 
 export const cowgirlHat: WearableArt = headItem(
@@ -151,7 +151,7 @@ export const cowgirlHat: WearableArt = headItem(
       <path d="M-9 -8 C-8.4 -11 -7.2 -13 -5.4 -14" fill="none" stroke="#FFFFFF" stroke-width={1.4} opacity={0.6} />
     </g>
   ),
-  { dy: 1, iconY: 60, iconScale: 1.55 },
+  { dy: 1, iconY: 55.4, iconScale: 1.35 },
 );
 
 export const bucketHat: WearableArt = headItem(
@@ -169,7 +169,7 @@ export const bucketHat: WearableArt = headItem(
       <path d="M-9 -4 C-8.4 -7.4 -6 -9.6 -3 -10.4" fill="none" stroke="#FFFFFF" stroke-width={1.4} stroke-linecap="round" opacity={0.7} />
     </g>
   ),
-  { dy: 0, iconY: 60, iconScale: 2 },
+  { dy: 0, iconY: 52.4, iconScale: 1.89 },
 );
 
 export const frogHat: WearableArt = headItem(
@@ -197,7 +197,7 @@ export const frogHat: WearableArt = headItem(
       </g>
     </g>
   ),
-  { dy: 0, iconY: 62, iconScale: 2 },
+  { dy: 0, iconY: 55.8, iconScale: 1.89 },
 );
 
 export const sunHat: WearableArt = headItem(
@@ -212,7 +212,7 @@ export const sunHat: WearableArt = headItem(
       <path d="M-8 -5 C-7 -7.8 -5 -9.6 -2.4 -10.2" fill="none" stroke="#FFFFFF" stroke-width={1.4} opacity={0.7} />
     </g>
   ),
-  { dy: 1.5, iconY: 58, iconScale: 1.45 },
+  { dy: 1.5, iconY: 49.1, iconScale: 1.33 },
 );
 
 export const leafUmbrella: WearableArt = headItem(
@@ -230,7 +230,7 @@ export const leafUmbrella: WearableArt = headItem(
       <path d={dropPath(15, -14, 2)} fill="#BBDCF6" stroke-width={1} />
     </g>
   ),
-  { dy: -2, iconY: 70, iconScale: 1.55 },
+  { dy: -2, iconX: 49.3, iconY: 75.5, iconScale: 1.51 },
 );
 
 export const fishHat: WearableArt = headItem(
@@ -252,7 +252,7 @@ export const fishHat: WearableArt = headItem(
       <ellipse cx={-8} cy={-2} rx={1.8} ry={1} fill="#FF9FB8" stroke="none" opacity={0.7} />
     </g>
   ),
-  { dy: 1, rotate: -4, iconY: 58, iconScale: 1.9 },
+  { dy: 1, rotate: -4, iconX: 42.1, iconY: 59.5, iconScale: 1.94 },
 );
 
 export const milkCarton: WearableArt = headItem(
@@ -272,5 +272,5 @@ export const milkCarton: WearableArt = headItem(
       />
     </g>
   ),
-  { dy: 1.5, rotate: -8, iconY: 64, iconScale: 1.85 },
+  { dy: 1.5, rotate: -8, iconX: 44, iconY: 78.2, iconScale: 2.24 },
 );

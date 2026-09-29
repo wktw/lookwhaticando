@@ -1,7 +1,8 @@
-import type { SpeciesArt } from '../types';
+import type { ArtCtx, SpeciesArt } from '../types';
 import { OUTLINE, STROKE } from '../geometry';
 import { lighten } from '../color';
-import { Eye, faceInk, OpenMouth } from '../face';
+import { blinks, Eye, faceInk, OpenMouth } from '../face';
+import { MIRROR } from './parts';
 
 /** Webbed foot: an oval with three round toes, outlined as one shape (stroke pass, then fill pass). */
 function Foot({ cx, fill }: { cx: number; fill: string }) {
@@ -20,6 +21,33 @@ function Foot({ cx, fill }: { cx: number; fill: string }) {
         {shapes}
       </g>
       <g fill={fill}>{shapes}</g>
+    </g>
+  );
+}
+
+/**
+ * The left eye bump as it sits on the body path: a dome filled with fur (its lower edge melts into
+ * the face) and the bump's own contour. Mirror for the right.
+ */
+const BUMP_FILL =
+  'M22.6 36.5 C22.6 31 27 26.5 33 26.5 C38.5 26.5 42.5 29.8 43.6 35 C44.1 37.2 44.9 38.6 45.6 40 C41 43.6 28.6 44.4 23.6 41 C23.2 39.4 22.8 38 22.6 36.5 Z';
+const BUMP_EDGE = 'M22.6 36.5 C22.6 31 27 26.5 33 26.5 C38.5 26.5 42.5 29.8 43.6 35 C43.9 36.4 44.4 37.5 44.9 38.4';
+
+function EyeBump({ ctx, mirror }: { ctx: ArtCtx; mirror?: boolean }) {
+  return (
+    <g transform={mirror ? MIRROR : undefined}>
+      <path d={BUMP_FILL} fill={ctx.look.palette.body} />
+      <path d={BUMP_EDGE} fill="none" stroke={OUTLINE} stroke-width={STROKE} stroke-linecap="round" />
+    </g>
+  );
+}
+
+function FrogEyes({ ctx }: { ctx: ArtCtx }) {
+  const { eyes } = ctx.anchors;
+  return (
+    <g class={blinks(ctx) ? 'pet-blink' : undefined}>
+      <Eye x={eyes.left} y={eyes.y} ctx={ctx} side="l" scale={1.08} />
+      <Eye x={eyes.right} y={eyes.y} ctx={ctx} side="r" scale={1.08} />
     </g>
   );
 }
@@ -47,16 +75,15 @@ export const frog: SpeciesArt = {
       </g>
     );
   },
-  eyes: (ctx) => {
-    const { eyes } = ctx.anchors;
-    const blinkable = ctx.expression === 'idle' || ctx.expression === 'surprised';
-    return (
-      <g class={blinkable ? 'pet-blink' : undefined}>
-        <Eye x={eyes.left} y={eyes.y} ctx={ctx} side="l" scale={1.08} />
-        <Eye x={eyes.right} y={eyes.y} ctx={ctx} side="r" scale={1.08} />
-      </g>
-    );
-  },
+  // The eye bumps are redrawn over head wear, so hats sit behind the eyes (like bunny ears).
+  ears: (ctx) => (
+    <g>
+      <EyeBump ctx={ctx} />
+      <EyeBump ctx={ctx} mirror />
+      <FrogEyes ctx={ctx} />
+    </g>
+  ),
+  eyes: (ctx) => (ctx.hidden?.has('ears') ? <FrogEyes ctx={ctx} /> : null),
   mouth: (ctx) => {
     const { x, y } = ctx.anchors.mouth;
     const e = ctx.expression;

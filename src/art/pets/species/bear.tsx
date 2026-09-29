@@ -2,12 +2,13 @@ import type { ArtCtx, SpeciesArt } from '../types';
 import { OUTLINE, STROKE } from '../geometry';
 import { lighten } from '../color';
 import { OpenMouth } from '../face';
-import { MIRROR } from './parts';
+import { MIRROR, rim } from './parts';
 
 function RoundEar({ ctx, mirror }: { ctx: ArtCtx; mirror?: boolean }) {
   const p = ctx.look.palette;
   return (
     <g transform={mirror ? MIRROR : undefined}>
+      <circle cx={27.4} cy={36.2} r={8.6} {...rim()} />
       <circle cx={27.4} cy={36.2} r={8.6} fill={p.ear ?? p.body} stroke={OUTLINE} stroke-width={STROKE} />
       <circle cx={28} cy={36.8} r={4.6} fill={p.earInner} />
     </g>
@@ -64,16 +65,10 @@ export const bear: SpeciesArt = {
   tail: (ctx) => {
     const p = ctx.look.palette;
     return (
-      <circle
-        class="pet-tail"
-        style={{ '--tail-origin': '84px 84px' }}
-        cx={85.6}
-        cy={83}
-        r={5}
-        fill={p.tail ?? p.body}
-        stroke={OUTLINE}
-        stroke-width={STROKE}
-      />
+      <g class="pet-tail" style={{ '--tail-origin': '84px 84px' }}>
+        <circle cx={85.6} cy={83} r={5} {...rim()} />
+        <circle cx={85.6} cy={83} r={5} fill={p.tail ?? p.body} stroke={OUTLINE} stroke-width={STROKE} />
+      </g>
     );
   },
   ears: (ctx) => (

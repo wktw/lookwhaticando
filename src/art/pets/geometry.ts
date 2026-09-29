@@ -71,10 +71,17 @@ export interface Anchors {
    * *behind* these features when `headWearBehindFeatures` is true.
    */
   headFeatures: { x: number; width: number }[];
-  /** When true, head wear is rendered BEHIND ears/horns (bunny, cow). */
+  /** When true, head wear is rendered BEHIND ears/horns/eye bumps (bunny, cow, frog). */
   headWearBehindFeatures: boolean;
-  /** Blush centers; `size` scales the blush ovals. Defaults to beside and below the eyes. */
-  cheeks?: { y: number; left: number; right: number; size?: number };
+  /**
+   * Blush centers; `size` scales the blush ovals and `opacity` sets their strength (default 0.55;
+   * green coats need more to read pink). Defaults to beside and below the eyes.
+   */
+  cheeks?: { y: number; left: number; right: number; size?: number; opacity?: number };
+  /** Lowest point of the face (open mouth, muzzle, bill): bibs, lapels and straps start below it. Defaults to mouth.y + 7. */
+  chin?: number;
+  /** Where a hair clip or bow sits (top of the left ear or eye bump). Defaults to the head's top-left. */
+  clip?: { x: number; y: number; rotate: number };
   /** Top of the tallest head feature (ear tips, horns, eye bumps), for things that float above (a halo). */
   crown?: number;
 }
@@ -107,6 +114,7 @@ export const ANCHORS: Record<Species, Anchors> = {
       { x: 71, width: 16 },
     ],
     headWearBehindFeatures: false,
+    chin: 71.5,
     crown: 15,
     cheeks: { y: 63, left: 30, right: 70 },
   },
@@ -121,6 +129,7 @@ export const ANCHORS: Record<Species, Anchors> = {
       { x: 65, width: 10 },
     ],
     headWearBehindFeatures: true,
+    chin: 78.5,
     crown: 22.5,
     cheeks: { y: 60.5, left: 27.5, right: 72.5 },
   },
@@ -139,7 +148,8 @@ export const ANCHORS: Record<Species, Anchors> = {
     cheeks: { y: 63, left: 32, right: 68 },
   },
   frog: {
-    head: { x: 50, y: 38, width: 24 },
+    // Hats sit in the dip between the eye bumps and tuck behind them.
+    head: { x: 50, y: 30, width: 36 },
     eyes: { y: 37, left: 33, right: 67 },
     mouth: { x: 50, y: 55 },
     neck: neck(66, 40.4),
@@ -148,9 +158,11 @@ export const ANCHORS: Record<Species, Anchors> = {
       { x: 33, width: 22 },
       { x: 67, width: 22 },
     ],
-    headWearBehindFeatures: false,
+    headWearBehindFeatures: true,
+    chin: 64.5,
     crown: 26.5,
-    cheeks: { y: 51, left: 25, right: 75, size: 1.25 },
+    cheeks: { y: 51, left: 25, right: 75, size: 1.25, opacity: 0.85 },
+    clip: { x: 27.5, y: 27.5, rotate: -24 },
   },
   bear: {
     head: { x: 50, y: 29.5, width: 38 },
@@ -163,6 +175,7 @@ export const ANCHORS: Record<Species, Anchors> = {
       { x: 73, width: 14 },
     ],
     headWearBehindFeatures: false,
+    chin: 74,
     crown: 27.6,
     cheeks: { y: 64, left: 29.5, right: 70.5 },
   },
@@ -188,6 +201,7 @@ export const ANCHORS: Record<Species, Anchors> = {
     body: { top: 68, bottom: 93 },
     headFeatures: [],
     headWearBehindFeatures: false,
+    chin: 68,
     crown: 20,
     cheeks: { y: 58, left: 31.5, right: 68.5 },
   },

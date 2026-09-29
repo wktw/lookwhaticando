@@ -2,7 +2,7 @@ import type { ArtCtx, TraitArt } from '../types';
 import { OUTLINE, STROKE } from '../geometry';
 import { shade } from '../color';
 import { headTransform } from '../placement';
-import { smoothPath, type Pt } from '../outline';
+import type { Pt } from '../outline';
 import { starPath } from '../shapes';
 import { Blossom, Crown, Leaf, Rose } from '../bits';
 import { hasTrait, OutlinedStroke, puffPath } from '../species/parts';
@@ -171,13 +171,15 @@ export const nightcap: TraitArt = {
   },
 };
 
-/** A floating golden halo with a soft glow. */
+/** A floating golden halo with a soft glow, above the head and above tall ears too. */
 export const haloGlow: TraitArt = {
   occupies: 'head',
   top: (ctx) => {
     const id = `${ctx.uid}-halo`;
+    const { head, crown } = ctx.anchors;
+    const y = Math.min(head.y - 8, (crown ?? head.y) - 3);
     return (
-      <g transform={headTransform(ctx.anchors, { dy: -8 })}>
+      <g transform={headTransform(ctx.anchors, { dy: y - head.y })}>
         <g class="pet-halo">
           <radialGradient id={id}>
             <stop offset="0%" stop-color="#FFF3B0" stop-opacity={0.9} />
@@ -322,46 +324,50 @@ export const antlers: TraitArt = {
   },
 };
 
-/** Highland fringe: a shaggy mop over the brow, eyes just peeking out beneath. */
+/** Highland fringe: a shaggy mop of tapered locks over the brow, eyes just peeking out between them. */
 export const bangs: TraitArt = {
   front: (ctx) => {
     const p = ctx.look.palette;
     const { eyes, head } = ctx.anchors;
     const E = eyes.y;
-    const T = head.y - 1;
+    const T = head.y - 1.5;
     const hw = ctx.body.halfWidthAt;
     const side = (y: number) => hw(y) + 1.2;
-    const pts: Pt[] = [
-      [50 - side(E - 8), E - 8],
-      [eyes.left - 12, E - 4],
-      [eyes.left - 9, E - 1.6],
-      [eyes.left - 5.5, E - 5],
-      [eyes.left - 1, E - 0.8],
-      [eyes.left + 4.5, E - 5.2],
-      [50, E - 2.6],
-      [eyes.right - 4.5, E - 5.2],
-      [eyes.right + 1, E - 0.8],
-      [eyes.right + 5.5, E - 5],
-      [eyes.right + 9, E - 1.6],
-      [eyes.right + 12, E - 4],
-      [50 + side(E - 8), E - 8],
-      [50 + side(E - 15) + 0.6, E - 15],
-      [50 + side(T + 5) + 1, T + 5],
-      [62, T - 2.2],
-      [50, T - 3],
-      [38, T - 2.2],
-      [50 - side(T + 5) - 1, T + 5],
-      [50 - side(E - 15) - 0.6, E - 15],
+    // Lock tips across the brow [x, y]; the valleys between them sit higher up.
+    const tips: Pt[] = [
+      [eyes.left - 11.5, E - 4],
+      [eyes.left - 4.6, E - 0.6],
+      [eyes.left + 3.4, E - 4.4],
+      [50, E - 1.6],
+      [eyes.right - 3.4, E - 4.4],
+      [eyes.right + 4.6, E - 0.6],
+      [eyes.right + 11.5, E - 4],
     ];
+    const valley = E - 9;
+    const xl = 50 - side(E - 8);
+    const xr = 50 + side(E - 8);
+    const edge: string[] = [];
+    let prev: Pt = [xr, E - 8];
+    for (let i = tips.length - 1; i >= 0; i--) {
+      const [tx, ty] = tips[i]!;
+      const next: Pt = i > 0 ? [(tx + tips[i - 1]![0]) / 2, valley] : [xl, E - 8];
+      const lean = (tx - 50) * 0.08;
+      edge.push(`C${prev[0] - 0.6} ${(prev[1] + ty) / 2} ${tx + 1.4 + lean} ${ty - 2.6} ${tx} ${ty}`);
+      edge.push(`C${tx - 1.2 + lean} ${ty - 2.6} ${next[0] + 0.8} ${(next[1] + ty) / 2} ${next[0]} ${next[1]}`);
+      prev = next;
+    }
+    const top = `M${xl} ${E - 8} C${50 - side(E - 16) - 0.8} ${E - 13} ${50 - side(T + 6) - 1.4} ${T + 7} 38 ${T - 1.6} C44 ${T - 4.4} 56 ${T - 4.4} 62 ${T - 1.6} C${50 + side(T + 6) + 1.4} ${T + 7} ${50 + side(E - 16) + 0.8} ${E - 13} ${xr} ${E - 8}`;
     const mop = p.pattern ?? shade(p.body, 0.1);
+    const strand = shade(mop, 0.3);
     return (
       <g stroke-linejoin="round" stroke-linecap="round">
-        <path d={smoothPath(pts)} fill={mop} stroke={OUTLINE} stroke-width={STROKE} />
-        <g fill="none" stroke="#FFFFFF" stroke-width={1.1} opacity={0.45}>
-          <path d={`M${eyes.left - 6} ${T + 5} C${eyes.left - 7} ${T + 10} ${eyes.left - 6} ${E - 12} ${eyes.left - 4} ${E - 9}`} />
-          <path d={`M48 ${T + 2} C47 ${T + 8} 48 ${E - 12} 49.5 ${E - 8}`} />
-          <path d={`M${eyes.right + 6} ${T + 5} C${eyes.right + 7} ${T + 10} ${eyes.right + 6} ${E - 12} ${eyes.right + 4} ${E - 9}`} />
+        <path d={`${top} ${edge.join(' ')} Z`} fill={mop} stroke={OUTLINE} stroke-width={STROKE} />
+        <g fill="none" stroke={strand} stroke-width={1.2} opacity={0.55}>
+          {tips.map(([tx, ty], i) => (
+            <path key={i} d={`M${50 + (tx - 50) * 0.55} ${T + 3} C${50 + (tx - 50) * 0.8} ${(T + ty) / 2 - 2} ${tx + (i % 2 ? 1 : -1)} ${ty - 7} ${tx} ${ty - 3.4}`} />
+          ))}
         </g>
+        <path d={`M40 ${T + 1.4} C44 ${T - 0.6} 49 ${T - 1} 53 ${T - 0.4}`} fill="none" stroke="#FFFFFF" stroke-width={1.3} opacity={0.5} />
       </g>
     );
   },

@@ -2,7 +2,7 @@ import type { ArtCtx, SpeciesArt, TraitId } from '../types';
 import { OUTLINE, STROKE } from '../geometry';
 import { lighten, shade } from '../color';
 import { OpenMouth } from '../face';
-import { hasTrait, MIRROR, OutlinedStroke, StrokeTail } from './parts';
+import { hasTrait, MIRROR, OutlinedStroke, rim, StrokeTail } from './parts';
 
 type EarStyle = 'pointy' | 'bat' | 'fluffy' | 'floppy';
 
@@ -36,6 +36,7 @@ function UprightEar({ ctx, style, mirror }: { ctx: ArtCtx; style: keyof typeof U
   const [outer, inner] = UPRIGHT[style];
   return (
     <g transform={mirror ? MIRROR : undefined}>
+      <path d={outer} {...rim()} />
       <path d={outer} fill={p.ear ?? p.body} stroke={OUTLINE} stroke-width={STROKE} stroke-linejoin="round" stroke-linecap="round" />
       <path d={inner} fill={p.earInner} />
     </g>
@@ -69,19 +70,12 @@ export const dog: SpeciesArt = {
     const p = ctx.look.palette;
     const color = p.tail ?? p.body;
     if (hasTrait(ctx, 'curly-tail')) {
-      // A cinnamon-roll curl peeking over the right side.
+      // Curled up over the back, the tip resting on the rump; a pale underside shows in the curl.
+      const under = p.belly ?? lighten(p.body, 0.55);
       return (
-        <g class="pet-tail" style={{ '--tail-origin': '82px 76px' }}>
-          <OutlinedStroke d="M80 78 C83.5 76.6 85.6 74.4 86.6 71.4" color={color} width={5.4} />
-          <circle cx={88.6} cy={65.6} r={6.6} fill={color} stroke={OUTLINE} stroke-width={STROKE} />
-          <path
-            d="M89.4 66.2 C87.8 67 86.6 65.4 87.6 64.2 C89.2 62.6 92 63.8 91.8 66.2 C91.6 68.8 88.4 70 86 68.4"
-            fill="none"
-            stroke={OUTLINE}
-            stroke-width={1.3}
-            stroke-linecap="round"
-            opacity={0.55}
-          />
+        <g class="pet-tail" style={{ '--tail-origin': '80px 80px' }}>
+          <OutlinedStroke d="M78.6 81 C87.4 81.4 93.2 75 92.2 67.8 C91.4 62.2 85.6 60.2 82.4 63.6 C80.8 65.4 81.4 68.4 83.6 69.2" color={color} width={6.6} rimmed />
+          <path d="M88.6 76.4 C91.2 73.2 91.8 69 90.4 65.6" fill="none" stroke={under} stroke-width={1.8} stroke-linecap="round" />
         </g>
       );
     }

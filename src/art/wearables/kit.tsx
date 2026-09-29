@@ -1,4 +1,5 @@
 import type { JSX } from 'preact';
+import { useId } from 'preact/hooks';
 import type { ArtCtx, WearableArt } from '../pets/types';
 import { ANCHORS, BODY_PATH, OUTLINE, STROKE, bodyHalfWidthAt } from '../pets/geometry';
 import { headTransform } from '../pets/placement';
@@ -25,15 +26,40 @@ interface HeadItemOptions {
   iconScale?: number;
   iconRotate?: number;
   /** Sit in front of ears and horns (see WearableArt.overEars). */
-  overEars?: boolean;
+  overEars?: WearableArt['overEars'];
+  /**
+   * A hair clip drawn centered on (0, 0) that sits at this head-local spot, or at the species'
+   * own clip anchor (the top of a frog's eye bump) when it has one.
+   */
+  clip?: { x: number; y: number };
+}
+
+/** Icons render as components, so every instance gets its own ids for clip paths and gradients. */
+function WithUid({ children }: { children: (uid: string) => JSX.Element }) {
+  return children(`wi${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`);
+}
+
+/** An icon whose drawing needs unique ids (clips, gradients). */
+export const iconWithUid = (draw: (uid: string) => JSX.Element) => () => <WithUid>{draw}</WithUid>;
+
+/** Places a head item: on the head anchor, or at the species' clip anchor for hair clips. */
+function headPlacement(ctx: ArtCtx, o: HeadItemOptions): string {
+  const { anchors } = ctx;
+  if (o.clip && anchors.clip) {
+    const k = ((anchors.head.width / 40) * (o.scale ?? 1)).toFixed(3);
+    return `translate(${anchors.clip.x} ${anchors.clip.y}) rotate(${anchors.clip.rotate}) scale(${k})`;
+  }
+  const base = headTransform(anchors, o);
+  return o.clip ? `${base} translate(${o.clip.x} ${o.clip.y})` : base;
 }
 
 /** A head item drawn in head-local coordinates: (0, 0) is the top-center of the head, 40 wide. */
 export function headItem(draw: (uid: string) => JSX.Element, o: HeadItemOptions = {}): WearableArt {
+  const iconAt = `translate(${o.iconX ?? 50} ${o.iconY ?? 62}) rotate(${o.iconRotate ?? 0}) scale(${o.iconScale ?? 1.8})`;
   return {
     overEars: o.overEars,
-    render: (ctx) => <g transform={headTransform(ctx.anchors, o)}>{draw(ctx.uid)}</g>,
-    icon: () => <g transform={`translate(${o.iconX ?? 50} ${o.iconY ?? 62}) rotate(${o.iconRotate ?? 0}) scale(${o.iconScale ?? 1.8})`}>{draw('icon')}</g>,
+    render: (ctx) => <g transform={headPlacement(ctx, o)}>{draw(ctx.uid)}</g>,
+    icon: iconWithUid((uid) => <g transform={iconAt}>{draw(uid)}</g>),
   };
 }
 
@@ -55,7 +81,7 @@ export const ICON_CTX: ArtCtx = {
 
 /** Icon for face/neck items: render on the icon context, optionally zoomed around (50, 50). */
 export function ctxIcon(render: WearableArt['render'], zoom = 1, dy = 0) {
-  return () => <g transform={`translate(50 ${50 + dy}) scale(${zoom}) translate(-50 -50)`}>{render(ICON_CTX)}</g>;
+  return iconWithUid((uid) => <g transform={`translate(50 ${50 + dy}) scale(${zoom}) translate(-50 -50)`}>{render({ ...ICON_CTX, uid })}</g>);
 }
 
 /** Flat-lay sweater silhouette (with sleeves) used for body-wear icons. Neckline dips at y≈26. */
@@ -66,14 +92,14 @@ export const TOP_PATH =
  * Icon for body wear: the garment's fabric clipped into a flat-lay silhouette, outlined,
  * with ribbed cuffs and hem. `extra` draws details on top (pockets, buttons).
  */
-export function garmentIcon(id: string, fabric: (top: number) => JSX.Element, opts: { path?: string; rib?: string; extra?: JSX.Element } = {}) {
+export function garmentIcon(fabric: (top: number) => JSX.Element, opts: { path?: string; rib?: string; extra?: JSX.Element } = {}) {
   const path = opts.path ?? TOP_PATH;
-  return () => (
+  return iconWithUid((uid) => (
     <g stroke-linejoin="round" stroke-linecap="round">
-      <clipPath id={`wi-${id}`}>
+      <clipPath id={`${uid}-garment`}>
         <path d={path} />
       </clipPath>
-      <g clip-path={`url(#wi-${id})`}>
+      <g clip-path={`url(#${uid}-garment)`}>
         {fabric(22)}
         {opts.rib && (
           <g fill="none" stroke={opts.rib} stroke-width={3.4}>
@@ -87,7 +113,7 @@ export function garmentIcon(id: string, fabric: (top: number) => JSX.Element, op
       <path d={path} fill="none" stroke={INK} stroke-width={SW} />
       {opts.extra}
     </g>
-  );
+  ));
 }
 
 /** A body-wear neckline: ribbed collar band following the body-wear top line. */

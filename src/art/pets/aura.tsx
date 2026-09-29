@@ -1,4 +1,5 @@
 import type { PetLook } from './types';
+import { RAINBOW } from './shapes';
 
 type AuraKind = NonNullable<PetLook['aura']>;
 
@@ -11,12 +12,10 @@ const GLOWS: Partial<Record<AuraKind, [number, string, number][]>> = {
     [100, '#FFD65C', 0],
   ],
   holo: [
-    [0, '#FFFFFF', 0.7],
-    [38, '#FFE593', 0.42],
-    [56, '#FFB3C7', 0.36],
-    [72, '#B3E6D6', 0.3],
-    [86, '#BBDCF6', 0.22],
-    [100, '#D6C8F8', 0],
+    [0, '#FFFFFF', 0.6],
+    [55, '#F2EDFE', 0.35],
+    [85, '#E8F3FC', 0.14],
+    [100, '#E8F3FC', 0],
   ],
   ghost: [
     [0, '#F2EDFE', 0.9],
@@ -25,21 +24,40 @@ const GLOWS: Partial<Record<AuraKind, [number, string, number][]>> = {
   ],
 };
 
-/** Soft halo behind rare pets. */
+/** Soft halo behind rare pets; ultras (holo) also get a slowly turning pastel rainbow ring. */
 export function Aura({ kind, uid }: { kind: AuraKind; uid: string }) {
   const stops = GLOWS[kind];
   if (!stops) return null;
   const id = `${uid}-aura`;
   return (
-    <g class="pet-aura">
-      <defs>
-        <radialGradient id={id}>
-          {stops.map(([o, c, a]) => (
-            <stop key={o} offset={`${o}%`} stop-color={c} stop-opacity={a} />
-          ))}
-        </radialGradient>
-      </defs>
-      <ellipse cx={50} cy={60} rx={47} ry={43} fill={`url(#${id})`} />
+    <g>
+      <g class="pet-aura">
+        <defs>
+          <radialGradient id={id}>
+            {stops.map(([o, c, a]) => (
+              <stop key={o} offset={`${o}%`} stop-color={c} stop-opacity={a} />
+            ))}
+          </radialGradient>
+        </defs>
+        <ellipse cx={50} cy={60} rx={47} ry={43} fill={`url(#${id})`} />
+      </g>
+      {kind === 'holo' && <HoloRing uid={uid} />}
+    </g>
+  );
+}
+
+/** A thin holographic band; turning it (a transform) drifts the rainbow around the ring. */
+function HoloRing({ uid }: { uid: string }) {
+  const id = `${uid}-holo`;
+  return (
+    <g class="pet-holo-ring">
+      <linearGradient id={id} x1="0" y1="0" x2="1" y2="1">
+        {RAINBOW.map((c, i) => (
+          <stop key={c} offset={i / (RAINBOW.length - 1)} stop-color={c} />
+        ))}
+      </linearGradient>
+      <circle cx={50} cy={58} r={44} fill="none" stroke={`url(#${id})`} stroke-width={3} opacity={0.8} />
+      <circle cx={50} cy={58} r={42.3} fill="none" stroke="#FFFFFF" stroke-width={0.8} opacity={0.7} />
     </g>
   );
 }

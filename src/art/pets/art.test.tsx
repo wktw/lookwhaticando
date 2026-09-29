@@ -61,9 +61,20 @@ describe('pet geometry', () => {
   it('half-width samplers match each body path', () => {
     for (const s of SPECIES) {
       const { path, halfWidthAt } = BODIES[s];
-      for (const [x, y] of outlinePoints(path, 160)) {
-        if (y < 40 || y > 92) continue; // the frog's eye bumps and the flat bottom are not single-valued
-        expect(Math.abs(x - 50), `${s} at y=${y.toFixed(1)}`).toBeLessThanOrEqual(halfWidthAt(y) + 0.6);
+      const pts = outlinePoints(path, 3000);
+      const top = Math.min(...pts.map(([, y]) => y));
+      // The real half-width at y: the outermost crossing of the outline.
+      const real = (y: number) => {
+        let w = 0;
+        pts.forEach(([x0, y0], i) => {
+          const [x1, y1] = pts[(i + 1) % pts.length]!;
+          if ((y0 - y) * (y1 - y) > 0 || y0 === y1) return;
+          w = Math.max(w, Math.abs(x0 + ((x1 - x0) * (y - y0)) / (y1 - y0) - 50));
+        });
+        return w;
+      };
+      for (let y = top + 2; y <= 90; y += 0.5) {
+        expect(Math.abs(halfWidthAt(y) - real(y)), `${s} at y=${y}`).toBeLessThanOrEqual(0.6);
       }
     }
   });

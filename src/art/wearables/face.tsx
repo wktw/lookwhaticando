@@ -1,6 +1,6 @@
 import type { ArtCtx, WearableArt } from '../pets/types';
-import { heartPath, starPath } from '../pets/shapes';
-import { ctxIcon, INK, SW } from './kit';
+import { dropPath, heartPath, starPath } from '../pets/shapes';
+import { ctxIcon, ICON_CTX, INK, SW } from './kit';
 
 /** Face wear, placed on the eye and mouth anchors. */
 
@@ -34,7 +34,7 @@ const readingGlassesRender = (ctx: ArtCtx) => {
     </g>
   );
 };
-export const readingGlasses: WearableArt = { render: readingGlassesRender, icon: ctxIcon(readingGlassesRender, 2) };
+export const readingGlasses: WearableArt = { render: readingGlassesRender, icon: ctxIcon(readingGlassesRender, 1.8) };
 
 /** A fluffy white milk mustache on the upper lip, with one little drip. */
 const milkMustacheRender = ({ anchors }: ArtCtx) => {
@@ -50,7 +50,26 @@ const milkMustacheRender = ({ anchors }: ArtCtx) => {
     </g>
   );
 };
-export const milkMustache: WearableArt = { render: milkMustacheRender, icon: ctxIcon(milkMustacheRender, 3.2) };
+/** Icon: the same mustache waxed into a handlebar, with two milk drips. */
+const handlebar = (side: 1 | -1) => `M${50 + side * 8.6} 50.6 C${50 + side * 11.6} 51.6 ${50 + side * 13.6} 49.6 ${50 + side * 13.4} 47.4 C${50 + side * 13.2} 45.4 ${50 + side * 11.2} 45 ${50 + side * 10.4} 46.4`;
+export const milkMustache: WearableArt = {
+  render: milkMustacheRender,
+  icon: () => (
+    <g transform="translate(50 50) scale(2.9) translate(-50 -51)" stroke-linecap="round" stroke-linejoin="round">
+      {[-1, 1].map((side) => (
+        <g key={side} fill="none">
+          <path d={handlebar(side as 1 | -1)} stroke={INK} stroke-width={3} />
+          <path d={handlebar(side as 1 | -1)} stroke="#FFFFFF" stroke-width={1.6} />
+        </g>
+      ))}
+      <g fill="#FFFFFF" stroke={INK} stroke-width={0.85}>
+        <path d={dropPath(46.6, 55.4, 1.9)} />
+        <path d={dropPath(53.2, 54.6, 1.4)} />
+      </g>
+      {milkMustacheRender(ICON_CTX)}
+    </g>
+  ),
+};
 
 /** Star-shaped celebrity sunglasses. */
 const starShadesRender = (ctx: ArtCtx) => {
@@ -75,7 +94,7 @@ const starShadesRender = (ctx: ArtCtx) => {
     </g>
   );
 };
-export const starShades: WearableArt = { render: starShadesRender, icon: ctxIcon(starShadesRender, 1.9) };
+export const starShades: WearableArt = { render: starShadesRender, icon: ctxIcon(starShadesRender, 1.76) };
 
 /** A soft sleep mask with embroidered closed eyes. */
 const sleepMaskRender = ({ anchors }: ArtCtx) => {
@@ -112,7 +131,7 @@ const sleepMaskRender = ({ anchors }: ArtCtx) => {
     </g>
   );
 };
-export const sleepMask: WearableArt = { render: sleepMaskRender, icon: ctxIcon(sleepMaskRender, 1.9) };
+export const sleepMask: WearableArt = { render: sleepMaskRender, icon: ctxIcon(sleepMaskRender, 1.62) };
 
 /** Thin pink heart-shaped frames with a rosy tint. */
 const heartGlassesRender = (ctx: ArtCtx) => {
@@ -136,7 +155,7 @@ const heartGlassesRender = (ctx: ArtCtx) => {
     </g>
   );
 };
-export const heartGlasses: WearableArt = { render: heartGlassesRender, icon: ctxIcon(heartGlassesRender, 2) };
+export const heartGlasses: WearableArt = { render: heartGlassesRender, icon: ctxIcon(heartGlassesRender, 1.8) };
 
 /** Chunky white sunglasses with deep rose heart lenses. */
 const heartShadesRender = (ctx: ArtCtx) => {
@@ -163,4 +182,4 @@ const heartShadesRender = (ctx: ArtCtx) => {
     </g>
   );
 };
-export const heartShades: WearableArt = { render: heartShadesRender, icon: ctxIcon(heartShadesRender, 1.9) };
+export const heartShades: WearableArt = { render: heartShadesRender, icon: ctxIcon(heartShadesRender, 1.74) };

@@ -74,6 +74,7 @@ export type TraitId =
   | 'bat-ears' // frenchie
   | 'fluffy' // pom, samoyed: scalloped fluffy outline + chest ruff, ears peek out of the fluff
   | 'curly-tail' // shiba, pom, samoyed
+  | 'long-horns' // Highland Cow: long, wide horns sweeping up (read by the cow species art)
   | 'witch-hat' // Witchy Cat's tiny crooked hat
   | 'red-nose' // Reindeer Cow's shiny nose
   | 'forelock' // cow hair tuft between the horns
@@ -118,6 +119,8 @@ export interface PetLook {
   traits?: TraitId[];
   /** Special presentation for rare/ultra variants. */
   aura?: 'sparkle' | 'holo' | 'glow' | 'ghost';
+  /** Resting eyes for the idle expression: drowsy half-lids (Sleepy Bear) or happy closed arcs (Samoyed). */
+  idleEyes?: 'drowsy' | 'happy';
 }
 
 /** Rendering context passed to species/pattern/trait/wearable renderers. */
@@ -144,7 +147,7 @@ export interface SpeciesArt {
   /** Tail, behind the body (animated tails use className "pet-tail"). Omitted when a trait replaces it. */
   tail?: (ctx: ArtCtx) => JSX.Element | null;
   /**
-   * Ears (and cow horns). Drawn behind the body, or in front of head wear when
+   * Ears (and cow horns, frog eye bumps). Drawn behind the body, or in front of head wear when
    * `anchors.headWearBehindFeatures` is true, so hats never hide them.
    */
   ears?: (ctx: ArtCtx) => JSX.Element | null;
@@ -169,6 +172,8 @@ export interface TraitArt {
   front?: (ctx: ArtCtx) => JSX.Element | null;
   /** Drawn above head wear (rare; e.g. golden sparkles). */
   top?: (ctx: ArtCtx) => JSX.Element | null;
+  /** Replaces the species' mouth for this expression; return null to keep the species' own mouth. */
+  mouth?: (ctx: ArtCtx) => JSX.Element | null;
   /** Reshapes the silhouette (fluff, ghost wisps). Wear still fits through the returned halfWidthAt. */
   body?: (shape: BodyShape, anchors: Anchors) => BodyShape;
   /** Species parts this trait replaces. */
@@ -180,8 +185,12 @@ export interface TraitArt {
 export interface WearableArt {
   /** Render the item in pet canvas coordinates using ctx.anchors. Body wear is auto-clipped to the body. */
   render: (ctx: ArtCtx) => JSX.Element | null;
-  /** Head wear only: draw in front of ears and horns (bows, clips, wreaths) even on species that wear hats behind them. */
-  overEars?: boolean;
+  /**
+   * Head wear only: draw in front of ears and horns (bows, clips, wreaths) even on species that wear
+   * hats behind them. A function decides per pet (a wreath sits in front of bunny ears but behind a
+   * frog's eye bumps).
+   */
+  overEars?: boolean | ((ctx: ArtCtx) => boolean);
   /** Optional unclipped layer behind the pet (a backpack, a hood). */
   behind?: (ctx: ArtCtx) => JSX.Element | null;
   /** Body wear only: an unclipped layer over the body outline (a floatie ring, apron ties). */

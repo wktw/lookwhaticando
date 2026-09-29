@@ -103,11 +103,11 @@ export const cowStars: PatternRenderer = (ctx) => {
   );
 };
 
-/** Dalmatian: small round spots all over (never on the face). */
+/** Dalmatian: round spots of varied sizes all over, kept well clear of the face so the eyes pop. */
 export const spots: PatternRenderer = (ctx) => (
   <g fill={ctx.look.palette.pattern ?? '#5E4B55'}>
-    {scatter(ctx, 10.5, 3).map((p) => (
-      <circle key={p.i} cx={p.x} cy={p.y} r={1.7 + p.r * 1.6} />
+    {scatter(ctx, 12.5, 3, 2, 3.5).map((p) => (
+      <ellipse key={p.i} cx={p.x} cy={p.y} rx={1.9 + p.r * 2.3} ry={1.7 + p.r * 2} transform={`rotate(${Math.round(p.r * 90)} ${p.x} ${p.y})`} />
     ))}
   </g>
 );

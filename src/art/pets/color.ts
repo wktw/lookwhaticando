@@ -18,3 +18,9 @@ export function mix(a: string, b: string, t: number): string {
 export const lighten = (c: string, t: number) => mix(c, '#FFFFFF', t);
 /** Darken toward the warm cocoa outline rather than black, so shades stay in the palette family. */
 export const shade = (c: string, t: number) => mix(c, '#5A3E45', t);
+
+/**
+ * Moonlight: wash a color toward a pale periwinkle. Mixing toward a *light* cool tone keeps
+ * pastels clean (mixing toward a mid blue greys them out); the moonlit overlay adds the depth.
+ */
+export const moonlight = (c: string, t = 1) => mix(c, '#E2DCFF', 0.2 * t);

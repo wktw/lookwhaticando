@@ -24,6 +24,9 @@
     .pet-beckon,
     .pet-halo,
     .pet-gleam,
+    .pet-crown-gleam,
+    .pet-tuft,
+    .pet-holo-ring,
     .pet-aura
   ) {
   transform-box: view-box;
@@ -59,6 +62,12 @@
 .pet-art .pet-aura {
   transform-origin: 50px 60px;
 }
+.pet-art .pet-holo-ring {
+  transform-origin: 50px 58px;
+}
+.pet-art .pet-tuft {
+  transform-origin: 50px 32px;
+}
 .pet-art .pet-blink {
   transform-box: fill-box;
   transform-origin: center;
@@ -89,6 +98,10 @@
 }
 .pet-art.is-animated .pet-aura {
   animation: pet-aura 3.6s ease-in-out infinite alternate;
+}
+/* Ultras: the holographic ring slowly turns, so its pastel colors drift around. */
+.pet-art.is-animated .pet-holo-ring {
+  animation: pet-spin 14s linear infinite;
 }
 
 /* ---------- Species personalities ---------- */
@@ -125,9 +138,12 @@
 .pet-art.is-animated.species-bear .pet-idle {
   animation: pet-sway 5.4s ease-in-out var(--pet-idle-delay, 0s) infinite alternate;
 }
-/* Ducks bob their heads, twice, then rest. */
+/* Ducks bob their heads, twice, then rest; the tuft follows through a beat later. */
 .pet-art.is-animated.species-duck .pet-idle {
   animation: pet-bob 3.8s ease-in-out var(--pet-idle-delay, 0s) infinite;
+}
+.pet-art.is-animated.species-duck .pet-tuft {
+  animation: pet-tuft 3.8s ease-in-out var(--pet-idle-delay, 0s) infinite;
 }
 
 /* ---------- Trait motion ---------- */
@@ -142,6 +158,10 @@
 }
 .pet-art.is-animated .pet-gleam {
   animation: pet-gleam 5s ease-in-out var(--pet-idle-delay, 0s) infinite;
+}
+/* The Evergreen Crown's gold catches the light. */
+.pet-art.is-animated .pet-crown-gleam {
+  animation: pet-crown-gleam 4.2s ease-in-out infinite;
 }
 
 @keyframes pet-breathe {
@@ -306,6 +326,29 @@
     transform: rotate(0deg);
   }
 }
+@keyframes pet-tuft {
+  0%,
+  62%,
+  100% {
+    transform: rotate(0deg);
+  }
+  69%,
+  81% {
+    transform: rotate(7deg);
+  }
+  75%,
+  87% {
+    transform: rotate(-3deg);
+  }
+  92% {
+    transform: rotate(0deg);
+  }
+}
+@keyframes pet-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
 @keyframes pet-flap {
   from {
     transform: rotate(-4deg);
@@ -350,6 +393,26 @@
   }
 }
 
+@keyframes pet-crown-gleam {
+  0%,
+  50% {
+    transform: translateX(0);
+    opacity: 0;
+  }
+  56% {
+    opacity: 0.85;
+  }
+  80% {
+    transform: translateX(62px);
+    opacity: 0.6;
+  }
+  82%,
+  100% {
+    transform: translateX(62px);
+    opacity: 0;
+  }
+}
+
 /* Reduced motion (OS setting or the in-app preference): pets hold still. */
 @media (prefers-reduced-motion: reduce) {
   :root:not([data-motion='full']) .pet-art * {
@@ -370,6 +433,23 @@
   opacity: 0.16;
 }
 
-.pet-art.aura-ghost .pet-breathe {
-  opacity: 0.88;
+/* Moonlight Meadow: a soft moonlit rim keeps the cocoa silhouette readable on the night cards. */
+:root[data-theme='night'] .pet-art .pet-rim {
+  stroke: rgba(248, 238, 243, 0.42);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) .pet-art .pet-rim {
+    stroke: rgba(248, 238, 243, 0.42);
+  }
+}
+.pet-art.is-silhouette .pet-rim {
+  stroke: none;
+}
+
+/*
+ * Boo-vine is a little see-through. Opacity sits on the static <svg> box (a cheap compositor blend)
+ * rather than on the animated group inside, which would force an offscreen pass every frame.
+ */
+.pet-art.aura-ghost {
+  opacity: 0.9;
 }

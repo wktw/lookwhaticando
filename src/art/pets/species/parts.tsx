@@ -1,10 +1,24 @@
 import type { ArtCtx, TraitId } from '../types';
 import { OUTLINE, STROKE } from '../geometry';
 
+/**
+ * Night-theme rim light for a silhouette part: spread onto a copy of the part's shape, drawn just
+ * before it. It has no stroke by day; pet.css lights it in Moonlight Meadow. `width` is the part's
+ * own stroke width.
+ */
+export const rim = (width: number = STROKE) => ({
+  class: 'pet-rim',
+  fill: 'none',
+  'stroke-width': width + 2.6,
+  'stroke-linejoin': 'round' as const,
+  'stroke-linecap': 'round' as const,
+});
+
 /** A stroke with a cocoa outline (outline + fill), perfectly smooth at any size: tails, stems, ribbons. */
-export function OutlinedStroke({ d, color, width }: { d: string; color: string; width: number }) {
+export function OutlinedStroke({ d, color, width, rimmed }: { d: string; color: string; width: number; rimmed?: boolean }) {
   return (
     <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+      {rimmed && <path d={d} {...rim(width + STROKE * 2)} />}
       <path d={d} stroke={OUTLINE} stroke-width={width + STROKE * 2} />
       <path d={d} stroke={color} stroke-width={width} />
     </g>
@@ -15,7 +29,7 @@ export function OutlinedStroke({ d, color, width }: { d: string; color: string; 
 export function StrokeTail({ d, color, width = 7.5, origin = '76px 88px' }: { d: string; color: string; width?: number; origin?: string }) {
   return (
     <g class="pet-tail" style={{ '--tail-origin': origin }}>
-      <OutlinedStroke d={d} color={color} width={width} />
+      <OutlinedStroke d={d} color={color} width={width} rimmed />
     </g>
   );
 }

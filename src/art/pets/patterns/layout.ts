@@ -11,10 +11,11 @@ function faceZone({ anchors }: ArtCtx) {
   };
 }
 
-function inFace(ctx: ArtCtx, x: number, y: number, pad = 0): boolean {
+/** Inside the face zone grown by `pad`, and by `pad + lift` above its center (the brow). */
+function inFace(ctx: ArtCtx, x: number, y: number, pad = 0, lift = 0): boolean {
   const z = faceZone(ctx);
   const dx = (x - z.cx) / (z.rx + pad);
-  const dy = (y - z.cy) / (z.ry + pad);
+  const dy = (y - z.cy) / (z.ry + pad + (y < z.cy ? lift : 0));
   return dx * dx + dy * dy < 1;
 }
 
@@ -36,9 +37,10 @@ interface ScatterPoint {
 
 /**
  * Evenly scattered points inside the body and outside the face: a jittered hex grid.
- * `spacing` sets density; `seed` changes the arrangement.
+ * `spacing` sets density; `seed` changes the arrangement; `faceClear` keeps bold motifs
+ * (dark spots) further from the face, most of all above the eyes.
  */
-export function scatter(ctx: ArtCtx, spacing: number, seed = 1, margin = 2): ScatterPoint[] {
+export function scatter(ctx: ArtCtx, spacing: number, seed = 1, margin = 2, faceClear = 0): ScatterPoint[] {
   const out: ScatterPoint[] = [];
   const top = bodyTop(ctx);
   let i = 0;
@@ -49,7 +51,7 @@ export function scatter(ctx: ArtCtx, spacing: number, seed = 1, margin = 2): Sca
       const x = 6 + col * spacing + (row % 2 ? spacing / 2 : 0) + jitter(i, seed) * spacing * 0.5;
       const y = y0 + jitter(i + 97, seed) * spacing * 0.4;
       if (y > 91 || Math.abs(x - 50) > ctx.body.halfWidthAt(y) - margin) continue;
-      if (inFace(ctx, x, y, margin)) continue;
+      if (inFace(ctx, x, y, margin + faceClear, faceClear * 1.6)) continue;
       out.push({ x, y, r: jitter(i + 31, seed) + 0.5, i });
     }
   }
