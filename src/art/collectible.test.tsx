@@ -116,7 +116,7 @@ describe('CardPlant', () => {
   });
 });
 
-describe('muteTree keeps keys scoped (NOTES-w2-today request 3)', () => {
+describe('muteTree keeps keys scoped (no duplicate keys)', () => {
   it('a muted plant renders with no duplicate-key warning', async () => {
     await import('preact/debug');
     const { vi } = await import('vitest');

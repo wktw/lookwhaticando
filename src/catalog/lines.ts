@@ -879,7 +879,7 @@ export const TODAY_COPY = {
 /* The Habit Editor (VOICE §22): features/habits/editor/copy.ts re-exports these. */
 /**
  * The Habit Editor's own words that the copy deck has no constant for yet (VOICE §22 names the
- * fields; these are the small labels around them). See NOTES-w2-today.md: they belong in lines.ts.
+ * fields; these are the small labels around them).
  */
 export const EDITOR_COPY = {
   newTitle: 'A new habit',

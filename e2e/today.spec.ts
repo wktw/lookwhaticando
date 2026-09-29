@@ -125,6 +125,15 @@ for (const v of VIEWS) {
 
 test.describe('Today · phone with touch · the ring, the strip and the band', () => {
   test.use({ ...PHONE, colorScheme: 'light' });
+  // The demo waters each habit at its block's hour up to now (the evening ones after 20:15), and these
+  // checks need today's habits still to water (a full band that scrolls): they run at 7 am of today,
+  // before the morning block, whenever the suite runs.
+  test.beforeEach(async ({ page }) => {
+    const early = new Date();
+    early.setHours(7, 0, 0, 0);
+    await page.clock.install({ time: early });
+    await page.clock.resume();
+  });
 
   test('a slow tap still waters, a long press opens the number pad, and ⋯ opens it too', async ({ page }) => {
     test.skip(PREVIEW, 'seeds through the dev server');

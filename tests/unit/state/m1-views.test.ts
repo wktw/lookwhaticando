@@ -412,7 +412,7 @@ describe('the first-capsule card (VOICE §16 step 6)', () => {
   });
 });
 
-describe('a one-day window says nothing (NOTES-w2-progress request 5)', () => {
+describe('a one-day window says nothing', () => {
   it('never "1 of the last 1 days"', async () => {
     const { showedUpLine, consistencyText } = await import('@/catalog/format');
     expect(showedUpLine({ days: 1, span: 1 })).toBeNull();

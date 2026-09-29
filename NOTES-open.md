@@ -1,56 +1,83 @@
-# Open after M1: for the screen builders
+# Open items, and the contracts the screens build on
 
-The four M1 fix areas (logic, art, ui, build) were merged and their cross-area requests landed in the
-M1 integration (see `git log`). This file replaces NOTES-m1-logic.md, NOTES-m1-art.md, NOTES-m1-ui.md
-and NOTES-m1-build.md: what is still open, and the contracts the screens build on. The older module
-NOTES-*.md files are reference for their modules; the items in them that M1 closed are marked done.
+The M1 fix areas and the four wave-2 screens (Today, Shelf, Progress, You and onboarding) are merged, and
+the wave-2 integration landed their cross-area requests (see `git log`: "Integration" onwards). This file
+replaces NOTES-m1-*.md and NOTES-w2-*.md: what is still open (with the reason), what was declined, where
+the screens live, and the contracts the screens build on. The older module NOTES-*.md files are reference
+for their modules.
 
 ## Still open
 
-These wait on screens that are still stubs (Today, Progress, You) or on the Shelf screen being wired
-to the store. Each names the contract that is already in place.
+1. **Carry a pet to another place (Shelf).** A carried pet lands on its own floor (`usePetTouch` →
+   `nearestFree` on its ground), so a drop can't move a pet between places; the Pet Card's "Move {name}"
+   does it. The scene would have to report the place under the drop (then the Shelf calls
+   `setPetPlace`). A drag-and-drop design change across the scene's places; not needed to ship.
+2. **The Shelf scene's render cost.** On a 3-year × 20-habit save, switching to the Shelf takes 110–200 ms
+   of render on a loaded machine, mostly the scene drawing every pot, the retired plants and each place's
+   backdrop on the first frame, even off screen. `PlantArt` now keeps its compositions across mounts
+   (a second visit is cheaper); drawing places lazily as they scroll near is the remaining step (art).
+3. **`ShelfSceneHandle.fracAtView(place)`** (optional). The Shelf's `decorXAtView` repeats the scene's
+   floor geometry to put a new thing mid-view; the scene could answer it itself.
+4. **`ObjectArt` `fit`** (optional). `src/features/shelf/FitObject.tsx` crops a flat keepsake to its
+   measured box and works; a `fit` prop in the art would retire it.
+5. **"Start tracking Walk from Mon, Sep 22?" from Today's past days.** `liveHabits` leaves a habit out of
+   the days before its `startedOn`, so a newer habit is simply not on an earlier day of the strip.
+   Habit Detail's "Start tracking from…" covers it. Needs a view-model flag for those habits; a logic
+   change with no screen asking for it yet.
+6. **The vine chip and flexible check-ins.** The chip reads "3 of 5" (day-based habits) and "2 watered"
+   when only flexible ones were; a flexible watering on a day with day-based ones doesn't move it. The
+   status line now keeps its kind ("2 this week" → "1 of 2 this week"), which shows the tap counted. A
+   wording for "3 of 5 and 1 more" wants a copy decision first.
+7. **Quiet rewards and the Capsules tab.** Quiet rewards now hides the amounts in every celebration, the
+   coin flights, the rolling wallet note and the sidebar wallet (Today already hid its own). The setting's
+   helper says "Hide coins, capsules and the wallet": hiding the Capsules tab itself would renumber the
+   1–5 shortcuts and the tab bar, a design decision left open.
+8. **iPhone checks (You).** Copy backup and "Move my plants into the app" start the clipboard write inside
+   the tap, and "Paste my plants" starts its read in the tap; headless Chromium allows every path, so try
+   both on a real iPhone (Safari tab → Home Screen app).
+9. **Optional art/logic from Progress.** A `NoteCard kind="season"` for filed seasons (they use the story
+   card); a `CardPlant` option for a bigger resident (Habit Detail composes its own `HeroPlant`); a
+   `lengthOf(tier, unit)` so the rung ladder of a weekly habit says "3 weeks" (it shows the tiers as numbers
+   and the longest run in words).
+10. **Sound's first warning.** The engine is built while the page is idle (`sfx.warm`), so the first tap only
+    resumes it; Chrome logs "The AudioContext was not allowed to start" (a warning) for a context made
+    before any gesture. Building it only once `navigator.userActivation.hasBeenActive` would drop the
+    warning but bring the 75 ms back into the first tap.
 
-1. **Today: the window band.** Build `WindowsillBand`'s `pots` and `pets` with `bandPots(vm)` and
-   `bandPets(vm, state)` (`src/state/views/today.ts`): card order, the current block first, only
-   residents who are out. `pour(habitId)` already falls back to `coinToJar()` for a pot off the band.
-2. **Today: the first-capsule card.** `todayVM.firstCapsuleWaiting` is true while the onboarding
-   capsule is still on the house: show `TODAY_LINES.firstCapsuleWaiting` ("Your first capsule is waiting
-   on the Capsules tab."), else `TODAY_LINES.firstCapsule` when `firstCapsule` (VOICE §16 step 6).
-3. **Today: the month jar.** `todayVM.monthJar` feeds `MonthJar` from `@/art/progress` (import the
-   Progress art from there; no `src/ui/art` re-export is needed).
-4. **The Shelf screen, wired to the store.** `src/features/shelf/ShelfScreen.tsx` still shows the demo
-   household (`./demo`: a cat, a cow, a bunny and a dog on the sill, a black cat and a hamster on the
-   bookshelf). Map `shelfView.out` to `ShelfPet` as `{ key: pet.id, petId: pet.itemId, name, personality,
-   outfit, home: companionOf, place: pet.place, favouriteSpot }`; a drop onto a place calls
-   `store.setPetPlace(petId, place)` (`false` = refused, `null` = back to the Sill); decor goes through
-   `decorToScene` / `sceneToDecor`. The Sill opens scrolled to its last pot (`openScroll`), so the demo
-   keeps the cat in the last pot and the cow, the bunny and the dog out on the lamp end: all four are in
-   the first 390 px. A real household's residents in its early pots will sit one swipe to the left;
-   when this is wired, check the opening frame still shows a pet (or open on the closest pet's pot).
-5. **The Field Guide** (You): "not yet" tiles use `<CollectibleArt muted size="100%" px={…} />` (35%
-   saturation, no CSS filter); only a Secret is a "?". The lineup leaflet on the cabinet keeps its
-   tiles in full colour on purpose (it is the printed lineup, not the Field Guide).
-6. **You › Accessibility: the keyboard-shortcuts switch.** `Settings.keyboardShortcuts` is stored and
-   validated (absent = on with a mouse or trackpad, off on touch): "Keyboard shortcuts: 1–5 switch tabs,
-   N plants a habit" (the copy wants a row in VOICE.md). Listen for `'ck:new-habit'`
-   (`NEW_HABIT_EVENT`); the old `'mm:new-habit'` alias is gone.
-7. **First boot of the file:// build offers *Import a backup*** (DESIGN §11).
-8. **Manifest screenshots.** When Today is built, set `SCREENSHOTS[0].route` to `today` in
-   `scripts/manifest-assets.mjs`, re-run `npm run manifest-assets`, and update the labels in
-   `MANIFEST.screenshots` (vite.config.ts).
-9. **e2e.** When onboarding starts gating the first boot, `openRoute` in `e2e/support.ts` must start from a
-   finished onboarding.
-
-Declined, with the reason:
+## Declined, with the reason
 
 - **Delete `EVERGREEN_LINE` (logic request 2).** It is derived from `STAGE_LINES[7]` (its second
   sentence), so there is still one source. The Evergreen banner's title already says "The Walk plant is
   Evergreen"; the full line would say it twice.
 - **Move the file:// ribbon into App.tsx (build request 6, optional).** It works where it is
   (`src/main.tsx`, `data-test-copy`, asserted by `e2e/single-file.spec.ts`).
-- **The cabinet's price chip** now steps aside whenever its type would print under 11 px (every phone and
-  the desktop carousel today): the price is in MachineInfo's 16 px pill. A bigger chip would need a
-  redraw of the slot plate; not needed for M1.
+- **The cabinet's price chip** steps aside whenever its type would print under 11 px: the price is in
+  MachineInfo's 16 px pill. A bigger chip would need a redraw of the slot plate.
+- **Pet Card memories: which rule wins (Shelf request 7).** The card keeps listing `pet.moments` (the day
+  it came home, each "Look at us" bloom) with `pet.memories`, oldest first: DESIGN §14.1 says a bloom
+  makes a Memory. `EMPTY.memories` stays in the deck for a card with nothing to list.
+- **Today as a `wide` route (Today request 12).** The shell's column is 720 px now (the padding fix), and
+  Today widens itself to two columns from 1100 px, so the route stays narrow like Progress and You.
+- **A lazy demo in the store (You requests 2 and 13).** The first paint is 138.9 KB gzip after the copy
+  deck split, well under 150; `buildDemo` (about 2.5 KB gzip) stays in the entry so `enterDemo` and
+  `resetAll` stay synchronous.
+
+## Wave 2 screens: where they are
+
+- **Today** `src/features/today/` (the band `Band.tsx` with its guest pot and month jar, the strip, the list,
+  the card, the ⋯ menu, the check-in choreography `checkin.ts`, the sill's notices and sheets) and the
+  **Habit Editor** `src/features/habits/editor/` (`openHabitEditor`).
+- **Shelf** `src/features/shelf/` (the scene wired to the store via `model.ts`, captions, the roster, decor
+  edit mode, the places map, the basket, the Field Guide) and the **Pet Card** `src/features/pets/`
+  (`openPetCard`).
+- **Progress** `src/features/progress/`, **Habit Detail** `src/features/habits/detail/`
+  (`openHabitDetail`) and the **ritual reader** `src/features/rituals/` (`openRitual(id, { fromSill })`,
+  `openSeason`; the shell mounts it).
+- **You** `src/features/you/`, **onboarding** `src/features/onboarding/`, the shell banners in
+  `src/app/App.tsx`.
+- To look at a busy household: build a save with `buildDemo` and `encodeEnvelope` (`src/state/demo.ts`,
+  `src/state/persist.ts`) and pass it to `node scripts/shoot.mjs "/#/today" out.png --seed-file=save.json`
+  (`--w`, `--h`, `--dark`, `--full`).
 
 ## Contracts the screens build on
 
@@ -60,6 +87,15 @@ Declined, with the reason:
 from `src/catalog/format.ts`, and every template in it lives in `src/catalog/lines.ts`. Both are
 exported from `@/catalog`. A formatter that would say a 0, or what's undone, returns `null`, and
 the screen then shows nothing.
+
+**First paint (wave 2 integration).** The deck is four modules: `lineKit.ts` (Line, filters, `fillLine`,
+`plantPhrase`…), `captionMatrix.ts` (the caption matrix, `pickLine`/`pickFrom`), `linesCore.ts` (what the
+domain, the view models and the fx layer need at first paint) and `lines.ts` (everything else, re-exporting
+the other three); `format.ts` re-exports `formatCore.ts` (runs, consistency, schedules). Screens import from
+`@/catalog/lines` and `@/catalog/format` as before. Code on the first-paint path (src/domain, the store and
+its top-level modules, `views/common|pets|company`, `fx/copy|celebrationPlan|celebrations`) imports only
+the small modules; `tests/unit/build/firstPaintImports.test.ts` pins it. A new line the domain or the fx
+layer needs goes in `linesCore.ts`.
 
 #### Today (`todayVM` / `selectToday`)
 
@@ -330,12 +366,35 @@ Since then (integration): a Special Order's reveal clears `pendingReveal` when i
 an order after a reload (CapsulesScreen); "Let {name} choose" calls `store.letPetChoose` and toasts
 `choseLine(…)` when no host handles it.
 
+### Since the wave 2 integration
+
+- **Store:** `declineOffer(habitId, 'grow' | 'tinier')` (the offer stays closed for its 28-day look-back);
+  `backupJson()`, `backupPayload()` and `markBackup()` (mark only once a backup is really saved or copied;
+  `exportData`/`exportPayload` still mark at once); a wallet-changing action saves just after the tap's
+  frame (`StoreRuntime.afterFrame`; tests leave it out or fake it), a pull, a Special Order or an import
+  still saves before it returns; `describeBackup` counts live habits.
+- **View models:** a potted flexible habit's status line is `period` from the period's first day
+  (`STATUS_LINE.periodGoal`, "2 this week"); `progressVM` keeps its statistics and plants until their own
+  inputs change; `showedUpLine` and the days phrase are null for a one-day window.
+- **fx/ui:** `quietPlan(plan)` (Quiet rewards: the same moments without amounts; the host applies it);
+  toasts at the top slide below an open sheet's header (`data-sheet-header`); `holdMoments()` in
+  `sheetStack` holds banners and toasts without a layer; banners are a named region; `sfx.warm()` builds
+  the engine while idle (installAudioUnlock calls it); `celebrateCheckIn` under reduced motion plays after
+  the frame; `EmptyState as="h2"`; `FirstPick heading`.
+- **Art:** `WindowsillBand monthJar={{ stems }}` (SillExtras); `EditDecor.label(key)` and `hint`;
+  `Pressing` draws each species' own silhouette (`pressedForm`, `PRESS_GREENS`); `muteTree` keeps nested
+  lists nested (no duplicate keys); `composePlantCached`; the band and Sill's small buttons take a 44 px tap;
+  `BAND_MAX_POTS` is exported from `@/art/scene`.
+- **Copy:** the screens' chrome (`TODAY_COPY`, `EDITOR_COPY`, `SHELF_COPY`, `PET_CARD_UI`, `PROGRESS_UI`,
+  `DETAIL_UI`, `YOU_UI` and You's groups) lives in lines.ts, with rows in VOICE.md §24.
+- **Build:** `__BUILD_ID__` (commit · day) for Diagnostics; the shell's desktop column is 720 px
+  (`App.module.css`).
+
 ### From build
 
 - Each screen renders exactly one visible `h1` inside `<main>`. The e2e specs wait for `main h1` on every route and
   check the theme, console errors, axe (WCAG 2.2 AA plus best practice) and 320 px reflow.
-- When onboarding starts gating the first boot, update `openRoute` in `e2e/support.ts` so it starts from a finished
-  onboarding.
+- `openRoute` in `e2e/support.ts` starts from a finished onboarding (a first boot is onboarding).
 - First-paint budget: 150 KB of JavaScript, gzipped (`npm run size`, which counts the entry plus its static imports).
   Import screens, art libraries and celebration art lazily. Nothing on the shell path may statically import `@/art/*`
   galleries, `CollectibleArt`, `PetArt` or `CelebrationArt`.

@@ -64,7 +64,7 @@ describe('the rituals', () => {
   });
 });
 
-describe('Pressing: one silhouette per species (NOTES-w2-progress request 10)', () => {
+describe('Pressing: one silhouette per species', () => {
   it('no two species press to the same leaves', async () => {
     const { pressedForm } = await import('./index');
     const species = ['pothos', 'pilea', 'begonia', 'snakeplant', 'catgrass', 'monstera', 'strawberry', 'lavender', 'catnip', 'hoya', 'orchid', 'calathea', 'violet', 'tulip', 'xmascactus', 'sunflower'] as const;

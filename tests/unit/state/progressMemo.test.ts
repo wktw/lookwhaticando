@@ -10,7 +10,7 @@ const UTC: LocalTimeReader = (ms) => {
 const TODAY = '2026-09-29';
 const NOW = Date.UTC(2026, 8, 29, 16, 30);
 
-describe('progressVM keeps its parts until their own inputs change (NOTES-w2-progress request 11)', () => {
+describe('progressVM keeps its parts until their own inputs change', () => {
   const s = buildDemo({ today: TODAY, now: NOW, local: UTC });
   const env = { today: TODAY, now: NOW, local: UTC };
   const first = progressVM(s, env);

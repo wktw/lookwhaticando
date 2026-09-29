@@ -522,7 +522,7 @@ describe('PlantTag', () => {
   });
 });
 
-describe('composed plants are remembered (NOTES-w2-today request 10)', () => {
+describe('composed plants are remembered', () => {
   it('the same plant twice in one tree, and again after a remount, draws the same', () => {
     const host = document.createElement('div');
     document.body.appendChild(host);

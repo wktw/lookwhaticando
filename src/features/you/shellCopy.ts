@@ -15,7 +15,7 @@ export const SHELL_LINES = {
   updateReady: 'A new version is ready · Reload',
   /** The kit's close label (Sheet), for putting the clock note away. */
   close: 'Close',
-  /** The install gate's way on without installing (new: for the deck, NOTES-w2-you request 7). */
+  /** The install gate's way on without installing (VOICE §24). */
   gateStay: 'Keep it in this tab',
   /** The demo pill's label (You › Data's DATA_COPY.demoPill). */
   demoPill: 'The demo',
