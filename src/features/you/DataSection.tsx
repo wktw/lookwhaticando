@@ -14,8 +14,9 @@ import {
   enterDemo,
   exitDemo,
   exportCsv,
-  exportData,
-  exportPayload,
+  backupJson,
+  backupPayload,
+  markBackup,
   listSnapshots,
   readOnly,
   resetAll,
@@ -217,17 +218,22 @@ export function DataSection() {
   const undoable = !inDemo && !locked && canUndoImport();
 
   const saveBackup = async () => {
-    const json = exportData();
+    const json = backupJson();
     const outcome = await saveFile(backupFileName(today.value), json);
     if (outcome === 'cancelled') return;
+    // Marked only once it is really saved (a cancelled share leaves the nudge up).
+    markBackup();
     toast({ key: 'backup', message: outcome === 'downloaded-instead' ? ERRORS.share : DATA.saved, tone: 'sage' });
   };
 
   // No await before the copy starts: iPhone Safari only copies from inside the tap.
   const copyBackup = () => {
-    const payload = exportPayload();
+    const payload = backupPayload();
     void copyLater(payload).then(async (ok) => {
-      if (ok) toast({ key: 'backup-copied', message: DATA.copied, tone: 'sage' });
+      if (ok) {
+        markBackup();
+        toast({ key: 'backup-copied', message: DATA.copied, tone: 'sage' });
+      }
       else setByHand(await payload);
     });
   };

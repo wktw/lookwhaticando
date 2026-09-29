@@ -193,6 +193,7 @@ export type OutfitChange = { petId: string; slot: WearableSlot; itemId: string |
 
 export interface ImportPreview {
   ok: true;
+  /** Live habits (archived ones are not counted, as on the You screen). */
   habits: number;
   checkins: number;
   friends: number;

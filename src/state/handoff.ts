@@ -194,7 +194,8 @@ export async function parseBackupText(text: string): Promise<ParsedBackup> {
 export function describeBackup(p: Extract<ParsedBackup, { ok: true }>): ImportPreview {
   return {
     ok: true,
-    habits: p.state.habits.length,
+    // Live habits, as You's profile counts them (archived ones come along, on the balcony shelf).
+    habits: p.state.habits.filter((h) => h.archivedOn === undefined).length,
     checkins: countCheckins(p.state),
     friends: Object.keys(p.state.pets).length,
     savedAt: p.savedAt,

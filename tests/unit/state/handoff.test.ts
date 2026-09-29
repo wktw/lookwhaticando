@@ -88,7 +88,7 @@ describe('parsing an import', () => {
     const p = await parseBackupText(backup);
     expect(p.ok && describeBackup(p)).toEqual({
       ok: true,
-      habits: demo.habits.length,
+      habits: demo.habits.filter((h) => h.archivedOn === undefined).length, // live habits, as You counts them
       checkins: expect.any(Number),
       friends: Object.keys(demo.pets).length,
       savedAt: now,

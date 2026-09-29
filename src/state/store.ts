@@ -845,7 +845,8 @@ function ownSave(): AppState {
   return res.kind === 'ok' ? res.state : (realState ?? createInitialState(rt.now()));
 }
 
-function backupJson(): string {
+/** Backup file contents (`catkin-backup` JSON) of the user's own save (the real one inside the demo). Marks nothing: call `markBackup` once it is really saved. */
+export function backupJson(): string {
   return JSON.stringify(makeBackup(ownSave(), { now: rt.now(), appVersion: rt.appVersion, device: rt.device }));
 }
 
@@ -878,7 +879,7 @@ export function wateringTimeFile(slot: profileDomain.WateringSlot): { name: stri
 /** Backup file contents (`catkin-backup` JSON) of the user's own save (the real one inside the demo). Marks lastBackupAt. */
 export function exportData(): string {
   const json = backupJson();
-  if (!demoMode.value) actVoid((tx) => profileDomain.markBackup(tx));
+  markBackup();
   return json;
 }
 /**
@@ -886,9 +887,17 @@ export function exportData(): string {
  * Always the user's own save ("Move my plants into the app" from the demo moves the real one).
  */
 export async function exportPayload(): Promise<string> {
-  const payload = await encodePayload(backupJson());
-  if (!demoMode.value) actVoid((tx) => profileDomain.markBackup(tx));
+  const payload = await backupPayload();
+  markBackup();
   return payload;
+}
+/** The same compact payload, without marking a backup (mark it with `markBackup` once it was copied). */
+export function backupPayload(): Promise<string> {
+  return encodePayload(backupJson());
+}
+/** Records that a backup was saved or copied just now ("Last backup: today"); not inside the demo. */
+export function markBackup(): void {
+  if (!demoMode.value) actVoid((tx) => profileDomain.markBackup(tx));
 }
 /** Validate a backup (file text or CK1 payload) and describe it without applying. */
 export async function previewImport(text: string): Promise<ImportPreview | { ok: false; error: string }> {
