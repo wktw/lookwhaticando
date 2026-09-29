@@ -66,7 +66,7 @@ export const DECOR_ENTRIES: Record<string, DecorEntry & MeadowLegacy> = {
   'decor-birthday-cake': { art: birthdayCake, size: 17, bounds: [0, 100], deep: 14, glow: [50, 22, 30] },
   'decor-reading-chair': { art: readingChair, size: 34, bounds: [0, 100], deep: 24 },
   'decor-pasture-fence': { art: pastureFence, size: 30, bounds: [0, 100], deep: 6 },
-  'decor-stepping-stones': { art: steppingStones, size: 34, bounds: [4, 89], deep: 38, flat: true },
+  'decor-stepping-stones': { art: steppingStones, size: 34, bounds: [4, 96], deep: 26, flat: true },
   // No. 01 Cats
   'decor-cardboard-box': { art: cardboardBox, size: 26, bounds: [3, 96], deep: 16 },
   'decor-yarn-ball': { art: yarnBall, size: 15, bounds: [11, 98], deep: 20 },
@@ -94,8 +94,8 @@ export const DECOR_ENTRIES: Record<string, DecorEntry & MeadowLegacy> = {
   'decor-bread-basket': { art: breadBasket, size: 22, bounds: [2, 98], deep: 22 },
   'decor-copper-kettle': { art: copperKettle, size: 22, bounds: [9, 97], deep: 16 },
   // No. 07 Night
-  'decor-hot-water-bottle': { art: hotWaterBottle, size: 20, bounds: [20, 87], deep: 14 },
-  'decor-reading-lamp': { art: readingLamp, size: 30, bounds: [15, 85], deep: 10, glow: [50, 56, 48] },
+  'decor-hot-water-bottle': { art: hotWaterBottle, size: 20, bounds: [20, 80], deep: 14 },
+  'decor-reading-lamp': { art: readingLamp, size: 30, bounds: [10, 92], deep: 10, glow: [43, 56, 48] },
   'decor-moon-nightlight': { art: moonNightlight, size: 16, bounds: [12, 74], deep: 0, glow: [44, 58, 46], hang: 'window' },
   // Autumn
   'decor-mini-pumpkin': { art: miniPumpkin, size: 13, bounds: [3, 97], deep: 24 },
@@ -110,7 +110,7 @@ export const DECOR_ENTRIES: Record<string, DecorEntry & MeadowLegacy> = {
   'decor-bud-vase': { art: budVase, size: 18, bounds: [27, 73], deep: 10 },
   'decor-tiny-bouquet': { art: tinyBouquet, size: 20, bounds: [15, 74], deep: 8 },
   // Spring
-  'decor-paper-umbrella': { art: paperUmbrella, size: 26, bounds: [0, 80], deep: 20 },
+  'decor-paper-umbrella': { art: paperUmbrella, size: 14, bounds: [0, 80], deep: 20 },
   'decor-robin-nest': { art: robinNest, size: 16, bounds: [5, 96], deep: 22 },
   'decor-seed-tray': { art: seedTray, size: 28, bounds: [0, 100], deep: 28 },
   // Summer

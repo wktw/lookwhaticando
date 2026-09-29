@@ -84,7 +84,7 @@ const straw = shapes('treat-strawberry', {
 });
 
 const strawberry: ItemRenderer = (o) => {
-  const p = paint({ light: o?.light });
+  const p = paint({ light: o?.light, facing: o?.facing });
   return (
     <g>
       {contact(p, 51, 86.4, 33, 2.8)}
@@ -146,7 +146,7 @@ const grass = shapes(
 );
 
 const catGrass: ItemRenderer = (o) => {
-  const p = paint({ light: o?.light });
+  const p = paint({ light: o?.light, facing: o?.facing });
   const shades = [GREEN.leaf, GREEN.light, GREEN.deep];
   return (
     <g>
@@ -235,7 +235,7 @@ const nip = shapes(
 );
 
 const catnip: ItemRenderer = (o) => {
-  const p = paint({ light: o?.light });
+  const p = paint({ light: o?.light, facing: o?.facing });
   return (
     <g>
       {contact(p, 50, 85.6, 36, 2)}
@@ -279,7 +279,7 @@ const clov = shapes('treat-clover', {
 } as Record<string, { d: string; k: number }>);
 
 const clover: ItemRenderer = (o) => {
-  const p = paint({ light: o?.light });
+  const p = paint({ light: o?.light, facing: o?.facing });
   return (
     <g>
       {contact(p, 52, 86.4, 16, 2.2)}
@@ -346,7 +346,7 @@ const lettuce = shapes('treat-lettuce', {
 });
 
 const lettuceLeaf: ItemRenderer = (o) => {
-  const p = paint({ light: o?.light });
+  const p = paint({ light: o?.light, facing: o?.facing });
   return (
     <g>
       {contact(p, 46, 86.2, 18, 2.2)}
@@ -386,7 +386,7 @@ function star(cx: number, cy: number, r: number, inner: number): string {
 }
 
 const blueberries: ItemRenderer = (o) => {
-  const p = paint({ light: o?.light });
+  const p = paint({ light: o?.light, facing: o?.facing });
   const bloom = (x: number, y: number) => <ellipse cx={x} cy={y} rx={5} ry={3.4} transform={`rotate(-30 ${x} ${y})`} fill={p.c(BLUE.bloom)} />;
   return (
     <g>
@@ -418,7 +418,7 @@ const carrot = shapes('treat-carrot', {
 });
 
 const babyCarrot: ItemRenderer = (o) => {
-  const p = paint({ light: o?.light });
+  const p = paint({ light: o?.light, facing: o?.facing });
   const tops: [Pt, Pt][] = [
     [
       [76, 53],
@@ -481,7 +481,7 @@ const rad = shapes('treat-radish', {
 });
 
 const radish: ItemRenderer = (o) => {
-  const p = paint({ light: o?.light });
+  const p = paint({ light: o?.light, facing: o?.facing });
   return (
     <g>
       {contact(p, 56, 86, 30, 2.4)}
@@ -548,7 +548,7 @@ const pod = shapes('treat-pea-pod', {
 });
 
 const peaPod: ItemRenderer = (o) => {
-  const p = paint({ light: o?.light });
+  const p = paint({ light: o?.light, facing: o?.facing });
   return (
     <g>
       {contact(p, 50, 84, 38, 2.4)}
@@ -567,7 +567,7 @@ const peaPod: ItemRenderer = (o) => {
 
 /* ---------------- Watermelon: a wedge with the seeds taken out ---------------- */
 
-const MELON = { flesh: '#F2838E', rind: '#8DB87A', rindDeep: '#6E9A68', pith: '#F4F1DC', side: '#E26F7C', pocket: '#F7A3AB' };
+const MELON = { flesh: '#F2838E', rind: '#8DB87A', rindDeep: '#6E9A68', pith: '#F4F1DC', side: '#E26F7C' };
 
 const melon = shapes('treat-watermelon', {
   side: {
@@ -588,24 +588,12 @@ const melon = shapes('treat-watermelon', {
 });
 
 const watermelon: ItemRenderer = (o) => {
-  const p = paint({ light: o?.light });
+  const p = paint({ light: o?.light, facing: o?.facing });
   return (
     <g>
       {contact(p, 51, 84.6, 38, 2.4)}
       {solid(p, melon.side, MELON.rindDeep)}
-      {solid(p, melon.wedge, MELON.flesh, [
-        flat(p, melon.pith, MELON.pith),
-        flat(p, melon.rind, MELON.rind),
-        ...(
-          [
-            [44, 50],
-            [56, 50],
-            [38, 62],
-            [50, 64],
-            [62, 62],
-          ] as const
-        ).map(([x, y], i) => <ellipse key={i} cx={x} cy={y} rx={1.4} ry={2} fill={p.c(MELON.pocket)} />),
-      ])}
+      {solid(p, melon.wedge, MELON.flesh, [flat(p, melon.pith, MELON.pith), flat(p, melon.rind, MELON.rind)])}
     </g>
   );
 };

@@ -4,7 +4,8 @@
  *
  * For each shape registered with `shapes()` it stores:
  * - `c`: the shade crescents for light from the left, top and right: the shape minus itself nudged
- *   toward the light by CRESCENT_OFFSET × k, which leaves a hard-edged sliver on the far side;
+ *   toward the light by CRESCENT_OFFSET × k, which leaves a hard-edged sliver on the far side (a
+ *   negative k, for a hollow, nudges it away and leaves the sliver on the near side);
  * - `r`: for dark shapes, the lamp-side rim light: the shape minus itself nudged away from the light;
  * - `d`: for patches with a `clip`, the patch trimmed to that shape (stripes on a canopy).
  *
@@ -61,7 +62,7 @@ for (const shape of [...SHAPES.values()].sort((a, b) => a.ref.localeCompare(b.re
     base = base.intersect(create(target.d), { insert: false });
     row.d = data(base.clone({ insert: false }));
   }
-  if (shape.k > 0) {
+  if (shape.k !== 0) {
     row.c = LIGHT_ORDER.map((from) => {
       const [x, y] = CRESCENT_OFFSET[from];
       return minusShifted(base, x * shape.k, y * shape.k);

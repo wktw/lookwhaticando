@@ -8,5 +8,5 @@ import { DECOR_ENTRIES } from '@/art/scene/decor';
 export { decorFootprint } from '@/art/scene/decor';
 
 export const DECOR_ART: Record<string, ItemRenderer> = Object.fromEntries(
-  Object.entries(DECOR_ENTRIES).map(([id, entry]) => [id, (opts) => entry.art({ light: opts?.light, night: opts?.light?.night })]),
+  Object.entries(DECOR_ENTRIES).map(([id, entry]) => [id, (opts) => entry.art({ light: opts?.light, night: opts?.light?.night, facing: opts?.facing })]),
 );

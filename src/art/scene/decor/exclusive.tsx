@@ -3,14 +3,14 @@
  * Cake (birthdays), and the Field Guide rewards: a Reading Chair (Cats), a Pasture Fence (Cows) and
  * Stepping Stones (Pond Club). Standing on y = 92 of the 100×100 canvas.
  */
-import { Glow, cast, contact, flat, lit, paint, shapes, solid, thin, type DecorRenderer } from './kit';
-import { ell, ellPts, leaf, n, poly, rect, smooth, trap, type Pt } from './geo';
+import { Glow, cast, contact, crescentOf, flat, lit, paint, shapes, solid, thin, type DecorRenderer } from './kit';
+import { dots, ell, ellPts, leaf, n, poly, rect, smooth, trap, type Pt } from './geo';
 
 /* ---------------- The Window Seat: a cushioned seat built into the window ---------------- */
 
 const SEAT = {
-  wall: '#F7F0E6',
-  recess: '#EBE1D3',
+  wall: '#FCF7EF',
+  recess: '#E6DACB',
   frame: '#FDFAF4',
   sky: '#D6E8F4',
   skyLow: '#E8F1F3',
@@ -21,9 +21,9 @@ const SEAT = {
   tie: '#E3A083',
   wood: '#F4ECDF',
   panel: '#EADFCE',
-  cushion: '#EFB4C1',
-  piping: '#F8D3DB',
-  button: '#DC97A8',
+  cushion: '#E99AAC',
+  piping: '#F6CCD6',
+  button: '#D0798F',
   sage: '#B5CC9C',
   throw: '#CDBFE6',
   stripe: '#F1ECF8',
@@ -43,6 +43,8 @@ const ARCH = (x0: number, x1: number, top: number, spring: number, bottom: numbe
 const seat = shapes('decor-window-seat', {
   wall: ARCH(5, 95, 5, 36, 92),
   recess: { d: ARCH(13, 87, 13.5, 39, 92), k: 0 },
+  /** The recess again, lit as a hollow: its shade falls inside it, along the jamb and arch head nearest the light. */
+  reveal: { d: ARCH(13, 87, 13.5, 39, 92), k: -0.9 },
   frame: { d: ARCH(22, 78, 20, 42, 71), k: 0.4 },
   glass: { d: ARCH(25, 75, 23.2, 43, 68.6), k: 0 },
   tree: {
@@ -146,13 +148,12 @@ const HANGING: readonly (readonly [Pt, Pt])[] = [
 
 export const windowSeat: DecorRenderer = (o) => {
   const p = paint(o);
-  const reveal = p.from === 'left' ? rect(13, 39, 3.4, 53) : p.from === 'right' ? rect(83.6, 39, 3.4, 53) : ARCH(13, 87, 13.5, 39, 18);
   return (
     <g>
       {contact(p, 50, 92.4, 46, 1.8)}
       {solid(p, seat.wall, SEAT.wall)}
       {flat(p, seat.recess, SEAT.recess)}
-      {cast(p, reveal, 0.8)}
+      {crescentOf(p, seat.reveal)}
       {solid(p, seat.frame, SEAT.frame)}
       {flat(p, seat.glass, p.night ? SEAT.nightSky : SEAT.sky)}
       {p.night ? (
@@ -402,48 +403,87 @@ export const pastureFence: DecorRenderer = (o) => {
 
 /* ---------------- Stepping Stones: for completing the Pond Club page ---------------- */
 
-const STONE = { top: '#D3D1C7', edge: '#B9B6AA', moss: '#B5CC9C', mossDeep: '#9CBF8A' };
-/** [cx, cy, rx, ry, wobble seed]: nearest first. */
+const STONE = {
+  top: '#D4CDC3',
+  side: '#A99E94',
+  moss: '#A9C48E',
+  water: '#BCDAE2',
+  waterFar: '#AFD1DA',
+  ripple: '#E2F0F2',
+  leaf: '#8FB77C',
+  leafVein: '#B5D29F',
+  weed: '#9CC47E',
+};
+
+/** [cx, cy, rx, ry, wobble seed] of each stone's top face: farthest first, crossing a shallow pond. */
 const STONES: readonly (readonly [number, number, number, number, number])[] = [
-  [68, 50.6, 12.6, 4, 1],
-  [36, 61.6, 16.6, 5.2, 2],
-  [65, 73.4, 20.6, 6.4, 3],
-  [33, 85.4, 25, 7.2, 4],
+  [68, 70.4, 8.6, 2.5, 1],
+  [44, 75.4, 10.6, 3, 2],
+  [64, 81, 12.4, 3.3, 3],
+  [37, 86.4, 14, 3.5, 4],
 ];
+/** How thick a stone stands out of the water. */
+const STONE_SIDE = 2.6;
 
 function pebble(cx: number, cy: number, rx: number, ry: number, seed: number): string {
   const pts = ellPts(cx, cy, rx, ry, 0, 360, 10)
     .slice(0, -1)
     .map(([x, y], i): Pt => {
-      const k = 1 + Math.sin(i * 2.4 + seed * 1.7) * 0.06;
+      const k = 1 + Math.sin(i * 2.4 + seed * 1.7) * 0.07;
       return [cx + (x - cx) * k, cy + (y - cy) * k];
     });
   return smooth(pts);
 }
 
+/** A stone's side: its top face swept down by its thickness. */
+function stoneSide(cx: number, cy: number, rx: number, ry: number, seed: number): string {
+  const pts = ellPts(cx, cy, rx, ry, 0, 360, 10)
+    .slice(0, -1)
+    .map(([x, y], i): Pt => {
+      const k = 1 + Math.sin(i * 2.4 + seed * 1.7) * 0.07;
+      return [cx + (x - cx) * k, cy + (y - cy) * k + (y > cy - ry * 0.2 ? STONE_SIDE : 0)];
+    });
+  return smooth(pts);
+}
+
 const stones = shapes('decor-stepping-stones', {
-  ...Object.fromEntries(STONES.map(([x, y, rx, ry, s], i) => [`edge${i}`, { d: pebble(x, y + 1.8, rx, ry, s), k: 0 }])),
-  ...Object.fromEntries(STONES.map(([x, y, rx, ry, s], i) => [`top${i}`, { d: pebble(x, y, rx, ry, s), k: 0.3 }])),
-  ...Object.fromEntries(STONES.map(([x, y, rx, ry], i) => [`moss${i}`, { d: ell(x - rx * 0.7, y - ry * 0.2, rx * 0.36, ry * 0.9), k: 0, clip: `top${i}` }])),
+  water: { d: ell(50, 78.6, 46, 12.6), k: 0 },
+  far: { d: ell(50, 71.4, 40, 5.4), k: 0, clip: 'water' },
+  leaf: { d: leaf([80, 80.4], [91, 76.4], 3.6, 0.05), k: 0.3 },
+  ...Object.fromEntries(STONES.map(([x, y, rx, ry, s], i) => [`side${i}`, { d: stoneSide(x, y, rx, ry, s), k: 0.5 }])),
+  ...Object.fromEntries(STONES.map(([x, y, rx, ry, s], i) => [`top${i}`, { d: pebble(x, y, rx, ry, s), k: 0.35 }])),
+  moss1: { d: ell(44 - 10.6 * 0.66, 75.4 + 0.6, 3.6, 2.2), k: 0, clip: 'top1' },
+  moss3: { d: ell(37 + 14 * 0.6, 86.4 - 0.4, 4.4, 2.4), k: 0, clip: 'top3' },
 } as Record<string, { d: string; k: number; clip?: string }>);
+
+/** Duckweed: a scatter of tiny round leaves on the water. */
+const DUCKWEED = dots(
+  [
+    [18, 74.4],
+    [20.6, 75.6],
+    [16.4, 76.4],
+    [22.8, 73.6],
+    [86, 72.6],
+  ],
+  1,
+);
 
 export const steppingStones: DecorRenderer = (o) => {
   const p = paint(o);
   return (
     <g>
+      {flat(p, stones.water!, STONE.water)}
+      {flat(p, stones.far!, STONE.waterFar)}
+      {thin(p, 'M79 86.6C83.4 88.6 89.6 88 92 85.6M12 80.4C14.6 82.6 20 83.2 23 82', STONE.ripple, 0.9)}
+      <path d={DUCKWEED} fill={p.c(STONE.weed)} />
+      {solid(p, stones.leaf!, STONE.leaf, thin(p, 'M80.6 80.2L90 76.8', STONE.leafVein, 0.6))}
       {STONES.map(([x, y, rx, ry], i) => (
         <g key={i}>
-          {contact(p, x, y + 2.4, rx * 1.02, ry * 0.9)}
-          {flat(p, stones[`edge${i}`]!, STONE.edge)}
-          {solid(p, stones[`top${i}`]!, STONE.top, flat(p, stones[`moss${i}`]!, i % 2 ? STONE.moss : STONE.mossDeep))}
+          {contact(p, x, y + ry + STONE_SIDE * 0.7, rx * 1.02, ry * 0.5)}
+          {solid(p, stones[`side${i}`]!, STONE.side)}
+          {solid(p, stones[`top${i}`]!, STONE.top, stones[`moss${i}`] && flat(p, stones[`moss${i}`]!, STONE.moss))}
         </g>
       ))}
-      {thin(
-        p,
-        'M50 72.6C50 70.4 49 69 48 68.2M52.4 72.4C52.6 70.8 53.6 69.6 55 69M80 86.6C80 84.6 79 83 77.6 82.2M82.6 86.4C83 84.8 84.2 83.6 85.6 83',
-        STONE.mossDeep,
-        1.2,
-      )}
     </g>
   );
 };

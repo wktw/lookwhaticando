@@ -4,6 +4,7 @@
  */
 import { render } from 'preact';
 import { h, type JSX } from 'preact';
+import { pathPoints } from '@/art/plants/svgBounds.testutil';
 
 /** Arguments per path command. */
 const ARITY: Record<string, number> = { m: 2, l: 2, h: 1, v: 1, c: 6, s: 4, q: 4, t: 2, a: 7, z: 0 };
@@ -69,3 +70,39 @@ export function artProblems(svg: Element): string[] {
 export function pathsFilled(svg: Element, fill: string): string[] {
   return [...svg.querySelectorAll('path')].filter((p) => p.getAttribute('fill') === fill).map((p) => p.getAttribute('d') ?? '');
 }
+
+/** Area and x-moment of one closed outline (control points stand in for its curves; close enough to weigh it). */
+function areaAndMoment(pts: readonly [number, number][]): [number, number] {
+  let a = 0;
+  let m = 0;
+  for (let i = 0; i < pts.length; i++) {
+    const [x0, y0] = pts[i]!;
+    const [x1, y1] = pts[(i + 1) % pts.length]!;
+    const cross = x0 * y1 - x1 * y0;
+    a += cross;
+    m += (x0 + x1) * cross;
+  }
+  return [a / 2, m / 6];
+}
+
+/** The area-weighted centre (x) of the shade crescents: which side of the drawing its shade sits on. */
+export function shadeCentreX(svg: Element): number {
+  let area = 0;
+  let moment = 0;
+  for (const d of pathsFilled(svg, 'var(--shade)')) {
+    for (const sub of d.split(/(?=M)/)) {
+      const [a, m] = areaAndMoment(pathPoints(sub));
+      // Each sliver counts by its own size, whichever way round it was traced.
+      area += Math.abs(a);
+      moment += Math.sign(a) * m;
+    }
+  }
+  return area ? moment / area : 50;
+}
+
+/**
+ * Items whose shade is not expected to shift sideways with the light, with the reason. Everything
+ * else must move its crescents to the right under light from the left, and back under light from
+ * the right. Kept empty unless a drawing truly has no sideways form.
+ */
+export const SYMMETRIC_SHADE: Readonly<Record<string, string>> = {};

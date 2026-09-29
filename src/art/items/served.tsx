@@ -6,7 +6,7 @@
  */
 import type { ItemRenderer } from './types';
 import { cast, contact, crescentOf, flat, paint, shapes, solid, thin, type ShapeDef } from '@/art/scene/decor/kit';
-import { ell, n, poly, rect, rotate, smooth, type Pt } from '@/art/scene/decor/geo';
+import { ell, n, poly, rect, rotate, scale, smooth, type Pt } from '@/art/scene/decor/geo';
 import { saucer } from './tableware';
 
 const STEAM = '#FFFFFF';
@@ -14,47 +14,122 @@ const steam = (p: ReturnType<typeof paint>, d: string) => thin(p, d, STEAM, 2, p
 
 /* ---------------- Salmon flakes: a pinch of pink flakes on a saucer ---------------- */
 
-const SALMON = { flake: '#F3A58F', light: '#F8BBA7', fat: '#FDE6DC' };
+const SALMON = { under: '#E4836A', flake: '#F2967A', light: '#F7B29C', fat: '#FAD5C7' };
 const salmonSaucer = saucer('treat-salmon', 50, 70, 42);
-/** Flakes piled on the saucer: [cx, cy, rx, ry, turn]. Each shows the pale lines between its layers. */
-const FLAKES: readonly (readonly [number, number, number, number, number])[] = [
-  [34, 64, 15, 9, -12],
-  [64, 63, 15.6, 9.4, 14],
-  [48, 58, 14, 8.6, -4],
-  [55, 46, 13, 8, 22],
-  [38, 50, 11, 7.2, -30],
+/** Torn flakes in a low heap, back to front: angular, uneven, no two alike. The pale one is on top. */
+const FLAKES: readonly (readonly Pt[])[] = [
+  [
+    [25, 60.4],
+    [29.6, 53],
+    [36, 51.6],
+    [38.6, 49.4],
+    [45.4, 53.4],
+    [43.6, 59.6],
+    [35.4, 62.6],
+  ],
+  [
+    [52, 52.6],
+    [57, 48],
+    [62.4, 49.2],
+    [67.4, 47.6],
+    [73.6, 54.4],
+    [68, 60.4],
+    [57.4, 59.4],
+  ],
+  [
+    [38.6, 47.6],
+    [43, 41.4],
+    [48.6, 41.8],
+    [53.4, 39],
+    [58.6, 43.6],
+    [55.4, 50.4],
+    [45.6, 51.6],
+  ],
+  [
+    [21.4, 66.4],
+    [27, 60.6],
+    [33.6, 60.4],
+    [37.4, 58.4],
+    [44.4, 62.4],
+    [40.4, 69.4],
+    [29.4, 70.6],
+  ],
+  [
+    [61, 64.6],
+    [66, 58.4],
+    [71.4, 59.6],
+    [75.4, 57.6],
+    [80.6, 62.6],
+    [76.4, 68.4],
+    [66.4, 69],
+  ],
+  [
+    [41.4, 63.4],
+    [47, 57.2],
+    [52.4, 57.8],
+    [57.4, 55.6],
+    [63.6, 60.4],
+    [59.4, 67.8],
+    [48, 69],
+  ],
 ];
+/** Short pale fat lines across the grain, on two flakes only. */
+const FAT: Record<number, string> = {
+  2: 'M45.6 43.4L44 48.6M50 42.6L48.6 48.4M54.4 43.4L53 47.8',
+  5: 'M48 60L46.4 65.6M52.6 59.4L51 65.4M57.2 59.2L55.8 64.6',
+};
 
-const salmonShapes = shapes('treat-salmon', Object.fromEntries(FLAKES.map(([x, y, rx, ry, r], i) => [`f${i}`, { d: ell(x, y, rx, ry, r), k: 0.6 }])));
+/** The heap sits low and close: flakes overlap, as a pinch of salmon does. */
+const heap = (pts: readonly Pt[]) => scale(pts, 1.16, 1, 51, 58).map(([x, y]): Pt => [x, 58 + (y - 58) * 0.9]);
+const salmonShapes = shapes('treat-salmon', Object.fromEntries(FLAKES.map((pts, i) => [`f${i}`, { d: poly(heap(pts), 0.9), k: 0.6 }])));
+/** The heap beneath the top flakes, so the pile reads as one pinch with no gaps. */
+const salmonHeap = shapes('treat-salmon', {
+  heap: smooth([
+    [20, 67],
+    [26, 57],
+    [38, 50],
+    [52, 45],
+    [66, 49],
+    [78, 57],
+    [82, 66],
+    [66, 70.4],
+    [50, 71],
+    [34, 70.6],
+  ]),
+});
+const FAT_LINES: Record<number, string> = Object.fromEntries(
+  Object.entries(FAT).map(([i, d]) => [
+    i,
+    d.replace(/(-?[\d.]+) (-?[\d.]+)/g, (_, x: string, y: string) => {
+      const [[hx, hy]] = heap([[+x, +y]]) as [Pt];
+      return `${n(hx)} ${n(hy)}`;
+    }),
+  ]),
+);
 
 const salmon: ItemRenderer = (o) => {
-  const p = paint({ light: o?.light });
+  const p = paint({ light: o?.light, facing: o?.facing });
   return (
     <g>
       {salmonSaucer(p)}
-      {FLAKES.map(([x, y, rx, ry, r], i) => {
-        const lines = [-0.45, 0, 0.45].map((t) => {
-          const [a, b, c] = rotate(
-            [
-              [x + rx * t - 2.4, y - ry * 0.7],
-              [x + rx * t + 2.2, y],
-              [x + rx * t - 1.6, y + ry * 0.7],
-            ],
-            r,
-            x,
-            y,
-          );
-          return `M${n(a![0])} ${n(a![1])}Q${n(b![0])} ${n(b![1])} ${n(c![0])} ${n(c![1])}`;
-        });
-        return <g key={i}>{solid(p, salmonShapes[`f${i}`]!, i % 2 ? SALMON.light : SALMON.flake, thin(p, lines.join(''), SALMON.fat, 1.3))}</g>;
-      })}
+      {solid(p, salmonHeap.heap, SALMON.under)}
+      {FLAKES.map((_, i) => (
+        <g key={i}>{solid(p, salmonShapes[`f${i}`]!, i === 5 ? SALMON.light : SALMON.flake, FAT_LINES[i] ? thin(p, FAT_LINES[i], SALMON.fat, 1) : null)}</g>
+      ))}
     </g>
   );
 };
 
 /* ---------------- Strawberry milk: pink milk in a glass bottle with a paper straw ---------------- */
 
-const MILK = { glass: '#E6EFF1', milk: '#F4BFC6', straw: '#FFF8F0', stripe: '#E98FA2', label: '#FFF8F0', berry: '#E4717B' };
+const MILK = {
+  glass: '#E6EFF1',
+  milk: '#F4BFC6',
+  straw: '#FFF8F0',
+  stripe: '#E98FA2',
+  label: '#FFF8F0',
+  berry: '#E4717B',
+};
 
 const milk = shapes('treat-strawberry-milk', {
   bottle: 'M40 16H60V26C60 30 70 34 70 44V82C70 84.6 68.4 86 66 86H34C31.6 86 30 84.6 30 82V44C30 34 40 30 40 26Z',
@@ -64,7 +139,7 @@ const milk = shapes('treat-strawberry-milk', {
 });
 
 const strawberryMilk: ItemRenderer = (o) => {
-  const p = paint({ light: o?.light });
+  const p = paint({ light: o?.light, facing: o?.facing });
   return (
     <g>
       {contact(p, 50, 86.2, 22, 2.2)}
@@ -84,7 +159,12 @@ const strawberryMilk: ItemRenderer = (o) => {
 
 /* ---------------- Cheese wedge: a little wedge with a proper rind ---------------- */
 
-const CHEESE = { face: '#F6D98A', top: '#FAE6AE', rind: '#E2A955', hole: '#E6C36C' };
+const CHEESE = {
+  face: '#F6D98A',
+  top: '#FAE6AE',
+  rind: '#E2A955',
+  hole: '#E6C36C',
+};
 
 const cheese = shapes('treat-cheese', {
   rind: {
@@ -115,7 +195,7 @@ const cheese = shapes('treat-cheese', {
 });
 
 const cheeseWedge: ItemRenderer = (o) => {
-  const p = paint({ light: o?.light });
+  const p = paint({ light: o?.light, facing: o?.facing });
   return (
     <g>
       {contact(p, 50, 85.8, 42, 2.4)}
@@ -134,7 +214,12 @@ const cheeseWedge: ItemRenderer = (o) => {
 
 /* ---------------- Pup cup: a paper cup with a spoonful of cream in it ---------------- */
 
-const PUP = { cup: '#FBF6EE', stripe: '#F4BFC6', cream: '#FFFBF6', swirl: '#EFE6DA' };
+const PUP = {
+  cup: '#FBF6EE',
+  stripe: '#F4BFC6',
+  cream: '#FFFBF6',
+  swirl: '#EFE6DA',
+};
 
 const pup = shapes('treat-pup-cup', {
   cup: 'M24 50H76L69 84C68.6 85.4 67.6 86 66 86H34C32.4 86 31.4 85.4 31 84Z',
@@ -155,7 +240,7 @@ const pup = shapes('treat-pup-cup', {
 });
 
 const pupCup: ItemRenderer = (o) => {
-  const p = paint({ light: o?.light });
+  const p = paint({ light: o?.light, facing: o?.facing });
   return (
     <g>
       {contact(p, 50, 86.2, 22, 2.2)}
@@ -182,7 +267,7 @@ const pud = shapes('treat-pudding', {
 });
 
 const pudding: ItemRenderer = (o) => {
-  const p = paint({ light: o?.light });
+  const p = paint({ light: o?.light, facing: o?.facing });
   return (
     <g>
       {pudPlate(p)}
@@ -194,7 +279,13 @@ const pudding: ItemRenderer = (o) => {
 
 /* ---------------- Honey drop: a single drop on the end of a spoon ---------------- */
 
-const HONEY = { pot: '#F4EAD8', band: '#E3A083', honey: '#F1B84C', glow: '#F7D07E', spoon: '#DDB98C' };
+const HONEY = {
+  pot: '#F4EAD8',
+  band: '#E3A083',
+  honey: '#F1B84C',
+  glow: '#F7D07E',
+  spoon: '#DDB98C',
+};
 
 const hon = shapes('treat-honey', {
   pot: 'M22 50C22 44 26 40 32 40H60C66 40 70 44 70 50V78C70 83 66 86 60 86H32C26 86 22 83 22 78Z',
@@ -217,7 +308,7 @@ const hon = shapes('treat-honey', {
 });
 
 const honeyDrop: ItemRenderer = (o) => {
-  const p = paint({ light: o?.light });
+  const p = paint({ light: o?.light, facing: o?.facing });
   return (
     <g>
       {contact(p, 52, 86.2, 32, 2.2)}
@@ -239,7 +330,12 @@ const honeyDrop: ItemRenderer = (o) => {
 
 /* ---------------- Sunflower seeds: cracked with great care, one at a time ---------------- */
 
-const SEEDS = { husk: '#524A4F', stripe: '#DCD4CE', kernel: '#EEDCB4', shell: '#6A6166' };
+const SEEDS = {
+  husk: '#5E5559',
+  stripe: '#EDE7E2',
+  kernel: '#EEDCB4',
+  shell: '#74696E',
+};
 
 /** A seed lying at (x, y): a long teardrop turned by `r` degrees, pointed end first. */
 const SEED_AT: readonly (readonly [number, number, number])[] = [
@@ -289,7 +385,7 @@ const seedShapes = shapes('treat-sunflower-seeds', {
 } as Record<string, ShapeDef>);
 
 const sunflowerSeeds: ItemRenderer = (o) => {
-  const p = paint({ light: o?.light });
+  const p = paint({ light: o?.light, facing: o?.facing });
   return (
     <g>
       {contact(p, 52, 85.4, 40, 2.4)}
@@ -308,7 +404,7 @@ const sunflowerSeeds: ItemRenderer = (o) => {
           );
           return `M${n(a![0])} ${n(a![1])}L${n(b![0])} ${n(b![1])}`;
         });
-        return <g key={i}>{solid(p, seedShapes[`s${i}`]!, SEEDS.husk, thin(p, stripes.join(''), SEEDS.stripe, 1.3))}</g>;
+        return <g key={i}>{solid(p, seedShapes[`s${i}`]!, SEEDS.husk, thin(p, stripes.join(''), SEEDS.stripe, 1.5))}</g>;
       })}
     </g>
   );
@@ -316,7 +412,13 @@ const sunflowerSeeds: ItemRenderer = (o) => {
 
 /* ---------------- Barley tea: caffeine-free, in a very small cup ---------------- */
 
-const TEA = { cup: '#CFE0D2', foot: '#B9CFBF', tea: '#C68E4E', rim: '#E6EFE7', coaster: '#DDB88E' };
+const TEA = {
+  cup: '#CFE0D2',
+  foot: '#B9CFBF',
+  tea: '#C68E4E',
+  rim: '#E6EFE7',
+  coaster: '#DDB88E',
+};
 
 const tea = shapes('treat-barley-tea', {
   coaster: 'M16 80V82C16 84.4 31 86.4 50 86.4C69 86.4 84 84.4 84 82V80Z',
@@ -326,7 +428,7 @@ const tea = shapes('treat-barley-tea', {
 });
 
 const barleyTea: ItemRenderer = (o) => {
-  const p = paint({ light: o?.light });
+  const p = paint({ light: o?.light, facing: o?.facing });
   return (
     <g>
       {contact(p, 50, 86.4, 36, 2)}
@@ -342,32 +444,77 @@ const barleyTea: ItemRenderer = (o) => {
 
 /* ---------------- Baked apple: soft all the way through, and still warm ---------------- */
 
-const APPLE = { skin: '#E08271', flesh: '#F5D59A', stem: '#8E6A52', juice: '#E9B86E', dish: '#FBF6EE' };
+const APPLE = {
+  skin: '#E08271',
+  wrinkle: '#C96D5E',
+  flesh: '#F5D59A',
+  stem: '#8E6A52',
+  juice: '#D99A52',
+  dish: '#FBF6EE',
+};
 const appleDish = saucer('treat-baked-apple', 50, 76, 42);
 
+/** Baked soft: a little slumped and wider at the foot, the skin burst open along the top. */
 const apple = shapes('treat-baked-apple', {
-  apple: 'M50 30C60 25 76 28 78 46C80 62 70 78 58 78C54 78 52 76.6 50 76.6C48 76.6 46 78 42 78C30 78 20 62 22 46C24 28 40 25 50 30Z',
-  top: { d: ell(50, 34, 12, 4.6), k: 0 },
-  split: { d: 'M30.4 43C34 52 40.6 57.6 48 59C46.6 61.4 44 62 41.6 61.2C36 58.4 31.6 52 30.4 43Z', k: 0 },
+  apple: 'M50 36C58 31.6 73 33 76.6 47C80 61 73.6 76.6 60 78.6C55 79.4 52.4 78 50 78C47.6 78 45 79.4 40 78.6C26.4 76.6 20 61 23.4 47C27 33 42 31.6 50 36Z',
+  tear: {
+    d: poly(
+      [
+        [29, 44.6],
+        [34.6, 40.4],
+        [41, 41.6],
+        [46.4, 38.6],
+        [53.4, 38.8],
+        [58.4, 41.4],
+        [65, 39.8],
+        [71, 44],
+        [65.4, 45.6],
+        [60, 44.4],
+        [55, 47.4],
+        [49.6, 45.2],
+        [44.4, 47.8],
+        [39, 45.2],
+        [34, 47],
+      ],
+      0.5,
+    ),
+    k: 0,
+    clip: 'apple',
+  },
 });
 
 const bakedApple: ItemRenderer = (o) => {
-  const p = paint({ light: o?.light });
+  const p = paint({ light: o?.light, facing: o?.facing });
   return (
     <g>
       {appleDish(p)}
-      <path d={ell(50, 76.6, 30, 4.6)} fill={p.c(APPLE.juice)} opacity={0.8} />
-      {solid(p, apple.apple, APPLE.skin, flat(p, apple.split, APPLE.flesh))}
-      {flat(p, apple.top, APPLE.flesh)}
-      {thin(p, 'M50 34C50 28 52 24 55 21', APPLE.stem, 2)}
-      {steam(p, 'M38 24C35 20 40 17 37.6 12.6M62 24C59 20 64 17 61.6 12.6')}
+      <path
+        d="M22 77.4C24 74.2 34 73.4 42 74.4C50 73 62 72.6 72 74C79 75 80.6 78 76 79.6C66 82 34 82 25 80.4C21.6 79.8 21 78.6 22 77.4Z"
+        fill={p.c(APPLE.juice)}
+      />
+      {solid(p, apple.apple, APPLE.skin, [
+        flat(p, apple.tear, APPLE.flesh),
+        thin(p, 'M29.4 57C30.8 61 31 65 29.6 68.6M70.6 57C69.2 61 69 65 70.4 68.6', APPLE.wrinkle, 1.1),
+      ])}
+      <path
+        d="M60 44.6C61.2 46.6 61.8 47.8 61.8 48.8C61.8 49.8 61 50.6 60 50.6C59 50.6 58.2 49.8 58.2 48.8C58.2 47.8 58.8 46.6 60 44.6Z"
+        fill={p.c(APPLE.juice)}
+      />
+      {thin(p, 'M50 41C50 34 52 29 55.4 25.6', APPLE.stem, 2)}
+      {steam(p, 'M36 28C33 24 38 21 35.6 16.6M64 28C61 24 66 21 63.6 16.6')}
     </g>
   );
 };
 
 /* ---------------- Pumpkin purée: a spoonful of plain pumpkin ---------------- */
 
-const PUMP = { dish: '#FBF6EE', flute: '#EEE6DA', puree: '#EFA25F', swirl: '#F5BC82', spoon: '#C9CED3' };
+const PUMP = {
+  dish: '#FBF6EE',
+  flute: '#EEE6DA',
+  puree: '#EFA25F',
+  swirl: '#F5BC82',
+  spoon: '#C9CED3',
+};
 
 const pump = shapes('treat-pumpkin', {
   dish: 'M20 52H80L76 82C75.6 84.6 64 86.4 50 86.4C36 86.4 24.4 84.6 24 82Z',
@@ -387,7 +534,7 @@ const pump = shapes('treat-pumpkin', {
 });
 
 const pumpkinPuree: ItemRenderer = (o) => {
-  const p = paint({ light: o?.light });
+  const p = paint({ light: o?.light, facing: o?.facing });
   return (
     <g>
       {contact(p, 50, 86.4, 30, 2)}
@@ -417,17 +564,29 @@ const pumpkinPuree: ItemRenderer = (o) => {
 
 /* ---------------- Roasted chestnut: roasted and peeled, still warm ---------------- */
 
-const NUT = { shell: '#8E5C44', shellLight: '#A87157', base: '#DCC39E', kernel: '#F0D08A', kernelDeep: '#E2B86C' };
+const NUT = {
+  shell: '#9C6649',
+  shellLight: '#B27A5C',
+  base: '#DCC39E',
+  kernel: '#F0D08A',
+  kernelDeep: '#E2B86C',
+};
 
 const nut = shapes('treat-chestnut', {
-  shell: { d: 'M22 70C16 58 22 40 36 34C42 31.6 46 28 48 24C50 28 54 31.6 60 34C74 40 80 58 74 70C68 80 60 83 48 83C36 83 28 80 22 70Z', rim: true },
-  base: { d: 'M24 72C32 80 40 82.6 48 82.6C56 82.6 64 80 72 72C70 78 60 84 48 84C36 84 26 78 24 72Z', k: 0 },
+  shell: {
+    d: 'M22 70C16 58 22 40 36 34C42 31.6 46 28 48 24C50 28 54 31.6 60 34C74 40 80 58 74 70C68 80 60 83 48 83C36 83 28 80 22 70Z',
+    rim: true,
+  },
+  base: {
+    d: 'M24 72C32 80 40 82.6 48 82.6C56 82.6 64 80 72 72C70 78 60 84 48 84C36 84 26 78 24 72Z',
+    k: 0,
+  },
   kernel: 'M58 70C58 60 66 54 74 56C84 58 88 66 86 74C84 82 76 86 68 84.6C62 83.6 58 78 58 70Z',
   peel: { d: 'M34 44C40 46 46 52 48 60L40 64C38 56 36 50 34 44Z', k: 0 },
 });
 
 const chestnut: ItemRenderer = (o) => {
-  const p = paint({ light: o?.light });
+  const p = paint({ light: o?.light, facing: o?.facing });
   return (
     <g>
       {contact(p, 54, 85.6, 34, 2.4)}
@@ -443,7 +602,13 @@ const chestnut: ItemRenderer = (o) => {
 
 /* ---------------- Warm oats: porridge with a little honey ---------------- */
 
-const OATS = { bowl: '#A8C0D8', inside: '#FBF6EE', porridge: '#EEDDBC', fleck: '#F8EDD6', honey: '#F1B84C' };
+const OATS = {
+  bowl: '#A8C0D8',
+  inside: '#FBF6EE',
+  porridge: '#EEDDBC',
+  fleck: '#F8EDD6',
+  honey: '#F1B84C',
+};
 
 const bowl = shapes('treat-warm-oats', {
   bowl: 'M12 50C13 68 28 84 42 85.6H58C72 84 87 68 88 50Z',
@@ -451,7 +616,7 @@ const bowl = shapes('treat-warm-oats', {
 });
 
 const warmOats: ItemRenderer = (o) => {
-  const p = paint({ light: o?.light });
+  const p = paint({ light: o?.light, facing: o?.facing });
   return (
     <g>
       {contact(p, 50, 86.4, 30, 2)}
@@ -475,7 +640,12 @@ const warmOats: ItemRenderer = (o) => {
 
 /* ---------------- Frozen yoghurt: a little frozen yoghurt on a tiny stick ---------------- */
 
-const FROYO = { yog: '#FBEFF1', swirl: '#F2BCC8', berry: '#7A8FC0', stick: '#E2C79E' };
+const FROYO = {
+  yog: '#FBEFF1',
+  swirl: '#F2BCC8',
+  berry: '#7A8FC0',
+  stick: '#E2C79E',
+};
 const TILT = -28;
 const tilt = (pts: readonly Pt[]) => rotate(pts, TILT, 50, 60);
 
@@ -516,7 +686,7 @@ const froyo = shapes('treat-frozen-yoghurt', {
 });
 
 const frozenYoghurt: ItemRenderer = (o) => {
-  const p = paint({ light: o?.light });
+  const p = paint({ light: o?.light, facing: o?.facing });
   // Blueberry bits frozen in, scattered unevenly so they never line up into anything like a face.
   const berries = tilt([
     [40.6, 52],

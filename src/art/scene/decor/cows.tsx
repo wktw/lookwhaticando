@@ -2,7 +2,7 @@
  * No. 02 Cows decor: a small square hay bale, a wooden milk crate and a dented enamel milk can.
  * Standing on y = 92 of the 100×100 canvas.
  */
-import { cast, contact, flat, paint, shapes, solid, thin, type DecorRenderer } from './kit';
+import { cast, contact, flat, paint, shapes, solid, thin, type DecorRenderer, type ShapeDef } from './kit';
 import { n, poly, rect } from './geo';
 
 /* ---------------- Hay bale: small, square, slightly prickly ---------------- */
@@ -25,20 +25,26 @@ const hay = shapes('decor-hay-bale', {
   face: rect(10, 43, 80, 49, [2, 2, 3, 3]),
 });
 
-/** Short straws on the cut face, as [x, y, angle] (deterministic, so every render is identical). */
-const STRAWS: readonly (readonly [number, number, number])[] = Array.from({ length: 34 }, (_, i) => {
-  const x = 15 + ((i * 37) % 70);
-  const y = 49 + ((i * 53) % 38);
-  return [x, y, ((i * 29) % 50) - 25] as const;
-});
+/** A few long straws on the cut face, near its ends and edges, as [x, y, angle]: the fill and crescent carry the form. */
+const STRAWS: readonly (readonly [number, number, number])[] = [
+  [17, 51, -18],
+  [16, 69, 14],
+  [18, 86, -8],
+  [83, 50, 16],
+  [84, 67, -14],
+  [82, 86, 10],
+  [50, 49, 6],
+  [48, 87, -6],
+  [58, 68, 22],
+];
 
 export const hayBale: DecorRenderer = (o) => {
   const p = paint(o);
   const straws = STRAWS.map(([x, y, a], i) => {
     const r = (a * Math.PI) / 180;
-    const dx = Math.cos(r) * 2.6;
-    const dy = Math.sin(r) * 2.6;
-    return thin(p, `M${n(x - dx)} ${n(y - dy)}L${n(x + dx)} ${n(y + dy)}`, i % 3 ? HAY.straw : HAY.pale, 1);
+    const dx = Math.cos(r) * 5;
+    const dy = Math.sin(r) * 5;
+    return thin(p, `M${n(x - dx)} ${n(y - dy)}L${n(x + dx)} ${n(y + dy)}`, i % 3 ? HAY.straw : HAY.pale, 1.2);
   });
   return (
     <g>
@@ -55,36 +61,49 @@ export const hayBale: DecorRenderer = (o) => {
   );
 };
 
-/* ---------------- Milk crate: wooden slats, stamped with a dairy's name ---------------- */
+/* ---------------- Milk crate: wooden slats, stamped with a dairy's name, bottles inside ---------------- */
 
-const CRATE = { slat: '#E2C197', post: '#D2AD80', inside: '#A07B5B', insideBack: '#B78F6C', stamp: '#7F97B8' };
+const CRATE = { slat: '#E2C197', post: '#D2AD80', inside: '#8F6C50', stamp: '#7F97B8', milk: '#FBF8F2', glass: '#E4ECEE' };
+/** Foil caps, one of each colour a milkman might leave. */
+const FOIL = ['#D6DBE0', '#E8C36A', '#8FA9CB'] as const;
+const BOTTLES = [30, 50, 70] as const;
 
 const crate = shapes('decor-milk-crate', {
-  back: { d: rect(12, 30, 76, 10, 1), k: 0.4 },
+  back: { d: rect(12, 29, 76, 5, 1), k: 0.4 },
+  ...Object.fromEntries(BOTTLES.map((x, i) => [`neck${i}`, { d: rect(x - 5, 22, 10, 20, [3.4, 3.4, 0, 0]), k: 0.5 }])),
+  ...Object.fromEntries(BOTTLES.map((x, i) => [`cap${i}`, { d: rect(x - 5.8, 18.4, 11.6, 4.8, 1.8), k: 0.4 }])),
   slatTop: rect(8, 40, 84, 14, 1.2),
   slatMid: rect(8, 58.5, 84, 13, 1.2),
   slatLow: rect(8, 76, 84, 16, [1.2, 1.2, 1.6, 1.6]),
   postL: { d: rect(8, 40, 8, 52, [1.2, 0, 0, 1.6]), k: 0.7 },
   postR: { d: rect(84, 40, 8, 52, [0, 1.2, 1.6, 0]), k: 0.7 },
-});
+} as Record<string, string | ShapeDef>);
 
 export const milkCrate: DecorRenderer = (o) => {
   const p = paint(o);
   return (
     <g>
       {contact(p, 50, 92.4, 44, 2.6)}
-      {solid(p, crate.back, CRATE.slat)}
-      <path d={rect(10, 38, 80, 52)} fill={p.c(CRATE.inside)} />
-      <path d={rect(12, 40, 76, 4)} fill={p.c(CRATE.insideBack)} />
-      {solid(p, crate.slatTop, CRATE.slat, <path d={rect(40, 44.4, 20, 4.6, 2.3)} fill={p.c(CRATE.inside)} />)}
-      {solid(p, crate.slatMid, CRATE.slat, [
+      {solid(p, crate.back!, CRATE.slat)}
+      <path d={rect(10, 34, 80, 56)} fill={p.c(CRATE.inside)} />
+      {BOTTLES.map((x, i) => (
+        <g key={i}>
+          {solid(p, crate[`neck${i}`]!, CRATE.milk, <path d={rect(x - 5, 22, 10, 5, [3.4, 3.4, 0, 0])} fill={p.c(CRATE.glass)} />)}
+          {solid(p, crate[`cap${i}`]!, FOIL[i]!)}
+        </g>
+      ))}
+      {solid(p, crate.slatTop!, CRATE.slat, [
+        <path d={rect(18, 45, 11, 4.4, 2.2)} fill={p.c(CRATE.inside)} />,
+        <path d={rect(71, 45, 11, 4.4, 2.2)} fill={p.c(CRATE.inside)} />,
+      ])}
+      {solid(p, crate.slatMid!, CRATE.slat, [
         <ellipse cx={50} cy={65} rx={13} ry={4.4} fill="none" stroke={p.c(CRATE.stamp)} stroke-width={p.w(0.9)} opacity={0.75} />,
         thin(p, 'M42.5 64.2H57.5M44.5 66.6H55.5', CRATE.stamp, 1, 0.75),
       ])}
-      {solid(p, crate.slatLow, CRATE.slat)}
-      {solid(p, crate.postL, CRATE.post)}
-      {solid(p, crate.postR, CRATE.post)}
-      {thin(p, 'M20 47H33M66 47H80M20 82H38M58 84H78M22 64H35', CRATE.post, 0.9, 0.9)}
+      {solid(p, crate.slatLow!, CRATE.slat)}
+      {solid(p, crate.postL!, CRATE.post)}
+      {solid(p, crate.postR!, CRATE.post)}
+      {thin(p, 'M36 47H62M20 82H38M58 84H78M22 64H35', CRATE.post, 0.9, 0.9)}
     </g>
   );
 };

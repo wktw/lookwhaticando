@@ -6,7 +6,7 @@
  */
 import type { JSX } from 'preact';
 import { Glow, contact, crescentOf, flat, lit, paint, shapes, solid, thin, type DecorRenderer, type Paint } from './kit';
-import { ell, ellPts, heart, leaf, n, poly, rect, rotate, smooth, star, type Pt } from './geo';
+import { dots, ell, ellPts, heart, leaf, n, poly, rect, rotate, smooth, star, type Pt } from './geo';
 
 const closed = (pts: readonly Pt[]) => `${smooth(pts, false)}Z`;
 
@@ -388,7 +388,7 @@ export const budVase: DecorRenderer = (o) => {
   );
 };
 
-/* Tiny bouquet: five sweet peas tied with thread */
+/* Tiny bouquet: five sweet peas tied with thread; each a round banner petal over two small wings */
 
 const PEA = { stem: '#86AE74', leaf: '#9CBF8A', thread: '#E2707A' };
 const BLOOMS: readonly (readonly [number, number, string, string, number])[] = [
@@ -399,19 +399,33 @@ const BLOOMS: readonly (readonly [number, number, string, string, number])[] = [
   [62, 30, '#F4BFC6', '#E7A0AE', 20],
 ];
 
-/** A sweet pea: a ruffled standard petal behind two small wings. */
-function standard(cx: number, cy: number, r: number, rot: number): string {
-  const pts = Array.from({ length: 9 }, (_, i): Pt => {
-    const a = ((i * 40 - 90) * Math.PI) / 180;
-    const k = i % 2 ? 0.9 : 1;
-    return [cx + Math.cos(a) * r * k, cy + Math.sin(a) * r * k * 0.86];
+/** A sweet pea's banner: the big round upper petal, its edge softly waved. */
+function banner(cx: number, cy: number, r: number, rot: number): string {
+  const pts = Array.from({ length: 10 }, (_, i): Pt => {
+    const a = ((i * 36 - 90) * Math.PI) / 180;
+    const k = i % 2 ? 0.95 : 1;
+    return [cx + Math.cos(a) * r * k, cy + Math.sin(a) * r * k * 0.92];
   });
   return smooth(rotate(pts, rot, cx, cy));
 }
 
+/** Its two small wing petals, side by side under the banner (with the keel tucked between). */
+function wings(cx: number, cy: number, rot: number): string {
+  const [l, r] = rotate(
+    [
+      [cx - 3.4, cy + 6.6],
+      [cx + 3.4, cy + 6.6],
+    ],
+    rot,
+    cx,
+    cy,
+  );
+  return ell(l![0], l![1], 3.6, 3, rot - 20) + ell(r![0], r![1], 3.6, 3, rot + 20);
+}
+
 const bouquet = shapes('decor-tiny-bouquet', {
-  ...Object.fromEntries(BLOOMS.map(([x, y, , , rot], i) => [`s${i}`, { d: standard(x, y, 9.4, rot), k: 0.5 }])),
-  ...Object.fromEntries(BLOOMS.map(([x, y, , , rot], i) => [`w${i}`, { d: ell(x + Math.sin((rot * Math.PI) / 180) * -3, y + 5.4, 5, 3.4, rot), k: 0 }])),
+  ...Object.fromEntries(BLOOMS.map(([x, y, , , rot], i) => [`s${i}`, { d: banner(x, y, 8.2, rot), k: 0.5 }])),
+  ...Object.fromEntries(BLOOMS.map(([x, y, , , rot], i) => [`w${i}`, { d: wings(x, y, rot), k: 0.3 }])),
   leafA: { d: leaf([52, 58], [36, 60], 3.6), k: 0.4 },
   leafB: { d: leaf([56, 56], [70, 48], 3.4), k: 0.4 },
 } as Record<string, { d: string; k: number }>);
@@ -609,7 +623,37 @@ export const seedTray: DecorRenderer = (o) => {
 
 /* ================================ Summer ================================ */
 
-const SAND = { sand: '#EBD3A4', deep: '#DDC08A', water: '#B3D1E8', waterDeep: '#9DC2DE', dimple: '#D6B983', flag: '#EFB4C1', stick: '#C9A36F' };
+const SAND = {
+  sand: '#EBD3A4',
+  wet: '#DDC08A',
+  ridge: '#E2C48F',
+  door: '#B89565',
+  water: '#B3D1E8',
+  waterDeep: '#9DC2DE',
+  dimple: '#D6B983',
+  flag: '#EFB4C1',
+  stick: '#C9A36F',
+};
+
+/** One bucket-moulded tower: slightly tapered, with four merlons pressed into its top. */
+const TOWER_TOP = 36;
+const TOWER_BASE = 72;
+const MERLON = 5.2;
+const CRENEL = 2;
+function towerPts(): Pt[] {
+  const x0 = 36.6;
+  const pts: Pt[] = [
+    [32.6, TOWER_BASE],
+    [x0, TOWER_TOP],
+  ];
+  for (let i = 0; i < 4; i++) {
+    const l = x0 + i * (MERLON + CRENEL);
+    pts.push([l, 28], [l + MERLON, 28]);
+    if (i < 3) pts.push([l + MERLON, 32.4], [l + MERLON + CRENEL, 32.4]);
+  }
+  pts.push([100 - x0, TOWER_TOP], [100 - 32.6, TOWER_BASE]);
+  return pts;
+}
 
 const castle = shapes('decor-sandcastle', {
   moat: { d: ell(50, 86.6, 45, 6.6), k: 0 },
@@ -622,13 +666,16 @@ const castle = shapes('decor-sandcastle', {
     [80, 78],
     [84, 88],
   ]),
-  tower: 'M35 72V41.6C35 31.6 41.6 25.4 50 25.4C58.4 25.4 65 31.6 65 41.6V72Z',
+  tower: poly(towerPts(), 0.8),
+  /** The bucket's moulded ridges, as flat bands round the tower. */
+  ridges: { d: 'M20 43H80V45.6H20ZM20 58H80V60.6H20Z', k: 0, clip: 'tower' },
+  door: { d: 'M45.4 72V65.6C45.4 62.6 47.4 60.8 50 60.8C52.6 60.8 54.6 62.6 54.6 65.6V72Z', k: -0.35 },
   flag: {
     d: poly(
       [
-        [51, 8],
-        [63.6, 11.6],
-        [51, 15.2],
+        [51, 11],
+        [63.6, 14.6],
+        [51, 18.2],
       ],
       0.6,
     ),
@@ -636,31 +683,28 @@ const castle = shapes('decor-sandcastle', {
   },
 });
 
-const DIMPLES = (() => {
-  const out: Pt[] = [];
-  for (let row = 0; row < 7; row++) {
-    const y = 36 + row * 5.2;
-    for (let i = 0; i < 6; i++) out.push([38.8 + i * 4.6 + (row % 2) * 2.3, y]);
-  }
-  for (let i = 0; i < 5; i++) out.push([41 + i * 4.6, 31]);
-  return out.filter(([x]) => x < 62.5);
-})();
+/** A few dimples pressed in by a fingertip, not a pattern. */
+const DIMPLES = dots(
+  [
+    [41.4, 51],
+    [57.6, 52.4],
+    [49.6, 38.6],
+    [40.6, 66.6],
+  ],
+  1.1,
+);
 
 export const sandcastle: DecorRenderer = (o) => {
   const p = paint(o);
   return (
     <g>
       {flat(p, castle.moat, SAND.water)}
-      <path d={ell(50, 86.2, 36, 4.2)} fill={p.c(SAND.sand)} />
+      <path d={ell(50, 86.2, 36, 4.2)} fill={p.c(SAND.wet)} />
       {solid(p, castle.mound, SAND.sand)}
-      {thin(p, 'M50 26V9', SAND.stick, 1)}
+      {thin(p, 'M50 28.6V12', SAND.stick, 1)}
       {solid(p, castle.flag, SAND.flag)}
-      {solid(
-        p,
-        castle.tower,
-        SAND.sand,
-        DIMPLES.map(([x, y], i) => <circle key={i} cx={n(x)} cy={y} r={1} fill={p.c(SAND.dimple)} />),
-      )}
+      {solid(p, castle.tower, SAND.sand, [flat(p, castle.ridges, SAND.ridge), <path d={DIMPLES} fill={p.c(SAND.dimple)} />])}
+      {solid(p, castle.door, SAND.door)}
       {thin(p, 'M12 88.6C20 91.2 34 92.4 50 92.4C66 92.4 80 91.2 88 88.6', SAND.waterDeep, 1.2, 0.8)}
     </g>
   );
@@ -715,55 +759,74 @@ export const beachUmbrella: DecorRenderer = (o) => {
   );
 };
 
-/* Seashell: a scallop, used as a very small bath */
+/* Seashell: a scallop lying open, used as a very small bath */
 
-const SHELL = { shell: '#F4C9B6', rib: '#E9B29C', water: '#BFDCEA', glint: '#E8F3F8', ear: '#E8B39D' };
-const HINGE: Pt = [50, 86];
-const FAN = ellPts(50, 86, 42, 56, 196, 344, 18);
+const SHELL = {
+  shell: '#F4C9B6',
+  rib: '#E8AF98',
+  inside: '#FBE4D8',
+  lid: '#F8D5C5',
+  lidRib: '#EDBBA6',
+  water: '#BFDCEA',
+  ear: '#E8B39D',
+};
+/** Where the two valves are hinged: at the back of the bowl. */
+const HINGE: Pt = [50, 66];
+const LID_EDGE = ellPts(HINGE[0], HINGE[1], 36, 42, 196, 344, 16);
+/** A scalloped fan from the hinge through `edge`: one soft bump per rib. */
+const fan = (edge: readonly Pt[]) =>
+  `M${n(HINGE[0])} ${n(HINGE[1])}${edge
+    .map(([x, y], i) =>
+      i === 0 ? `L${n(x)} ${n(y)}` : `Q${n((x + edge[i - 1]![0]) / 2 + (x - 50) * 0.03)} ${n((y + edge[i - 1]![1]) / 2 - 2.4)} ${n(x)} ${n(y)}`,
+    )
+    .join('')}Z`;
+/** Rib stripes radiating from `from`, one per pair of edge points. */
+const ribs = (from: Pt, edge: readonly Pt[], len: number, spread = 0.07) =>
+  edge
+    .filter((_, i) => i % 2 === 1)
+    .map(([x, y]) => {
+      const a = Math.atan2(y - from[1], x - from[0]);
+      const l: Pt = [from[0] + Math.cos(a - spread) * len, from[1] + Math.sin(a - spread) * len];
+      const r: Pt = [from[0] + Math.cos(a + spread) * len, from[1] + Math.sin(a + spread) * len];
+      return `M${n(from[0])} ${n(from[1])}L${n(l[0])} ${n(l[1])}L${n(r[0])} ${n(r[1])}Z`;
+    })
+    .join('');
+/** The bowl's belly, seen from the front: its ribs run back up to the hinge. */
+const BELLY_RIBS = ellPts(50, 74, 38, 18, 10, 170, 16).map(([x, y]): Pt => [x, y + 2]);
 
 const shell = shapes('decor-seashell', {
+  lid: { d: fan(LID_EDGE), k: 0.6 },
+  lidRibs: { d: ribs(HINGE, LID_EDGE, 60), k: 0, clip: 'lid' },
+  bowl: 'M12 72C12 67 29 64 50 64C71 64 88 67 88 72C87 83 70 91.4 50 91.4C30 91.4 13 83 12 72Z',
+  bowlRibs: { d: ribs([50, 40], BELLY_RIBS, 70, 0.035), k: 0, clip: 'bowl' },
+  inside: { d: ell(50, 71.6, 34.6, 6.6), k: 0 },
+  water: { d: ell(50, 73.2, 30, 4.8), k: 0, clip: 'inside' },
   ears: {
     d: poly(
       [
-        [34, 89],
-        [37, 81.6],
-        [50, 84],
-        [63, 81.6],
-        [66, 89],
-        [50, 90.6],
+        [38, 67.4],
+        [40.6, 60.4],
+        [50, 62.6],
+        [59.4, 60.4],
+        [62, 67.4],
+        [50, 68.4],
       ],
-      1.6,
+      1.4,
     ),
-    k: 0.5,
+    k: 0.4,
   },
-  fan: `M${n(HINGE[0])} ${n(HINGE[1])}${FAN.map(([x, y], i) => (i === 0 ? `L${n(x)} ${n(y)}` : `Q${n((x + FAN[i - 1]![0]) / 2 + (x - 50) * 0.03)} ${n((y + FAN[i - 1]![1]) / 2 - 2.6)} ${n(x)} ${n(y)}`)).join('')}Z`,
-  ribs: {
-    d: FAN.filter((_, i) => i % 2 === 1)
-      .map(([x, y]) => {
-        const a = Math.atan2(y - HINGE[1], x - HINGE[0]);
-        const s = 0.07;
-        const l: Pt = [HINGE[0] + Math.cos(a - s) * 70, HINGE[1] + Math.sin(a - s) * 70];
-        const r: Pt = [HINGE[0] + Math.cos(a + s) * 70, HINGE[1] + Math.sin(a + s) * 70];
-        return `M${n(HINGE[0])} ${n(HINGE[1])}L${n(l[0])} ${n(l[1])}L${n(r[0])} ${n(r[1])}Z`;
-      })
-      .join(''),
-    k: 0,
-    clip: 'fan',
-  },
-  water: { d: ell(50, 74, 22, 8), k: 0, clip: 'fan' },
 });
 
 export const seashell: DecorRenderer = (o) => {
   const p = paint(o);
   return (
     <g>
-      {contact(p, 50, 92.2, 34, 2.2)}
-      {solid(p, shell.fan, SHELL.shell, [
-        flat(p, shell.ribs, SHELL.rib),
-        flat(p, shell.water, SHELL.water, 0.8),
-        thin(p, 'M38 71.6C44 69.4 54 69.2 62 71', SHELL.glint, 1.2, 0.9),
-      ])}
+      {contact(p, 50, 92.2, 36, 2.2)}
+      {solid(p, shell.lid, SHELL.lid, flat(p, shell.lidRibs, SHELL.lidRib))}
       {solid(p, shell.ears, SHELL.ear)}
+      {solid(p, shell.bowl, SHELL.shell, flat(p, shell.bowlRibs, SHELL.rib))}
+      {flat(p, shell.inside, SHELL.inside)}
+      {flat(p, shell.water, SHELL.water)}
     </g>
   );
 };

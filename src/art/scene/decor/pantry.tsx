@@ -174,7 +174,8 @@ export const breadBasket: DecorRenderer = (o) => {
 
 /* ---------------- Copper kettle: polished copper, a wooden handle ---------------- */
 
-const KETTLE = { copper: '#DB8E62', band: '#C9774E', sheen: '#EAAA82', wood: '#9B7358', knob: '#8E6A52' };
+/** Polished copper reads through flat value planes: a paler shoulder, the body, a darker foot band. */
+const KETTLE = { copper: '#DB8E62', shoulder: '#E39E74', band: '#C9774E', wood: '#9B7358', knob: '#8E6A52' };
 
 const kettle = shapes('decor-copper-kettle', {
   spout: { d: 'M72 79C82 76 88.4 62 92 46.4C92.6 44.4 95.6 44.2 96.6 45.4C95.6 62 88.6 80.4 76.6 87Z', k: 0.6 },
@@ -205,13 +206,13 @@ const kettle = shapes('decor-copper-kettle', {
   grip: { d: rect(28, 19, 44, 8, 4), k: 0.6, rim: true },
   body: 'M19 87C14.6 70 22 50 50 47.6C78 50 85.4 70 81 87C80.4 90 78.4 91.6 75.4 91.6H24.6C21.6 91.6 19.6 90 19 87Z',
   base: { d: rect(10, 84.6, 80, 10), k: 0, clip: 'body' },
+  shoulder: { d: 'M10 40H90V60C72 63.4 28 63.4 10 60Z', k: 0, clip: 'body' },
   lid: { d: 'M36.4 49C36.4 42.6 42.6 39.6 50 39.6C57.4 39.6 63.6 42.6 63.6 49Z', k: 0.6 },
   knob: { d: ell(50, 37.4, 4.6, 3.6), k: 0.5, rim: true },
 });
 
 export const copperKettle: DecorRenderer = (o) => {
   const p = paint(o);
-  const sheenX = p.from === 'right' ? 66 : p.from === 'top' ? 50 : 34;
   return (
     <g>
       {contact(p, 50, 92.4, 36, 2.6)}
@@ -219,10 +220,7 @@ export const copperKettle: DecorRenderer = (o) => {
       {solid(p, kettle.postL, KETTLE.band)}
       {solid(p, kettle.postR, KETTLE.band)}
       {solid(p, kettle.grip, KETTLE.wood)}
-      {solid(p, kettle.body, KETTLE.copper, [
-        <path d={p.from === 'top' ? ell(50, 58, 12, 3.4) : ell(sheenX, 68, 3.6, 13, p.from === 'right' ? 12 : -12)} fill={p.c(KETTLE.sheen)} />,
-        flat(p, kettle.base, KETTLE.band),
-      ])}
+      {solid(p, kettle.body, KETTLE.copper, [flat(p, kettle.shoulder, KETTLE.shoulder), flat(p, kettle.base, KETTLE.band)])}
       {solid(p, kettle.lid, KETTLE.copper, cast(p, 'M36.6 47.2H63.4V49H36.6Z', 0.8))}
       {solid(p, kettle.knob, KETTLE.knob)}
       <path

@@ -5,59 +5,81 @@
  */
 import type { ItemRenderer } from './types';
 import { contact, flat, paint, shapes, solid, thin, type ShapeDef } from '@/art/scene/decor/kit';
-import { ell, ellPts, heart, n, poly, rect, rotate, smooth, star, type Pt } from '@/art/scene/decor/geo';
+import { dots, ell, ellPts, heart, n, poly, rect, rotate, scale, smooth, star, type Pt } from '@/art/scene/decor/geo';
 import { bakingPaper, saucer } from './tableware';
 
 /* ---------------- Oat biscuit: a small plain biscuit ---------------- */
 
-const OAT = { face: '#E8C790', edge: '#D6AE72', dock: '#C99E65', flake: '#F4E3BF' };
+const OAT = { face: '#E8C790', inner: '#EDD09F', edge: '#D6AE72', dock: '#C99E65', flake: '#F4E3BF' };
 
+/** A square digestive-style biscuit, standing and leaning a little; a second one lying flat in front. */
+const STAND = rotate(
+  [
+    [38, 28],
+    [82, 28],
+    [82, 72],
+    [38, 72],
+  ],
+  6,
+  60,
+  50,
+);
 const oatBiscuit_ = shapes('treat-oat-biscuit', {
-  flatEdge: `M8 70.6V74.6C8 80.6 21.6 85.4 38 85.4C54.4 85.4 68 80.6 68 74.6V70.6Z`,
-  flatTop: { d: ell(38, 70.6, 30, 9.4), k: 0 },
-  standing: ell(62, 50, 27, 27),
-  rim: { d: ell(62, 50, 27, 27), k: 0 },
+  standing: poly(STAND, 6),
+  inner: { d: poly(scale(STAND, 0.84, 0.84, 60, 50), 4), k: 0 },
+  flatEdge: poly(
+    [
+      [8, 79],
+      [52, 79],
+      [64, 71.6],
+      [64, 76.4],
+      [52, 84.6],
+      [8, 84.6],
+    ],
+    1.4,
+  ),
+  flatTop: {
+    d: poly(
+      [
+        [8, 79],
+        [20, 71.6],
+        [64, 71.6],
+        [52, 79],
+      ],
+      2.4,
+    ),
+    k: 0,
+  },
 });
 
-const FLAKES: readonly Pt[] = [
-  [52, 38],
-  [70, 44],
-  [60, 62],
-  [74, 58],
-  [48, 54],
-  [64, 30],
-];
-const DOCK: readonly Pt[] = [
-  [56, 44],
-  [66, 40],
-  [62, 52],
-  [72, 52],
-  [54, 58],
-  [66, 62],
-];
+/** Docking holes pricked in a neat grid, as a biscuit maker does. */
+const DOCK = dots(
+  rotate(
+    [0, 1, 2].flatMap((r) => [0, 1, 2].map((c): Pt => [48 + c * 12, 38 + r * 12])),
+    6,
+    60,
+    50,
+  ),
+  1.4,
+);
+const DOCK_FLAT = dots(
+  [
+    [22, 75.4],
+    [34, 75.4],
+    [46, 75.4],
+  ],
+  1.1,
+);
 
 const oatBiscuit: ItemRenderer = (o) => {
-  const p = paint({ light: o?.light });
+  const p = paint({ light: o?.light, facing: o?.facing });
   return (
     <g>
-      {contact(p, 50, 85.8, 40, 2.4)}
-      {solid(p, oatBiscuit_.standing, OAT.face, [
-        <path d={ell(62, 50, 22.6, 22.6)} fill={p.c('#EDD09F')} />,
-        ...DOCK.map(([x, y], i) => <circle key={`d${i}`} cx={x} cy={y} r={1.2} fill={p.c(OAT.dock)} />),
-        ...FLAKES.map(([x, y], i) => <ellipse key={`f${i}`} cx={x} cy={y} rx={2.2} ry={1.2} transform={`rotate(${i * 50} ${x} ${y})`} fill={p.c(OAT.flake)} />),
-      ])}
+      {contact(p, 48, 85.8, 40, 2.4)}
+      {solid(p, oatBiscuit_.standing, OAT.face, [flat(p, oatBiscuit_.inner, OAT.inner), <path d={DOCK} fill={p.c(OAT.dock)} />])}
       {solid(p, oatBiscuit_.flatEdge, OAT.edge)}
       {flat(p, oatBiscuit_.flatTop, OAT.face)}
-      <path d={ell(38, 70.6, 25, 7.6)} fill={p.c('#EDD09F')} />
-      {[
-        [30, 69],
-        [40, 67],
-        [48, 71],
-        [34, 73.4],
-        [44, 74],
-      ].map(([x, y], i) => (
-        <circle key={i} cx={x} cy={y} r={1.1} fill={p.c(OAT.dock)} />
-      ))}
+      <path d={DOCK_FLAT} fill={p.c(OAT.dock)} />
     </g>
   );
 };
@@ -123,7 +145,7 @@ function pricks(x: number, y: number, w: number, lean: number): Pt[] {
 }
 
 const lavenderShortbread: ItemRenderer = (o) => {
-  const p = paint({ light: o?.light });
+  const p = paint({ light: o?.light, facing: o?.facing });
   const dots = (pts: readonly Pt[]) => pts.map(([x, y], i) => <circle key={`d${i}`} cx={n(x)} cy={n(y)} r={1} fill={p.c(SHORT.dot)} />);
   const buds = (pts: readonly Pt[]) =>
     pts.map(([x, y], i) => <ellipse key={`b${i}`} cx={x} cy={y} rx={1.7} ry={1} transform={`rotate(-25 ${x} ${y})`} fill={p.c(SHORT.bud)} />);
@@ -190,7 +212,7 @@ const FISH_SIZE = 1.3;
 const fishShapes = shapes('treat-fish-crackers', Object.fromEntries(CRACKERS.map(([x, y, r, d], i) => [`f${i}`, { d: fish(x, y, FISH_SIZE, r, d), k: 0.5 }])));
 
 const fishCrackers: ItemRenderer = (o) => {
-  const p = paint({ light: o?.light });
+  const p = paint({ light: o?.light, facing: o?.facing });
   return (
     <g>
       {fishSaucer(p)}
@@ -235,7 +257,7 @@ const bone = shapes('treat-bone-biscuit', {
 });
 
 const boneBiscuit: ItemRenderer = (o) => {
-  const p = paint({ light: o?.light });
+  const p = paint({ light: o?.light, facing: o?.facing });
   const docks = (pts: readonly Pt[]) => pts.map(([x, y], i) => <circle key={i} cx={n(x)} cy={n(y)} r={1.1} fill={p.c(BONE.dock)} />);
   return (
     <g>
@@ -294,7 +316,7 @@ const pb = shapes('treat-pb-cookie', {
 });
 
 const pbCookie: ItemRenderer = (o) => {
-  const p = paint({ light: o?.light });
+  const p = paint({ light: o?.light, facing: o?.facing });
   const hatch = 'M44 40L72 34M46 48L76 42M47 56L77 50M49 63L74 58M50 30L58 66M58 28L66 68M66 27L73 64M74 30L78 50';
   return (
     <g>
@@ -310,12 +332,13 @@ const pbCookie: ItemRenderer = (o) => {
 
 /* ---------------- Oat cookie: chewy in the middle ---------------- */
 
-const OATC = { face: '#D9A86A', light: '#E4BB84', oat: '#F3E0BC', raisin: '#7C5147' };
+const OATC = { face: '#C99158', light: '#D6A46C', oat: '#F3E0BC', raisin: '#7C5147' };
 
-const OAT_EDGE: Pt[] = ellPts(52, 50, 33, 32, 0, 360, 22)
+/** Craggy: an oat cookie spreads unevenly, lumps of oats pushing out its edge. */
+const OAT_EDGE: Pt[] = ellPts(52, 50, 33, 31, 0, 360, 22)
   .slice(0, -1)
   .map(([x, y], i) => {
-    const k = 1 + (i % 3 === 0 ? 0.045 : i % 3 === 1 ? -0.03 : 0.01);
+    const k = 1 + [0.08, -0.06, 0.03, -0.02, 0.06, -0.07, 0.01][i % 7]!;
     return [52 + (x - 52) * k, 50 + (y - 50) * k];
   });
 
@@ -344,7 +367,7 @@ const RAISINS: readonly Pt[] = [
 ];
 
 const oatCookie: ItemRenderer = (o) => {
-  const p = paint({ light: o?.light });
+  const p = paint({ light: o?.light, facing: o?.facing });
   return (
     <g>
       {contact(p, 52, 84.4, 32, 2.4)}
@@ -373,7 +396,7 @@ const bun = shapes('treat-steamed-bun', {
 });
 
 const steamedBun: ItemRenderer = (o) => {
-  const p = paint({ light: o?.light });
+  const p = paint({ light: o?.light, facing: o?.facing });
   return (
     <g>
       {contact(p, 50, 87.4, 40, 2.6)}
@@ -424,7 +447,7 @@ const cake = shapes('treat-shortcake', {
 });
 
 const shortcake: ItemRenderer = (o) => {
-  const p = paint({ light: o?.light });
+  const p = paint({ light: o?.light, facing: o?.facing });
   return (
     <g>
       {cakePlate(p)}
@@ -486,7 +509,7 @@ const toast = shapes(
 );
 
 const honeyToast: ItemRenderer = (o) => {
-  const p = paint({ light: o?.light });
+  const p = paint({ light: o?.light, facing: o?.facing });
   return (
     <g>
       {contact(p, 50, 85.4, 40, 2.4)}
@@ -508,7 +531,7 @@ const ginger = shapes('treat-gingerbread', {
 });
 
 const gingerbread: ItemRenderer = (o) => {
-  const p = paint({ light: o?.light });
+  const p = paint({ light: o?.light, facing: o?.facing });
   return (
     <g>
       {contact(p, 50, 86, 30, 2.4)}
@@ -542,7 +565,7 @@ const heartCookie_ = shapes('treat-heart-cookie', {
 });
 
 const heartCookie: ItemRenderer = (o) => {
-  const p = paint({ light: o?.light });
+  const p = paint({ light: o?.light, facing: o?.facing });
   return (
     <g>
       {contact(p, 50, 86, 26, 2.4)}
@@ -553,7 +576,7 @@ const heartCookie: ItemRenderer = (o) => {
 
 /* ---------------- Carob heart: the colour of chocolate, but pet-safe ---------------- */
 
-const CAROB = { heart: '#7A5646', bevel: '#8C6655', pod: '#6E4C3C', seed: '#86624F' };
+const CAROB = { heart: '#8A6250', bevel: '#9C7462', pod: '#7A5645', seed: '#957060' };
 const carobPaper = bakingPaper('treat-carob-heart', 48, 79, 84);
 
 const carob = shapes('treat-carob-heart', {
@@ -575,7 +598,7 @@ const carob = shapes('treat-carob-heart', {
 });
 
 const carobHeart: ItemRenderer = (o) => {
-  const p = paint({ light: o?.light });
+  const p = paint({ light: o?.light, facing: o?.facing });
   return (
     <g>
       {carobPaper(p)}

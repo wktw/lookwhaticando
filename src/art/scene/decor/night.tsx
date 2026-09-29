@@ -5,7 +5,7 @@
 import { Glow, LAMP, contact, flat, lit, paint, shapes, solid, thin, type DecorRenderer } from './kit';
 import { ell, n, poly, rect, rotate, smooth, type Pt } from './geo';
 
-/* ---------------- Hot water bottle: in a knitted cover, still warm ---------------- */
+/* ---------------- Hot water bottle: in a knitted cover ---------------- */
 
 const KNIT = { cover: '#DDB6DA', rib: '#CDA0CA', cuff: '#EBD0E8', rubber: '#E3977F', cap: '#6F6269' };
 /** The bottle leans back a little against nothing in particular, the way they do. */
@@ -89,37 +89,52 @@ export const hotWaterBottle: DecorRenderer = (o) => {
       {solid(p, bottle.cap, KNIT.cap)}
       {solid(p, bottle.cover, KNIT.cover, [thin(p, RIB_LINES, KNIT.rib, 2.2), thin(p, RIB_LINES, KNIT.cuff, 0.8, 0.8)])}
       {solid(p, bottle.cuff, KNIT.cuff)}
-      {thin(p, 'M76 34C73 30 78 27 75.6 22.6M84 38C81 34 86 31 83.6 26.6', '#FFFFFF', 1.8, p.night ? 0.2 : 0.55)}
     </g>
   );
 };
 
-/* ---------------- Reading lamp: green-shaded, makes a small warm room anywhere ---------------- */
+/* ---------------- Reading lamp: a green-shaded banker's lamp, makes a small warm room anywhere ---------------- */
 
-const LAMPART = { shade: '#6E9C74', brass: '#D9B45A', brassTop: '#E6C87E', opal: '#EFE9DA', chain: '#B89A52' };
+const LAMPART = {
+  shade: '#5E9467',
+  shadeTop: '#77AC7F',
+  lip: '#4B7D54',
+  brass: '#D9B45A',
+  brassTop: '#E8CB82',
+  opal: '#EFE9DA',
+  chain: '#B89A52',
+};
 
+/**
+ * A long, shallow half-cylinder of green glass seen from the front, held at one end by a brass
+ * stem that rises from the middle of a low brass plinth. The pull chain hangs from the far end.
+ */
 const lamp = shapes('decor-reading-lamp', {
-  base: 'M26 86V88.6C26 90.4 36.8 91.8 50 91.8C63.2 91.8 74 90.4 74 88.6V86Z',
-  baseTop: { d: ell(50, 86, 24, 4.4), k: 0 },
-  stem: { d: rect(47.8, 44, 4.4, 42), k: 0.5 },
-  yoke: { d: 'M30 48.6H70V51.2C62 53 38 53 30 51.2Z', k: 0.4 },
-  shade: 'M15 47C15 33 29 24.6 50 24.6C71 24.6 85 33 85 47Z',
+  base: 'M38 85V89.2C38 90.8 39.2 92 40.8 92H83.2C84.8 92 86 90.8 86 89.2V85Z',
+  baseTop: { d: rect(39, 81.6, 46, 4, 1.6), k: 0 },
+  stem: { d: rect(60.2, 44, 4.2, 38.4), k: 0.5 },
+  collar: { d: rect(57.4, 43, 9.8, 4.4, 1.6), k: 0.5 },
+  shade: rect(10, 29, 66, 16, [8, 8, 1.4, 1.4]),
+  top: { d: rect(8, 26, 70, 8.4), k: 0, clip: 'shade' },
+  lip: { d: rect(8, 42, 70, 4), k: 0, clip: 'shade' },
+  finial: { d: ell(43, 28.6, 3.2, 2), k: 0.5 },
 });
 
 export const readingLamp: DecorRenderer = (o) => {
   const p = paint(o);
   return (
     <g>
-      {p.night && <Glow cx={50} cy={58} r={50} strength={0.55} />}
-      {contact(p, 50, 92.2, 27, 2.4)}
+      {p.night && <Glow cx={43} cy={56} r={48} strength={0.55} />}
+      {contact(p, 62, 92.2, 26, 2.4)}
       {solid(p, lamp.base, LAMPART.brass)}
       {flat(p, lamp.baseTop, LAMPART.brassTop)}
       {solid(p, lamp.stem, LAMPART.brass)}
-      {solid(p, lamp.yoke, LAMPART.brass)}
-      <path d={ell(50, 47, 35, 3.6)} fill={lit(p, p.c(LAMPART.opal), '#FFEBC2')} />
-      {solid(p, lamp.shade, LAMPART.shade, thin(p, 'M18 44.6C30 42.6 70 42.6 82 44.6', '#8DB592', 1.2, 0.8))}
-      {thin(p, 'M72 49V63', LAMPART.chain, 0.9)}
-      <circle cx={72} cy={64.4} r={1.6} fill={p.c(LAMPART.chain)} />
+      <path d={ell(43, 45.4, 30, 2.6)} fill={lit(p, p.c(LAMPART.opal), '#FFEBC2')} />
+      {solid(p, lamp.collar, LAMPART.brass)}
+      {solid(p, lamp.finial, LAMPART.brass)}
+      {solid(p, lamp.shade, LAMPART.shade, [flat(p, lamp.top, LAMPART.shadeTop), flat(p, lamp.lip, LAMPART.lip)])}
+      {thin(p, 'M20 46V59', LAMPART.chain, 0.9)}
+      <circle cx={20} cy={60.4} r={1.7} fill={p.c(LAMPART.chain)} />
     </g>
   );
 };

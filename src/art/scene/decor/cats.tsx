@@ -297,7 +297,7 @@ export const spoolScratcher: DecorRenderer = (o) => {
 
 /* ---------------- Window hammock: holds onto the glass with two suction cups ---------------- */
 
-const HAMMOCK = { cloth: '#B5CC9C', clothIn: '#D5E3C7', stitch: '#E6EFDB', rod: '#8A7B75', cup: '#E8F0F3', cupRing: '#CBD9DF', cable: '#9A8C88' };
+const HAMMOCK = { cloth: '#B5CC9C', clothIn: '#D5E3C7', stitch: '#E6EFDB', rod: '#8A7B75', cup: '#DCE8EE', cable: '#9A8C88' };
 
 const hammock = shapes('decor-window-hammock', {
   back: {
@@ -329,16 +329,11 @@ const hammock = shapes('decor-window-hammock', {
 
 export const windowHammock: DecorRenderer = (o) => {
   const p = paint(o);
-  const cup = (x: number) => (
-    <g>
-      <circle cx={x} cy={11} r={7.5} fill={p.c(HAMMOCK.cup)} opacity={0.75} />
-      <circle cx={x} cy={11} r={4.6} fill={p.c(HAMMOCK.cupRing)} opacity={0.85} />
-      <circle cx={x} cy={11} r={1.8} fill={p.c(HAMMOCK.rod)} />
-    </g>
-  );
+  /** A suction cup on the glass: one small clear disc. */
+  const cup = (x: number) => <circle cx={x} cy={6} r={5} fill={HAMMOCK.cup} opacity={p.night ? 0.32 : 0.8} />;
   return (
     <g>
-      {thin(p, 'M22 12L12.6 48.5M22 12L30 47M78 12L87.4 48.5M78 12L70 47', HAMMOCK.cable, 1)}
+      {thin(p, 'M22 7L12.6 48.5M22 7L30 47M78 7L87.4 48.5M78 7L70 47', HAMMOCK.cable, 1)}
       {cup(22)}
       {cup(78)}
       {flat(p, hammock.back, HAMMOCK.clothIn)}

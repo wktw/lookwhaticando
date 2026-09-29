@@ -7,10 +7,10 @@ import { DECOR_ART } from '@/art/items/decor';
 import '@/art/items';
 import { artBounds } from '@/art/plants/svgBounds.testutil';
 import { DECOR_ENTRIES, decorFootprint } from './index';
-import { CRESCENT_OFFSET, LIGHT_ORDER, SHAPES, contact, nightTone, paint, shapeHash } from './kit';
+import { CRESCENT_OFFSET, LAMP, LIGHT_ORDER, SHAPES, contact, nightTone, paint, shapeHash, warmBandOf } from './kit';
 import { SHADE } from './shade.gen';
 import { ell, poly, rect, smooth, star } from './geo';
-import { artProblems, mount, pathDataError, pathsFilled } from './artCheck.testutil';
+import { SYMMETRIC_SHADE, artProblems, mount, pathDataError, pathsFilled, shadeCentreX } from './artCheck.testutil';
 
 const LIGHTS: Light[] = [DAY_LIGHT, { from: 'top', night: false }, { from: 'right', night: false }, NIGHT_LIGHT];
 const catalogIds = DECOR.map((d) => d.id).sort();
@@ -100,25 +100,53 @@ describe('decor art language', () => {
     }
   });
 
-  it('puts the shade crescent on the side away from the light', () => {
-    const centreX = (ds: string[]) => {
-      const xs = ds.flatMap((d) => [...d.matchAll(/M(-?[\d.]+)/g)].map((m) => Number(m[1])));
-      return xs.reduce((a, b) => a + b, 0) / Math.max(1, xs.length);
-    };
-    let flipped = 0;
+  it('puts the shade crescent on the side away from the light, item by item', () => {
+    const wrong: string[] = [];
     for (const [id, entry] of Object.entries(DECOR_ENTRIES)) {
       const left = mount(entry.art({ light: DAY_LIGHT }));
       const right = mount(entry.art({ light: { from: 'right', night: false } }));
       const l = pathsFilled(left.svg, 'var(--shade)');
-      const r = pathsFilled(right.svg, 'var(--shade)');
       expect(l.length, `${id} has crescents`).toBeGreaterThan(0);
-      expect(l.join(''), `${id} crescents move with the light`).not.toEqual(r.join(''));
-      if (centreX(l) > centreX(r)) flipped++;
+      expect(l.join(''), `${id} crescents move with the light`).not.toEqual(pathsFilled(right.svg, 'var(--shade)').join(''));
+      // Crescents sit on the far edge: right of where they sit in light from the right.
+      if (!SYMMETRIC_SHADE[id] && !(shadeCentreX(left.svg) > shadeCentreX(right.svg))) wrong.push(id);
       left.done();
       right.done();
     }
-    // Crescents start on the far edge: right of centre in left light, left of it in right light.
-    expect(flipped).toBeGreaterThan(Object.keys(DECOR_ENTRIES).length * 0.8);
+    expect(wrong).toEqual([]);
+  });
+
+  it('lights a mirrored item as if the light came from the other side', () => {
+    for (const [id, entry] of Object.entries(DECOR_ENTRIES)) {
+      const mirrored = mount(entry.art({ light: DAY_LIGHT, facing: 'left' }));
+      const rightLit = mount(entry.art({ light: { from: 'right', night: false } }));
+      expect(mirrored.html, id).toEqual(rightLit.html);
+      mirrored.done();
+      rightLit.done();
+    }
+    const top = mount(DECOR_ART['decor-copper-kettle']!({ light: { from: 'top', night: false }, facing: 'left' }));
+    const plainTop = mount(DECOR_ART['decor-copper-kettle']!({ light: { from: 'top', night: false } }));
+    expect(top.html).toEqual(plainTop.html);
+    top.done();
+    plainTop.done();
+    expect(paint({ light: DAY_LIGHT, facing: 'left' })).toMatchObject({ from: 'right', i: 2, away: -1 });
+    expect(paint({ light: NIGHT_LIGHT, facing: 'left' })).toMatchObject({ from: 'left', i: 0, night: true });
+  });
+
+  it('warms the lamp side of every solid shape at night, and only at night', () => {
+    for (const [id, entry] of Object.entries(DECOR_ENTRIES)) {
+      const night = mount(entry.art({ light: NIGHT_LIGHT }));
+      const day = mount(entry.art({ light: DAY_LIGHT }));
+      // The paper moon and star are themselves the light: they glow all over rather than taking a band.
+      if (id !== 'decor-moon-nightlight' && id !== 'decor-paper-star') expect(pathsFilled(night.svg, LAMP).length, id).toBeGreaterThan(0);
+      expect(pathsFilled(day.svg, LAMP), id).toEqual([]);
+      night.done();
+      day.done();
+    }
+    // The band is the crescent the opposite light would cast: on the lamp's side.
+    const s = SHAPES.get('decor-milk-can/body')!;
+    expect(warmBandOf(paint({ light: NIGHT_LIGHT }), s)).toBe(SHADE[s.ref]!.c![0]);
+    expect(warmBandOf(paint({ light: DAY_LIGHT }), s)).toBeUndefined();
   });
 
   it('draws the lamplight version darker, with lit light sources glowing', () => {
@@ -152,7 +180,7 @@ describe('precomputed crescents', () => {
   it('hold a crescent per light for every shaded shape, a rim for every dark one, and a trim for every clipped one', () => {
     for (const s of SHAPES.values()) {
       const row = SHADE[s.ref]!;
-      if (s.k > 0) expect(row.c?.length, s.ref).toBe(LIGHT_ORDER.length);
+      if (s.k !== 0) expect(row.c?.length, s.ref).toBe(LIGHT_ORDER.length);
       else expect(row.c, s.ref).toBeUndefined();
       if (s.rim) expect(row.r?.length, s.ref).toBe(LIGHT_ORDER.length);
       if (s.clip) expect(row.d, s.ref).toBeTruthy();

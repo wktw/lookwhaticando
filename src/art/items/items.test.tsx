@@ -4,7 +4,7 @@ import { TREATS, DECOR } from '@/catalog/collectibles';
 import { DAY_LIGHT, NIGHT_LIGHT, type Light } from '@/art/light';
 import { CollectibleArt } from '@/art/CollectibleArt';
 import { artBounds } from '@/art/plants/svgBounds.testutil';
-import { artProblems, mount, pathsFilled } from '@/art/scene/decor/artCheck.testutil';
+import { SYMMETRIC_SHADE, artProblems, mount, pathsFilled, shadeCentreX } from '@/art/scene/decor/artCheck.testutil';
 import { DECOR_ART, PlaceholderItem, TREAT_ART } from './index';
 
 const LIGHTS: Light[] = [DAY_LIGHT, { from: 'top', night: false }, { from: 'right', night: false }, NIGHT_LIGHT];
@@ -57,6 +57,30 @@ describe('treat art', () => {
       expect(pathsFilled(left.svg, 'var(--shade)'), t.id).not.toEqual(pathsFilled(right.svg, 'var(--shade)'));
       expect(night.html, t.id).not.toEqual(right.html);
       for (const m of [left, right, night]) m.done();
+    }
+  });
+
+  it("puts every treat's shade on the side away from the light", () => {
+    const wrong: string[] = [];
+    for (const t of TREATS) {
+      const Art = TREAT_ART[t.id]!;
+      const left = mount(Art({ light: DAY_LIGHT }));
+      const right = mount(Art({ light: { from: 'right', night: false } }));
+      if (!SYMMETRIC_SHADE[t.id] && !(shadeCentreX(left.svg) > shadeCentreX(right.svg))) wrong.push(t.id);
+      left.done();
+      right.done();
+    }
+    expect(wrong).toEqual([]);
+  });
+
+  it('lights a mirrored treat as if the light came from the other side', () => {
+    for (const t of TREATS) {
+      const Art = TREAT_ART[t.id]!;
+      const mirrored = mount(Art({ light: DAY_LIGHT, facing: 'left' }));
+      const rightLit = mount(Art({ light: { from: 'right', night: false } }));
+      expect(mirrored.html, t.id).toEqual(rightLit.html);
+      mirrored.done();
+      rightLit.done();
     }
   });
 

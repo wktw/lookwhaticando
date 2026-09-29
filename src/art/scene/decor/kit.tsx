@@ -10,8 +10,13 @@
  * the left, the top and the right) and commits the results to `shade.gen.ts`. At run time a
  * crescent is only a lookup, and `decor.test.ts` fails when a shape changes without a rebuild.
  *
- * At night (Lamplight) surfaces dim toward the indigo room and warm slightly toward the lamp,
- * dark shapes get a thin rim light on the lamp side, and light sources glow.
+ * At night (Lamplight) surfaces dim a little toward the indigo room and warm toward the lamp, every
+ * solid shape gets a soft warm band on its lamp side (the mirror of its shade crescent), dark shapes
+ * get a thin rim light there too, and light sources glow.
+ *
+ * Mirroring: a scene that flips an item with `scaleX(-1)` passes `facing: 'left'`. The art is then
+ * lit as if the light came from the other side, so after the flip its crescents still sit away from
+ * the real light.
  */
 import type { JSX } from 'preact';
 import { useId } from 'preact/hooks';
@@ -26,6 +31,11 @@ export interface DecorArtOptions {
   light?: Light;
   /** Thin-line scale: 1 on the icon canvas; a scene passes PET_UNITS ÷ size so strings match the pets'. */
   line?: number;
+  /**
+   * Which way the item faces on screen. Art is authored facing right; a scene that mirrors it
+   * (`scaleX(-1)`) passes 'left', and left and right light swap so the crescents stay correct.
+   */
+  facing?: 'left' | 'right';
 }
 
 /** Draws one item on the 100×100 canvas (no <svg> wrapper). */
@@ -63,9 +73,9 @@ export const RIM_WIDTH = 1.5;
 
 /** The night room that surfaces lean toward after dark (Lamplight wall and sill). */
 const NIGHT_ROOM = [70, 64, 102] as const;
-const NIGHT_MIX = 0.3;
-const NIGHT_DESATURATE = 0.16;
-const NIGHT_WARM = 0.07;
+const NIGHT_MIX = 0.2;
+const NIGHT_DESATURATE = 0.05;
+const NIGHT_WARM = 0.08;
 const LAMP_RGB = [255, 201, 138] as const;
 
 const toned = new Map<string, string>();
@@ -105,6 +115,8 @@ const SHADE_NIGHT = 'rgba(10, 8, 22, 0.3)';
 const CONTACT_DAY = 'var(--contact)';
 const CONTACT_NIGHT = 'rgba(8, 6, 16, 0.24)';
 const RIM = 'rgba(255, 201, 138, 0.62)';
+/** The lamp-side warm band on every solid shape at night. */
+const WARM_OPACITY = 0.25;
 
 /** How one render paints. */
 export interface Paint {
@@ -129,10 +141,17 @@ export interface Paint {
   ink: { stroke: string; 'stroke-width': number; 'stroke-linejoin': 'round'; 'stroke-linecap': 'round' };
 }
 
-export function paint({ night, light, line = 1 }: DecorArtOptions = {}): Paint {
+/** The light as the art sees it: mirrored art sees left and right swapped. */
+export function artFrom(from: LightFrom, facing: 'left' | 'right' = 'right'): LightFrom {
+  if (facing === 'right' || from === 'top') return from;
+  return from === 'left' ? 'right' : 'left';
+}
+
+export function paint({ night, light, line = 1, facing }: DecorArtOptions = {}): Paint {
   const isNight = night ?? light?.night ?? false;
-  const l = light ?? (isNight ? NIGHT_LIGHT : DAY_LIGHT);
-  const from = l.from;
+  const given = light ?? (isNight ? NIGHT_LIGHT : DAY_LIGHT);
+  const from = artFrom(given.from, facing);
+  const l: Light = from === given.from ? given : { ...given, from };
   const w = (width: number) => +(width * line).toFixed(3);
   return {
     night: isNight,
@@ -155,7 +174,10 @@ export function paint({ night, light, line = 1 }: DecorArtOptions = {}): Paint {
 
 export interface ShapeDef {
   d: string;
-  /** Crescent strength (1 = standard, 0 = none: a flat patch or a surface facing up). */
+  /**
+   * Crescent strength (1 = standard, 0 = none: a flat patch or a surface facing up). Negative for
+   * a hollow (an alcove, the inside of a box): its shade falls on the side nearest the light.
+   */
   k?: number;
   /** A dark shape: gets a lamp-side rim light at night. */
   rim?: boolean;
@@ -210,18 +232,30 @@ export const shapeD = (s: Shape): string => SHADE[s.ref]?.d ?? s.d;
 type Details = JSX.Element | null | false | undefined | (JSX.Element | null | false | undefined)[];
 
 /**
- * A solid shape: its lit fill, any flat details on it, then its shade crescent (and rim light by
- * night). `glowing` paints the fill as given: a light source is not dimmed by the night.
+ * The lamp-side warm band of a shape at night: its crescent for light from the opposite side, a
+ * sliver along the edge that faces the lamp. Nothing by day, or under a lamp straight above.
+ */
+export function warmBandOf(p: Paint, s: Shape): string | undefined {
+  if (!p.night || p.i === 1) return undefined;
+  return SHADE[s.ref]?.c?.[2 - p.i] || undefined;
+}
+
+/**
+ * A solid shape: its lit fill, any flat details on it, then its shade crescent (and by night a
+ * warm band on the lamp side, plus a rim light on dark shapes). `glowing` paints the fill as
+ * given: a light source is not dimmed by the night, nor banded.
  */
 export function solid(p: Paint, s: Shape, fill: string, details?: Details, glowing = false): JSX.Element {
   const g = SHADE[s.ref];
   const crescent = g?.c?.[p.i];
+  const warm = glowing ? undefined : warmBandOf(p, s);
   const rim = p.night ? g?.r?.[p.i] : undefined;
   return (
     <>
       <path d={g?.d ?? s.d} fill={glowing ? fill : p.c(fill)} />
       {details}
       {crescent && <path d={crescent} fill={p.shade} />}
+      {warm && <path d={warm} fill={LAMP} opacity={WARM_OPACITY} />}
       {rim && <path d={rim} fill={p.rim} />}
     </>
   );
