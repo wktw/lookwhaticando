@@ -1,0 +1,156 @@
+/* The small sheets Today opens: the note, the number pad, the wallet, letters and stories. */
+
+.noteForm {
+  display: grid;
+  gap: 12px;
+  padding-bottom: 4px;
+}
+
+/* ---------- the number pad ---------- */
+
+.pad {
+  display: grid;
+  justify-items: center;
+  gap: 16px;
+  padding: 4px 0 8px;
+}
+
+.padLevel {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+}
+
+.padCount {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--fs-headline);
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.padQuick {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.padFoot {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+/* ---------- the wallet sheet ---------- */
+
+.walletList {
+  display: grid;
+  gap: 14px;
+  margin: 0;
+  padding: 0 0 8px;
+  list-style: none;
+}
+
+.walletRow {
+  display: grid;
+  grid-template-columns: 36px 1fr;
+  gap: 12px;
+  align-items: start;
+}
+
+.walletIcon {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--bg-2);
+}
+
+.walletHead {
+  margin: 0;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.walletText {
+  margin: 2px 0 0;
+  color: var(--ink-2);
+  font-size: var(--fs-caption);
+  line-height: 1.45;
+}
+
+/* ---------- letters and stories ---------- */
+
+.letter {
+  display: grid;
+  gap: 14px;
+  padding: 0 0 8px;
+}
+
+.letterArt {
+  justify-self: center;
+}
+
+.letterBody {
+  position: relative;
+  padding: 18px 18px 20px;
+  border-radius: var(--r-md);
+  background: var(--card-2);
+  box-shadow: 0 0 0 1px var(--line);
+  font-family: var(--font-display);
+  font-size: 1.0625rem;
+  line-height: 1.55;
+  color: var(--ink);
+}
+
+.letterBody p {
+  margin: 0 0 0.6em;
+}
+
+.letterBody p:last-child {
+  margin-bottom: 0;
+}
+
+.letterTitle {
+  font-size: 1.25rem;
+}
+
+.pressings {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: 10px 8px;
+  margin: 10px 0 12px;
+  padding: 0;
+  list-style: none;
+  font-family: var(--font-body);
+}
+
+.pressing {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  font-size: var(--fs-micro);
+  font-weight: 700;
+  color: var(--ink-2);
+  text-align: center;
+}
+
+.small {
+  font-family: var(--font-body);
+  font-size: var(--fs-caption);
+  color: var(--ink-2);
+}
+
+.why {
+  display: grid;
+  gap: 10px;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}

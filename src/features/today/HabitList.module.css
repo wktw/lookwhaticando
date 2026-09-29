@@ -1,0 +1,173 @@
+.list {
+  display: grid;
+  gap: 14px;
+}
+
+.group {
+  display: grid;
+  gap: 4px;
+}
+
+/* Doubled class: outranks host-page heading styles. */
+.group .header {
+  margin: 0;
+  font: inherit;
+}
+
+.toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 44px;
+  margin: 0;
+  padding: 4px 4px;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--ink-2);
+  font: 800 0.75rem / 1.2 var(--font-body);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.toggle:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.label {
+  display: block;
+  padding: 4px 4px 2px;
+  color: var(--ink-2);
+  font: 800 0.75rem / 1.2 var(--font-body);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  font-variant-numeric: tabular-nums;
+}
+
+.current .label {
+  color: var(--ink);
+}
+
+.title {
+  flex: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.current .label {
+  display: block;
+  padding: 4px 4px 2px;
+  color: var(--ink-2);
+  font: 800 0.75rem / 1.2 var(--font-body);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  font-variant-numeric: tabular-nums;
+}
+
+.current .label {
+  color: var(--ink);
+}
+
+.title {
+  color: var(--ink);
+}
+
+.names {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ink-3);
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: 0.9375rem;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.chevron {
+  flex: none;
+  margin-left: auto;
+  color: var(--ink-3);
+  transition: transform var(--t-micro) var(--ease-out);
+}
+
+.folded .chevron {
+  transform: rotate(-90deg);
+}
+
+/* A folded group reads as one quiet paper row: "Morning 3/3 · Walk · Stretch". */
+.folded {
+  min-height: 48px;
+  padding: 8px 12px 8px 14px;
+  border-radius: var(--r-md);
+  background: color-mix(in srgb, var(--card) 60%, transparent);
+  box-shadow: 0 0 0 1px var(--line);
+}
+
+.folded:hover {
+  background: var(--card);
+}
+
+.cards,
+.paused {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cards[hidden],
+.paused[hidden] {
+  display: none;
+}
+
+.item {
+  min-width: 0;
+}
+
+.pausedItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 48px;
+  margin: 0;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: var(--r-md);
+  background: var(--card);
+  box-shadow: 0 0 0 1px var(--line);
+  color: var(--ink);
+  font: 400 1rem / 1.35 var(--font-display);
+  text-align: left;
+  cursor: pointer;
+}
+
+.pausedItem:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.pausedIcon {
+  flex: none;
+  color: var(--lavender-700);
+}
+
+.chevronRight {
+  flex: none;
+  margin-left: auto;
+  color: var(--ink-3);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chevron {
+    transition: none;
+  }
+}

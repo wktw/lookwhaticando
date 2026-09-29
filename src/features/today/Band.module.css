@@ -1,0 +1,211 @@
+/*
+ * The windowsill band (DESIGN §9.1). It stays 168 px in the flow and sticks to the top; as the page
+ * scrolls its bottom edge is clipped away (--clip, 0 … 104 px) while the band slides its own art up,
+ * so what shows is always the lower sill. The chips read --c (0 open … 1 collapsed). Nothing here
+ * re-lays out while scrolling: clip-path, opacity and transforms only.
+ */
+
+.wrap {
+  --c: 0;
+  --clip: 0px;
+  --band-radius: 0 0 20px 20px;
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  padding-top: var(--safe-top);
+  /* The status bar's strip above the band is paper; the band itself is the wall. */
+  background: linear-gradient(var(--bg), var(--bg)) top / 100% var(--safe-top) no-repeat;
+  pointer-events: none;
+}
+
+.clip {
+  position: relative;
+  height: 168px;
+  clip-path: inset(0 0 var(--clip) 0 round var(--band-radius));
+  pointer-events: auto;
+  /* A hairline under the band once it has collapsed over the list. */
+  filter: drop-shadow(0 calc(var(--c) * 1px) 0 var(--line));
+}
+
+.band {
+  height: 168px;
+}
+
+@media (min-width: 900px) {
+  .wrap {
+    --band-radius: 18px;
+    padding-top: 16px;
+    background: linear-gradient(var(--bg), var(--bg)) top / 100% 16px no-repeat;
+  }
+}
+
+/* ---------- the chips over the band (85% card, DESIGN §10.1) ---------- */
+
+.greeting,
+.mini,
+.wallet,
+.vine {
+  position: absolute;
+  z-index: 40;
+  background: color-mix(in srgb, var(--card) 85%, transparent);
+  color: var(--ink);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--line) 70%, transparent);
+  -webkit-backdrop-filter: none;
+}
+
+.greeting {
+  top: 12px;
+  left: var(--gutter);
+  max-width: calc(100% - var(--gutter) * 2 - 104px);
+  padding: 7px 14px 8px;
+  border-radius: var(--r-md);
+  opacity: calc(1 - var(--c) * 2.4);
+  transform: translateY(calc(var(--c) * -10px)) scale(calc(1 - var(--c) * 0.12));
+  transform-origin: 0 0;
+}
+
+/* Doubled class: outranks host-page heading styles. */
+.greeting .hello {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: clamp(1.125rem, 5.2vw, 1.375rem);
+  line-height: 1.2;
+  letter-spacing: -0.005em;
+  outline: none;
+  overflow-wrap: anywhere;
+}
+
+.date {
+  margin: 1px 0 0;
+  color: var(--ink-2);
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.wrap[data-collapsed] .greeting {
+  visibility: hidden;
+}
+
+/* Collapsed: "Sep 29" and the day's ring, in the band's lower 64 px. */
+.mini {
+  left: var(--gutter);
+  top: 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 10px 0 14px;
+  border-radius: var(--r-pill);
+  font-weight: 800;
+  font-size: var(--fs-caption);
+  opacity: calc((var(--c) - 0.55) * 2.6);
+  visibility: hidden;
+}
+
+.wrap[data-collapsed] .mini {
+  visibility: visible;
+}
+
+.miniDate {
+  white-space: nowrap;
+}
+
+.ring {
+  display: block;
+  flex: none;
+}
+
+.ringTrack {
+  fill: none;
+  stroke: var(--line);
+  stroke-width: 2.2;
+}
+
+.ringFill {
+  fill: none;
+  stroke: var(--sage-500);
+  stroke-width: 2.6;
+  stroke-linecap: round;
+}
+
+.ringFull .ringTrack {
+  stroke: var(--sage-500);
+}
+
+/* The wallet pill, top right, open or collapsed. */
+.wallet {
+  top: 12px;
+  right: var(--gutter);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 44px;
+  height: 40px;
+  margin: 0;
+  padding: 0 14px 0 10px;
+  border: 0;
+  border-radius: var(--r-pill);
+  font: 800 var(--fs-body) / 1 var(--font-body);
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  transition: background var(--t-micro) var(--ease-out);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.wallet:hover {
+  background: var(--card);
+}
+
+.wallet:active {
+  transform: translateY(1px);
+}
+
+.wallet:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.walletNum {
+  min-width: 2ch;
+}
+
+/* The vine chip on the sill ledge ("3 of 5 · +18 coins"). */
+.vine {
+  left: var(--gutter);
+  bottom: 5px;
+  margin: 0;
+  padding: 2px 9px 3px;
+  border-radius: var(--r-pill);
+  font-size: var(--fs-micro);
+  font-weight: 800;
+  line-height: 1.35;
+  white-space: nowrap;
+  opacity: calc(1 - var(--c) * 3);
+  pointer-events: none;
+}
+
+/*
+ * Where a coin lands to drop into the jar: just over its mouth, at the band's pinned end (the jar
+ * stands 39 room units from the right; 1 unit = 1.68 px). Hidden once the band collapses, so the
+ * wallet pill takes the coin instead.
+ */
+.jar {
+  position: absolute;
+  right: 56px;
+  top: 44px;
+  width: 20px;
+  height: 20px;
+  pointer-events: none;
+}
+
+.wrap[data-collapsed] .jar {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wallet {
+    transition: none;
+  }
+}

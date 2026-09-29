@@ -1,0 +1,175 @@
+/*
+ * The habit card: a nursery plant tag on paper (radius 14, a hairline, a barely-there warm shadow).
+ * The plant sits in its own small window of oat paper at the left, like the tag's printed picture.
+ */
+
+.card {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 4px;
+  min-height: 84px;
+  padding: 10px 10px 10px 10px;
+  border-radius: var(--r-md);
+  background: var(--card);
+  box-shadow: 0 0 0 1px var(--line), var(--shadow-card);
+  content-visibility: auto;
+  contain-intrinsic-size: auto 84px;
+}
+
+.body {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  cursor: pointer;
+}
+
+.plant {
+  flex: none;
+  display: grid;
+  place-items: end center;
+  width: 64px;
+  height: 64px;
+  border-radius: 12px;
+  background: var(--bg-2);
+  overflow: hidden;
+}
+
+.plant > svg,
+.plant > * {
+  display: block;
+}
+
+/* Watered today: the pot's window takes the faintest wash of the habit's water. */
+.watered .plant {
+  background: color-mix(in srgb, var(--bg-2) 72%, var(--sky-300));
+}
+
+.text {
+  min-width: 0;
+  padding: 2px 0;
+}
+
+/* Doubled class: outranks host-page heading styles. */
+.text .name {
+  margin: 0;
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: 1.1875rem;
+  line-height: 1.22;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+
+.anchor {
+  margin: 1px 0 0;
+  color: var(--ink-2);
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: 0.9375rem;
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.status {
+  margin: 3px 0 0;
+  color: var(--ink-2);
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.statusRest {
+  color: var(--lavender-700);
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 0;
+}
+
+.more {
+  color: var(--ink-3);
+}
+
+.ring {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  touch-action: manipulation;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* The inline stepper for a full count habit, tapped again. */
+.adjust {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+
+/* ---------- Compact Today: smaller cards, more habits on screen ---------- */
+
+.compact {
+  min-height: 60px;
+  padding: 6px 8px 6px 8px;
+  contain-intrinsic-size: auto 60px;
+}
+
+.compact .body {
+  gap: 10px;
+}
+
+.compact .plant {
+  width: 46px;
+  height: 46px;
+  border-radius: 10px;
+}
+
+.compact .name {
+  font-size: 1.0625rem;
+  -webkit-line-clamp: 1;
+}
+
+.compact .status {
+  margin-top: 1px;
+  font-size: 0.8125rem;
+}
+
+.compact .ring {
+  width: 46px;
+  height: 46px;
+}
+
+@media (max-width: 359px) {
+  .card {
+    padding-left: 8px;
+  }
+  .plant {
+    width: 56px;
+    height: 56px;
+  }
+  .body {
+    gap: 10px;
+  }
+}

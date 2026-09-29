@@ -1,0 +1,101 @@
+/* The week strip (DESIGN §9.1): 56 px, seven days, a hairline gap before a new calendar week. */
+
+.strip {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 2px;
+  height: 56px;
+  margin: 2px 0 0;
+  padding: 0 calc(var(--gutter) - 4px);
+}
+
+.day {
+  position: relative;
+  display: grid;
+  grid-template-rows: 14px 30px 6px;
+  justify-items: center;
+  align-content: center;
+  gap: 1px;
+  min-width: 44px;
+  height: 56px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--r-md);
+  background: transparent;
+  color: var(--ink-2);
+  cursor: pointer;
+  transition: background var(--t-micro) var(--ease-out);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.day:hover {
+  background: color-mix(in srgb, var(--bg-2) 70%, transparent);
+}
+
+.day:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+}
+
+/* A new calendar week starts: a hairline before it. */
+.weekStart::before {
+  content: '';
+  position: absolute;
+  left: -2px;
+  top: 14px;
+  bottom: 14px;
+  width: 1px;
+  background: var(--line);
+}
+
+.selected {
+  background: var(--card);
+  color: var(--ink);
+  box-shadow: 0 0 0 1px var(--line), var(--shadow-sm);
+}
+
+.selected:hover {
+  background: var(--card);
+}
+
+.letter {
+  font-size: 0.6875rem;
+  font-weight: 800;
+  letter-spacing: var(--tracking-caps);
+  line-height: 14px;
+}
+
+.mark {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+}
+
+.mark > svg {
+  display: block;
+}
+
+.num {
+  font-family: var(--font-display);
+  font-size: 1.0625rem;
+  line-height: 1;
+  color: var(--ink);
+  font-variant-numeric: lining-nums;
+}
+
+.dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: transparent;
+}
+
+.today .dot {
+  background: var(--accent-ink);
+}
+
+.today .letter {
+  color: var(--accent-ink);
+}
