@@ -5,7 +5,7 @@
  * exclamation marks, curly apostrophes, never a count of what is undone. NOTES-w2-shelf.md asks for
  * each of these to get a row in VOICE.md.
  */
-import type { PlaceId, Species } from '@/catalog/types';
+import type { PlaceId } from '@/catalog/types';
 import { PLACE_BY_ID } from '@/catalog/places';
 import { EMPTY, KEEPSAKE_THINGS, PLACE_LINES, capitalise, fillLine } from '@/catalog/lines';
 import type { KeepsakeKind } from '@/state/types';
@@ -20,7 +20,6 @@ export const SHELF_COPY = {
   done: 'Done',
   basket: 'Basket',
   fieldGuide: 'Field Guide',
-  photo: 'Photo',
   pets: 'Pets',
   out: 'Out on the Shelf',
   indoors: 'Indoors',
@@ -36,7 +35,8 @@ export const SHELF_COPY = {
     keepsake: 'Keepsake',
     placed: '{thing}, on {place}.',
     removed: '{thing}, put away.',
-    selected: '{thing}',
+    /** She owns things, and every one of them is already out. */
+    allOut: 'Everything you have is out. More comes from the capsules.',
   },
   /** The basket and the pantry (DESIGN §8.2). */
   basketSheet: {
@@ -58,26 +58,20 @@ export const SHELF_COPY = {
     moonlit: 'Moonlit',
   },
   placeMap: {
-    opened: 'Open',
     here: '{count} here',
-    roomFor: 'Room for {count}',
     short: '{Place} is {price} coins. There are {count} in the jar.',
     shortOne: '{Place} is {price} coins. There’s 1 in the jar.',
     shortNone: '{Place} is {price} coins. Watering fills the jar.',
     go: 'Go to {place}',
     visit: 'Go there',
     confirm: 'Open {place}?',
+    /** Said once, under Places, while a place is out of reach. */
+    jar: 'There are {count} coins in the jar.',
+    jarOne: 'There’s 1 coin in the jar.',
+    jarNone: 'Watering fills the jar.',
   },
-  pet: {
-    card: '{name}’s card',
-    indoors: 'Indoors',
-  },
-  photoSheet: {
-    title: 'Photo',
-    save: 'Save the photo',
-    saved: 'Saved to your downloads.',
-    alt: 'A photo of the Shelf',
-  },
+  /** The found thing on the sill, for VoiceOver: "A button, from Pudding". */
+  foundLabel: '{A}, from {name}',
   capsules: 'Go to Capsules',
 } as const;
 
@@ -87,7 +81,7 @@ export const placeName = (id: PlaceId): string => PLACE_BY_ID.get(id)?.name ?? i
 /** "Open for 400 coins". */
 export const openForLine = (price: number): string => fillLine(PLACE_LINES.open, { price: num(price) });
 
-/** "400 coins" (or "free" for the Sill). */
+/** "400 coins" (or "free" for the Sill): a place's price on its card. */
 export const priceLine = (price: number): string => (price === 0 ? PLACE_LINES.free : fillLine(PLACE_LINES.price, { price: num(price) }));
 
 /** The opening line after `buyPlace` (VOICE §11): with the pet who went straight there, or without. */
@@ -95,6 +89,12 @@ export function openedLine(place: PlaceId, movedInName: string | null): string {
   if (place === 'sill') return '';
   const lines = PLACE_LINES.opened[place];
   return movedInName ? fillLine(lines.withPet, { name: movedInName }) : lines.alone;
+}
+
+/** What is in the jar, once, above the places (never a count of 0). */
+export function jarLine(coins: number): string {
+  const t = coins <= 0 ? SHELF_COPY.placeMap.jarNone : coins === 1 ? SHELF_COPY.placeMap.jarOne : SHELF_COPY.placeMap.jar;
+  return fillLine(t, { count: num(coins) });
 }
 
 /** Not enough coins for a place: what it costs and what is in the jar (never a count of 0). */
@@ -107,25 +107,6 @@ export function shortLine(place: PlaceId, price: number, coins: number): string 
 /** The Field Guide page with nothing on it yet: "Cows come from the No. 02 cabinet." */
 export function emptyPageLine(pageName: string, number: string): string {
   return fillLine(EMPTY.fieldGuidePage, { Species: pageName, number });
-}
-
-/** The everyday noun for each species ("bunny" is only an internal id). */
-export const SPECIES_NOUN: Readonly<Record<Species, string>> = {
-  cat: 'Cat',
-  cow: 'Cow',
-  dog: 'Dog',
-  bunny: 'Rabbit',
-  frog: 'Frog',
-  bear: 'Bear',
-  hamster: 'Hamster',
-  duck: 'Duck',
-};
-
-/** "Calico · Cat", "French Bulldog" (never the species twice). */
-export function variantLine(variant: string, species: Species | null): string {
-  if (!species) return variant;
-  const noun = SPECIES_NOUN[species];
-  return variant.toLowerCase().includes(noun.toLowerCase()) ? variant : `${variant} · ${noun}`;
 }
 
 /** A placed or owned thing by name: a keepsake by what it is ("A pebble from the path"). */

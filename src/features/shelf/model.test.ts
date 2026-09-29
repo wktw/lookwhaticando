@@ -176,3 +176,27 @@ describe('the sill’s extras', () => {
     expect(opened).toBe('story');
   });
 });
+
+describe('decor lands where she is looking', () => {
+  it('the Sill measures on its natural floor for the pots, so the stored x maps back to the view centre', async () => {
+    const { decorXAtView, decorFloorOf } = await import('./model');
+    const { fracToScene } = await import('@/art/scene/decorPlace');
+    for (const pots of [3, 8, 20]) {
+      const floor = decorFloorOf('sill', pots);
+      for (const want of [0.2, 0.5, 0.8]) {
+        const mid = fracToScene(floor, { x: want, y: 0.5 }).x;
+        const x = decorXAtView('sill', pots, mid, 0);
+        expect(fracToScene(floor, { x, y: 0.5 }).x).toBeCloseTo(mid, 1);
+      }
+    }
+  });
+
+  it('a place measures from its own segment and floor', async () => {
+    const { decorXAtView, decorFloorOf } = await import('./model');
+    const { fracToScene } = await import('@/art/scene/decorPlace');
+    const floor = decorFloorOf('pond', 6);
+    const segLeft = 300;
+    const mid = segLeft + fracToScene(floor, { x: 0.3, y: 0 }).x;
+    expect(decorXAtView('pond', 6, mid, segLeft)).toBeCloseTo(0.3, 3);
+  });
+});

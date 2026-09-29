@@ -3,12 +3,14 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite
 import { buildDemo } from '@/state/demo';
 import { runtimeLocalTime } from '@/domain/dates';
 import { createInitialState } from '@/state/defaults';
-import { state, today } from '@/state/store';
+import { petPet, state, today } from '@/state/store';
+import { collectionView } from '@/state/selectors';
 import type { AppState } from '@/state/types';
 import { closePetCard, petCardRequest } from '@/features/habits/open';
 import { toasts } from '@/ui/toast';
 import { button, buttonWithText, click, installDom, key, mount, until } from '@/features/capsules/testing';
-import { ShelfScreen } from './ShelfScreen';
+import { ShelfScreen, scenePets, scenePots } from './ShelfScreen';
+import { basketRows } from './BasketSheet';
 
 vi.setConfig({ testTimeout: 60_000, hookTimeout: 120_000 });
 
@@ -87,7 +89,30 @@ describe('the Shelf', () => {
     state.value = { ...demo, wallet: { ...demo.wallet, coins: 12 } };
     const view = await mountShelf();
     expect(view.root.querySelector('[data-open-place]')).toBeNull();
-    expect(view.root.textContent).toContain('There are 12 in the jar.');
+    // The jar is said once, above the places; each locked place keeps its price and its room.
+    expect(view.root.textContent).toContain('There are 12 coins in the jar.');
+    expect(view.root.textContent).not.toContain('in the jar. There');
+    expect(view.root.textContent).toContain('1,000 coins');
+  });
+
+  it('on a first day, offers no Decorate or Basket with nothing in them', async () => {
+    const empty = { ...createInitialState(Date.parse('2026-09-29T10:00:00')), profile: { name: 'Sam', onboarded: true, createdAt: 0 } };
+    state.value = empty;
+    await mountShelf();
+    expect(buttonWithText('Decorate')).toBeNull();
+    expect(buttonWithText('Basket')).toBeNull();
+  });
+
+  it('a stroke that pays XP leaves the scene’s inputs as they were (no re-render behind the card)', async () => {
+    await mountShelf();
+    const pets = scenePets.value;
+    const pots = scenePots.value;
+    const id = Object.values(state.value.pets).find((p) => p.inMeadow)!.id;
+    const xp = state.value.pets[id]!.xp;
+    petPet(id);
+    expect(state.value.pets[id]!.xp).toBeGreaterThan(xp);
+    expect(scenePets.value).toBe(pets);
+    expect(scenePots.value).toBe(pots);
   });
 
   it('decor edit mode: the tray adds a thing to the place in view, and Done ends it', async () => {
@@ -132,13 +157,22 @@ describe('the Shelf', () => {
     expect(state.value.shelf.decor.find((d) => d.id === id)).toBeUndefined();
   });
 
-  it('the basket sheet bakes a tray for 10 coins', async () => {
-    state.value = { ...demo, wallet: { ...demo.wallet, coins: 100 } };
-    const view = await mountShelf();
+  it('the basket sheet offers a bake only for a treat running out, never a harvest, for 10 coins', async () => {
+    const rows = basketRows.peek();
+    const low = rows.pantry[0]!;
+    const pantry: AppState['pantry'] = {};
+    for (const r of rows.pantry) pantry[r.id] = { servings: 5, restockedOn: TODAY };
+    for (const h of rows.basket) pantry[h.id] = { servings: 0, restockedOn: TODAY };
+    pantry[low.id] = { servings: 1, restockedOn: TODAY };
+    state.value = { ...demo, pantry, wallet: { ...demo.wallet, coins: 100 } };
+    await mountShelf();
     await click(buttonWithText('Basket'), 'Basket');
     const sheet = await until(() => dialog('The pantry'), 'the basket sheet');
-    const bake = sheet.querySelector<HTMLButtonElement>('button[aria-label^="Bake a tray"]')!;
+    const bakes = sheet.querySelectorAll<HTMLButtonElement>('button[aria-label^="Bake a tray"]');
+    expect(bakes).toHaveLength(1);
+    const bake = bakes[0]!;
     const treat = bake.getAttribute('aria-label')!.split(', ')[1]!;
+    expect(treat).toBe(low.name);
     await click(bake);
     expect(state.value.wallet.coins).toBe(90);
     expect(toasts.value.at(-1)?.message).toContain(`Baked: 5 servings of ${treat.toLowerCase()}`);
@@ -156,5 +190,25 @@ describe('the Shelf', () => {
     // Anything not yet hers is "not yet"; only a Secret is a "?".
     expect(page.textContent).toContain('not yet');
     expect(button(/^Secret/)).toBeNull();
+  });
+
+  it('the Field Guide holds everything: the Moonlit page and the things, counted as the pins count', async () => {
+    const view = await mountShelf();
+    const meta = view.root.querySelector('#shelf-guide-count')!.textContent!;
+    const guide = collectionView.peek();
+    expect(meta).toBe(`${guide.owned} of ${guide.total}`);
+    await click(view.root.querySelector('[aria-label^="Cats,"]'), 'the Cats page');
+    const tabs = await until(() => document.querySelector<HTMLElement>('[role="tablist"]'), 'the pages');
+    const names = Array.from(tabs.querySelectorAll('[role="tab"]')).map((t) => t.firstChild?.textContent);
+    for (const n of ['Wardrobe', 'Treats', 'Decor']) expect(names).toContain(n);
+    // Counts read as words, never "3 slash 21".
+    expect(tabs.querySelector('[role="tab"]')!.textContent).toMatch(/, \d+ of \d+$/);
+    await click(Array.from(tabs.querySelectorAll<HTMLElement>('[role="tab"]')).find((t) => t.firstChild?.textContent === 'Treats') ?? null, 'Treats');
+    const page = document.querySelector('[role="tabpanel"]')!;
+    expect(page.querySelector('h3')!.textContent).toBe('Treats');
+    // An owned thing says its rarity in words.
+    const owned = page.querySelector('[data-owned]')!;
+    const item = guide.categories.find((c) => c.category === 'treat')!.items.find((i) => i.owned > 0)!;
+    expect(owned.textContent).toContain(item.rarityLabel);
   });
 });

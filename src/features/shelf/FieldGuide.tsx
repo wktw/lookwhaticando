@@ -1,3 +1,4 @@
+import { memo } from 'preact/compat';
 import { useMemo, useRef } from 'preact/hooks';
 import { getCollectible } from '@/catalog/collectibles';
 import { MACHINE_BY_ID } from '@/catalog/machines';
@@ -12,6 +13,7 @@ import { Card } from '@/ui/Card';
 import { Sheet } from '@/ui/Sheet';
 import { SecretSparkle } from '@/ui/SecretSparkle';
 import { SHELF_COPY, emptyPageLine } from './copy';
+import { keyed } from './stable';
 import s from './Sheets.module.css';
 import c from './ShelfScreen.module.css';
 
@@ -39,44 +41,71 @@ export function rewardLine(album: AlbumVM): string | null {
   return fillLine(EXCLUSIVE_LINES.fallback, { A: withArticle(name, true) });
 }
 
-/** A page's cover: its first pet she has, else its first pet, muted. */
-function coverOf(album: AlbumVM): { id: string; owned: boolean } {
-  const mine = album.pets.find((p) => p.owned > 0);
-  const first = mine ?? album.pets.find((p) => !p.hidden) ?? album.pets[0];
+/**
+ * A page of the Field Guide: a species page (`album`), the Moonlit page, or the wearables, treats,
+ * decor, plants and pots (DESIGN §8.5). The pets' own category is the species pages.
+ */
+export interface GuidePage {
+  id: string;
+  name: string;
+  owned: number;
+  total: number;
+  items: BookItemVM[];
+  album: AlbumVM | null;
+}
+
+/** The Field Guide's view: rebuilt only when her collection changes (never on a stroke). */
+export const guideView = keyed(
+  () => state.value.collection,
+  () => {
+    const guide = collectionView.peek();
+    const pages: GuidePage[] = guide.albums.map((a) => ({ id: a.id, name: a.name, owned: a.owned, total: a.total, items: a.pets, album: a }));
+    if (guide.moonlit.items.length > 0) pages.push({ id: 'moonlit', name: SHELF_COPY.fieldGuideSheet.moonlit, owned: guide.moonlit.owned, total: guide.moonlit.total, items: guide.moonlit.items, album: null });
+    for (const c of guide.categories) if (c.category !== 'pet' && c.total > 0) pages.push({ id: `things-${c.category}`, name: c.label, owned: c.owned, total: c.total, items: c.items, album: null });
+    return { owned: guide.owned, total: guide.total, pages };
+  },
+);
+
+/** A page's cover: its first thing she has, else its first thing, muted. */
+function coverOf(page: GuidePage): { id: string; owned: boolean } {
+  const mine = page.items.find((p) => p.owned > 0);
+  const first = mine ?? page.items.find((p) => !p.hidden) ?? page.items[0];
   return { id: first?.id ?? '', owned: !!mine };
 }
 
+const ofLine = (owned: number, total: number) => fillLine(SHELF_COPY.fieldGuideSheet.of, { owned: num(owned), total: num(total) });
+
 /**
- * The Field Guide on the Shelf (DESIGN §8.5): how much of it is hers, and a cover per species page.
- * Each page opens the Field Guide sheet there.
+ * The Field Guide on the Shelf (DESIGN §8.5): how much of it is hers (everything, as the pins count
+ * it), and a cover per page. Each page opens the Field Guide sheet there.
  */
-export function FieldGuideCard({ onOpen }: { onOpen: (page: string | null) => void }) {
-  const guide = collectionView.value;
-  const petsOwned = guide.albums.reduce((n, a) => n + a.owned, 0);
-  const petsTotal = guide.albums.reduce((n, a) => n + a.total, 0);
+export const FieldGuideCard = memo(function FieldGuideCard({ onOpen }: { onOpen: (page: string | null) => void }) {
+  const guide = guideView.value;
   return (
     <section class={c.guide} aria-labelledby="shelf-guide">
       <Card class={c.guideCard} padding="md">
         <div class={c.guideHead}>
-          <h2 id="shelf-guide" class={c.guideTitle}>
+          <h2 id="shelf-guide" class={c.guideTitle} aria-describedby="shelf-guide-count">
             {SHELF_COPY.fieldGuide}
           </h2>
-          <span class={c.guideMeta}>{fillLine(SHELF_COPY.fieldGuideSheet.of, { owned: num(petsOwned), total: num(petsTotal) })}</span>
+          <span class={c.guideMeta} id="shelf-guide-count">
+            {ofLine(guide.owned, guide.total)}
+          </span>
         </div>
         <ul class={c.pageRow}>
-          {guide.albums.map((a) => {
-            const cover = coverOf(a);
+          {guide.pages.map((p) => {
+            const cover = coverOf(p);
             return (
-              <li key={a.id}>
-                <button type="button" class={c.pageTile} data-complete={a.complete ? '' : undefined} onClick={() => onOpen(a.id)} aria-label={`${a.name}, ${fillLine(SHELF_COPY.fieldGuideSheet.of, { owned: a.owned, total: a.total })}`}>
+              <li key={p.id}>
+                <button type="button" class={c.pageTile} data-complete={p.album?.complete ? '' : undefined} onClick={() => onOpen(p.id)} aria-label={`${p.name}, ${ofLine(p.owned, p.total)}`}>
                   <span class={c.pageArt} aria-hidden="true">
                     {cover.id && <CollectibleArt id={cover.id} size={56} px={56} muted={!cover.owned} animated={false} />}
                   </span>
                   <span class={c.pageName} aria-hidden="true">
-                    {a.name}
+                    {p.name}
                   </span>
                   <span class={c.pageCount} aria-hidden="true">
-                    {a.owned} of {a.total}
+                    {ofLine(p.owned, p.total)}
                   </span>
                 </button>
               </li>
@@ -86,48 +115,48 @@ export function FieldGuideCard({ onOpen }: { onOpen: (page: string | null) => vo
       </Card>
     </section>
   );
-}
+});
 
 export interface FieldGuideSheetProps {
   open: boolean;
-  /** The page to show (an album id); null opens the first page. */
+  /** The page to show (a page id); null opens the first page. */
   page: string | null;
   onPage: (page: string) => void;
   onClose: () => void;
 }
 
 /**
- * The Field Guide (DESIGN §8.5, VOICE §17): one page per species, with the real art for everyone she
- * has and the rest at 35% saturation, "not yet". Only a Secret is a "?". Each thing says where it
- * comes from (the series, and when a seasonal edition visits); a full page shows its keepsake. A pet
- * she has opens its Pet Card.
+ * The Field Guide (DESIGN §8.5, VOICE §17): one page per species, then the Moonlit page and a page
+ * each for things to wear, treats, decor, plants and pots. The real art for everything she has and
+ * the rest at 35% saturation, "not yet"; only a Secret is a "?". Each thing says where it comes from
+ * (the series, and when a seasonal edition visits) and, once hers, its rarity in words; a full
+ * species page shows its keepsake. A pet she has opens its Pet Card.
  */
 export function FieldGuideSheet({ open, page, onPage, onClose }: FieldGuideSheetProps) {
-  const guide = collectionView.value;
-  const albums = guide.albums;
-  const current = albums.find((a) => a.id === page) ?? albums[0]!;
+  const pages = guideView.value.pages;
+  const current = pages.find((a) => a.id === page) ?? pages[0]!;
   const tabs = useRef<HTMLDivElement>(null);
   const select = (i: number) => {
-    const next = albums[(i + albums.length) % albums.length]!;
+    const next = pages[(i + pages.length) % pages.length]!;
     onPage(next.id);
-    tabs.current?.querySelectorAll<HTMLButtonElement>('[role="tab"]')[albums.indexOf(next)]?.focus();
+    tabs.current?.querySelectorAll<HTMLButtonElement>('[role="tab"]')[pages.indexOf(next)]?.focus();
   };
   const onKey = (e: KeyboardEvent) => {
-    const i = albums.indexOf(current);
+    const i = pages.indexOf(current);
     const step = { ArrowRight: 1, ArrowLeft: -1 }[e.key];
     if (step) {
       e.preventDefault();
       select(i + step);
     } else if (e.key === 'Home' || e.key === 'End') {
       e.preventDefault();
-      select(e.key === 'Home' ? 0 : albums.length - 1);
+      select(e.key === 'Home' ? 0 : pages.length - 1);
     }
   };
   return (
     <Sheet open={open} onClose={onClose} title={SHELF_COPY.fieldGuideSheet.title} size="lg" detents={['large']} initialFocus='[role="tab"][aria-selected="true"]'>
       <div class={s.guide}>
         <div class={s.tabs} role="tablist" aria-label={SHELF_COPY.fieldGuideSheet.pages} ref={tabs} onKeyDown={onKey}>
-          {albums.map((a) => (
+          {pages.map((a) => (
             <button
               key={a.id}
               type="button"
@@ -140,32 +169,38 @@ export function FieldGuideSheet({ open, page, onPage, onClose }: FieldGuideSheet
               onClick={() => onPage(a.id)}
             >
               {a.name}
-              <span class={s.tabCount}>
+              <span class={s.tabCount} aria-hidden="true">
                 {a.owned}/{a.total}
               </span>
+              <span class="sr-only">{`, ${ofLine(a.owned, a.total)}`}</span>
             </button>
           ))}
         </div>
-        <Page album={current} />
+        <Page page={current} />
       </div>
     </Sheet>
   );
 }
 
-function Page({ album }: { album: AlbumVM }) {
+function Page({ page }: { page: GuidePage }) {
   const pets = state.value.pets;
-  const reward = rewardLine(album);
-  const items = album.pets;
+  const album = page.album;
+  const reward = album ? rewardLine(album) : null;
+  const items = page.items;
   // The page's own series is said once, in its header; a tile names its source only when it differs.
-  const series = useMemo(() => mostCommon(items.map((i) => i.from)), [items]);
+  const series = useMemo(() => (album || page.id === 'moonlit' ? mostCommon(items.map((i) => i.from)) : null), [items, album, page.id]);
   return (
-    <div class={s.page} role="tabpanel" id="guide-page" aria-labelledby={`guide-tab-${album.id}`} tabIndex={0}>
+    <div class={s.page} role="tabpanel" id="guide-page" aria-labelledby={`guide-tab-${page.id}`} tabIndex={0}>
       <div class={s.pageHead}>
-        <h3 class={s.pageTitle}>{album.name}</h3>
-        <span class={s.pageMeta}>{fillLine(SHELF_COPY.fieldGuideSheet.of, { owned: album.owned, total: album.total })}</span>
+        <h3 class={s.pageTitle} aria-describedby="guide-page-count">
+          {page.name}
+        </h3>
+        <span class={s.pageMeta} id="guide-page-count">
+          {ofLine(page.owned, page.total)}
+        </span>
       </div>
       {series && <p class={s.pageFrom}>{series}</p>}
-      {album.complete && (
+      {album?.complete && (
         <div class={s.reward}>
           {album.reward && (
             <span class={s.rewardArt} aria-hidden="true">
@@ -175,7 +210,7 @@ function Page({ album }: { album: AlbumVM }) {
           <p class={s.rewardText}>{reward ?? SHELF_COPY.fieldGuideSheet.pageFull}</p>
         </div>
       )}
-      {album.owned === 0 && <p class={s.empty}>{emptyPageLine(album.name, pageCabinet(album))}</p>}
+      {album && album.owned === 0 && <p class={s.empty}>{emptyPageLine(album.name, pageCabinet(album))}</p>}
       <ul class={s.grid}>
         {items.map((item) => (
           <li key={item.id}>
@@ -211,13 +246,16 @@ function Tile({ item, name, series }: { item: BookItemVM; name: string | null; s
         )}
       </span>
       <span class={s.tileName}>{item.hidden ? SHELF_COPY.fieldGuideSheet.secret : (name ?? item.name)}</span>
-      <span class={s.tileMeta}>{owned ? (name ? item.name : where || item.name) : SHELF_COPY.fieldGuideSheet.notYet}</span>
+      {owned && name && <span class={s.tileMeta}>{item.name}</span>}
+      {owned && item.rarityLabel && <span class={s.tileRarity}>{item.rarityLabel}</span>}
+      {owned && !name && where && <span class={s.tileMeta}>{where}</span>}
+      {!owned && <span class={s.tileMeta}>{SHELF_COPY.fieldGuideSheet.notYet}</span>}
       {!owned && where && <span class={s.tileFrom}>{where}</span>}
     </>
   );
   if (owned && name) {
     return (
-      <button type="button" class={s.tile} data-owned="" onClick={() => openPetCard(item.id)} aria-label={`${name}, ${item.name}`}>
+      <button type="button" class={s.tile} data-owned="" onClick={() => openPetCard(item.id)} aria-label={`${name}, ${item.name}, ${item.rarityLabel}`}>
         {body}
       </button>
     );
@@ -228,5 +266,3 @@ function Tile({ item, name, series }: { item: BookItemVM; name: string | null; s
     </div>
   );
 }
-
-

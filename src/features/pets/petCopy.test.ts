@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { lint, PET_PRONOUN } from '../../../tests/unit/voiceLint';
 import { resetCaptions, captionFor, idleContext, touchContext } from '../shelf/captions';
-import { decorLabel, emptyPageLine, openedLine, shortLine, variantLine } from '../shelf/copy';
+import { decorLabel, emptyPageLine, jarLine, openedLine, shortLine } from '../shelf/copy';
 import { boopLabel, keepsakeCaption, knownForLine, levelLine, levelName, likesLine, memoryLine, servingsLine, spotLine } from './petCopy';
 
 const habits = [
@@ -78,11 +78,12 @@ describe('the Shelf’s words', () => {
     expect(voiced(shortLine('pond', 400, 142))).toBe('The Saucer Pond is 400 coins. There are 142 in the jar.');
     expect(voiced(shortLine('quilt', 2500, 1))).toBe('The Quilt is 2,500 coins. There’s 1 in the jar.');
     expect(voiced(shortLine('grass', 700, 0))).toBe('The Cat-grass Tray is 700 coins. Watering fills the jar.');
+    expect(voiced(jarLine(142))).toBe('There are 142 coins in the jar.');
+    expect(voiced(jarLine(1))).toBe('There’s 1 coin in the jar.');
+    expect(voiced(jarLine(0))).toBe('Watering fills the jar.');
   });
 
-  it('names: species once, keepsakes by what they are, the empty page by its cabinet', () => {
-    expect(variantLine('Calico', 'cat')).toBe('Calico · Cat');
-    expect(variantLine('Black Cat', 'cat')).toBe('Black Cat');
+  it('names: keepsakes by what they are, the empty page by its cabinet', () => {
     expect(decorLabel({ name: 'read', keepsake: { kind: 'read' } })).toBe('A paper bookmark');
     expect(decorLabel({ name: 'Yarn Ball' })).toBe('Yarn Ball');
     expect(voiced(emptyPageLine('Cows', 'No. 02'))).toBe('Cows come from the No. 02 cabinet.');

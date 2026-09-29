@@ -100,13 +100,12 @@
 
 .placeChip {
   min-height: 44px;
-  padding: 0 16px;
+  padding: 0 14px;
   border: 0;
   border-radius: var(--r-pill);
   background: transparent;
-  box-shadow: inset 0 0 0 1px var(--line);
   color: var(--ink-2);
-  font: 700 var(--fs-caption) / 1.2 var(--font-body);
+  font: 600 var(--fs-caption) / 1.2 var(--font-body);
   cursor: pointer;
   transition:
     background var(--t-micro) var(--ease-out),
@@ -115,11 +114,13 @@
 .placeChip:hover {
   color: var(--ink);
 }
+/* The place in view: a raised paper pill; the others are just their names. */
 .placeChip[aria-current='true'] {
   background: var(--card);
   color: var(--ink);
+  font-weight: 800;
   box-shadow:
-    inset 0 0 0 1px var(--control-border),
+    inset 0 0 0 1px var(--line),
     var(--shadow-sm);
 }
 .placeChip:focus-visible {
@@ -131,6 +132,9 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--s-2);
+}
+.toolRow[data-count='1'] {
+  grid-template-columns: minmax(0, 1fr);
 }
 .toolRow > * {
   min-width: 0;
@@ -156,11 +160,15 @@
   margin-top: var(--s-4);
 }
 
-.groupTitle {
+.groupHead {
   display: flex;
   align-items: baseline;
   gap: var(--s-2);
   margin: 0 0 var(--s-2);
+}
+
+.groupHead .groupTitle {
+  margin: 0;
   color: var(--ink);
   font: 700 var(--fs-caption) / 1.3 var(--font-body);
 }
@@ -229,13 +237,15 @@
 }
 
 .petName {
+  display: -webkit-box;
   max-width: 100%;
   overflow: hidden;
   font-family: var(--font-display);
   font-size: 0.9375rem;
-  line-height: 1.25;
-  white-space: nowrap;
-  text-overflow: ellipsis;
+  line-height: 1.2;
+  overflow-wrap: break-word;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
 }
 
 .petWhere {
@@ -392,11 +402,17 @@
   font: 600 var(--fs-micro) / 1.3 var(--font-body);
 }
 
-.placeShort {
-  margin: 0;
+.placesJar {
+  margin: calc(-1 * var(--s-1)) 0 var(--s-3);
   color: var(--ink-2);
-  font-size: var(--fs-micro);
+  font-size: var(--fs-caption);
   line-height: 1.4;
+}
+
+.placePrice {
+  color: var(--ink);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
 }
 
 /* ---------- decor edit tray ---------- */
@@ -419,8 +435,11 @@
   gap: var(--s-3);
 }
 
-.trayHead .trayTitle {
+.trayTitles {
   display: grid;
+}
+
+.trayHead .trayTitle {
   outline: none;
   margin: 0;
   color: var(--ink);
@@ -552,14 +571,24 @@
     align-items: center;
   }
 
+  /* Every opened place fits: the names wrap rather than hide past the edge. */
+  .placeNav {
+    min-width: 0;
+  }
   .placeNav ul {
+    flex-wrap: wrap;
     margin: 0;
     padding: 2px;
+    overflow: visible;
   }
 
-  .toolRow {
+  .toolRow,
+  .toolRow[data-count='1'] {
     grid-column: 2;
-    grid-template-columns: repeat(2, auto);
+    grid-template-columns: repeat(var(--tools, 2), auto);
+  }
+  .toolRow[data-count='1'] {
+    --tools: 1;
   }
 
   .petRow {

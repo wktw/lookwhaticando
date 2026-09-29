@@ -19,7 +19,6 @@ export const PET_CARD_UI = {
   out: 'Out on the Shelf',
   outHint: 'Indoors, {name} rests and waits for a place on the Shelf.',
   noRoom: 'The Shelf has room for {count} pets out. Bring someone indoors first.',
-  placeFull: '{Place} has room for 2.',
   keep: 'Keep it',
   cancel: 'Not now',
   nameHint: 'Or one of these',

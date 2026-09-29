@@ -7,8 +7,12 @@ import type { PlaceId, Species } from '@/catalog/types';
 import { getCollectible } from '@/catalog/collectibles';
 import { PLACE_BY_ID } from '@/catalog/places';
 import type { ShelfDecor, ShelfPet, SillExtras, SillPot } from '@/art/scene';
-import { decorToScene } from '@/art/scene/decorPlace';
-import type { AppState, DateKey, Habit } from '@/state/types';
+import { decorToScene, sceneToFrac, type DecorFloor } from '@/art/scene/decorPlace';
+import { PLACE_SCENES, type RoomPlaceId } from '@/art/scene/places';
+import { ROOM } from '@/art/scene/palette';
+import { SILL_SPEC } from '@/art/scene/sill/layout';
+import { sillFloor } from '@/art/scene/sill/world';
+import type { AppState, Habit } from '@/state/types';
 import type { PetSummaryVM, ShelfVM, SillPotVM, MemoryShelfVM } from '@/state/selectors';
 import { MAX_DECOR_PER_PLACE } from '@/domain/shelf';
 
@@ -121,6 +125,25 @@ export function newDecorSpot(count: number): { x: number; y: number } {
   return { x: xs[count % xs.length]!, y: count % 2 ? 0.45 : 0.7 };
 }
 
+/**
+ * The floor a place's stored decor fractions are measured against, in that segment's room units: the
+ * Sill's natural length for its pots (`sillFloor`, DESIGN §9.4), or a place's own ground.
+ */
+export function decorFloorOf(place: PlaceId, pots: number): DecorFloor {
+  if (place === 'sill') return sillFloor(SILL_SPEC, pots);
+  const g = PLACE_SCENES[place as RoomPlaceId].ground(ROOM.day, SILL_SPEC.scale.pet);
+  return { x0: g.x0, x1: g.x1, d0: g.d0, d1: g.d1 };
+}
+
+/**
+ * Where a new thing lands (a stored `x`): the middle of the view, measured on the place's own floor.
+ * `viewMid` and `segLeft` are in room units along the scene (the scroll position over the unit).
+ */
+export function decorXAtView(place: PlaceId, pots: number, viewMid: number, segLeft: number, nudge = 0): number {
+  const floor = decorFloorOf(place, pots);
+  return +Math.min(0.95, Math.max(0.05, sceneToFrac(floor, viewMid - segLeft, floor.d0).x + nudge)).toFixed(4);
+}
+
 /* ------------------------------------------------------------------ */
 /* Places                                                              */
 /* ------------------------------------------------------------------ */
@@ -221,6 +244,3 @@ export function speciesOfId(id: string): Species | null {
   const base = getCollectible(id.replace(/^moonlit:/, ''));
   return base?.category === 'pet' ? base.species : null;
 }
-
-/** Whether a stored day is today (for "Came home: today"). */
-export const isDay = (a: DateKey, b: DateKey): boolean => a === b;
