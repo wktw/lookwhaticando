@@ -1,0 +1,162 @@
+/* Meadow scene layout. Everything is sized from the scene height (cqh), so wide scenes
+   show more meadow instead of stretching. Only transform/opacity animate. */
+
+.scene {
+  position: relative;
+  overflow: hidden;
+  container-type: size;
+  isolation: isolate;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.layer,
+.fill {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  pointer-events: none;
+}
+
+/* A stacking context per band keeps each band's z-indices (depth sorting) to itself. */
+.band {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+
+.ground {
+  composes: band;
+  pointer-events: auto;
+}
+
+/* The tree hugs the left edge: on narrow portrait screens it slides partly out of frame so
+   the meadow keeps its room; on wide screens it steps a little inward. */
+.tree {
+  position: absolute;
+  bottom: 0;
+  height: 100%;
+  aspect-ratio: 700 / 1000;
+  max-width: none;
+  left: -4%;
+  left: clamp(-24cqh, 46cqw - 41cqh, 4cqh);
+  pointer-events: none;
+}
+
+.fence {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  height: 100%;
+  aspect-ratio: 1400 / 1000;
+  max-width: none;
+  pointer-events: none;
+}
+
+.swing {
+  transform-box: view-box;
+  transform-origin: 339px 360px;
+  animation: swing 4.2s ease-in-out infinite alternate;
+}
+
+.lantern {
+  transform-box: view-box;
+  transform-origin: 282px 368px;
+  animation: swing 5.2s ease-in-out -1.6s infinite alternate;
+}
+
+@keyframes swing {
+  from {
+    transform: rotate(-3.5deg);
+  }
+  to {
+    transform: rotate(3.5deg);
+  }
+}
+
+.mist {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 29%;
+  height: 22%;
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0), rgba(255, 250, 246, 0.5) 55%, rgba(255, 255, 255, 0));
+  pointer-events: none;
+}
+
+.decor {
+  position: absolute;
+  max-width: none;
+  pointer-events: none;
+}
+
+.bob {
+  animation: bob 5s ease-in-out infinite alternate;
+}
+
+@keyframes bob {
+  from {
+    transform: translateY(-2%) rotate(-1.5deg);
+  }
+  to {
+    transform: translateY(2%) rotate(1.5deg);
+  }
+}
+
+.planter {
+  position: absolute;
+  left: 3%;
+  bottom: -1%;
+  pointer-events: none;
+}
+
+.plant {
+  position: absolute;
+  top: 0;
+}
+
+/* Night fireflies: a slow wander plus a glow pulse. */
+.fireflies {
+  composes: band;
+  pointer-events: none;
+}
+
+.firefly {
+  position: absolute;
+  width: 3.2cqh;
+  height: 3.2cqh;
+  border-radius: 50%;
+  background: radial-gradient(circle, #fffbe0 0 13%, rgba(255, 236, 150, 0.9) 22%, rgba(255, 229, 147, 0.32) 42%, rgba(255, 229, 147, 0) 70%);
+  animation:
+    wander var(--dur) ease-in-out var(--delay) infinite,
+    glow 3.1s ease-in-out var(--delay) infinite alternate;
+  will-change: transform, opacity;
+}
+
+@keyframes wander {
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+  25% {
+    transform: translate(calc(var(--dir) * 3cqh), -2.5cqh);
+  }
+  50% {
+    transform: translate(calc(var(--dir) * 5cqh), 0.5cqh);
+  }
+  75% {
+    transform: translate(calc(var(--dir) * 1.5cqh), 2.5cqh);
+  }
+}
+
+@keyframes glow {
+  from {
+    opacity: 0.25;
+  }
+  to {
+    opacity: 1;
+  }
+}
