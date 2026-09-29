@@ -921,3 +921,92 @@ and a caption, output 9:16, 4:5 or 1:1, saved to a Scrapbook in IndexedDB. Postc
 contexts × ≥ 4 lines, 60 Mochi lines, 30 data-aware templates; no line repeats within the last 5 used in a context).
 The register is warm and dry, like a millennial group chat. Currency and rarity symbols are inline SVG tokens (`{coin}`,
 `{star}`, `{dust}`, `{ticket}`), never 🪙 in copy. Decorative emoji: at most one per string, from Emoji ≤ 12.0.
+
+### 13.11 Accessibility, legibility & calm (from the a11y + judge reviews, adopted)
+
+**Contrast (enforced by `tests/unit/contrast.test.ts`).** Every text pair is ≥ 4.5:1 and every UI pair ≥ 3:1, in both themes.
+Labels and icons on any −500 face (candy buttons, pills, chips, price tags) use `--on-accent` (#3A2A33), never white and
+never inherited ink. `--ink-3` is readable secondary text. `--ink-disabled` is for disabled/decorative marks only.
+`--focus` draws the 3px focus ring (with a 2px card halo). `--control-border` draws unchecked rings, input borders and
+toggle tracks. Text over illustrated scenes sits on a `--card` chip at 85% opacity (radius 16), never directly on sky.
+Currency icons always carry the cocoa outline, even at 16px.
+
+**Never color or motion alone.** Capsule shells carry **static patterns** that survive reduced motion: Classic solid ·
+Special two-tone with a white seam · Rare star-speckled with a butter band · Super rare holographic stripes · Secret
+holo stripes with an embossed "?". Rarity pills always print the tier word. Unowned collectibles get a dashed outline
+and a "?", and unearned badges are outline-only medals. **Day-state glyphs** are shared by the week strip, calendar, quilt
+and detail views: done = sage disk + check; tiny = sage-300 disk + check; partial = sage arc on a track; none = a dashed
+control-border ring (never red, never ✕); rest/off = lavender moon; paused = small leaf; unscheduled = numeral only;
+future = ink-3 numeral, not focusable; today = bold numeral + dot, `aria-current="date"`.
+
+**Screen-reader & keyboard contract.** Target-1 habits are a `<button aria-pressed>` named with the habit, and the subtitle
+is attached via `aria-describedby`. Count habits: "Add 1 glass to Drink water" with "5 of 8 glasses" described. Once met:
+"Drink water, done, adjust count". Every long-press, stroke, drag or carry has a button or menu equivalent. The week strip is a
+`radiogroup` with roving tabindex ("Saturday, September 27, 3 of 5 done"). Day progress is a `progressbar` with
+`aria-valuetext` ("3 of 5 done today"). Capsule flow: after Insert, focus moves to "Turn the crank" (activating it
+auto-turns), then to "Open capsule, Rare shell". Each crack is announced, and the reveal is announced as a sentence. The live region
+announces once per burst, after 1.2 s of quiet ("Walk and Read done, plus 10 coins").
+
+**Today layout budget.** At scroll 0 the first habit card starts ≤ `safe-area-top + 260px` on 393×852 and 375×667 (a
+Playwright assertion). The greeting, date and wallet pill live *inside* the windowsill band (greeting top-left, wallet
+top-right). The day progress is a vine along the sill ledge with a chip ("3 of 5 · +18{coin}"). Collapsed band (64 px): short
+date, mini progress ring, wallet. The week strip is 56 px (letter above a 32 px ring with the numeral). Monthly habits that
+aren't met yet sit in one collapsible "This month" row at the end. The ⋯ button has a 44×44 hit area, ≥ 8 px from the check
+button. Grouping is computed on load and on day change, never on tap, so the list never jumps.
+
+**Backdating is never silent.** A selected past day shows a sticky 44 px lavender banner, "Logging for Sat, Sep 27 · Back
+to today". The list background shifts to `--bg-2`, button names end "for Saturday", and Undo reads "Logged for Sat · Undo". The
+selection resets on day rollover, after ≥ 60 s hidden, and on leaving Today. The strip draws a hairline gap at the week-start boundary.
+
+**Legible economy.** Sunshine is never shown as a number: Habit Detail says "4 more check-ins to Blooming". Stardust is
+always the jar icon and shows as a 10-segment ring around the star ("7/10 to your next star"). The **Wallet sheet**
+("What can I get?") gives live lines: "75 coins → 3 capsules", "5 stars → 1 Dreamy Night pull, or wish for any Classic",
+"1 ticket → a free pull on any machine", "7/10 stardust → your next star". The first time each resource is earned, its
+celebration includes a ≤ 12-word explainer. The check-in that first reaches the capsule price shows "+5 · capsule ready!"
+(once a day, not under Quiet rewards).
+
+**Celebration queue** (`fx/celebrationQueue.ts`). All events caused by one action (within 1200 ms) merge into one banner
+("Perfect day! Walk is Blooming · +40{coin} +2{star}"). Only the highest-priority event gets the big effect: plant
+Blooming/Evergreen > Showing-up rung > perfect day > streak rung > badge > friendship level > period goal. At most one confetti per
+action. One banner at a time, anchored in the windowsill band (never over the list or the tab bar), 3.5 s, tap or swipe
+up to dismiss. **Burst rule**: a completing check-in within 1.2 s of the previous one still plays its own card squish, check, chip and haptic, but only one
+coin flies at a time (later amounts join it and the counter rolls once), and the buddy hops at most once per 1.2 s.
+**Rising chime**: within a session, the n-th check-in's chime climbs the E-major pentatonic (E5 F♯5 G♯5 B5 C♯6 E6…).
+**Nothing opens modally at launch.** Letters and bouquets arrive on the windowsill ("You've got a letter") and open on tap.
+
+**Reduced motion (mapping).** Check-in: instant fill, the chip fades in place, no squish/particles/flight. Crank: static dome,
+300 ms crossfade to the capsule. Reveal: 200 ms fade, a static glow, no confetti or shake. Rarity: static patterns only. Easing:
+no overshoot. Sheets: opacity + ≤ 8 px translate. Meadow and windowsill: pets hold poses and relocate by crossfade at most
+once per 30 s, and clouds/fireflies/particles are off. Blinking and breathing (≤ 1.5% scale) stay. `fx/motion.ts` exports a `motion`
+signal mirrored to `<html data-motion>`.
+
+**Dynamic Type.** The root follows iOS text size (`font: -apple-system-body`, 17 px default). Display sizes are capped
+(`min(2rem, 48px)` etc.). If the root is ≥ 21 px, `<html data-type="large">` hides tab labels (the icons keep their names), lets the
+week strip scroll, stacks card subtitles, and grows the check button to max(48px, 2.5rem). There must be no horizontal overflow at 320 px or at
+200% zoom.
+
+**Onboarding ≤ 90 s** to the first pull, every step skippable: the intro capsule (a 2 s animation, not a pull) with an optional
+name on the same screen → 8 starter chips (max 3, "Start small. You can add more anytime.", editable inline) → "Anything
+already done today?" → first check-in → top-up → pick a series → pull. The explainer moves to You › About › "How it works".
+Day-start time and birthday move out of onboarding (into Preferences and Profile).
+
+**Rests in numbers.** "26 of 28 days · 2 rests 🌙" under "Last 30 days"; aggregate "…· 2 days off". Letters mention rests only
+as a positive fact. Rolling windows end today if today already counts, else yesterday.
+
+**Card status line** (first match wins, after the anchor): count in progress "5/8 glasses" · tiny logged "Tiny version ✓" ·
+flexible "2 of 3 this week · 1 more by Sun" / "Done for the week ✓" · streak ≥ 3 "12 days" ("12 in a row" for day-sets,
+"Kept it up 12 days" for avoid) · ≥ 10 expected "26 of the last 30 days" · otherwise "Just planted 🌱".
+
+**Secrets & visibility.** On lineups, albums and the Well, unowned items show their real art at 35% saturation with a dashed
+outline and "not yet". Only the Secret is a sparkling "?" ("1 secret friend hides in this series"). A seasonal series not yet
+visited shows only its leaflet cover. The Well shows an unowned Secret as a "?" tile, and granting it plays the full reveal.
+Moonlit variants have their own album page. In a Dreamy pull that rolls Rare, all eligible moonlit variants share **one**
+rare slot's weight.
+
+**Backup nudges** start on the 14th show-up day, then come every ≥ 30 days *and* ≥ 10 new show-up days (never for dormant users),
+as a soft dismissible card after a check-in, never modal. You › Data shows "Last backup: 12 days ago" and "Your
+meadow lives on this device. Removing the app from your Home Screen removes it too." Troubleshooting never suggests
+reinstalling.
+
+**Quilt.** Under 600 px it is a horizontally scrolling strip (14 px patches, month initials, opening at the current week). At 600 px and up
+it shows the full 53×7 grid. Days before `startedOn` aren't drawn. Month bands open the calendar. The grid is aria-hidden with a text summary.

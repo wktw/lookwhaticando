@@ -37,7 +37,7 @@ export const MACHINES: readonly MachineDef[] = [
     tagline: 'Bunnies, frogs, blossoms, and new plants for your habits.',
     currency: 'coins',
     price: 25,
-    theme: { body: '#C3DFB4', trim: '#FFC4D3', glass: '#FDF6F8', capsules: ['#FFC4D3', '#FFE9EF', '#C3DFB4', '#FFFFFF', '#F0C6F0'], ink: '#3E6632' },
+    theme: { body: '#C3DFB4', trim: '#FFC4D3', glass: '#FDF6F8', capsules: ['#FFC4D3', '#FFE9EF', '#C3DFB4', '#FFFFFF', '#F0C6F0'], ink: '#365A2C' },
     odds: { ...COIN_ODDS },
   },
   {

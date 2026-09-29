@@ -90,9 +90,24 @@ svg {
 }
 
 :focus-visible {
-  outline: 3px solid var(--lavender-500);
+  outline: 3px solid var(--focus);
   outline-offset: 2px;
+  box-shadow: 0 0 0 2px var(--card);
   border-radius: 12px;
+}
+
+/* iOS Dynamic Type: the root follows the system text size (17px default). */
+@supports (font: -apple-system-body) {
+  html {
+    font: -apple-system-body;
+    font-family: var(--font-body);
+  }
+}
+
+input,
+textarea,
+select {
+  font-size: max(16px, 1rem);
 }
 
 ::selection {

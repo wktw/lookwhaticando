@@ -14,8 +14,10 @@
   --card: #ffffff;
   --card-2: #fffcf8;
   --ink: #4a3540;
-  --ink-2: #7a6370;
-  --ink-3: #b7a3ad;
+  --ink-2: #6e5764;
+  --ink-3: #806472;
+  /* Disabled controls & decorative glyphs only; never readable text. */
+  --ink-disabled: #b7a3ad;
   --line: #f0e2da;
   --scrim: rgba(74, 53, 64, 0.32);
   --cocoa: #5a3e45; /* illustration outline */
@@ -24,23 +26,23 @@
   --blush-100: #ffe9ef;
   --blush-300: #ffc4d3;
   --blush-500: #f58caa;
-  --blush-700: #c23f68;
+  --blush-700: #ba3c64;
   --peach-100: #ffeedf;
   --peach-300: #ffcba8;
   --peach-500: #ff9e6e;
-  --peach-700: #b85a2b;
+  --peach-700: #ab5428;
   --butter-100: #fff7d9;
   --butter-300: #ffe593;
   --butter-500: #f6c544;
-  --butter-700: #9a7200;
+  --butter-700: #8c6800;
   --sage-100: #ebf5e6;
   --sage-300: #c3dfb4;
   --sage-500: #8ec07c;
-  --sage-700: #4f7f41;
+  --sage-700: #4a773d;
   --mint-100: #e3f7f1;
   --mint-300: #b3e6d6;
   --mint-500: #6ccbae;
-  --mint-700: #2e7d66;
+  --mint-700: #2d7a64;
   --sky-100: #e7f3fd;
   --sky-300: #bbdcf6;
   --sky-500: #7db7e8;
@@ -63,6 +65,11 @@
   --coin: var(--butter-500);
   --coin-ink: var(--butter-700);
   --star: #ffd65c;
+  /* Labels/icons on any -500 face (buttons, pills, chips). Same in both themes; never white. */
+  --on-accent: #3a2a33;
+  --focus: #6a51bf;
+  /* Unchecked rings, input borders, toggle tracks: ≥3:1 on every surface. */
+  --control-border: #9a7f8c;
 
   /* Rarity */
   --rarity-common: var(--sage-500);
@@ -138,9 +145,12 @@
   --card-2: #3a3152;
   --ink: #f8eef3;
   --ink-2: #cbbcd0;
-  --ink-3: #8d7f9c;
+  --ink-3: #b0a6ba;
+  --ink-disabled: #8d7f9c;
   --line: #43395c;
   --scrim: rgba(10, 6, 20, 0.55);
+  --focus: #a993ea;
+  --control-border: #9083b5;
 
   --blush-100: #4a3048;
   --blush-300: #8a4d6e;
@@ -151,7 +161,7 @@
   --peach-500: #ff9e6e;
   --peach-700: #ffc2a0;
   --butter-100: #463d30;
-  --butter-300: #8a7440;
+  --butter-300: #7a6536;
   --butter-500: #f6c544;
   --butter-700: #ffe08a;
   --sage-100: #2f3b36;
@@ -189,9 +199,12 @@
     --card-2: #3a3152;
     --ink: #f8eef3;
     --ink-2: #cbbcd0;
-    --ink-3: #8d7f9c;
+    --ink-3: #b0a6ba;
+    --ink-disabled: #8d7f9c;
     --line: #43395c;
     --scrim: rgba(10, 6, 20, 0.55);
+    --focus: #a993ea;
+    --control-border: #9083b5;
     --blush-100: #4a3048;
     --blush-300: #8a4d6e;
     --blush-700: #ffb3c8;
@@ -199,7 +212,7 @@
     --peach-300: #8c5a4a;
     --peach-700: #ffc2a0;
     --butter-100: #463d30;
-    --butter-300: #8a7440;
+    --butter-300: #7a6536;
     --butter-700: #ffe08a;
     --sage-100: #2f3b36;
     --sage-300: #4d6a4f;
