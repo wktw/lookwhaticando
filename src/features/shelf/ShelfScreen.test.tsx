@@ -31,11 +31,18 @@ afterEach(() => {
   view = null;
 });
 
+/** Mounts the Shelf and waits for the paper below the scene (it follows the first paint). */
+async function mountShelf() {
+  view = mount(<ShelfScreen />);
+  await until(() => view!.root.querySelector('section[aria-labelledby="shelf-places"]'), 'the paper below the scene');
+  return view;
+}
+
 const dialog = (text: string) => Array.from(document.querySelectorAll<HTMLElement>('[role="dialog"],[role="alertdialog"]')).find((d) => d.textContent?.includes(text));
 
 describe('the Shelf', () => {
   it('has one h1, the scene as a labelled group, and every pet as a button to its card', async () => {
-    view = mount(<ShelfScreen />);
+    const view = await mountShelf();
     expect(view.root.querySelectorAll('h1')).toHaveLength(1);
     expect(view.root.querySelector('[role="group"][aria-label^="The Shelf"]')).not.toBeNull();
     const pets = Object.values(demo.pets);
@@ -49,16 +56,16 @@ describe('the Shelf', () => {
   });
 
   it('opens on a line from the sill about a pet out, by name', async () => {
-    view = mount(<ShelfScreen />);
+    const view = await mountShelf();
     const line = await until(() => view!.root.querySelector('[data-caption]')?.textContent, 'the caption');
     const names = Object.values(demo.pets).filter((p) => p.inMeadow).map((p) => p.name);
     expect(names.some((n) => line.includes(n))).toBe(true);
   });
 
-  it('with no pets yet, points her to her first capsule', () => {
+  it('with no pets yet, points her to her first capsule', async () => {
     const empty = { ...createInitialState(Date.parse('2026-09-29T10:00:00')), profile: { name: 'Sam', onboarded: true, createdAt: 0 } };
     state.value = empty;
-    view = mount(<ShelfScreen />);
+    const view = await mountShelf();
     expect(view.root.textContent).toContain('The sill is ready for someone.');
     expect(view.root.textContent).toContain('Your first capsule is on the Capsules tab.');
     expect(view.root.querySelectorAll('[data-pet-tile]')).toHaveLength(0);
@@ -66,7 +73,7 @@ describe('the Shelf', () => {
 
   it('opens a place with coins, asking first, and says who moved in', async () => {
     state.value = { ...demo, wallet: { ...demo.wallet, coins: 5000 } };
-    view = mount(<ShelfScreen />);
+    const view = await mountShelf();
     const locked = demo.shelf.places.includes('bookshelf') ? 'quilt' : 'bookshelf';
     await click(view.root.querySelector(`[data-open-place="${locked}"]`), 'Open for… coins');
     const ask = await until(() => dialog('?'), 'the confirm');
@@ -76,9 +83,9 @@ describe('the Shelf', () => {
     expect(toasts.value.at(-1)?.message).toMatch(/is open/);
   });
 
-  it('says what a place costs when the jar is short, and offers no button', () => {
+  it('says what a place costs when the jar is short, and offers no button', async () => {
     state.value = { ...demo, wallet: { ...demo.wallet, coins: 12 } };
-    view = mount(<ShelfScreen />);
+    const view = await mountShelf();
     expect(view.root.querySelector('[data-open-place]')).toBeNull();
     expect(view.root.textContent).toContain('There are 12 in the jar.');
   });
@@ -92,7 +99,7 @@ describe('the Shelf', () => {
       collection: { ...demo.collection, 'decor-yarn-ball': { count: placedYarn + 1, firstAt: 0 } },
     };
     state.value = withDecor;
-    view = mount(<ShelfScreen />);
+    const view = await mountShelf();
     await click(buttonWithText('Decorate'), 'Decorate');
     expect(view.root.querySelector('[data-editing]')).not.toBeNull();
     // Every placed thing becomes a keyboard button in the scene.
@@ -114,7 +121,7 @@ describe('the Shelf', () => {
   });
 
   it('the scene’s keys flip and remove a thing in edit mode', async () => {
-    view = mount(<ShelfScreen />);
+    const view = await mountShelf();
     await click(buttonWithText('Decorate'), 'Decorate');
     const hit = view.root.querySelector<HTMLButtonElement>('[data-edit]')!;
     const id = hit.dataset.edit!;
@@ -127,7 +134,7 @@ describe('the Shelf', () => {
 
   it('the basket sheet bakes a tray for 10 coins', async () => {
     state.value = { ...demo, wallet: { ...demo.wallet, coins: 100 } };
-    view = mount(<ShelfScreen />);
+    const view = await mountShelf();
     await click(buttonWithText('Basket'), 'Basket');
     const sheet = await until(() => dialog('The pantry'), 'the basket sheet');
     const bake = sheet.querySelector<HTMLButtonElement>('button[aria-label^="Bake a tray"]')!;
@@ -138,7 +145,7 @@ describe('the Shelf', () => {
   });
 
   it('the Field Guide opens on a page, and arrow keys move between pages', async () => {
-    view = mount(<ShelfScreen />);
+    const view = await mountShelf();
     await click(view.root.querySelector('[aria-label^="Cows,"]'), 'the Cows page');
     const tabs = await until(() => document.querySelector<HTMLElement>('[role="tablist"]'), 'the pages');
     const selected = () => tabs.querySelector('[aria-selected="true"]')?.textContent ?? '';

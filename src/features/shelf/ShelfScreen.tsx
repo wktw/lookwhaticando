@@ -3,8 +3,7 @@
  * at pet eye level in the real Windowlight (the lamp after dark). The pets out roam by species,
  * personality and the hour; a tap gets a look up and a name tag that opens the Pet Card, and a stroke,
  * a boop or a carry pays the (capped) friendship through `petPet`. Under the scene: the line from the
- * sill, the places to jump to, the tools (Decorate, Basket, Field Guide), the pets, the Field Guide and
- * the places map.
+ * sill, the places to jump to, Decorate and Basket, then the pets, the Field Guide and the places map.
  */
 import { computed } from '@preact/signals';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'preact/hooks';
@@ -68,6 +67,23 @@ type Sheet = 'basket' | 'guide' | null;
 
 const hourOf = (ms: number) => new Date(ms).getHours();
 
+/**
+ * True from the frame after the first paint: the paper below the scene (every pet's portrait, the
+ * Field Guide covers, a picture of each place) waits one frame, so the scene arrives first.
+ */
+function useAfterFirstPaint(): boolean {
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    let t = 0;
+    const raf = requestAnimationFrame(() => (t = window.setTimeout(() => setReady(true), 0)));
+    return () => {
+      cancelAnimationFrame(raf);
+      clearTimeout(t);
+    };
+  }, []);
+  return ready;
+}
+
 export function ShelfScreen() {
   const shelf = shelfView.value;
   const pets = petsView.value;
@@ -81,6 +97,7 @@ export function ShelfScreen() {
   const [guidePage, setGuidePage] = useState<string | null>(null);
   const [inView, setInView] = useState<PlaceId>('sill');
   const [caption, setCaption] = useState<string>('');
+  const below = useAfterFirstPaint();
 
   const outById = useMemo(() => new Map(shelf.out.map((p) => [p.id, p])), [shelf.out]);
   const opened = scenePlaces.value;
@@ -235,7 +252,7 @@ export function ShelfScreen() {
     const seg = segments().find((x) => x.id === place);
     // Where she is looking in that place, so the new thing lands in view.
     const spot = newDecorSpot(n);
-    const x = el && seg ? Math.min(0.9, Math.max(0.1, (el.scrollLeft + el.clientWidth / 2 - seg.left) / seg.width + (spot.x - 0.5) * 0.3)) : spot.x;
+    const x = el && seg && seg.width > 0 ? Math.min(0.9, Math.max(0.1, (el.scrollLeft + el.clientWidth / 2 - seg.left) / seg.width + (spot.x - 0.5) * 0.3)) : spot.x;
     const id = placeDecor(itemId, place, x, spot.y);
     if (!id) return;
     haptic('tick');
@@ -333,16 +350,10 @@ export function ShelfScreen() {
           }}
         />
       ) : (
-        <ShelfTools
-          places={['sill', ...opened]}
-          inView={inView}
-          onGo={(p) => goTo(p)}
-          onDecorate={() => setEditing(true)}
-          onBasket={() => setSheet('basket')}
-        />
+        <ShelfTools places={['sill', ...opened]} inView={inView} onGo={(p) => goTo(p)} onDecorate={() => setEditing(true)} onBasket={() => setSheet('basket')} />
       )}
 
-      {empty ? (
+      {!below ? null : empty ? (
         <EmptyState
           class={s.empty}
           title={EMPTY_TITLE}
@@ -358,15 +369,17 @@ export function ShelfScreen() {
         <PetRoster out={shelf.out} indoors={shelf.indoors} capacity={shelf.capacity} onOpen={openPetCard} />
       )}
 
-      <div class={s.lower}>
-        <FieldGuideCard
-          onOpen={(page) => {
-            setGuidePage(page);
-            setSheet('guide');
-          }}
-        />
-        <PlacesMap places={shelf.places} out={shelf.out} coins={coins} onBuy={onBuy} onGo={(p) => goTo(p, { page: true })} />
-      </div>
+      {below && (
+        <div class={s.lower}>
+          <FieldGuideCard
+            onOpen={(page) => {
+              setGuidePage(page);
+              setSheet('guide');
+            }}
+          />
+          <PlacesMap places={shelf.places} out={shelf.out} coins={coins} onBuy={onBuy} onGo={(p) => goTo(p, { page: true })} />
+        </div>
+      )}
 
       <BasketSheet open={sheet === 'basket'} rows={basket} coins={coins} onClose={() => setSheet(null)} />
       <FieldGuideSheet open={sheet === 'guide'} page={guidePage} onPage={setGuidePage} onClose={() => setSheet(null)} />
