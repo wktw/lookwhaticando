@@ -56,6 +56,8 @@ export function fakeBrowser(opts: { start?: string; hour?: number; quotaChars?: 
     persistStorage: () => undefined,
     appVersion: 'test',
     device: 'Test · Node',
+    // The next frame is 16 ms away on this clock.
+    afterFrame: (fn) => void runtime.timers.setTimeout(fn, 16),
   };
   configureStore(runtime);
   return {

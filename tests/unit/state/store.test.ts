@@ -80,7 +80,7 @@ describe('boot', () => {
 });
 
 describe('actions', () => {
-  it('commit, emit events and write wallet changes at once; other changes are debounced', () => {
+  it('commit, emit events and write wallet changes just after the frame; other changes are debounced', () => {
     const { b, events } = boot();
     store.completeOnboarding({ name: 'Sam', templateIds: [] });
     const id = store.createHabit(input());
@@ -88,7 +88,10 @@ describe('actions', () => {
     expect(r).toMatchObject({ completed: true, rewarded: true, coins: 25 });
     expect(r.events.map((e) => e.type)).toContain('checkin');
     expect(events.filter((e) => e.type === 'coins').map((e) => (e as { amount: number }).amount)).toEqual([5, 20]);
-    expect(saved(b).state.wallet.coins).toBe(25); // immediate
+    const before = b.storage.getItem(SAVE_KEY);
+    expect(before ? (JSON.parse(before) as { state: { wallet: { coins: number } } }).state.wallet.coins : 0).toBe(0); // the tap's frame first…
+    b.advance(16);
+    expect(saved(b).state.wallet.coins).toBe(25); // …then the save
     const rev = saved(b).rev;
     store.setNote(id, store.today.value, 'Lovely');
     expect(saved(b).rev).toBe(rev); // debounced

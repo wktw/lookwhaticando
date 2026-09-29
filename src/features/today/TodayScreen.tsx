@@ -19,7 +19,6 @@ import { ConfirmDialog } from '@/ui/ConfirmDialog';
 import { Toggle } from '@/ui/Toggle';
 import { cx } from '@/ui/cx';
 import { toast } from '@/ui/toast';
-import { sfx } from '@/fx/sound';
 import { openHabitDetail, openHabitEditor } from '@/features/habits/open';
 import { Band, type BandHandle } from './Band';
 import { CardMenu, type MenuItem } from './CardMenu';
@@ -39,19 +38,6 @@ import s from './TodayScreen.module.css';
 const OFF_ASK_SPLIT = TODAY_LINES.takeTodayOffConfirm.indexOf('? ') + 1;
 const offAskTitle = OFF_ASK_SPLIT > 0 ? TODAY_LINES.takeTodayOffConfirm.slice(0, OFF_ASK_SPLIT) : TODAY_LINES.takeTodayOff;
 const offAskMessage = OFF_ASK_SPLIT > 0 ? TODAY_LINES.takeTodayOffConfirm.slice(OFF_ASK_SPLIT + 1) : TODAY_LINES.takeTodayOffConfirm;
-
-/**
- * Sound's engine is costly to start (about 75 ms): start it while the page is idle after Today first
- * draws, so the first tap only resumes it. It stays suspended until that tap (autoplay rules).
- */
-let soundWarmed = false;
-function warmSound(): void {
-  if (soundWarmed || typeof window === 'undefined') return;
-  soundWarmed = true;
-  const go = () => sfx.unlock();
-  if (typeof requestIdleCallback === 'function') requestIdleCallback(go, { timeout: 3000 });
-  else setTimeout(go, 1200);
-}
 
 /**
  * False for the screen's first frame: the band's scene and the notes below the list draw one frame
@@ -104,7 +90,6 @@ export function TodayScreen() {
     };
   }, []);
 
-  useEffect(warmSound, []);
 
   // "N plants a habit" (src/app/shortcuts.ts).
   useEffect(() => {

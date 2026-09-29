@@ -341,7 +341,7 @@ export function Sheet(props: SheetProps) {
         <div class={s.grabber} data-sheet-handle aria-hidden="true">
           <span />
         </div>
-        <header class={s.header} data-sheet-handle>
+        <header class={s.header} data-sheet-handle data-sheet-header>
           <div class={cx(s.titles, hideTitle && 'sr-only')}>
             <h2 id={titleId} class={s.title}>
               {title}

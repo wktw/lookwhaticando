@@ -3,8 +3,10 @@
  * All UI code plays sounds ONLY through this API.
  *
  * Signal chain: voices → bus → (dry + a soft delay "room") → gentle compressor → master volume.
- * The context is created lazily inside a user gesture (iOS), follows settings.sound/volume,
- * asks iOS for the "ambient" audio session (so the silent switch is respected), and never throws.
+ * The context is built while the page is idle after boot (it costs about 75 ms, so the first tap
+ * only resumes it), or inside the first gesture if that comes sooner; it follows
+ * settings.sound/volume, asks iOS for the "ambient" audio session (so the silent switch is
+ * respected), and never throws.
  */
 import { state } from '@/state/store';
 import { createVoice, type Voice } from './synth';
@@ -118,6 +120,17 @@ export const sfx = {
   voice(voice: PetVoice, opts?: { pitch?: number }): void {
     run(`voice:${voice}`, VOICES[voice], opts);
   },
+  /**
+   * Builds the engine ahead of the first sound (left suspended: only a gesture may start it). Safe
+   * to call any time; installAudioUnlock calls it while the page is idle.
+   */
+  warm(): void {
+    try {
+      if (settings().sound) build();
+    } catch {
+      /* ignore */
+    }
+  },
   /** Call from the first user gesture to unlock audio on iOS. */
   unlock(): void {
     try {
@@ -140,9 +153,12 @@ export const sfx = {
 export const SFX_NAMES = Object.keys(SFX) as SfxName[];
 export const PET_VOICES = Object.keys(VOICES) as PetVoice[];
 
-/** Unlock audio on the first tap or key press anywhere (call once at boot). */
+/** Warm the engine once the page is idle, and unlock audio on the first tap or key press anywhere (call once at boot). */
 export function installAudioUnlock(): void {
   if (typeof window === 'undefined') return;
+  const warm = () => sfx.warm();
+  if (typeof requestIdleCallback === 'function') requestIdleCallback(warm, { timeout: 3000 });
+  else setTimeout(warm, 1200);
   const events = ['pointerdown', 'keydown', 'touchend'] as const;
   const handler = () => {
     sfx.unlock();

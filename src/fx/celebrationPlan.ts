@@ -219,6 +219,19 @@ interface Moment {
 }
 
 /**
+ * Quiet rewards (DESIGN principle 4: just the tracker): the same moments without a coin, stamp,
+ * ticket or swap in them. Banners and notes keep their words and art; the amounts, the rolling
+ * wallet note and the coin flights go.
+ */
+export function quietPlan(plan: CelebrationPlan): CelebrationPlan {
+  return {
+    banner: plan.banner && { ...plan.banner, rewards: { ...EMPTY_TALLY } },
+    toasts: plan.toasts.map(({ rewards: _rewards, ...t }) => t),
+    wallet: { ...EMPTY_TALLY },
+  };
+}
+
+/**
  * Priorities follow DESIGN §9.1, extended to every event the domain emits: exclusive > plant
  * Blooming/Evergreen (with its new look and keepsake as the first "also" lines) > Showing-up rung
  * > perfect day > streak rung > pin > Field Guide page > best friends > companion > story > welcome

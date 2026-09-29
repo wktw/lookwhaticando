@@ -11,7 +11,8 @@ import s from './Toaster.module.css';
 /**
  * Mount once near the app root. Notes sit at the bottom, above the tab bar, where the thumb
  * can reach Undo. While a sheet is open they move to the top, so they never cover its buttons,
- * and slide below a celebration banner there. While a full-screen moment is open (the capsule
+ * and slide below a celebration banner there, and below the sheet's own header (its title and
+ * close button) when the sheet reaches that high. While a full-screen moment is open (the capsule
  * reveal, the epic card) they wait, unseen and with their timers stopped, and arrive after it.
  */
 export function Toaster() {
@@ -30,11 +31,19 @@ export function Toaster() {
     [],
   );
 
-  // At the top, keep clear of a banner (transform only).
+  // At the top, keep clear of a banner and of the open sheet's header (transform only). The sheet
+  // may still be sliding in, so it is measured again once it has settled.
   useLayoutEffect(() => {
     const el = stackRef.current;
     if (!el) return;
-    el.style.setProperty('--lane-shift', lifted && bannerBottom ? `${Math.max(0, bannerBottom + 10 - el.offsetTop)}px` : '0px');
+    const place = () => {
+      const clearOf = lifted ? Math.max(bannerBottom ?? 0, topSheetHeaderBottom(el.offsetTop + el.offsetHeight)) : 0;
+      el.style.setProperty('--lane-shift', clearOf ? `${Math.max(0, clearOf + 10 - el.offsetTop)}px` : '0px');
+    };
+    place();
+    if (!lifted) return;
+    const timer = setTimeout(place, 400);
+    return () => clearTimeout(timer);
   }, [items.length, bannerBottom, lifted]);
 
   if (!items.length || waiting || typeof document === 'undefined') return null;
@@ -46,6 +55,18 @@ export function Toaster() {
     </section>,
     overlayRoot(),
   );
+}
+
+/**
+ * The bottom of the top sheet's header (title and close), when the sheet's top edge is above
+ * `laneBottom` (the notes would cover it); 0 otherwise.
+ */
+function topSheetHeaderBottom(laneBottom: number): number {
+  const headers = document.querySelectorAll<HTMLElement>('[data-state="open"] [data-sheet-header]');
+  const header = headers[headers.length - 1];
+  if (!header) return 0;
+  const r = header.getBoundingClientRect();
+  return r.top < laneBottom ? r.bottom : 0;
 }
 
 function ToastCard({ item }: { item: ToastItem }) {

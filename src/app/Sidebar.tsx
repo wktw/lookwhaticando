@@ -5,13 +5,14 @@ import { navigate } from './router';
 import { formatHash, ROUTES, type TabId } from './routes';
 import { preloadScreen } from './screens';
 import { tabSpecies } from './shelfTab';
+import { state } from '@/state/store';
 import { WalletSummary } from './WalletSummary';
 import { SHELL_COPY } from './copy';
 import s from './Sidebar.module.css';
 
 /**
  * Wide-screen navigation (≥ 900 px, Mac/PC): the wordmark, the five destinations (with 1–5 key
- * hints on hover) and the wallet, on an oat paper column with a hairline edge.
+ * hints on hover) and the wallet (not with Quiet rewards), on an oat paper column with a hairline edge.
  */
 export function Sidebar({ tab }: { tab: TabId }) {
   return (
@@ -54,7 +55,8 @@ export function Sidebar({ tab }: { tab: TabId }) {
       </nav>
 
       <div class={s.spacer} />
-      <WalletSummary />
+      {/* Quiet rewards: just the tracker, so no wallet. */}
+      {!state.value.settings.quietRewards && <WalletSummary />}
     </aside>
   );
 }

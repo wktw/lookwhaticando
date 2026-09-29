@@ -28,13 +28,20 @@ import { markCelebratedLocally } from './celebrations';
 import { prefersReducedMotion } from './motion';
 import { checkInKind, checkInLine, FX_UI, harvestLine, plusCoins, uncheckLine, wateredBatchLine, type CheckInKind } from './copy';
 
+/** Runs `fn` once the next frame has painted (a timeout queued from inside rAF). */
+function afterFrame(fn: () => void): void {
+  if (typeof requestAnimationFrame === 'function') requestAnimationFrame(() => setTimeout(fn, 0));
+  else setTimeout(fn, 0);
+}
+
 export function celebrateCheckIn(result: CheckInResult, habitId: string, at: Element | DOMRect): void {
   markCelebratedLocally(habitId);
   haptic('tick');
   const rect = at instanceof Element ? at.getBoundingClientRect() : at;
   const coins = result.events.reduce((sum, e) => (e.type === 'coins' && e.reason === 'checkin' && e.habitId === habitId ? sum + e.amount : sum), 0);
   const quick = prefersReducedMotion();
-  const later = (ms: number, fn: () => void) => (quick ? fn() : void setTimeout(fn, ms));
+  // Reduced motion plays it all at once, but still after the tap's frame (never inside the tap).
+  const later = (ms: number, fn: () => void) => void (quick ? afterFrame(fn) : setTimeout(fn, ms));
 
   // A partial tap on a count habit is just a ring tick: a small drop, no chip, no coin.
   if (!result.completed) {

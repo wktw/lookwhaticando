@@ -259,6 +259,27 @@ export class SaveQueue {
     return this.flush() ?? 'saved';
   }
 
+  private soon = false;
+
+  /**
+   * Writes on the next chance `afterFrame` gives (just after the frame that shows the change), so
+   * a tap's frame never waits for the save. A flush in between (pagehide, hidden, another save)
+   * writes it sooner, and the late call then finds nothing pending.
+   */
+  saveSoon(state: AppState, afterFrame: (fn: () => void) => void): void {
+    this.pending = state;
+    if (this.handle !== null) {
+      this.o.timers.clearTimeout(this.handle);
+      this.handle = null;
+    }
+    if (this.soon) return;
+    this.soon = true;
+    afterFrame(() => {
+      this.soon = false;
+      this.flush();
+    });
+  }
+
   /** Keeps writes pending (not written) until `release()`. */
   hold(): void {
     this.held = true;

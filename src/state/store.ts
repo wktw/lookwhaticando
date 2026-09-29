@@ -3,7 +3,7 @@
  *
  * CONTRACT: UI code reads `state.value` / selectors (state/selectors.ts) and calls the exported
  * actions. Actions delegate to pure reducers in src/domain/*, commit the new state, persist it
- * (wallet-changing actions write immediately, others debounced), and emit GameEvents (./api.ts).
+ * (wallet-changing actions write just after the frame, others debounced), and emit GameEvents (./api.ts).
  * UI never mutates state directly.
  *
  * How an action runs (`act`):
@@ -11,8 +11,9 @@
  *    clock.maxDateKey (DESIGN v1 §13.2).
  * 2. In one copy-on-write transaction: open the day (rollover work if the app day advanced), then
  *    the reducer. The input state is never mutated.
- * 3. Commit: `state` and `today` update together; the save is written at once when the wallet,
- *    collection, pending reveal or lifetime changed, else debounced (250 ms); the theme is mirrored
+ * 3. Commit: `state` and `today` update together; the save is written just after the frame when
+ *    the wallet, collection, pending reveal or lifetime changed (at once for a pull, which must be
+ *    saved before its reveal), else debounced (250 ms); the theme is mirrored
  *    to its own key; the events are emitted after the commit.
  * While another window owns the save, or it was written by a newer app version, actions are no-ops.
  * A window writes nothing until the single-writer lock is granted (its saves are held, then
@@ -117,6 +118,24 @@ export interface StoreRuntime {
   device: string;
   /** The device's IANA time zone ('' when unknown): the hemisphere is inferred from it (§14.3). */
   timeZone?: () => string;
+  /**
+   * Runs `fn` just after the next frame (a tap's own frame), for the wallet-changing saves of
+   * ordinary actions. Left out (tests), those saves are written at once.
+   */
+  afterFrame?: (fn: () => void) => void;
+}
+
+/** After the next frame: a timeout queued from inside rAF runs once that frame is painted. Hidden pages get no frames, so a short timer backs it up. */
+function browserAfterFrame(fn: () => void): void {
+  let done = false;
+  const run = () => {
+    if (done) return;
+    done = true;
+    fn();
+  };
+  const g = globalThis as { requestAnimationFrame?: (cb: () => void) => number; document?: Document };
+  if (g.requestAnimationFrame && g.document?.visibilityState !== 'hidden') g.requestAnimationFrame(() => globalThis.setTimeout(run, 0));
+  globalThis.setTimeout(run, 100);
 }
 
 function cryptoRng(): Rng {
@@ -166,6 +185,7 @@ function defaultRuntime(): StoreRuntime {
     },
     appVersion: typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : 'dev',
     device: deviceLabel(),
+    afterFrame: browserAfterFrame,
     timeZone: () => {
       try {
         return Intl.DateTimeFormat().resolvedOptions().timeZone ?? '';
@@ -266,13 +286,21 @@ function urgent(prev: AppState, next: AppState): boolean {
   return prev.wallet !== next.wallet || prev.collection !== next.collection || prev.pendingReveal !== next.pendingReveal || prev.lifetime !== next.lifetime;
 }
 
-/** Saves `next` (at once when urgent, else debounced). Returns the write's status when it wrote at once. */
+/**
+ * Saves `next`: at once when forced or a reveal is pending (a pull, a Special Order, an import:
+ * commit before animate), just after the
+ * frame when urgent (a check-in's coins: the tap paints first, then the save), else debounced.
+ * Returns the write's status when it wrote at once.
+ */
 function persist(prev: AppState, next: AppState, force = false): SaveStatus | null {
   if (!writable()) return null;
   queue ??= makeQueue(currentKey(), 0);
   let status: SaveStatus | null = null;
-  if (force || urgent(prev, next)) status = queue.saveNow(next);
-  else queue.schedule(next);
+  if (force || prev.pendingReveal !== next.pendingReveal) status = queue.saveNow(next);
+  else if (urgent(prev, next)) {
+    if (rt.afterFrame) queue.saveSoon(next, rt.afterFrame);
+    else status = queue.saveNow(next);
+  } else queue.schedule(next);
   if (!demoMode.value && (prev.settings.theme !== next.settings.theme || prev.settings.reduceMotion !== next.settings.reduceMotion)) {
     mirrorTheme(storage(), next.settings);
   }
@@ -651,7 +679,7 @@ export function pull(machineId: MachineId, opts: { useTicket?: boolean; free?: b
     return { o: gacha.pull(tx, machineId, opts) as PullOutcome };
   });
   setState(out.state, ms);
-  const status = out.state !== prev ? persist(prev, out.state) : null;
+  const status = out.state !== prev ? persist(prev, out.state, true) : null;
   if (out.o.ok && (status === 'storage-full' || status === 'unavailable')) {
     setState(prev, ms);
     queue?.schedule(prev);

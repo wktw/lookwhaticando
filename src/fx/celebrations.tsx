@@ -35,6 +35,7 @@ import {
   formatTally,
   isEmptyTally,
   planCelebration,
+  quietPlan,
   walletDelta,
   type BannerSpec,
   type CelebrationContext,
@@ -216,7 +217,9 @@ export function CelebrationHost() {
       timer = 0;
       const b = batch;
       batch = null;
-      if (b) apply(planCelebration(b.events, context()), b.payout);
+      if (!b) return;
+      const plan = planCelebration(b.events, context());
+      apply(state.peek().settings.quietRewards ? quietPlan(plan) : plan, b.payout);
     };
     const off = onGameEvent((e) => {
       const b = (batch ??= newBatch());

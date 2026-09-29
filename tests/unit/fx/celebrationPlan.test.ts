@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { addTally, EMPTY_TALLY, enqueueBanner, eventWeight, formatTally, planCelebration, walletDelta, type BannerSpec, type CelebrationContext } from '@/fx/celebrationPlan';
+import { addTally, EMPTY_TALLY, enqueueBanner, eventWeight, formatTally, planCelebration, quietPlan, walletDelta, type BannerSpec, type CelebrationContext } from '@/fx/celebrationPlan';
 import { BADGE_BY_ID } from '@/catalog/badges';
 import type { GameEvent } from '@/state/api';
 import { SPECIES_COLOURS } from '@/fx/petalColours';
@@ -55,6 +55,13 @@ describe('planCelebration', () => {
     expect(planCelebration([{ type: 'perfectDay', date: '2026-09-29', coins: 10 }], { ...ctx(), lamplight: () => true }).banner?.text).toBe('The whole sill is in the lamplight.');
     expect(plan.banner!.art).toEqual({ type: 'pet', petId: 'pet-cat-orange', expression: 'sleep' });
     expect(plan.wallet).toEqual(EMPTY_TALLY);
+  });
+
+  it('Quiet rewards keeps the moment and drops every amount (DESIGN principle 4)', () => {
+    const plan = quietPlan(planCelebration([{ type: 'perfectDay', date: '2026-09-29', coins: 10 }, { type: 'coins', amount: 10, reason: 'perfect' }, checkin('h-yoga', 8)], ctx()));
+    expect(plan.banner).toMatchObject({ kind: 'perfectDay', title: 'Everything’s watered', rewards: EMPTY_TALLY });
+    expect(plan.wallet).toEqual(EMPTY_TALLY);
+    expect(plan.toasts.every((t) => t.rewards === undefined)).toBe(true);
   });
 
   it('stacked moments coalesce into ONE note led by the highest priority', () => {
