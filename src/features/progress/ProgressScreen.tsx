@@ -21,8 +21,8 @@ import { Button } from '@/ui/Button';
 import es from '@/ui/EmptyState.module.css';
 import { cx } from '@/ui/cx';
 import { Calendar } from './Calendar';
-import { Hero, RecentMonths } from './Hero';
-import { Insights, MemoryShelf, Pins, Records } from './Keepsakes';
+import { Hero, RecentMonths, hasMonths } from './Hero';
+import { BALCONY_ID, Insights, MemoryShelf, Pins, Records } from './Keepsakes';
 import { PlantShelf } from './PlantShelf';
 import { YearStrip } from './YearStrip';
 import { PROGRESS_UI } from './copy';
@@ -57,17 +57,50 @@ function useRitualReader(): ComponentType | null {
 
 /**
  * The screen's first frame is the hero, the months and the plants; everything below the fold
- * (the calendar, the year, records, pins, the memory shelf) follows a frame later, so opening
- * Progress on a long history stays quick.
+ * follows in three small steps after it (the calendar, then the year, then records, pins and the
+ * memory shelf), each in its own idle slice, so opening Progress on a long history stays quick and
+ * a tap right after it is never kept waiting behind one long task.
  */
-function useAfterFirstPaint(): boolean {
-  const [done, setDone] = useState(false);
+const STAGES = 3;
+function useStages(): number {
+  const [stage, setStage] = useState(0);
   useEffect(() => {
-    let t = 0;
-    const raf = requestAnimationFrame(() => (t = window.setTimeout(() => setDone(true), 0)));
-    return () => (cancelAnimationFrame(raf), clearTimeout(t));
-  }, []);
-  return done;
+    if (stage >= STAGES) return;
+    const w = window as Window & { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number; cancelIdleCallback?: (id: number) => void };
+    const next = () => setStage((n) => n + 1);
+    if (stage === 0) {
+      // The first step waits for the first paint.
+      let t = 0;
+      const raf = requestAnimationFrame(() => (t = window.setTimeout(next, 0)));
+      return () => (cancelAnimationFrame(raf), clearTimeout(t));
+    }
+    if (w.requestIdleCallback) {
+      const id = w.requestIdleCallback(next, { timeout: 120 });
+      return () => w.cancelIdleCallback?.(id);
+    }
+    const t = window.setTimeout(next, 16);
+    return () => clearTimeout(t);
+  }, [stage]);
+  return stage;
+}
+
+/** Pins, reading the badges only once they are drawn (not before the first paint). */
+function PinsSection() {
+  const badges = badgesView.value;
+  return (
+    <Section id="pins" class={s.later} title={T.pins} meta={badges.earned > 0 ? String(badges.earned) : null}>
+      <Pins badges={badges.badges} />
+    </Section>
+  );
+}
+
+/** The memory shelf, reading its view only once it is drawn. */
+function MemorySection({ retired }: { retired: number }) {
+  return (
+    <Section id="memory" class={s.later} title={T.memory}>
+      <MemoryShelf shelf={memoryShelfView.value} retired={retired} />
+    </Section>
+  );
 }
 
 /** The calendar's habit filter: "All habits" and each habit, as one radio group with roving focus. */
@@ -104,16 +137,15 @@ function HabitFilter({ value, onChange }: { value: string | null; onChange: (id:
 
 export function ProgressScreen() {
   const vm = progressView.value;
-  const badges = badgesView.value;
-  const shelf = memoryShelfView.value;
   const [calHabit, setCalHabit] = useState<string | null>(null);
   const Reader = useRitualReader();
-  const rest = useAfterFirstPaint();
+  const stage = useStages();
   const live = vm.garden.filter((g) => !g.retired);
   const retired = vm.garden.filter((g) => g.retired);
   const hasHabits = vm.garden.length > 0;
   // A filtered habit that was deleted meanwhile falls back to all habits.
   const filter = calHabit && vm.garden.some((g) => g.habitId === calHabit) ? calHabit : null;
+  const watered = vm.records.totalCheckins > 0;
 
   return (
     <div class={s.screen} data-screen="progress">
@@ -136,55 +168,57 @@ export function ProgressScreen() {
         <>
           <Hero vm={vm} />
 
-          <Section id="months" title={T.months}>
-            <RecentMonths months={vm.recentMonths} />
-          </Section>
+          {/* A month with no days yet has nothing to draw: the hero already says it fills in. */}
+          {hasMonths(vm.recentMonths) && (
+            <Section id="months" title={T.months}>
+              <RecentMonths months={vm.recentMonths} />
+            </Section>
+          )}
 
           <Section id="plants" title={T.plants}>
             {live.length > 0 && <PlantShelf garden={live} />}
             {retired.length > 0 && (
               <>
-                <h3 class={s.subTitle}>{T.balcony}</h3>
+                <h3 id={BALCONY_ID} class={s.subTitle} tabIndex={-1}>
+                  {T.balcony}
+                </h3>
                 <PlantShelf garden={retired} balcony />
               </>
             )}
           </Section>
 
-          {!rest ? (
-            <div class={s.pending} aria-hidden="true" />
-          ) : (
+          {stage >= 1 && (
+            <Section id="calendar" class={s.later} title={T.calendar}>
+              <HabitFilter value={filter} onChange={setCalHabit} />
+              <div class={s.card}>
+                <Calendar key={filter ?? 'all'} habitId={filter} idPrefix="progress-cal" />
+              </div>
+            </Section>
+          )}
+
+          {stage >= 2 && watered && (
+            <Section id="year" class={s.later} title={T.year}>
+              <div class={s.card}>
+                <YearStrip />
+              </div>
+            </Section>
+          )}
+
+          {stage >= 3 && (
             <>
-          <Section id="calendar" class={s.later} title={T.calendar}>
-            <HabitFilter value={filter} onChange={setCalHabit} />
-            <div class={s.card}>
-              <Calendar key={filter ?? 'all'} habitId={filter} idPrefix="progress-cal" />
-            </div>
-          </Section>
-
-          <Section id="year" class={s.later} title={T.year}>
-            <div class={s.card}>
-              <YearStrip />
-            </div>
-          </Section>
-
-          <div class={cx(s.pair, s.later)}>
-            <Section id="records" title={T.records}>
-              <Records records={vm.records} />
-            </Section>
-            <Section id="insights" title={T.insights}>
-              <Insights insights={vm.insights} />
-            </Section>
-          </div>
-
-          <Section id="pins" class={s.later} title={T.pins} meta={badges.earned > 0 ? String(badges.earned) : null}>
-            <Pins badges={badges.badges} />
-          </Section>
-
-          <Section id="memory" class={s.later} title={T.memory}>
-            <MemoryShelf shelf={shelf} garden={vm.garden} />
-          </Section>
+              <div class={cx(s.pair, s.later)}>
+                <Section id="records" title={T.records}>
+                  <Records records={vm.records} />
+                </Section>
+                <Section id="insights" title={T.insights}>
+                  <Insights insights={vm.insights} />
+                </Section>
+              </div>
+              <PinsSection />
+              <MemorySection retired={retired.length} />
             </>
           )}
+          {stage < STAGES && <div class={s.pending} style={{ minHeight: `${(STAGES - stage) * 600}px` }} aria-hidden="true" />}
         </>
       )}
       {Reader && <Reader />}

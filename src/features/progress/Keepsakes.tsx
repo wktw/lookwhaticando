@@ -5,16 +5,14 @@
  * it is earned isn't on the shelf at all; a tap says how each one is earned. The memory shelf keeps
  * every Sunday Note, Herbarium page and anniversary note, the retired plants and the past seasons.
  */
-import { useState } from 'preact/hooks';
+import { useRef, useState } from 'preact/hooks';
 import { BadgeMedal } from '@/art/badges';
 import { NoteCard } from '@/art/progress';
-import { PlantArt } from '@/art/plants';
 import { insightLines, recordLines, plural, num } from '@/catalog/format';
 import { EMPTY, PROGRESS_LINES, fillLine } from '@/catalog/lines';
 import { monthDayLabel } from '@/domain/dates';
-import type { BadgeVM, GardenPlantVM, MemoryShelfVM, ProgressVM, RitualVM } from '@/state/selectors';
+import type { BadgeVM, MemoryShelfVM, ProgressVM, RitualVM } from '@/state/selectors';
 import { state } from '@/state/store';
-import { openHabitDetail } from '@/features/habits/open';
 import { openRitual, openSeason } from '@/features/rituals/open';
 import { SEASON_LABEL, anniversaryWords, monthName } from '@/features/rituals/words';
 import { ritualLookup } from '@/features/rituals/lookup';
@@ -72,16 +70,29 @@ export function Insights({ insights }: { insights: ProgressVM['insights'] }) {
 /* Pins                                                                */
 /* ------------------------------------------------------------------ */
 
+/** How many "not yet" pins stand on the shelf before the rest are asked for. */
+const NEXT_PINS = 4;
+
 export function Pins({ badges }: { badges: readonly BadgeVM[] }) {
   const [open, setOpen] = useState<BadgeVM | null>(null);
   const [shown, setShown] = useState<BadgeVM | null>(null);
+  const [all, setAll] = useState(false);
+  const list = useRef<HTMLUListElement>(null);
   const shelf = badges.filter((b) => !b.hidden);
   const earned = shelf.filter((b) => b.earned);
+  // The pins nearest to being earned come first; the rest wait behind one quiet button.
+  const notYet = shelf
+    .filter((b) => !b.earned)
+    .map((b, i) => ({ b, i, share: b.progress && b.progress.need > 0 ? b.progress.have / b.progress.need : 0 }))
+    .sort((x, y) => y.share - x.share || x.i - y.i)
+    .map((x) => x.b);
+  const visible = all ? notYet : notYet.slice(0, NEXT_PINS);
+  const hiddenCount = notYet.length - visible.length;
   return (
     <>
-      {earned.length === 0 && <p class={s.quiet}>{EMPTY.pins}</p>}
-      <ul class={s.pins}>
-        {[...earned, ...shelf.filter((b) => !b.earned)].map((b) => (
+      {earned.length === 0 && <p class={cx(s.quiet, s.pinsLead)}>{EMPTY.pins}</p>}
+      <ul ref={list} class={s.pins}>
+        {[...earned, ...visible].map((b) => (
           <li key={b.id}>
             <button
               type="button"
@@ -100,15 +111,25 @@ export function Pins({ badges }: { badges: readonly BadgeVM[] }) {
               <span class={s.pinName} aria-hidden="true">
                 {b.name}
               </span>
-              {!b.earned && (
-                <span class={s.notYet} aria-hidden="true">
-                  {PROGRESS_UI.pins.notYet}
-                </span>
-              )}
             </button>
           </li>
         ))}
       </ul>
+      {hiddenCount > 0 && (
+        <button
+          type="button"
+          class={s.morePins}
+          data-more-pins
+          onClick={() => {
+            const first = earned.length + visible.length;
+            setAll(true);
+            // Focus lands on the first pin that just came onto the shelf.
+            requestAnimationFrame(() => list.current?.querySelectorAll<HTMLButtonElement>('button')[first]?.focus());
+          }}
+        >
+          {fillLine(plural(hiddenCount, PROGRESS_UI.pins.more), { count: num(hiddenCount) })}
+        </button>
+      )}
       <Sheet open={open !== null} onClose={() => setOpen(null)} title={shown?.name ?? PROGRESS_UI.sections.pins} detents={['content']} size="sm" peek={shown ? <BadgeMedal badgeId={shown.id} earned={shown.earned} size={96} /> : undefined}>
         {shown && <PinDetail pin={shown} />}
       </Sheet>
@@ -118,16 +139,17 @@ export function Pins({ badges }: { badges: readonly BadgeVM[] }) {
 
 function PinDetail({ pin }: { pin: BadgeVM }) {
   const quiet = state.value.settings.quietRewards;
+  // How it is earned is the description; the meta line is only for something already true.
+  const meta =
+    pin.earned && pin.earnedAt !== null
+      ? fillLine(PROGRESS_UI.pins.earned, { date: monthDayLabel(dateKeyOf(pin.earnedAt)) })
+      : !pin.earned && pin.progress && pin.progress.have > 0
+        ? fillLine(PROGRESS_UI.pins.progress, { have: num(pin.progress.have), need: num(pin.progress.need) })
+        : null;
   return (
     <div class={s.pinDetail}>
       <p class={s.pinDescription}>{pin.description}</p>
-      {pin.earned && pin.earnedAt !== null ? (
-        <p class={s.pinMeta}>{fillLine(PROGRESS_UI.pins.earned, { date: monthDayLabel(dateKeyOf(pin.earnedAt)) })}</p>
-      ) : pin.progress && pin.progress.have > 0 ? (
-        <p class={s.pinMeta}>{fillLine(PROGRESS_UI.pins.progress, { have: num(pin.progress.have), need: num(pin.progress.need) })}</p>
-      ) : (
-        <p class={s.pinMeta}>{PROGRESS_UI.pins.notYet}</p>
-      )}
+      {meta && <p class={s.pinMeta}>{meta}</p>}
       {!quiet && pin.stars > 0 && <p class={s.pinStamps}>{fillLine(plural(pin.stars, PROGRESS_UI.pins.stamps), { count: num(pin.stars) })}</p>}
     </div>
   );
@@ -151,8 +173,11 @@ function ritualLabel(r: RitualVM): string {
   return text.slice(0, text.indexOf('.') + 1) || text;
 }
 
-export function MemoryShelf({ shelf, garden }: { shelf: MemoryShelfVM; garden: readonly GardenPlantVM[] }) {
-  const empty = shelf.items.length === 0 && shelf.retired.length === 0 && shelf.seasons.length === 0;
+/** The balcony tier's heading on Plants: the memory shelf points there rather than drawing the plants twice. */
+export const BALCONY_ID = 'progress-balcony';
+
+export function MemoryShelf({ shelf, retired }: { shelf: MemoryShelfVM; retired: number }) {
+  const empty = shelf.items.length === 0 && retired === 0 && shelf.seasons.length === 0;
   if (empty) return <p class={s.quiet}>{EMPTY.memoryShelf}</p>;
   const M = PROGRESS_LINES.memoryItems;
   return (
@@ -181,23 +206,6 @@ export function MemoryShelf({ shelf, garden }: { shelf: MemoryShelfVM; garden: r
           ))}
         </ul>
       )}
-      {shelf.retired.length > 0 && (
-        <ul class={s.memoryRow} data-memory="retired">
-          {shelf.retired.map((r) => {
-            const g = garden.find((x) => x.habitId === r.habitId)?.plant;
-            return (
-            <li key={r.habitId}>
-              <button type="button" class={s.memoryItem} aria-haspopup="dialog" onClick={() => openHabitDetail(r.habitId)}>
-                <span class={s.memoryPlant} aria-hidden="true">
-                  <PlantArt species={r.plant} stage={g?.displayStage ?? 2} progress={g?.progress} blooms={g?.blooms} pot={g?.pot ?? 'terracotta'} withPot size="100%" animated={false} />
-                </span>
-                <span class={s.memoryLabel}>{fillLine(M.retired, { habit: r.name, date: monthDayLabel(r.archivedOn) })}</span>
-              </button>
-            </li>
-            );
-          })}
-        </ul>
-      )}
       {shelf.seasons.length > 0 && (
         <ul class={s.memoryRow} data-memory="seasons">
           {shelf.seasons.map((r) => (
@@ -209,6 +217,22 @@ export function MemoryShelf({ shelf, garden }: { shelf: MemoryShelfVM; garden: r
             </li>
           ))}
         </ul>
+      )}
+      {retired > 0 && (
+        <a
+          class={s.balconyLink}
+          href={`#${BALCONY_ID}`}
+          data-memory="retired"
+          onClick={(e) => {
+            // In a hash router a fragment link would change the route: scroll to the tier instead.
+            e.preventDefault();
+            const el = document.getElementById(BALCONY_ID);
+            el?.scrollIntoView({ behavior: document.documentElement.dataset.motion === 'reduced' ? 'auto' : 'smooth', block: 'start' });
+            el?.focus({ preventScroll: true });
+          }}
+        >
+          {fillLine(plural(retired, PROGRESS_UI.memory.balcony), { count: num(retired) })}
+        </a>
       )}
     </div>
   );

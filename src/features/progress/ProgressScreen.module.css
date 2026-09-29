@@ -83,8 +83,25 @@
   border-top: 1px solid var(--line);
 }
 
+.ringFigure {
+  flex: none;
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  width: 92px;
+  margin: 0;
+}
+
 .ring {
   flex: none;
+}
+
+.ringCaption {
+  font-size: var(--fs-micro);
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--ink-2);
+  text-align: center;
 }
 
 .ringValue {
@@ -235,8 +252,10 @@
 }
 
 /* ---------- recent months ---------- */
+/* One grid for every row (subgrid), so all the bars start on the same line whatever the label. */
 .months {
   display: grid;
+  grid-template-columns: max-content 1fr;
   gap: var(--s-3);
   margin: 0;
   padding: 0;
@@ -245,9 +264,9 @@
 
 .monthRow {
   display: grid;
-  grid-template-columns: minmax(7.5rem, auto) 1fr;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
   align-items: center;
-  gap: var(--s-3);
 }
 
 .monthLabel {
@@ -307,8 +326,8 @@
 .filterChip {
   flex: none;
   max-width: 14rem;
-  min-height: 36px;
-  padding: 6px 14px;
+  min-height: 44px;
+  padding: 6px 16px;
   overflow: hidden;
   border: 0;
   border-radius: var(--r-pill);
@@ -322,16 +341,6 @@
   white-space: nowrap;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
-}
-
-/* 44 px of touch around a 36 px chip. */
-.filterChip {
-  position: relative;
-}
-.filterChip::after {
-  content: '';
-  position: absolute;
-  inset: -4px 0;
 }
 
 .filterChip:focus-visible {
@@ -464,7 +473,10 @@
   font-weight: 700;
   line-height: 1.25;
   text-align: center;
-  -webkit-line-clamp: 2;
+  overflow-wrap: anywhere;
+  hyphens: auto;
+  /* An engraved name is read whole: up to three lines. */
+  -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
 }
 
@@ -473,11 +485,63 @@
   font-weight: 600;
 }
 
-.notYet {
-  font-size: 11px;
-  font-style: italic;
+.pinsLead {
+  margin-bottom: var(--s-3);
+}
+
+/* The rest of the "not yet" pins, asked for rather than laid out as a wall. */
+.morePins {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  margin-top: var(--s-2);
+  padding: 0 var(--s-4);
+  border: 0;
+  border-radius: var(--r-pill);
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--line);
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.morePins:hover {
+  background: var(--card-2);
+}
+.morePins:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* Retired plants live on the balcony tier (Plants); the memory shelf points there. */
+.balconyLink {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 2px;
   font-family: var(--font-display);
-  color: var(--ink-2);
+  font-size: var(--fs-body);
+  font-style: italic;
+  color: var(--ink);
+  text-decoration: underline;
+  text-decoration-color: var(--line);
+  text-underline-offset: 4px;
+}
+.balconyLink:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.subTitle:focus {
+  outline: none;
+}
+.subTitle:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
 }
 
 .pinDetail {
@@ -629,6 +693,12 @@
   .jar {
     width: 112px;
     height: 112px;
+  }
+  /* In the desktop column the scrollers stay inside it (no phone-style bleed past the cards). */
+  .filter,
+  .memoryRow {
+    margin-inline: 0;
+    padding-inline: 0;
   }
 }
 

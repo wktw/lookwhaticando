@@ -21,8 +21,18 @@
   color: var(--ink);
 }
 
+/* Days keep 40 px of touch: on the narrowest phones the month scrolls sideways a little instead. */
+.gridScroll {
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.gridScroll::-webkit-scrollbar {
+  display: none;
+}
+
 .grid {
   width: 100%;
+  min-width: 280px;
   border-collapse: separate;
   border-spacing: 0 2px;
   table-layout: fixed;
@@ -49,6 +59,7 @@
   justify-items: center;
   align-items: end;
   width: 100%;
+  min-width: 40px;
   max-width: 52px;
   height: 52px;
   padding: 2px 0 3px;
@@ -138,7 +149,8 @@
   width: 5px;
   height: 5px;
   border-radius: 50%;
-  background: var(--lavender-500);
+  /* ≥ 3:1 on the card in both lights (lavender-700 is the deep ink by day, the pale one by night). */
+  background: var(--lavender-700);
 }
 
 /* ---------- the day, once tapped ---------- */

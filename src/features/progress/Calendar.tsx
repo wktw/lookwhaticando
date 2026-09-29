@@ -43,7 +43,7 @@ export interface CalendarProps {
 
 export function Calendar({ habitId, month: initial, headingLevel: H = 'h3', idPrefix = 'cal', class: cls }: CalendarProps) {
   const [month, setMonth] = useState(initial ?? today.value.slice(0, 7));
-  const vm = selectCalendarMonth(habitId, month).value;
+  const vm = useStable(selectCalendarMonth(habitId, month).value);
   const cells = useMemo(() => vm.weeks.flat().filter((c): c is CalendarCell => c !== null), [vm]);
   const [selected, setSelected] = useState<DateKey | null>(null);
   const [focus, setFocus] = useState<DateKey | null>(null);
@@ -73,6 +73,18 @@ export function Calendar({ habitId, month: initial, headingLevel: H = 'h3', idPr
     const m = new Map<DateKey, { done: number; due: number }>();
     for (const c of cells) if (c.state !== 'future' && c.state !== 'before-start') m.set(c.date, dayCompletion(t, c.date, today.value));
     return m;
+  }, [vm, habitId]);
+
+  // All habits: a day with any habit's note carries the note mark too (one habit's cells have it).
+  const notesOn = useMemo(() => {
+    if (habitId) return null;
+    const set = new Set<DateKey>();
+    for (const h of s0.habits) {
+      const logs = s0.logs[h.id];
+      if (!logs) continue;
+      for (const c of cells) if (logs[c.date]?.note) set.add(c.date);
+    }
+    return set;
   }, [vm, habitId]);
 
   const go = (to: string | null) => {
@@ -112,6 +124,7 @@ export function Calendar({ habitId, month: initial, headingLevel: H = 'h3', idPr
         </H>
         <IconButton icon="chevron-right" label={C.next} onClick={() => go(vm.next)} disabled={!vm.next} />
       </div>
+      <div class={s.gridScroll}>
       <table ref={tableRef} class={s.grid} aria-labelledby={labelId}>
         <thead>
           <tr>
@@ -133,9 +146,10 @@ export function Calendar({ habitId, month: initial, headingLevel: H = 'h3', idPr
                   <td key={c.date}>
                     <DayButton
                       cell={c}
+                      note={notesOn ? notesOn.has(c.date) : !!c.note}
                       tab={c.date === stop}
                       selected={c.date === selected}
-                      label={dayAria(c, agg?.get(c.date) ?? null, habit?.unit ?? null)}
+                      label={dayAria({ ...c, note: notesOn ? notesOn.has(c.date) : !!c.note }, agg?.get(c.date) ?? null, habit?.unit ?? null)}
                       onPick={() => {
                         setSelected(c.date === selected ? null : c.date);
                         setFocus(c.date);
@@ -150,14 +164,17 @@ export function Calendar({ habitId, month: initial, headingLevel: H = 'h3', idPr
           ))}
         </tbody>
       </table>
-      {sel && <DayPanel cell={sel} habitId={habitId} agg={agg?.get(sel.date) ?? null} idPrefix={idPrefix} />}
+      </div>
+      {sel && <DayPanel cell={sel} habitId={habitId} agg={agg?.get(sel.date) ?? null} idPrefix={idPrefix} Heading={H === 'h3' ? 'h4' : 'h5'} />}
     </div>
   );
 }
 
-function DayButton({ cell, tab, selected, label, onPick, onKey }: { cell: CalendarCell; tab: boolean; selected: boolean; label: string; onPick: () => void; onKey: (e: KeyboardEvent) => void }) {
+function DayButton({ cell, note, tab, selected, label, onPick, onKey }: { cell: CalendarCell; note: boolean; tab: boolean; selected: boolean; label: string; onPick: () => void; onKey: (e: KeyboardEvent) => void }) {
   const future = cell.state === 'future';
-  const drawn = cell.state !== 'none' && cell.state !== 'unscheduled' && cell.state !== 'future' && cell.state !== 'before-start' && cell.state !== 'archived';
+  // Nothing watered yet (all habits, today at 0) is a quiet day, not a bud.
+  const empty = cell.state === 'partial' && (cell.fraction ?? 0) <= 0;
+  const drawn = !empty && cell.state !== 'none' && cell.state !== 'unscheduled' && cell.state !== 'future' && cell.state !== 'before-start' && cell.state !== 'archived';
   return (
     <button
       type="button"
@@ -176,13 +193,13 @@ function DayButton({ cell, tab, selected, label, onPick, onKey }: { cell: Calend
       <span class={s.num} aria-hidden="true">
         {cell.day}
       </span>
-      {cell.note && <span class={s.noteDot} aria-hidden="true" />}
+      {note && <span class={s.noteDot} aria-hidden="true" />}
     </button>
   );
 }
 
 /** What a tapped day shows: its notes, and for one habit what can be done about it. */
-function DayPanel({ cell, habitId, agg, idPrefix }: { cell: CalendarCell; habitId: string | null; agg: { done: number; due: number } | null; idPrefix: string }) {
+function DayPanel({ cell, habitId, agg, idPrefix, Heading }: { cell: CalendarCell; habitId: string | null; agg: { done: number; due: number } | null; idPrefix: string; Heading: 'h4' | 'h5' }) {
   const s0 = state.value;
   const date = cell.date;
   const title = longDateLabel(date);
@@ -195,9 +212,9 @@ function DayPanel({ cell, habitId, agg, idPrefix }: { cell: CalendarCell; habitI
   const panelId = `${idPrefix}-day`;
   return (
     <section class={s.panel} aria-labelledby={panelId}>
-      <h4 id={panelId} class={s.panelTitle}>
+      <Heading id={panelId} class={s.panelTitle}>
         {title}
-      </h4>
+      </Heading>
       {summary && <p class={s.summary}>{capitalFirst(summary)}</p>}
       {notes.length > 0 ? (
         <ul class={s.notes}>
@@ -214,6 +231,14 @@ function DayPanel({ cell, habitId, agg, idPrefix }: { cell: CalendarCell; habitI
       {habit && <DayEdit cell={cell} habitId={habit.id} habitName={habit.name} />}
     </section>
   );
+}
+
+/** Keeps the last month view while its content is the same, so a coin or a pet moving elsewhere doesn't redo the month. */
+function useStable<T>(v: T): T {
+  const last = useRef<{ key: string; v: T } | null>(null);
+  const key = JSON.stringify(v);
+  if (!last.current || last.current.key !== key) last.current = { key, v };
+  return last.current.v;
 }
 
 const capitalFirst = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);

@@ -9,6 +9,8 @@ import { daysInMonth, monthIndex } from '@/domain/dates';
 import { goalsLine, monthBarLabel, monthSoFarLine, restsLine, showedUpLine, soFarLine, trendLine, weekLine } from '@/catalog/format';
 import { EMPTY } from '@/catalog/lines';
 import { monthJarStems, type ProgressVM } from '@/state/selectors';
+import { memo } from 'preact/compat';
+import { computed } from '@preact/signals';
 import { state, today } from '@/state/store';
 import { MonthJar } from '@/art/progress';
 import { ProgressRing } from '@/ui/ProgressRing';
@@ -21,8 +23,7 @@ export function Hero({ vm }: { vm: ProgressVM }) {
   const showed = vm.showedUp.span > 1 ? showedUpLine(vm.showedUp) : null;
   const t = vm.hero.tally;
   const soFar = t.ready ? monthSoFarLine({ month: vm.hero.month, ...vm.hero.daysSoFar }) : soFarLine(t);
-  const trend = trendLine(vm.trend);
-  const chips = [weekLine(vm.week.tally), goalsLine(vm.goals), restsLine(vm.rests)].filter((x): x is string => !!x);
+  // Nothing watered yet: one calm line, said once on the page.
   if (!showed && !soFar) {
     return (
       <div class={cx(s.hero, s.heroEmpty)} data-hero="empty">
@@ -30,27 +31,44 @@ export function Hero({ vm }: { vm: ProgressVM }) {
       </div>
     );
   }
+  // The first days (a one-day window): what she has watered so far is the headline, said once.
+  const headline = showed ?? soFar!;
+  const monthLine = showed ? soFar : null;
+  const trend = trendLine(vm.trend);
+  const w = vm.week.tally;
+  // The week chip says nothing new while the week and the month are the same few days.
+  const sameAsMonth = !t.ready && w.achieved === t.achieved && w.expected === t.expected;
+  const chips = [sameAsMonth ? null : weekLine(w), goalsLine(vm.goals), restsLine(vm.rests)].filter((x): x is string => !!x);
+  const ring = t.ready && t.percent !== null;
   return (
     <div class={s.hero} data-hero>
       <div class={s.heroTop}>
-        <p class={cx(s.heroLine, !showed && s.heroLineQuiet)}>{showed ?? EMPTY.progress}</p>
+        <p class={cx(s.heroLine, !showed && s.heroLineQuiet)}>{headline}</p>
         {/* This month's flowers: a stem from each habit watered so far (DESIGN §13). */}
-        <MonthJar stems={monthJarStems(state.value, today.value)} size={88} class={s.jar} />
+        <HeroJar />
       </div>
-      <div class={s.heroMonth}>
-        {t.ready && t.percent !== null && (
-          <ProgressRing value={t.percent / 100} label={vm.hero.label} valueText={`${t.percent}%`} size={76} thickness={6} tone="sage" class={s.ring}>
-            <span class={s.ringValue} aria-hidden="true">
-              {t.percent}
-              <span class={s.ringPct}>%</span>
-            </span>
-          </ProgressRing>
-        )}
-        <div class={s.heroMonthText}>
-          {soFar && <p class={s.soFar}>{soFar}</p>}
-          {trend && <p class={cx(s.trend, vm.trend.kind === 'fact' && s.fact)}>{trend}</p>}
+      {(ring || monthLine || trend) && (
+        <div class={s.heroMonth}>
+          {ring && (
+            <figure class={s.ringFigure}>
+              <ProgressRing value={t.percent! / 100} label={vm.hero.label} valueText={`${t.percent}%`} size={76} thickness={6} tone="sage" class={s.ring}>
+                <span class={s.ringValue} aria-hidden="true">
+                  {t.percent}
+                  <span class={s.ringPct}>%</span>
+                </span>
+              </ProgressRing>
+              {/* What the percentage is a share of, so it never reads against the days beside it. */}
+              <figcaption class={s.ringCaption} aria-hidden="true">
+                {PROGRESS_UI.hero.ringCaption}
+              </figcaption>
+            </figure>
+          )}
+          <div class={s.heroMonthText}>
+            {monthLine && <p class={s.soFar}>{monthLine}</p>}
+            {trend && <p class={cx(s.trend, vm.trend.kind === 'fact' && s.fact)}>{trend}</p>}
+          </div>
         </div>
-      </div>
+      )}
       {chips.length > 0 && (
         <ul class={s.chips}>
           {chips.map((c) => (
@@ -65,12 +83,30 @@ export function Hero({ vm }: { vm: ProgressVM }) {
 }
 
 /**
+ * This month's jar reads only the habits and the logs, so a coin or a pet moving doesn't redraw it:
+ * the stems are kept while those two are the same objects, and the jar skips its parent's renders.
+ */
+let jarMemo: { habits: unknown; logs: unknown; day: string; stems: ReturnType<typeof monthJarStems> } | null = null;
+const jarStems = computed(() => {
+  const { habits, logs } = state.value;
+  const day = today.value;
+  if (jarMemo && jarMemo.habits === habits && jarMemo.logs === logs && jarMemo.day === day) return jarMemo.stems;
+  jarMemo = { habits, logs, day, stems: monthJarStems({ habits, logs }, day) };
+  return jarMemo.stems;
+});
+const HeroJar = memo(function HeroJar() {
+  return <MonthJar stems={jarStems.value} size={88} class={s.jar} />;
+});
+
+/**
  * Recent months: one calm bar each ("Aug · 24 days"), its length the month's days showing up
  * against the month's length. This month's bar is drawn on the whole month, the days still to come
  * a faint dotted track, so it never reads as a month that fell short. The labels are the text.
+ * The section only shows once a month has a day in it (`hasMonths`).
  */
+export const hasMonths = (months: ProgressVM['recentMonths']): boolean => months.some((m) => m.days > 0);
+
 export function RecentMonths({ months }: { months: ProgressVM['recentMonths'] }) {
-  if (months.length === 0) return <p class={s.quiet}>{EMPTY.progress}</p>;
   return (
     <ul class={s.months}>
       {months.map((m) => {

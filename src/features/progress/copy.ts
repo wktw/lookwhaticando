@@ -31,16 +31,14 @@ export const PROGRESS_UI = {
     pins: 'Pins',
     memory: 'Memory shelf',
   },
-  hero: { week: 'This week', month: 'This month' },
-  monthsCaption: 'Days showing up, month by month.',
+  /** Under the month's ring: what the percentage is a share of. */
+  hero: { ringCaption: 'of this month’s waterings' },
   soFarMark: 'so far',
   calendar: {
     prev: 'Previous month',
     next: 'Next month',
     filter: 'Show habit',
     all: 'All habits',
-    days: 'Days',
-    notesFor: 'Notes on {date}',
     water: 'Water it for {date}',
     unwater: 'Not watered after all',
     windowNote: 'The last 6 days are watered from the week strip on Today.',
@@ -51,13 +49,14 @@ export const PROGRESS_UI = {
     rest: 'resting',
     off: 'a day off',
     paused: 'resting',
+    note: 'a note',
     part: '{count} of {target}',
     partUnit: '{count} of {target} {unit}',
   },
   year: { prev: 'Previous year', next: 'Next year' },
   plants: { open: '{habit}, {stage}', retired: '{habit}, on the balcony shelf' },
-  pins: { notYet: 'not yet', earned: 'Earned {date}', progress: '{have} of {need}', stamps: { one: '+1 stamp', other: '+{count} stamps' }, pinLabel: '{name}, not yet' },
-  memory: { new: 'New', read: 'Open' },
+  pins: { notYet: 'not yet', earned: 'Earned {date}', progress: '{have} of {need}', stamps: { one: '+1 stamp', other: '+{count} stamps' }, pinLabel: '{name}, not yet', more: { one: '1 more pin', other: '{count} more pins' } },
+  memory: { new: 'New', balcony: { one: '1 plant on the balcony shelf', other: '{count} plants on the balcony shelf' } },
 } as const;
 
 /** Habit Detail's own words (VOICE.md §7, §12, §13, §14, §21 where it has them). */
@@ -74,14 +73,15 @@ export const DETAIL_UI = {
     company: 'Keeping company',
     actions: 'Look after it',
   },
+  ladder: { reached: 'Rungs reached: {count} of {total}' },
   stats: { lately: 'Lately', now: 'Now', longest: 'Longest run', longestLine: 'Longest run: {run}', waterings: 'Waterings', newRhythm: 'New rhythm', since: 'Since {date}', tiny: 'Tiny versions: {count}' },
   star: 'Star this note',
   starred: 'Starred for the Sunday Note',
   quoteHelp: 'Only notes you’ve starred are quoted in the Sunday Note.',
   /** VOICE §7, graduation. */
   grow: { title: 'A bigger pot?', text: '{habit} has been steady for 4 weeks. Make it a little bigger? +1 stamp', textQuiet: '{habit} has been steady for 4 weeks. Make it a little bigger?', yes: 'Grow it', no: 'Keep it as it is' },
-  tinier: { title: 'Make it tinier?', text: 'A smaller version still counts, and still waters the plant.', yes: 'Make it tinier', no: 'Keep it as it is' },
-  story: { read: 'Read', remaining: { one: 'About 1 more watering together.', other: 'About {count} more waterings together.' }, waits: 'After the one before it.' },
+  tinier: { title: 'Make it tinier?', text: 'A smaller version still counts, and still waters the plant.', yes: 'Make it tinier', no: 'Keep it as it is', done: '{habit} is tinier now.' },
+  story: { new: 'New', remaining: { one: 'About 1 more watering together.', other: 'About {count} more waterings together.' }, waits: 'After the one before it.' },
   actions: {
     edit: 'Edit',
     pause: 'Pause {habit}',
@@ -127,11 +127,12 @@ export const monthName = (month: string): string => MONTH_NAMES[monthIndex(month
 export const stageName = (stage: number): string => STAGE_NAMES[Math.max(0, Math.min(7, Math.floor(stage)))]!;
 
 /** A calendar day for screen readers: "Saturday, September 27, 3 of 5 watered" · "…, watered" · "…, resting". */
-export function dayAria(cell: Pick<CalendarCell, 'date' | 'state' | 'count' | 'target'>, agg?: { done: number; due: number } | null, unit?: string | null): string {
-  if (agg) return weekDayAria({ date: cell.date, done: agg.done, due: agg.due });
+export function dayAria(cell: Pick<CalendarCell, 'date' | 'state' | 'count' | 'target'> & { note?: string | boolean }, agg?: { done: number; due: number } | null, unit?: string | null): string {
+  const note = cell.note ? `, ${PROGRESS_UI.calendar.note}` : '';
+  if (agg) return weekDayAria({ date: cell.date, done: agg.done, due: agg.due }) + note;
   const date = longDateLabel(cell.date);
   const word = stateWord(cell.state, cell.count ?? 0, cell.target ?? 1, unit ?? null);
-  return word ? `${date}, ${word}` : date;
+  return (word ? `${date}, ${word}` : date) + note;
 }
 
 /** One habit's day in a word (null when there is nothing to say: an empty day is just its date). */

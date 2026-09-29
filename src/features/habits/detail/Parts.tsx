@@ -334,7 +334,7 @@ export function Company({ vm }: { vm: HabitDetailVM }) {
                   }}
                 >
                   <span class={s.storyTitle}>{title}</span>
-                  {!st.read && <span class={s.storyNew}>{D.story.read}</span>}
+                  {!st.read && <span class={s.storyNew}>{D.story.new}</span>}
                   <Icon name="chevron-down" size={18} class={s.chev} />
                 </button>
               ) : (
