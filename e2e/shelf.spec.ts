@@ -125,7 +125,7 @@ test.describe('phone journeys', () => {
     expect(errors, errors.join('\n')).toEqual([]);
   });
 
-  test('the basket offers a bake only for a treat running out, and a feed tap never spends coins', async ({ page }, info) => {
+  test('the basket offers a bake only for a treat that ran out, never for the rest', async ({ page }, info) => {
     const errors = watchErrors(page);
     const pantry = Object.fromEntries(Object.keys(demo.pantry).map((k) => [k, { ...demo.pantry[k]!, servings: 5 }]));
     const low = Object.keys(pantry).find((k) => getCollectible(k)?.category === 'treat' && getCollectible(k)?.source !== 'harvest' && (demo.collection[k]?.count ?? 0) > 0)!;
