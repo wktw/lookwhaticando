@@ -40,7 +40,7 @@ export function HabitDetail({ vm, onGone }: { vm: HabitDetailVM; onGone: () => v
 
   return (
     <div class={s.detail} data-habit-detail={h.id}>
-      <header class={s.hero}>
+      <div class={s.hero}>
         <div class={s.heroArt}>
           <HeroPlant
             species={p.species}
@@ -66,7 +66,7 @@ export function HabitDetail({ vm, onGone }: { vm: HabitDetailVM; onGone: () => v
           <p class={s.schedule}>{vm.upcoming ? `${vm.scheduleLabel} · ${vm.upcoming.label}` : vm.scheduleLabel}</p>
           {status && <p class={s.status}>{status}</p>}
         </div>
-      </header>
+      </div>
 
       <div class={s.forecast}>
         {!evergreen && <p class={s.stageLine}>{stageLine({ name: h.name, plant: h.plant }, p.displayStage)}</p>}
