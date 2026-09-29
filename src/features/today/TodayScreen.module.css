@@ -90,7 +90,41 @@
 }
 
 .empty {
-  margin-top: 12px;
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  margin-top: 20px;
+  padding: 28px 20px 32px;
+  border-radius: var(--r-lg);
+  background: var(--card);
+  box-shadow: 0 0 0 1px var(--line), var(--shadow-card);
+  text-align: center;
+}
+
+.emptyArt {
+  display: grid;
+  place-items: center;
+  width: 136px;
+  height: 136px;
+  margin-bottom: 6px;
+  border-radius: 24px;
+  background: var(--bg-2);
+}
+
+/* Doubled class: outranks host-page heading styles. */
+.empty .emptyTitle {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: var(--fs-headline);
+  color: var(--ink);
+}
+
+.emptyText {
+  max-width: 30ch;
+  margin: 0 0 8px;
+  color: var(--ink-2);
+  text-wrap: pretty;
 }
 
 .footer {

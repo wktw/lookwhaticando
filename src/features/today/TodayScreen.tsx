@@ -16,7 +16,6 @@ import { state, today, toggleOffDay } from '@/state/store';
 import type { DateKey } from '@/state/types';
 import { Button } from '@/ui/Button';
 import { ConfirmDialog } from '@/ui/ConfirmDialog';
-import { EmptyState } from '@/ui/EmptyState';
 import { Toggle } from '@/ui/Toggle';
 import { cx } from '@/ui/cx';
 import { toast } from '@/ui/toast';
@@ -207,18 +206,18 @@ export function TodayScreen() {
         {vm.offDay.isOff && <p class={cx(s.notice, s.offNotice)}>{CHECKIN_TOASTS.offDay}</p>}
 
         {vm.empty ? (
-          <EmptyState
-            class={s.empty}
-            art={<CardPlant species="pothos" stage={0} pot="terracotta" size={96} />}
-            title={EMPTY.today.slice(0, EMPTY.today.indexOf('.') + 1)}
-            action={
-              <Button icon="plus" onClick={() => openHabitEditor()}>
-                {EMPTY.addHabit}
-              </Button>
-            }
-          >
-            {EMPTY.today.slice(EMPTY.today.indexOf('.') + 2)}
-          </EmptyState>
+          <section class={s.empty} aria-labelledby="today-empty">
+            <div class={s.emptyArt} aria-hidden="true">
+              <CardPlant species="pothos" stage={0} pot="terracotta" size={112} />
+            </div>
+            <h2 class={s.emptyTitle} id="today-empty">
+              {EMPTY.today.slice(0, EMPTY.today.indexOf('.') + 1)}
+            </h2>
+            <p class={s.emptyText}>{EMPTY.today.slice(EMPTY.today.indexOf('.') + 2)}</p>
+            <Button icon="plus" size="lg" onClick={() => openHabitEditor()}>
+              {EMPTY.addHabit}
+            </Button>
+          </section>
         ) : (
           <>
             {nothingOn && <p class={s.quiet}>{EMPTY.nothingOn}</p>}
