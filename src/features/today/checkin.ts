@@ -67,8 +67,13 @@ const paid = new Map<string, number>();
 const paidKey = (habitId: string, date: DateKey) => `${habitId}|${date}`;
 
 const timers = new Set<ReturnType<typeof setTimeout>>();
+const frames = new Set<number>();
+/**
+ * Garnish `ms` after the tap. With reduced motion everything arrives together, but still after the
+ * tap's frame: nothing but the store and the ring runs inside the tap itself.
+ */
 function later(ms: number, fn: () => void): void {
-  if (ms <= 0 || prefersReducedMotion()) return fn();
+  if (ms <= 0 || prefersReducedMotion()) return afterFrame(fn);
   const t = setTimeout(() => {
     timers.delete(t);
     fn();
@@ -79,13 +84,15 @@ function later(ms: number, fn: () => void): void {
 /** Runs `fn` in a task after the tap's frame (a partial tap's drop chime): the ring paints first. */
 function afterFrame(fn: () => void): void {
   if (typeof requestAnimationFrame !== 'function') return fn();
-  requestAnimationFrame(() => {
+  const raf = requestAnimationFrame(() => {
+    frames.delete(raf);
     const t = setTimeout(() => {
       timers.delete(t);
       fn();
     }, 0);
     timers.add(t);
   });
+  frames.add(raf);
 }
 
 /** What the note hears about: with Quiet rewards, no harvest aside (DESIGN §9.5: the tracker alone). */
@@ -97,6 +104,8 @@ export function noteEvents(events: readonly GameEvent[], quiet: boolean): readon
 export function cancelChoreography(): void {
   for (const t of timers) clearTimeout(t);
   timers.clear();
+  for (const f of frames) cancelAnimationFrame(f);
+  frames.clear();
 }
 
 /** Waters a card (the whole thing, or its tiny version). Returns the store's result. */

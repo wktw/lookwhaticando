@@ -27,6 +27,11 @@
   height: 168px;
 }
 
+/* The wall before the scene draws (one frame, under the screen's fade-in). */
+.placeholder {
+  background: color-mix(in srgb, var(--bg-2) 70%, var(--lavender-300));
+}
+
 @media (min-width: 900px) {
   .wrap {
     --band-radius: 18px;

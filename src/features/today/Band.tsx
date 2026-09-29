@@ -47,6 +47,11 @@ export interface BandProps {
   onOpenNote?: () => void;
   /** The wallet pill: "What can I get?". */
   onWallet: () => void;
+  /**
+   * Draw the scene (the sill, the pots, the residents: about a thousand nodes). Today passes false
+   * for its first frame so the list paints first; the chips show at once either way.
+   */
+  scene?: boolean;
 }
 
 /** The greeting (VOICE §5): "Afternoon, Sam." · "Morning." with no name set. Early and late have two, picked by the day. */
@@ -88,6 +93,28 @@ export function bandPets(vm: Pick<TodayVM, 'sill'>, pets: AppState['pets']): She
   return out;
 }
 
+/**
+ * A value that changes identity only when its key does, and after the frame that changed it: a
+ * watering redraws the band's world (a thousand nodes) in the next task, never in the tap's own
+ * frame. The pour itself (the band's own state) still starts at once.
+ */
+function useSettled<T>(value: T, key: string): T {
+  const [held, setHeld] = useState(() => ({ key, value }));
+  const latest = useRef({ key, value });
+  latest.current = { key, value };
+  useEffect(() => {
+    if (held.key === key) return;
+    if (typeof requestAnimationFrame !== 'function') return setHeld(latest.current);
+    let t: ReturnType<typeof setTimeout> | undefined;
+    const raf = requestAnimationFrame(() => (t = setTimeout(() => setHeld(latest.current), 0)));
+    return () => {
+      cancelAnimationFrame(raf);
+      clearTimeout(t);
+    };
+  }, [key, held.key]);
+  return held.value;
+}
+
 /** How long a smooth scroll of the pot row takes to settle before the pour starts. */
 export const REVEAL_MS = 320;
 
@@ -111,7 +138,7 @@ export function revealPot(root: HTMLElement, habitId: string): number {
   return reduce ? 0 : REVEAL_MS;
 }
 
-export const Band = forwardRef(function Band({ vm, state, coins, onOpenNote, onWallet }: BandProps, ref: Ref<BandHandle>) {
+export const Band = forwardRef(function Band({ vm, state, coins, onOpenNote, onWallet, scene = true }: BandProps, ref: Ref<BandHandle>) {
   const wrap = useRef<HTMLDivElement>(null);
   const band = useRef<WindowsillBandHandle>(null);
   const collapse = useMemo(() => signal(0), []);
@@ -121,10 +148,10 @@ export const Band = forwardRef(function Band({ vm, state, coins, onOpenNote, onW
   // Kept by value: the view model is rebuilt on every commit, the band's world only when a pot changed.
   const potsNow = bandPots(vm, state.habits);
   const potsKey = JSON.stringify(potsNow);
-  const pots = useMemo(() => potsNow, [potsKey]);
+  const pots = useSettled(potsNow, potsKey);
   const petsNow = bandPets(vm, state.pets);
   const petsKey = JSON.stringify(petsNow);
-  const pets = useMemo(() => petsNow, [petsKey]);
+  const pets = useSettled(petsNow, petsKey);
   const onBand = useMemo(() => new Set(pots.slice(0, 6).map((p) => p.habitId)), [pots]);
   const residentOf = useMemo(() => new Map(vm.sill.map((p) => [p.habitId, p.resident?.petId ?? null])), [vm.sill]);
 
@@ -221,22 +248,26 @@ export const Band = forwardRef(function Band({ vm, state, coins, onOpenNote, onW
           </h1>
           <p class={s.date}>{vm.dateLabel}</p>
         </div>
-        <WindowsillBand
-          ref={band}
-          class={s.band}
-          pots={pots}
-          pets={pets}
-          coins={quiet ? 0 : coins}
-          collapse={collapse}
-          hemisphere={vm.season.hemisphere}
-          onWindowTap={() => navigate('shelf')}
-          chipInset={104}
-          tagFor={tagFor}
-          cutting={{ stage: vm.cutting.stage, overall: vm.cutting.overall }}
-          {...(found ? { found: { seed: found.seed, label: foundPet ? foundLine(foundPet.name, found.seed) : undefined, onTap: () => openPetCard(found.petId) } } : {})}
-          {...(note ? { note } : {})}
-          cake={vm.birthday !== null}
-        />
+        {scene ? (
+          <WindowsillBand
+            ref={band}
+            class={s.band}
+            pots={pots}
+            pets={pets}
+            coins={quiet ? 0 : coins}
+            collapse={collapse}
+            hemisphere={vm.season.hemisphere}
+            onWindowTap={() => navigate('shelf')}
+            chipInset={104}
+            tagFor={tagFor}
+            cutting={{ stage: vm.cutting.stage, overall: vm.cutting.overall }}
+            {...(found ? { found: { seed: found.seed, label: foundPet ? foundLine(foundPet.name, found.seed) : undefined, onTap: () => openPetCard(found.petId) } } : {})}
+            {...(note ? { note } : {})}
+            cake={vm.birthday !== null}
+          />
+        ) : (
+          <div class={cx(s.band, s.placeholder)} aria-hidden="true" />
+        )}
         <div class={s.mini} data-part="mini" aria-hidden="true">
           <span class={s.miniDate}>{vm.shortDate}</span>
           <MiniRing fraction={vm.progress.fraction} />

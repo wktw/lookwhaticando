@@ -53,9 +53,28 @@ function warmSound(): void {
   else setTimeout(go, 1200);
 }
 
+/**
+ * False for the screen's first frame: the band's scene and the notes below the list draw one frame
+ * later, so switching to Today paints the greeting, the strip and the first cards at once.
+ */
+function useAfterFirstFrame(): boolean {
+  const [ready, setReady] = useState(typeof requestAnimationFrame !== 'function');
+  useEffect(() => {
+    if (ready) return;
+    let t: ReturnType<typeof setTimeout> | undefined;
+    const raf = requestAnimationFrame(() => (t = setTimeout(() => setReady(true), 0)));
+    return () => {
+      cancelAnimationFrame(raf);
+      clearTimeout(t);
+    };
+  }, []);
+  return ready;
+}
+
 export function TodayScreen() {
   const st = state.value;
   const t = today.value;
+  const ready = useAfterFirstFrame();
   const picked = selectedDay.value;
   const vm = selectToday(picked !== null && picked < t ? picked : undefined).value;
   const date = vm.date;
@@ -216,7 +235,7 @@ export function TodayScreen() {
 
   return (
     <section class={cx(s.screen, past && s.past, compact && s.compact)} aria-labelledby="today-title">
-      <Band ref={band} vm={bandVm} state={st} coins={st.wallet.coins} onOpenNote={() => notices.current?.openSill()} onWallet={() => setWalletOpen(true)} />
+      <Band ref={band} vm={bandVm} state={st} coins={st.wallet.coins} scene={ready} onOpenNote={() => notices.current?.openSill()} onWallet={() => setWalletOpen(true)} />
 
       <WeekStrip days={vm.weekStrip} onSelect={(d: DateKey) => selectDay(d, t)} />
 
@@ -260,7 +279,7 @@ export function TodayScreen() {
 
         {/* What arrives on the sill: under the list on a phone, a rail beside it on a wide screen. */}
         <div class={s.rail}>
-          <Notices ref={notices} vm={vm} />
+          {ready && <Notices ref={notices} vm={vm} />}
 
           {!vm.empty && (
             <div class={s.footer}>
