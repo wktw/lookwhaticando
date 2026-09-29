@@ -502,4 +502,29 @@ describe('spending shows up as events, and a Special Order is committed before i
     expect(g.run((tx) => gacha.wish(tx, id)).ok).toBe(true);
     expect(g.state.pendingReveal).toEqual(waiting);
   });
+
+  it('a Special Order never blocks the capsules: the next pull, on another cabinet or the same one, goes ahead', () => {
+    for (const machineId of ['cats', 'dogs'] as const) {
+      const g = new Game({ start: '2026-09-29', seed: 3 });
+      g.setWallet({ coins: 100, stars: 20 });
+      expect(g.run((tx) => gacha.wish(tx, 'pet-dog-shiba'))).toMatchObject({ ok: true });
+      expect(g.state.pendingReveal).toMatchObject({ machineId: 'dogs', itemId: 'pet-dog-shiba', order: true });
+      const r = g.run((tx) => gacha.pull(tx, machineId));
+      expect(r, machineId).toMatchObject({ ok: true, machineId });
+      // The capsule's reveal replaces the order's (which played from the wish result).
+      expect(g.state.pendingReveal).toMatchObject({ machineId });
+      expect(g.state.pendingReveal?.order).toBeUndefined();
+      // …and that capsule reveal holds the cabinets until it has been shown.
+      expect(g.run((tx) => gacha.pull(tx, 'cats'))).toEqual({ ok: false, error: 'reveal-pending' });
+    }
+  });
+
+  it('a second Special Order’s reveal replaces the first order’s', () => {
+    const g = new Game({ start: '2026-09-29' });
+    g.setWallet({ stars: 40 });
+    const [a, b] = COLLECTIBLES.filter((c) => c.rarity === 'common' && c.source === 'cats');
+    expect(g.run((tx) => gacha.wish(tx, a!.id)).ok).toBe(true);
+    expect(g.run((tx) => gacha.wish(tx, b!.id)).ok).toBe(true);
+    expect(g.state.pendingReveal).toMatchObject({ itemId: b!.id, order: true });
+  });
 });

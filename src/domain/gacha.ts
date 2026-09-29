@@ -290,7 +290,9 @@ export interface PullOptions {
 
 export function pull(tx: Tx, machineId: MachineId, opts: PullOptions = {}): PullResult | { ok: false; error: PullError } {
   const s = tx.s;
-  if (s.pendingReveal) return { ok: false, error: 'reveal-pending' };
+  // A capsule reveal still waiting holds the cabinets (commit before animate). A Special Order's
+  // reveal never does: its first showing plays from the wish result, so the new pull replaces it.
+  if (s.pendingReveal && !s.pendingReveal.order) return { ok: false, error: 'reveal-pending' };
   const machine = getMachine(machineId);
   if (!machineAvailability(machineId, tx.env.today).available) return { ok: false, error: 'machine-unavailable' };
 
@@ -413,7 +415,9 @@ export function wishStatus(s: AppState, itemId: string, today: DateKey, createdO
  * duplicate: only unowned items can be ordered) and, commit before animate (§7.1), stores the
  * reveal as `pendingReveal` with `order: true` so a reload mid-reveal still plays it ("Your order:
  * a Siamese."; a Secret plays the full Secret reveal). `finishReveal` clears it. A capsule reveal
- * already waiting keeps its place (the order's reveal plays straight from the result).
+ * already waiting keeps its place (the order's reveal plays straight from the result); an earlier
+ * order's reveal gives way to this one. An order's reveal never blocks the capsules: `pull` goes
+ * ahead and replaces it.
  */
 export function wish(tx: Tx, itemId: string): WishOutcome {
   const status = wishStatus(tx.s, itemId, tx.env.today, profileCreatedOn(tx.s, tx.env.local));
@@ -424,7 +428,7 @@ export function wish(tx: Tx, itemId: string): WishOutcome {
   const def = getCollectible(itemId)!;
   const got = acquire(tx, def, false);
   markOrdered(tx, def.id);
-  if (!tx.s.pendingReveal && isMachineSource(def.source)) {
+  if ((!tx.s.pendingReveal || tx.s.pendingReveal.order) && isMachineSource(def.source)) {
     tx.set('pendingReveal', { machineId: def.source, itemId: def.id, isNew: true, stardust: 0, fusedStars: 0, order: true, at: tx.env.now });
   }
   evaluateBadges(tx);

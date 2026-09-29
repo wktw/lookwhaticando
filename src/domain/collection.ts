@@ -35,7 +35,6 @@ export function isMachineComplete(collection: Collection, machineId: MachineId):
   return machineProgress(collection, machineId).complete;
 }
 
-/** "Own N collectibles from machines" (badges): distinct machine items owned, moonlit variants included. */
 /**
  * Series items that came out of a capsule (a Special Order's own copy doesn't count): what the
  * collect-N pins count ("Collect 10 different things from the capsules"), so ordering with stamps
@@ -51,6 +50,7 @@ export function capsuleCollectiblesOwned(collection: Collection): number {
   return n;
 }
 
+/** "Own N collectibles from machines" (badges): distinct machine items owned, moonlit variants included. */
 export function machineCollectiblesOwned(collection: Collection): number {
   let n = 0;
   for (const id of Object.keys(collection)) {

@@ -194,7 +194,7 @@ One line under the habit name, first match wins (DESIGN §9.1.1). It never shows
 | Brand new | "Just planted" |
 | Resting today | "Resting today" (with the moon) |
 
-The line is built by `statusLine()` in `src/catalog/format.ts` from the card's `status` data (kind and
+The line is built by `statusLine()` in `src/catalog/format.ts` from the card's `subtitle` data (kind and
 numbers only); the same function is used by the card, its screen-reader description and the fx layer.
 
 Below 10 expected occurrences there are no percentages: "4 of 4 so far". The anchor sits above it in

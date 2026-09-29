@@ -187,6 +187,20 @@ describe('Welcome home after a partial tap (M1 audit)', () => {
     expect(g.state.wallet.tickets).toBe(tickets + 1);
   });
 
+  it('a completion that settles nothing (a day past the backfill window) doesn’t use up the welcome either', () => {
+    const g = new Game({ start: '2026-03-02' });
+    const walk = g.addHabit();
+    g.checkIn(walk);
+    g.goTo('2026-03-20'); // seventeen quiet days
+    const back = g.checkIn(walk, '2026-03-04'); // filled in, but too long ago to be rewarded
+    expect(back).toMatchObject({ completed: true, rewarded: false });
+    expect(g.lastOf('welcomeHome')).toEqual([]);
+    expect(g.state.clock.lastCheckinAt).toBeLessThan(g.now);
+    g.checkIn(walk);
+    expect(g.lastOf('welcomeHome')).toEqual([{ type: 'welcomeHome', coins: 20, tickets: 1 }]);
+    expect(g.lastOf('coins').filter((e) => e.reason === 'home')).toEqual([{ type: 'coins', amount: 20, reason: 'home' }]);
+  });
+
   it('a completing watering still records the time, so the next day is an ordinary day', () => {
     const g = new Game({ start: '2026-03-02' });
     const walk = g.addHabit();

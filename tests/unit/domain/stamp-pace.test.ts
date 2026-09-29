@@ -71,5 +71,14 @@ describe('the stamp pace over 10 weeks of steady play (DESIGN §6)', () => {
     expect(g.state.collection[id]).toMatchObject({ count: 1, ordered: true });
     expect(capsuleCollectiblesOwned(g.state.collection)).toBe(0);
     expect(machineCollectiblesOwned(g.state.collection)).toBe(1);
+    // A capsule later brings a copy of the same thing: now it did come out of a capsule.
+    g.setWallet({ coins: 25 * 400 });
+    for (let i = 0; i < 400 && g.state.collection[id]!.count < 2; i++) {
+      expect(g.run((tx) => gacha.pull(tx, 'cats')).ok).toBe(true);
+      g.run((tx) => gacha.finishReveal(tx));
+    }
+    expect(g.state.collection[id]!.count).toBe(2);
+    expect(g.state.collection[id]!.ordered).toBeUndefined();
+    expect(capsuleCollectiblesOwned(g.state.collection)).toBe(machineCollectiblesOwned(g.state.collection));
   });
 });

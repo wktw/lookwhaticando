@@ -296,7 +296,7 @@ stripes · Secret = holo stripes + "?". The tier word is always printed.
 ### 7.3 Special Order & the swap shelf
 
 **Special Order** (at the counter): any unowned item for stamps, Classic 3 · Special 4 · Rare 8 · Super rare 15 · Moonlit
-8 (the stamps pace, §6). An order is committed before it animates, like a pull (`pendingReveal` with `order: true`). **Memories rule**: a seasonal edition's items become orderable only after that season has visited since the
+8 (the stamps pace, §6). An order is committed before it animates, like a pull (`pendingReveal` with `order: true`); unlike a capsule's, an order's reveal never holds the cabinets: the next pull replaces it. **Memories rule**: a seasonal edition's items become orderable only after that season has visited since the
 profile was created: from the first day she has the app while the season is on (a profile created mid-season has seen
 that visit). An unowned Secret appears as a "?" tile, and ordering it plays the full reveal. **Swap-in**: on a
 completed series, 250 coins → 40 swaps.
@@ -454,7 +454,7 @@ Diagnostics).
 
 1. An empty sill in morning light. One line: **"New place. Which plants came with you?"** An optional name field sits on
    the same screen.
-2. **Pick up to 3 habits** from 8 starter chips (Drink water, Walk, Read, Stretch, Journal, Tidy 10 min, Take vitamins,
+2. **Pick up to 3 habits** from 8 starter chips (Drink water, Walk, Read, Stretch, Journal, Tidy for 10 minutes, Take vitamins,
    Skincare) plus "More ideas" and "Make my own", with the copy "More can go on the sill anytime." Each chosen habit appears on
    the sill as **a cutting in a water glass**. Custom habits from "Make my own" join the same step (at most 3 in all).
 3. **"Anything already done today?"**: live check buttons. The first watering plays the full choreography, and a one-time

@@ -50,8 +50,17 @@ then the contract changes the screens build on.
    - "Let {name} choose" calls `store.letPetChoose(petId)`. It returns
      `{ habitId, place }` for "{name} chose {plant}, for the sun." or "{name} chose the Saucer
      Pond." (`PLACE_LINES`, `movedToPlaceLine`).
-   - A Special Order's reveal resumes from `pendingReveal` with `order: true`, so the reveal says
-     "Your order: a Siamese.".
+   - A Special Order is committed before it animates: `wish()` writes `pendingReveal` with
+     `order: true` (unless a capsule reveal is already waiting). An order's reveal never blocks the
+     capsules (the next `pull()` goes ahead and replaces it), but until something clears it, it
+     sits there. Two changes, both in `src/features/capsules/`:
+     - `CapsulesScreen.tsx:94-99`: the order `RevealOverlay`'s `onClose`, and its Place and
+       "Let {name} choose" paths, call `store.finishReveal()` once the order's reveal has been
+       shown. Otherwise Today's `pendingReveal` stays true, and the next visit to that cabinet
+       replays the order.
+     - `usePull.ts:35-40` `resumeFor`: skip a `pendingReveal` with `order: true`, or route it to
+       the order overlay ("Your order: a Siamese.") after a reload mid-reveal. It must never replay
+       as a capsule pull.
 8. **features: `src/features/capsules/copy.ts` and `names.ts`.**
    - Re-export `REVEAL_LINES`, `SECRET_REVEAL`, `DUPLICATE_LINES` and `NAME_SUGGESTIONS`
      (personalities.ts) rather than keeping copies.
