@@ -1,6 +1,7 @@
 /**
  * Service worker registration (hosted PWA only; skipped in the single-file build, in dev,
- * and off http(s)). Updates are offered gently, never forced.
+ * and off http(s)). A new version is offered with a note ("Reload"); if she doesn't take it, it
+ * applies while catkin is out of sight, never in front of her.
  *
  * Uses workbox-window directly (what virtual:pwa-register wraps): the virtual module only
  * exists when vite-plugin-pwa runs, and Rollup resolves dynamic imports even in dead branches,
@@ -11,7 +12,8 @@
  * - `checkForUpdates()` asks the server now ("Check for updates").
  * - `reloadApp()` applies a waiting version, else simply reloads ("Reload app").
  * - Coming back after more than 30 minutes away checks on its own, and a waiting version applies
- *   on the next hide → show, but never during a sheet, a reveal or onboarding (`holdUpdates`).
+ *   when the app is next hidden (so she never watches it reload), but never during a sheet, a
+ *   reveal or onboarding (`holdUpdates`). Unsaved field text is committed on hide by its screen.
  */
 import { signal } from '@preact/signals';
 import { toast } from '@/ui/toast';
@@ -110,12 +112,19 @@ export async function checkForUpdates(): Promise<UpdateCheck> {
   return 'up-to-date';
 }
 
-/** Coming back to the app: apply a waiting version if nothing is open, or check after a long time away. */
-function onVisible(): void {
-  if (document.visibilityState !== 'visible') return;
-  if (updateReady.value && !autoApplied && !busy()) {
-    autoApplied = true;
-    reloadApp();
+/**
+ * Leaving the app: a waiting version applies now, out of sight (after this event's other listeners,
+ * such as a field committing its text, have run). Coming back: check after a long time away.
+ */
+function onVisibility(): void {
+  if (document.visibilityState === 'hidden') {
+    if (updateReady.value && !autoApplied && !busy()) {
+      autoApplied = true;
+      setTimeout(() => {
+        if (document.visibilityState === 'hidden') reloadApp();
+        else autoApplied = false;
+      }, 0);
+    }
     return;
   }
   if (Date.now() - lastCheck > RESUME_CHECK_MS) void checkForUpdates();
@@ -134,7 +143,7 @@ export async function registerServiceWorker(): Promise<void> {
     registration = await box.register();
     lastCheck = Date.now();
     if (registration?.waiting) offerReload();
-    document.addEventListener('visibilitychange', onVisible);
+    document.addEventListener('visibilitychange', onVisibility);
   } catch {
     /* No service worker: the app still works online. */
   }

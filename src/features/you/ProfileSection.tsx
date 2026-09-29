@@ -1,5 +1,5 @@
 /** You › Profile (DESIGN §9.5): the card at the top, her name and her birthday. */
-import { useEffect, useId, useState } from 'preact/hooks';
+import { useEffect, useId, useRef, useState } from 'preact/hooks';
 import { BIRTHDAY, COUNTS, SETTINGS } from '@/catalog/lines';
 import { counted } from '@/catalog/format';
 import { MONTH_NAMES } from '@/domain/dates';
@@ -45,18 +45,38 @@ export function profileFacts(opts: { habits: number; pets: number; waterings: nu
 function NameRow() {
   const saved = state.value.profile.name;
   const [draft, setDraft] = useState(saved);
+  /** Her own typing not yet saved (an import or the demo replacing the name doesn't count). */
+  const dirty = useRef(false);
   // Follow the save when it changes underneath (an import, the demo).
-  useEffect(() => setDraft(saved), [saved]);
+  useEffect(() => {
+    dirty.current = false;
+    setDraft(saved);
+  }, [saved]);
   const commit = () => {
-    if (draft.trim() !== saved) setName(draft);
+    if (dirty.current && draft.trim() !== saved) setName(draft);
+    dirty.current = false;
   };
+  // Half-typed when she leaves the app (or an update reloads it while hidden): keep it.
+  const latest = useRef(commit);
+  latest.current = commit;
+  useEffect(() => {
+    const onHide = () => document.visibilityState === 'hidden' && latest.current();
+    document.addEventListener('visibilitychange', onHide);
+    return () => {
+      document.removeEventListener('visibilitychange', onHide);
+      latest.current();
+    };
+  }, []);
   return (
     <Row stack>
       <TextField
         label={SETTINGS.name.label}
         hint={SETTINGS.name.helper}
         value={draft}
-        onValue={setDraft}
+        onValue={(v) => {
+          dirty.current = true;
+          setDraft(v);
+        }}
         maxLength={NAME_MAX}
         autoComplete="given-name"
         enterKeyHint="done"
