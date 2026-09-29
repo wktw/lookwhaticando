@@ -1,7 +1,7 @@
 import { BEAR_PARTS, BEAR_RIG } from './bear.rig';
 import type { DrawCtx, SpeciesArt, SpriteCtx } from './art';
+import type { Pose } from '../types';
 import { Blush, Eyes, Mouth } from '../face';
-import { blotch } from './marks';
 import { circle, ellipse, rrect } from '../shape';
 
 /** Bear cubs: round ears, a pale muzzle, a dark nose. */
@@ -54,9 +54,8 @@ const marks: SpeciesArt['marks'] = {
       </g>
     ),
   },
-  crescent: {
-    body: (c) => <path d="M76 26C84 34 90 34 98 28C96 40 88 46 80 42C76 40 74 32 76 26Z" fill={c.tones.mark} />,
-  },
+  // Drawn per pose in bodyDetail: a broad U across the upper chest.
+  crescent: {},
   spectacles: {
     head: (c) => (
       <g fill={c.tones.mark}>
@@ -64,11 +63,10 @@ const marks: SpeciesArt['marks'] = {
         <path d={`${circle(7.4, -2.8, 4.4)}${circle(7.4, -2.8, 2.8)}`} fill-rule="evenodd" />
       </g>
     ),
-    body: (c) => <path d={blotch(90, 50, 22, 60, 0)} fill={c.tones.mark} />,
+    // A pale bib on the chest.
+    chest: true,
   },
-  belly: {
-    body: (c) => <path d={blotch(84, 76, 40, 60, 0)} fill={c.tones.under} />,
-  },
+  belly: { chest: true },
 };
 
 function sprite({ tones: t, has }: SpriteCtx) {
@@ -87,11 +85,45 @@ function sprite({ tones: t, has }: SpriteCtx) {
   );
 }
 
+/**
+ * The Sun Bear's pale-gold bib: a broad U across the upper chest, per pose (canvas frame). It is
+ * drawn over the near foreleg's shoulder so the whole U shows on the chest.
+ */
+const BIB: Record<Pose, string> = {
+  sit: 'M47.6 57C48.6 65.4 53 70.4 58.8 70.4C64 70.4 66.8 66 67.2 59.2L62.4 58.6C62 62.4 60.8 64.4 58.6 64.4C55.4 64.4 53.4 61.4 53 56.6Z',
+  loaf: 'M58 74C58.8 81.4 62.6 86 67.4 86C72 86 75 82 75.4 75.6L70.8 75.2C70.4 78.8 69.4 80.4 67.4 80.4C64.6 80.4 63 77.6 62.6 73.6Z',
+  stand: 'M62.6 68.6C63.2 75.2 66.4 79.4 70.6 79.4C74.4 79.4 76.6 75.8 77 70.6L72.8 70.2C72.6 73 71.8 74.4 70.6 74.4C68.4 74.4 67.2 71.8 67 68.2Z',
+  walk: 'M62.6 68.6C63.2 75.2 66.4 79.4 70.6 79.4C74.4 79.4 76.6 75.8 77 70.6L72.8 70.2C72.6 73 71.8 74.4 70.6 74.4C68.4 74.4 67.2 71.8 67 68.2Z',
+  sleep: '',
+};
+
+function overBody(c: DrawCtx) {
+  const bib = !c.silhouette && c.has('crescent') && BIB[c.pose];
+  return bib ? <path d={bib} fill={c.tones.mark} /> : null;
+}
+
+/** A panda's black hindquarters, so the hind leg reads as part of the body, not a loose ball. */
+const PANDA_HAUNCH: Record<Pose, string> = {
+  sit: 'M14 70C22 66 34 68 42 74C50 80 54 88 54 100H14Z',
+  loaf: 'M10 76C16 72 26 72 34 77C40 81 44 88 44 100H10Z',
+  sleep: 'M10 76C16 72 26 72 34 77C40 81 44 88 44 100H10Z',
+  stand: '',
+  walk: '',
+};
+
+function bodyDetail(c: DrawCtx) {
+  if (c.silhouette) return null;
+  const haunch = c.has('panda') && PANDA_HAUNCH[c.pose];
+  return haunch ? <path d={haunch} fill={c.tones.mark} /> : null;
+}
+
 export const BEAR_ART: SpeciesArt = {
   species: 'bear',
   rigFor: () => ({ id: 'bear', rig: BEAR_RIG }),
   ears,
   face,
   marks,
+  bodyDetail,
+  overBody,
   sprite,
 };

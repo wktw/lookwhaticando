@@ -1,7 +1,6 @@
 import { HAMSTER_PARTS, HAMSTER_RIG } from './hamster.rig';
 import type { DrawCtx, SpeciesArt, SpriteCtx } from './art';
 import { Blush, Eyes, Mouth } from '../face';
-import { blotch } from './marks';
 import { circle, ellipse, scallop } from '../shape';
 
 /** Hamsters: full cheeks are the cue; chewing stuffs them fuller. */
@@ -49,9 +48,7 @@ function face(c: DrawCtx) {
 }
 
 const marks: SpeciesArt['marks'] = {
-  belly: {
-    body: (c) => <path d={blotch(80, 84, 56, 56, 0)} fill={c.tones.under} />,
-  },
+  belly: { chest: true },
   dorsal: {
     body: (c) => <path d="M-5 -4C30 1 70 1 105 -4V10C70 15 30 15 -5 10Z" fill={c.tones.mark} />,
   },

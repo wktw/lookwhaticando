@@ -8,7 +8,6 @@ import { luma, mix } from './palette';
  */
 
 const WHITE = '#F9F3EA';
-const CREAM = '#F7EDE0';
 const SOOT = '#4A4146';
 const PLUM_BLACK = '#3A3238';
 const PINK_NOSE = '#DB959A';
@@ -57,12 +56,12 @@ export const LOOKS: Record<string, PetLook> = {
   'pet-cat-snowshoe': cat({ coat: '#EFE4D4', point: '#7B6253', ear: '#7B6253', leg: '#7B6253', tail: '#7B6253', paw: WHITE, under: WHITE, nose: '#E0A2A6', eye: BLUE_EYE }, { marks: ['points', 'blaze'] }),
   'pet-cat-heartspot': cat({ coat: WHITE, mark: '#A39AA0', tail: '#A39AA0' }, { marks: ['heart'] }),
   'pet-cat-ragdoll': cat(
-    { coat: '#F5EEE4', point: '#A68D7F', ear: '#A68D7F', tail: '#A68D7F', paw: WHITE, eye: BLUE_EYE, nose: '#C99A93' },
-    { marks: ['points'], traits: ['longhair', 'ruff'] },
+    { coat: '#F5EEE4', point: '#A68D7F', ear: '#A68D7F', leg: '#B8A194', tail: '#A68D7F', paw: '#FFFBF5', eye: BLUE_EYE, nose: '#C99A93' },
+    { marks: ['points', 'mitts'], traits: ['longhair', 'ruff'] },
   ),
   'pet-cat-birman': cat(
-    { coat: '#F3EDE8', point: '#B3A6B6', ear: '#B3A6B6', leg: '#B3A6B6', tail: '#B3A6B6', paw: WHITE, eye: '#79A7DE', nose: '#B79AA6' },
-    { marks: ['points'], traits: ['longhair', 'ruff'] },
+    { coat: '#F3EDE8', point: '#B3A6B6', ear: '#B3A6B6', leg: '#B3A6B6', tail: '#B3A6B6', paw: '#FFFBF5', eye: '#79A7DE', nose: '#B79AA6' },
+    { marks: ['points', 'gloves'], traits: ['longhair', 'ruff'] },
   ),
   'pet-cat-turkishvan': cat({ coat: WHITE, mark: '#D38C5E', tail: '#D38C5E', eye: '#E6C06A' }, { marks: ['van'] }),
   'pet-cat-abyssinian': cat({ coat: '#D8A46C', mark: '#A2703F', under: '#F1D8B4', tip: '#8E5F36', eye: '#CDB65B', nose: '#C07E6A' }, { marks: ['ticked', 'belly'] }),
@@ -70,8 +69,8 @@ export const LOOKS: Record<string, PetLook> = {
 
   /* ------------------------------------------------------------------ cows */
   'pet-cow-holstein': cow({ coat: WHITE, mark: SOOT, muzzle: '#F3C6C6', tail: SOOT, nose: '#C98E8C' }, { marks: ['holstein'] }),
-  'pet-cow-jersey': cow({ coat: '#D6A87E', head: '#CC9C71', muzzle: '#4F4341', under: '#F6EBDD', tail: '#C29469', tip: '#4F4341', earIn: '#E7B3A2' }, { marks: ['ring'] }),
-  'pet-cow-brownswiss': cow({ coat: '#AC9A8C', muzzle: '#6B605A', under: '#F1E9E0', tail: '#9C8A7C', tip: '#4F4642', earIn: '#E2B7AE' }, { marks: ['ring'], traits: ['long-ears'] }),
+  'pet-cow-jersey': cow({ coat: '#D6A87E', head: '#CC9C71', muzzle: '#7A6660', under: '#F3E6D6', tail: '#C29469', tip: '#4F4341', earIn: '#E7B3A2' }, { marks: ['ring'] }),
+  'pet-cow-brownswiss': cow({ coat: '#AC9A8C', muzzle: '#6E625C', under: '#F3E6D6', tail: '#9C8A7C', tip: '#4F4642', earIn: '#E2B7AE' }, { marks: ['ring'], traits: ['long-ears'] }),
   'pet-cow-beltie': cow({ coat: '#4B4247', under: '#F6EEE2', muzzle: '#6C6267', earIn: '#8E7773' }, { marks: ['belt'], dark: true }),
   'pet-cow-hereford': cow({ coat: '#BC6A45', head: WHITE, ear: '#BC6A45', muzzle: '#F2C8C1', under: WHITE, tip: WHITE, nose: '#C98E8C' }, { marks: ['whiteface'] }),
   'pet-cow-dexter': cow({ coat: '#403639', muzzle: '#5E5256', earIn: '#7A6368' }, { dark: true, scale: 0.86 }),
@@ -90,7 +89,7 @@ export const LOOKS: Record<string, PetLook> = {
   'pet-frog-tomato': frog({ coat: '#E88A5E', under: '#F3C29D', mark: '#D9774D' }, { stocky: 1.06 }),
   'pet-frog-glass': frog({ coat: '#CCDFB4', under: '#F5F7EA', mark: '#B7CE9C', eye: '#E3DDB0' }, { marks: ['glass'], traits: ['toe-pads'] }),
   'pet-frog-mossy': frog({ coat: '#8FA67B', mark: '#6E855D', mark2: '#B7C79F', under: '#D9DFC4' }, { marks: ['moss'] }),
-  'pet-frog-peeper': frog({ coat: '#CFAA84', mark: '#916D51', under: '#F1E3CF' }, { marks: ['x'], scale: 0.8 }),
+  'pet-frog-peeper': frog({ coat: '#CFAA84', mark: '#A07B5B', under: '#F1E3CF' }, { marks: ['x'], scale: 0.8 }),
   'pet-frog-blue': frog({ coat: '#7FA6DA', mark: '#2F3552', under: '#A9C2E6' }, { marks: ['dots'] }),
   'pet-frog-strawberry': frog({ coat: '#E4695B', leg: '#6F90CA', under: '#EE9285' }, { marks: ['jeans'], scale: 0.8 }),
   'pet-frog-redeyed': frog({ coat: '#8FC57B', eye: '#E0584B', foot: '#F0A25A', leg: '#8FC57B', mark: '#6F94C9', mark2: '#F4F1E4', under: '#F2EFD6' }, { marks: ['flanks'], traits: ['toe-pads'] }),
@@ -103,7 +102,7 @@ export const LOOKS: Record<string, PetLook> = {
   'pet-dog-shiba': dog({ coat: '#DC955A', under: '#F7E8D3', muzzle: '#F7E8D3', tail: '#DC955A' }, { marks: ['urajiro'], traits: ['pointy-ears', 'curled-tail'] }),
   'pet-dog-golden': dog({ coat: '#E7B770', ear: '#DDA35F', muzzle: '#EFC98C' }, { marks: ['muzzle'] }),
   'pet-dog-dalmatian': dog({ coat: WHITE, mark: SOOT, ear: SOOT, tail: WHITE }, { marks: ['spots'] }),
-  'pet-dog-frenchie': dog({ coat: '#DCC3A2', ear: '#D2B592', muzzle: '#7E6A5C', earIn: '#E7B6A6' }, { marks: ['muzzle'], traits: ['bat-ears'], scale: 0.92 }),
+  'pet-dog-frenchie': dog({ coat: '#DCC3A2', ear: '#D2B592', earIn: '#E7B6A6', muzzle: '#B39579' }, { marks: ['muzzle'], traits: ['bat-ears', 'short-muzzle', 'stub-tail'], scale: 0.92, stocky: 1.22 }),
   'pet-dog-bernese': dog({ coat: '#3F3638', mark: '#C98552', under: WHITE, paw: WHITE, tip: WHITE }, { marks: ['tricolour'], dark: true, scale: 1.06 }),
   'pet-dog-samoyed': dog({ coat: '#F8F2EA', under: '#FFFCF6', muzzle: '#FFFCF6', earIn: '#EFC4C0' }, { traits: ['fluffy', 'pointy-ears', 'curled-tail'], scale: 1.04 }),
   'pet-dog-beagle': dog({ coat: '#D69B5F', mark: SOOT, under: WHITE, muzzle: WHITE, paw: WHITE, tip: WHITE, ear: '#C98A50' }, { marks: ['saddle', 'muzzle', 'belly', 'blaze'], traits: ['long-ears'] }),
@@ -120,15 +119,15 @@ export const LOOKS: Record<string, PetLook> = {
   'pet-bunny-silverfox': bunny({ coat: '#3F3B42', mark: '#D9D5DD', under: '#57525A', nose: '#6A5E66' }, { marks: ['silver'], dark: true }),
   'pet-bunny-cinnamon': bunny({ coat: '#B9774F', under: '#E3BFA2', ear: '#A9683F' }, { marks: ['belly'] }),
   'pet-bunny-snowshoe': bunny({ coat: '#F6F2EC', under: '#FFFCF6', ear: '#F6F2EC' }, { traits: ['big-feet'], scale: 1.04 }),
-  'pet-bunny-minirex': bunny({ coat: '#8C6652', under: '#A8826C', nose: '#B98A86' }, { marks: ['belly'] }),
+  'pet-bunny-minirex': bunny({ coat: '#8C6652', under: '#A8826C', nose: '#B98A86' }),
   'pet-bunny-netherland': bunny({ coat: '#D9C0A7', under: '#F3E8DB' }, { marks: ['belly'], traits: ['short-ears'], scale: 0.8 }),
   'pet-bunny-harlequin': bunny({ coat: '#E49B5A', mark: SOOT, mark2: '#E49B5A', ear: SOOT, under: '#F1C79E' }, { marks: ['harlequin'] }),
 
   /* ----------------------------------------------------------------- bears */
   'pet-bear-brown': bear({ coat: '#9E7050', muzzle: '#D9B592', earIn: '#C79C7C' }),
   'pet-bear-panda': bear({ coat: WHITE, mark: SOOT, ear: SOOT, leg: SOOT, muzzle: WHITE, tail: WHITE }, { marks: ['panda'] }),
-  'pet-bear-sun': bear({ coat: '#3F3638', mark: '#E8B560', muzzle: '#D6AB7B', earIn: '#6B5A5E' }, { marks: ['crescent'], dark: true }),
-  'pet-bear-spectacled': bear({ coat: '#3F3638', mark: '#EFDDB9', muzzle: '#EFDDB9', earIn: '#6B5A5E' }, { marks: ['spectacles'], dark: true }),
+  'pet-bear-sun': bear({ coat: '#3F3638', mark: '#EFC98A', muzzle: '#D6AB7B', earIn: '#6B5A5E' }, { marks: ['crescent'], dark: true }),
+  'pet-bear-spectacled': bear({ coat: '#3F3638', mark: '#EFDDB9', under: '#E9D6B0', muzzle: '#EFDDB9', earIn: '#6B5A5E' }, { marks: ['spectacles'], dark: true }),
   'pet-bear-black': bear({ coat: '#3B3337', muzzle: '#B78B6B', earIn: '#6B5A5E' }, { dark: true }),
   'pet-bear-polar': bear({ coat: '#F5EEDF', muzzle: '#FBF6EC', earIn: '#EBD3C8' }),
 
@@ -162,6 +161,7 @@ export const LOOKS: Record<string, PetLook> = {
 /* --------------------------------------------------------------- moonlit */
 
 const MOON = '#9FA8D8';
+const MOON_WARM = '#B9B3D6';
 const cache = new Map<string, PetLook>();
 
 /**
@@ -170,7 +170,13 @@ const cache = new Map<string, PetLook>();
  */
 export function moonlit(look: PetLook): PetLook {
   const p = look.palette;
-  const shift = (c: string | undefined, k = 0.34) => (c ? mix(c, MOON, k) : undefined);
+  // Warm coats (ginger, fawn, cinnamon) go muddy mauve when pulled toward the blue; they take a
+  // paler lavender and a longer pull, so they land blue-lavender too.
+  const warm = (c: string) => {
+    const [r, , b] = [0, 2, 4].map((i) => parseInt(c.replace('#', '').slice(i, i + 2), 16)) as [number, number, number];
+    return r - b > 40;
+  };
+  const shift = (c: string | undefined, k = 0.34) => (c ? (warm(c) ? mix(c, MOON_WARM, Math.min(0.7, k * 2)) : mix(c, MOON, k)) : undefined);
   // Markings go lighter but keep their place against the coat: dark marks become soft slate,
   // pale marks go paler, so a tabby keeps its stripes.
   const coatLuma = luma(p.coat);

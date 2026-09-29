@@ -30,7 +30,12 @@ const SIDE = 'M30 61C40 55 56 55 64 59C72 63 75 71 73 79C71 85 66 87 58 87L34 87
 const cotton = (x: number, y: number, r = 5.4): TailRig => ({ d: circle(x, y, r), tip: circle(x, y, r), pivot: [x, y], layer: 'back', lit: false });
 const paw = (x: number, y: number, rx: number, ry: number, tone: Layer['tone'] = 'leg'): Layer => ({ d: ellipse(x, y, rx, ry), tone, sock: ellipse(x, y, rx, ry) });
 /** The long hind foot, flat on the ground. */
-const foot = (x0: number, x1: number, tone: Layer['tone'] = 'leg'): Layer => ({ d: rrect(x0, 88.6, x1 - x0, 5.4, 2.7), tone, sock: rrect(x0, 88.6, x1 - x0, 5.4, 2.7) });
+const foot = (x0: number, x1: number, tone: Layer['tone'] = 'leg', top = 88.6): Layer => {
+  const d = rrect(x0, top, x1 - x0, 94 - top, Math.min(2.7, (94 - top) / 2));
+  return { d, tone, sock: d };
+};
+/** Standing, the hind foot tucks up under the haunch (drawn before it), so it never floats. */
+const tucked = (x0: number, x1: number) => foot(x0, x1, 'leg', 84.6);
 const haunch = (x: number, y: number, rx: number, ry: number): Layer => ({ d: ellipse(x, y, rx, ry), tone: 'leg', lit: true });
 
 export const BUNNY_RIG: SpeciesRig = {
@@ -42,6 +47,8 @@ export const BUNNY_RIG: SpeciesRig = {
     eyes: { y: -1.2, left: -4.4, right: 7.6, r: 2.4 },
     nose: [11.6, 4.4],
     ear: { x: 0, y: -12, r: 0 },
+    top: -39.4,
+    wide: 18.4,
   },
   poses: {
     sit: {
@@ -68,24 +75,24 @@ export const BUNNY_RIG: SpeciesRig = {
       frame: { x: 17, y: 55, w: 58, h: 33 },
       head: { x: 70, y: 53, s: 0.92, r: 6 },
       back: [leg([[62, 80], [62.4, 87], [62.6, 93.3]], 5, 4.4, 'legFar')],
-      front: [haunch(31, 77, 12.4, 10.4), foot(22, 44), leg([[67.4, 80], [67.8, 87], [68, 93.3]], 5.6, 4.8, 'leg')],
+      front: [tucked(22, 44), haunch(31, 77, 12.4, 10.4), leg([[67.4, 80], [67.8, 87], [68, 93.3]], 5.6, 4.8, 'leg')],
       tail: cotton(19, 70),
       contact: { cx: 46, rx: 29 },
-      neck: { x: 66, y: 65, w: 9, r: 18 },
+      neck: { x: 65, y: 66.6, w: 9, r: 16 },
     },
     walk: {
       body: SIDE,
       frame: { x: 17, y: 55, w: 58, h: 33 },
       head: { x: 70, y: 53, s: 0.92, r: 6 },
       back: [leg([[62, 80], [64.4, 87], [67, 93.3]], 5, 4.4, 'legFar')],
-      front: [haunch(31, 77, 12.4, 10.4), foot(26, 48), leg([[67.4, 80], [71, 87], [74.6, 93.3]], 5.6, 4.8, 'leg')],
+      front: [tucked(26, 48), haunch(31, 77, 12.4, 10.4), leg([[67.4, 80], [71, 87], [74.6, 93.3]], 5.6, 4.8, 'leg')],
       frameB: {
         back: [leg([[62, 80], [60, 87], [57.6, 93.3]], 5, 4.4, 'legFar')],
-        front: [haunch(31, 77, 12.4, 10.4), foot(14, 36), leg([[67.4, 80], [64.8, 87], [62, 93.3]], 5.6, 4.8, 'leg')],
+        front: [tucked(16, 38), haunch(31, 77, 12.4, 10.4), leg([[67.4, 80], [64.8, 87], [62, 93.3]], 5.6, 4.8, 'leg')],
       },
       tail: cotton(19, 70),
       contact: { cx: 46, rx: 30 },
-      neck: { x: 66, y: 65, w: 9, r: 18 },
+      neck: { x: 65, y: 66.6, w: 9, r: 16 },
     },
     sleep: {
       body: LOAF,

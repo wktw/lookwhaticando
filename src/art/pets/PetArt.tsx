@@ -1,4 +1,4 @@
-import type { JSX } from 'preact';
+import { Fragment, type JSX } from 'preact';
 import { useId } from 'preact/hooks';
 import type { Outfit } from '@/state/types';
 import { getCollectible } from '@/catalog/collectibles';
@@ -8,7 +8,8 @@ import { canonicalExpression, type Expression, type MarkId, type PetLook, type P
 import { getLook } from './looks';
 import { SPECIES_ART } from './species';
 import type { DrawCtx } from './species/art';
-import { spriteTones, tonesFor, type PaletteMode, type Tones } from './palette';
+import { spriteTones, tonesFor, type PaletteMode } from './palette';
+import { pathBox, poseBounds, type Box } from './bounds';
 import { crescentPath } from './crescents';
 import { BASELINE, frameTransform, SHADE_FOR, type Layer, type LitKey, type PoseRig, type TailRig } from './rig';
 import { fmt, place } from './shape';
@@ -38,6 +39,11 @@ export interface PetArtProps {
   muted?: boolean;
   /** Draw the contact shadow (default true). */
   shadow?: boolean;
+  /**
+   * Tile mode (Field Guide tiles, reveals, inventory): the pet fills the frame instead of keeping
+   * its true size relative to other species. Leave it off where pets share a scene.
+   */
+  fit?: boolean;
   /** Accessible label. When omitted the art is decorative (aria-hidden). */
   title?: string;
   class?: string;
@@ -56,7 +62,7 @@ function hash01(s: string): number {
   return ((h >>> 0) % 10000) / 10000;
 }
 
-type Tier = 'micro' | 'small' | 'medium' | 'full';
+export type Tier = 'micro' | 'small' | 'medium' | 'full';
 
 /** Size floors (DESIGN §10.4): ≤ 20 px a three-shape sprite, ≤ 32 px the loaf with closed eyes. */
 export function tierFor(px: number | undefined): Tier {
@@ -74,27 +80,45 @@ function litSide(light: Light, facing: 'left' | 'right'): LitKey {
   return light.from === 'left' ? 'right' : 'left';
 }
 
+/** Where a sock's bottom sits, to stretch it upward into a glove. Cached per path. */
+const sockFoot = new Map<string, number>();
+function gloveT(sock: string, k: number): string {
+  let y = sockFoot.get(sock);
+  if (y === undefined) sockFoot.set(sock, (y = pathBox(sock).y1));
+  return `translate(0 ${fmt(y)}) scale(1 ${k}) translate(0 ${fmt(-y)})`;
+}
+
 function Layers({ layers, c, part, cls }: { layers?: Layer[]; c: DrawCtx; part: 'front' | 'frontB' | 'back' | 'backB'; cls?: string }) {
   if (!layers?.length) return null;
   const t = c.tones;
   const rim = t.dark && !c.silhouette;
-  return (
-    <g class={cls}>
-      {layers.map((l, i) => {
-        const sockTone = l.sockTone ? t[l.sockTone] : l.tone === 'legFar' ? t.pawFar : l.tone === 'foot' || l.tone === 'footFar' ? null : t.paw;
-        const shade = l.lit && !c.silhouette ? c.crescent(`${part}${i}` as never, c.shade) : '';
-        const glow = l.lit && rim ? c.crescent(`${part}${i}` as never, `rim-${c.lit}`) : '';
-        return (
-          <g key={i} class={l.cls}>
-            <path d={l.d} fill={t[l.tone] ?? t.coat} />
-            {l.sock && sockTone && <path d={l.sock} fill={sockTone} />}
-            {shade && <path d={shade} fill="var(--shade)" />}
-            {glow && <path d={glow} fill={c.night ? 'var(--lamp)' : DAY_RIM} opacity={c.night ? 0.45 : 0.5} />}
-          </g>
-        );
-      })}
-    </g>
-  );
+  // Birman gloves and Ragdoll mitts: white paws that reach up the leg.
+  const glove = c.has('mitts') ? 1.9 : c.has('gloves') ? 1.5 : 0;
+  const items = layers.map((l, i) => {
+    const sockTone = l.sockTone ? t[l.sockTone] : l.tone === 'legFar' ? t.pawFar : l.tone === 'foot' || l.tone === 'footFar' ? null : t.paw;
+    const shade = l.lit && !c.silhouette ? c.crescent(`${part}${i}` as never, c.shade) : '';
+    const glow = l.lit && rim ? c.crescent(`${part}${i}` as never, `rim-${c.lit}`) : '';
+    const tone = t[l.tone] ?? t.coat;
+    const lower = l.lower && tone !== t.coat;
+    const gloved = glove && l.sock && sockTone && !l.sockTone;
+    const shapes = (
+      <>
+        <path d={l.d} fill={lower ? t.coat : tone} />
+        {lower && <path d={l.lower} fill={tone} />}
+        {l.sock && sockTone && <path d={l.sock} fill={sockTone} transform={gloved ? gloveT(l.sock, glove) : undefined} />}
+        {shade && <path d={shade} fill="var(--shade)" />}
+        {glow && <path d={glow} fill={c.night ? 'var(--lamp)' : DAY_RIM} opacity={c.night ? 0.45 : 0.5} />}
+      </>
+    );
+    return l.cls ? (
+      <g key={i} class={l.cls}>
+        {shapes}
+      </g>
+    ) : (
+      <Fragment key={i}>{shapes}</Fragment>
+    );
+  });
+  return cls ? <g class={cls}>{items}</g> : <>{items}</>;
 }
 
 /** The window's cool edge light on a dark coat by day (the style frames' "rim light"). */
@@ -117,35 +141,59 @@ function Light({ c, part, rim }: { c: DrawCtx; part: 'body' | 'head' | 'tail' | 
 
 function Tail({ c, tail, part }: { c: DrawCtx; tail: TailRig; part: 'tail' | 'tailCurl' }) {
   const t = c.tones;
-  const motion = !c.animated ? undefined : c.look.species === 'cat' ? 'pet-tailflick' : c.look.species === 'dog' && c.face.expr === 'happy' ? 'pet-wag' : undefined;
+  const cat = c.look.species === 'cat';
+  const wag = c.animated && c.look.species === 'dog' && c.face.expr === 'happy';
+  // A cat flicks only the tip: the tail is drawn as a still shaft and a tip that turns on the joint.
+  const flick = c.animated && cat && part === 'tail' && !!tail.end;
   const tipped = t.tip !== t.tail && !c.silhouette;
   const rings = c.has('tabby') && tail.rings;
   const clip = !tail.tuft && (tipped || rings);
-  const clipId = `${c.uid}-t`;
-  const body = (
-    <g>
-      {(c.trait('longhair') || c.trait('fluffy')) && <path d={tail.d} fill={t.tail} transform={`translate(${tail.pivot[0]} ${tail.pivot[1]}) scale(1.14) translate(${-tail.pivot[0]} ${-tail.pivot[1]})`} />}
-      <path d={tail.d} fill={t.tail} />
+  const plume = c.trait('longhair') || c.trait('fluffy');
+  const piece = (d: string, id: string, shade: string, key: string) => (
+    <Fragment key={key}>
+      <path d={d} fill={t.tail} />
       {clip && (
         <>
-          <clipPath id={clipId}>
-            <path d={tail.d} />
+          <clipPath id={id}>
+            <path d={d} />
           </clipPath>
-          <g clip-path={`url(#${clipId})`}>
+          <g clip-path={`url(#${id})`}>
             {rings && <path d={tail.rings} fill={t.mark} />}
             {tipped && <path d={tail.tip} fill={t.tip} />}
           </g>
         </>
       )}
+      {shade && <path class="pet-shade" d={shade} fill="var(--shade)" />}
+    </Fragment>
+  );
+  const plumeT = `translate(${tail.pivot[0]} ${tail.pivot[1]}) scale(1.14) translate(${-tail.pivot[0]} ${-tail.pivot[1]})`;
+  if (flick) {
+    const [x, y] = tail.end!.pivot;
+    const sh = (p: 'tailShaft' | 'tailEnd') => (c.silhouette ? '' : c.crescent(p, c.shade));
+    return (
+      <g>
+        {plume && <path d={tail.d} fill={t.tail} transform={plumeT} />}
+        {piece(c.crescent('tailShaft', 'shape') || tail.d, `${c.uid}-t`, sh('tailShaft'), 's')}
+        <g transform={`translate(${fmt(x)} ${fmt(y)})`}>
+          <g class="pet-tailflick">
+            <g transform={`translate(${fmt(-x)} ${fmt(-y)})`}>{piece(tail.end!.d, `${c.uid}-te`, sh('tailEnd'), 'e')}</g>
+          </g>
+        </g>
+      </g>
+    );
+  }
+  const body = (
+    <g>
+      {plume && <path d={tail.d} fill={t.tail} transform={plumeT} />}
+      {piece(tail.d, `${c.uid}-t`, c.silhouette ? '' : c.crescent(part, c.shade), 'w')}
       {tail.tuft && <path d={tail.tip} fill={t.tip} />}
-      {!c.silhouette && <Light c={c} part={part} rim={t.dark} />}
     </g>
   );
-  if (!motion) return body;
+  if (!wag) return body;
   const [x, y] = tail.pivot;
   return (
     <g transform={`translate(${x} ${y})`}>
-      <g class={motion}>
+      <g class="pet-wag">
         <g transform={`translate(${-x} ${-y})`}>{body}</g>
       </g>
     </g>
@@ -154,8 +202,29 @@ function Tail({ c, tail, part }: { c: DrawCtx; tail: TailRig; part: 'tail' | 'ta
 
 const SPRITE_POSE: Pose = 'loaf';
 
+/** A tile's frame: the pet fills about 80% of the canvas height or 88% of its width. */
+const FIT_H = 80;
+const FIT_W = 88;
+
+/**
+ * The species scale for a drawing. In the world (a sill, a place) pets keep their true relative
+ * sizes, eased toward full size at small sizes so tiny pets stay legible. In a tile (`fit`) every
+ * pet fills the frame, keeping only a hint of its size (a hamster a touch smaller than a cow).
+ */
+export function scaleFor(tier: Tier, base: number, fit: boolean, bounds: Box, stocky: number): { s: number; dx: number } {
+  if (fit) {
+    const h = BASELINE - bounds.y0;
+    const w = (bounds.x1 - bounds.x0) * stocky;
+    const hint = Math.min(1.03, Math.max(0.92, (base / 0.84) ** 0.15));
+    const s = Math.min(1.7, Math.min(FIT_H / h, FIT_W / w) * hint);
+    return { s, dx: -((bounds.x0 + bounds.x1) / 2 - 50) * s * stocky };
+  }
+  const s = tier === 'small' ? 0.9 + (base - 0.9) * 0.25 : tier === 'medium' ? base + (0.95 - base) * 0.4 : base;
+  return { s, dx: 0 };
+}
+
 export function PetArt(props: PetArtProps) {
-  const { petId, outfit, animated = false, size = 96, facing = 'right', silhouette = false, muted = false, shadow = true, title } = props;
+  const { petId, outfit, animated = false, size = 96, facing = 'right', silhouette = false, muted = false, shadow = true, fit = false, title } = props;
   const rawId = useId();
   const uid = `pet${rawId.replace(/[^a-zA-Z0-9_-]/g, '')}`;
   const look = props.look ?? getLook(petId);
@@ -173,6 +242,7 @@ export function PetArt(props: PetArtProps) {
   const trait = (t: TraitId) => traits.has(t);
   const lit = litSide(light, facing);
   const shade = SHADE_FOR[lit];
+  const live = animated && !silhouette;
 
   const r = hash01(petId);
   const timing = {
@@ -186,11 +256,10 @@ export function PetArt(props: PetArtProps) {
 
   const pxStr = typeof size === 'number' ? `${size}px` : size;
   const label = title ?? (silhouette ? undefined : getCollectible(petId)?.name);
-  const classes = ['pet-art', `species-${look.species}`, animated && !silhouette ? 'is-animated' : '', silhouette ? 'is-silhouette' : '', props.class ?? '']
-    .filter(Boolean)
-    .join(' ');
-  const flip = facing === 'left' ? 'translate(100 0) scale(-1 1)' : undefined;
+  const classes = ['pet-art', `species-${look.species}`, live ? 'is-animated' : '', silhouette ? 'is-silhouette' : '', props.class ?? ''].filter(Boolean).join(' ');
+  const flip = facing === 'left' ? 'translate(100 0) scale(-1 1)' : '';
 
+  // Breathing is a transform on the <svg> itself (pet.css), so it composites as one box.
   const svg = (children: JSX.Element, pose: Pose | 'sprite') => (
     <svg
       class={classes}
@@ -209,9 +278,14 @@ export function PetArt(props: PetArtProps) {
     </svg>
   );
 
+  const base = rig.scale * (look.scale ?? 1);
+
   if (tier === 'micro') {
+    // The sprite keeps a hint of the species' size, eased as for the small tier.
+    const k = fit ? 1 : (0.9 + (base - 0.9) * 0.25) / 0.9;
+    const spriteT = `${flip}${k !== 1 ? ` translate(50 ${BASELINE}) scale(${fmt(k)}) translate(-50 ${-BASELINE})` : ''}`;
     return svg(
-      <g transform={flip}>
+      <g transform={spriteT || undefined}>
         {shadow && <ellipse cx={48} cy={94.5} rx={36} ry={4} fill="var(--contact)" />}
         {art.sprite({ tones: spriteTones(tones), look, has, trait })}
       </g>,
@@ -219,10 +293,13 @@ export function PetArt(props: PetArtProps) {
     );
   }
 
-  const pose: Pose = tier === 'small' ? SPRITE_POSE : (props.pose ?? 'sit');
-  const p: PoseRig = rig.poses[pose];
   const expr = canonicalExpression(props.expression);
-  const closed = !!p.eyesClosed || (tier === 'small' && expr !== 'happy');
+  const asked = props.pose ?? 'sit';
+  // Size floors: ≤ 32 px the closed-eye loaf; below 48 px a curl reads as a blob, so it loafs too.
+  const pose: Pose = tier === 'small' || (tier === 'medium' && asked === 'sleep') ? SPRITE_POSE : asked;
+  const p: PoseRig = rig.poses[pose];
+  const sleepy = tier === 'medium' && asked === 'sleep';
+  const closed = !!p.eyesClosed || sleepy || (tier === 'small' && expr !== 'happy');
   const ctx: DrawCtx = {
     uid,
     rigId,
@@ -231,46 +308,51 @@ export function PetArt(props: PetArtProps) {
     p,
     look,
     tones,
-    face: { tones, expr: p.eyesClosed ? 'sleep' : expr, closed, full: tier === 'full', lit, animated: animated && !silhouette },
+    face: { tones, expr: p.eyesClosed || sleepy ? 'sleep' : expr, closed, full: tier === 'full', lit, animated: live },
     shade,
     lit,
     night,
     silhouette,
-    animated: animated && !silhouette,
+    animated: live,
     hat: !silhouette && !!outfit?.head && !!WEARABLE_ART[outfit.head],
     has,
     trait,
     crescent: (part, kind) => (part === 'head' ? crescentPath(rigId, 'head', kind) : crescentPath(rigId, pose, part, kind)),
   };
 
-  const bodyMarks = [...marks].map((m) => art.marks[m]?.body).filter((f): f is NonNullable<typeof f> => !!f);
-  const headMarks = [...marks].map((m) => art.marks[m]?.head).filter((f): f is NonNullable<typeof f> => !!f);
+  const markArts = [...marks].map((m) => art.marks[m]).filter((m): m is NonNullable<typeof m> => !!m);
+  const bodyMarks = markArts.map((m) => m.body).filter((f): f is NonNullable<typeof f> => !!f);
+  const headMarks = markArts.map((m) => m.head).filter((f): f is NonNullable<typeof f> => !!f);
+  const chest = !silhouette && markArts.some((m) => m.chest) ? ctx.crescent('chest', 'pale') : '';
   const wear = outfit && !silhouette ? outfit : undefined;
   const wearCtx = wearCtxFor(ctx);
   const bodyWear = wear?.body ? WEARABLE_ART[wear.body] : undefined;
   const showBodyWear = bodyWear && !bodyWear.hideIn?.includes(pose);
-  const needsBodyClip = !silhouette && (bodyMarks.length > 0 || showBodyWear || look.flecks || !!art.bodyDetail);
+  const detail = art.bodyDetail?.(ctx);
+  const needsBodyClip = !silhouette && (bodyMarks.length > 0 || showBodyWear || look.flecks || !!detail);
   const needsHeadClip = !silhouette && (headMarks.length > 0 || look.flecks);
 
-  // Species scale, eased toward full size at small sizes so tiny pets stay legible.
-  const base = rig.scale * (look.scale ?? 1);
-  const s = tier === 'small' ? 0.9 + (base - 0.9) * 0.25 : tier === 'medium' ? base + (0.95 - base) * 0.4 : base;
-  const sx = s * (look.stocky ?? 1);
-  const scaleT = `translate(50 ${BASELINE}) scale(${fmt(sx)} ${fmt(s)}) translate(-50 ${-BASELINE})`;
+  const stocky = look.stocky ?? 1;
+  const { s, dx } = scaleFor(tier, base, fit, poseBounds(rigId, rig, pose), stocky);
+  const sx = s * stocky;
+  // One transform for the flip, the species scale and a tile's centring.
+  const scaleT = `${flip} translate(${fmt(50 + dx)} ${BASELINE}) scale(${fmt(sx)} ${fmt(s)}) translate(-50 ${-BASELINE})`;
 
   const darkRim = tones.dark && !silhouette;
   const curled = trait('curled-tail') && !!p.tailCurl;
-  const tail = curled ? p.tailCurl : p.tail;
+  const tail = trait('stub-tail') ? undefined : curled ? p.tailCurl : p.tail;
   const tailPart = curled ? 'tailCurl' : 'tail';
-  const walkB = pose === 'walk' && p.frameB && ctx.animated;
-  const motion = ctx.animated ? p.motion : undefined;
+  const walkB = pose === 'walk' && p.frameB && live;
+  const motion = live ? p.motion : undefined;
   const bob = motion === 'bob' ? 'pet-bob' : undefined;
+  const sway = motion === 'waddle' ? 'pet-waddle' : motion === 'hop' ? 'pet-hop' : undefined;
   const tilt = expr === 'happy' ? ' rotate(-6)' : expr === 'surprised' ? ' translate(0 -1.2)' : '';
   const headT = place(p.head.x, p.head.y, p.head.s, p.head.r ?? 0) + tilt;
   const contactDx = shade === 'right' ? p.contact.rx * 0.08 : shade === 'left' ? -p.contact.rx * 0.08 : 0;
+  const cast = silhouette ? '' : ctx.crescent('cast', shade);
 
   const body = (
-    <g>
+    <>
       {needsBodyClip && (
         <clipPath id={`${uid}-b`}>
           <path d={p.body} />
@@ -279,23 +361,22 @@ export function PetArt(props: PetArtProps) {
       <path d={p.body} fill={tones.coat} />
       {needsBodyClip && (
         <g clip-path={`url(#${uid}-b)`}>
-          {art.bodyDetail?.(ctx)}
-          <g transform={frameTransform(p.frame)}>
-            {bodyMarks.map((m, i) => (
-              <g key={i}>{m(ctx)}</g>
-            ))}
-            {look.flecks && <path d={dots(4, 4, 92, 70, 7, 1.1, 3.3, 1)} fill="#F4F0FF" opacity={0.7} />}
-            {showBodyWear && <WearBody art={bodyWear!} ctx={wearCtx} />}
-          </g>
+          {detail}
+          {(bodyMarks.length > 0 || look.flecks || showBodyWear) && (
+            <g transform={frameTransform(p.frame)}>
+              {bodyMarks.map((m, i) => (
+                <Fragment key={i}>{m(ctx)}</Fragment>
+              ))}
+              {look.flecks && <path d={dots(4, 4, 92, 70, 7, 1.1, 3.3, 1)} fill="#F4F0FF" opacity={0.7} />}
+              {showBodyWear && <WearBody art={bodyWear!} ctx={wearCtx} />}
+            </g>
+          )}
         </g>
       )}
-      {!silhouette && (
-        <>
-          {ctx.crescent('cast', shade) && <path d={ctx.crescent('cast', shade)} fill="var(--shade)" />}
-          <Light c={ctx} part="body" rim={darkRim} />
-        </>
-      )}
-    </g>
+      {chest && !showBodyWear && <path d={chest} fill={tones.under} />}
+      {cast && <path d={cast} fill="var(--shade)" />}
+      {!silhouette && <Light c={ctx} part="body" rim={darkRim} />}
+    </>
   );
 
   const head = (
@@ -311,7 +392,7 @@ export function PetArt(props: PetArtProps) {
       {needsHeadClip && (
         <g clip-path={`url(#${uid}-h)`}>
           {headMarks.map((m, i) => (
-            <g key={i}>{m(ctx)}</g>
+            <Fragment key={i}>{m(ctx)}</Fragment>
           ))}
           {look.flecks && <path d={dots(-14, -14, 26, 10, 3, 0.9, 5.1, 1)} fill="#F4F0FF" opacity={0.7} />}
         </g>
@@ -325,36 +406,46 @@ export function PetArt(props: PetArtProps) {
     </g>
   );
 
+  const lower = (
+    <>
+      {tail && tail.layer === 'back' && <Tail c={ctx} tail={tail} part={tailPart} />}
+      {art.behindBody?.(ctx)}
+      {body}
+    </>
+  );
+  const upper = (
+    <>
+      {tail && tail.layer === 'front' && <Tail c={ctx} tail={tail} part={tailPart} />}
+      {art.overBody?.(ctx)}
+      {wear?.neck && <WearNeck id={wear.neck} ctx={wearCtx} neck={p.neck} />}
+      {head}
+      {tail && tail.layer === 'over' && <Tail c={ctx} tail={tail} part={tailPart} />}
+      {art.top?.(ctx)}
+    </>
+  );
+  const figure = (
+    <>
+      <Layers layers={p.back} c={ctx} part="back" cls={walkB ? 'pet-walk-a' : undefined} />
+      {walkB && <Layers layers={p.frameB!.back} c={ctx} part="backB" cls="pet-walk-b" />}
+      {bob ? <g class={bob}>{lower}</g> : lower}
+      <Layers layers={p.front} c={ctx} part="front" cls={walkB ? 'pet-walk-a' : undefined} />
+      {walkB && <Layers layers={p.frameB!.front} c={ctx} part="frontB" cls="pet-walk-b" />}
+      {bob ? <g class={bob}>{upper}</g> : upper}
+    </>
+  );
+
   return svg(
-    <g transform={flip}>
-      <g transform={scaleT}>
-        {shadow && <ellipse cx={fmt(p.contact.cx + contactDx)} cy={BASELINE + 0.4} rx={p.contact.rx} ry={2.8} fill="var(--contact)" />}
+    <g transform={scaleT}>
+      {shadow && <ellipse cx={fmt(p.contact.cx + contactDx)} cy={BASELINE + 0.4} rx={p.contact.rx} ry={2.8} fill="var(--contact)" />}
+      {sway ? (
         <g transform={`translate(50 ${BASELINE})`}>
-          <g class="pet-breathe">
-            <g class={motion === 'waddle' ? 'pet-waddle' : motion === 'hop' ? 'pet-hop' : undefined}>
-              <g transform={`translate(-50 ${-BASELINE})`}>
-                <Layers layers={p.back} c={ctx} part="back" cls={walkB ? 'pet-walk-a' : undefined} />
-                {walkB && <Layers layers={p.frameB!.back} c={ctx} part="backB" cls="pet-walk-b" />}
-                <g class={bob}>
-                  {tail && tail.layer === 'back' && <Tail c={ctx} tail={tail} part={tailPart} />}
-                  {art.behindBody?.(ctx)}
-                  {body}
-                </g>
-                <Layers layers={p.front} c={ctx} part="front" cls={walkB ? 'pet-walk-a' : undefined} />
-                {walkB && <Layers layers={p.frameB!.front} c={ctx} part="frontB" cls="pet-walk-b" />}
-                <g class={bob}>
-                  {tail && tail.layer === 'front' && <Tail c={ctx} tail={tail} part={tailPart} />}
-                  {art.overBody?.(ctx)}
-                  {wear?.neck && <WearNeck id={wear.neck} ctx={wearCtx} neck={p.neck} />}
-                  {head}
-                  {tail && tail.layer === 'over' && <Tail c={ctx} tail={tail} part={tailPart} />}
-                  {art.top?.(ctx)}
-                </g>
-              </g>
-            </g>
+          <g class={sway}>
+            <g transform={`translate(-50 ${-BASELINE})`}>{figure}</g>
           </g>
         </g>
-      </g>
+      ) : (
+        figure
+      )}
     </g>,
     pose,
   );

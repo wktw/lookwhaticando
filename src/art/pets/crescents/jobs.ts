@@ -1,4 +1,4 @@
-import { POSES } from '../types';
+import { POSES, type Pose } from '../types';
 import { SHADE_FOR, TOWARD, type LitKey, type SpeciesRig } from '../rig';
 
 /**
@@ -7,7 +7,7 @@ import { SHADE_FOR, TOWARD, type LitKey, type SpeciesRig } from '../rig';
  * the generated data, so an edited rig without regenerated crescents fails loudly.
  *
  * Keys: `<rig>/<pose>/<part>/<kind>` where part is body | tail | tailCurl | cast | front<i> (a
- * near leg), and `<rig>/head/<kind>` for the head (in its own frame). Kind is the shade side
+ * near leg) | chest (kind `pale`: the pale chest marking), and `<rig>/head/<kind>` for the head (in its own frame). Kind is the shade side
  * (left | right | under), or `rim-<light>` for the lamp-side rim of dark coats (torso and head:
  * the silhouette that must not sink into the night).
  */
@@ -25,6 +25,8 @@ export interface Job {
   bAt?: readonly [number, number, number, number];
   /** Offset for `b`, in the frame after `at` (canvas units). */
   shift: readonly [number, number];
+  /** A second boolean applied to the result (to split a crescent at a tail's joint). */
+  clip?: { op: 'difference' | 'intersection'; d: string };
 }
 
 const LIGHTS: readonly LitKey[] = ['left', 'top', 'right'];
@@ -33,6 +35,19 @@ const HEAD = 3.4;
 const LEG = 1.9;
 
 const r2 = (n: number) => Math.round(n * 1000) / 1000;
+
+/**
+ * The pale chest and belly, per pose: the torso minus itself shifted back and up, which leaves a
+ * crescent hugging the front of the chest (sitting) or the chest and underside (standing). A
+ * curled sleeper shows no chest.
+ */
+export const CHEST: Readonly<Record<Pose, readonly [number, number] | null>> = {
+  sit: [-9, -1.5],
+  loaf: [-7, -4],
+  stand: [-6, -3.6],
+  walk: [-6, -3.6],
+  sleep: null,
+};
 
 export function crescentJobs(rigs: Readonly<Record<string, SpeciesRig>>): Job[] {
   const jobs: Job[] = [];
@@ -48,6 +63,9 @@ export function crescentJobs(rigs: Readonly<Record<string, SpeciesRig>>): Job[] 
       const body = p.depth?.body ?? 4.2;
       const tail = p.depth?.tail ?? 2.2;
       const at = [p.head.x, p.head.y, p.head.s, p.head.r ?? 0] as const;
+      if (p.tail?.end) jobs.push({ key: `${id}/${pose}/tailShaft/shape`, op: 'difference', a: p.tail.d, b: p.tail.end.cut, shift: [0, 0] });
+      const chest = p.chest === undefined ? CHEST[pose] : p.chest;
+      if (chest) jobs.push({ key: `${id}/${pose}/chest/pale`, op: 'difference', a: p.body, shift: chest });
       for (const lit of LIGHTS) {
         const [tx, ty] = TOWARD[lit];
         const side = SHADE_FOR[lit];
@@ -70,7 +88,13 @@ export function crescentJobs(rigs: Readonly<Record<string, SpeciesRig>>): Job[] 
         }
         for (const [part, tr] of [['tail', p.tail], ['tailCurl', p.tailCurl]] as const) {
           if (!tr || tr.lit === false || lit === 'top') continue;
-          jobs.push({ key: `${id}/${pose}/${part}/${side}`, op: 'difference', a: tr.d, shift: [r2(tx * tail), r2(ty * tail)] });
+          const shift = [r2(tx * tail), r2(ty * tail)] as const;
+          jobs.push({ key: `${id}/${pose}/${part}/${side}`, op: 'difference', a: tr.d, shift });
+          // A flicking tail: the same crescent, split at the joint.
+          if (tr.end && part === 'tail') {
+            jobs.push({ key: `${id}/${pose}/tailShaft/${side}`, op: 'difference', a: tr.d, shift, clip: { op: 'difference', d: tr.end.cut } });
+            jobs.push({ key: `${id}/${pose}/tailEnd/${side}`, op: 'difference', a: tr.d, shift, clip: { op: 'intersection', d: tr.end.cut } });
+          }
         }
       }
     }

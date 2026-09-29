@@ -37,7 +37,7 @@ export const POSES: readonly Pose[] = ['sit', 'loaf', 'stand', 'walk', 'sleep'] 
  */
 export type MarkId =
   // shared
-  | 'belly' // pale chest and belly
+  | 'belly' // pale chest and belly (the pose's chest crescent)
   | 'muzzle' // pale muzzle
   | 'socks' // pale paws
   | 'points' // colour points: mask, ears, legs, tail
@@ -50,6 +50,8 @@ export type MarkId =
   | 'ticked' // Abyssinian ticking
   | 'brindle' // tortoiseshell mottling
   | 'blaze' // a white inverted V on the muzzle
+  | 'gloves' // Birman: white paws, a short way up the leg
+  | 'mitts' // mitted Ragdoll: white paws reaching higher
   // cows
   | 'holstein' // map patches
   | 'belt' // Belted Galloway
@@ -110,6 +112,8 @@ export type TraitId =
   | 'floppy-ears'
   | 'long-ears' // beagle, cavalier: ears past the jaw
   | 'curled-tail'
+  | 'stub-tail' // French Bulldog: a screw stub, no long tail
+  | 'short-muzzle' // French Bulldog: a flat face
   | 'long-body' // dachshund, corgi
   | 'crest' // Crested Duck
   | 'upright' // Runner Duck
@@ -188,8 +192,11 @@ export interface WearCtx {
     eyes: { y: number; left: number; right: number };
     ear: { x: number; y: number; r: number };
   };
-  /** Collar frame: half-width of the neck. */
-  neck: { w: number };
+  /**
+   * Collar frame: half-width of the neck, and `drop`, how far below the collar line (in collar
+   * units) something may hang before it would reach the floor.
+   */
+  neck: { w: number; drop: number };
   /** Body frame: how much wider than tall one frame unit is on screen (to keep motifs round). */
   body: { aspect: number };
 }

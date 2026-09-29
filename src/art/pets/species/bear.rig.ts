@@ -33,6 +33,7 @@ export const BEAR_RIG: SpeciesRig = {
     eyes: { y: -2.4, left: -3.6, right: 7.4, r: 2.3 },
     nose: [13.6, 2.6],
     ear: { x: -10, y: -10, r: -30 },
+    top: -16.4,
   },
   poses: {
     sit: {
@@ -81,7 +82,7 @@ export const BEAR_RIG: SpeciesRig = {
       },
       tail: stub,
       contact: { cx: 49, rx: 30 },
-      neck: { x: 70.4, y: 67, w: 10, r: 22 },
+      neck: { x: 69.6, y: 68.6, w: 10, r: 20 },
     },
     sleep: {
       body: LIE,

@@ -87,9 +87,14 @@ export function AtEyes({ ctx, children }: { ctx: WearCtx; children: ComponentChi
   return <g transform={t((e.left + e.right) / 2, e.y, (e.right - e.left) / 14)}>{children}</g>;
 }
 
-/** Scales a collar-frame item to this neck. */
-export function AtNeck({ ctx, children }: { ctx: WearCtx; children: ComponentChildren }) {
-  return <g transform={`scale(${fmt(ctx.neck.w / 10)})`}>{children}</g>;
+/**
+ * Scales a collar-frame item to this neck. Anything hanging `hang` units below the collar line is
+ * shortened (never below 60%) so a bandana tip or a bell stops above the floor on a low-slung pet.
+ */
+export function AtNeck({ ctx, children, hang = 0 }: { ctx: WearCtx; children: ComponentChildren; hang?: number }) {
+  const s = ctx.neck.w / 10;
+  const k = hang > 0 ? Math.max(0.6, Math.min(1, ctx.neck.drop / hang)) : 1;
+  return <g transform={k < 1 ? `scale(${fmt(s)} ${fmt(s * k)})` : `scale(${fmt(s)})`}>{children}</g>;
 }
 
 /** The icon canvas placement for an item drawn in its wearing frame. */
@@ -110,13 +115,20 @@ interface Spec {
   hood?: WearableArt['hood'];
   /** Icon placement of the wearing-frame drawing on the 100×100 icon canvas. */
   icon: string | (() => JSX.Element);
+  /** Neck items: how far the item hangs below the collar line, in collar units. */
+  hang?: number;
 }
 
 /** Builds a WearableArt from a drawing in its wearing frame. */
 export function item(spec: Spec): WearableArt {
   const render = (ctx: WearCtx) => {
     const art = spec.draw(ctx);
-    if (spec.slot === 'neck') return <AtNeck ctx={ctx}>{art}</AtNeck>;
+    if (spec.slot === 'neck')
+      return (
+        <AtNeck ctx={ctx} hang={spec.hang}>
+          {art}
+        </AtNeck>
+      );
     if (spec.slot === 'body') return art;
     if (spec.at === 'ear') return <AtEar ctx={ctx}>{art}</AtEar>;
     if (spec.at === 'eyes' || spec.slot === 'face') return <AtEyes ctx={ctx}>{art}</AtEyes>;

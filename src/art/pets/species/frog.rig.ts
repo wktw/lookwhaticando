@@ -9,7 +9,8 @@ import { type Layer, type SpeciesRig } from '../rig';
 
 export const FROG_HEAD = twoCircles([-8.5, -1], 10, [9, 2.5], 8.6);
 
-const foot = (x: number, y: number, w: number, h: number, tone: Layer['tone'] = 'leg'): Layer => ({ d: rrect(x, y, w, h, h / 2), tone });
+/** A foot on the ground, in the foot tone (a red-eyed tree frog's orange toes). */
+const foot = (x: number, y: number, w: number, h: number, tone: 'leg' | 'legFar' = 'leg'): Layer => ({ d: rrect(x, y, w, h, h / 2), tone: tone === 'leg' ? 'foot' : 'footFar' });
 
 const SIT = 'M78 93.5C81 93.5 82 91 82 88C81 71 67 58.5 50 58.5C33 58.5 19 71 18 88C18 91 19 93.5 22 93.5Z';
 const CROUCH = 'M80 93.5C83 93.5 84 91 84 88.5C83 76.5 69 67 50 67C31 67 17 76.5 16 88.5C16 91 17 93.5 20 93.5Z';
@@ -33,6 +34,7 @@ export const FROG_RIG: SpeciesRig = {
     eyes: { y: -0.1, left: -6.4, right: 10.4, r: 2.8 },
     nose: [6, 9.4],
     ear: { x: -9, y: -9.5, r: -10 },
+    top: -11,
   },
   poses: {
     sit: {
@@ -51,7 +53,7 @@ export const FROG_RIG: SpeciesRig = {
       head: { x: 58, y: 66, s: 0.96 },
       front: [foot(55, 90.4, 8.6, 4, 'leg'), foot(67.6, 90, 8.6, 4.2, 'leg')],
       contact: { cx: 50, rx: 35 },
-      neck: { x: 60, y: 83, w: 14, r: -2 },
+      neck: { x: 60, y: 79.4, w: 12, r: -2 },
       depth: { body: 4 },
     },
     stand: {

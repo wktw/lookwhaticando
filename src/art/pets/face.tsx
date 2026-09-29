@@ -2,7 +2,7 @@ import type { JSX } from 'preact';
 import { BLUSH, TONGUE, type Tones } from './palette';
 import type { CanonicalExpression } from './types';
 import type { LitKey } from './rig';
-import { fmt } from './shape';
+import { circle, ellipse, fmt } from './shape';
 
 /**
  * Faces (DESIGN §10.4): solid graphite dot eyes (an iris for breeds known by their eyes), a pale
@@ -59,32 +59,29 @@ export function Eyes({ f, y, y2 = y, left, right, r, r2 = r }: { f: FaceCtx; y: 
   }
   const k = f.expr === 'surprised' ? 1.16 : 1;
   const [cx, cy] = CATCH[f.lit];
-  const one = (x: number, y: number, rr: number, iris: string | null, key: string) => (
-    <g key={key}>
-      {t.ring && <circle cx={x} cy={y} r={fmt(rr * (iris ? 1.5 : 1.36))} fill={t.ring} />}
-      {iris ? (
-        <>
-          <circle cx={x} cy={y} r={fmt(rr * 1.2)} fill={iris} />
-          {f.slit ? (
-            <ellipse cx={x} cy={y} rx={fmt(rr * 0.38)} ry={fmt(rr * 0.98)} fill={t.ink} />
-          ) : (
-            <circle cx={x} cy={y} r={fmt(rr * 0.62)} fill={t.ink} />
-          )}
-        </>
-      ) : (
-        <circle cx={x} cy={y} r={fmt(rr)} fill={t.ink} />
-      )}
-      {f.full && <circle cx={fmt(x + cx * rr)} cy={fmt(y + cy * rr)} r={fmt(rr * 0.33)} fill="#FFFDF8" />}
-    </g>
-  );
+  // Both eyes share each layer (ring, iris, pupil, catchlight) as one path: fewer nodes.
+  const eyes: [number, number, number, string | null][] = [
+    [left, y, r * k, t.eye],
+    [right, y2, r2 * k, t.eye2],
+  ];
+  const all = (fn: (x: number, y: number, rr: number) => string) => eyes.map(([x, yy, rr]) => fn(x, yy, rr)).join('');
+  const iris = t.eye;
+  const pupil = (x: number, yy: number, rr: number) => (!iris ? circle(x, yy, rr) : f.slit ? ellipse(x, yy, rr * 0.38, rr * 0.98) : circle(x, yy, rr * 0.62));
   // The blink squashes both eyes toward the eye line (pet.css); the slow blink holds it.
   const mid = (y + y2) / 2;
   return (
     <g transform={`translate(0 ${fmt(mid)})`}>
       <g class={f.expr === 'blink' ? 'pet-slowblink' : 'pet-blink'}>
         <g transform={`translate(0 ${fmt(-mid)})`}>
-          {one(left, y, r * k, t.eye, 'l')}
-          {one(right, y2, r2 * k, t.eye2, 'r')}
+          {t.ring && <path d={all((x, yy, rr) => circle(x, yy, rr * (iris ? 1.5 : 1.36)))} fill={t.ring} />}
+          {iris &&
+            (t.eye2 === iris ? (
+              <path d={all((x, yy, rr) => circle(x, yy, rr * 1.2))} fill={iris} />
+            ) : (
+              eyes.map(([x, yy, rr, c], n) => <path key={n} d={circle(x, yy, rr * 1.2)} fill={c ?? iris} />)
+            ))}
+          <path d={all(pupil)} fill={t.ink} />
+          {f.full && <path d={all((x, yy, rr) => circle(x + cx * rr, yy + cy * rr, rr * 0.33))} fill="#FFFDF8" />}
         </g>
       </g>
     </g>

@@ -185,6 +185,20 @@ export function spriteTones(t: Tones): Tones {
   return { ...t, coat: k(t.coat, 0.2), far: k(t.far, 0.24), head: k(t.head, 0.12), under: k(t.under, 0.1), muzzle: k(t.muzzle, 0.08), tail: k(t.tail, 0.2) };
 }
 
+/** The room at night, for pale markings on a dark coat. */
+const DUSK = '#A69DB6';
+const PALE_KEYS = ['under', 'mark', 'mark2', 'muzzle', 'paw', 'pawFar', 'tip', 'head'] as const;
+
+/** Night: tones much paler than the coat step a quarter of the way into the dusk. */
+function dimPale(t: Tones, coatLuma: number): Partial<Tones> {
+  const out: Partial<Record<(typeof PALE_KEYS)[number], string | null>> = {};
+  for (const k of PALE_KEYS) {
+    const c = t[k];
+    if (c && luma(c) > coatLuma + 0.3) out[k] = mix(c, DUSK, 0.26);
+  }
+  return out as Partial<Tones>;
+}
+
 const cache = new WeakMap<PetLook, Map<PaletteMode, Tones>>();
 
 /** The tones for a look in a lighting / display mode. Cached per look. */
@@ -200,10 +214,14 @@ export function tonesFor(look: PetLook, mode: PaletteMode): Tones {
     case 'day':
       out = base;
       break;
-    case 'night':
-      // The lamp warms every lit surface a little; eyes keep their own colour.
-      out = mapTones(base, (c) => mix(c, LAMP, dark ? 0.05 : 0.09), true);
+    case 'night': {
+      // The lamp warms every lit surface a little; eyes keep their own colour. On a dark coat the
+      // pale markings (a Galloway's belt, a tuxedo's bib) step down into the room's dusk too, so
+      // they never glow brighter than the lamp-lit coat.
+      const warm = mapTones(base, (c) => mix(c, LAMP, dark ? 0.05 : 0.09), true);
+      out = dark ? { ...warm, ...dimPale(warm, luma(base.coat)) } : warm;
       break;
+    }
     case 'muted':
       out = { ...mapTones(base, (c) => desaturate(c)), line: mix(base.line, '#9A8E90', 0.5), ink: '#6F6065' };
       break;

@@ -138,7 +138,7 @@ const tall: Omit<PoseRig, 'head'> = {
   back: foot(52, 1.4, 'footFar'),
   front: foot(42),
   contact: { cx: 46, rx: 24 },
-  neck: { x: 55, y: 52, w: 7, r: 0 },
+  neck: { x: 55.4, y: 52.4, w: 8, r: 0 },
 };
 const relaxed: Omit<PoseRig, 'head'> = {
   body: RELAXED,
@@ -146,7 +146,7 @@ const relaxed: Omit<PoseRig, 'head'> = {
   back: foot(52, 1.4, 'footFar'),
   front: foot(43),
   contact: { cx: 46, rx: 29 },
-  neck: { x: 62.4, y: 52, w: 7, r: 0 },
+  neck: { x: 62.6, y: 52.6, w: 8, r: 0 },
 };
 
 export const DUCK_RIG: SpeciesRig = {
@@ -158,6 +158,7 @@ export const DUCK_RIG: SpeciesRig = {
     eyes: { y: -2.4, left: -1.4, right: 7.4, r: 2.1 },
     nose: [21, 4],
     ear: { x: -6, y: -9.6, r: -20 },
+    top: -11.4,
   },
   poses: {
     sit: { ...tall, head: { x: 55, y: 38.5, s: 1 } },
@@ -166,7 +167,7 @@ export const DUCK_RIG: SpeciesRig = {
       frame: { x: 16, y: 62, w: 62, h: 33 },
       head: { x: 59.5, y: 47, s: 0.96 },
       contact: { cx: 46, rx: 31 },
-      neck: { x: 59, y: 60.6, w: 6.6, r: 0 },
+      neck: { x: 59.4, y: 60.4, w: 8, r: 0 },
     },
     stand: { ...relaxed, head: { x: 63, y: 39.5, s: 0.96 } },
     walk: {
@@ -194,7 +195,7 @@ const runner: Omit<PoseRig, 'head'> = {
   back: foot(52, 1.2, 'footFar'),
   front: foot(44),
   contact: { cx: 51, rx: 16 },
-  neck: { x: 52.4, y: 42, w: 5.6, r: 0 },
+  neck: { x: 52.6, y: 41.4, w: 6.6, r: 0 },
 };
 
 /** Runner Ducks stand and walk upright; they nest and sleep like any duck. */

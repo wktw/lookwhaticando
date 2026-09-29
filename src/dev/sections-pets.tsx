@@ -35,7 +35,11 @@ const NIGHTS: { label: string; light: Light }[] = [
   { label: 'lamp right', light: { from: 'right', night: true } },
 ];
 
-/** A Lamplight card with the night art tokens, so night drawings read correctly on the day gallery. */
+/**
+ * A Lamplight card, so night drawings read correctly on the day gallery. Night cells carry
+ * data-theme="night"; tokens.css scopes the night tokens to :root only, so until it also matches
+ * nested [data-theme='night'] (requested in NOTES-pets.md) the card mirrors them here.
+ */
 const NIGHT_CARD = {
   background: '#2d2733',
   color: '#f4ede6',
@@ -45,6 +49,8 @@ const NIGHT_CARD = {
 } as JSX.CSSProperties;
 
 const ROW: JSX.CSSProperties = { display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'flex-end', marginBottom: '6px' };
+/** A comparison row that must not wrap (day beside night): it scrolls sideways instead. */
+const STRIP: JSX.CSSProperties = { ...ROW, flexWrap: 'nowrap', overflowX: 'auto' };
 const CELL: JSX.CSSProperties = { padding: '6px', borderRadius: '12px', gap: '2px' };
 
 const pickSpecies = (params: URLSearchParams, fallback: readonly Species[] = SPECIES): Species[] => {
@@ -62,7 +68,7 @@ const sizeOf = (params: URLSearchParams, fallback: number) => Number(params.get(
 
 function Cell({ children, label, night }: { children: JSX.Element; label: string; night?: boolean }) {
   return (
-    <div class="gal-cell" style={{ ...CELL, ...(night ? NIGHT_CARD : {}) }}>
+    <div class="gal-cell" data-theme={night ? 'night' : undefined} style={{ ...CELL, ...(night ? NIGHT_CARD : {}) }}>
       {children}
       <small style={night ? { color: '#cfc5c9' } : undefined}>{label}</small>
     </div>
@@ -79,7 +85,7 @@ function PoseMatrix({ species, params }: { species: Species; params: URLSearchPa
     <div>
       <Heading>{species}</Heading>
       {POSES.map((pose) => (
-        <div style={ROW} key={pose}>
+        <div style={STRIP} key={pose}>
           {[...DAYS, ...NIGHTS].map(({ label, light }) => (
             <Cell key={label} label={`${pose} · ${label}`} night={light.night}>
               <PetArt petId={id} pose={pose} light={light} size={sizeOf(params, 160)} facing={facingOf(params)} animated={params.has('animate')} />
@@ -167,7 +173,7 @@ export const SECTIONS: GallerySection[] = [
   },
   {
     id: 'pets-one',
-    title: 'Pets · large drawings (&id=a,b &pose=sit,loaf &expr &light=left|top|right &night &size &facing &outfit=wear-…)',
+    title: 'Pets · large drawings (&id=a,b &pose=sit,loaf &expr &light=left|top|right &night &size &facing &outfit=wear-… &fit)',
     render: (params) => {
       const light: Light = { from: (params.get('light') as Light['from'] | null) ?? 'left', night: params.has('night') };
       const ids = (params.get('id') ?? MODELS.cat).split(',');
@@ -191,6 +197,7 @@ export const SECTIONS: GallerySection[] = [
                   facing={facingOf(params)}
                   expression={(params.get('expr') as Expression | null) ?? 'rest'}
                   animated={params.has('animate')}
+                  fit={params.has('fit')}
                 />
               </div>
             )),
@@ -229,7 +236,7 @@ export const SECTIONS: GallerySection[] = [
   },
   {
     id: 'pets-looks',
-    title: 'Pets · every look at 72 px, then at 32 px and 20 px on a card (&pose=sit)',
+    title: 'Pets · every look at 72 px in tile mode (&world for true scale), then at 32 px and 20 px on a card (&pose=sit)',
     render: (params) => {
       const pose = (params.get('pose') as Pose | null) ?? 'sit';
       const pets = pickPets(params);
@@ -238,7 +245,7 @@ export const SECTIONS: GallerySection[] = [
           <div style={ROW}>
             {pets.map((p) => (
               <Cell key={p.id} label={p.name}>
-                <PetArt petId={p.id} pose={pose} size={sizeOf(params, 72)} facing={facingOf(params)} />
+                <PetArt petId={p.id} pose={pose} size={sizeOf(params, 72)} facing={facingOf(params)} fit={!params.has('world')} />
               </Cell>
             ))}
           </div>
@@ -279,6 +286,55 @@ export const SECTIONS: GallerySection[] = [
         ))}
       </div>
     ),
+  },
+  {
+    id: 'pets-wear-icons',
+    title: 'Wearables · every inventory icon on a card tile, at 88 and 44 px',
+    render: () => (
+      <div style={ROW}>
+        {WEARABLES.map((w) => (
+          <Cell key={w.id} label={w.name}>
+            <div style={{ display: 'flex', alignItems: 'flex-end', gap: '4px' }}>
+              <svg viewBox="0 0 100 100" width={88} height={88} aria-hidden="true">
+                {WEARABLE_ART[w.id]?.icon()}
+              </svg>
+              <svg viewBox="0 0 100 100" width={44} height={44} aria-hidden="true">
+                {WEARABLE_ART[w.id]?.icon()}
+              </svg>
+            </div>
+          </Cell>
+        ))}
+      </div>
+    ),
+  },
+  {
+    id: 'pets-fit',
+    title: 'Pets · tile mode (fit) beside world scale, at 72 px and in a 240 px reveal (&pose=sit)',
+    render: (params) => {
+      const pose = (params.get('pose') as Pose | null) ?? 'sit';
+      const ids = params.get('ids')?.split(',') ?? SPECIES.map((s) => MODELS[s]);
+      return (
+        <div>
+          <div style={ROW}>
+            {ids.map((id) => (
+              <Cell key={id} label={`${id.replace('pet-', '')} · world, tile`}>
+                <div style={{ display: 'flex', alignItems: 'flex-end' }}>
+                  <PetArt petId={id} pose={pose} size={sizeOf(params, 72)} />
+                  <PetArt petId={id} pose={pose} size={sizeOf(params, 72)} fit />
+                </div>
+              </Cell>
+            ))}
+          </div>
+          <div style={ROW}>
+            {['pet-hamster-syrian', 'pet-frog-peeper', 'pet-duck-call', 'pet-cow-highland'].map((id) => (
+              <Cell key={id} label={`${id.replace('pet-', '')} · reveal, tile`}>
+                <PetArt petId={id} pose={pose} size={240} fit />
+              </Cell>
+            ))}
+          </div>
+        </div>
+      );
+    },
   },
   wearSection('pets-wear-head', 'Wearables · head, on a cat, a cow, a frog, a hamster and a duck in sit, loaf and stand, with the icon', ['head']),
   wearSection('pets-wear-neck', 'Wearables · face and neck, on five species in sit, loaf and stand, with the icon', ['face', 'neck']),

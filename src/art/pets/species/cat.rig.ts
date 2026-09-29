@@ -35,6 +35,8 @@ export const CAT_RIG: SpeciesRig = {
     eyes: { y: 2.4, left: -4.6, right: 10, r: 2.6 },
     nose: [3, 7.8],
     ear: { x: -11, y: -15.5, r: -24 },
+    top: -26,
+    wide: 18.2,
   },
   poses: {
     sit: {
@@ -43,7 +45,7 @@ export const CAT_RIG: SpeciesRig = {
       head: { x: 55, y: 38.5, s: 1, r: 5 },
       front: [
         // The near foreleg reads as a soft value step down the chest, with its paw.
-        { d: 'M50.5 70C53.2 70 55 72 55 75V92.6C55 93.4 54.4 94 53.6 94H47.4C46.6 94 46 93.4 46 92.6V75C46 72 47.8 70 50.5 70Z', tone: 'leg', lit: true, sock: 'M46 88.6H55V92.6C55 93.4 54.4 94 53.6 94H47.4C46.6 94 46 93.4 46 92.6Z' },
+        { d: 'M50.5 70C53.2 70 55 72 55 75V92.6C55 93.4 54.4 94 53.6 94H47.4C46.6 94 46 93.4 46 92.6V75C46 72 47.8 70 50.5 70Z', tone: 'leg', lit: true, sock: 'M46 88.6H55V92.6C55 93.4 54.4 94 53.6 94H47.4C46.6 94 46 93.4 46 92.6Z', lower: 'M46 83.4C46 81.6 48 80.6 50.5 80.6C53 80.6 55 81.6 55 83.4V92.6C55 93.4 54.4 94 53.6 94H47.4C46.6 94 46 93.4 46 92.6Z' },
       ],
       back: [{ d: 'M59 74C62 74 64 76 64 79V92.6C64 93.4 63.4 94 62.6 94H56.4C55.6 94 55 93.4 55 92.6V79C55 76 56.5 74 59 74Z', tone: 'legFar', sock: 'M55 89H64V92.6C64 93.4 63.4 94 62.6 94H56.4C55.6 94 55 93.4 55 92.6Z' }],
       tail: tailRig(
@@ -58,6 +60,8 @@ export const CAT_RIG: SpeciesRig = {
         5.2,
         [26, 83],
         'front',
+        0.28,
+        0.62,
       ),
       contact: { cx: 46, rx: 25 },
       neck: { x: 56, y: 56.5, w: 11, r: -8 },
@@ -79,6 +83,8 @@ export const CAT_RIG: SpeciesRig = {
         4.8,
         [19, 86.5],
         'front',
+        0.28,
+        0.62,
       ),
       contact: { cx: 43, rx: 31 },
       neck: { x: 64, y: 76, w: 9.5, r: -6 },
@@ -101,9 +107,11 @@ export const CAT_RIG: SpeciesRig = {
         4.4,
         [23.5, 63],
         'back',
+        0.28,
+        0.62,
       ),
       contact: { cx: 49, rx: 28 },
-      neck: { x: 68, y: 61, w: 9, r: 18 },
+      neck: { x: 67.4, y: 63.4, w: 9, r: 16 },
     },
     walk: {
       body: STAND_BODY,
@@ -126,9 +134,11 @@ export const CAT_RIG: SpeciesRig = {
         4.4,
         [23.5, 63],
         'back',
+        0.28,
+        0.62,
       ),
       contact: { cx: 48, rx: 29 },
-      neck: { x: 68.5, y: 61.5, w: 9, r: 18 },
+      neck: { x: 67.8, y: 63.8, w: 9, r: 16 },
       motion: 'hop',
     },
     sleep: {
@@ -149,6 +159,7 @@ export const CAT_RIG: SpeciesRig = {
         [22, 83],
         'over',
         0.3,
+        0.68,
       ),
       contact: { cx: 46, rx: 28 },
       neck: { x: 62, y: 88, w: 7, r: -30 },

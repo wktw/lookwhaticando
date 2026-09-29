@@ -12,6 +12,10 @@ import type { P } from '../shape';
 export const DOG_HEAD =
   'M0 -15.5C8.6 -15.5 15.5 -8.6 15.5 -1C15.5 0 16 1 17.5 1.6C20.5 2.6 22.4 5.4 22 8.6C21.6 12.2 18.6 14.4 14.6 14.6C11.6 14.8 9.6 14.4 7.6 14C4.8 15.4 2.4 15.5 0 15.5C-8.6 15.5 -15.5 8.6 -15.5 0C-15.5 -8.6 -8.6 -15.5 0 -15.5Z';
 
+/** A flat-faced skull (French Bulldog): the same round head with a short, blunt muzzle. */
+export const DOG_FLAT_HEAD =
+  'M0 -15.5C8.6 -15.5 15.5 -8.6 15.5 -1C15.5 0 16.3 0.8 17.2 1.8C18.8 3.6 19.1 6.8 18.3 9.2C17.3 12.2 14.6 13.8 11.6 14.4C8 15.3 4 15.5 0 15.5C-8.6 15.5 -15.5 8.6 -15.5 0C-15.5 -8.6 -8.6 -15.5 0 -15.5Z';
+
 export const DOG_EARS = {
   floppyNear: 'M-8.8 -13.4C-14.6 -14.2 -19.6 -9.6 -20 -1.6C-20.3 4.4 -18.4 9 -15.2 9.6C-11.8 10.2 -10.4 6.2 -10.6 2C-10.8 -3 -8.6 -8 -5.6 -11.2Z',
   floppyFar: 'M5.4 -13.8C10.4 -15.8 15.6 -13.2 16.8 -8C17.8 -3 16.6 1.2 14.6 1.8C13 -2 11 -6 7 -9.2Z',
@@ -21,14 +25,17 @@ export const DOG_EARS = {
   pointyFar: 'M3.2 -14.8C6.2 -19.2 9.6 -23 13.2 -25.8C14.4 -26.6 15.8 -26 16 -24.6C16.6 -19.6 16 -14.4 14.2 -9.4Z',
   pointyNearIn: 'M-11 -11.6C-12.2 -16 -12 -20.2 -10.8 -23.4C-8.8 -21 -6.8 -18 -5.4 -14.8Z',
   pointyFarIn: 'M6.2 -14.6C8.4 -17.6 10.8 -20.4 13.4 -22.4C13.8 -19 13.4 -15.4 12.4 -12Z',
-  batNear: 'M-12.4 -8.4C-17.4 -14.2 -18.4 -24 -14.4 -28.2C-11.2 -30.6 -6 -25.4 -2.6 -14.8Z',
-  batFar: 'M3.2 -15C6.4 -25.4 11.4 -30.4 14.6 -28.2C18.6 -24 17.6 -14.2 12.4 -8.2Z',
-  batNearIn: 'M-11.4 -11.4C-14.4 -15.6 -15.4 -21.8 -13.4 -25C-11 -24 -8.4 -19.8 -6.4 -14.6Z',
-  batFarIn: 'M6.6 -15C8.6 -20.4 11.2 -24.2 13.6 -25C15.4 -21.6 14.6 -15.8 11.8 -11.4Z',
+  batNear: 'M-13 -7.6C-18.6 -12 -20.6 -19.4 -18.2 -24C-15.8 -28 -9.4 -25.2 -2.6 -14.6Z',
+  batFar: 'M3 -15C8.4 -24.8 14.6 -27.6 17.2 -24.2C19.8 -20.2 18.4 -12.6 12.8 -7.6Z',
+  batNearIn: 'M-12.2 -10.6C-15.6 -14 -17 -18.8 -15.8 -21.8C-13.4 -21.6 -9.8 -18.6 -6.4 -14Z',
+  batFarIn: 'M6.6 -14.8C9.6 -19.8 13 -22.4 15.2 -22C16.4 -19 15.6 -14.6 12 -10.8Z',
 };
 
-/** Body geometry by variant: `L` extra length toward the rump, `D` how much lower the back sits. */
-function build(long: boolean): SpeciesRig {
+/**
+ * Body geometry by variant: `L` extra length toward the rump, `D` how much lower the back sits.
+ * `flat` swaps in the flat-faced skull.
+ */
+function build(long: boolean, flat = false): SpeciesRig {
   const L = long ? 13 : 0;
   const D = long ? 7 : 0;
   const x = (n: number) => fmt(n - L);
@@ -76,11 +83,13 @@ function build(long: boolean): SpeciesRig {
     species: 'dog',
     scale: long ? 0.8 : 0.86,
     head: {
-      d: DOG_HEAD,
+      d: flat ? DOG_FLAT_HEAD : DOG_HEAD,
       hat: { x: 0.4, y: -15, w: 18, r: 0 },
       eyes: { y: -2.2, left: -4.2, right: 8.6, r: 2.5 },
-      nose: [20.2, 5.2],
+      nose: flat ? [17.2, 4.6] : [20.2, 5.2],
       ear: { x: -9, y: -13, r: -20 },
+      top: -27,
+      wide: 21.4,
     },
     poses: {
       sit: {
@@ -180,3 +189,4 @@ function build(long: boolean): SpeciesRig {
 
 export const DOG_RIG = build(false);
 export const DOG_LONG_RIG = build(true);
+export const DOG_FLAT_RIG = build(false, true);

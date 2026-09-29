@@ -26,10 +26,12 @@ export interface DrawCtx {
   has: (m: MarkId) => boolean;
   trait: (t: TraitId) => boolean;
   /** A precomputed crescent for a part of this pose, or '' when there is none. */
-  crescent: (part: 'body' | 'head' | 'tail' | 'tailCurl' | 'cast' | `front${number}` | `frontB${number}`, kind: string) => string;
+  crescent: (part: 'body' | 'head' | 'tail' | 'tailCurl' | 'cast' | 'chest' | 'tailShaft' | 'tailEnd' | `front${number}` | `frontB${number}`, kind: string) => string;
 }
 
 export interface MarkArt {
+  /** Paint the pose's chest crescent (see crescents/jobs.ts CHEST) in the pale `under` tone. */
+  chest?: boolean;
   /** Drawn in the canonical body frame, clipped to the torso. */
   body?: (c: DrawCtx) => JSX.Element | null;
   /** Drawn in the head frame, clipped to the head. */

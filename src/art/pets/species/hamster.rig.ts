@@ -35,6 +35,7 @@ export const HAMSTER_RIG: SpeciesRig = {
     eyes: { y: -1.6, left: -3.6, right: 6.2, r: 2.1 },
     nose: [11, 3],
     ear: { x: -8, y: -8, r: -20 },
+    top: -13.1,
   },
   poses: {
     sit: {
@@ -43,7 +44,7 @@ export const HAMSTER_RIG: SpeciesRig = {
       head: { x: 56, y: 47.5, s: 1.04 },
       front: [paw(38, 91.8), paw(55.4, 92), paw(61.4, 71, 'leg'), paw(64.6, 73.4, 'legFar')],
       contact: { cx: 46, rx: 24 },
-      neck: { x: 56, y: 59.5, w: 9, r: -6 },
+      neck: { x: 57, y: 62, w: 8.4, r: -6 },
     },
     loaf: {
       body: BALL,
@@ -51,7 +52,7 @@ export const HAMSTER_RIG: SpeciesRig = {
       head: { x: 64, y: 72.5, s: 1 },
       front: [paw(52, 92.8), paw(62, 92.6)],
       contact: { cx: 47, rx: 27 },
-      neck: { x: 62, y: 84, w: 8, r: -8 },
+      neck: { x: 59.4, y: 85.6, w: 7.6, r: -4 },
     },
     stand: {
       body: TROT,
@@ -60,7 +61,7 @@ export const HAMSTER_RIG: SpeciesRig = {
       back: [tiny([38, 86], [38.6, 93.4], 'legFar'), tiny([56, 86], [56.4, 93.4], 'legFar')],
       front: [tiny([30, 85], [30, 93.4], 'leg'), tiny([62, 86], [62.4, 93.4], 'leg')],
       contact: { cx: 47, rx: 26 },
-      neck: { x: 63, y: 81, w: 8, r: 10 },
+      neck: { x: 62.4, y: 83.2, w: 7.4, r: 8 },
     },
     walk: {
       body: TROT,
@@ -73,7 +74,7 @@ export const HAMSTER_RIG: SpeciesRig = {
         front: [tiny([30, 85], [33.4, 93.4], 'leg'), tiny([62, 86], [59, 93.4], 'leg')],
       },
       contact: { cx: 47, rx: 26 },
-      neck: { x: 63, y: 81, w: 8, r: 10 },
+      neck: { x: 62.4, y: 83.6, w: 7.4, r: 8 },
     },
     sleep: {
       body: BALL,

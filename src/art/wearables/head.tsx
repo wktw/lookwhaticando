@@ -1,4 +1,5 @@
-import { C, Shade, item } from './kit';
+import { C, Shade, item, shadeDir } from './kit';
+import type { WearCtx } from '../pets/types';
 import { circle, ellipse, fmt, scallop, tube } from '../pets/shape';
 
 /**
@@ -199,17 +200,48 @@ export const leafUmbrella = item({
   icon: 'translate(50 76) scale(2.1)',
 });
 
-/** A wreath of flowers along the crown. */
+/** Daisy petals: a warm cream that still reads on a white coat, and their shade side. */
+const DAISY = C.wool;
+const DAISY_SHADE = '#D9CBD8';
+
+/**
+ * A daisy with its petals on the side away from the light in the lavender shade (a hard step,
+ * no gradient), so it keeps its round form on a pale card or a white coat.
+ */
+function daisy(x: number, y: number, r: number, dir: number, rot: number) {
+  const n = 8;
+  let lit = '';
+  let shade = '';
+  for (let i = 0; i < n; i++) {
+    const a = rot + (i / n) * Math.PI * 2;
+    const d = ellipse(x + Math.cos(a) * r * 0.62, y + Math.sin(a) * r * 0.62, r * 0.42, r * 0.42);
+    // From the side the light is not on (or underneath, with overhead light).
+    const away = dir === 0 ? Math.sin(a) > 0.35 : Math.cos(a) * dir > 0.3;
+    if (away) shade += d;
+    else lit += d;
+  }
+  return (
+    <g>
+      <path d={lit} fill={DAISY} />
+      <path d={shade} fill={DAISY_SHADE} />
+      <circle cx={x} cy={y} r={fmt(r * 0.36)} fill={C.mustard} />
+    </g>
+  );
+}
+
+/** A wreath of flowers along the crown. A daisy chain is linked by its green stems. */
 function wreath(kind: 'forget' | 'daisy' | 'blossom') {
-  return () => {
+  return (ctx: WearCtx | null) => {
     const pts = arc(kind === 'daisy' ? 6 : 7, 11.4, 3.6);
     const leaves = pts.slice(0, -1).map(([x, y], i) => leafAt(x + 1.6, y + 0.6, 3.4, i % 2 ? 30 : -30, C.sageDeep));
+    const dir = ctx ? shadeDir(ctx) : 1;
     return (
       <g>
+        {kind === 'daisy' && <path d={tube(pts.map(([x, y]) => [x, y + 1.2] as const), 1.1, 1.1)} fill={C.leafDeep} />}
         {leaves}
         {pts.map(([x, y], i) =>
           kind === 'daisy' ? (
-            <g key={i}>{flower(x, y, 2.9, C.white, C.butter, 8, i * 0.4)}</g>
+            <g key={i}>{daisy(x, y, 2.9, dir, i * 0.4)}</g>
           ) : kind === 'blossom' ? (
             <g key={i}>{flower(x, y, 2.8, i % 2 ? '#F7D5DE' : '#F2C2CF', C.blushDeep, 5, i)}</g>
           ) : i === 3 ? (
@@ -300,11 +332,16 @@ export const crescentPin = item({
   slot: 'head',
   at: 'ear',
   front: true,
-  draw: () => (
-    <g>
+  // A brass crescent, half as big again as a clip, with its shade on the side away from the light.
+  draw: (ctx) => (
+    <g transform="scale(1.5)">
       <path d="M1.6 -4C-1.6 -4.6 -4.4 -2 -4.4 1.2C-4.4 4.4 -1.6 6.6 1.6 6C-0.4 5 -1.8 3.2 -1.8 1C-1.8 -1.2 -0.4 -3.2 1.6 -4Z" fill={C.brass} />
-      <path d="M-4.2 0.4C-4 3.4 -1.6 6.2 1.6 6C-0.4 5 -1.8 3.2 -1.8 1Z" fill={C.brassDeep} />
+      {ctx && ctx.light.from === 'right' ? (
+        <path d="M1.6 -4C-1.6 -4.6 -4.4 -2 -4.4 1.2L-3.4 1C-3.2 -1.6 -1 -3.4 1.6 -4Z" fill={C.brassDeep} />
+      ) : (
+        <path d="M-4.2 0.4C-4 3.4 -1.6 6.2 1.6 6C-0.4 5 -1.8 3.2 -1.8 1Z" fill={C.brassDeep} />
+      )}
     </g>
   ),
-  icon: 'translate(50 50) scale(6)',
+  icon: 'translate(50 50) scale(4)',
 });

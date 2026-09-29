@@ -49,10 +49,15 @@ const marks: SpeciesArt['marks'] = {
     head: (c) => <path d={ellipse(-3, -3, 7, 5.4)} fill={c.tones.mark} opacity={0.55} />,
   },
   speculum: {},
-  belly: {
-    body: (c) => <path d={blotch(80, 84, 60, 44, 0)} fill={c.tones.under} />,
-  },
+  belly: { chest: true },
 };
+
+/** Where a Mandarin's sail rises from the top of the folded wing, per wing. */
+const SAIL_AT: Readonly<Record<string, readonly [number, number]>> = { tall: [45, 69], nest: [42, 76], relaxed: [39, 68], runner: [49.6, 64] };
+
+/** A Mandarin's sail: a broad orange fan standing up off the back, its top edge a soft arc. */
+const sail = ([x, y]: readonly [number, number]) =>
+  `M${x - 3} ${y}L${x - 9} ${y - 9}C${x - 8.4} ${y - 14.4} ${x + 1} ${y - 16.4} ${x + 6.6} ${y - 11.4}L${x + 3.4} ${y}Z`;
 
 /** The folded wing, with a Mallard's blue flash or a Mandarin's sail. */
 function overBody(c: DrawCtx) {
@@ -65,12 +70,10 @@ function overBody(c: DrawCtx) {
   const n = c.p.neck;
   return (
     <g>
-      {c.has('mandarin') && (
-        <path d={tube([[n.x - 12, n.y + 16], [n.x - 14, n.y + 8]], 7, 4)} fill={t.point} />
-      )}
+      {c.has('mandarin') && <path d={sail(SAIL_AT[key]!)} fill={t.point} />}
       <path d={wing} fill={col} />
       {flash && <path d={key === 'tall' ? 'M40 78C45 76 51 77 55 79.6C51 81.6 45 82 40 80.6Z' : key === 'runner' ? 'M45 76C49 75 53 75.6 56.4 77.4C53 79 49 79.4 45 78.6Z' : key === 'nest' ? 'M34 84C40 82 48 82 54 84C48 86 40 86.6 34 85.6Z' : 'M30 75C36 73 44 73 50 75C44 77 36 77.6 30 76.6Z'} fill={t.point} />}
-      {c.has('mallard') && <path d={tube([[n.x - n.w, n.y + 1], [n.x + n.w, n.y + 1]], 2.2, 2.2)} fill="#FBF7F0" />}
+      {c.has('mallard') && <path d={tube([[n.x - n.w + 1.2, n.y + 1], [n.x + n.w - 1.2, n.y + 1]], 2.2, 2.2)} fill="#FBF7F0" />}
     </g>
   );
 }

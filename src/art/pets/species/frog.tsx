@@ -18,10 +18,33 @@ const BELLY: Record<Pose, string> = {
   walk: ellipse(52, 90.5, 24, 6.5),
 };
 
+/** The Red-eyed Tree Frog's flank: a blue patch along the side, crossed by thin cream bars. */
+const FLANK_SIT = {
+  patch: 'M20 73C27 67.6 38 67.6 46 73.6C45.8 76 45 78 44 79C38 74.4 28 73 20 75.6Z',
+  bars: 'M26.3 70.6H27.7V73.8H26.3ZM32.3 69.8H33.7V74.4H32.3ZM38.3 70.4H39.7V75.4H38.3Z',
+};
+const FLANK_LOAF = {
+  patch: 'M16 76C24 70.8 36 70.8 44 76.4C43.8 78.6 43 80.4 42 81.2C36 77.2 26 76 16 78.4Z',
+  bars: 'M23.3 73.6H24.7V77H23.3ZM29.3 72.6H30.7V77H29.3ZM35.3 73H36.7V78H35.3Z',
+};
+const FLANK_SIDE = {
+  patch: 'M39 76C46 72.4 56 72.2 64 75.2C57 78.8 47 79.6 39 76Z',
+  bars: 'M45.3 74.4H46.7V77.8H45.3ZM51.3 73.6H52.7V78.2H51.3ZM57.3 74H58.7V77.8H57.3Z',
+};
+/** The Red-eyed Tree Frog's flank: a blue lens along the side over the haunch, crossed by thin cream bars. */
+const FLANK: Record<Pose, { patch: string; bars: string }> = { sit: FLANK_SIT, loaf: FLANK_LOAF, sleep: FLANK_LOAF, stand: FLANK_SIDE, walk: FLANK_SIDE };
+
 function bodyDetail(c: DrawCtx) {
   const t = c.tones;
+  const flank = c.has('flanks') ? FLANK[c.pose] : null;
   return (
     <g>
+      {flank && (
+        <>
+          <path d={flank.patch} fill={t.mark} />
+          <path d={flank.bars} fill={t.mark2} />
+        </>
+      )}
       <path d={BELLY[c.pose]} fill={c.has('glass') ? '#F6F7EC' : t.under} />
       {c.has('glass') && <circle cx={c.pose === 'stand' || c.pose === 'walk' ? 56 : 61} cy={c.pose === 'stand' || c.pose === 'walk' ? 87.4 : 88.6} r={1.5} fill="#E7939A" />}
       <path d={FROG_HAUNCH[c.pose]} fill={t.legFar} />
@@ -34,7 +57,8 @@ function face(c: DrawCtx) {
   const t = c.tones;
   const a = FROG_RIG.head;
   const happy = f.expr === 'happy';
-  const throat = happy ? ellipse(3, 21.4, 12, 8.2) : ellipse(3, 22.6, 11, 5.4);
+  // Happy is a throat puff (DESIGN §10.4): the throat fills out; the mouth line keeps its rest curve.
+  const throat = happy ? ellipse(3, 23.6, 11.8, 6.8) : ellipse(3, 22.6, 11, 5.4);
   const glassEdge = c.has('glass') ? c.crescent('head', `rim-${c.lit}`) : '';
   return (
     <g>
@@ -52,7 +76,7 @@ function face(c: DrawCtx) {
       </g>
       <path
         class="pet-line"
-        d={happy ? 'M-9.4 12.6Q2.6 18.4 15.2 13.4' : 'M-9 12.8Q2.8 15 15 13.4'}
+        d="M-9 12.8Q2.8 15 15 13.4"
         fill="none"
         stroke={t.dark ? t.line : t.ink}
         stroke-opacity={0.5}
@@ -72,9 +96,8 @@ const marks: SpeciesArt['marks'] = {
     head: (c) => <path d={`${circle(-9, -7, 1.8)}${circle(10, -4, 1.6)}${circle(-13, 2, 1.3)}`} fill={c.tones.mark} />,
   },
   x: {
-    body: (c) => (
-      <path d={`${tube([[36, 6], [64, 44]], 5, 5)}${tube([[64, 6], [36, 44]], 5, 5)}`} fill={c.tones.mark} />
-    ),
+    // A Spring Peeper's X sits on its back, behind the head: thin and quiet.
+    body: (c) => <path d={`${tube([[13, 12], [33, 44]], 3.2, 2.8)}${tube([[33, 12], [13, 44]], 3.2, 2.8)}`} fill={c.tones.mark} opacity={0.8} />,
   },
   moss: {
     body: (c) => {
@@ -99,14 +122,8 @@ const marks: SpeciesArt['marks'] = {
   },
   glass: {},
   jeans: {},
-  flanks: {
-    body: (c) => (
-      <g>
-        <path d="M-5 56C12 51 30 50 52 53V70C30 67 12 68 -5 72Z" fill={c.tones.mark} />
-        <path d="M14 51.6L18.4 51.2L17.6 67.6L13.2 68ZM32 50.6L36.4 50.6L36 66.8L31.6 66.8Z" fill={c.tones.mark2} />
-      </g>
-    ),
-  },
+  // Drawn in bodyDetail, under the haunch.
+  flanks: {},
 };
 
 function top(c: DrawCtx) {

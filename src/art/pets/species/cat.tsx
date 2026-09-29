@@ -2,11 +2,25 @@ import { CAT_EARS, CAT_RIG } from './cat.rig';
 import type { DrawCtx, SpeciesArt } from './art';
 import { Blush, Eyes, Mouth, Whiskers } from '../face';
 import { band, blotch, dots, heart } from './marks';
-import { circle, ellipse, fmt, rrect, tube } from '../shape';
-import { mix } from '../palette';
+import { blob, circle, ellipse, fmt, rrect, tube } from '../shape';
 
+/**
+ * A colourpoint's mask (head frame): darkest over the nose and whisker pads, spreading round the
+ * eyes and narrowing up to a soft point on the forehead, which keeps the coat colour.
+ */
+const POINT_MASK = blob([
+  [3, -5.4],
+  [8.8, -1.4],
+  [14, 2],
+  [14.6, 8.6],
+  [9.8, 14.4],
+  [3.2, 16.6],
+  [-3.8, 14.6],
+  [-8.2, 8.8],
+  [-8, 2.2],
+  [-2.8, -1.4],
+]);
 /** Cat nose: a small rounded triangle. */
-const POINT_MASK = 'M3 -11C7.6 -8 14.6 -4.4 19.4 -0.6C21.6 1.2 23 3.6 24 6.6V24H-24V6.6C-22 3.4 -19.2 0.6 -15.6 -1.6C-10 -5 -1.8 -8 3 -11Z';
 const NOSE = 'M-1.9 -1C-0.2 -1.8 1.8 -1.2 2 -0.8C1.4 0.5 0.7 1.2 0 1.3C-0.8 1.2 -1.5 0.5 -1.9 -1Z';
 
 function ears(c: DrawCtx) {
@@ -27,12 +41,7 @@ function ears(c: DrawCtx) {
   const inner = c.face.full && !c.silhouette && !c.tones.dark;
   return (
     <g transform={lift}>
-      {c.trait('tufts') && (
-        <g fill={t.point}>
-          <path d={CAT_EARS.tuftNear} />
-          <path d={CAT_EARS.tuftFar} />
-        </g>
-      )}
+      {c.trait('tufts') && <path d={CAT_EARS.tuftNear + CAT_EARS.tuftFar} fill={t.point} />}
       <g class={c.animated ? 'pet-earflick' : undefined}>
         <path d={CAT_EARS.near} fill={nearCol} />
         {inner && <path d={CAT_EARS.nearIn} fill={t.earIn} />}
@@ -62,25 +71,20 @@ function face(c: DrawCtx) {
   );
 }
 
+/** Tabby stripes as one path each for the body (rump → chest) and the head (an M on the brow, cheek bars). */
+const TABBY_BODY = [16, 33, 50, 67].map((u, i) => band(u, 7.4 - i * 0.4, 3.4, -8, 44 - i * 4, -6)).join('');
+const TABBY_HEAD =
+  'M1.6 -19L4.2 -19L3.4 -11.4C3.3 -10.6 2.4 -10.6 2.3 -11.4Z' +
+  'M-4.4 -18.2L-1.8 -18.6L-2.6 -11.8C-2.8 -11 -3.6 -11.1 -3.7 -11.8Z' +
+  'M7.8 -18.6L10.2 -18L8.6 -11.8C8.4 -11.1 7.6 -11.2 7.6 -11.9Z' +
+  'M-20.5 1L-14.6 2.4C-14 2.6 -14 3.3 -14.6 3.4L-20.5 4.6Z' +
+  'M-20.5 6.2L-15.2 7C-14.6 7.2 -14.6 7.8 -15.2 7.9L-20 9.4Z';
+
 /** Cats: stripes, patches, points, bibs. Body marks are in the canonical frame (rump → chest, back → belly). */
 const marks: SpeciesArt['marks'] = {
   tabby: {
-    body: (c) => (
-      <g fill={c.tones.mark}>
-        {[16, 33, 50, 67].map((u, i) => (
-          <path key={u} d={band(u, 7.4 - i * 0.4, 3.4, -8, 44 - i * 4, -6)} />
-        ))}
-      </g>
-    ),
-    head: (c) => (
-      <g fill={c.tones.mark}>
-        <path d="M1.6 -19L4.2 -19L3.4 -11.4C3.3 -10.6 2.4 -10.6 2.3 -11.4Z" />
-        <path d="M-4.4 -18.2L-1.8 -18.6L-2.6 -11.8C-2.8 -11 -3.6 -11.1 -3.7 -11.8Z" />
-        <path d="M7.8 -18.6L10.2 -18L8.6 -11.8C8.4 -11.1 7.6 -11.2 7.6 -11.9Z" />
-        <path d="M-20.5 1L-14.6 2.4C-14 2.6 -14 3.3 -14.6 3.4L-20.5 4.6Z" />
-        <path d="M-20.5 6.2L-15.2 7C-14.6 7.2 -14.6 7.8 -15.2 7.9L-20 9.4Z" />
-      </g>
-    ),
+    body: (c) => <path d={TABBY_BODY} fill={c.tones.mark} />,
+    head: (c) => <path d={TABBY_HEAD} fill={c.tones.mark} />,
   },
   patches: {
     body: (c) => (
@@ -97,21 +101,13 @@ const marks: SpeciesArt['marks'] = {
     ),
   },
   tuxedo: {
-    body: (c) => <path d={blotch(88, 70, 34, 70, 0)} fill={c.tones.under} />,
+    chest: true,
     head: (c) => (
       <path d="M3 -3.6C6.6 -3.6 9.2 1 10.6 4.6C12.4 9.4 12.6 14 10 17C7 20.4 -1 20.4 -4.4 17.4C-7 15 -6.6 9.8 -4.6 5.2C-3.2 1.2 -0.6 -3.6 3 -3.6Z" fill={c.tones.under} />
     ),
   },
   points: {
-    // The mask: nose, whisker pads and eyes, fading up between the eyes (drawn flat).
-    // The crown between the ears is a step lighter than the mask: a printed stand-in for the
-    // soft shading a real point coat has.
-    head: (c) => (
-      <g>
-        <path d="M-24 -24H24V24H-24Z" fill={mix(c.tones.head, c.tones.point, 0.42)} />
-        <path d={POINT_MASK} fill={c.tones.point} />
-      </g>
-    ),
+    head: (c) => <path d={POINT_MASK} fill={c.tones.point} />,
     body: (c) => <path d={blotch(40, 2, 60, 22, 0)} fill={c.tones.point} opacity={0.35} />,
   },
   van: {
@@ -158,9 +154,9 @@ const marks: SpeciesArt['marks'] = {
   blaze: {
     head: (c) => <path d="M3.2 -6C5.2 -2 9.4 3 12.4 8C13.8 11 12.6 17.6 3 17.8C-6.4 17.6 -7.4 11 -6 8C-3.2 3 1.2 -2 3.2 -6Z" fill={c.tones.under} />,
   },
-  belly: {
-    body: (c) => <path d={blotch(84, 76, 40, 58, 0)} fill={c.tones.under} />,
-  },
+  belly: { chest: true },
+  gloves: {},
+  mitts: {},
   muzzle: {
     head: (c) => <path d={ellipse(3.4, 9.2, 7.6, 5.4)} fill={c.tones.muzzle} />,
   },
@@ -173,12 +169,11 @@ function overBody(c: DrawCtx) {
   const n = c.p.neck;
   const col = c.trait('ruff') || c.has('tuxedo') ? c.tones.under : c.tones.coat;
   return (
-    <g transform={`translate(${n.x} ${n.y}) rotate(${n.r})`}>
-      <path
-        d="M-12 -4C-10 3 -7 7.6 -3.6 8.6C-2.6 11.6 0.6 12.4 2.2 10C4.4 12.4 7.6 11.4 8 8.4C11 6.6 12.8 2.4 12.4 -4Z"
-        fill={col}
-      />
-    </g>
+    <path
+      transform={`translate(${n.x} ${n.y}) rotate(${n.r})`}
+      d="M-12 -4C-10 3 -7 7.6 -3.6 8.6C-2.6 11.6 0.6 12.4 2.2 10C4.4 12.4 7.6 11.4 8 8.4C11 6.6 12.8 2.4 12.4 -4Z"
+      fill={col}
+    />
   );
 }
 

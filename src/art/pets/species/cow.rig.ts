@@ -13,6 +13,8 @@ export const COW_HEAD = 'M-2 -15H2C8.6 -15 14 -9.6 14 -3V3C14 9.6 8.6 15 2 15H-2
 
 export const COW_PARTS = {
   muzzle: rrect(-13.6, 3.6, 30, 15, 7.5),
+  /** The bare nose pad inside a pale mealy ring (Jersey, Brown Swiss): 60% of the muzzle. */
+  pad: rrect(-7.6, 6.6, 18, 10, 5),
   hornL: 'M-3.2 -13C-2.9 -16.4 -4 -18.7 -6 -18.6C-8.2 -18.4 -9.4 -15.4 -8.6 -11.5Z',
   hornR: 'M3.2 -13C2.9 -16.4 4 -18.7 6 -18.6C8.2 -18.4 9.4 -15.4 8.6 -11.5Z',
   earL: 'M-12.5 -7C-17 -11.4 -22.4 -11.4 -24.6 -8.6C-22.2 -4.8 -17.2 -3.5 -12.5 -4Z',
@@ -70,6 +72,8 @@ export const COW_RIG: SpeciesRig = {
     eyes: { y: -1.4, left: -5.4, right: 7.6, r: 2.55 },
     nose: [1.4, 11],
     ear: { x: -11, y: -12, r: -18 },
+    top: -18.6,
+    wide: 27.2,
   },
   poses: {
     sit: {
@@ -86,7 +90,7 @@ export const COW_RIG: SpeciesRig = {
         [21.8, 72.6],
       ]),
       contact: { cx: 46, rx: 28 },
-      neck: { x: 64, y: 58.5, w: 10, r: -4 },
+      neck: { x: 60, y: 65.4, w: 8, r: 0 },
     },
     stand: {
       body: STAND,
@@ -101,7 +105,7 @@ export const COW_RIG: SpeciesRig = {
         [11.4, 70.2],
       ]),
       contact: { cx: 42, rx: 31 },
-      neck: { x: 67, y: 56, w: 10, r: -8 },
+      neck: { x: 63.4, y: 61.6, w: 7.4, r: -16 },
     },
     walk: {
       body: STAND,
@@ -120,7 +124,7 @@ export const COW_RIG: SpeciesRig = {
         [9.2, 69.6],
       ]),
       contact: { cx: 42, rx: 31 },
-      neck: { x: 67.4, y: 56.6, w: 10, r: -6 },
+      neck: { x: 63.6, y: 62.4, w: 7.4, r: -14 },
       motion: 'bob',
     },
     loaf: {

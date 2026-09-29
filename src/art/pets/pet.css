@@ -2,6 +2,8 @@
  * Pet idle life (DESIGN §10.5): unhurried, CSS only, transforms and opacity only, and only while
  * the art is `.is-animated`. Pivots are set in the SVG by wrapping each animated group in a
  * translate, so every transform here rotates or scales about the group's local origin.
+ * Breathing moves the whole <svg> as an HTML box, which the browser composites without
+ * repainting the drawing (an SVG child's transform repaints the SVG on every frame in WebKit).
  * Reduced motion keeps the breathing (≤ 1.5%) and the blinks; everything else holds still.
  */
 .pet-art {
@@ -9,13 +11,15 @@
   flex: none;
 }
 
-.pet-art :is(.pet-breathe, .pet-blink, .pet-slowblink, .pet-tailflick, .pet-earflick, .pet-throat, .pet-chew, .pet-wag, .pet-twitch, .pet-wave, .pet-bob, .pet-waddle, .pet-hop) {
+.pet-art :is(.pet-blink, .pet-slowblink, .pet-tailflick, .pet-earflick, .pet-throat, .pet-chew, .pet-wag, .pet-twitch, .pet-wave, .pet-bob, .pet-waddle, .pet-hop) {
   transform-box: view-box;
   transform-origin: 0 0;
 }
 
-/* ---------- breathing: ≤ 1.5% ---------- */
-.pet-art.is-animated .pet-breathe {
+/* ---------- breathing: ≤ 1.5%, about the feet (the baseline is at 94% of the canvas) ---------- */
+.pet-art.is-animated {
+  transform-origin: 50% 94%;
+  will-change: transform;
   animation: pet-breathe var(--pet-breathe-dur, 3.8s) ease-in-out var(--pet-breathe-delay, 0s) infinite;
 }
 @keyframes pet-breathe {
@@ -43,26 +47,28 @@
   }
 }
 
-/* ---------- the slow blink: 400 ms close, hold, 400 ms open ---------- */
+/*
+ * ---------- the slow blink: 400 ms close, a 600 ms hold, 400 ms open ----------
+ * A deliberate gesture, then a long rest: it comes round every 8 s, not as a tic.
+ */
 .pet-art.is-animated .pet-slowblink {
-  animation: pet-slowblink 3.6s var(--ease-in-out, ease-in-out) infinite;
+  animation: pet-slowblink 8s var(--ease-in-out, ease-in-out) var(--pet-blink-delay, 0s) infinite;
 }
 @keyframes pet-slowblink {
-  0%,
-  8% {
+  0% {
     transform: scaleY(1);
   }
-  19%,
-  36% {
+  5%,
+  12.5% {
     transform: scaleY(0.12);
   }
-  47%,
+  17.5%,
   100% {
     transform: scaleY(1);
   }
 }
 
-/* ---------- a cat's tail-tip flick ---------- */
+/* ---------- a cat's tail-tip flick: only the tip turns, on the joint ---------- */
 .pet-art.is-animated .pet-tailflick {
   animation: pet-tailflick var(--pet-flick-dur, 7s) ease-in-out var(--pet-flick-delay, 0s) infinite;
 }
@@ -73,13 +79,13 @@
     transform: rotate(0deg);
   }
   86% {
-    transform: rotate(-4deg);
+    transform: rotate(-12deg);
   }
   90% {
-    transform: rotate(1.5deg);
+    transform: rotate(4deg);
   }
   94% {
-    transform: rotate(-2deg);
+    transform: rotate(-6deg);
   }
 }
 

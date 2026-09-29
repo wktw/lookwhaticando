@@ -3,6 +3,7 @@ import { WEARABLE_ART } from '../wearables';
 import type { WearableArt, WearCtx } from './types';
 import type { DrawCtx } from './species/art';
 import { place } from './shape';
+import { BASELINE } from './rig';
 
 /**
  * Where wearables go on a pet. Head and face wear draw in the head frame (so they follow every
@@ -18,7 +19,7 @@ export function wearCtxFor(c: DrawCtx): WearCtx {
     light: { from: c.lit, night: c.night },
     uid: c.uid,
     head: { hat: h.hat, eyes: h.eyes, ear: h.ear },
-    neck: { w: c.p.neck.w },
+    neck: { w: c.p.neck.w, drop: (BASELINE - 1 - c.p.neck.y) / (c.p.neck.w / 10) },
     body: { aspect: c.p.frame.w / c.p.frame.h },
   };
 }

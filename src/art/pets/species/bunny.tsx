@@ -1,7 +1,7 @@
 import { BUNNY_EARS, BUNNY_RIG, EAR_BASE } from './bunny.rig';
 import type { DrawCtx, SpeciesArt, SpriteCtx } from './art';
 import { Blush, Eyes, Mouth } from '../face';
-import { blotch, dots } from './marks';
+import { dots } from './marks';
 import { ellipse, rrect, scallop } from '../shape';
 
 /**
@@ -74,9 +74,7 @@ function face(c: DrawCtx) {
 }
 
 const marks: SpeciesArt['marks'] = {
-  belly: {
-    body: (c) => <path d={blotch(86, 80, 40, 60, 0)} fill={c.tones.under} />,
-  },
+  belly: { chest: true },
   dutch: {
     body: (c) => <path d="M-10 -10H52C50 30 52 70 56 110H-10Z" fill={c.tones.mark} />,
     head: (c) => (

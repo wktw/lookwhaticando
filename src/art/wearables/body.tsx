@@ -1,5 +1,5 @@
 import type { JSX } from 'preact';
-import { C, GARMENT, GARMENT_NECK, item } from './kit';
+import { C, GARMENT, GARMENT_NECK, SHADE, item } from './kit';
 import type { WearCtx } from '../pets/types';
 import { ellipse, fmt, rrect, scallop } from '../pets/shape';
 import { heart, star } from '../pets/species/marks';
@@ -12,6 +12,8 @@ import { heart, star } from '../pets/species/marks';
  */
 
 const FRONT = 'M34 -12H112V112H34Z';
+/** The striped tee's cream: a step warmer than paper so it reads on a white coat and a pale tile. */
+const TEE = C.wool;
 /** Undo the body frame's stretch around (u, v) so hearts and stars stay round. */
 const round = (ctx: WearCtx | null, u: number, v: number) => (ctx ? `translate(${u} ${v}) scale(1 ${fmt(ctx.body.aspect)}) translate(${-u} ${-v})` : undefined);
 
@@ -19,11 +21,18 @@ const round = (ctx: WearCtx | null, u: number, v: number) => (ctx ? `translate($
 const bands = (u0: number, step: number, w: number, n: number) => Array.from({ length: n }, (_, i) => rrect(u0 + i * step, -12, w, 124, 0)).join('');
 
 /** A flat-lay garment icon: the outline in `base`, with `inside` drawn over it and trimmed at the hem. */
+/** The window is on the left in a tile: shade under the far sleeve, down the far side and along the hem. */
+const GARMENT_SHADE = 'M74 46L78 54L88 50L86.6 46.4L78.8 49.4ZM74 48V81.4C71.4 82.8 68.6 83.8 66 84.4C68.4 82 69.6 79.4 70 76V50Z';
+/** A flat contact shadow, so a pale garment sits on the tile rather than dissolving into it. */
+export const ICON_CONTACT = <ellipse cx={50} cy={89} rx={30} ry={3.4} fill="var(--contact)" />;
+
 function garmentIcon(base: string, inside: JSX.Element | null, collar: string = C.paper) {
   return (
     <g>
+      {ICON_CONTACT}
       <path d={GARMENT} fill={base} />
       {inside}
+      <path d={GARMENT_SHADE} fill={SHADE} />
       <path d={GARMENT_NECK} fill={collar} opacity={0.6} />
     </g>
   );
@@ -37,7 +46,8 @@ export const knitSweater = item({
       <path d={FRONT} fill={C.cream} />
       <path d={bands(46, 14, 6, 5)} fill={C.blush} />
       <path d="M34 -12H40V112H34Z" fill={C.blushDeep} />
-      <path d="M35.5 -12V112M38.5 -12V112" class="pet-line" stroke={C.blush} stroke-width="0.8" fill="none" />
+      {/* The ribbed cuff: two knitted ribs as flat bands, not strokes. */}
+      <path d="M35 -12H36V112H35ZM38 -12H39V112H38Z" fill={C.blush} />
     </g>
   ),
   icon: () =>
@@ -120,11 +130,17 @@ export const stripedTee = item({
   hideIn: ['sleep'],
   draw: () => (
     <g>
-      <path d="M38 -12H112V112H38Z" fill={C.paper} />
+      <path d="M38 -12H112V112H38Z" fill={TEE} />
       <path d={bands(44, 9, 4, 8)} fill={C.navy} />
     </g>
   ),
-  icon: () => garmentIcon(C.paper, <path d="M22 36H78V40H22ZM24 46H76V50H24ZM26 56H74V60H26ZM26 66H74V70H26ZM26 76H74V80H26Z" fill={C.navy} />),
+  // A Breton tee in warm cream (paper white would vanish on the tile), navy stripes to the cuffs.
+  icon: () =>
+    garmentIcon(
+      TEE,
+      <path d="M26 36H74V40H26ZM26 46H74V50H26ZM26 56H74V60H26ZM26 66H74V70H26ZM26 76H74V80H26ZM17.6 38.6L81.4 38.6L82.6 41.6L16.4 41.6Z" fill={C.navy} />,
+      C.navy,
+    ),
 });
 
 export const pumpkinCardigan = item({
@@ -230,10 +246,12 @@ export const linenApron = item({
   ),
   icon: () => (
     <g>
-      <path d="M14 30H86V35H14Z" fill={C.oat} />
+      {ICON_CONTACT}
+      <path d="M14 30H86V35H14Z" fill={C.linenDeep} />
       <path d="M30 32H70V84C60 88 40 88 30 84Z" fill={C.linen} />
-      <path d={rrect(40, 52, 20, 16, 2)} fill={C.oat} />
+      <path d={rrect(40, 52, 20, 16, 2)} fill={C.linenDeep} />
       <path d="M36 22C40 14 60 14 64 22L62 32H38Z" fill={C.linen} />
+      <path d="M64 32H70V84C68 85 66 85.6 63 86.2C64.6 84 65.4 80 65.4 76V32Z" fill={SHADE} />
     </g>
   ),
 });

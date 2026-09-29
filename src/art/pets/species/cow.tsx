@@ -1,9 +1,9 @@
 import { COW_PARTS, COW_RIG, COW_SPRITE } from './cow.rig';
 import type { DrawCtx, SpeciesArt, SpriteCtx } from './art';
 import { Blush, Eyes, Mouth } from '../face';
-import { TONGUE } from '../palette';
+import { mix, TONGUE } from '../palette';
 import { blotch, dots, star } from './marks';
-import { ellipse, rrect } from '../shape';
+import { ellipse } from '../shape';
 
 /**
  * Cows: horns and a pale muzzle always (they read at 32 px), ears out to the side, a nose-lick
@@ -52,13 +52,21 @@ function face(c: DrawCtx) {
   const t = c.tones;
   const a = COW_RIG.head;
   const fringe = c.trait('fringe');
+  const ring = c.has('ring') && !c.silhouette;
   return (
     <g>
-      {c.has('ring') && <path d={rrect(-14.8, 2.2, 32.4, 17.6, 8.8)} fill={t.under} />}
-      <path d={COW_PARTS.muzzle} fill={t.muzzle} />
-      <g fill={t.dark ? t.ink : t.nose} opacity={0.85}>
-        <ellipse cx={MUZ_X - 5.8} cy={10.6} rx={1.35} ry={1.7} />
-        <ellipse cx={MUZ_X + 5.8} cy={10.6} rx={1.35} ry={1.7} />
+      {ring ? (
+        <>
+          {/* A Jersey's muzzle: a dark nose pad inside a wide pale mealy ring. */}
+          <path d={COW_PARTS.muzzle} fill={t.under} />
+          <path d={COW_PARTS.pad} fill={t.muzzle} />
+        </>
+      ) : (
+        <path d={COW_PARTS.muzzle} fill={t.muzzle} />
+      )}
+      <g fill={ring ? mix(t.muzzle, t.ink, 0.5) : t.dark ? t.ink : t.nose} opacity={0.85}>
+        <ellipse cx={MUZ_X - (ring ? 4.4 : 5.8)} cy={10.6} rx={1.35} ry={1.7} />
+        <ellipse cx={MUZ_X + (ring ? 4.4 : 5.8)} cy={10.6} rx={1.35} ry={1.7} />
       </g>
       {fringe ? (
         <path d={COW_PARTS.fringe} fill={t.mark} />
@@ -75,41 +83,31 @@ function face(c: DrawCtx) {
   );
 }
 
+/** Holstein map patches (body frame) and the head patch, each as one path. */
+const HOLSTEIN = blotch(46, 14, 30, 64, 0.3) + blotch(-2, 26, 30, 96, -0.2) + blotch(80, 68, 14, 34, 0.8);
+const HOLSTEIN_NIGHT = blotch(46, 14, 32, 64, 0.3) + blotch(-2, 26, 30, 96, -0.2) + blotch(80, 68, 14, 34, 0.8);
+const HOLSTEIN_HEAD = 'M-5 -18C-13 -19 -18 -12 -16.4 -3.4C-12.6 -5.2 -8.6 -7.8 -5.6 -10C-3.8 -12.4 -3.6 -16 -5 -18Z';
+/** The Night-sky Cow's static star field, inside its patches. */
+const STAR_FIELD =
+  star(42, 10, 2.4) + star(52, 26, 1.6) + star(38, 34, 1.3) + star(4, 20, 2) + star(8, 50, 1.4) + dots(34, 0, 26, 40, 5, 0.6, 7.7, 1) + dots(-6, 10, 16, 60, 4, 0.6, 3.1, 1);
+
 const marks: SpeciesArt['marks'] = {
   holstein: {
-    body: (c) => (
-      <g fill={c.tones.mark}>
-        <path d={blotch(46, 14, 30, 64, 0.3)} />
-        <path d={blotch(-2, 26, 30, 96, -0.2)} />
-        <path d={blotch(80, 68, 14, 34, 0.8)} />
-      </g>
-    ),
-    head: (c) => <path d="M-5 -18C-13 -19 -18 -12 -16.4 -3.4C-12.6 -5.2 -8.6 -7.8 -5.6 -10C-3.8 -12.4 -3.6 -16 -5 -18Z" fill={c.tones.mark} />,
+    body: (c) => <path d={HOLSTEIN} fill={c.tones.mark} />,
+    head: (c) => <path d={HOLSTEIN_HEAD} fill={c.tones.mark} />,
   },
   stars: {
     body: (c) => (
-      <g>
-        <g fill={c.tones.mark}>
-          <path d={blotch(46, 14, 32, 64, 0.3)} />
-          <path d={blotch(-2, 26, 30, 96, -0.2)} />
-          <path d={blotch(80, 68, 14, 34, 0.8)} />
-        </g>
-        <g fill={c.tones.mark2}>
-          <path d={star(42, 10, 2.4)} />
-          <path d={star(52, 26, 1.6)} />
-          <path d={star(38, 34, 1.3)} />
-          <path d={star(4, 20, 2)} />
-          <path d={star(8, 50, 1.4)} />
-          <path d={dots(34, 0, 26, 40, 5, 0.6, 7.7, 1)} />
-          <path d={dots(-6, 10, 16, 60, 4, 0.6, 3.1, 1)} />
-        </g>
-      </g>
+      <>
+        <path d={HOLSTEIN_NIGHT} fill={c.tones.mark} />
+        <path d={STAR_FIELD} fill={c.tones.mark2} />
+      </>
     ),
     head: (c) => (
-      <g>
-        <path d="M-5 -18C-13 -19 -18 -12 -16.4 -3.4C-12.6 -5.2 -8.6 -7.8 -5.6 -10C-3.8 -12.4 -3.6 -16 -5 -18Z" fill={c.tones.mark} />
+      <>
+        <path d={HOLSTEIN_HEAD} fill={c.tones.mark} />
         <path d={star(-11, -9, 1.3)} fill={c.tones.mark2} />
-      </g>
+      </>
     ),
   },
   belt: {

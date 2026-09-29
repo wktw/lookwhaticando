@@ -9,7 +9,9 @@ import { render, type ComponentChild } from 'preact';
 import { PETS, WEARABLES } from '@/catalog/collectibles';
 import { SPECIES, type Species } from '@/catalog/types';
 import { shadeSide, type Light } from '@/art/light';
-import { PetArt, tierFor } from './PetArt';
+import { PetArt, scaleFor, tierFor } from './PetArt';
+import { pathBox, placeBox, poseBounds } from './bounds';
+import { BASELINE } from './rig';
 import { LOOKS, getLook } from './looks';
 import { SPECIES_ART } from './species';
 import { RIGS } from './species/rigs';
@@ -20,8 +22,9 @@ import { EXPRESSIONS, POSES, canonicalExpression, type Expression } from './type
 import { luma, spriteTones, tonesFor } from './palette';
 import { WEARABLE_ART } from '../wearables';
 
-// Several cases render every pet × pose × light; give them room on a slow machine.
-vi.setConfig({ testTimeout: 60_000 });
+// The render sweeps sample poses, lights and expressions rather than every combination, so the
+// suite stays quick; give them some room on a busy machine all the same.
+vi.setConfig({ testTimeout: 20_000 });
 
 function markup(node: ComponentChild): string {
   const host = document.createElement('div');
@@ -81,10 +84,13 @@ describe('pet looks', () => {
 });
 
 describe('pet art rendering', () => {
-  it('renders every pet in every expression', () => {
-    for (const p of PETS) {
-      for (const e of EXPRESSIONS) expectClean(markup(<PetArt petId={p.id} expression={e} animated />), `${p.id} ${e}`);
-    }
+  it('renders every expression on every species, and every pet in a rotating sample of them', () => {
+    for (const sp of SPECIES) for (const e of EXPRESSIONS) expectClean(markup(<PetArt petId={MODELS[sp]} expression={e} animated />), `${sp} ${e}`);
+    PETS.forEach((p, i) => {
+      for (const e of [EXPRESSIONS[i % EXPRESSIONS.length]!, EXPRESSIONS[(i + 3) % EXPRESSIONS.length]!]) {
+        expectClean(markup(<PetArt petId={p.id} expression={e} animated />), `${p.id} ${e}`);
+      }
+    });
   });
 
   it('renders every pose for every species, both facings, every light', () => {
@@ -147,6 +153,20 @@ describe('size floors', () => {
     expect(dom(<PetArt petId={MODELS.cat} pose="stand" size={33} />).querySelector('svg')!.getAttribute('data-pose')).toBe('stand');
   });
 
+  it('curls up only at 48 px and up: below that a sleeping pet loafs with closed eyes', () => {
+    for (const sp of SPECIES) {
+      const el = dom(<PetArt petId={MODELS[sp]} pose="sleep" size={40} />);
+      expect(el.querySelector('svg')!.getAttribute('data-pose'), sp).toBe('loaf');
+      expect(el.querySelector('.pet-blink'), sp).toBeNull();
+      expect(dom(<PetArt petId={MODELS[sp]} pose="sleep" size={48} />).querySelector('svg')!.getAttribute('data-pose'), sp).toBe('sleep');
+    }
+  });
+
+  it('gives the sprite a hint of the species size: a hamster smaller than a cow', () => {
+    const k = (id: string) => Number(/scale\(([\d.]+)\)/.exec(dom(<PetArt petId={id} size={20} />).querySelector('svg > g')!.getAttribute('transform') ?? 'scale(1)')![1]);
+    expect(k(MODELS.hamster)).toBeLessThan(k(MODELS.cow));
+  });
+
   it('draws a dedicated sprite at 20 px: three shapes and the eyes', () => {
     for (const s of SPECIES) {
       const el = dom(<PetArt petId={MODELS[s]} pose="walk" size={20} />);
@@ -154,6 +174,57 @@ describe('size floors', () => {
       // The shapes, not counting the contact shadow.
       expect(el.querySelectorAll('path, circle, ellipse:not([fill="var(--contact)"])').length, s).toBeLessThanOrEqual(8);
     }
+  });
+});
+
+describe('tile mode', () => {
+  it('fits every species and pose inside the canvas, filling most of it', () => {
+    for (const [rigId, rig] of Object.entries(RIGS)) {
+      for (const pose of POSES) {
+        const b = poseBounds(rigId, rig, pose);
+        const { s, dx } = scaleFor('full', rig.scale, true, b, 1);
+        const x = (v: number) => 50 + dx + (v - 50) * s;
+        const y = (v: number) => BASELINE + (v - BASELINE) * s;
+        expect(x(b.x0), `${rigId} ${pose}`).toBeGreaterThanOrEqual(0);
+        expect(x(b.x1), `${rigId} ${pose}`).toBeLessThanOrEqual(100);
+        expect(y(b.y0), `${rigId} ${pose}`).toBeGreaterThanOrEqual(0);
+        // Fills at least 70% of the canvas one way or the other.
+        expect(Math.max(x(b.x1) - x(b.x0), y(b.y1) - y(b.y0)), `${rigId} ${pose}`).toBeGreaterThan(70);
+      }
+    }
+  });
+
+  it('draws a hamster in a tile much larger than in the world', () => {
+    const scaleOf = (el: HTMLElement) => Number(/scale\(([\d.]+) /.exec(el.querySelector('svg > g')!.getAttribute('transform')!)![1]);
+    const world = scaleOf(dom(<PetArt petId={MODELS.hamster} size={72} />));
+    const tile = scaleOf(dom(<PetArt petId={MODELS.hamster} size={72} fit />));
+    expect(tile).toBeGreaterThan(world * 1.5);
+  });
+});
+
+describe('lean drawing', () => {
+  it('stays near 25–40 elements per still pet, and breathes on the <svg>, not an inner group', () => {
+    let total = 0;
+    let n = 0;
+    for (const p of PETS) {
+      const el = dom(<PetArt petId={p.id} pose={POSES[n % POSES.length]} size={120} />);
+      const count = el.querySelectorAll('svg *').length;
+      expect(count, p.id).toBeLessThanOrEqual(60);
+      total += count;
+      n++;
+    }
+    expect(total / n).toBeLessThanOrEqual(40);
+    const live = dom(<PetArt petId={MODELS.cat} animated />);
+    expect(live.querySelector('svg')!.getAttribute('class')).toContain('is-animated');
+    expect(live.querySelector('svg .pet-breathe')).toBeNull();
+  });
+
+  it('flicks only the tip of a cat\'s tail', () => {
+    const el = dom(<PetArt petId={MODELS.cat} animated />);
+    const flick = el.querySelector('.pet-tailflick')!;
+    expect(flick.querySelector('path')!.getAttribute('d')).toBe(RIGS.cat!.poses.sit.tail!.end!.d);
+    // The shaft stays still, outside the flicking group.
+    expect(crescentPath('cat', 'sit', 'tailShaft', 'shape')).not.toBe('');
   });
 });
 
@@ -204,6 +275,7 @@ describe('windowlight crescents', () => {
             expect(crescentPath(rig, 'head', side), `${rig} head ${side}`).not.toBe('');
           }
           expect(crescentPath(rig, pose, 'body', 'rim-right'), `${rig} ${pose} rim`).not.toBe('');
+          if (pose !== 'sleep') expect(crescentPath(rig, pose, 'chest', 'pale'), `${rig} ${pose} chest`).not.toBe('');
         }
       }
     }
@@ -251,15 +323,43 @@ describe('flat, outline-free art', () => {
 
 describe('wearables', () => {
   it('fits every wearable on every species in sit, loaf and stand', () => {
-    for (const w of WEARABLES) {
-      for (const s of SPECIES) {
-        for (const pose of ['sit', 'loaf', 'stand'] as const) {
-          const html = markup(<PetArt petId={MODELS[s]} pose={pose} outfit={{ [w.slot]: w.id }} />);
-          expectClean(html, `${w.id} on ${s} ${pose}`);
-          expect(html, `${w.id} on ${s} ${pose}`).toContain(`pet-wear-${w.slot}`);
+    // Each wearable meets every species; the pose rotates so every pair of species and pose is
+    // covered across the wearables of a slot.
+    const poses = ['sit', 'loaf', 'stand'] as const;
+    WEARABLES.forEach((w, wi) => {
+      SPECIES.forEach((s, si) => {
+        const pose = poses[(wi + si) % 3]!;
+        const html = markup(<PetArt petId={MODELS[s]} pose={pose} outfit={{ [w.slot]: w.id }} />);
+        expectClean(html, `${w.id} on ${s} ${pose}`);
+        expect(html, `${w.id} on ${s} ${pose}`).toContain(`pet-wear-${w.slot}`);
+      });
+    });
+  });
+
+  it('keeps neck wear clear of the head: no collar hides wholly behind the chin', () => {
+    for (const s of SPECIES) {
+      for (const [rigId, rig] of Object.entries(RIGS).filter(([, r]) => r.species === s)) {
+        for (const pose of ['sit', 'loaf', 'stand', 'walk'] as const) {
+          const p = rig.poses[pose];
+          const head = { x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity };
+          placeBox(pathBox(rig.head.d), p.head, head);
+          const k = p.neck.w / 10;
+          // The collar band: 10 collar units each side of the throat, from its top edge to the dip.
+          const band = { x0: p.neck.x - p.neck.w, x1: p.neck.x + p.neck.w, y0: p.neck.y + 0.4 * k, y1: p.neck.y + 3 * k };
+          const covered = band.x0 >= head.x0 && band.x1 <= head.x1 && band.y0 >= head.y0 && band.y1 <= head.y1;
+          expect(covered, `${rigId} ${pose}: the collar is behind the head`).toBe(false);
+          // And its front, below the chin, shows: the band's lowest edge is under the head.
+          expect(band.y1, `${rigId} ${pose}: collar under the chin`).toBeGreaterThan(head.y1 - 1.5);
         }
       }
     }
+  });
+
+  it('shortens hanging neck wear so it never reaches the floor', () => {
+    const el = dom(<PetArt petId={MODELS.frog} pose="loaf" outfit={{ neck: 'wear-gingham-bandana' }} />);
+    const t = el.querySelector('.pet-wear-neck > g')!.getAttribute('transform')!;
+    const [sx, sy] = t.match(/scale\(([\d.]+) ([\d.]+)\)/)!.slice(1).map(Number);
+    expect(sy!).toBeLessThan(sx!);
   });
 
   it('draws every wearable icon', () => {

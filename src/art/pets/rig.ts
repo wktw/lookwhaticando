@@ -1,7 +1,7 @@
 import type { Species } from '@/catalog/types';
 import type { Pose } from './types';
 import type { Tone } from './palette';
-import { circle, tube, type P } from './shape';
+import { fmt, tube, type P } from './shape';
 
 /**
  * The rig: every species is static shape data per pose, drawn facing right on a 100×100 canvas
@@ -25,6 +25,12 @@ export interface Layer {
   cls?: string;
   /** Gets its own crescent (near legs, so a white leg still reads against white paper). */
   lit?: boolean;
+  /**
+   * The leg below the elbow. When set, the whole shape is painted in the coat and only this part
+   * in the leg tone, so a colourpoint's sitting foreleg is dark from the elbow down, not a bar
+   * down the chest. Invisible when the legs are the coat colour.
+   */
+  lower?: string;
 }
 
 export interface Placement {
@@ -63,6 +69,12 @@ export interface TailRig {
   layer: 'back' | 'front' | 'over';
   /** False for a thin tail (a cow's) that needs no crescent. */
   lit?: boolean;
+  /**
+   * The flicking end of the tail, as its own piece: its shape (from the joint, with a round cap
+   * back into the tail), the joint it pivots on, and `cut`, everything past the joint, from which
+   * the generator splits the tail and its crescents in two.
+   */
+  end?: { d: string; pivot: P; cut: string };
 }
 
 export interface PoseRig {
@@ -89,6 +101,11 @@ export interface PoseRig {
   motion?: 'bob' | 'waddle' | 'hop';
   /** Crescent depth for the torso (default 4.2) and the tail (default 2.2), in canvas units. */
   depth?: { body?: number; tail?: number };
+  /**
+   * The pale chest and belly: the torso minus itself shifted by this vector, a crescent hugging
+   * the front and underside. Defaults per pose (see crescents/jobs.ts); null for none.
+   */
+  chest?: readonly [number, number] | null;
 }
 
 /** Head-frame anchors, used by the face and by head and face wear. */
@@ -102,6 +119,10 @@ export interface HeadAnchors {
   nose: P;
   /** A clip or bow goes here (near the base of the far ear). */
   ear: { x: number; y: number; r: number };
+  /** The highest point of ears, horns or crest in the head frame (for fitting the pet to a tile). */
+  top: number;
+  /** How far ears or horns reach out to either side of the head frame's centre, when past the head. */
+  wide?: number;
 }
 
 export interface SpeciesRig {
@@ -132,10 +153,12 @@ function along(spine: readonly P[], frac: number): { p: P; dir: P } {
 }
 
 /**
- * A tail along a spine, tapering from `w0` to `w1`. Its tip is a disc over the last `tipFrac` of
- * the length, and three tabby rings sit across it; both are clipped to the tail when drawn.
+ * A tail along a spine, tapering from `w0` to `w1`. Its tip is a short capsule over the end, so
+ * its edge across the tail reads as a rounded cap (not a square-cut block), and three tabby rings sit
+ * across it; both are clipped to the tail when drawn. With `joint`, the last part of the tail
+ * past that fraction of its length is also given as its own piece, so a tip flick moves only it.
  */
-export function tailRig(spine: readonly P[], w0: number, w1: number, pivot: P, layer: TailRig['layer'], tipFrac = 0.28): TailRig {
+export function tailRig(spine: readonly P[], w0: number, w1: number, pivot: P, layer: TailRig['layer'], tipFrac = 0.28, joint?: number): TailRig {
   const total = spine.slice(1).reduce((n, q, i) => n + Math.hypot(q[0] - spine[i]![0], q[1] - spine[i]![1]), 0);
   const end = spine[spine.length - 1]!;
   const rings = [0.42, 0.56, 0.7]
@@ -146,7 +169,23 @@ export function tailRig(spine: readonly P[], w0: number, w1: number, pivot: P, l
       return tube([[p[0] - n[0] * k, p[1] - n[1] * k], [p[0] + n[0] * k, p[1] + n[1] * k]], 2.3, 2.3);
     })
     .join('');
-  return { d: tube(spine, w0, w1), tip: circle(end[0], end[1], total * tipFrac), rings, pivot, layer };
+  // The tip is a short tube laid over the end of the tail: its round back cap makes the colour
+  // boundary a rounded cap rather than a square-cut block.
+  const len = Math.min(total * tipFrac, w1 * 1.7);
+  const back = along(spine, Math.max(0, 1 - len / total)).p;
+  const out: TailRig = { d: tube(spine, w0, w1), tip: tube([back, end], w1 * 1.2, w1 * 1.2), rings, pivot, layer };
+  if (joint !== undefined) {
+    const { p: j, dir } = along(spine, joint);
+    const n: P = [-dir[1], dir[0]];
+    const k = Math.max(w0, w1) * 3;
+    const q = (a: number, b: number): string => `${fmt(j[0] + n[0] * a + dir[0] * b)} ${fmt(j[1] + n[1] * a + dir[1] * b)}`;
+    // Everything past the joint (a band across the tail, reaching well beyond its end).
+    const cut = `M${q(-k, 0)}L${q(k, 0)}L${q(k, total + 10)}L${q(-k, total + 10)}Z`;
+    const wj = w0 + (w1 - w0) * joint;
+    const rest = spine.filter((pt) => (pt[0] - j[0]) * dir[0] + (pt[1] - j[1]) * dir[1] > 0.5);
+    out.end = { d: tube([j, ...rest], wj, w1), pivot: j, cut };
+  }
+  return out;
 }
 
 /** A leg as a soft tube from hip to paw, with its sock (the paw end). */

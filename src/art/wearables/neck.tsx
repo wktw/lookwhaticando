@@ -1,4 +1,5 @@
-import { C, item } from './kit';
+import { C, SHADE, Shade, item } from './kit';
+import type { WearCtx } from '../pets/types';
 import { circle, ellipse, fmt, rrect, scallop, tube } from '../pets/shape';
 import { heart } from '../pets/species/marks';
 
@@ -13,6 +14,7 @@ const on = (x: number): [number, number] => [x, 1.8 * (1 - (x / 10) ** 2)];
 
 export const bellCollar = item({
   slot: 'neck',
+  hang: 7.6,
   draw: () => (
     <g>
       <path d={band(2.6)} fill={C.blush} />
@@ -26,6 +28,7 @@ export const bellCollar = item({
 
 export const tagCollar = item({
   slot: 'neck',
+  hang: 8.8,
   draw: () => (
     <g>
       <path d={band(2.8)} fill={C.leather} />
@@ -39,6 +42,7 @@ export const tagCollar = item({
 
 export const cowbell = item({
   slot: 'neck',
+  hang: 13.2,
   draw: () => (
     <g>
       <path d={band(3)} fill={C.leather} />
@@ -72,11 +76,11 @@ function kerchief(fill: string, check: string | null, knot: string) {
   );
 }
 
-export const ginghamBandana = item({ slot: 'neck', draw: () => kerchief('#F4D3D1', C.red, C.redDeep), icon: 'translate(52 36) scale(3.4)' });
-export const dogBandana = item({ slot: 'neck', draw: () => kerchief(C.denim, null, '#7792B4'), icon: 'translate(52 36) scale(3.4)' });
+export const ginghamBandana = item({ slot: 'neck', hang: 15.4, draw: () => kerchief('#F4D3D1', C.red, C.redDeep), icon: 'translate(52 36) scale(3.4)' });
+export const dogBandana = item({ slot: 'neck', hang: 15.4, draw: () => kerchief(C.denim, null, '#7792B4'), icon: 'translate(52 36) scale(3.4)' });
 
 /** A knitted scarf, wrapped, one end hanging at the front. */
-function scarf(main: string, stripe: string | null, texture: string | null, twice = false) {
+function scarf(main: string, stripe: string | null, texture: string | null, twice = false, ctx: WearCtx | null = null) {
   return (
     <g>
       <path d={tube([on(-2), [-1.4, 6], [-2.6, 13]], 5, 4.4)} fill={main} />
@@ -86,16 +90,20 @@ function scarf(main: string, stripe: string | null, texture: string | null, twic
       {twice && <path d="M-9.6 2.6Q0 7 9.6 2.6V4.8Q0 9.2 -9.6 4.8Z" fill={main} />}
       {stripe && <path d="M-3 -2.4Q-2 1 -3 3.8L-1 4Q0 1 -1 -2.4ZM4 -2.2Q5 1 4 3.6L6 3.2Q7 0.6 6 -2.4Z" fill={stripe} />}
       {texture && <path d={[-7, -4, -1, 2, 5, 8].map((x) => circle(x, 1.6 * (1 - (x / 10) ** 2) + 0.4, 0.45)).join('')} fill={texture} />}
+      {/* The shade: down the hanging end and under the wrap, so pale wool keeps its form. */}
+      <Shade ctx={ctx} d="M1 2.6C1.2 6 0.8 10 -0.4 13.8L-1.8 13.6C-0.8 10 -0.4 6 -0.6 2.8Z" />
+      <path d="M-10 1.5Q0 5.1 10 1.5V2.3Q0 5.9 -10 2.3Z" fill={SHADE} />
     </g>
   );
 }
 
-export const knitScarf = item({ slot: 'neck', draw: () => scarf(C.sage, null, C.sageDeep), icon: 'translate(50 36) scale(3.4)' });
-export const leafScarf = item({ slot: 'neck', draw: () => scarf(C.rust, C.mustard, null), icon: 'translate(50 36) scale(3.4)' });
-export const winterScarf = item({ slot: 'neck', draw: () => scarf(C.wool, null, C.woolDeep, true), icon: 'translate(50 36) scale(3.4)' });
+export const knitScarf = item({ slot: 'neck', hang: 16.6, draw: (ctx) => scarf(C.sage, null, C.sageDeep, false, ctx), icon: 'translate(50 36) scale(3.4)' });
+export const leafScarf = item({ slot: 'neck', hang: 16.6, draw: (ctx) => scarf(C.rust, C.mustard, null, false, ctx), icon: 'translate(50 36) scale(3.4)' });
+export const winterScarf = item({ slot: 'neck', hang: 16.6, draw: (ctx) => scarf(C.wool, null, C.woolDeep, true, ctx), icon: 'translate(50 36) scale(3.4)' });
 
 export const heartLocket = item({
   slot: 'neck',
+  hang: 10.8,
   draw: () => (
     <g>
       <path d={tube([[-10, 0], [-5, 2.6], [0, 3.6], [5, 2.6], [10, 0]], 0.6, 0.6)} fill={C.brassDeep} />
@@ -108,6 +116,7 @@ export const heartLocket = item({
 
 export const petalCollar = item({
   slot: 'neck',
+  hang: 5.6,
   draw: () => (
     <g>
       {[-9, -6, -3, 0, 3, 6, 9].map((x, i) => {

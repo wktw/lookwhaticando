@@ -1,4 +1,4 @@
-import { DOG_EARS, DOG_LONG_RIG, DOG_RIG } from './dog.rig';
+import { DOG_EARS, DOG_FLAT_RIG, DOG_LONG_RIG, DOG_RIG } from './dog.rig';
 import type { DrawCtx, SpeciesArt, SpriteCtx } from './art';
 import { Blush, Eyes, Mouth } from '../face';
 import { blotch, dots, heart } from './marks';
@@ -54,47 +54,56 @@ function overHead(c: DrawCtx) {
 
 const NOSE = 'M-2.8 -1.6C-1 -2.6 1.6 -2.4 2.8 -1.2C3 1 1.4 2.4 0 2.6C-1.6 2.4 -3.2 0.8 -2.8 -1.6Z';
 
+/** A narrow white blaze from the crown between the eyes, opening into the muzzle (head frame). */
+const BLAZE =
+  'M1.2 -15.6C2.6 -15.8 3.6 -15.4 3.8 -14C4.2 -10 4.4 -6.4 5.2 -3.4C6.2 0 8.8 2 12 2.4L23 2.6V17H4C1.8 12.6 0.4 8 0.6 3C0.8 -2 0.6 -8 0.2 -13.4C0.1 -14.8 0.5 -15.5 1.2 -15.6Z';
+/** The muzzle patch. */
+const MUZZLE = ellipse(14.6, 8.4, 9.4, 6.8);
+
 function face(c: DrawCtx) {
   const f = c.face;
   const t = c.tones;
   const a = c.rig.head;
+  const flat = c.trait('short-muzzle');
   return (
     <g>
       <Blush f={f} y={4.6} left={-9.6} right={12.4} rx={2.8} ry={1.6} />
       <Eyes f={f} y={a.eyes.y} left={a.eyes.left} right={a.eyes.right} r={a.eyes.r} />
-      <path d={NOSE} transform={`translate(${a.nose[0]} ${a.nose[1]})`} fill={t.nose} />
-      <Mouth f={f} x={17.4} y={10.6} s={1} />
+      <path d={NOSE} transform={`translate(${a.nose[0]} ${a.nose[1]})${flat ? ' scale(0.8)' : ''}`} fill={t.nose} />
+      <Mouth f={f} x={flat ? 15.2 : 17.4} y={flat ? 10 : 10.6} s={flat ? 0.9 : 1} />
     </g>
   );
 }
 
 const marks: SpeciesArt['marks'] = {
   muzzle: {
-    head: (c) => <path d={ellipse(14.6, 8.4, 9.4, 6.8)} fill={c.tones.muzzle} />,
+    head: (c) => <path d={MUZZLE} fill={c.tones.muzzle} />,
   },
-  belly: {
-    body: (c) => <path d={blotch(86, 76, 44, 64, 0)} fill={c.tones.under} />,
-  },
+  belly: { chest: true },
   socks: {},
   blaze: {
-    head: (c) => <path d="M3.2 -16C5.6 -16 6.4 -10 7.4 -4.6C8.4 0.6 12 3 16 3.6L16 16H0C1.4 8 1.2 -2 1.2 -8C1.2 -12.6 1.8 -16 3.2 -16Z" fill={c.tones.under} />,
+    head: (c) => <path d={BLAZE} fill={c.tones.under} />,
   },
   saddle: {
     body: (c) => <path d={blotch(44, 4, 78, 46, 0.2)} fill={c.tones.mark} />,
   },
   tricolour: {
-    body: (c) => (
-      <g>
-        <path d={blotch(90, 70, 34, 70, 0)} fill={c.tones.under} />
-        <path d={blotch(70, 92, 20, 18, 0)} fill={c.tones.mark} />
-      </g>
-    ),
+    // Bernese: a black head with a narrow white blaze and a white muzzle, rust brows and cheeks;
+    // a white bib, and rust on the legs above the white paws.
+    chest: true,
+    body: (c) => <path d={blotch(70, 92, 20, 18, 0)} fill={c.tones.mark} />,
     head: (c) => (
       <g>
-        <path d="M-9.6 3C-7 1.6 -3.4 3 -2 6.4C-3.6 9.4 -8.6 9.4 -10.6 7Z" fill={c.tones.mark} />
-        <circle cx={-3.6} cy={-7} r={1.9} fill={c.tones.mark} />
-        <circle cx={8.4} cy={-7.4} r={1.7} fill={c.tones.mark} />
-        <path d="M3 -16C5 -16 5.8 -10 6.8 -4.6C8 1 11 3 16 3.6V16H1C1.6 8 1.2 -2 1.2 -8C1.2 -12.6 1.6 -16 3 -16Z" fill={c.tones.under} />
+        <g fill={c.tones.mark}>
+          <ellipse cx={-6.6} cy={6} rx={4.4} ry={3.4} />
+          <ellipse cx={9.6} cy={12.4} rx={4} ry={3} />
+        </g>
+        <path d={BLAZE} fill={c.tones.under} />
+        <path d={MUZZLE} fill={c.tones.under} />
+        <g fill={c.tones.mark}>
+          <circle cx={-3.6} cy={-7} r={1.9} />
+          <circle cx={8.4} cy={-7.4} r={1.7} />
+        </g>
       </g>
     ),
   },
@@ -108,7 +117,7 @@ const marks: SpeciesArt['marks'] = {
     head: (c) => <path d={`${circle(-8, -6, 1.8)}${circle(-2, -11, 1.4)}${circle(10.4, -9.4, 1.5)}${circle(-11, 6, 1.4)}`} fill={c.tones.mark} />,
   },
   urajiro: {
-    body: (c) => <path d={blotch(88, 74, 36, 62, 0)} fill={c.tones.under} />,
+    chest: true,
     head: (c) => (
       <g fill={c.tones.under}>
         <path d="M-15.6 3.6C-10 2 -3 4 3 5C8 5.6 12 3 17 2.2C21 2 22.6 6 22 9C21.4 12.6 18 14.6 14 14.8C10 15.4 5 16 0 15.8C-7 15.4 -13 11 -15.6 3.6Z" />
@@ -118,7 +127,7 @@ const marks: SpeciesArt['marks'] = {
     ),
   },
   mask: {
-    body: (c) => <path d={blotch(80, 74, 56, 62, 0)} fill={c.tones.under} />,
+    chest: true,
     head: (c) => (
       <g fill={c.tones.under}>
         <path d="M-16 1.4C-12 -1.4 -8.6 -0.4 -6.8 2.2C-5 -1.6 0 -2.8 2.6 -8.4C4.4 -3 8.6 -1 11.4 -1.2C14 -0.8 16 1 18 2C21.4 3.6 22.6 7 22 9.6C21.2 12.6 18 14.6 14 14.8C10 15.4 5 16 0 15.8C-8.4 15.4 -14 10 -16 1.4Z" />
@@ -157,7 +166,12 @@ function sprite({ tones: t, trait, has }: SpriteCtx) {
 
 export const DOG_ART: SpeciesArt = {
   species: 'dog',
-  rigFor: (look) => (look.traits?.includes('long-body') ? { id: 'dog-long', rig: DOG_LONG_RIG } : { id: 'dog', rig: DOG_RIG }),
+  rigFor: (look) =>
+    look.traits?.includes('long-body')
+      ? { id: 'dog-long', rig: DOG_LONG_RIG }
+      : look.traits?.includes('short-muzzle')
+        ? { id: 'dog-flat', rig: DOG_FLAT_RIG }
+        : { id: 'dog', rig: DOG_RIG },
   ears,
   overHead,
   face,
