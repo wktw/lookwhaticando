@@ -231,6 +231,25 @@ test.describe('Today · speed (E2E_PERF=1)', () => {
   });
 });
 
+test('a sheet whose chunk can’t load says so; back online, Try again opens what was asked for (WP-C4)', async ({ page }) => {
+  // The Habit Editor's chunk is aborted the way an offline fetch fails.
+  const chunk = '**/*HabitEditorHost*';
+  await page.route(chunk, (r) => r.abort('internetdisconnected'));
+  await openRoute(page, 'today');
+  await page.getByRole('button', { name: 'Add a habit' }).first().click();
+  const error = page.getByRole('alertdialog');
+  await expect(error).toBeVisible();
+  await expect(error).toContainText('This didn’t open');
+  await expect(error.getByRole('button', { name: 'Try again' })).toBeFocused();
+
+  // Chromium keeps the failed chunk for the life of the page, so Try again reloads (online, nothing
+  // unsaved), and the shell asks for the same sheet again once it is back.
+  await page.unroute(chunk);
+  await error.getByRole('button', { name: 'Try again' }).click();
+  await expect(page.getByRole('dialog', { name: 'A new habit' })).toBeVisible();
+  await expect(page.getByRole('alertdialog')).toHaveCount(0);
+});
+
 test.describe('Today · quiet rewards', () => {
   test('hides the wallet and the coins', async ({ page }) => {
     test.skip(PREVIEW, 'seeds through the dev server');

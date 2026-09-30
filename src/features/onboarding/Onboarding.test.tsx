@@ -74,7 +74,8 @@ describe('onboarding (DESIGN §9.6)', () => {
 
     await click(byText('Next'), 'Next');
     expect(onboardingProgress.value?.step).toBe('first');
-    await until(() => h1() === 'Who comes home first?', 'the four cabinets');
+    // The step's heading stands while its chunk loads (WP-C4): wait for the cabinets themselves.
+    await until(() => h1() === 'Who comes home first?' && button(/^No\. 01 · Cats/), 'the four cabinets');
     for (const n of ['No. 01 · Cats', 'No. 02 · Cows', 'No. 03 · Dogs', 'No. 04 · Pond']) expect(button(new RegExp(`^${n}`))).not.toBeNull();
   });
 
@@ -85,7 +86,7 @@ describe('onboarding (DESIGN §9.6)', () => {
     // Nothing planted: no step 3.
     expect(state.value.profile.onboarded).toBe(true);
     expect(state.value.habits).toHaveLength(0);
-    await until(() => h1() === 'Who comes home first?', 'step 4');
+    await until(() => h1() === 'Who comes home first?' && byText('Not yet, I’ll earn it'), 'step 4');
     await click(byText('Not yet, I’ll earn it'), 'Not yet');
     expect(onboardingProgress.value).toBeNull();
     expect(localStorage.getItem(ONBOARDING_KEY)).toBeNull();
@@ -123,6 +124,6 @@ describe('onboarding (DESIGN §9.6)', () => {
     saveProgress({ step: 'first', habitIds: [] });
     await act(() => reloadProgress());
     view = mount(<Onboarding />);
-    await until(() => h1() === 'Who comes home first?', 'step 4 again');
+    await until(() => h1() === 'Who comes home first?' && button(/^No\. 01 · Cats/), 'step 4 again');
   });
 });

@@ -133,6 +133,30 @@ test('watered on step 3, then the capsule on the house: one pet, and the capsule
   expect(errors, errors.join('\n')).toEqual([]);
 });
 
+test('offline, step 4’s chunk can’t load: its heading, Try again in place of the lead, and back online the cabinets (WP-C4)', async ({ page }) => {
+  // The chunk is aborted the way an offline fetch fails, from the first boot (it is fetched on the sill).
+  const chunk = '**/*CapsuleSteps*';
+  await page.route(chunk, (r) => r.abort('internetdisconnected'));
+  await start(page);
+  await page.getByRole('button', { name: 'Skip' }).click(); // sill → picks
+  await page.getByRole('button', { name: 'Skip' }).click(); // nothing planted → step 4
+  await expect(h1(page)).toHaveText('Who comes home first?');
+  const retry = page.getByRole('button', { name: 'Try again' });
+  await expect(retry).toBeVisible();
+  await expect(page.locator('main h1')).toHaveCount(1);
+  await expect(page.getByText('Your first capsule is on the house. Choose a cabinet.')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Skip' })).toBeVisible();
+
+  // Chromium keeps the failed chunk for the life of the page, so Try again reloads (online, nothing
+  // unsaved), and step 4 comes back from its saved progress with the cabinets.
+  await page.unroute(chunk);
+  await retry.click();
+  await expect(page.getByRole('button', { name: /^No\. 01 · Cats/ })).toBeVisible();
+  await expect(page.locator('main h1')).toHaveCount(1);
+  await expect(h1(page)).toHaveText('Who comes home first?');
+  await expect(h1(page)).toBeFocused();
+});
+
 test.describe('in an iPhone Safari tab', () => {
   test.use({ userAgent: IPHONE_SAFARI });
 

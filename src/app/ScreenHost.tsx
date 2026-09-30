@@ -121,10 +121,13 @@ function SillArt({ size, what }: { size: number; what: 'pot' | 'cutting' }) {
   );
 }
 
-/** Shown when a screen's chunk can't load (offline before it was ever cached, say). */
-export function ScreenError({ onRetry }: { onRetry: () => void }) {
+/**
+ * Shown when a screen's chunk can't load (offline before it was ever cached, say). `as`: its title's
+ * heading level, h2 where it stands under a step's own h1 (onboarding's capsule steps).
+ */
+export function ScreenError({ onRetry, as }: { onRetry: () => void; as?: 'h2' | 'h3' }) {
   return (
-    <EmptyState title={SCREEN_COPY.loadErrorTitle} art={<SillArt what="pot" size={104} />} action={<Button onClick={onRetry}>{SCREEN_COPY.retry}</Button>}>
+    <EmptyState title={SCREEN_COPY.loadErrorTitle} as={as} art={<SillArt what="pot" size={104} />} action={<Button onClick={onRetry}>{SCREEN_COPY.retry}</Button>}>
       {SCREEN_COPY.loadErrorText}
     </EmptyState>
   );

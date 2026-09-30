@@ -20,6 +20,11 @@ export const SCREEN_COPY = {
   retry: 'Try again',
   crashTitle: 'Something here didn’t open properly',
   crashText: 'Your plants and everything you logged are safe.',
+  /** A shared sheet that didn't open: copies of ERRORS.sheet… (VOICE §18), pinned by src/app/SheetHosts.test.tsx. */
+  sheetTitle: 'This didn’t open',
+  sheetText: 'It needs a connection the first time it opens. Your plants and coins are saved.',
+  sheetRetry: 'Try again',
+  sheetClose: 'Close',
 } as const;
 
 /** Service worker notes. */

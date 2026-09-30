@@ -6,16 +6,15 @@
  *
  * Everything comes from the view models (`progressView`, `badgesView`, `memoryShelfView`,
  * `selectCalendarMonth`, `selectYearQuilt`); the words from src/catalog/format.ts and lines.ts.
- * Plants open Habit Detail (the shared sheet); notes and pages open in the ritual reader, which
- * loads lazily the first time one is asked for.
+ * Plants open Habit Detail and notes and pages the ritual reader: shared sheets the app shell loads
+ * and hosts (src/app/SheetHosts.tsx), so a chunk that can't load shows the same retry there.
  */
-import type { ComponentChildren, ComponentType } from 'preact';
+import type { ComponentChildren } from 'preact';
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { badgesView, memoryShelfView, progressView } from '@/state/selectors';
 import { state } from '@/state/store';
 import { EMPTY } from '@/catalog/lines';
 import { openHabitEditor } from '@/features/habits/open';
-import { ritualRequest } from '@/features/rituals/open';
 import { PlantArt } from '@/art/plants';
 import { Button } from '@/ui/Button';
 import es from '@/ui/EmptyState.module.css';
@@ -43,16 +42,6 @@ function Section({ id, title, meta, children, class: cls }: { id: string; title:
       {children}
     </section>
   );
-}
-
-/** The ritual reader, loaded the first time a note is opened (a lazy chunk, like the sheets). */
-function useRitualReader(): ComponentType | null {
-  const [Host, setHost] = useState<ComponentType | null>(null);
-  const wanted = ritualRequest.value !== null;
-  useEffect(() => {
-    if (wanted && !Host) void import('@/features/rituals/RitualReaderHost').then((m) => setHost(() => m.default));
-  }, [wanted, Host]);
-  return Host;
 }
 
 /**
@@ -138,7 +127,6 @@ function HabitFilter({ value, onChange }: { value: string | null; onChange: (id:
 export function ProgressScreen() {
   const vm = progressView.value;
   const [calHabit, setCalHabit] = useState<string | null>(null);
-  const Reader = useRitualReader();
   const stage = useStages();
   const live = vm.garden.filter((g) => !g.retired);
   const retired = vm.garden.filter((g) => g.retired);
@@ -221,7 +209,6 @@ export function ProgressScreen() {
           {stage < STAGES && <div class={s.pending} style={{ minHeight: `${(STAGES - stage) * 450}px` }} aria-hidden="true" />}
         </>
       )}
-      {Reader && <Reader />}
     </div>
   );
 }

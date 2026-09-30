@@ -745,6 +745,16 @@ export const EMPTY = {
 export const ERRORS = {
   screen: 'This screen didn’t load. Your plants and coins are saved.',
   reload: 'Reload',
+  /**
+   * A shared sheet whose chunk didn't load (WP-C4): its title, its line, and its two buttons (Try
+   * again keeps the request; Close lets it go). The shell shows them from SCREEN_COPY
+   * (src/app/copy.ts), a pinned copy, since this deck is not on the first paint. DEC-V: pending
+   * owner approval.
+   */
+  sheet: 'This didn’t open',
+  sheetText: 'It needs a connection the first time it opens. Your plants and coins are saved.',
+  sheetRetry: 'Try again',
+  sheetClose: 'Close',
   save: 'That change didn’t save yet. catkin is trying again, and your last backup is safe.',
   /** No persistent storage at all this session (blocked or missing): nothing is kept past closing. */
   volatile: 'This browser isn’t keeping catkin’s save right now. Save a backup before you close it.',
