@@ -11,6 +11,7 @@ import { CardPlant } from '@/art/plants/CardPlant';
 import { CHECKIN_TOASTS, EMPTY, TODAY_LINES, fillLine } from '@/catalog/lines';
 import { backdatingBanner, forDayLabel, weekdayName } from '@/catalog/format';
 import { isInBackfillWindow } from '@/domain/activity';
+import { shortDateLabel } from '@/domain/dates';
 import { NEW_HABIT_EVENT } from '@/app/shortcuts';
 import { selectToday, type HabitCardVM } from '@/state/selectors';
 import { state, today, toggleOffDay } from '@/state/store';
@@ -61,6 +62,13 @@ function padCardFor(pad: EditorTarget, today: DateKey): HabitCardVM | null {
   const card = cardsById(selectToday(pad.date < today ? pad.date : undefined).value).get(pad.habitId);
   return card && holdAction(card) === 'pad' ? card : null;
 }
+
+/**
+ * The day the back-to-today note names: its weekday within the last six days, else its date
+ * ("Thu, Sep 24"). A day a week back has today's weekday, so "Thursday" on a Thursday would read as
+ * today (VOICE §5).
+ */
+const leftDay = (d: DateKey, today: DateKey): string => (isInBackfillWindow(d, today) ? weekdayName(d) : shortDateLabel(d));
 
 /**
  * False for the screen's first frame: the band's scene and the notes below the list draw one frame
@@ -114,7 +122,7 @@ export function TodayScreen() {
     const name = (id: string) => state.value.habits.find((h) => h.id === id)?.name;
     const leave = (e: EditorTarget) => {
       const habit = name(e.habitId);
-      if (habit) left.push(fillLine(TODAY_LINES.editorClosed, { habit, weekday: weekdayName(e.date) }));
+      if (habit) left.push(fillLine(TODAY_LINES.editorClosed, { habit, day: leftDay(e.date, day) }));
     };
     if (p && !padCardFor(p, day)) {
       setPad(null);
@@ -130,7 +138,7 @@ export function TodayScreen() {
     }
     if (o !== null && o !== day) {
       setOffAsk(null);
-      left.push(fillLine(TODAY_LINES.dayOffClosed, { weekday: weekdayName(o) }));
+      left.push(fillLine(TODAY_LINES.dayOffClosed, { day: leftDay(o, day) }));
     }
     if (left[0]) toast({ key: 'editor-closed', message: left[0], tone: 'lavender' });
   };

@@ -11,7 +11,7 @@ import { transact } from '@/domain/tx';
 import { openDay } from '@/domain/rollover';
 import * as habitsDomain from '@/domain/habits';
 import { mulberry32 } from '@/domain/rng';
-import { addDays, appDayKey, runtimeLocalTime, weekday } from '@/domain/dates';
+import { addDays, appDayKey, runtimeLocalTime, shortDateLabel, weekday } from '@/domain/dates';
 import { weekdayName } from '@/catalog/formatCore';
 import { archiveHabit, deleteHabit, now, setCount, state, today, updateHabit } from '@/state/store';
 import type { AppState, DateKey, Weekday } from '@/state/types';
@@ -371,12 +371,15 @@ describe('an open editor keeps its day (WP-C1)', () => {
     await openPad('Drink water');
     await nextDay();
     await until(() => !dialog(), 'the pad closed');
-    expect(notice()).toBe(`Back to today. Drink water for ${weekdayName(edge)} is as you left it.`);
+    // The day is a week back, so it shares today's weekday: the note names it by its date, never
+    // "Drink water for Thursday" on a Thursday, which would read as today.
+    expect(weekdayName(edge)).toBe(weekdayName(today.value));
+    expect(notice()).toBe(`Back to today. Drink water for ${shortDateLabel(edge)} is as you left it.`);
     expect(countOn(id, edge)).toBe(0);
     expect(countOn(id, today.value)).toBe(0);
   });
 
-  it('a schedule change while the pad is open: +1 still counts the pad’s day', async () => {
+  it('a schedule change from today on, with the pad open on a past day: +1 still counts the pad’s day', async () => {
     state.value = seed(['water'], 'Sam', 10);
     view = mount(<TodayScreen />);
     const id = idOf('Drink water');
@@ -391,6 +394,23 @@ describe('an open editor keeps its day (WP-C1)', () => {
     await click(await until(() => dialogButton('+1'), 'the pad’s +1'), '+1');
     expect(countOn(id, past)).toBe(1);
     expect(countOn(id, t0)).toBe(0);
+  });
+
+  it('a schedule change that makes the pad’s own day not due: the pad stays on that day, and writes only it', async () => {
+    state.value = seed(['water'], 'Sam', 10);
+    view = mount(<TodayScreen />);
+    const id = idOf('Drink water');
+    const t0 = today.value;
+    await openPad('Drink water');
+    // Drink water is no longer due today. Its card moves to "not today", where it can still be
+    // logged, so the pad (bound to today) stays open and keeps writing today.
+    const others = ([0, 1, 2, 3, 4, 5, 6] as Weekday[]).filter((d) => d !== weekday(t0));
+    await act(() => updateHabit(id, { schedule: { kind: 'days', days: others } }));
+    await hideFor(61_000);
+    await click(await until(() => dialogButton('+1'), 'the pad’s +1'), '+1');
+    expect(countOn(id, t0)).toBe(1);
+    for (let i = 1; i <= 6; i++) expect(countOn(id, addDays(t0, -i))).toBe(0);
+    expect(notice()).toBeUndefined();
   });
 
   it('the habit archived while the pad is open: +1 still counts the pad’s day; deleted, the pad closes', async () => {
@@ -416,11 +436,18 @@ describe('an open editor keeps its day (WP-C1)', () => {
     view = mount(<TodayScreen />);
     const id = idOf('Drink water');
     const t0 = today.value;
-    await pick(addDays(t0, -2));
+    const past = addDays(t0, -2);
+    await pick(past);
     await openMenu('Drink water');
     await hideFor(61_000);
     await until(() => !document.querySelector('[role="menu"]'), 'the menu closed');
+    expect(notice()).toBe(`Back to today. Drink water for ${weekdayName(past)} is as you left it.`);
     expect(countOn(id, t0)).toBe(0);
+    // Closed, not just hidden while another day shows: picking that day again brings no menu back.
+    await pick(past);
+    await until(() => document.body.textContent?.includes('Logging for'), 'the past day again');
+    await new Promise((r) => setTimeout(r, 50));
+    expect(document.querySelector('[role="menu"]')).toBeNull();
   });
 
   it('the inline stepper of a past day closes when the page goes back to today, and says so', async () => {
