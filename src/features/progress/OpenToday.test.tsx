@@ -14,7 +14,7 @@ import { toasts } from '@/ui/toast';
 import { SheetHosts } from '@/app/SheetHosts';
 import { currentTab } from '@/app/router';
 import { TodayScreen } from '@/features/today/TodayScreen';
-import { selectedDay } from '@/features/today/state';
+import { selectedDay, todayFocus } from '@/features/today/state';
 import { ProgressScreen } from './ProgressScreen';
 import { TODAY, click, demoState, installDom, mount, until, useState_ } from './testing';
 
@@ -57,6 +57,7 @@ afterEach(() => {
   views = [];
   closeHabitDetail();
   selectedDay.value = null;
+  todayFocus.value = null;
 });
 
 /** Opens Habit Detail, picks yesterday in its calendar, and returns the "Open Today" link. */
@@ -132,5 +133,21 @@ describe('Open Today (WP-C7)', () => {
     views.push(mount(<TodayScreen />));
     const ring = await until(() => ringFor(habitId), 'the habit’s card on yesterday');
     await until(() => document.activeElement === ring, 'focus on the ring');
+  });
+
+  it('a request for a day other than the one Today shows is dropped: no focus on the ring', async () => {
+    location.hash = '#/today';
+    currentTab.value = 'today';
+    // Today shows today (nothing selected); the request is for yesterday (stale, e.g. across midnight).
+    // A habit with a card on today's page, so a landing that ignored the day would find its ring.
+    habitId = state.value.habits.find((h) => h.name === 'Drink water')!.id;
+    todayFocus.value = { habitId, date: YESTERDAY };
+    views.push(mount(<TodayScreen />));
+    const ring = await until(() => ringFor(habitId), 'the habit’s card on today');
+    await until(() => todayFocus.value === null, 'the request to be dropped');
+    // Give a landing that ignored the day its frames to act.
+    for (let i = 0; i < 5; i++) await new Promise((r) => requestAnimationFrame(() => r(null)));
+    expect(document.activeElement).not.toBe(ring);
+    expect(selectedDay.value).toBeNull();
   });
 });

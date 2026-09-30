@@ -232,6 +232,22 @@ describe('the Pet Card feeds every treat, not just the first six (WP-C7, creativ
     expect(feedButtons(d)[7]).toBe(buttons[7]);
   });
 
+  it('a fed treat stays where it was while the card is open, and keeps focus', async () => {
+    // Every treat has 3 servings, so the row is in name order; fed down to 2, the first would sort
+    // last under a fresh feedOrder. The order taken as the card opened keeps it first, under her finger.
+    state.value = withTreats(() => 3);
+    const d = await open();
+    const first = feedButtons(d)[0]!;
+    expect(first.getAttribute('aria-label')).toBe(`Feed ${EIGHT[0]!.name}, 3 servings`);
+    first.focus();
+    await click(first, 'the first treat');
+    expect(state.value.pantry[EIGHT[0]!.id]!.servings).toBe(2);
+    const now = feedButtons(d)[0]!;
+    expect(now.getAttribute('aria-label')).toBe(`Feed ${EIGHT[0]!.name}, 2 servings`);
+    expect(now).toBe(first);
+    expect(document.activeElement).toBe(first);
+  });
+
   it('an empty treat at 7th or later can be baked from the card', async () => {
     // Most servings first: the empty one sorts last, the 8th.
     state.value = withTreats((i) => (i === 0 ? 0 : 4));
@@ -261,6 +277,18 @@ describe('the Pet Card feeds every treat, not just the first six (WP-C7, creativ
     const first = await until(() => feedButtons(d).find((b) => !b.disabled), 'a treat to feed');
     await until(() => document.activeElement === first, 'focus on the first treat she can feed');
   });
+
+  it('opened to feed with the favourite run out and coins to bake, focus is on a treat to feed, not on "Bake a tray"', async () => {
+    // The favourite sorts first even when empty, and its "Bake a tray" is the first enabled button.
+    const base = withTreats((i) => (i === 0 ? 0 : 3));
+    state.value = { ...base, pets: { ...base.pets, [petId]: { ...base.pets[petId]!, favoriteKnown: true, favoriteTreat: EIGHT[0]!.id } } };
+    view = mount(<PetCardHost />);
+    openPetCard(petId, { intent: 'feed' });
+    const d = await card();
+    expect(feedButtons(d)[0]!.getAttribute('aria-label')).toBe(`Feed ${EIGHT[0]!.name}, More in the morning, Favourite`);
+    const focused = await until(() => (d.contains(document.activeElement) ? (document.activeElement as HTMLElement) : null), 'focus in the card');
+    expect(focused.getAttribute('aria-label')).toBe(`Feed ${EIGHT[1]!.name}, 3 servings`);
+  });
 });
 
 describe('the Pet Card opened to find a plant (WP-C7, integration-i6)', { timeout: 20_000 }, () => {
@@ -287,7 +315,7 @@ describe('the Pet Card opened to find a plant (WP-C7, integration-i6)', { timeou
     openPetCard(petId, { intent: 'findPlant' });
     const d = await card();
     const add = await until(() => Array.from(d.querySelectorAll<HTMLButtonElement>('button')).find((b) => b.textContent?.trim() === 'Add a habit'), 'Add a habit');
-    expect(d.textContent).toContain(`${pet().name} keeps a plant company.`);
+    expect(d.textContent).toContain(`${pet().name} would like a plant to keep company. Plants grow from habits, starting as a cutting in a glass of water.`);
     await until(() => document.activeElement === add, 'focus on Add a habit');
     for (const p of d.querySelectorAll('p')) expect(lint(p.textContent ?? '', { pronouns: PET_PRONOUN }), p.textContent ?? '').toEqual([]);
     await click(add, 'Add a habit');

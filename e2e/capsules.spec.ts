@@ -105,7 +105,7 @@ test.describe('the routed Capsules screen hands a reveal on (WP-C7)', () => {
     const name = (await saved(page)).pets[id]!.name;
     await pressOnReveal(page, `Find ${name} a plant`);
     const card = page.getByRole('dialog', { name });
-    await expect(card.getByText(`${name} keeps a plant company. Plants grow from habits, starting as a cutting in a glass of water.`)).toBeVisible();
+    await expect(card.getByText(`${name} would like a plant to keep company. Plants grow from habits, starting as a cutting in a glass of water.`)).toBeVisible();
     const add = card.getByRole('button', { name: 'Add a habit' });
     await expect(add).toBeFocused();
     await page.keyboard.press('Enter');

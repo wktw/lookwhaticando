@@ -248,8 +248,8 @@ const About = memo(function About({ about, habits }: { about: AboutVM; habits: H
   );
 });
 
-/** Focus the first button in `box` that can be pressed, bringing it into view. */
-const focusFirst = (box: HTMLElement | null | undefined) => box?.querySelector<HTMLElement>('button:not([disabled])')?.focus();
+/** Focus the first button in `box` that can be pressed (of those `only` matches), bringing it into view. */
+const focusFirst = (box: HTMLElement | null | undefined, only = 'button') => box?.querySelector<HTMLElement>(`${only}:not([disabled])`)?.focus();
 
 const Company = memo(function Company({ petId, name, habitId, habits, intent }: { petId: string; name: string; habitId: string | null; habits: HabitLite[]; intent?: PetIntent }) {
   // Opened to find a plant (a reveal's "Find {name} a plant"): the chooser is open, with focus on it.
@@ -394,7 +394,7 @@ function TreatItem({ t, coins, onFeed, onBake }: { t: Treat; coins: number; onFe
   const bakeable = empty && getCollectible(t.id)?.source !== 'harvest';
   return (
     <li class={s.treatItem}>
-      <button type="button" class={s.treat} data-empty={empty ? '' : undefined} disabled={empty} onClick={() => onFeed(t)} aria-label={`${PET_CARD.buttons.feed} ${t.name}, ${servingsLine(t.servings)}${t.favorite ? `, ${PET_CARD_UI.favourite}` : ''}`}>
+      <button type="button" class={s.treat} data-feed="" data-empty={empty ? '' : undefined} disabled={empty} onClick={() => onFeed(t)} aria-label={`${PET_CARD.buttons.feed} ${t.name}, ${servingsLine(t.servings)}${t.favorite ? `, ${PET_CARD_UI.favourite}` : ''}`}>
         <span class={s.treatArt} aria-hidden="true">
           <CollectibleArt id={t.id} size={44} px={44} animated={false} />
         </span>
@@ -435,9 +435,9 @@ const Feed = memo(function Feed({ petId, name, treats, coins, say, onReact, capt
   const { feed, bake } = useFeeding(petId, name, say, onReact, caption);
   const box = useRef<HTMLDivElement>(null);
   const more = useRef<HTMLUListElement>(null);
-  // Opened to feed: focus on the first treat there is to feed.
+  // Opened to feed: focus on the first treat there is to feed (not a run-out favourite's "Bake a tray").
   useEffect(() => {
-    if (intent === 'feed') focusFirst(box.current);
+    if (intent === 'feed') focusFirst(box.current, 'button[data-feed]');
     // Once, as the card opens.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

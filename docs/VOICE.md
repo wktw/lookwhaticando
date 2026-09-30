@@ -842,9 +842,10 @@ again after 3 declines.
 - At a reveal: "Find {name} a plant" · "Let {name} choose" · "Not now"
 - Habit Editor: "Who keeps it company?" · the pets as chips · "No one, for now"
 - Pet Card: "Keeps {habit} company" or "Find {name} a plant". Opened from a reveal's "Find {name} a
-  plant", the card opens on the plants to choose from. With no habit on the sill yet: "{name} keeps a
-  plant company. Plants grow from habits, starting as a cutting in a glass of water." · "Add a habit"
-  (WP-C7). DEC-V: pending owner approval.
+  plant", the card opens on the plants to choose from. With no habit on the sill yet: "{name} would
+  like a plant to keep company. Plants grow from habits, starting as a cutting in a glass of water." ·
+  "Add a habit" (WP-C7; not "{name} keeps a plant company", which reads as untrue of a pet with no
+  plant). DEC-V: pending owner approval.
 - Moved in: "{name} moved into {plant}."
 - A decline says nothing back. It just closes.
 - Moving out: "Move {name} out" → "{name} moved back to the sill."
@@ -1285,7 +1286,7 @@ under the constant named. Same rules as everywhere (section 1).
 | markFavourite | "Favourite" |
 | keepsakes | "Left by the pot" |
 | allTreats | "All treats ({count})". Under the Feed row's first 6 when there are more: it opens the rest in the card, fed and baked the same way (WP-C7; it replaces the "Basket and pantry" link, which fed nothing). DEC-V: pending owner approval |
-| noPlants | "{name} keeps a plant company. Plants grow from habits, starting as a cutting in a glass of water." Above "Add a habit" (`EMPTY.addHabit`), when the card is opened to find a plant and there is no live habit (WP-C7). DEC-V: pending owner approval |
+| noPlants | "{name} would like a plant to keep company. Plants grow from habits, starting as a cutting in a glass of water." Above "Add a habit" (`EMPTY.addHabit`), when the card is opened to find a plant and there is no live habit (WP-C7). DEC-V: pending owner approval |
 | indoors | "Indoors" |
 | keptBy | "{name} keeps it company" |
 | moveOutAsk | "Move {name} out of {plant}?" |
