@@ -9,7 +9,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { CardPlant } from '@/art/plants/CardPlant';
 import { CHECKIN_TOASTS, EMPTY, TODAY_LINES, fillLine } from '@/catalog/lines';
-import { backdatingBanner, forDayLabel } from '@/catalog/format';
+import { backdatingBanner, forDayLabel, weekdayName } from '@/catalog/format';
+import { isInBackfillWindow } from '@/domain/activity';
 import { NEW_HABIT_EVENT } from '@/app/shortcuts';
 import { selectToday, type HabitCardVM } from '@/state/selectors';
 import { state, today, toggleOffDay } from '@/state/store';
@@ -40,6 +41,28 @@ const offAskTitle = OFF_ASK_SPLIT > 0 ? TODAY_LINES.takeTodayOffConfirm.slice(0,
 const offAskMessage = OFF_ASK_SPLIT > 0 ? TODAY_LINES.takeTodayOffConfirm.slice(OFF_ASK_SPLIT + 1) : TODAY_LINES.takeTodayOffConfirm;
 
 /**
+ * What an open editor (the number pad, the inline stepper, the ⋯ menu) works on: the habit and the
+ * day it was opened for. The page's selected day can move under it (back to today after a minute
+ * hidden, or on a new day, DESIGN §5.3); the editor keeps writing the day it shows (DEC-E6), or
+ * closes and says so. It never writes another day (WP-C1).
+ */
+export interface EditorTarget {
+  habitId: string;
+  date: DateKey;
+}
+
+/**
+ * The number pad's card for its day, or null once that day can't be edited from Today: the day has
+ * left the week strip (a new day moved it past the backfill window), the habit is no longer on it
+ * (deleted, paused), or it is no longer a count to key in.
+ */
+function padCardFor(pad: EditorTarget, today: DateKey): HabitCardVM | null {
+  if (!isInBackfillWindow(pad.date, today)) return null;
+  const card = cardsById(selectToday(pad.date < today ? pad.date : undefined).value).get(pad.habitId);
+  return card && holdAction(card) === 'pad' ? card : null;
+}
+
+/**
  * False for the screen's first frame: the band's scene and the notes below the list draw one frame
  * later, so switching to Today paints the greeting, the strip and the first cards at once.
  */
@@ -66,11 +89,62 @@ export function TodayScreen() {
   const date = vm.date;
   const past = !vm.isToday;
 
+  const band = useRef<BandHandle>(null);
+  const notices = useRef<NoticesHandle>(null);
+  const [menu, setMenu] = useState<(EditorTarget & { anchor: HTMLElement }) | null>(null);
+  const [pad, setPad] = useState<EditorTarget | null>(null);
+  const [adjusting, setAdjusting] = useState<EditorTarget | null>(null);
+  const [note, setNoteTarget] = useState<NoteTarget | null>(null);
+  const [walletOpen, setWalletOpen] = useState(false);
+  /** "Take today off?" is open for this day. */
+  const [offAsk, setOffAsk] = useState<DateKey | null>(null);
+  const editors = useRef({ menu, pad, adjusting, offAsk });
+  editors.current = { menu, pad, adjusting, offAsk };
+
+  /**
+   * The page has just gone back to today (a new day, or a minute hidden). Each open editor keeps its
+   * day while Today can still edit it; one that can't closes, and a note says which day was left as
+   * it was. The ⋯ menu always closes (its card was redrawn); the inline stepper lives in its card, so
+   * it closes when its day is not the one shown now.
+   */
+  const pageWentBack = () => {
+    const day = today.value;
+    const { menu: m, pad: p, adjusting: a, offAsk: o } = editors.current;
+    const left: string[] = [];
+    const name = (id: string) => state.value.habits.find((h) => h.id === id)?.name;
+    const leave = (e: EditorTarget) => {
+      const habit = name(e.habitId);
+      if (habit) left.push(fillLine(TODAY_LINES.editorClosed, { habit, weekday: weekdayName(e.date) }));
+    };
+    if (p && !padCardFor(p, day)) {
+      setPad(null);
+      leave(p);
+    }
+    if (a && a.date !== day) {
+      setAdjusting(null);
+      leave(a);
+    }
+    if (m) {
+      setMenu(null);
+      if (m.date !== day) leave(m);
+    }
+    if (o !== null && o !== day) {
+      setOffAsk(null);
+      left.push(fillLine(TODAY_LINES.dayOffClosed, { weekday: weekdayName(o) }));
+    }
+    if (left[0]) toast({ key: 'editor-closed', message: left[0], tone: 'lavender' });
+  };
+  const wentBack = useRef(pageWentBack);
+  wentBack.current = pageWentBack;
+
   // The selected day goes back to today on a new day, after a minute hidden, and on leaving Today.
   const [wake, setWake] = useState(0);
   const firstDay = useRef(t);
   useEffect(() => {
-    if (t !== firstDay.current) selectDay(null, t);
+    if (t !== firstDay.current) {
+      selectDay(null, t);
+      wentBack.current();
+    }
     firstDay.current = t;
   }, [t]);
   useEffect(() => {
@@ -79,6 +153,7 @@ export function TodayScreen() {
       if (document.visibilityState === 'hidden') hiddenAt = Date.now();
       else if (hiddenAt && Date.now() - hiddenAt >= HIDDEN_RESET_MS) {
         selectDay(null, today.value);
+        wentBack.current();
         setWake((w) => w + 1);
       }
     };
@@ -117,14 +192,11 @@ export function TodayScreen() {
     return { ...vm, sill };
   }, [vm, orderKey]);
 
-  const band = useRef<BandHandle>(null);
-  const notices = useRef<NoticesHandle>(null);
-  const [menu, setMenu] = useState<{ id: string; anchor: HTMLElement } | null>(null);
-  const [padId, setPadId] = useState<string | null>(null);
-  const [adjusting, setAdjusting] = useState<string | null>(null);
-  const [note, setNoteTarget] = useState<NoteTarget | null>(null);
-  const [walletOpen, setWalletOpen] = useState(false);
-  const [offAsk, setOffAsk] = useState(false);
+  // A day picked on the strip closes the stepper and the menu of the day it leaves.
+  useEffect(() => {
+    setAdjusting((a) => (a && a.date !== date ? null : a));
+    setMenu((m) => (m && m.date !== date ? null : m));
+  }, [date]);
 
   const stage: Stage = {
     pour: (id) => band.current?.pour(id),
@@ -138,13 +210,11 @@ export function TodayScreen() {
   };
   const stageRef = useRef(stage);
   stageRef.current = stage;
-  const dateRef = useRef(date);
-  dateRef.current = date;
 
   const ringOf = (id: string) => document.querySelector<HTMLElement>(`[data-habit="${id}"] [data-state]`);
 
-  const onRing = useCallback((card: HabitCardVM, ring: HTMLElement) => {
-    const d = dateRef.current;
+  // Every card action carries the day that card shows.
+  const onRing = useCallback((card: HabitCardVM, ring: HTMLElement, d: DateKey) => {
     switch (tapAction(card)) {
       case 'water':
         water(card, d, ring, stageRef.current);
@@ -156,30 +226,34 @@ export function TodayScreen() {
         flipRest(card, d);
         break;
       case 'adjust':
-        setAdjusting((a) => (a === card.id ? null : card.id));
+        setAdjusting((a) => (a?.habitId === card.id && a.date === d ? null : { habitId: card.id, date: d }));
         break;
     }
   }, []);
-  const onHold = useCallback((card: HabitCardVM, ring: HTMLElement) => {
+  const onHold = useCallback((card: HabitCardVM, ring: HTMLElement, d: DateKey) => {
     const action = holdAction(card);
-    if (action === 'pad') setPadId(card.id);
-    else if (action === 'tiny') water(card, dateRef.current, ring, stageRef.current, { tiny: true });
+    if (action === 'pad') setPad({ habitId: card.id, date: d });
+    else if (action === 'tiny') water(card, d, ring, stageRef.current, { tiny: true });
   }, []);
-  const onMore = useCallback((card: HabitCardVM, anchor: HTMLElement) => setMenu((m) => (m?.id === card.id ? null : { id: card.id, anchor })), []);
+  const onMore = useCallback(
+    (card: HabitCardVM, anchor: HTMLElement, d: DateKey) => setMenu((m) => (m?.habitId === card.id && m.date === d ? null : { habitId: card.id, date: d, anchor })),
+    [],
+  );
   const onOpen = useCallback((card: HabitCardVM) => openHabitDetail(card.id), []);
-  const onCount = useCallback((card: HabitCardVM, n: number) => countTo(card, dateRef.current, n, ringOf(card.id), stageRef.current), []);
+  const onCount = useCallback((card: HabitCardVM, n: number, d: DateKey) => countTo(card, d, n, ringOf(card.id), stageRef.current), []);
   const onAdjusted = useCallback(() => setAdjusting(null), []);
 
-  const menuCard = menu ? byId.get(menu.id) : undefined;
-  const menuItems = (c: HabitCardVM): MenuItem[] => {
+  // The menu belongs to the day it was opened on: it shows only while that day is the page's.
+  const menuCard = menu && menu.date === date ? byId.get(menu.habitId) : undefined;
+  const menuItems = (c: HabitCardVM, d: DateKey): MenuItem[] => {
     const items: MenuItem[] = [];
     if (c.tinyLabel && (c.canTiny || c.tiny)) {
-      items.push({ id: 'tiny', label: TODAY_COPY.menu.tiny, hint: c.tinyLabel, icon: 'tiny', checked: c.tiny, onSelect: () => (c.tiny ? unwater(c, date, stage) : void water(c, date, ringOf(c.id), stage, { tiny: true })) });
+      items.push({ id: 'tiny', label: TODAY_COPY.menu.tiny, hint: c.tinyLabel, icon: 'tiny', checked: c.tiny, onSelect: () => (c.tiny ? unwater(c, d, stage) : void water(c, d, ringOf(c.id), stage, { tiny: true })) });
     }
     // The number pad's menu way in (DESIGN §11.2: every long press has a button).
-    if (holdAction(c) === 'pad') items.push({ id: 'count', label: TODAY_COPY.menu.howMany, icon: 'drop', onSelect: () => setPadId(c.id) });
-    if (c.restAllowed || c.rested) items.push({ id: 'rest', label: TODAY_COPY.menu.rest, icon: 'rest', checked: c.rested, onSelect: () => flipRest(c, date) });
-    items.push({ id: 'note', label: c.note ? TODAY_COPY.menu.editNote : TODAY_COPY.menu.note, icon: 'note', onSelect: () => stage.addNote(c.id, date) });
+    if (holdAction(c) === 'pad') items.push({ id: 'count', label: TODAY_COPY.menu.howMany, icon: 'drop', onSelect: () => setPad({ habitId: c.id, date: d }) });
+    if (c.restAllowed || c.rested) items.push({ id: 'rest', label: TODAY_COPY.menu.rest, icon: 'rest', checked: c.rested, onSelect: () => flipRest(c, d) });
+    items.push({ id: 'note', label: c.note ? TODAY_COPY.menu.editNote : TODAY_COPY.menu.note, icon: 'note', onSelect: () => stage.addNote(c.id, d) });
     items.push({ id: 'details', label: TODAY_COPY.menu.details, icon: 'info', onSelect: () => openHabitDetail(c.id) });
     items.push({ id: 'edit', label: TODAY_COPY.menu.edit, icon: 'edit', onSelect: () => openHabitEditor({ id: c.id }) });
     return items;
@@ -195,7 +269,7 @@ export function TodayScreen() {
       weekStart={st.settings.weekStart}
       compact={compact}
       residentPetId={residentOf.get(c.id) ?? null}
-      adjusting={adjusting === c.id}
+      adjusting={adjusting?.habitId === c.id && adjusting.date === date}
       eager={eager}
       onRing={onRing}
       onHold={onHold}
@@ -206,14 +280,21 @@ export function TodayScreen() {
     />
   );
 
-  const padCard = padId ? (byId.get(padId) ?? null) : null;
+  // The number pad reads and writes its own day, whichever day the page shows now.
+  const padCard = pad ? padCardFor(pad, t) : null;
+  useEffect(() => {
+    if (pad && !padCard) setPad(null);
+  });
+  // Garnish lands on the band only when the pad's day is the one the band shows.
+  const padStage: Stage = pad && pad.date === date ? stage : { ...stage, pour: () => undefined, react: () => undefined };
+  const padRing = (id: string) => (pad && pad.date === date ? ringOf(id) : null);
   const allResting = groups.length > 0 && groups.every((g) => g.cards.every((c) => c.rested));
   const nothingOn = !vm.empty && groups.length === 0 && !vm.offDay.isOff;
   const off = vm.offDay;
   const offUsed = off.perMonth - off.remaining;
 
   const setOff = (on: boolean) => {
-    if (on) return setOffAsk(true);
+    if (on) return setOffAsk(date);
     toggleOffDay(date);
     toast({ key: 'offday', message: CHECKIN_TOASTS.offDayUndo, tone: 'lavender' });
   };
@@ -285,7 +366,7 @@ export function TodayScreen() {
         <CardMenu
           anchor={menu.anchor}
           label={past ? forDayLabel(menuCard.name, date) : menuCard.name}
-          items={menuItems(menuCard)}
+          items={menuItems(menuCard, date)}
           onClose={(restore) => {
             const a = menu.anchor;
             setMenu(null);
@@ -293,19 +374,31 @@ export function TodayScreen() {
           }}
         />
       )}
-      <CountPad card={padCard} onCount={(c, n) => countTo(c, date, n, ringOf(c.id), stage)} onTiny={(c) => (setPadId(null), void water(c, date, ringOf(c.id), stage, { tiny: true }))} onClose={() => setPadId(null)} />
+      <CountPad
+        card={padCard}
+        date={pad?.date ?? t}
+        past={pad !== null && pad.date < t}
+        onCount={(c, n) => pad && countTo(c, pad.date, n, padRing(c.id), padStage)}
+        onTiny={(c) => {
+          if (!pad) return;
+          setPad(null);
+          water(c, pad.date, padRing(c.id), padStage, { tiny: true });
+        }}
+        onClose={() => setPad(null)}
+      />
       <NoteSheet target={note} onClose={() => setNoteTarget(null)} />
       <WalletSheet open={walletOpen} onClose={() => setWalletOpen(false)} />
       <ConfirmDialog
-        open={offAsk}
+        open={offAsk !== null}
         title={offAskTitle}
         message={offAskMessage}
         confirmLabel={TODAY_LINES.takeTodayOff}
         cancelLabel={TODAY_LINES.notNow}
-        onCancel={() => setOffAsk(false)}
+        onCancel={() => setOffAsk(null)}
         onConfirm={() => {
-          setOffAsk(false);
-          if (toggleOffDay(date).ok) toast({ key: 'offday', message: CHECKIN_TOASTS.offDay, tone: 'lavender' });
+          const d = offAsk;
+          setOffAsk(null);
+          if (d !== null && toggleOffDay(d).ok) toast({ key: 'offday', message: CHECKIN_TOASTS.offDay, tone: 'lavender' });
         }}
       />
     </section>

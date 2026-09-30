@@ -5,28 +5,32 @@
  * the ⋯ menu, a rest day, the number pad, and the Habit Editor planting a new habit.
  */
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { act } from 'preact/test-utils';
 import { createInitialState } from '@/state/defaults';
 import { transact } from '@/domain/tx';
 import { openDay } from '@/domain/rollover';
 import * as habitsDomain from '@/domain/habits';
 import { mulberry32 } from '@/domain/rng';
-import { appDayKey, runtimeLocalTime } from '@/domain/dates';
-import { now, state, today } from '@/state/store';
-import type { AppState } from '@/state/types';
+import { addDays, appDayKey, runtimeLocalTime, weekday } from '@/domain/dates';
+import { weekdayName } from '@/catalog/formatCore';
+import { archiveHabit, deleteHabit, now, setCount, state, today, updateHabit } from '@/state/store';
+import type { AppState, DateKey, Weekday } from '@/state/types';
 import { toasts } from '@/ui/toast';
 import { habitEditorRequest } from '@/features/habits/open';
 import { SheetHosts } from '@/app/SheetHosts';
 import { TodayScreen } from './TodayScreen';
-import { selectedDay } from './state';
+import { selectDay, selectedDay } from './state';
 import { greetingLine } from './Band';
 import { button, click, installDom, key, mount, type, until } from '@/features/capsules/testing';
 
-function seed(templateIds: string[], name = 'Sam'): AppState {
+function seed(templateIds: string[], name = 'Sam', trackedFrom = 0): AppState {
   const now = Date.now() - 3_600_000;
   const env = { now, today: appDayKey(now, 180, runtimeLocalTime), local: runtimeLocalTime, rng: mulberry32(9) };
   return transact(createInitialState(now - 86_400_000 * 8), env, (tx) => {
     openDay(tx);
     habitsDomain.completeOnboarding(tx, { name, templateIds });
+    // "Start tracking from…": the habits have cards on the past days of the strip too.
+    if (trackedFrom > 0) for (const h of tx.s.habits) habitsDomain.setStartedOn(tx, h.id, addDays(env.today, -trackedFrom));
     return {};
   }).state;
 }
@@ -249,5 +253,204 @@ describe('the Habit Editor', () => {
     await until(() => !document.querySelector('[role="alertdialog"]'), 'the question gone');
     expect(document.querySelector<HTMLInputElement>('[role="dialog"] input[type="text"]')?.value).toBe('Stretch a bit');
     expect(habitEditorRequest.value).not.toBeNull();
+  });
+});
+
+/**
+ * WP-C1 (UI2-03, P-ui-14): an open editor (the number pad, the inline stepper, the ⋯ menu and the
+ * day-off question) is bound to the day it was opened for. The page still goes back to today after a
+ * minute hidden and on a new day (DESIGN §5.3); an editor either keeps writing the day it shows, or
+ * closes and says so. It never silently writes another day.
+ */
+describe('an open editor keeps its day (WP-C1)', () => {
+  let vis: DocumentVisibilityState = 'visible';
+  const setClock = (ms: number) => {
+    vi.setSystemTime(ms);
+    now.value = ms;
+    today.value = appDayKey(ms, 180, runtimeLocalTime);
+  };
+  const flipVisibility = (to: DocumentVisibilityState) =>
+    act(() => {
+      vis = to;
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+  /** The app is hidden for `ms` (a phone call, another app), then comes back. */
+  const hideFor = async (ms: number) => {
+    await flipVisibility('hidden');
+    await act(() => setClock(Date.now() + ms));
+    await flipVisibility('visible');
+  };
+  /** The app day turns over while the screen is open. */
+  const nextDay = () => act(() => setClock(Date.now() + 86_400_000));
+
+  const idOf = (name: string) => state.value.habits.find((h) => h.name === name)!.id;
+  const countOn = (id: string, d: DateKey) => {
+    const l = state.value.logs[id]?.[d];
+    return l?.kind === 'log' ? l.count : 0;
+  };
+  const dialog = () => document.querySelector<HTMLElement>('[role="dialog"]');
+  const dialogButton = (text: string) => Array.from(dialog()?.querySelectorAll('button') ?? []).find((b) => b.textContent === text) ?? null;
+  const menuItem = (start: string) => Array.from(document.querySelectorAll<HTMLElement>('[role="menu"] [role^="menuitem"]')).find((b) => b.textContent?.startsWith(start)) ?? null;
+  const notice = () => toasts.value.map((t) => String(t.message ?? t.label ?? '')).find((m) => m.startsWith('Back to today.'));
+  const pick = (d: DateKey) => act(() => selectDay(d, today.value));
+  async function openMenu(name: string) {
+    await click(button(new RegExp(`^More for ${name}`)), `⋯ for ${name}`);
+    return until(() => document.querySelector('[role="menu"]'), 'the menu');
+  }
+  async function openPad(name: string) {
+    await openMenu(name);
+    await click(menuItem('How many'), 'How many…');
+    return until(() => dialogButton('+1') && dialog(), 'the number pad');
+  }
+
+  beforeAll(() => {
+    Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => vis });
+  });
+  beforeEach(() => {
+    vis = 'visible';
+    // Only Date is faked, and it keeps moving, so the polling helpers still time out.
+    vi.useFakeTimers({ toFake: ['Date'], shouldAdvanceTime: true });
+    const noon = new Date();
+    noon.setHours(12, 0, 0, 0);
+    setClock(noon.getTime());
+  });
+  afterEach(() => {
+    view?.unmount();
+    view = null;
+    vi.useRealTimers();
+    now.value = Date.now();
+    today.value = appDayKey(Date.now(), 180, runtimeLocalTime);
+  });
+
+  it('names the day on a past day’s number pad', async () => {
+    state.value = seed(['water'], 'Sam', 10);
+    view = mount(<TodayScreen />);
+    const past = addDays(today.value, -2);
+    await pick(past);
+    const pad = await openPad('Drink water');
+    expect(pad.querySelector('h2')?.textContent).toBe(`Drink water for ${weekdayName(past)}`);
+  });
+
+  it('UI2-03: +1 after a minute hidden still counts the past day the pad shows', async () => {
+    state.value = seed(['water'], 'Sam', 10);
+    view = mount(<TodayScreen />);
+    const id = idOf('Drink water');
+    const t0 = today.value;
+    const past = addDays(t0, -2);
+    await pick(past);
+    await openPad('Drink water');
+    await hideFor(61_000);
+    // The page went back to today (DESIGN §5.3); the open pad did not.
+    expect(selectedDay.value).toBeNull();
+    await click(await until(() => dialogButton('+1'), 'the pad’s +1'), '+1');
+    expect(countOn(id, past)).toBe(1);
+    expect(countOn(id, t0)).toBe(0);
+    expect(dialog()?.querySelector('h2')?.textContent).toBe(`Drink water for ${weekdayName(past)}`);
+  });
+
+  it('a new day with the pad open: the pad keeps the day it was opened on, and says which', async () => {
+    state.value = seed(['water'], 'Sam', 10);
+    view = mount(<TodayScreen />);
+    const id = idOf('Drink water');
+    const opened = today.value;
+    await openPad('Drink water');
+    await nextDay();
+    expect(today.value).toBe(addDays(opened, 1));
+    await until(() => dialog()?.querySelector('h2')?.textContent === `Drink water for ${weekdayName(opened)}`, 'the pad naming its day');
+    await click(dialogButton('+1'), '+1');
+    expect(countOn(id, opened)).toBe(1);
+    expect(countOn(id, today.value)).toBe(0);
+  });
+
+  it('a new day that takes the pad’s day off the strip closes the pad and says so', async () => {
+    state.value = seed(['water'], 'Sam', 10);
+    view = mount(<TodayScreen />);
+    const id = idOf('Drink water');
+    const edge = addDays(today.value, -6);
+    await pick(edge);
+    await openPad('Drink water');
+    await nextDay();
+    await until(() => !dialog(), 'the pad closed');
+    expect(notice()).toBe(`Back to today. Drink water for ${weekdayName(edge)} is as you left it.`);
+    expect(countOn(id, edge)).toBe(0);
+    expect(countOn(id, today.value)).toBe(0);
+  });
+
+  it('a schedule change while the pad is open: +1 still counts the pad’s day', async () => {
+    state.value = seed(['water'], 'Sam', 10);
+    view = mount(<TodayScreen />);
+    const id = idOf('Drink water');
+    const t0 = today.value;
+    const past = addDays(t0, -2);
+    await pick(past);
+    await openPad('Drink water');
+    // From today on, Drink water is only on the other weekdays: it is not due today.
+    const others = ([0, 1, 2, 3, 4, 5, 6] as Weekday[]).filter((d) => d !== weekday(t0));
+    await act(() => updateHabit(id, { schedule: { kind: 'days', days: others } }));
+    await hideFor(61_000);
+    await click(await until(() => dialogButton('+1'), 'the pad’s +1'), '+1');
+    expect(countOn(id, past)).toBe(1);
+    expect(countOn(id, t0)).toBe(0);
+  });
+
+  it('the habit archived while the pad is open: +1 still counts the pad’s day; deleted, the pad closes', async () => {
+    state.value = seed(['water', 'walk'], 'Sam', 10);
+    view = mount(<TodayScreen />);
+    const id = idOf('Drink water');
+    const t0 = today.value;
+    const past = addDays(t0, -2);
+    await pick(past);
+    await openPad('Drink water');
+    await act(() => archiveHabit(id));
+    await hideFor(61_000);
+    await click(await until(() => dialogButton('+1'), 'the pad’s +1'), '+1');
+    expect(countOn(id, past)).toBe(1);
+    expect(countOn(id, t0)).toBe(0);
+    await act(() => deleteHabit(id));
+    await until(() => !dialog(), 'the pad closed with its habit');
+    expect(state.value.logs[id]).toBeUndefined();
+  });
+
+  it('P-ui-14: the ⋯ menu of a past day closes when the page goes back to today, so Tiny never lands on today', async () => {
+    state.value = seed(['water'], 'Sam', 10);
+    view = mount(<TodayScreen />);
+    const id = idOf('Drink water');
+    const t0 = today.value;
+    await pick(addDays(t0, -2));
+    await openMenu('Drink water');
+    await hideFor(61_000);
+    await until(() => !document.querySelector('[role="menu"]'), 'the menu closed');
+    expect(countOn(id, t0)).toBe(0);
+  });
+
+  it('the inline stepper of a past day closes when the page goes back to today, and says so', async () => {
+    state.value = seed(['water'], 'Sam', 10);
+    view = mount(<TodayScreen />);
+    const id = idOf('Drink water');
+    const t0 = today.value;
+    const past = addDays(t0, -2);
+    await pick(past);
+    // Filled after the list's groups were taken, so the card stays unfolded (a tap never regroups).
+    await act(() => void setCount(id, past, 8));
+    await click(await until(() => ringIn(cardOf('Drink water')), 'the ring'), 'the full ring');
+    await until(() => Array.from(cardOf('Drink water')?.querySelectorAll('button') ?? []).some((b) => b.textContent === 'Done'), 'the inline stepper');
+    await hideFor(61_000);
+    await until(() => !Array.from(cardOf('Drink water')?.querySelectorAll('button') ?? []).some((b) => b.textContent === 'Done'), 'the stepper closed');
+    expect(notice()).toBe(`Back to today. Drink water for ${weekdayName(past)} is as you left it.`);
+    expect(countOn(id, past)).toBe(8);
+    expect(countOn(id, t0)).toBe(0);
+  });
+
+  it('P-ui-14: “Take today off?” open over a new day closes, and takes neither day off', async () => {
+    state.value = seed(['walk'], 'Sam', 10);
+    view = mount(<TodayScreen />);
+    const asked = today.value;
+    await click(await until(() => document.querySelector<HTMLElement>('[role="switch"]'), 'the day-off switch'), 'Take today off');
+    await until(() => document.querySelector('[role="alertdialog"]'), 'the question');
+    await nextDay();
+    await until(() => !document.querySelector('[role="alertdialog"]'), 'the question closed');
+    expect(notice()).toBe(`Back to today. ${weekdayName(asked)} is as you left it.`);
+    expect(state.value.offDays[asked]).toBeUndefined();
+    expect(state.value.offDays[today.value]).toBeUndefined();
   });
 });

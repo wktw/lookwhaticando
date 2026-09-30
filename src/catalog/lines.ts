@@ -468,6 +468,13 @@ export const TODAY_LINES = {
   backToToday: 'Back to today',
   /** Button names while a past day is selected: "Walk for Saturday". */
   forDay: '{habit} for {weekday}',
+  /**
+   * Today went back to today (a new day, or a minute hidden) and closed an editor still open on
+   * another day, which Today can no longer edit there (VOICE §5, DEC-V: pending owner approval).
+   */
+  editorClosed: 'Back to today. {habit} for {weekday} is as you left it.',
+  /** The same, for "Take today off?" still open when a new day began. */
+  dayOffClosed: 'Back to today. {weekday} is as you left it.',
   startEarlier: 'Start tracking {habit} from {date}?',
   startFrom: 'Start from {date}',
   notNow: 'Not now',
