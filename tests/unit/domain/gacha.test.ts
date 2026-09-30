@@ -528,3 +528,51 @@ describe('spending shows up as events, and a Special Order is committed before i
     expect(g.state.pendingReveal).toMatchObject({ itemId: b!.id, order: true });
   });
 });
+
+describe('finishReveal(expected) clears only the reveal that was shown (WP-A8, UI2-02)', () => {
+  const waiting = () => {
+    const g = new Game({ seed: 2 });
+    g.setWallet({ coins: 25 });
+    expect(g.run((tx) => gacha.pull(tx, 'cows')).ok).toBe(true);
+    return { g, p: g.state.pendingReveal! };
+  };
+
+  it('a matching reveal is cleared, and answers true (a guard; its answer is new)', () => {
+    const { g, p } = waiting();
+    expect(g.run((tx) => gacha.finishReveal(tx, { machineId: p.machineId, itemId: p.itemId, at: p.at }))).toBe(true);
+    expect(g.state.pendingReveal).toBeUndefined();
+  });
+
+  it.each([
+    ['another item', (p: NonNullable<AppState['pendingReveal']>) => ({ machineId: p.machineId, itemId: `${p.itemId}-x`, at: p.at })],
+    ['another cabinet', (p: NonNullable<AppState['pendingReveal']>) => ({ machineId: 'cats' as const, itemId: p.itemId, at: p.at })],
+    ['another commit time', (p: NonNullable<AppState['pendingReveal']>) => ({ machineId: p.machineId, itemId: p.itemId, at: p.at + 1 })],
+    ['an order', (p: NonNullable<AppState['pendingReveal']>) => ({ itemId: p.itemId, order: true })],
+  ])('a reveal that is not the one shown (%s) stays waiting (failed before)', (_what, key) => {
+    const { g, p } = waiting();
+    const cleared = g.run((tx) => gacha.finishReveal(tx, key(p)));
+    expect(g.state.pendingReveal).toEqual(p);
+    expect(cleared).toBe(false);
+  });
+
+  it('an order’s reveal is matched by its item and order flag (what the counter knows; failed before)', () => {
+    const g = new Game();
+    g.setWallet({ stars: 20 });
+    const id = COLLECTIBLES.find((c) => c.rarity === 'uncommon' && c.category === 'wearable' && c.source === 'cats')!.id;
+    expect(g.run((tx) => gacha.wish(tx, id)).ok).toBe(true);
+    const p = g.state.pendingReveal!;
+    g.run((tx) => gacha.finishReveal(tx, { itemId: 'pet-cat-orange', order: true }));
+    expect(g.state.pendingReveal).toEqual(p);
+    g.run((tx) => gacha.finishReveal(tx, { itemId: id, order: false }));
+    expect(g.state.pendingReveal).toEqual(p);
+    expect(g.run((tx) => gacha.finishReveal(tx, { itemId: id, order: true }))).toBe(true);
+    expect(g.state.pendingReveal).toBeUndefined();
+  });
+
+  it('with no argument it still clears whatever waits (older callers; a guard, its answer is new)', () => {
+    const { g } = waiting();
+    g.run((tx) => gacha.finishReveal(tx));
+    expect(g.state.pendingReveal).toBeUndefined();
+    expect(g.run((tx) => gacha.finishReveal(tx))).toBe(false);
+  });
+});

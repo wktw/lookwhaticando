@@ -18,13 +18,17 @@ vi.mock('@/state/store', async (importOriginal) => {
 const cats = getMachine('cats');
 const common = itemsInMachine('cats').find((i) => i.rarity === 'common' && i.category !== 'pet')!;
 
-/** A store-like pull: pays (coins, a ticket, or nothing on the house) and always finds a common item. */
+/**
+ * A store-like pull: pays (coins, a ticket, or nothing on the house), always finds a common item, and
+ * commits it as the pending reveal before anything animates, as the store does (§7.1): that pending
+ * reveal is what a cabinet resumes (WP-A8).
+ */
 function fakePull(id: MachineId, opts: { useTicket?: boolean; free?: boolean } = {}): PullOutcome {
   const s = state.value;
   const wallet = { ...s.wallet };
   if (opts.useTicket) wallet.tickets -= 1;
   else if (!opts.free) wallet.coins -= getMachine(id).price;
-  state.value = { ...s, wallet };
+  state.value = { ...s, wallet, pendingReveal: { machineId: id, itemId: common.id, isNew: true, stardust: 0, fusedStars: 0, at: ++pulledAt } };
   return {
     ok: true,
     machineId: id,
@@ -39,6 +43,17 @@ function fakePull(id: MachineId, opts: { useTicket?: boolean; free?: boolean } =
     paidWith: opts.useTicket ? 'ticket' : opts.free ? 'free' : 'coins',
     events: [],
   };
+}
+
+let pulledAt = 0;
+
+/** The store's finishReveal: clears the pending reveal (only the one expected, when one is named). */
+function fakeFinishReveal(expected?: Parameters<typeof finishReveal>[0]): boolean {
+  const p = state.value.pendingReveal;
+  if (!p) return false;
+  if (expected && (expected.itemId !== p.itemId || (expected.machineId !== undefined && expected.machineId !== p.machineId) || (expected.at !== undefined && expected.at !== p.at))) return false;
+  state.value = { ...state.value, pendingReveal: undefined };
+  return true;
 }
 
 function setWallet(coins: number, tickets: number) {
@@ -82,7 +97,7 @@ let view: ReturnType<typeof mount> | null = null;
 beforeAll(installDom);
 beforeEach(() => {
   vi.mocked(pull).mockReset().mockImplementation(fakePull);
-  vi.mocked(finishReveal).mockReset();
+  vi.mocked(finishReveal).mockReset().mockImplementation(fakeFinishReveal);
   vi.mocked(renamePet).mockReset();
   setWallet(100, 0);
 });

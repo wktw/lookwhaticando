@@ -48,9 +48,19 @@ function chooseFor(petId: string): void {
   toast({ key: `chose-${petId}`, message: choseLine(name, chose, habit), tone: 'sage' });
 }
 
+/**
+ * The cabinet whose first capsule is already committed but not yet opened (a reload mid-drop or
+ * mid-reveal): the store's pendingReveal says which, so step 4 resumes it there instead of offering
+ * all four cabinets again (creative-cr-d2, WP-A8).
+ */
+function waitingCabinet(): MachineId | null {
+  const p = state.value.pendingReveal;
+  return p && !p.order ? p.machineId : null;
+}
+
 export function FirstPickStep({ onFinish, onPlace }: { onFinish: () => void; onPlace: (petId: string) => void }) {
   const light = useArtLight();
-  const [picked, setPicked] = useState<MachineId | null>(null);
+  const [picked, setPicked] = useState<MachineId | null>(waitingCabinet);
   const [busy, setBusy] = useState(false);
   const intent = useRef<Intent | null>(null);
 

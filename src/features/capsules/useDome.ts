@@ -36,6 +36,14 @@ export function useDome(machine: MachineDef, active: boolean): DomeController {
   const [bodies, setBodies] = useState<readonly DomeBody[]>(() => [...sim.bodies]);
   const nodes = useRef(new Map<number, CapsuleNodes>()).current;
   const loop = useRef({ raf: 0, last: 0 }).current;
+  /** Once the cabinet has gone, the pile (shared for the session) can still change, but nothing animates or renders. */
+  const mounted = useRef(true);
+  useEffect(
+    () => () => {
+      mounted.current = false;
+    },
+    [],
+  );
 
   const write = () => {
     for (const b of sim.bodies) {
@@ -56,7 +64,7 @@ export function useDome(machine: MachineDef, active: boolean): DomeController {
   };
 
   const kick = () => {
-    if (loop.raf || !active || document.hidden || !sim.awake) return;
+    if (!mounted.current || loop.raf || !active || document.hidden || !sim.awake) return;
     // Reduced motion: jump straight to the resting pile instead of animating there.
     if (prefersReducedMotion()) {
       sim.settle();
@@ -93,13 +101,13 @@ export function useDome(machine: MachineDef, active: boolean): DomeController {
     },
     release: (prefer) => {
       const b = sim.removeOne(prefer);
-      setBodies([...sim.bodies]);
+      if (mounted.current) setBodies([...sim.bodies]);
       kick();
       return b;
     },
     refill: () => {
       sim.addOne();
-      setBodies([...sim.bodies]);
+      if (mounted.current) setBodies([...sim.bodies]);
       kick();
     },
   };
