@@ -41,11 +41,12 @@ export interface HabitCardProps {
   adjusting: boolean;
   /** Draw the plant at once (the first cards on screen); the rest draw as they come near the view. */
   eager?: boolean;
-  onRing: (card: HabitCardVM, ring: HTMLElement) => void;
-  onHold: (card: HabitCardVM, ring: HTMLElement) => void;
-  onMore: (card: HabitCardVM, button: HTMLElement) => void;
+  /** Every action carries the day the card shows, so it writes that day and no other (WP-C1). */
+  onRing: (card: HabitCardVM, ring: HTMLElement, date: DateKey) => void;
+  onHold: (card: HabitCardVM, ring: HTMLElement, date: DateKey) => void;
+  onMore: (card: HabitCardVM, button: HTMLElement, date: DateKey) => void;
   onOpen: (card: HabitCardVM) => void;
-  onCount: (card: HabitCardVM, count: number) => void;
+  onCount: (card: HabitCardVM, count: number, date: DateKey) => void;
   onAdjusted: () => void;
 }
 
@@ -172,7 +173,7 @@ export const HabitCard = memo(function HabitCard(props: HabitCardProps) {
     hold.current.timer = window.setTimeout(() => {
       ring.current?.removeAttribute('data-holding');
       hold.current.fired = true;
-      props.onHold(card, ringEl());
+      props.onHold(card, ringEl(), date);
     }, HOLD_MS);
   };
   const moveHold = (e: PointerEvent) => {
@@ -183,7 +184,7 @@ export const HabitCard = memo(function HabitCard(props: HabitCardProps) {
       hold.current.fired = false;
       return;
     }
-    props.onRing(card, ringEl());
+    props.onRing(card, ringEl(), date);
   };
   useEffect(() => () => clearTimeout(hold.current.timer), []);
 
@@ -240,10 +241,10 @@ export const HabitCard = memo(function HabitCard(props: HabitCardProps) {
         />
         {holds === 'tiny' && <Icon name="sprout" size={18} class={s.holdSprout} />}
       </div>
-      <IconButton icon="more" size="sm" label={fillLine(TODAY_COPY.more, { habit: past ? forDayLabel(card.name, date) : card.name })} class={s.more} onClick={(e) => props.onMore(card, e.currentTarget as HTMLElement)} aria-haspopup="menu" />
+      <IconButton icon="more" size="sm" label={fillLine(TODAY_COPY.more, { habit: past ? forDayLabel(card.name, date) : card.name })} class={s.more} onClick={(e) => props.onMore(card, e.currentTarget as HTMLElement, date)} aria-haspopup="menu" />
       {adjusting && counting && (
         <div class={s.adjust}>
-          <Stepper value={card.count} onChange={(v) => props.onCount(card, v)} label={fillLine(TODAY_COPY.howMany, { habit: card.name })} min={0} max={100_000} step={card.step} unit={card.unit ?? undefined} />
+          <Stepper value={card.count} onChange={(v) => props.onCount(card, v, date)} label={fillLine(TODAY_COPY.howMany, { habit: card.name })} min={0} max={100_000} step={card.step} unit={card.unit ?? undefined} />
           <Button variant="secondary" onClick={props.onAdjusted}>
             {TODAY_COPY.pad.done}
           </Button>

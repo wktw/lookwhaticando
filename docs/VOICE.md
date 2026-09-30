@@ -267,6 +267,16 @@ habits watered. Plus 14 coins."
 - Logging before a habit started: "Start tracking Walk from Mon, Sep 22?" · "Start from Sep 22" · "Not
   now".
 - Calendar edits older than the 6-day window: "Fixes history. No coins for this one."
+- An editor open on another day when Today goes back to today (a new day, or a minute hidden). The
+  number pad keeps its day, and its title names it ("Drink water for Saturday"), while that day is
+  still on the week strip. The ⋯ menu, the inline stepper, "Take today off?" and a number pad whose
+  day has left the strip close instead, and when that day is not today one note says which day was
+  left as it was. {day} is the weekday for a day in the last six ("Back to today. Drink water for
+  Saturday is as you left it."), and the date for a day a week back or more ("Back to today. Drink
+  water for Thu, Sep 24 is as you left it."): a day a week back has today's weekday, and "Thursday"
+  on a Thursday would read as today. DEC-V: pending owner approval.
+  - A habit's editor: "Back to today. {habit} for {day} is as you left it."
+  - "Take today off?": "Back to today. {day} is as you left it."
 - The clock guard: "The clock on this device reads earlier than catkin last saw. Coins and stamps wait
   until it’s right again."
 
