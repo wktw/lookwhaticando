@@ -295,8 +295,9 @@ function setOwnership(next: typeof ownership.value): void {
 
 /**
  * Which save this window shows, as a counter: bumped each time what it shows is replaced by another
- * save (`saveReplaced`: a boot, an adoption, an import, an Undo or a restore committing, Start over,
- * entering or leaving the demo). Never persisted. An interaction that began on one save captures it
+ * save (`saveReplaced`: a boot, an adoption of another save, an import, an Undo or a restore
+ * committing, Start over, entering or leaving the demo). Another window's newer write of the same
+ * save (same lineage, higher rev) is not another save and leaves it be (`saveUpdated`). Never persisted. An interaction that began on one save captures it
  * and does nothing once it has moved, so nothing started on one save acts on another (WP-A8, INV-7).
  */
 export const saveEpoch = signal(0);
@@ -608,6 +609,16 @@ function saveReplaced(): void {
   saveEpoch.value++;
 }
 
+/**
+ * Called when another window's newer write of the save this window shows is taken in (the same
+ * lineage, a higher rev). It supersedes a replacement under way, as `saveReplaced` does, but it is
+ * the same save, so `saveEpoch` stays: what the screens were doing still belongs to it, and a
+ * capsule another window pulled is not popped up here on each of its writes (WP-A8 review).
+ */
+function saveUpdated(): void {
+  opEpoch++;
+}
+
 /** Points this window at a save identity: its queue's, or (read-only) the one it shows. */
 function setHead(head: SaveHead): void {
   shownHead = head;
@@ -658,7 +669,7 @@ type AdoptContext = 'hydrate' | 'storage' | 'use-here' | 'grant' | 'exit-demo';
  * | newer   | read-only 'newer-version'; the lock is given up and never asked for; nothing written |
  * | corrupt | recovery: the damaged text is kept aside once this window owns the save; boot starts fresh, every other path keeps what it shows (on a new lineage, so other windows take in what it writes next); nothing written over the damaged save here |
  * | empty   | a save that was on disk is gone (started over or erased elsewhere): adopt the deletion, a fresh state and lineage, and the "started over" note. The demo's own key going is not the person's save: the demo stays as it is |
- * | ok      | adopt when its `gen` differs or its `rev` is higher (a load always adopts); pending changes of the old save are dropped |
+ * | ok      | adopt when its `gen` differs or its `rev` is higher (a load always adopts); pending changes of the old save are dropped; a newer write of the same save moves `opEpoch` only, anything else is `saveReplaced` |
  *
  * It never writes the main save; recovery copies wait for ownership (`writeRecoveryCopies`).
  */
@@ -729,6 +740,7 @@ function adopt(res: LoadResult, context: AdoptContext): void {
     case 'ok': {
       const differs = res.gen !== undefined && res.gen !== head.gen;
       if (!load && !differs && res.rev <= head.rev) break; // this save, as shown or older
+      const wasNewer = readOnly.value === 'newer-version';
       queue?.discardPending();
       setState(res.state, ms);
       setHead({ gen: res.gen, rev: res.rev });
@@ -738,7 +750,9 @@ function adopt(res: LoadResult, context: AdoptContext): void {
         if (res.damaged !== undefined && !demoMode.value) rescue.value = { kind: 'damaged', raw: res.damaged };
       } else if (context === 'hydrate') recoveryCopies = { key, backup: res.raw };
       leaveNewerVersion();
-      saveReplaced();
+      // Another lineage, or a load, is another save; a newer write of this one is the same save.
+      if (load || differs || wasNewer || res.fromBackup) saveReplaced();
+      else saveUpdated();
       break;
     }
   }

@@ -15,12 +15,15 @@ import { act } from 'preact/test-utils';
 import { getMachine, itemsInMachine } from '@/catalog';
 import { getCollectible } from '@/catalog/collectibles';
 import type { PendingReveal } from '@/state/types';
-import { SAVE_KEY, readSave } from '@/state/persist';
+import type { AppState } from '@/state/types';
+import { SAVE_KEY, encodeEnvelope, peekHead, readSave } from '@/state/persist';
 import * as store from '@/state/store';
+import { sfx } from '@/fx/sound';
 import { CapsuleMachine } from './CapsuleMachine';
 import { usePull } from './usePull';
+import { TICK_DEG, TURN_TARGET } from './ratchet';
 import { buttonWithText, installDom, revealDialog } from './testing';
-import { fakeBrowser, type FakeBrowser } from '../../../tests/unit/state/fixtures';
+import { fakeBrowser, fakeLocks, type FakeBrowser } from '../../../tests/unit/state/fixtures';
 
 const cats = getMachine('cats');
 const cows = getMachine('cows');
@@ -122,6 +125,48 @@ async function pullAndLeaveMidDrop(): Promise<PendingReveal> {
 const otherCat = (id: string) => itemsInMachine('cats').find((i) => i.id !== id && i.category !== 'pet')!.id;
 const pendingFor = (machineId: PendingReveal['machineId'], itemId: string, at: number): PendingReveal => ({ machineId, itemId, isNew: true, stardust: 0, fusedStars: 0, at });
 
+/** Records what the handle's slider says from now on. */
+function listen(h: HTMLElement): string[] {
+  const said: string[] = [];
+  const set = h.setAttribute.bind(h);
+  h.setAttribute = (name: string, value: string) => {
+    if (name === 'aria-valuenow') said.push(value);
+    set(name, value);
+  };
+  return said;
+}
+
+/**
+ * Web Animations that take 300 ms to finish (a timer, as the browser's own clock), so a cabinet
+ * can go while it is awaiting one. Returns what each animation was asked to do, in order.
+ */
+function slowAnimations(): string[] {
+  const started: string[] = [];
+  const proto = Element.prototype as Element & { animate: unknown };
+  const was = proto.animate;
+  proto.animate = function animate(frames: Keyframe[]) {
+    started.push(JSON.stringify(frames));
+    let resolve = () => {};
+    const finished = new Promise<void>((r) => (resolve = r));
+    const id = setTimeout(() => resolve(), 300);
+    return { finished, cancel: () => clearTimeout(id), play() {}, pause() {} } as unknown as Animation;
+  };
+  restoreAnimations = () => (proto.animate = was);
+  return started;
+}
+let restoreAnimations: (() => void) | null = null;
+
+/**
+ * Another window, which has this window's save as it is now, writes a newer rev of it (the same
+ * lineage), and this window hears of it.
+ */
+function otherWindowWrites(change: (s: AppState) => AppState) {
+  const head = peekHead(browser.storage, SAVE_KEY)!;
+  const text = encodeEnvelope(change(store.state.peek()), head.rev + 1, browser.clock.now, 'test', head.gen);
+  browser.storage.setItem(SAVE_KEY, text);
+  browser.fire('storage', { key: SAVE_KEY, newValue: text });
+}
+
 /** The hook alone, to read what it resumes and to keep a reveal's close from an earlier render. */
 let hook: ReturnType<typeof usePull> | null = null;
 function Hook({ machine, active = true }: { machine: typeof cats; active?: boolean }) {
@@ -137,6 +182,9 @@ beforeEach(() => {
 afterEach(() => {
   unmount();
   hook = null;
+  vi.restoreAllMocks();
+  restoreAnimations?.();
+  restoreAnimations = null;
   vi.clearAllTimers();
   vi.useRealTimers();
   motion('reduced');
@@ -269,6 +317,163 @@ describe('UI2-01: nothing a capsule screen scheduled acts after it is gone (R209
   });
 });
 
+describe('INV-7 fault injection: the save replaced, or the cabinet gone, at each step of a turn (WP-A8 review)', () => {
+  it('replaced after the commit, with the capsule in the chute: nothing is left scheduled and nothing opens', async () => {
+    boot();
+    const imported = backupWith(undefined);
+    show(<CapsuleMachine machine={cats} active />);
+    await payIn();
+    await run(1); // jsdom's own focus bookkeeping (0 ms), not the cabinet's
+    const others = vi.getTimerCount(); // the page's own (its clock), none of them the cabinet's
+    tapHandle(); // reduced motion: the turn, the commit and the drop, at once
+    await run(1);
+    expect(store.state.value.pendingReveal).toBeTruthy();
+    expect(vi.getTimerCount()).toBeGreaterThan(others); // the clicks, and the beat before it opens
+    await act(async () => void expect(await store.applyImport(imported)).toMatchObject({ ok: true }));
+    expect(vi.getTimerCount()).toBe(others);
+    await run(5000);
+    expect(revealDialog()).toBeNull();
+    expect(insert()).toBeTruthy();
+    expect(store.state.value.pendingReveal).toBeUndefined();
+  });
+
+  it('replaced mid auto-turn, before this screen has even re-rendered: the old turn’s frames and clicks do nothing', async () => {
+    boot();
+    const imported = backupWith(undefined);
+    motion('full');
+    show(<CapsuleMachine machine={cats} active />);
+    await payIn();
+    tapHandle();
+    await frame();
+    await frame();
+    const said = listen(handle());
+    const play = vi.spyOn(sfx, 'play');
+    // One act: the frames and timers the turn scheduled run before the screen hears of the new save.
+    await act(async () => {
+      expect(await store.applyImport(imported)).toMatchObject({ ok: true });
+      said.length = 0;
+      play.mockClear();
+      await vi.advanceTimersByTimeAsync(2000);
+      expect(said).toEqual([]);
+      expect(play).not.toHaveBeenCalledWith('ratchet', expect.anything());
+    });
+    await run(5000);
+    expect(store.state.value.lifetime.pulls).toBe(0);
+    expect(onDisk().lifetime.pulls).toBe(0);
+    expect(revealDialog()).toBeNull();
+  });
+
+  it('replaced while the clicks of a step by hand are still sounding: the rest of them stay quiet', async () => {
+    boot();
+    const imported = backupWith(undefined);
+    show(<CapsuleMachine machine={cats} active />);
+    await payIn();
+    const play = vi.spyOn(sfx, 'play');
+    act(() => void handle().dispatchEvent(new KeyboardEvent('keydown', { key: 'PageUp', bubbles: true, cancelable: true })));
+    await run(1);
+    expect(play).toHaveBeenCalledWith('ratchet', expect.anything()); // the first of three clicks; the others follow 45 ms apart
+    await act(async () => {
+      expect(await store.applyImport(imported)).toMatchObject({ ok: true });
+      play.mockClear();
+      await vi.advanceTimersByTimeAsync(500);
+      expect(play).not.toHaveBeenCalledWith('ratchet', expect.anything());
+    });
+  });
+
+  it('replaced just before the last click of a turn by hand: the click pulls nothing into the new save', async () => {
+    boot();
+    const imported = backupWith(undefined);
+    show(<CapsuleMachine machine={cats} active />);
+    await payIn();
+    const h = handle();
+    const press = () => h.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, cancelable: true }));
+    for (let i = 1; i < TURN_TARGET / TICK_DEG; i++) act(() => void press());
+    expect(store.state.value.lifetime.pulls).toBe(0);
+    await act(async () => {
+      expect(await store.applyImport(imported)).toMatchObject({ ok: true });
+      press();
+    });
+    await run(5000);
+    expect(store.state.value.lifetime.pulls).toBe(0);
+    expect(store.state.value.wallet.coins).toBe(100);
+    expect(onDisk().lifetime.pulls).toBe(0);
+  });
+
+  it('unmount mid-sink: once the sink finishes, nothing carries on (no phase, no timer)', async () => {
+    boot();
+    const started = slowAnimations();
+    motion('full');
+    show(<CapsuleMachine machine={cats} active />);
+    await payIn();
+    tapHandle();
+    await until(() => started.some((f) => f.includes('translateY(40px)')), 'the capsule to sink');
+    unmount();
+    await run(350); // the sink (the browser's) finishes
+    expect(vi.getTimerCount()).toBe(0);
+    await run(5000);
+    expect(revealDialog()).toBeNull();
+  });
+
+  it('unmount mid-chute: once the drop finishes, nothing carries on (no phase, no timer)', async () => {
+    boot();
+    const started = slowAnimations();
+    motion('full');
+    show(<CapsuleMachine machine={cats} active />);
+    await payIn();
+    tapHandle();
+    await until(() => started.some((f) => f.includes('rotate(-6deg)')), 'the capsule to drop into the chute');
+    unmount();
+    await run(500); // the drop and its landing thunks are over
+    expect(vi.getTimerCount()).toBe(0);
+  });
+});
+
+describe('the same save written by another window (WP-A8 review)', () => {
+  it('a read-only window’s cabinet does not pop the owner’s capsule up, on its pull or on its later writes', async () => {
+    boot();
+    const text = browser.storage.getItem(SAVE_KEY)!;
+    browser = fakeBrowser({ locks: fakeLocks({ byOther: true }) });
+    browser.storage.setItem(SAVE_KEY, text);
+    store.hydrate();
+    await act(async () => void (await Promise.resolve()));
+    expect(store.readOnly.value).toBe('other-window');
+    show(<Hook machine={cats} />);
+    const epoch = store.saveEpoch.value;
+    const p = pendingFor('cats', otherCat(''), 5);
+    act(() => otherWindowWrites((s) => ({ ...s, pendingReveal: p })));
+    expect(store.state.value.pendingReveal).toEqual(p);
+    expect(store.saveEpoch.value).toBe(epoch);
+    await run(100);
+    expect(hook!.phase).toBe('idle');
+    act(() => otherWindowWrites((s) => ({ ...s, profile: { ...s.profile, name: 'Samira' } })));
+    await run(100);
+    expect(store.state.value.profile.name).toBe('Samira');
+    expect(hook!.phase).toBe('idle');
+    expect(hook!.reveal).toBeNull();
+  });
+
+  it('without Web Locks, a capsule another window pulled into this save opens here when a pull is tried, and nothing is charged', async () => {
+    boot();
+    show(<CapsuleMachine machine={cats} active />);
+    const p = pendingFor('cats', otherCat(''), 5);
+    act(() => otherWindowWrites((s) => ({ ...s, pendingReveal: p })));
+    await run(100);
+    expect(revealDialog()).toBeNull(); // not popped up by the other window's write
+    await payIn();
+    tapHandle();
+    await until(revealDialog, 'the waiting capsule');
+    act(() => (document.querySelector('button[aria-label^="Open the capsule"]') as HTMLElement).click());
+    const name = await until(() => revealDialog()?.querySelector('h2')?.textContent, 'the card');
+    expect(name).toBe(getCollectible(p.itemId)!.name);
+    expect(store.state.value.wallet.coins).toBe(100);
+    expect(store.state.value.lifetime.pulls).toBe(0);
+    act(() => buttonWithText('Done')!.click());
+    await run(1000);
+    expect(store.state.value.pendingReveal).toBeUndefined();
+    expect(onDisk().pendingReveal).toBeUndefined();
+  });
+});
+
 describe('the pile is the session’s: leaving never costs it a capsule', () => {
   it('closing a reveal and leaving at once: nothing is left running, and the cabinet has its full pile back (a guard, except the timer)', async () => {
     boot();
@@ -290,6 +495,25 @@ describe('the pile is the session’s: leaving never costs it a capsule', () => 
     expect(store.state.value.pendingReveal).toBeUndefined();
     show(<Hook machine={cats} />);
     expect(hook!.dome.bodies.length).toBe(pile);
+  });
+});
+
+describe('the pile under full motion (WP-A8 review)', () => {
+  it('closing a reveal and leaving at once: no frame of the pile runs after the cabinet has gone', async () => {
+    boot();
+    motion('full');
+    show(<CapsuleMachine machine={cats} active />);
+    await payIn();
+    tapHandle();
+    await until(revealDialog, 'the reveal');
+    act(() => (document.querySelector('button[aria-label^="Open the capsule"]') as HTMLElement).click());
+    await until(() => buttonWithText('Done') ?? buttonWithText('Not now'), 'the card');
+    act(() => (buttonWithText('Done') ?? buttonWithText('Not now'))!.click());
+    await until(() => !revealDialog(), 'the reveal to close');
+    await run(1);
+    expect(vi.getTimerCount()).toBeGreaterThan(0); // the fresh capsule is still on its way in
+    unmount();
+    expect(vi.getTimerCount()).toBe(0);
   });
 });
 

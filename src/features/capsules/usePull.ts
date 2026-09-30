@@ -340,6 +340,11 @@ export function usePull(machine: MachineDef, active: boolean, options: PullOptio
       setSay(`Your ${token === 'ticket' ? 'ticket' : token} came back out. ${n.text}`);
       sfx.play('undo');
       resetMachine();
+      // A capsule already waits here (another window pulled it into this same save): open that one.
+      if (outcome.error === 'reveal-pending') {
+        const r = resumeFor(machine);
+        if (r) resume(r);
+      }
       return;
     }
 

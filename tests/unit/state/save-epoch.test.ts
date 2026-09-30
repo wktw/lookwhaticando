@@ -5,7 +5,7 @@
  * "(shape)" marks those that failed there only because `saveEpoch` did not exist yet.
  */
 import { afterEach, describe, expect, it } from 'vitest';
-import { SAVE_KEY, readSave } from '@/state/persist';
+import { SAVE_KEY, encodeEnvelope, mintGen, peekHead, readSave } from '@/state/persist';
 import * as store from '@/state/store';
 import type { PendingReveal } from '@/state/types';
 import { fakeBrowser, fakeLocks, type FakeBrowser } from './fixtures';
@@ -69,6 +69,23 @@ describe('saveEpoch moves whenever the save shown is replaced, and only then (sh
     c.storage.removeItem(SAVE_KEY);
     c.fire('storage', { key: SAVE_KEY, newValue: null });
     expect(store.crossWindowNotice.value).toBe('started-over');
+    expect(store.saveEpoch.value).toBeGreaterThan(was);
+  });
+
+  it('another window’s newer write of the same save does not move it; another lineage does (WP-A8 review)', () => {
+    const b = boot();
+    const write = (gen: string | undefined, name: string) => {
+      const head = peekHead(b.storage, SAVE_KEY)!;
+      const text = encodeEnvelope({ ...store.state.value, profile: { ...store.state.value.profile, name } }, head.rev + 1, b.clock.now, 'test', gen ?? head.gen);
+      b.storage.setItem(SAVE_KEY, text);
+      b.fire('storage', { key: SAVE_KEY, newValue: text });
+    };
+    const was = store.saveEpoch.value;
+    write(undefined, 'Samira');
+    expect(store.state.value.profile.name).toBe('Samira');
+    expect(store.saveEpoch.value).toBe(was);
+    write(mintGen(), 'Kit');
+    expect(store.state.value.profile.name).toBe('Kit');
     expect(store.saveEpoch.value).toBeGreaterThan(was);
   });
 

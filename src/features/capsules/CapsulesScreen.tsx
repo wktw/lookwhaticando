@@ -86,6 +86,14 @@ export function CapsulesScreen({ onPlace, onLetThemChoose }: PlaceHandlers & { c
   const [sheet, setSheet] = useState<SheetName>(null);
   const [ordered, setOrdered] = useState<Ordered | null>(unfinishedOrder);
   const orderButton = useRef<HTMLElement | null>(null);
+  // An order on show belongs to its save: when another save comes in, it goes, and the new save's
+  // own unfinished order (if any) is shown instead (WP-A8, INV-7).
+  const orderEpoch = useRef(epoch);
+  useEffect(() => {
+    if (orderEpoch.current === epoch) return;
+    orderEpoch.current = epoch;
+    setOrdered(unfinishedOrder());
+  }, [epoch]);
 
   // A capsule whose cabinet has left the counter: shown here, until it has been opened once.
   const away = waiting && !waiting.onCounter ? waiting.pending : null;
@@ -157,8 +165,9 @@ export function CapsulesScreen({ onPlace, onLetThemChoose }: PlaceHandlers & { c
           onLetThemChoose={onLetThemChoose}
         />
       )}
-      {ordered && (
+      {ordered && ordered.epoch === epoch && (
         <RevealOverlay
+          key={ordered.epoch}
           data={ordered.data}
           light={light}
           onClose={() => {
