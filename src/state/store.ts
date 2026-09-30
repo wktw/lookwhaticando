@@ -62,11 +62,13 @@ import {
   memoryStorage,
   mintGen,
   mirrorTheme,
+  parseEnvelope,
   peekHead,
   readJson,
   readSave,
   removeKey,
   removeNamespace,
+  safeGet,
   writeBackup,
   writeJson,
   type FlushOutcome,
@@ -355,7 +357,7 @@ function retireQueue(): void {
 }
 
 function makeQueue(key: string, head: SaveHead): SaveQueue {
-  return new SaveQueue({
+  const q = new SaveQueue({
     storage: storage(),
     key,
     appVersion: rt.appVersion,
@@ -375,6 +377,11 @@ function makeQueue(key: string, head: SaveHead): SaveQueue {
       else if (status === 'saved' && readOnly.value === 'storage-full') readOnly.value = false;
     },
   });
+  // Nothing is written before the writer lock answers (FS4, P-persistence-03), from whichever
+  // path made the queue meanwhile (leaving the demo, starting over): the grant releases it, a
+  // refusal drops what it holds.
+  if (ownership.value === 'acquiring') q.hold();
+  return q;
 }
 
 /** Swaps the save queue (flushing the old one first, then retiring it). */
@@ -499,15 +506,24 @@ function snapshotToday(): void {
  */
 let recoveryCopies: { key: string; backup?: string; damaged?: string } | null = null;
 
+/**
+ * Writes the recovery copies once this window owns the save. They are copies of what is on disk
+ * *now*: another window may have replaced, reset or repaired the save since it was read here, and
+ * a copy of the text read then would bring the old save back through the `:backup` fallback (FS3).
+ * So the damaged text is kept aside only while it is still the main save, and `:backup` gets the
+ * good save on disk now (the one read then, or whatever replaced it), never a newer catkin's save
+ * or a damaged one.
+ */
 function writeRecoveryCopies(): void {
   if (!recoveryCopies || !ownsSave()) return;
   const { key, backup, damaged } = recoveryCopies;
   recoveryCopies = null;
   const store = storage();
+  const onDisk = safeGet(store, key);
   // keepDamaged may fail (full storage): the damaged text then stays under the main key until
   // this window's next save, as before.
-  if (damaged !== undefined) keepDamaged(store, key, damaged);
-  if (backup !== undefined) writeBackup(store, key, backup);
+  if (damaged !== undefined && onDisk === damaged) keepDamaged(store, key, damaged);
+  if (backup !== undefined && onDisk !== null && (onDisk === backup || parseEnvelope(onDisk).kind === 'ok')) writeBackup(store, key, onDisk);
 }
 
 /**
@@ -543,6 +559,16 @@ function giveUpLock(): void {
 }
 
 /**
+ * A newer catkin's save was shown read-only and it is gone, or an ordinary one is back: another
+ * window may own the save now, and Use here can take it.
+ */
+function leaveNewerVersion(): void {
+  if (readOnly.value !== 'newer-version') return;
+  readOnly.value = 'other-window';
+  if (loadIssue.value?.kind === 'newer-version') loadIssue.value = null;
+}
+
+/**
  * Where an adoption comes from. The loads (boot, Use here, leaving the demo) always take what is on
  * disk; the watchers (another window's storage event, the writer lock's grant) take it only when
  * it is a different save or a newer write of this one.
@@ -556,8 +582,8 @@ type AdoptContext = 'hydrate' | 'storage' | 'use-here' | 'grant' | 'exit-demo';
  * | Result  | Action |
  * |---------|--------|
  * | newer   | read-only 'newer-version'; the lock is given up and never asked for; nothing written |
- * | corrupt | recovery: the damaged text is kept aside once this window owns the save; a load starts fresh, a watcher keeps what it shows; nothing written over the damaged save here |
- * | empty   | a save that was on disk is gone (started over or erased elsewhere): adopt the deletion, a fresh state and lineage, and the "started over" note |
+ * | corrupt | recovery: the damaged text is kept aside once this window owns the save; boot starts fresh, every other path keeps what it shows (on a new lineage, so other windows take in what it writes next); nothing written over the damaged save here |
+ * | empty   | a save that was on disk is gone (started over or erased elsewhere): adopt the deletion, a fresh state and lineage, and the "started over" note. The demo's own key going is not the person's save: the demo stays as it is |
  * | ok      | adopt when its `gen` differs or its `rev` is higher (a load always adopts); pending changes of the old save are dropped |
  *
  * It never writes the main save; recovery copies wait for ownership (`writeRecoveryCopies`).
@@ -582,14 +608,26 @@ function adopt(res: LoadResult, context: AdoptContext): void {
     case 'corrupt':
       loadIssue.value = { kind: 'corrupt-save', details: res.errors };
       recoveryCopies = { key, damaged: res.raw };
-      if (load) {
-        queue?.discardPending();
+      if (context === 'hydrate') {
         startFresh(ms);
         saveReplaced();
+      } else {
+        // Anywhere else the window already shows a good save (Use here, leaving the demo: the
+        // copy it has; a watcher: the save as it last read it). It keeps that, never a blank one,
+        // and what it writes next (after the damaged text is kept aside) is a new lineage.
+        setHead({ gen: mintGen(), rev: head.rev });
       }
       break;
     case 'empty':
-      if (head.rev === 0) {
+      if (demoMode.value) {
+        // The demo's own key went (another window started over, or its demo did). The demo is not
+        // the person's save: it stays as it is here, with no note, and what it writes next is a new
+        // demo lineage. The real save's own deletion is adopted on leaving the demo.
+        if (head.rev > 0) setHead({ gen: mintGen(), rev: 0 });
+        else if (load) setHead(head);
+        break;
+      }
+      if (head.rev === 0 && readOnly.value !== 'newer-version') {
         // Nothing of this save was on disk, so nothing was deleted.
         if (context === 'hydrate') startFresh(ms);
         else if (load) setHead(head);
@@ -599,8 +637,8 @@ function adopt(res: LoadResult, context: AdoptContext): void {
       startFresh(ms);
       lastSnapshotDay = null;
       recoveryCopies = null;
-      // The demo's own key coming and going (another window's demo starting over) is not news.
-      if (!demoMode.value) crossWindowNotice.value = 'started-over';
+      crossWindowNotice.value = 'started-over';
+      leaveNewerVersion();
       saveReplaced();
       break;
     case 'ok': {
@@ -613,12 +651,7 @@ function adopt(res: LoadResult, context: AdoptContext): void {
         loadIssue.value = { kind: 'recovered-from-backup' };
         recoveryCopies = res.damaged !== undefined ? { key, damaged: res.damaged } : null;
       } else if (context === 'hydrate') recoveryCopies = { key, backup: res.raw };
-      // A newer catkin's save was shown read-only and an ordinary one is back: another window may
-      // own it now, and Use here can take it.
-      if (readOnly.value === 'newer-version') {
-        readOnly.value = 'other-window';
-        if (loadIssue.value?.kind === 'newer-version') loadIssue.value = null;
-      }
+      leaveNewerVersion();
       saveReplaced();
       break;
     }

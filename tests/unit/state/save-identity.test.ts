@@ -12,6 +12,7 @@ import { createInitialState } from '@/state/defaults';
 import * as persist from '@/state/persist';
 import { SAVE_KEY, THEME_KEY, backupKeyOf, corruptKeyOf, encodeEnvelope, parseEnvelope, removeNamespace } from '@/state/persist';
 import * as store from '@/state/store';
+import type { LockManagerLike } from '@/state/store';
 import type { AppState } from '@/state/types';
 import { deferredLocks, fakeBrowser, fakeLocks } from './fixtures';
 
@@ -408,5 +409,381 @@ describe('preserved: adoption of a newer rev and the Use here flow', () => {
     b.advance(1000);
     expect(saved(b)).toMatchObject({ rev: 8, gen: OLD_GEN });
     expect(hasWalk(saved(b).state)).toBe(true);
+  });
+});
+
+/*
+ * Review follow-ups (WP-A2 adversarial review, 30 September 2026). The ones marked "failed before"
+ * failed against b053e0a; the others pin behaviour that a mutation of `store.ts` could remove with
+ * the rest of the suite still green.
+ */
+
+const joState = (now: number): AppState => {
+  const fresh = createInitialState(now);
+  return { ...fresh, profile: { ...fresh.profile, name: 'Jo', onboarded: true } };
+};
+const backupOf = (b: ReturnType<typeof fakeBrowser>) => JSON.parse(b.storage.getItem(backupKeyOf(SAVE_KEY))!) as Saved;
+
+/** Every key written (not the theme mirror), and every snapshot put. */
+function watchWrites(b: ReturnType<typeof fakeBrowser>) {
+  const keys: string[] = [];
+  const set = b.storage.setItem;
+  b.storage.setItem = (k: string, v: string) => {
+    if (k !== THEME_KEY) keys.push(k);
+    set(k, v);
+  };
+  return { keys, put: vi.spyOn(b.snapshots, 'put') };
+}
+
+describe('review: the :backup written at the grant is the save on disk then, never the one read at boot', () => {
+  it('a new lineage written before the grant (its deletion event unseen): :backup holds it, not the old save (failed before)', async () => {
+    const locks = deferredLocks();
+    const s = livedIn();
+    const b = fakeBrowser({ locks });
+    b.storage.setItem(SAVE_KEY, envelope(s, 5, { gen: OLD_GEN }));
+    store.hydrate();
+    removeNamespace(b.storage);
+    b.storage.setItem(SAVE_KEY, envelope(joState(b.clock.now), 1, { gen: NEW_GEN }));
+    await locks.grant();
+    expect(store.state.value.profile.name).toBe('Jo');
+    expect(backupOf(b)).toMatchObject({ gen: NEW_GEN, rev: 1 });
+    expect(hasWalk(backupOf(b).state)).toBe(false);
+  });
+
+  it('refused at boot, a new lineage adopted by its event, then Use here: :backup holds the new lineage (failed before)', async () => {
+    const locks = deferredLocks();
+    const s = livedIn();
+    const b = fakeBrowser({ locks });
+    b.storage.setItem(SAVE_KEY, envelope(s, 5, { gen: OLD_GEN }));
+    store.hydrate();
+    await locks.refuse();
+    const imported = envelope(joState(b.clock.now), 40, { gen: NEW_GEN });
+    b.storage.setItem(SAVE_KEY, imported);
+    b.storage.setItem(backupKeyOf(SAVE_KEY), imported);
+    b.fire('storage', { key: SAVE_KEY });
+    expect(store.state.value.profile.name).toBe('Jo');
+    store.useHere();
+    await locks.grant();
+    expect(store.ownership.value).toBe('granted');
+    expect(backupOf(b)).toMatchObject({ gen: NEW_GEN, rev: 40 });
+  });
+
+  it('a damaged main save that another window replaced before the grant is not kept aside as :corrupt (failed before)', async () => {
+    const locks = deferredLocks();
+    const s = livedIn();
+    const b = fakeBrowser({ locks });
+    b.storage.setItem(SAVE_KEY, '{"v":1,"state":{"version":1');
+    b.storage.setItem(backupKeyOf(SAVE_KEY), envelope(s, 3, { gen: OLD_GEN }));
+    store.hydrate();
+    // Started over elsewhere, and a new profile written: the damaged text is gone with the rest.
+    removeNamespace(b.storage);
+    b.storage.setItem(SAVE_KEY, envelope(joState(b.clock.now), 1, { gen: NEW_GEN }));
+    await locks.grant();
+    expect(store.state.value.profile.name).toBe('Jo');
+    expect(b.storage.getItem(corruptKeyOf(SAVE_KEY))).toBeNull();
+  });
+});
+
+describe('review: the demo’s own key going away', () => {
+  it('a window in the demo keeps showing it, with no notice, and leaving it still adopts the reset (failed before)', () => {
+    const b = fakeBrowser();
+    store.hydrate();
+    store.completeOnboarding({ name: 'Sam', templateIds: [] });
+    store.createHabit(input());
+    b.advance(1000);
+    expect(store.enterDemo()).toBe(true);
+    b.advance(1000);
+    const demo = store.state.value;
+    expect(demo.profile.onboarded).toBe(true);
+    removeNamespace(b.storage); // another window started over: the demo's key goes too
+    b.fire('storage', { key: persist.DEMO_KEY, newValue: null });
+    expect(store.demoMode.value).toBe(true);
+    expect(store.state.value.profile.onboarded).toBe(true);
+    expect(store.state.value.habits.length).toBe(demo.habits.length);
+    expect(store.crossWindowNotice.value).toBeNull();
+    store.exitDemo();
+    expect(hasWalk(store.state.value)).toBe(false);
+    expect(store.crossWindowNotice.value).toBe('started-over');
+  });
+
+  it('a read-only window in the demo is not left on a blank, un-onboarded demo it cannot finish (failed before)', async () => {
+    const locks = fakeLocks({ byOther: false });
+    const b = fakeBrowser({ locks });
+    store.hydrate();
+    await settle();
+    store.completeOnboarding({ name: 'Sam', templateIds: [] });
+    b.advance(1000);
+    expect(store.enterDemo()).toBe(true);
+    locks.stolen(); // Use here in the other window
+    await settle();
+    expect(store.readOnly.value).toBe('other-window');
+    removeNamespace(b.storage);
+    b.fire('storage', { key: persist.DEMO_KEY, newValue: null });
+    expect(store.demoMode.value).toBe(true);
+    expect(store.state.value.profile.onboarded).toBe(true);
+  });
+});
+
+describe('review: a newer catkin’s save shown read-only, then gone or back to an ordinary one', () => {
+  function newerFollower() {
+    const b = fakeBrowser({ locks: fakeLocks({ byOther: true }) });
+    b.storage.setItem(SAVE_KEY, envelope(newer(b.clock.now), 12, { v: 2, gen: OLD_GEN }));
+    store.hydrate();
+    expect(store.readOnly.value).toBe('newer-version');
+    return b;
+  }
+
+  it('a deletion moves it to other-window, so Use here can take the empty save (failed before)', async () => {
+    const b = newerFollower();
+    b.storage.removeItem(SAVE_KEY);
+    b.fire('storage', { key: SAVE_KEY, newValue: null });
+    expect(store.readOnly.value).toBe('other-window');
+    expect(store.loadIssue.value).toBeNull();
+    expect(store.crossWindowNotice.value).toBe('started-over');
+    store.useHere();
+    await settle();
+    expect(store.readOnly.value).toBe(false);
+    expect(store.ownership.value).toBe('granted');
+    store.completeOnboarding({ name: 'Jo', templateIds: [] });
+    b.advance(1000);
+    expect(saved(b)).toMatchObject({ v: 1, state: { profile: { name: 'Jo' } } });
+  });
+
+  it('an ordinary v1 save coming back moves it to other-window, and Use here takes that save', async () => {
+    const b = newerFollower();
+    b.storage.setItem(SAVE_KEY, envelope(joState(b.clock.now), 13, { gen: NEW_GEN }));
+    b.fire('storage', { key: SAVE_KEY });
+    expect(store.readOnly.value).toBe('other-window');
+    expect(store.loadIssue.value).toBeNull();
+    expect(store.state.value.profile.name).toBe('Jo');
+    store.useHere();
+    await settle();
+    expect(store.readOnly.value).toBe(false);
+    store.setName('Jo here');
+    b.advance(1000);
+    expect(saved(b)).toMatchObject({ v: 1, rev: 14, gen: NEW_GEN });
+  });
+});
+
+describe('review: a deletion seen by a window with its own queue drops the pending change', () => {
+  it('without Web Locks: a debounced change is not written back over the reset', () => {
+    const s = livedIn();
+    const b = fakeBrowser();
+    b.storage.setItem(SAVE_KEY, envelope(s, 5, { gen: OLD_GEN }));
+    store.hydrate();
+    b.advance(1000);
+    store.setName('Typed here'); // debounced, still pending
+    removeNamespace(b.storage);
+    b.fire('storage', { key: SAVE_KEY, newValue: null });
+    b.advance(60_000);
+    store.flushSaves();
+    const raw = b.storage.getItem(SAVE_KEY);
+    expect(raw === null || !hasWalk(saved(b).state)).toBe(true);
+  });
+
+  it('while the lock is asked for: a held change is not written at the grant', async () => {
+    const locks = deferredLocks();
+    const s = livedIn();
+    const b = fakeBrowser({ locks });
+    b.storage.setItem(SAVE_KEY, envelope(s, 5, { gen: OLD_GEN }));
+    store.hydrate();
+    store.setName('Held here');
+    removeNamespace(b.storage);
+    b.fire('storage', { key: SAVE_KEY, newValue: null });
+    await locks.grant();
+    b.advance(60_000);
+    store.flushSaves();
+    const raw = b.storage.getItem(SAVE_KEY);
+    expect(raw === null || !hasWalk(saved(b).state)).toBe(true);
+  });
+
+  it('a read-only tab that never saw the deletion takes a new rev-1 lineage over its rev 5 by gen alone', async () => {
+    const s = livedIn();
+    const b = fakeBrowser({ locks: fakeLocks({ byOther: true }) });
+    b.storage.setItem(SAVE_KEY, envelope(s, 5, { gen: OLD_GEN }));
+    store.hydrate();
+    await settle();
+    expect(store.readOnly.value).toBe('other-window');
+    b.storage.setItem(SAVE_KEY, envelope(joState(b.clock.now), 1, { gen: NEW_GEN }));
+    b.fire('storage', { key: SAVE_KEY });
+    expect(store.state.value.profile.name).toBe('Jo');
+    expect(hasWalk(store.state.value)).toBe(false);
+  });
+
+  it('a storage event with a null key (another window cleared storage) adopts the deletion', async () => {
+    const s = livedIn();
+    const b = fakeBrowser({ locks: fakeLocks({ byOther: true }) });
+    b.storage.setItem(SAVE_KEY, envelope(s, 5, { gen: OLD_GEN }));
+    store.hydrate();
+    await settle();
+    b.storage.data.clear(); // as clear() in the other window
+    b.fire('storage', { key: null });
+    expect(hasWalk(store.state.value)).toBe(false);
+    expect(store.crossWindowNotice.value).toBe('started-over');
+  });
+});
+
+describe('review: nothing is written before the lock answers, on every path that makes a queue', () => {
+  it('leaving the demo while the lock is still asked for: the next edit waits, and a refusal drops it (failed before)', async () => {
+    const locks = deferredLocks();
+    const s = livedIn();
+    const b = fakeBrowser({ locks });
+    b.storage.setItem(SAVE_KEY, envelope(s, 5, { gen: OLD_GEN }));
+    store.hydrate();
+    expect(store.ownership.value).toBe('acquiring');
+    expect(store.enterDemo()).toBe(true);
+    store.exitDemo();
+    store.setName('Written before grant');
+    b.advance(60_000);
+    store.flushSaves();
+    expect(saved(b).state.profile.name).toBe('Sam');
+    await locks.refuse();
+    b.advance(60_000);
+    expect(saved(b).state.profile.name).toBe('Sam');
+    expect(b.storage.getItem(persist.DEMO_KEY)).toBeNull();
+  });
+
+  it('undo import and restore while the lock is still asked for return false and write nothing', async () => {
+    const b = fakeBrowser();
+    store.hydrate();
+    store.completeOnboarding({ name: 'Sam', templateIds: [] });
+    store.checkIn(store.createHabit(input()));
+    b.advance(1000);
+    expect(await store.applyImport(store.backupJson())).toEqual({ ok: true });
+    b.advance(1000);
+    const pre = (await store.listSnapshots()).find((m) => m.kind === 'pre-import')!;
+    store.configureStore({ locks: deferredLocks() });
+    store.hydrate();
+    expect(store.ownership.value).toBe('acquiring');
+    const w = watchWrites(b);
+    const before = b.storage.getItem(SAVE_KEY);
+    expect(await store.undoImport()).toBe(false);
+    expect(await store.restoreSnapshot(pre.id)).toBe(false);
+    b.advance(60_000);
+    expect(w.keys).toEqual([]);
+    expect(w.put).not.toHaveBeenCalled();
+    expect(b.storage.getItem(SAVE_KEY)).toBe(before);
+  });
+
+  it('an undo of an import begins a new gen', async () => {
+    const b = fakeBrowser();
+    store.hydrate();
+    store.completeOnboarding({ name: 'Sam', templateIds: [] });
+    b.advance(1000);
+    expect(await store.applyImport(store.backupJson())).toEqual({ ok: true });
+    const afterImport = saved(b).gen;
+    expect(await store.undoImport()).toBe(true);
+    expect(saved(b).gen).toMatch(GEN);
+    expect(saved(b).gen).not.toBe(afterImport);
+  });
+});
+
+describe('review: a lock answer to a request this window has moved on from is given straight back', () => {
+  /** Web Locks whose every request is answered (or failed) by the test, in any order. */
+  function manualLocks() {
+    const reqs: { answer(lock: unknown): Promise<void>; fail(e: unknown): Promise<void>; returned: unknown; settled: boolean }[] = [];
+    const locks: LockManagerLike = {
+      request(_name, _options, callback) {
+        return new Promise<unknown>((resolve, reject) => {
+          const r = {
+            returned: undefined as unknown,
+            settled: false,
+            async answer(lock: unknown) {
+              r.returned = callback(lock);
+              void Promise.resolve(r.returned).then(
+                (v) => {
+                  r.settled = true;
+                  resolve(v);
+                },
+                reject,
+              );
+              await settle();
+            },
+            async fail(e: unknown) {
+              reject(e);
+              await settle();
+            },
+          };
+          reqs.push(r);
+        });
+      },
+    };
+    return { locks, reqs };
+  }
+
+  function twoRequests() {
+    const m = manualLocks();
+    const s = livedIn();
+    const b = fakeBrowser({ locks: m.locks });
+    b.storage.setItem(SAVE_KEY, envelope(s, 5, { gen: OLD_GEN }));
+    store.hydrate();
+    store.hydrate(); // a second boot asks again; the first request is still unanswered
+    expect(m.reqs.length).toBe(2);
+    return { b, reqs: m.reqs };
+  }
+
+  it('a late refusal of the first request leaves the second’s grant as it is', async () => {
+    const { reqs } = twoRequests();
+    await reqs[1]!.answer({ name: 'lock' });
+    expect(store.ownership.value).toBe('granted');
+    await reqs[0]!.answer(null);
+    expect(store.ownership.value).toBe('granted');
+    expect(store.readOnly.value).toBe(false);
+  });
+
+  it('a late grant of the first request is released at once, and releasing follows the second', async () => {
+    const { reqs } = twoRequests();
+    await reqs[1]!.answer({ name: 'lock' });
+    await reqs[0]!.answer({ name: 'lock' });
+    expect(reqs[0]!.returned).toBeUndefined();
+    expect(reqs[0]!.settled).toBe(true);
+    expect(reqs[1]!.settled).toBe(false);
+    expect(store.ownership.value).toBe('granted');
+    store.hydrate(); // lets go of the lock it holds
+    await settle();
+    expect(reqs[1]!.settled).toBe(true);
+  });
+
+  it('a late failure of the first request does not demote the second’s grant', async () => {
+    const { reqs } = twoRequests();
+    await reqs[1]!.answer({ name: 'lock' });
+    await reqs[0]!.fail(new DOMException('aborted', 'AbortError'));
+    expect(store.ownership.value).toBe('granted');
+  });
+});
+
+describe('review: a damaged main save (no good :backup) coming in after boot', () => {
+  const DAMAGED = '{"v":1,"rev":9,"state":{"version":1';
+
+  it('a storage event keeps what the window shows, and records the issue', async () => {
+    const s = livedIn();
+    const b = fakeBrowser({ locks: fakeLocks({ byOther: true }) });
+    b.storage.setItem(SAVE_KEY, envelope(s, 5, { gen: OLD_GEN }));
+    store.hydrate();
+    await settle();
+    b.storage.setItem(SAVE_KEY, DAMAGED);
+    b.fire('storage', { key: SAVE_KEY });
+    expect(hasWalk(store.state.value)).toBe(true);
+    expect(store.loadIssue.value?.kind).toBe('corrupt-save');
+  });
+
+  it('Use here keeps the save it shows (never a blank one), keeps the damaged text aside first, then writes a new lineage (failed before)', async () => {
+    const s = livedIn();
+    const b = fakeBrowser({ locks: fakeLocks({ byOther: true }) });
+    b.storage.setItem(SAVE_KEY, envelope(s, 5, { gen: OLD_GEN }));
+    store.hydrate();
+    await settle();
+    b.storage.setItem(SAVE_KEY, DAMAGED);
+    store.useHere();
+    await settle();
+    expect(store.readOnly.value).toBe(false);
+    expect(hasWalk(store.state.value)).toBe(true);
+    expect(store.state.value.profile.name).toBe('Sam');
+    expect(b.storage.getItem(corruptKeyOf(SAVE_KEY))).toBe(DAMAGED);
+    store.setName('Sam here');
+    b.advance(1000);
+    expect(hasWalk(saved(b).state)).toBe(true);
+    expect(saved(b).gen).toMatch(GEN);
+    expect(saved(b).gen).not.toBe(OLD_GEN);
   });
 });

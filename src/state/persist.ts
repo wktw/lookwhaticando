@@ -131,7 +131,8 @@ export function isQuotaError(e: unknown): boolean {
   return err.name === 'QuotaExceededError' || err.name === 'NS_ERROR_DOM_QUOTA_REACHED' || err.code === 22 || err.code === 1014;
 }
 
-function safeGet(storage: KeyValueStorage, key: string): string | null {
+/** The text stored under `key`, or null (none, or storage that can't be read). */
+export function safeGet(storage: KeyValueStorage, key: string): string | null {
   try {
     return storage.getItem(key);
   } catch {
