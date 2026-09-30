@@ -321,6 +321,27 @@ describe('twist to open', () => {
     expect(capsule().getAttribute('aria-label')).toMatch(/2 more times/);
   });
 
+  it('WP-C2: a twist ended by a lost pointer capture (no pointerup) is over: the capsule levels, later moves do not twist it, and the next pointer click is a tap', async () => {
+    view = mount(<RevealOverlay data={secret} onClose={() => {}} />);
+    const el = capsule();
+    const art = el.firstElementChild as HTMLElement;
+    const at = (deg: number) => ({ clientX: Math.cos((deg * Math.PI) / 180) * 80, clientY: Math.sin((deg * Math.PI) / 180) * 80, pointerType: 'mouse' });
+    el.dispatchEvent(pointer('pointerdown', at(0)));
+    for (let a = 15; a <= 45; a += 15) await pause(0).then(() => el.dispatchEvent(pointer('pointermove', at(a))));
+    expect(art.style.getPropertyValue('--twist')).not.toBe('0.0deg');
+    el.dispatchEvent(pointer('lostpointercapture', at(45)));
+    await pause(0);
+    expect(art.style.getPropertyValue('--twist')).toBe('0.0deg');
+    // A mouse moving over the capsule afterwards, no button held: the twist is over, nothing turns.
+    for (let a = 60; a <= 90; a += 15) await pause(0).then(() => el.dispatchEvent(pointer('pointermove', at(a))));
+    expect(art.style.getPropertyValue('--twist')).toBe('0.0deg');
+    expect(capsule().getAttribute('aria-label')).toMatch(/3 more times/);
+    // A later pointer press's click (detail 1): after a finished twist it would be eaten.
+    capsule().dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, detail: 1 }));
+    await pause(0);
+    expect(capsule().getAttribute('aria-label')).toMatch(/2 more times/);
+  });
+
   it('control: the click that ends a twist is still not a second tap, and a keyboard activation after a finished twist is', async () => {
     view = mount(<RevealOverlay data={secret} onClose={() => {}} />);
     await twist(capsule(), 45);

@@ -182,11 +182,43 @@ describe('Arrange: a cancelled drag never moves a habit (WP-C2: UI2-05)', () => 
     expect(grip.closest('li')!.style.transform).toBe('');
   });
 
-  it('losing the pointer capture without a pointerup is a cancel too', async () => {
+  it('a lost pointer capture is not a cancel: moving the row down re-inserts it, and the drag goes on', async () => {
+    // Chromium drops the grip's capture when the list re-inserts the dragged row (a move down) and
+    // fires lostpointercapture mid-drag; the rest of the drag reaches the window (WP-C2 review).
     const grip = await dragWaterDown();
     await act(() => void grip.dispatchEvent(pointer('lostpointercapture', { clientY: 50, pointerType: 'touch' })));
-    expect(ids()).toEqual(['Drink water', 'Walk', 'Read']);
+    expect(shownOrder()).toEqual(['Walk', 'Read', 'Drink water']);
+    await act(() => void document.body.dispatchEvent(pointer('pointerup', { clientY: 50, pointerType: 'touch' })));
+    expect(ids()).toEqual(['Walk', 'Read', 'Drink water']);
+  });
+
+  it('a pointercancel reaching only the window (the capture already lost) still cancels', async () => {
+    await dragWaterDown();
+    await act(() => void window.dispatchEvent(pointer('pointercancel', { clientY: 50, pointerType: 'touch' })));
     expect(shownOrder()).toEqual(['Drink water', 'Walk', 'Read']);
+    await act(() => void document.body.dispatchEvent(pointer('pointerup', { clientY: 50, pointerType: 'touch' })));
+    expect(ids()).toEqual(['Drink water', 'Walk', 'Read']);
+  });
+
+  it('the page hidden mid-drag (an app switch) cancels it, and a later pointerup moves nothing', async () => {
+    const grip = await dragWaterDown();
+    Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'hidden' });
+    try {
+      await act(() => void document.dispatchEvent(new Event('visibilitychange')));
+    } finally {
+      delete (document as { visibilityState?: unknown }).visibilityState;
+    }
+    expect(shownOrder()).toEqual(['Drink water', 'Walk', 'Read']);
+    expect(grip.closest('li')!.style.transform).toBe('');
+    await act(() => void grip.dispatchEvent(pointer('pointerup', { clientY: 50, pointerType: 'touch' })));
+    expect(ids()).toEqual(['Drink water', 'Walk', 'Read']);
+  });
+
+  it('control: a visibilitychange to visible mid-drag is not a cancel', async () => {
+    const grip = await dragWaterDown();
+    await act(() => void document.dispatchEvent(new Event('visibilitychange')));
+    await act(() => void grip.dispatchEvent(pointer('pointerup', { clientY: 50, pointerType: 'touch' })));
+    expect(ids()).toEqual(['Walk', 'Read', 'Drink water']);
   });
 
   it('the window losing focus mid-drag cancels it, and a later pointerup moves nothing', async () => {
@@ -194,6 +226,13 @@ describe('Arrange: a cancelled drag never moves a habit (WP-C2: UI2-05)', () => 
     await act(() => void window.dispatchEvent(new Event('blur')));
     expect(shownOrder()).toEqual(['Drink water', 'Walk', 'Read']);
     await act(() => void grip.dispatchEvent(pointer('pointerup', { clientY: 50, pointerType: 'touch' })));
+    expect(ids()).toEqual(['Drink water', 'Walk', 'Read']);
+  });
+
+  it('leaving Arrange mid-drag (Done) takes the drag with it: a later pointerup on the window saves nothing', async () => {
+    await dragWaterDown();
+    await click(byText('Done'), 'Done');
+    await act(() => void window.dispatchEvent(pointer('pointerup', { clientY: 50, pointerType: 'touch' })));
     expect(ids()).toEqual(['Drink water', 'Walk', 'Read']);
   });
 

@@ -377,6 +377,37 @@ describe('Sheet gestures: a cancelled drag is not a release (UI2-05, P-ui-01)', 
     expect(panel.style.transform).toBe('');
   });
 
+  it('a mouse pull cancelled by a window pointercancel: back at rest, nothing closed, and a later pointerup does nothing', async () => {
+    const onClose = vi.fn();
+    const { panel, header } = await openDraft(onClose);
+    act(() => {
+      header.dispatchEvent(pointer('pointerdown', { clientY: 100 }));
+      window.dispatchEvent(pointer('pointermove', { clientY: 110 }));
+      window.dispatchEvent(pointer('pointermove', { clientY: 400 }));
+    });
+    expect(panel.style.transform).toBe('translateY(300px)');
+    act(() => void window.dispatchEvent(pointer('pointercancel', { clientY: 400 })));
+    expect(panel.style.transform).toBe('');
+    expect(panel.style.transition).toBe('');
+    act(() => void window.dispatchEvent(pointer('pointerup', { clientY: 400 })));
+    await act(() => sleep(20));
+    expect(onClose).not.toHaveBeenCalled();
+    expect(document.querySelector('[role="dialog"]')).toBe(panel);
+    expect(panel.style.transform).toBe('');
+  });
+
+  it('control: the same mouse pull released with a pointerup dismisses', async () => {
+    const onClose = vi.fn();
+    const { header } = await openDraft(onClose);
+    act(() => {
+      header.dispatchEvent(pointer('pointerdown', { clientY: 100 }));
+      window.dispatchEvent(pointer('pointermove', { clientY: 110 }));
+      window.dispatchEvent(pointer('pointermove', { clientY: 400 }));
+    });
+    act(() => void window.dispatchEvent(pointer('pointerup', { clientY: 400 })));
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
   it('unmounting mid mouse-drag leaves no window listeners behind', async () => {
     const onClose = vi.fn();
     const { header } = await openDraft(onClose);

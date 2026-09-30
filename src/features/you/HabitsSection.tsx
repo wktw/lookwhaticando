@@ -64,6 +64,8 @@ function ArrangeList({ habits }: { habits: Habit[] }) {
   const drag = useRef<Drag | null>(null);
   const focusAfter = useRef<{ id: string; which: 'grip' | 'up' | 'down' } | null>(null);
   const tops = useRef(new Map<string, number>());
+  /** Detaches the live drag's window listeners (see onPointerDown). */
+  const detach = useRef<(() => void) | null>(null);
   const byId = new Map(habits.map((h) => [h.id, h]));
   // A habit added or archived elsewhere while arranging: follow the save.
   const ids = order.filter((id) => byId.has(id)).concat(habits.filter((h) => !order.includes(h.id)).map((h) => h.id));
@@ -83,6 +85,15 @@ function ArrangeList({ habits }: { habits: Habit[] }) {
     if (d) {
       const el = rows.current.get(d.id);
       if (el) el.style.transform = `translateY(${d.y - d.startY - (el.offsetTop - d.startTop)}px)`;
+      // Dragged down, the row is re-inserted and the browser drops the grip's capture: take it back.
+      const grip = el?.querySelector<HTMLElement>('[data-move="grip"]');
+      if (grip?.isConnected && grip.hasPointerCapture?.(d.pointerId) === false) {
+        try {
+          grip.setPointerCapture(d.pointerId);
+        } catch {
+          // The pointer is gone: its pointerup or pointercancel is on its way to the window.
+        }
+      }
     }
     const f = focusAfter.current;
     if (f) {
@@ -111,6 +122,21 @@ function ArrangeList({ habits }: { habits: Habit[] }) {
     e.preventDefault();
     (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
     drag.current = { id, pointerId: e.pointerId, startY: e.clientY, startTop: el.offsetTop, y: e.clientY, from: ids };
+    // The drag listens on the window, not the grip: a row moving mid-drag re-inserts the grip and
+    // the browser drops its pointer capture (lostpointercapture), which is not the end of the drag.
+    const move = (ev: PointerEvent) => live.current.move(ev);
+    const up = (ev: PointerEvent) => live.current.end(ev);
+    const cancel = (ev: PointerEvent) => live.current.abort(ev);
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+    window.addEventListener('pointercancel', cancel);
+    const stop = onInterrupt(() => live.current.abort());
+    detach.current = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      window.removeEventListener('pointercancel', cancel);
+      stop();
+    };
     setDragging(id);
     haptic('light');
   };
@@ -138,6 +164,8 @@ function ArrangeList({ habits }: { habits: Habit[] }) {
   /** The row lets go of the finger: the transform goes, gliding back to its slot. */
   const letGo = (d: Drag) => {
     drag.current = null;
+    detach.current?.();
+    detach.current = null;
     setDragging(null);
     const el = rows.current.get(d.id);
     if (el) {
@@ -157,8 +185,9 @@ function ArrangeList({ habits }: { habits: Habit[] }) {
   };
 
   /**
-   * An abort (pointercancel, the capture lost without a pointerup, the window losing focus): the
-   * list goes back to the order the drag began with, and nothing is saved.
+   * An abort (pointercancel, the window losing focus or the page hidden): the list goes back to the
+   * order the drag began with, and nothing is saved. A lost pointer capture is not one: the list
+   * itself causes it when the dragged row moves down (see onPointerDown).
    */
   const abortDrag = (e?: PointerEvent) => {
     const d = drag.current;
@@ -166,9 +195,17 @@ function ArrangeList({ habits }: { habits: Habit[] }) {
     letGo(d);
     setOrder(d.from);
   };
-  const abortRef = useRef(abortDrag);
-  abortRef.current = abortDrag;
-  useEffect(() => (dragging ? onInterrupt(() => abortRef.current()) : undefined), [dragging]);
+  const live = useRef({ move: onPointerMove, end: endDrag, abort: abortDrag });
+  live.current = { move: onPointerMove, end: endDrag, abort: abortDrag };
+  // Leaving Arrange mid-drag: the window listeners go with the list.
+  useEffect(
+    () => () => {
+      detach.current?.();
+      detach.current = null;
+      drag.current = null;
+    },
+    [],
+  );
 
   return (
     <ol class={s.habits} aria-describedby="you-arrange-hint">
@@ -212,10 +249,6 @@ function ArrangeList({ habits }: { habits: Habit[] }) {
               aria-label={fillLine(HABITS_COPY.move, { habit: h.name })}
               aria-describedby="you-arrange-hint"
               onPointerDown={onPointerDown(id)}
-              onPointerMove={onPointerMove}
-              onPointerUp={endDrag}
-              onPointerCancel={abortDrag}
-              onLostPointerCapture={abortDrag}
               onKeyDown={(e) => {
                 const step = keyStep(e.key);
                 if (step === null) return;
