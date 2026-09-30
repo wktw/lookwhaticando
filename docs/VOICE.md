@@ -999,6 +999,7 @@ Say what happened and what to do. Never `failed`, never `Oops`, never a code in 
 | The demo waits for a save | "The demo opens once your last change is saved." |
 | Open in another window | "catkin is open in another window · Use here" |
 | A save from a newer catkin | "This save is from a newer catkin, so it opens read-only here. Update to make changes." |
+| Started over in another window (this window follows, and the note has a Close button). DEC-V: pending owner approval | "catkin was started over in another window, so it starts fresh here too. The daily copies stay on this device." |
 | The device clock went back | "The clock on this device reads earlier than catkin last saw. Coins and stamps wait until it’s right again." |
 | Safari tab storage | "In a Safari tab, a save can be cleared after 7 days. Keep catkin on your Home Screen to keep it safe." |
 | Copy didn't work | "Couldn’t copy. Select the text and copy it by hand." |

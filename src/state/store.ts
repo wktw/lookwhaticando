@@ -23,6 +23,12 @@
  * already scheduled (audit FS1). A failed write stays pending and is retried (audit data-d2), and
  * `durability` says what is true about the save right now.
  *
+ * Every save lineage has an identity (`gen`, beside the write counter `rev`), and every way this
+ * window takes a save in (boot, another window's storage event, Use here, leaving the demo, the
+ * writer lock's grant) goes through one `adopt()` and its rule table (audit data-d5, FS3). Recovery
+ * copies (`:backup`, `:corrupt`, the daily snapshot) are written only once this window owns the
+ * save, from the grant path (P-persistence-03).
+ *
  * Everything browser-specific (localStorage, IndexedDB, Web Locks, DOM events, timers, crypto) is
  * reached through `StoreRuntime`, which tests replace with `configureStore`.
  */
@@ -52,18 +58,21 @@ import {
   SaveQueue,
   UNDO_IMPORT_KEY,
   browserStorage,
-  corruptKeyOf,
-  loadSave,
+  keepDamaged,
   memoryStorage,
+  mintGen,
   mirrorTheme,
-  peekRev,
+  peekHead,
   readJson,
+  readSave,
   removeKey,
   removeNamespace,
   writeBackup,
   writeJson,
   type FlushOutcome,
   type KeyValueStorage,
+  type LoadResult,
+  type SaveHead,
   type SaveStatus,
   type Timers,
 } from './persist';
@@ -243,12 +252,25 @@ export const loadIssue = signal<null | { kind: 'recovered-from-backup' | 'corrup
 /**
  * The single-writer lock, as far as this window knows: 'acquiring' until Web Locks answers (saves
  * are held), 'granted' while this window owns the save, 'refused'/'stolen' when another window
- * does, 'unsupported' without Web Locks (best effort: this window writes).
+ * does ('refused' also when this window gave the lock up for a newer catkin's save), 'unsupported'
+ * without Web Locks (best effort: this window writes).
  */
 export const ownership = signal<'unsupported' | 'acquiring' | 'granted' | 'refused' | 'stolen'>('unsupported');
 
 /** No persistent storage this session: changes live only in memory and go when catkin closes. */
 export const volatileStorage = signal(false);
+
+/**
+ * Something another window did to the save that this window followed, for the shell to say:
+ * 'started-over' when the save was started over (or erased) there, so this window starts fresh
+ * too instead of keeping the old save on screen (audit FS3). Null once put away.
+ */
+export const crossWindowNotice = signal<null | 'started-over'>(null);
+
+/** Puts the cross-window note away. */
+export function dismissCrossWindowNotice(): void {
+  crossWindowNotice.value = null;
+}
 
 /**
  * What is true about the save right now (audit data-d1, data-d2, FS4). 'ok': every change so far is
@@ -306,20 +328,39 @@ export function hasUnsavedWork(): boolean {
   return volatileStorage.value || (queue?.hasPending ?? false);
 }
 
+/**
+ * The identity of the save this window shows while it has no queue (read-only, or between queues).
+ * With a queue, the queue's own `gen`/`rev` are the truth (`currentHead`).
+ */
+let shownHead: SaveHead = { gen: undefined, rev: 0 };
+
+/** The identity of the save this window's state belongs to (rev 0: nothing of it is on disk). */
+function currentHead(): SaveHead {
+  return queue ? { gen: queue.gen, rev: queue.rev } : shownHead;
+}
+
+/** Whether the save on disk (`peekHead`) is the one this window already shows. */
+function sameHead(disk: SaveHead | null, ours: SaveHead): boolean {
+  if (disk === null) return ours.rev === 0;
+  return disk.rev === ours.rev && disk.gen === ours.gen;
+}
+
 /** Retires the current queue (it never writes again) and forgets its status. */
 function retireQueue(): void {
+  if (queue) shownHead = { gen: queue.gen, rev: queue.rev };
   queue?.dispose();
   queue = null;
   if (saveStatus.value.status !== 'idle') saveStatus.value = { status: 'idle', rev: 0, chars: 0, at: rt.now() };
   if (readOnly.value === 'storage-full') readOnly.value = false;
 }
 
-function makeQueue(key: string, rev: number): SaveQueue {
+function makeQueue(key: string, head: SaveHead): SaveQueue {
   return new SaveQueue({
     storage: storage(),
     key,
     appVersion: rt.appVersion,
-    rev,
+    rev: head.rev,
+    ...(head.gen ? { gen: head.gen } : {}),
     now: rt.now,
     timers: rt.timers,
     volatile: rt.storage === null,
@@ -337,10 +378,19 @@ function makeQueue(key: string, rev: number): SaveQueue {
 }
 
 /** Swaps the save queue (flushing the old one first, then retiring it). */
-function switchQueue(key: string, rev: number): void {
+function switchQueue(key: string, head: SaveHead): void {
   queue?.flush();
   retireQueue();
-  queue = makeQueue(key, rev);
+  queue = makeQueue(key, head);
+}
+
+/**
+ * Starts a new save lineage for what this window writes next (an import, a restore): a new `gen`,
+ * so every other window adopts it whatever its `rev` (INV-3).
+ */
+function newLineage(): void {
+  if (queue) queue.gen = mintGen();
+  else if (writable()) queue = makeQueue(currentKey(), { gen: mintGen(), rev: currentHead().rev });
 }
 
 /** Whether a change must be written at once (wallet-changing, commit-before-animate). */
@@ -356,7 +406,7 @@ function urgent(prev: AppState, next: AppState): boolean {
  */
 function persist(prev: AppState, next: AppState, force = false): FlushOutcome | null {
   if (!writable()) return null;
-  queue ??= makeQueue(currentKey(), 0);
+  queue ??= makeQueue(currentKey(), shownHead);
   let status: FlushOutcome | null = null;
   if (force || prev.pendingReveal !== next.pendingReveal) status = queue.saveNow(next);
   else if (urgent(prev, next)) {
@@ -425,11 +475,13 @@ function replaceState(next: AppState): void {
 
 const LOCK_NAME = 'catkin:writer';
 let releaseLock: (() => void) | null = null;
+/** Which lock request is current: an answer to an older one is given straight back. */
+let lockTicket = 0;
 let unlisteners: Unlisten[] = [];
 let lastSnapshotDay: DateKey | null = null;
 
 function snapshotToday(): void {
-  // Recovery copies are written only by the window that owns the save (audit FS4, related hole).
+  // Recovery copies are written only by the window that owns the save (audit FS4, P-persistence-03).
   if (demoMode.value || !ownsSave()) return;
   const s = state.value;
   const day = today.value;
@@ -441,22 +493,181 @@ function snapshotToday(): void {
 }
 
 /**
+ * Recovery copies waiting for this window to own the save (P-persistence-03): the loaded save,
+ * kept as `:backup`, and a damaged save's text, kept aside under `:corrupt`. Written by
+ * `writeRecoveryCopies`, which does nothing until this window owns the save.
+ */
+let recoveryCopies: { key: string; backup?: string; damaged?: string } | null = null;
+
+function writeRecoveryCopies(): void {
+  if (!recoveryCopies || !ownsSave()) return;
+  const { key, backup, damaged } = recoveryCopies;
+  recoveryCopies = null;
+  const store = storage();
+  // keepDamaged may fail (full storage): the damaged text then stays under the main key until
+  // this window's next save, as before.
+  if (damaged !== undefined) keepDamaged(store, key, damaged);
+  if (backup !== undefined) writeBackup(store, key, backup);
+}
+
+/**
+ * Hook for WP-A8's `saveEpoch`, which does not exist yet: called whenever an adoption replaces what
+ * this window shows, so that callbacks scheduled against the old save can tell. When WP-A8 lands,
+ * it bumps the epoch here.
+ */
+function saveReplaced(): void {
+  // WP-A8: saveEpoch.value++ goes here.
+}
+
+/** Points this window at a save identity: its queue's, or (read-only) the one it shows. */
+function setHead(head: SaveHead): void {
+  shownHead = head;
+  if (queue) {
+    queue.rev = head.rev;
+    queue.gen = head.gen;
+  } else if (writable()) queue = makeQueue(currentKey(), head);
+}
+
+/** A new lineage with a fresh state: a first boot, a recovery, or a save started over elsewhere. */
+function startFresh(ms: number): void {
+  setState(createInitialState(ms), ms);
+  setHead({ gen: mintGen(), rev: 0 });
+}
+
+/** Gives the writer lock up (or declines one still on its way): a newer catkin's save is shown. */
+function giveUpLock(): void {
+  lockTicket++;
+  releaseLock?.();
+  releaseLock = null;
+  if (ownership.value === 'granted' || ownership.value === 'acquiring') ownership.value = 'refused';
+}
+
+/**
+ * Where an adoption comes from. The loads (boot, Use here, leaving the demo) always take what is on
+ * disk; the watchers (another window's storage event, the writer lock's grant) take it only when
+ * it is a different save or a newer write of this one.
+ */
+type AdoptContext = 'hydrate' | 'storage' | 'use-here' | 'grant' | 'exit-demo';
+
+/**
+ * The one adoption routine (WP-A2, INV-3). Every way a save comes into this window goes through
+ * this rule table, so a deletion, a new lineage or a newer schema is never missed on one path:
+ *
+ * | Result  | Action |
+ * |---------|--------|
+ * | newer   | read-only 'newer-version'; the lock is given up and never asked for; nothing written |
+ * | corrupt | recovery: the damaged text is kept aside once this window owns the save; a load starts fresh, a watcher keeps what it shows; nothing written over the damaged save here |
+ * | empty   | a save that was on disk is gone (started over or erased elsewhere): adopt the deletion, a fresh state and lineage, and the "started over" note |
+ * | ok      | adopt when its `gen` differs or its `rev` is higher (a load always adopts); pending changes of the old save are dropped |
+ *
+ * It never writes the main save; recovery copies wait for ownership (`writeRecoveryCopies`).
+ */
+function adopt(res: LoadResult, context: AdoptContext): void {
+  const key = currentKey();
+  const ms = rt.now();
+  const load = context === 'hydrate' || context === 'use-here' || context === 'exit-demo';
+  const head = currentHead();
+  switch (res.kind) {
+    case 'newer':
+      queue?.discardPending();
+      retireQueue();
+      shownHead = { gen: res.gen, rev: res.rev ?? 0 };
+      if (res.state) setState(res.state, ms);
+      else if (context === 'hydrate') setState(createInitialState(ms), ms);
+      readOnly.value = 'newer-version';
+      loadIssue.value = { kind: 'newer-version' };
+      giveUpLock();
+      saveReplaced();
+      return;
+    case 'corrupt':
+      loadIssue.value = { kind: 'corrupt-save', details: res.errors };
+      recoveryCopies = { key, damaged: res.raw };
+      if (load) {
+        queue?.discardPending();
+        startFresh(ms);
+        saveReplaced();
+      }
+      break;
+    case 'empty':
+      if (head.rev === 0) {
+        // Nothing of this save was on disk, so nothing was deleted.
+        if (context === 'hydrate') startFresh(ms);
+        else if (load) setHead(head);
+        break;
+      }
+      queue?.discardPending();
+      startFresh(ms);
+      lastSnapshotDay = null;
+      recoveryCopies = null;
+      // The demo's own key coming and going (another window's demo starting over) is not news.
+      if (!demoMode.value) crossWindowNotice.value = 'started-over';
+      saveReplaced();
+      break;
+    case 'ok': {
+      const differs = res.gen !== undefined && res.gen !== head.gen;
+      if (!load && !differs && res.rev <= head.rev) break; // this save, as shown or older
+      queue?.discardPending();
+      setState(res.state, ms);
+      setHead({ gen: res.gen, rev: res.rev });
+      if (res.fromBackup) {
+        loadIssue.value = { kind: 'recovered-from-backup' };
+        recoveryCopies = res.damaged !== undefined ? { key, damaged: res.damaged } : null;
+      } else if (context === 'hydrate') recoveryCopies = { key, backup: res.raw };
+      // A newer catkin's save was shown read-only and an ordinary one is back: another window may
+      // own it now, and Use here can take it.
+      if (readOnly.value === 'newer-version') {
+        readOnly.value = 'other-window';
+        if (loadIssue.value?.kind === 'newer-version') loadIssue.value = null;
+      }
+      saveReplaced();
+      break;
+    }
+  }
+  writeRecoveryCopies();
+}
+
+/**
+ * This window owns the save now (the writer lock was granted, or there is no Web Locks). The save
+ * is read again first, because another window may have changed it while this one waited (a newer
+ * catkin's save, a reset, a newer write: data-d5, FS3), and taken in through `adopt`. Then, in
+ * order: the recovery copies, the changes held for the lock, and the daily copy. Nothing but the
+ * held queue's own writes waits for this, and nothing here runs for a window that doesn't own the
+ * save (P-persistence-03).
+ */
+function whenOwned(): void {
+  const key = currentKey();
+  if (!sameHead(peekHead(storage(), key), currentHead())) adopt(readSave(storage(), key), 'grant');
+  if (!writable()) {
+    giveUpLock();
+    return;
+  }
+  writeRecoveryCopies();
+  if (queue?.isHeld) queue.release();
+  snapshotToday();
+}
+
+/**
  * Holds the single-writer Web Lock while this window owns the save (best effort without Web
  * Locks). Until the lock answers, saves are held; a refused window discards them and never writes.
  */
 function acquireLock(steal = false): void {
   const locks = rt.locks;
-  if (!locks) {
-    ownership.value = 'unsupported';
-    return;
-  }
+  const ticket = ++lockTicket;
   releaseLock?.();
   releaseLock = null;
+  if (!locks) {
+    ownership.value = 'unsupported';
+    whenOwned();
+    return;
+  }
   let granted = false;
   let answered = false;
   queue?.hold();
   ownership.value = 'acquiring';
   const request = locks.request(LOCK_NAME, steal ? { steal: true } : { ifAvailable: true }, (lock) => {
+    // An answer to a request this window has moved on from (a later request, a new boot, a newer
+    // catkin's save): give the lock straight back.
+    if (ticket !== lockTicket) return undefined;
     answered = true;
     if (!lock) {
       queue?.discardPending();
@@ -468,20 +679,18 @@ function acquireLock(steal = false): void {
     granted = true;
     ownership.value = 'granted';
     if (readOnly.value === 'other-window') readOnly.value = false;
-    queue?.release();
-    snapshotToday();
-    return new Promise<void>((resolve) => (releaseLock = resolve));
+    const held = new Promise<void>((resolve) => (releaseLock = resolve));
+    whenOwned();
+    return held;
   });
   request.catch(() => {
+    if (ticket !== lockTicket) return;
     // Web Locks failed before answering (e.g. unavailable in this context): best effort without
     // them, like a browser that has none, so the held saves are written after all.
     if (!granted) {
       if (answered) return;
       ownership.value = 'unsupported';
-      if (readOnly.value !== 'other-window') {
-        queue?.release();
-        snapshotToday();
-      }
+      if (readOnly.value !== 'other-window') whenOwned();
       return;
     }
     // Our lock was stolen by another window ("Use here" over there): stop writing, and retire the
@@ -492,86 +701,60 @@ function acquireLock(steal = false): void {
   });
 }
 
-/** Adopts a newer save written by another window (`storage` event), dropping our pending save. */
-function adoptFromStorage(): void {
-  const res = loadSave(storage(), currentKey());
-  if (res.kind !== 'ok') return;
-  queue?.discardPending();
-  setState(res.state, rt.now());
-  if (queue) queue.rev = res.rev;
-}
-
 /** Load the persisted save (or start fresh), run migrations, acquire the writer lock, begin auto-saving. */
 export function hydrate(): void {
   for (const u of unlisteners) u();
   unlisteners = [];
+  lockTicket++;
   releaseLock?.();
   releaseLock = null;
   retireQueue();
   demoMode.value = false;
   readOnly.value = false;
   loadIssue.value = null;
+  crossWindowNotice.value = null;
   lastSnapshotDay = null;
+  recoveryCopies = null;
+  shownHead = { gen: undefined, rev: 0 };
   ownership.value = rt.locks ? 'acquiring' : 'unsupported';
   volatileStorage.value = rt.storage === null;
-  const store = storage();
-  const res = loadSave(store, SAVE_KEY);
-  let initial: AppState;
-  let rev = 0;
-  switch (res.kind) {
-    case 'ok':
-      initial = res.state;
-      rev = res.rev;
-      if (res.fromBackup) loadIssue.value = { kind: 'recovered-from-backup' };
-      else writeBackup(store, SAVE_KEY, res.raw);
-      break;
-    case 'newer':
-      // Opened read-only (§11): the newer save is shown when it still reads as this schema.
-      initial = res.state ?? createInitialState(rt.now());
-      readOnly.value = 'newer-version';
-      loadIssue.value = { kind: 'newer-version' };
-      break;
-    case 'corrupt':
-      initial = createInitialState(rt.now());
-      loadIssue.value = { kind: 'corrupt-save', details: res.errors };
-      try {
-        store.setItem(corruptKeyOf(SAVE_KEY), res.raw);
-      } catch {
-        /* keep going: the corrupt text stays under the main key until the next save */
-      }
-      break;
-    default:
-      initial = createInitialState(rt.now());
-  }
-  queue = makeQueue(SAVE_KEY, rev);
-  if (rt.locks && writable()) queue.hold(); // nothing is written before the writer lock answers
-  setState(initial, rt.now());
+  adopt(readSave(storage(), SAVE_KEY), 'hydrate');
+  if (queue && rt.locks && writable()) queue.hold(); // nothing is written before the writer lock answers
   if (writable()) {
     actVoid(() => undefined);
-    mirrorTheme(store, state.value.settings);
+    mirrorTheme(storage(), state.value.settings);
   }
-  if (readOnly.value !== 'newer-version') acquireLock();
+  if (readOnly.peek() !== 'newer-version') acquireLock(); // (adopt may have made it read-only)
   if (rt.listen) {
     unlisteners.push(
       rt.listen('window', 'storage', (e) => {
+        // Another window wrote, replaced or removed the save (a null key: it cleared storage).
         const key = (e as StorageEvent).key;
-        if (key !== currentKey()) return;
-        const rev2 = peekRev(storage(), currentKey());
-        if (rev2 !== null && (!queue || rev2 > queue.rev)) adoptFromStorage();
+        if (key !== null && key !== currentKey()) return;
+        const k = currentKey();
+        if (sameHead(peekHead(storage(), k), currentHead())) return;
+        adopt(readSave(storage(), k), 'storage');
       }),
     );
   }
-  snapshotToday();
 }
 
-/** "Use here": take the save over from another window (reloads it first). */
+/**
+ * "Use here": take the save over from another window. It is read first: a newer catkin's save
+ * stays read-only and no lock is asked for (data-d5); a save started over elsewhere comes in as a
+ * fresh one, never the old one this window still showed (FS3). The save is read again when the
+ * lock is granted (`whenOwned`), in case it changed in between.
+ */
 export function useHere(): void {
   if (readOnly.value !== 'other-window') return;
-  const res = loadSave(storage(), currentKey());
+  const res = readSave(storage(), currentKey());
+  if (res.kind === 'newer') {
+    adopt(res, 'use-here');
+    return;
+  }
   retireQueue();
-  queue = makeQueue(currentKey(), res.kind === 'ok' ? res.rev : 0);
-  if (res.kind === 'ok') setState(res.state, rt.now());
   readOnly.value = false;
+  adopt(res, 'use-here');
   acquireLock(true);
 }
 
@@ -970,7 +1153,7 @@ export function completeOnboarding(opts: { name: string; templateIds: string[]; 
  */
 function ownSave(): AppState {
   if (!demoMode.value) return state.value;
-  const res = loadSave(storage(), SAVE_KEY);
+  const res = readSave(storage(), SAVE_KEY);
   return res.kind === 'ok' ? res.state : (realState ?? createInitialState(rt.now()));
 }
 
@@ -1048,7 +1231,8 @@ async function snapshotCurrent(): Promise<string | null> {
 /** Snapshot the current save, then replace it with the backup (never merge). Undo available for 24 h. */
 export async function applyImport(text: string, opts: { withoutUndo?: boolean } = {}): Promise<{ ok: true } | { ok: false; error: string }> {
   if (demoMode.value) return { ok: false, error: 'demo-mode' };
-  if (!writable()) return { ok: false, error: 'read-only' };
+  // Its undo copy and the undo note are written before the save: only by the owner (P-persistence-03).
+  if (!ownsSave()) return { ok: false, error: 'read-only' };
   const parsed = await parseBackupText(text);
   if (!parsed.ok) return { ok: false, error: parsed.error };
   const snapshotId = await snapshotCurrent().catch(() => null);
@@ -1057,6 +1241,7 @@ export async function applyImport(text: string, opts: { withoutUndo?: boolean } 
   // importing anyway (or there is nothing yet to lose).
   if (!snapshotId && !opts.withoutUndo && state.value.profile.onboarded) return { ok: false, error: 'no-undo' };
   if (snapshotId) writeJson(storage(), UNDO_IMPORT_KEY, { id: snapshotId, until: rt.now() + UNDO_IMPORT_MS });
+  newLineage();
   replaceState(parsed.state);
   return { ok: true };
 }
@@ -1069,9 +1254,10 @@ export function canUndoImport(): boolean {
 
 export async function undoImport(): Promise<boolean> {
   const info = readJson<{ id: string; until: number }>(storage(), UNDO_IMPORT_KEY);
-  if (!info || rt.now() >= info.until || demoMode.value || !writable()) return false;
+  if (!info || rt.now() >= info.until || demoMode.value || !ownsSave()) return false;
   const snap = await snapshots().get(info.id);
   if (!snap || !validateState(snap.state).ok) return false;
+  newLineage();
   replaceState(snap.state);
   removeKey(storage(), UNDO_IMPORT_KEY);
   return true;
@@ -1084,10 +1270,11 @@ export async function listSnapshots(): Promise<{ id: string; savedAt: number; ha
 
 /** Restores a snapshot (the current save is snapshotted first, so a restore can itself be undone). */
 export async function restoreSnapshot(id: string): Promise<boolean> {
-  if (demoMode.value || !writable()) return false;
+  if (demoMode.value || !ownsSave()) return false;
   const snap = await snapshots().get(id);
   if (!snap || !validateState(snap.state).ok) return false;
   await snapshotCurrent().catch(() => null);
+  newLineage();
   replaceState(snap.state);
   return true;
 }
@@ -1102,7 +1289,7 @@ export function resetAll(): void {
   if (demoMode.value) {
     retireQueue();
     for (const k of [DEMO_KEY, `${DEMO_KEY}:backup`, `${DEMO_KEY}:corrupt`]) removeKey(storage(), k);
-    queue = makeQueue(DEMO_KEY, 0);
+    queue = makeQueue(DEMO_KEY, { gen: mintGen(), rev: 0 });
     const ms = rt.now();
     const base = realState ?? state.value;
     const demo = buildDemo({ today: todayFor(base, ms), now: ms, local: rt.local, name: base.profile.name || 'Sam' });
@@ -1114,11 +1301,16 @@ export function resetAll(): void {
   demoMode.value = false;
   realState = null;
   lastSnapshotDay = null;
-  queue = makeQueue(SAVE_KEY, 0);
+  recoveryCopies = null;
+  crossWindowNotice.value = null;
+  // A new lineage: every other window adopts the reset, even after its rev starts again at 1.
+  queue = makeQueue(SAVE_KEY, { gen: mintGen(), rev: 0 });
   setState(createInitialState(rt.now()), rt.now());
 }
 
 let realState: AppState | null = null;
+/** The identity of the real save when the demo was opened (what leaving the demo compares with). */
+let realHead: SaveHead = { gen: undefined, rev: 0 };
 
 /**
  * Opens the demo under its own key; the real save is flushed and left untouched. Refused (false)
@@ -1130,9 +1322,10 @@ export function enterDemo(): boolean {
   const out = queue?.flush() ?? null;
   if (out !== null && out !== 'saved' && out !== 'volatile') return false;
   realState = state.value;
+  realHead = currentHead();
   demoMode.value = true;
-  const res = loadSave(storage(), DEMO_KEY);
-  switchQueue(DEMO_KEY, res.kind === 'ok' ? res.rev : 0);
+  const res = readSave(storage(), DEMO_KEY);
+  switchQueue(DEMO_KEY, res.kind === 'ok' ? { gen: res.gen, rev: res.rev } : { gen: mintGen(), rev: 0 });
   let demo: AppState;
   if (res.kind === 'ok') demo = res.state;
   else {
@@ -1144,16 +1337,20 @@ export function enterDemo(): boolean {
   return true;
 }
 
-/** Leaves the demo: its save stays in its own namespace; the real save is reloaded untouched. */
+/**
+ * Leaves the demo: its save stays in its own namespace; the real save is read again and taken in
+ * through `adopt`, so a save started over (or updated) in another window meanwhile comes in as it
+ * is now, never the copy this window left behind.
+ */
 export function exitDemo(): void {
   if (!demoMode.value) return;
   queue?.flush();
+  retireQueue();
   demoMode.value = false;
-  const res = loadSave(storage(), SAVE_KEY);
-  switchQueue(SAVE_KEY, res.kind === 'ok' ? res.rev : 0);
-  const real = res.kind === 'ok' ? res.state : (realState ?? createInitialState(rt.now()));
+  shownHead = realHead;
+  setState(realState ?? createInitialState(rt.now()), rt.now());
   realState = null;
-  setState(real, rt.now());
+  adopt(readSave(storage(), SAVE_KEY), 'exit-demo');
 }
 
 /**

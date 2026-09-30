@@ -2,7 +2,7 @@ import type { ComponentType } from 'preact';
 import { useEffect, useState } from 'preact/hooks';
 import { cx } from '@/ui/cx';
 import { SHELL_LINES } from '@/features/you/shellCopy';
-import { clockBehind, demoMode, durability, exitDemo, readOnly, useHere } from '@/state/store';
+import { clockBehind, crossWindowNotice, demoMode, dismissCrossWindowNotice, durability, exitDemo, readOnly, useHere } from '@/state/store';
 import { openHabitEditor } from '@/features/habits/open';
 import { onboardingActive } from '@/features/onboarding/progress';
 import { Icon } from '@/art/icons';
@@ -41,7 +41,7 @@ function putClockAway(): void {
 /**
  * The calm notes above every screen (VOICE §18): another window owns the save ("Use here"), a
  * newer catkin's save opened read-only, a save that didn't go through (or can't be kept at all),
- * the device clock behind,
+ * the save started over in another window (put away with Close), the device clock behind,
  * and, while peeking, the demo pill with "Leave the demo".
  */
 export function ShellBanners() {
@@ -58,6 +58,8 @@ export function ShellBanners() {
     if (d.kind === 'volatile') notes.push({ key: 'volatile', text: SHELL_LINES.volatile });
     else if (d.kind === 'failing') notes.push({ key: 'save', text: SHELL_LINES.save });
   }
+  // Another window started over (or erased the save), and this one followed it (audit FS3).
+  if (crossWindowNotice.value === 'started-over') notes.push({ key: 'started-over', text: SHELL_LINES.startedOver, close: dismissCrossWindowNotice });
   if (clockBehind.value && !clockAway.value) notes.push({ key: 'clock', text: SHELL_LINES.clock, close: putClockAway });
   const demo = demoMode.value;
   if (!notes.length && !demo) return null;

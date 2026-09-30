@@ -13,6 +13,7 @@ Playwright, Chromium only, reduced motion. Config: `playwright.config.ts`.
 | `layout.spec.ts` | phone-320 | no horizontal scroll at 320 px |
 | `single-file.spec.ts` | single-file | `catkin.html` opens from file://, shows the Test copy ribbon, renders every route, requests nothing outside itself |
 | `pwa.spec.ts` | pwa (preview only) | the service worker takes over, precaches no launch screens or screenshots, opens offline; every manifest image exists |
+| `windows.spec.ts` | two-windows | two pages in one context share the save and Web Locks: the second opens read-only, takes the save with Use here and starts over; the first follows it to a fresh start with the "started over in another window" note, takes the save back and writes nothing old (WP-A2; Chromium only, the WebKit run is WP-G1's) |
 
 Screens must keep exactly one visible `h1` inside `<main>`. When onboarding starts gating the first boot,
 teach `openRoute` in `support.ts` to start from a finished onboarding.

@@ -1,9 +1,13 @@
 /**
  * localStorage persistence (DESIGN §11 "Persistence", v1 §13.8 "Storage").
  *
- * - Envelope `{ v, appVersion, rev, savedAt, state }` under `catkin:v1` (the demo save lives
+ * - Envelope `{ v, appVersion, rev, savedAt, gen, state }` under `catkin:v1` (the demo save lives
  *   under `catkin:demo:v1`). `rev` increases with every write, so a window can tell a newer
- *   save written by another window (`storage` events) from its own.
+ *   save written by another window (`storage` events) from its own. `gen` names the save's
+ *   lineage (a random 128-bit id minted at a fresh start, a reset, an import and a restore), so a
+ *   window can also tell a save that was started over, whose `rev` begins again at 1, from an old
+ *   write of its own save (audit FS3). It is optional: a save without one is a legacy save, and
+ *   its next write mints one. Older builds read only v/rev/savedAt/state, so they ignore it.
  * - Every storage access is in try/catch; nothing here throws. A QuotaExceeded write retries after
  *   dropping the `:corrupt` copy, then after dropping `:backup` and compacting the state's stale
  *   ledger; the backup is put back if even that fails (so a failed save never costs the backup),
@@ -47,8 +51,30 @@ export interface Envelope {
   appVersion: string;
   rev: number;
   savedAt: number;
+  /** The save's lineage (absent in a legacy save, until its next write). */
+  gen?: string;
   state: AppState;
 }
+
+/** A save's identity: its lineage and its write (what a window compares before adopting it). */
+export interface SaveHead {
+  /** Undefined for a legacy save written before save identity existed. */
+  gen: string | undefined;
+  rev: number;
+}
+
+const GEN_RE = /^[0-9a-f]{32}$/;
+
+/** A new save lineage: a random 128-bit id, as 32 hex digits. */
+export function mintGen(): string {
+  const bytes = new Uint8Array(16);
+  const c = (globalThis as { crypto?: Crypto }).crypto;
+  if (c?.getRandomValues) c.getRandomValues(bytes);
+  else for (let i = 0; i < bytes.length; i++) bytes[i] = Math.floor(Math.random() * 256);
+  return [...bytes].map((x) => x.toString(16).padStart(2, '0')).join('');
+}
+
+const genOf = (v: unknown): string | undefined => (typeof v === 'string' && GEN_RE.test(v) ? v : undefined);
 
 /** A Map-backed Storage (tests, and a fallback when localStorage is unavailable). */
 export function memoryStorage(initial: Record<string, string> = {}, quotaChars = Infinity): KeyValueStorage & { data: Map<string, string> } {
@@ -127,8 +153,20 @@ function safeRemove(storage: KeyValueStorage, key: string): void {
 
 export type LoadResult =
   | { kind: 'empty' }
-  | { kind: 'ok'; state: AppState; rev: number; savedAt: number; migrated: boolean; raw: string; fromBackup: boolean }
-  | { kind: 'newer'; version: number; raw: string; state?: AppState }
+  | {
+      kind: 'ok';
+      state: AppState;
+      rev: number;
+      /** The save's lineage; undefined for a legacy save. */
+      gen?: string;
+      savedAt: number;
+      migrated: boolean;
+      raw: string;
+      fromBackup: boolean;
+      /** When read from `:backup`: the damaged main text, to keep aside under `:corrupt`. */
+      damaged?: string;
+    }
+  | { kind: 'newer'; version: number; raw: string; state?: AppState; rev?: number; gen?: string }
   | { kind: 'corrupt'; errors: string[]; raw: string };
 
 /** Parses, migrates and validates an envelope string. */
@@ -147,16 +185,19 @@ export function parseEnvelope(raw: string): Exclude<LoadResult, { kind: 'empty' 
   if (!m.ok) {
     if (m.error === 'newer-version') {
       const readable = validateState({ ...(env.state as object), version: SCHEMA_VERSION });
-      return readable.ok ? { kind: 'newer', version: m.version ?? env.v, raw, state: readable.state } : { kind: 'newer', version: m.version ?? env.v, raw };
+      const head = { ...(typeof env.rev === 'number' ? { rev: env.rev } : {}), ...(genOf(env.gen) ? { gen: genOf(env.gen) } : {}) };
+      return readable.ok ? { kind: 'newer', version: m.version ?? env.v, raw, state: readable.state, ...head } : { kind: 'newer', version: m.version ?? env.v, raw, ...head };
     }
     return { kind: 'corrupt', errors: [`migration: ${m.error}`], raw };
   }
   const valid = validateState(m.state);
   if (!valid.ok) return { kind: 'corrupt', errors: valid.errors, raw };
+  const gen = genOf(env.gen);
   return {
     kind: 'ok',
     state: valid.state,
     rev: typeof env.rev === 'number' ? env.rev : 0,
+    ...(gen ? { gen } : {}),
     savedAt: typeof env.savedAt === 'number' ? env.savedAt : 0,
     migrated: m.migrated,
     raw,
@@ -165,10 +206,11 @@ export function parseEnvelope(raw: string): Exclude<LoadResult, { kind: 'empty' 
 }
 
 /**
- * Loads the save under `key`. A corrupt save falls back to its `:backup` copy when that one is
- * valid (the corrupt text is kept aside under `:corrupt`, never destroyed).
+ * Reads the save under `key` and writes nothing. A corrupt save falls back to its `:backup` copy
+ * when that one is valid, and the damaged main text comes back as `damaged`, for the window that
+ * owns the save to keep aside (never destroyed; audit P-persistence-03).
  */
-export function loadSave(storage: KeyValueStorage, key: string): LoadResult {
+export function readSave(storage: KeyValueStorage, key: string): LoadResult {
   const raw = safeGet(storage, key);
   if (raw === null) return { kind: 'empty' };
   const main = parseEnvelope(raw);
@@ -176,12 +218,31 @@ export function loadSave(storage: KeyValueStorage, key: string): LoadResult {
   const backupRaw = safeGet(storage, backupKeyOf(key));
   if (backupRaw !== null) {
     const backup = parseEnvelope(backupRaw);
-    if (backup.kind === 'ok') {
-      trySet(storage, corruptKeyOf(key), raw);
-      return { ...backup, fromBackup: true };
-    }
+    if (backup.kind === 'ok') return { ...backup, fromBackup: true, damaged: raw };
   }
   return main;
+}
+
+/**
+ * Loads the save under `key` (`readSave`), keeping a damaged main text aside under `:corrupt` at
+ * once when it fell back to the backup. The store uses `readSave` and keeps it aside only once it
+ * owns the save; this is for tools and tests that own their storage outright.
+ */
+export function loadSave(storage: KeyValueStorage, key: string): LoadResult {
+  const res = readSave(storage, key);
+  if (res.kind === 'ok' && res.damaged !== undefined) keepDamaged(storage, key, res.damaged);
+  return res;
+}
+
+/** Keeps a damaged save's text aside under `:corrupt` (false when it couldn't be written). */
+export function keepDamaged(storage: KeyValueStorage, key: string, raw: string): boolean {
+  return trySet(storage, corruptKeyOf(key), raw).ok;
+}
+
+/** The envelope's head: the text before `"state":` (the writer puts every head field first). */
+function headOf(raw: string): string {
+  const at = raw.indexOf('"state":');
+  return raw.slice(0, at < 0 ? 300 : Math.min(at, 300));
 }
 
 /** The `rev` of the save under `key` without validating it (for `storage` events). */
@@ -190,6 +251,19 @@ export function peekRev(storage: KeyValueStorage, key: string): number | null {
   if (raw === null) return null;
   const m = /"rev":(\d+)/.exec(raw.slice(0, 200));
   return m ? Number(m[1]) : null;
+}
+
+/**
+ * The identity of the save under `key` (`gen` and `rev`) without parsing or validating it, or
+ * null when there is no save. A head that can't be read reads as a legacy save at rev 0.
+ */
+export function peekHead(storage: KeyValueStorage, key: string): SaveHead | null {
+  const raw = safeGet(storage, key);
+  if (raw === null) return null;
+  const head = headOf(raw);
+  const rev = /"rev":(\d+)/.exec(head);
+  const gen = /"gen":"([0-9a-f]{32})"/.exec(head);
+  return { gen: gen ? gen[1] : undefined, rev: rev ? Number(rev[1]) : 0 };
 }
 
 /* ------------------------------------------------------------------ */
@@ -207,8 +281,8 @@ function trySet(storage: KeyValueStorage, key: string, value: string): WriteResu
   }
 }
 
-export function encodeEnvelope(state: AppState, rev: number, savedAt: number, appVersion: string): string {
-  const env: Envelope = { v: state.version, appVersion, rev, savedAt, state };
+export function encodeEnvelope(state: AppState, rev: number, savedAt: number, appVersion: string, gen?: string): string {
+  const env: Envelope = { v: state.version, appVersion, rev, savedAt, ...(gen ? { gen } : {}), state };
   return JSON.stringify(env);
 }
 
@@ -249,6 +323,8 @@ export interface SaveQueueOptions {
   compact: (s: AppState) => AppState;
   onStatus?: (status: SaveStatus, info: { rev: number; chars?: number }) => void;
   debounceMs?: number;
+  /** The save's lineage; left out for a legacy save (the first write mints one). */
+  gen?: string;
   /** The storage is memory only (no persistent storage): writes report 'volatile', never 'saved'. */
   volatile?: boolean;
 }
@@ -264,6 +340,8 @@ export interface SaveQueueOptions {
  */
 export class SaveQueue {
   rev: number;
+  /** The lineage this queue writes (undefined until a legacy save's first write mints one). */
+  gen: string | undefined;
   private pending: AppState | null = null;
   private handle: unknown = null;
   private retryHandle: unknown = null;
@@ -275,6 +353,7 @@ export class SaveQueue {
 
   constructor(private readonly o: SaveQueueOptions) {
     this.rev = o.rev;
+    this.gen = o.gen;
   }
 
   /** A state waiting to be written (debounced, held for the lock, or after a failed write). */
@@ -404,15 +483,16 @@ export class SaveQueue {
     const { storage, key, appVersion } = this.o;
     const rev = this.rev + 1;
     const now = this.o.now();
-    let res = trySet(storage, key, encodeEnvelope(state, rev, now, appVersion));
+    const gen = (this.gen ??= mintGen());
+    let res = trySet(storage, key, encodeEnvelope(state, rev, now, appVersion, gen));
     if (!res.ok && res.reason === 'quota') {
       safeRemove(storage, corruptKeyOf(key));
-      res = trySet(storage, key, encodeEnvelope(state, rev, now, appVersion));
+      res = trySet(storage, key, encodeEnvelope(state, rev, now, appVersion, gen));
     }
     if (!res.ok && res.reason === 'quota') {
       const backup = safeGet(storage, backupKeyOf(key));
       safeRemove(storage, backupKeyOf(key));
-      res = trySet(storage, key, encodeEnvelope(this.o.compact(state), rev, now, appVersion));
+      res = trySet(storage, key, encodeEnvelope(this.o.compact(state), rev, now, appVersion, gen));
       if (!res.ok && backup !== null) trySet(storage, backupKeyOf(key), backup);
     }
     if (!res.ok) return res.reason === 'quota' ? 'storage-full' : 'unavailable';

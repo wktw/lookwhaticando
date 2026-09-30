@@ -9,6 +9,7 @@
  *  - phone-320: nothing scrolls sideways at 320 px (e2e/layout.spec.ts).
  *  - single-file: dist-single/catkin.html opened from file:// (e2e/single-file.spec.ts).
  *  - pwa: the service worker takes over and the app opens offline (preview only, e2e/pwa.spec.ts).
+ *  - two-windows: a second window starts over; the first follows it (e2e/windows.spec.ts).
  * All of them run Chromium with reduced motion, so nothing is mid-animation when axe reads it.
  */
 import { defineConfig, devices, type Project } from '@playwright/test';
@@ -36,6 +37,8 @@ const projects: Project[] = [
   { name: 'desktop-dark', testMatch: routes, use: { ...desktop, colorScheme: 'dark' } },
   { name: 'phone-320', testMatch: /layout\.spec\.ts$/, use: { ...phone, viewport: { width: 320, height: 640 } } },
   { name: 'single-file', testMatch: /single-file\.spec\.ts$/, use: { ...phone } },
+  // Two windows on one save (WP-A2): two pages in one context share storage and Web Locks.
+  { name: 'two-windows', testMatch: /windows\.spec\.ts$/, use: { ...desktop } },
   // The screens' own journeys (wave 2), phone and desktop, light and dark.
   { name: 'screens-phone-light', testMatch: screens, use: { ...phone, colorScheme: 'light' } },
   { name: 'screens-phone-dark', testMatch: screens, use: { ...phone, colorScheme: 'dark' } },
