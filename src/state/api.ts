@@ -223,10 +223,10 @@ export type BackupError = 'not-a-backup' | 'made-by-newer-version' | 'damaged-ba
  * - 'busy': another replacement is under way (they are one at a time).
  * - 'read-only' / 'demo-mode': this window can't replace the save now.
  * - 'unavailable': the daily copies can't be read right now; 'not-found': that copy is gone;
- *   'damaged-copy': it no longer reads as a save.
+ *   'damaged-copy': it no longer reads as a save; 'newer-copy': a newer catkin kept it (WP-A4).
  * - 'expired': there is no Undo to take (none, over 24 hours old, or for another save).
  */
-export type ReplaceError = 'not-saved' | 'no-undo' | 'superseded' | 'aborted' | 'busy' | 'read-only' | 'demo-mode' | 'unavailable' | 'not-found' | 'damaged-copy' | 'expired' | BackupError;
+export type ReplaceError = 'not-saved' | 'no-undo' | 'superseded' | 'aborted' | 'busy' | 'read-only' | 'demo-mode' | 'unavailable' | 'not-found' | 'damaged-copy' | 'newer-copy' | 'expired' | BackupError;
 
 /**
  * What a replacement did. `undo` is the Undo it promises (until when), or null when there is none:

@@ -432,6 +432,8 @@ export const DATA = {
   restoreSnapshot: 'Restore this copy',
   csv: 'Export waterings as CSV',
   csvFile: 'catkin-waterings-{date}.csv',
+  /** The CSV of a newer catkin's save: only what this catkin can read (WP-A4). DEC-V: pending owner approval. */
+  csvPartialFile: 'catkin-waterings-{date}-partial.csv',
   /** The CSV's header row and state words (`exportCsv`). */
   csvColumns: ['date', 'habit', 'count', 'target', 'state'],
   csvStates: { watered: 'watered', tiny: 'tiny', partial: 'partial', rest: 'rest' },

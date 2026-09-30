@@ -254,11 +254,16 @@ export function DataSection() {
   };
 
   // The share sheet on a phone (a blob download goes nowhere in an installed iPhone app), else a download.
+  // From a newer catkin's save it is only what this catkin can read, and says so (WP-A4).
   const csv = async () => {
     const file = exportCsv();
+    if (!file) {
+      toast({ key: 'csv', message: DATA_COPY.csvNewer, tone: 'butter' });
+      return;
+    }
     const outcome = await saveFile(file.name, file.text, 'text/csv');
     if (outcome === 'cancelled') return;
-    toast({ key: 'csv', message: outcome === 'downloaded-instead' ? ERRORS.share : DATA_COPY.csvSaved, tone: 'sage' });
+    toast({ key: 'csv', message: outcome === 'downloaded-instead' ? ERRORS.share : file.partial ? DATA_COPY.csvPartial : DATA_COPY.csvSaved, tone: 'sage' });
   };
 
   const undo = async () => {

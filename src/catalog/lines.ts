@@ -1193,6 +1193,8 @@ export const DATA_COPY = {
   superseded: 'The save changed just then, so nothing was replaced. Try again.',
   copyUnreadable: 'That copy can’t be read on this device right now, so nothing changed.',
   copyGone: 'That copy isn’t on this device any more, so nothing changed.',
+  /** A daily copy a newer catkin kept (WP-A4, P-persistence-04). DEC-V: pending owner approval. */
+  copyNewer: 'That copy is from a newer catkin. Update, then restore it.',
   /** An Undo no longer on offer (expired, or the save shown is another one): its copy may still be there. DEC-V: pending owner approval. */
   undoGone: 'That Undo isn’t on offer any more, so nothing changed.',
   cannotOpen: 'This browser can’t open that backup. Try the backup file instead.',
@@ -1207,6 +1209,13 @@ export const DATA_COPY = {
   copyTitle: 'Your backup',
   copyHelper: 'Select it all, copy it, and keep it somewhere safe.',
   csvSaved: 'Waterings saved.',
+  /**
+   * The CSV of a newer catkin's save shown read-only: only what this catkin can read of it, so it
+   * says so, in its note and its file name; and a newer save it can't read at all gives none (WP-A4,
+   * FS2). DEC-V: pending owner approval.
+   */
+  csvPartial: 'Saved the waterings this catkin can read. A backup keeps the whole newer save.',
+  csvNewer: 'This catkin can’t read the waterings in a newer save. A backup keeps all of it.',
   fileBuild: 'Saved in this browser, for this file',
 } as const;
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createInitialState } from '@/state/defaults';
-import { MIGRATIONS, fillDefaults, migrate } from '@/state/migrate';
+import { MIGRATIONS, fillAdditive, migrate } from '@/state/migrate';
 import {
   SAVE_KEY,
   SaveQueue,
@@ -169,17 +169,22 @@ describe('save envelope (DESIGN §13.8)', () => {
 });
 
 describe('migrations', () => {
-  it('current saves pass through; missing additive sections are filled from defaults', () => {
+  // Until WP-A4 this case asserted the blanket fill (pantry, offDays and ledger.daily filled from a
+  // fresh save, a wallet of { coins: 7 } completed): that fill is audit data-d6 itself. It now
+  // asserts the allowlist instead (tests/unit/state/decode.test.ts has the corpus and the table).
+  it('current saves pass through; only the allow-listed omissions are filled, anything else missing is damage (data-d6)', async () => {
+    const { decodeState } = await import('@/state/decode');
     const s = createInitialState(now) as unknown as Record<string, unknown>;
     expect(migrate(s)).toMatchObject({ ok: true, from: 1, migrated: false });
     const partial = { ...s } as Record<string, unknown>;
     delete partial.pantry;
     delete partial.offDays;
     partial.ledger = { recent: {}, sunshine: {}, bestStage: {}, once: {} };
-    const m = migrate(partial);
-    expect(m.ok && m.state.pantry).toEqual({});
-    expect(m.ok && (m.state.ledger as Record<string, unknown>).daily).toEqual({});
-    expect(fillDefaults({ wallet: { coins: 7 } }).wallet).toEqual({ coins: 7, stars: 0, stardust: 0, tickets: 0 });
+    const d = decodeState(partial, 'main');
+    expect(d.kind).toBe('corrupt');
+    expect(d.kind === 'corrupt' && d.errors).toEqual(expect.arrayContaining(['offDays: not an object', 'ledger.daily: not an object', 'pantry: not an object']));
+    expect(fillAdditive({ wallet: { coins: 7 } }, 1)).toEqual({ state: { wallet: { coins: 7 } }, filled: [] });
+    expect(fillAdditive({ settings: { weekStart: 1 } }, 1)).toEqual({ state: { settings: { weekStart: 1, showCompanions: true, compactToday: false, quoteNotes: true } }, filled: ['settings.showCompanions', 'settings.compactToday', 'settings.quoteNotes'] });
   });
 
   it('refuses newer, version-less and non-object saves', () => {
