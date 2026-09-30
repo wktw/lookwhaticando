@@ -1,10 +1,10 @@
 # catkin audit implementation plan
 
 - **Plan date:** 30 September 2026
-- **Planned against:** branch `claude/eloquent-hawking-v69lhr`, HEAD `d1554a0`, working tree clean.
+- **Planned against:** branch `claude/eloquent-hawking-v69lhr`, HEAD `d1554a0`, working tree clean. The only later commit, `e25a2b2`, is a WIP checkpoint of this document made outside this planning task; it changes no application file, so every `file:line` here still refers to the `d1554a0` source.
 - **Source audit:** `docs/audits/CATKIN_COMPREHENSIVE_AUDIT_2026-09-29.md` (main pin `c66f588`, first integrated pin `7d16f11`).
 - **Brief:** `docs/audits/OPUS_5_5_AUDIT_IMPLEMENTATION_PROMPT.txt`.
-- **Status of this document:** planning only. No application source, test, configuration or git state was changed to write it. Nothing here has been implemented. The recommended first package (§7.5) has not been started.
+- **Status of this document:** planning only. No application source, test or configuration was changed to write it, and this task made no commit. Nothing here has been implemented. The recommended first package (§7.5) has not been started.
 
 This plan maps every audit finding, every deeper second-pass entry, every substantive unnumbered risk and opportunity, and the native/subscription/release items to a current disposition, the evidence for it, and a work package or an explicit decision. It then orders the work, specifies each package, and defines how the fixes will be validated.
 
@@ -36,7 +36,8 @@ A green scratch reproduction is evidence of a defect, never an acceptance test. 
   - Deeper: `FS*`, `UI2-*`, `HM*`, `SHIP1`.
   - Release: `IOS*`, `SUB*`, `GLOBAL1`, `ACCESS1`.
   - First-pass aliases map as follows: first-pass persistence D1–D12 are `data-d1…d12`; first-pass domain D1–D7 are `domain-d1…d7`; first-pass I1–I7 are `integration-i1…i7`; W2-D1–D4 are `domain-w2-d1…d4`; CR-0x are `creative-cr-0x`; R201–R214 are reproduction numbers, not findings.
-- Local planning IDs give every unnumbered risk or opportunity a home: `P-persistence-NN`, `P-history-NN`, `P-ui-NN`, `P-creative-NN`, `P-release-NN`, the roadmap items `RM-1…RM-7`, and three new plan-level items `X-01…X-03`. Where two families named the same risk, one ID is primary and the others are listed as aliases. Aliases are never counted twice.
+- Local planning IDs give every unnumbered risk or opportunity a home: `P-persistence-NN`, `P-history-NN`, `P-ui-NN`, `P-creative-NN`, `P-release-NN`, the roadmap items `RM-1…RM-7`, the validation items `VAL-1…VAL-3`, and three new plan-level items `X-01…X-03`. Where two families named the same risk, one ID is primary and the others are listed as aliases. Aliases are never counted twice. A row that is a variant or named consequence of a registered ID says so ("**variant of …**") and is not counted as an independent defect (§7.1).
+- `REQ-*` are owner requests for evidence (§7.2), not decisions.
 - Work packages are `WP-0x` (foundations), `WP-A*` (data protection), `WP-B*` (history), `WP-C*` (interaction and accessibility), `WP-D*` (creative and product completion), `WP-E*` (native feasibility), `WP-F*` (subscriptions) and `WP-G*` (release validation). §4 maps them to the tracers' working names (WP-P1…, WP-H1…, WP-U1…, WP-C1…).
 - Decisions are `DEC-*` (§7.2). Product decisions are labelled **[Product decision]**.
 
@@ -478,7 +479,7 @@ flowchart LR
     W01[WP-01 portability/CI] --- W04[WP-04 harnesses]
     W02[WP-02 vitest] --- W03[WP-03 small fixes]
   end
-  W04 -. "A1a builds its fixture subset" .-> A1[WP-A1 commit truth + fence]
+  W04 -. A1a builds its fixture subset .-> A1[WP-A1 commit truth + fence]
   A1 --> A2[WP-A2 gen + adopt + ownership]
   A2 --> A3[WP-A3 replaceSave]
   A3 --> A6[WP-A6 import candidate]
@@ -486,8 +487,8 @@ flowchart LR
   A3 --> A7
   A2 --> A4[WP-A4 decoder + rescue]
   A5[WP-A5 validation]:::par
-  A4 -. "local-load stage" .-> A5
-  A7 -. "local-load stage" .-> A5
+  A4 -. local-load stage .-> A5
+  A7 -. local-load stage .-> A5
   A8[WP-A8 capsule lifetime]:::par
   A2 --> A9[WP-A9 erase-all]
   A3 --> A9
@@ -590,6 +591,8 @@ Uncertainty is low, medium or high. No calendar estimates are given; native-depe
 - completion criteria;
 - rollback.
 
+Every package in this section fills every field (a mechanical check of the ten labels across all 46 packages finds none missing). A bare "none" has a fixed meaning: under **Migration** it means the package changes no persisted format and no stored value; under **Fault/device tests** a package states why none applies (pure domain, test-only or build-only code).
+
 **Tracer names.** The tracers' working names map as follows:
 - WP-P1…P8 → WP-A1…A7 and WP-A9, with parts of WP-P8 in WP-E3, WP-F1 and WP-G2;
 - WP-H1…H9 → WP-B1…B8 and WP-D6;
@@ -605,7 +608,7 @@ Uncertainty is low, medium or high. No calendar estimates are given; native-depe
   - Update the importers: `src/ui/index.ts:5-6`, `features/today/HabitCard.tsx:23`, `CountPad.tsx:12`, `features/onboarding/DoneTodayStep.tsx:14`, `features/capsules/MachineCarousel.tsx:9`, `LineupSheet.tsx:3`, `Leaflet.test.tsx:6`, `src/dev/sections-capsules.tsx:24`, `tests/unit/ui/checkRing.test.tsx:6`.
   - `tsconfig.json`: set `forceConsistentCasingInFileNames` explicitly.
   - `package.json:17`: replace with `scripts/e2e-preview.mjs`.
-  - `.github/workflows/ci.yml`: add a `windows-latest` job (typecheck, unit tests, build); a macOS lane follows later.
+  - `.github/workflows/ci.yml`: add a `windows-latest` job (typecheck, the full unit suite, build); a macOS lane is added before WP-E4 starts (§5.10).
   - `e2e/today.spec.ts`: seed through `page.evaluate` with an encoded envelope, as `scripts/manifest-assets.mjs` already does, so the five `test.skip(PREVIEW, …)` journeys run in CI.
   - `src/art/scene/crescent/crescents.test.ts` (P-release-02).
 - **Failure mechanism:**
@@ -1600,7 +1603,7 @@ Uncertainty is low, medium or high. No calendar estimates are given; native-depe
 - **Rollback:** revert.
 
 #### WP-D4 Truthful catalogue, odds wording and credits (S, low). Creative-trace C5, plus HM4
-- **Covers:** creative-cr-05, SHIP1 (credit and notices), creative-cr-04 step 1 (copy softening), HM4 (copy).
+- **Covers:** creative-cr-05, SHIP1 (credit and notices), creative-cr-04 step 1 (copy softening), HM4 (copy), and the copy-contract half of P-creative-28. Its HM4 probability property also guards the refuted P-history-R4 claims (capsule guarantees and conservation), which need no fix.
 - **Files:**
   - `catalog/lines.ts:132-141` becomes `Record<Flourish, string>` (the id tuple moves to catalog types if the first-paint rules require it), with snail, trail and second-shoot lines; `VOICE.md:397`;
   - `linesCore.ts:147-161` (L5/L7/L8/L9/L11–L14 softened to true observations unless DEC-P9 chooses behaviour, in which case only L11–L14 are softened now);
@@ -1615,7 +1618,7 @@ Uncertainty is low, medium or high. No calendar estimates are given; native-depe
 - **Preserved:** VOICE stays the source of truth (rows first); the first-paint budget (licences are a separate file, not bundled JS); the odds themselves are unchanged.
 - **Tests:**
   - catalogue/art identity: the copy keys equal `FLOURISHES`, and each line names its visitor;
-  - a copy-contract test: every behaviour-claiming level line has a scene consumer, or is phrased as an observation;
+  - a copy-contract test: every behaviour-claiming level line has a scene consumer, or is phrased as an observation; every `BLOOM_EVENTS` line (`lines.ts:112-129`) describes something the species' art draws at Blooming (the snake plant's spike does, `species/snakeplant.tsx:150-154`; P-creative-28);
   - HM4 property: item chances sum to 1 for every machine under random ownership, and each item's probability is unchanged by enumeration order;
   - credits name Hudson and Hanslow, not Wardle;
   - `dist/licenses.txt` exists, contains the OFL text and every runtime dependency, and the single-file build carries it;
@@ -1632,7 +1635,7 @@ Uncertainty is low, medium or high. No calendar estimates are given; native-depe
   - Deterministic weights from level and best friend.
   - Reduced motion gets stable placements (front row for L7/L9; next to the friend for L8).
   - An absent friend falls back to the solo line.
-  - R3: reword the DESIGN §8.2 promise as "the pet's choice" now. A bounded daily co-presence tally (additive, optional, future-schema) is an option later.
+  - R3: reword the DESIGN §8.2 promise as "the pet's choice" now. A bounded daily co-presence tally (additive, optional, future-schema) is DEC-P16(f), decided at the M-Web-Complete review from VAL-3.
 - **Alternatives:** soften the lines permanently (WP-D4; chosen if DEC-P9 declines behaviour); a persisted co-presence tally (DEC-P16(f)).
 - **Migration:** none; weights derive from existing level and best-friend data.
 - **Preserved:** vignettes and their frequencies for pets with no bond; stable reduced-motion placement; the scene's render cost (WP-G2).
@@ -1910,14 +1913,15 @@ These guardrails are copy-linted and tested.
 ### Phase G: Release validation
 
 #### WP-G1 Real-browser matrix and lifecycle e2e (M, medium)
-- **Covers:** the web half of ACCESS1, P-persistence-12, the web half of P-creative-10, X-01 (cold-launch update check, DESIGN §11.1 wording) and X-02 (the Windows scrollbar column).
-- **Files:** `playwright.config.ts:27,64` (add `webkit-phone` and `chromium-motion` projects, non-blocking first), `e2e/*.spec.ts`, `.github/workflows/ci.yml`.
-- **Journeys, each in WebKit and in normal motion:**
+- **Covers:** the web half of ACCESS1 and of P-ui-21, P-persistence-12, the web half of P-creative-10, X-01 (cold-launch update check, DESIGN §11.1 wording) and X-02 (the Windows scrollbar column, the only residual of the fixed integration-i7).
+- **Files:** `playwright.config.ts:27,64` (add `webkit-phone`, `chromium-motion` and a Chromium `forced-colors` project, non-blocking first); `e2e/*.spec.ts` and `e2e/support.ts`; `.github/workflows/ci.yml`; `docs/DESIGN.md` §11.1 (wording only, if X-01 shows a difference).
+- **Failure mechanism:** every Playwright project runs Chromium, including the "iPhone 13" profile (`playwright.config.ts:27`), and every project requests reduced motion (`:64`). WebKit, normal-motion timing, forced colours and real lifecycle (reload, update, second page) are never exercised, so a green run says nothing about Safari or animation paths.
+- **Design:** add the projects; seed through `page.evaluate` (WP-01); run each journey below in WebKit and in normal motion; report skipped tests as not covered. Journeys:
   - an offline action survives a reload;
   - an update is held while unsaved (P-01);
-  - import → reload → Undo;
+  - import → reload → Undo, and **import confirmation by keyboard only** (P-ui-21);
   - two-page ownership (Use here, reset elsewhere, deletion);
-  - capsule turn → tab switch;
+  - capsule turn → tab switch, and **the capsule's keyboard/button alternative to the crank gesture** (P-ui-21);
   - count pad → background 61 s;
   - sheet drag → cancel;
   - toast Undo by keyboard;
@@ -1925,58 +1929,98 @@ These guardrails are copy-linted and tested.
   - the quiet journey;
   - Credits › Licences, axe-clean;
   - a delayed onboarding chunk with an h1;
-  - desktop main width 720 ± 1 px at 1280 px, with and without forced scrollbars.
-- **Done when:** the projects are blocking in CI at the end of phase C, and skipped tests are reported as not covered.
+  - desktop main width 720 ± 1 px at 1280 px, with and without forced scrollbars;
+  - **forced colours** (`forcedColors: 'active'`): every control on Today, the count pad, sheets and the capsule screen stays visible and operable (P-ui-21);
+  - **landscape phone and 320 px** for the same tasks (P-ui-21).
+- **Alternatives:** a cloud device farm now (costly before the native decision; WP-G3 covers real devices); WebKit only on release branches (misses regressions while phase C lands).
+- **Migration:** none; test configuration only.
+- **Preserved:** the existing projects and their assertions; CI time stays bounded by running the new projects in parallel and non-blocking until the end of phase C.
+- **Tests:** the journeys above are the tests. Each fails first where it reproduces a defect (for example the WebKit private-mode probe for D1 and toast Undo by keyboard for UI2-04).
+- **Fault/device tests:** route aborts for chunk failure, `context.setOffline`, a second page for ownership, WebKit private mode for storage. The on-screen keyboard (keyboard-open flows) cannot be emulated faithfully and is in WP-G3.
+- **Done when:** the projects are blocking in CI at the end of phase C, every journey is green or linked to an open defect, and skipped tests are reported as not covered.
+- **Rollback:** make a flaky project non-blocking again with a recorded reason; never delete a journey.
 
 #### WP-G2 Scale and long history (M, medium)
-- **Covers:** P-persistence-07 (alias P-release-04), P-history-03, P-ui-09, and the metadata-listing half of P-persistence-11.
+- **Covers:** P-persistence-07 (alias P-release-04), P-history-03, P-history-15 (cold Progress cost), P-ui-09, and the metadata-listing half of P-persistence-11.
+- **Files:** `tests/unit/state/bigsave.ts` (fixture), `size.test.ts`, `perf.test.ts`, a new `tests/perf/` script for browser timings, and the `scripts/shoot.mjs` harness for browser timings (the wave-2 `perf.cjs` is not in the repository).
+- **Failure mechanism:** the scale fixture writes 52-character notes on 4% of logs (`bigsave.ts:71`) and `perf.test.ts` excludes stringify and `setItem`, so the durable-save cost of a real journal, the cold `progressVM` path (about 155–175 ms on a 3-year × 20-habit save at wave 2), long Moments and memory-shelf lists, and whole-lifetime walks after unbounded backdating are unmeasured.
 - **Design:**
   - A note-heavy fixture: 12 habits × 5 years × a 280-character daily note, about 6.1M note characters. A 10-year variant, plus one unreasonable backdated input.
-  - Measure, separately: action → serialize → commit latency and quota; Moments and memory shelf open, filter, read and return-to-scroll; cold-path lifetime walks.
+  - Measure, separately: action → serialize → commit latency and quota; Progress cold and warm; Moments and memory shelf open, filter, read and return-to-scroll; cold-path lifetime walks.
   - Agree budgets on phone-class hardware in WP-E4.
   - Decide from measurements: pagination by month/year, incremental summaries (only with equivalence tests), metadata-only snapshot listing (IndexedDB v2 after P-05), and the threshold for moving the main save to IndexedDB or native storage.
   - **Never prune notes to meet a budget.**
+- **Alternatives:** set budgets from desktop numbers now (misleading for phones); move to IndexedDB pre-emptively (the plan's rule: only when measurements justify it).
+- **Migration:** none for measurement. Any storage move it justifies goes through WP-E2's contract and INV-5.
+- **Preserved:** no product behaviour changes in this package; the existing size gate stays.
+- **Tests:** the fixture's own shape test (note count and length); timing tests that record numbers and fail only against agreed budgets.
+- **Fault/device tests:** quota pressure with the 10-year save; the same fixture on a modest iPhone in WP-E4.
 - **Done when:** budgets are recorded, and each is met or tracked as a defect.
+- **Rollback:** not applicable (measurement only); a fixture that proves unrealistic is replaced, not deleted.
 
 #### WP-G3 Physical-device matrix (L, unknown until run)
-- **Covers:** P-release-06 (alias P-ui-17), the device half of ACCESS1, P-ui-07, P-ui-10, P-persistence-16, and the UI2-04/UI2-05/UI2-06 device checks.
-- **Matrix:**
-  - iPhone sizes and orientation, iPad with a hardware keyboard;
+- **Covers:** P-release-06 (alias P-ui-17), the device half of ACCESS1 and of P-ui-21, P-ui-07, P-ui-10, P-persistence-16, and the UI2-04/UI2-05/UI2-06 device checks.
+- **Files:** a checklist in the repository (for example `docs/release/device-matrix.md`, created when the first signed build exists) and the recorded results per build; no application code.
+- **Failure mechanism:** nothing has run on a physical iPhone. Simulated viewports and headless Chromium cannot show VoiceOver, Voice Control, Switch Control, Larger Text, system cancellation, process kill, the on-screen keyboard or storage eviction.
+- **Design:** one recorded pass per release candidate over this matrix:
+  - iPhone sizes and orientation (including landscape and the smallest supported screen), and iPad with a hardware keyboard if DEC-P3 ships on iPad;
   - VoiceOver, Voice Control, Switch Control;
   - Larger Text at maximum and at 200% or more, and Reduce Motion toggled mid-flow;
+  - **keyboard-open flows**: editing a name, a note and an import paste with the on-screen keyboard up (P-ui-21);
+  - **complete tasks with assistive technology**: toast Undo, import confirmation, the capsule gesture alternative, and subscription cancellation and recovery (P-ui-21, ACCESS1);
   - silent switch, audio interruption, incoming call and Control Centre cancellation;
   - process kill at each editing and capsule phase, with background and resume;
-  - Files and clipboard handoff;
+  - Files and clipboard handoff, including the clipboard permission prompts (NOTES-open.md item 8), and `.ics` calendar import;
+  - haptics with the preference on and off;
   - offline chunk failure;
   - long names, emoji and combining marks;
   - the mature note-heavy save;
   - medium-detent reachability;
   - the name-on-hide suspension (P-16);
   - the purchase flow.
-- **Done when:** a recorded checklist per build has every item passed or tracked. **Accessibility Nutrition Labels declare only verified features.**
+- **Alternatives:** a device farm with automated VoiceOver (does not replace a human pass for Nutrition Labels); TestFlight feedback only (unstructured).
+- **Migration:** none.
+- **Preserved:** nothing changes in the app; the checklist is additive.
+- **Tests:** the matrix items are the tests; each failure becomes a tracked defect with its owning WP.
+- **Fault/device tests:** this package is the device test.
+- **Done when:** a recorded checklist per build has every item passed or tracked. **Accessibility Nutrition Labels declare only verified features** ([overview](https://developer.apple.com/help/app-store-connect/manage-app-accessibility/overview-of-accessibility-nutrition-labels), rechecked 30 Sep 2026).
+- **Rollback:** not applicable; a failed item blocks the label claim or the release, it is never waived silently.
 
 #### WP-G4 Store submission, privacy, notices and locale scope (M, medium)
-- **Covers:** IOS5, P-release-12, the SHIP1 notices check, and the GLOBAL1 scope (DEC-P5).
-- **Checklist, with an owner for each row:**
-  - Xcode 26 and the iOS 26 SDK, with a chosen deployment target (recheck the wording);
-  - in-app privacy policy, terms and support links in About (guideline 5.1.1(i));
-  - a privacy label derived from a network capture of the release build;
-  - privacy manifests for every native SDK and required-reason API;
-  - the rating and age assurance (WP-F4);
-  - an accurate loot-box answer;
-  - EU DSA trader status and per-territory information;
+- **Covers:** IOS5 and its sub-items P-release-15 (health positioning), P-release-16 (Kids category), P-release-17 (per-binary record), P-release-18 (China ICP and per-territory requirements); P-release-12; P-release-14 (seasonal voice claim); the privacy-policy half of P-persistence-25; the SHIP1 notices check; and the GLOBAL1 scope (DEC-P5).
+- **Files:** App Store Connect metadata (not in the repository); `features/you/AboutSection.tsx` and `ABOUT_COPY` (`lines.ts:1180-1200`) for in-app privacy, terms and support links; a privacy policy and terms page (hosted outside the app); `public/screenshots/` or a release screenshot script; a per-build manifest file produced by CI; `docs/VOICE.md` rows.
+- **Failure mechanism:** IOS5 is a new requirement. There is no in-app privacy, terms or support link, no App Store record, no privacy label, no per-binary record, and no territory list.
+- **Design:** a checklist with an owner for each row, each claim rechecked against its source at submission:
+  - Xcode 26 and an iOS 26 SDK; a deployment target of iOS 13 or later at minimum ([upcoming requirements](https://developer.apple.com/news/upcoming-requirements/), rechecked 30 Sep 2026: "must target iOS 13 or later" since 9 Sep 2026), chosen from WP-E4 measurements;
+  - in-app privacy policy, terms and support links in About ([App Review Guidelines 5.1.1(i)](https://developer.apple.com/app-store/review/guidelines/), rechecked 30 Sep 2026: "within the app in an easily accessible manner");
+  - a privacy label derived from a network capture of the release build; data processed only on device is not "collected" ([App privacy details](https://developer.apple.com/app-store/app-privacy-details/), rechecked 30 Sep 2026);
+  - the privacy policy explains that a backup file or CK1 text is readable by anyone who has it and may sit in clipboard history (P-persistence-25);
+  - privacy manifests for every native SDK and required-reason API ([third-party SDK requirements](https://developer.apple.com/support/third-party-SDK-requirements/), rechecked 30 Sep 2026);
+  - the rating and age assurance (WP-F4); **never select the Kids category**, and use "Override to Higher Age Rating" if the adult terms require it (P-release-16; [set an app age rating](https://developer.apple.com/help/app-store-connect/manage-app-information/set-an-app-age-rating), rechecked 30 Sep 2026);
+  - an accurate loot-box answer (WP-F4);
+  - EU DSA trader status, required even outside the EU ([EU trader requirements](https://developer.apple.com/help/app-store-connect/manage-compliance-information/manage-european-union-digital-services-act-trader-requirements), rechecked 30 Sep 2026: "Even if you don't distribute apps in the EU, you'll still need to declare a trader status");
+  - **China mainland**: an ICP Filing Number where MIIT requires one, or leave China mainland out of the territory list until it is filed (P-release-18; [app information](https://developer.apple.com/help/app-store-connect/reference/app-information/app-information), rechecked 30 Sep 2026); other per-territory fields are checked, not assumed complete by selecting all territories;
+  - metadata, screenshots and review notes never describe catkin as clinical treatment or a regulated medical tool (P-release-15);
+  - metadata makes no "for every climate" or "localised" claim until DEC-P5 decides the seasonal voice and language scope (P-release-14);
   - review notes saying "No purchasable coins or paid capsules" (never "no in-app purchases"), with reviewer trial access;
   - screenshots generated from the release-candidate build with a labelled demo household;
-  - a reproducible signed build;
+  - a reproducible signed build, and **a per-binary record** (commit, schema version, bundled content version, SDK versions, privacy manifests and the entitlement configuration) kept for every build sent to review (P-release-17);
   - a rehearsed migration and rollback drill;
   - no sign-in added only to resemble other subscription apps.
 - **GLOBAL1:** launch as an honest worldwide **English** release first (DEC-P5 recommended). Before any localised release: an Intl display layer outside the deterministic domain, whole-message translation, RTL/CJK/grapheme support and a non-Latin font fallback.
+- **Alternatives:** launch in a few storefronts first (a DEC-P5 option that reduces territory work); hand-written release notes instead of a generated per-binary record (drifts).
+- **Migration:** none.
+- **Preserved:** the web edition's About copy and deployment (DEC-P2); the local-first posture the privacy label describes.
 - **Tests:**
   - a network capture reconciled with the privacy label;
   - a link check;
-  - a copy lint;
+  - a copy lint (no "no in-app purchases", no clinical claims, no countdowns);
   - a pseudo-locale expansion test at 320 px (before localisation);
-  - grapheme-safe name limits.
+  - grapheme-safe name limits;
+  - the per-binary record exists for every CI release build.
+- **Fault/device tests:** the About links open outside the web view on a device (WP-E1 `externalLinks`); the release build's network capture on a device.
+- **Done when:** every checklist row has an owner, a recorded result and a source rechecked at submission; the build is accepted to TestFlight external testing.
+- **Rollback:** a rejected submission is fixed and resubmitted; the per-binary record identifies exactly what to roll back to.
 
 ---
 
@@ -1997,8 +2041,10 @@ Each case is committed as `test.fails` in WP-04 where the current API allows it;
 | R201 | FS1 | after a stolen lock and another owner's rev 99, a captured after-frame callback writes nothing | `tests/unit/state/persistence.test.ts` | WP-A1 |
 | D01 (+ HEAD scratch) | data-d1 | quota-0 storage holding a save loads that save in mode `full`; status is never `'saved'` while volatile | `persistence.test.ts` | WP-A1 |
 | HEAD scratch | data-d2 | failed write, then freed space, then retry writes the same state | `persistence.test.ts` | WP-A1 |
-| R210 | FS4 | a free pull while the lock is pending reveals nothing; after the grant the pet is on disk | `store.test.ts` | WP-A1/A2 |
+| R210 | FS4 | while ownership is `acquiring`, a free pull returns `acquiring` and neither memory nor disk shows the pet or the charge; after the grant, one user retry commits exactly once | `store.test.ts`, `usePull.lifecycle.test.tsx` | WP-A1 (A1a); WP-A2 completes the ownership signal |
 | R214 | FS10 | wish under quota returns `storage-full`; memory and disk unchanged; one item after the retry | `store.test.ts` | WP-A1 |
+| `current-repros` "failed real write, enter and leave demo: the disk version wins" | P-persistence-02 | with a dirty real state, entering the demo is refused (or the dirty state survives the round trip); leaving the demo never replaces unsaved real work with the disk version | `store.test.ts` | WP-A1 (A1b) |
+| `current-repros` "four imports leave four pre-import copies (KEEP is 3)" | P-persistence-11 | after four same-day imports at most `KEEP['pre-import']` pre-import copies remain, and the copy the active undo token references survives | `replace.test.ts` | WP-A3 |
 | HEAD scratch | data-d5 | Use here over v2 gives read-only `newer-version`; disk `v` stays 2 | `ownership.test.ts` (two runtimes) | WP-A2 |
 | R203 | FS3 | after Use here following a reset elsewhere, and an edit, disk has no old habits | `ownership.test.ts` | WP-A2 |
 | HEAD scratch | data-d3 | a failing write gives `not-saved`; state, disk and token unchanged | `replace.test.ts` | WP-A3 |
@@ -2043,7 +2089,7 @@ Each case is committed as `test.fails` in WP-04 where the current API allows it;
 - data-d10 and data-d12: App/DataSection fault renders;
 - FS5 demo/ownership variants: two-runtime harness;
 - FS6: controllable promises;
-- P-persistence-01/02: the pwa gate test;
+- P-persistence-01: the pwa gate test (P-persistence-02 is now reproduced, §5.1);
 - P-persistence-16: device;
 - P-persistence-21: import, then a paused-rewards check;
 - P-persistence-23: sidecar plus import;
@@ -2052,7 +2098,9 @@ Each case is committed as `test.fails` in WP-04 where the current API allows it;
 - creative-cr-01: Pet Card test;
 - P-ui-04, P-ui-07, P-ui-14: component and device tests;
 - P-history-09, P-history-10: rituals and Calendar tests;
-- P-release-02: the Windows log, then the lane;
+- P-release-02: the audit's Windows log if REQ-1 supplies it, otherwise the first full run on the new Windows lane;
+- data-d12: injected list, get and undo rejections (WP-A7);
+- P-creative-26 and P-creative-28: component render tests (WP-D2, WP-D6);
 - X-01, X-02: WP-G1.
 
 ### 5.2 Storage quota, unavailability and transaction abort
@@ -2137,7 +2185,7 @@ Each case is committed as `test.fails` in WP-04 where the current API allows it;
 - `caseCollisions.test.ts` on every platform.
 - A `windows-latest` lane (typecheck, unit tests, build, preview e2e `--list`).
 - A macOS lane before WP-E4.
-- P-release-02 is identified from the audit's Windows log before any tolerance change.
+- P-release-02 is identified before any tolerance change: from the audit's Windows log if the owner supplies it (REQ-1), otherwise from the first full unit run on the Windows lane, which must run the whole suite rather than typecheck and build alone.
 
 ### 5.11 WebKit, normal motion, large histories and physical iPhone
 - WP-G1 projects: `webkit-phone` (WebKit, iPhone viewport) and `chromium-motion` (motion not reduced). Non-blocking until the end of phase C, then blocking.
@@ -2146,28 +2194,58 @@ Each case is committed as `test.fails` in WP-04 where the current API allows it;
 
 ### 5.12 StoreKit sandbox and TestFlight matrix (WP-F2/F3)
 
-Run in three environments: Xcode StoreKit configuration tests (`SKTestSession`, accelerated time), the App Store sandbox, and TestFlight.
+Run in three environments: Xcode StoreKit configuration tests (`SKTestSession`, accelerated time), the App Store sandbox, and TestFlight. Apple's testing page compares what each environment can exercise ([testing at all stages](https://developer.apple.com/documentation/StoreKit/testing-at-all-stages-of-development-with-xcode-and-the-sandbox), rechecked 30 Sep 2026 through its JSON endpoint); recheck its scenario table when writing the tests. The audit's SUB2 acceptance list (every state row, duplicate delivery, interrupted purchase, **reinstatement**, store account change, price localisation, upgrade/downgrade, expiry while editing) is covered row by row below.
 
 | Area | Cases | Expected |
 |---|---|---|
 | Products | products unavailable, or network down at the paywall | no price shown, no "free trial" text, no zero price; the journal is unaffected |
-| Eligibility | new user (eligible, offer configured); returning user (ineligible); eligible but no offer configured | a trial is promised only when both the eligibility flag and a configured offer exist |
+| Eligibility | new user (eligible, offer configured); returning user (ineligible); eligible but no offer configured | a trial is promised only when both the eligibility flag and a configured offer exist ([isEligibleForIntroOffer](https://developer.apple.com/documentation/storekit/product/subscriptioninfo/iseligibleforintrooffer), rechecked 30 Sep 2026) |
 | Localisation | at least 3 storefronts | `displayPrice` and period are correct and localised |
 | Purchase outcomes | success; user cancel; pending (Ask to Buy); unverified transaction; interrupted purchase; duplicate `Transaction.updates` delivery | access only on verified success; `finish()` called once; pending shows waiting; unverified gives no access |
-| Lifecycle | active trial; trial converts; auto-renew off (still active until expiry); billing retry; grace period; expired; refunded; revoked; Family Sharing gain/loss (if enabled) | the effective-state table in WP-F3; content never hidden or deleted |
-| Restore and devices | new device; reinstall; `AppStore.sync()` restore; store account change | entitlement restored from the store; the journal is **not** moved by restore (copy says so) |
+| Lifecycle | active trial; trial converts; auto-renew off (still active until expiry); grace period; billing retry **with** a grace period configured; billing retry **without** one; expired; refunded; revoked; Family Sharing gain/loss (if enabled) | the effective-state table in WP-F3: grace keeps full access; billing retry without grace follows the verified state (paid conveniences pause, the journal and recovery tools are untouched, a payment note links to Manage) unless DEC-P1/DEC-P3 records a courtesy-access choice; content never hidden or deleted ([RenewalState](https://developer.apple.com/documentation/storekit/product/subscriptioninfo/renewalstate), [Billing Grace Period](https://developer.apple.com/help/app-store-connect/manage-subscriptions/enable-billing-grace-period-for-auto-renewable-subscriptions), both rechecked 30 Sep 2026) |
+| Reinstatement | billing recovered during retry; recovered during grace; a refund reversed or a revoked purchase re-granted; a lapsed subscriber resubscribes; Family Sharing access restored | access returns when the verified transaction arrives through `Transaction.updates` or `currentEntitlements`, without a restart; no duplicate grant; no journal change; the trial is not offered again (one introductory offer per group) |
+| Restore and devices | new device; reinstall; `AppStore.sync()` restore; store account change; a second device of another class if the app ships there (iPad, per DEC-P3 / P-release-20) | entitlement restored from the store on every device where the app is available (guideline 3.1.2(a)); the journal is **not** moved by restore (copy says so) |
 | Offline | launch offline with a cached verified state; launch offline with no cache | cached: honoured; none: `unknown`, and the journal is never locked |
 | Journal independence | import, undo, restore, Start over, Erase everything, demo enter/exit, clock repair, `useHere` | the entitlement signal is identical before and after each |
 | Plan changes | upgrade/downgrade/crossgrade within the group; a price increase consent | a single effective entitlement; renewal date per the store |
 | Expiry timing | expiry while editing a note or mid capsule reveal | the edit completes; the reveal completes; content is kept |
 | Accessibility | the purchase, restore and manage flow with VoiceOver, Larger Text at maximum and a keyboard | every step is operable (the Accessibility Nutrition Labels "purchase" task) |
-| Copy | paywall, consent and settings | duration, renewal price, period and what stops are shown; no countdown, "last chance" or "no in-app purchases" |
+| Copy and price layout | paywall, consent and settings, for monthly and annual options in at least 3 storefronts | duration, renewal price, period and what stops are shown; **the amount that will be billed is the most prominent price, and for the annual option the full annual charge outranks any per-month equivalent or saving** ([subscription guidance](https://developer.apple.com/app-store/subscriptions/), rechecked 30 Sep 2026); no countdown, "last chance" or "no in-app purchases" |
 
 ### 5.13 CI and evidence policy
 - A **`.fails` ledger**: CI prints the list of remaining `test.fails`. A WP is done only when its entries are flipped.
 - Skipped e2e tests are reported per project, and release evidence treats them as not covered.
 - The first-paint size gate stays at 150 KB, and native and entitlement modules are excluded from the entry graph.
 - `npm audit` has no unresolved advisory in the release lane.
+
+### 5.14 Primary sources for platform and policy claims
+
+Retrieved on **30 Sep 2026**. "Rechecked" means the page was fetched in this planning work and the quoted fact was read on it; "unfetched" means the page could not be read here, so the claim stays the audit's and must be rechecked at implementation. Nothing here is legal advice; DEC-P4 needs counsel. Every row is rechecked again at implementation and at submission.
+
+| # | Source | Status | Facts this plan relies on | Used in |
+|---|---|---|---|---|
+| S-1 | [Upcoming requirements](https://developer.apple.com/news/upcoming-requirements/) | rechecked | Xcode 26 and a 26 SDK since 28 Apr 2026; "must target iOS 13 or later" since 9 Sep 2026; EU trader status required | WP-G4 |
+| S-2 | [App Review Guidelines](https://developer.apple.com/app-store/review/guidelines/) | rechecked | 3.1.1 loot-box odds for items "for purchase"; 3.1.2(a) subscriptions work "on all of the user's devices where the app is available", last at least seven days, and trial disclosures; 3.1.2(c) what the user gets for the price; 5.1.1(i) privacy link inside the app | WP-F2, WP-F3, WP-G4, P-release-20 |
+| S-3 | [Age ratings values and definitions](https://developer.apple.com/help/app-store-connect/reference/app-information/age-ratings-values-and-definitions/) | rechecked | loot boxes are randomized virtual items "for purchase"; Brazil's A18 lists loot boxes; "Age Assurance" is an in-app-controls item | WP-F4, DEC-P4 |
+| S-4 | [Apple news, 24 Feb 2026: age requirements for Brazil, Australia, Singapore, Utah and Louisiana](https://developer.apple.com/news/?id=f5zj08ey) | rechecked | 18+ downloads blocked in AU/BR/SG unless the account is confirmed adult; answering "loot boxes" makes the Brazil rating 18+; Utah (6 May 2026) and Louisiana (1 Jul 2026) share age categories for new accounts | WP-F4, DEC-P4 |
+| S-5 | [Apple news, 3 Jun 2026: update for apps distributed in Texas](https://developer.apple.com/news/?id=sg176nne) (history: [23 Dec 2025](https://developer.apple.com/news/?id=8jzbigf4), [4 Nov 2025](https://developer.apple.com/news/?id=2ezb6jhj)) | rechecked | the SB2420 injunction was lifted; new Texas accounts are subject to it from 4 Jun 2026 | WP-F4, DEC-P4 |
+| S-6 | [Age assurance Q&A](https://developer.apple.com/support/age-assurance) | rechecked | 18+ apps must check age with the Declared Age Range API "in regions where legally required" (no jurisdictions listed); API support in iOS 26.2; `requiredRegulatoryFeatures` in iOS 26.4 | WP-F4, DEC-P4 |
+| S-7 | [Declared Age Range API](https://developer.apple.com/documentation/declaredagerange/) | **unfetched** (script-rendered) | method details | WP-F4 |
+| S-8 | [Set up introductory offers](https://developer.apple.com/help/app-store-connect/manage-subscriptions/set-up-introductory-offers-for-auto-renewable-subscriptions) | rechecked | 2-week free trial available; one introductory offer per subscription group | WP-F2, §5.12 |
+| S-9 | [`isEligibleForIntroOffer`](https://developer.apple.com/documentation/storekit/product/subscriptioninfo/iseligibleforintrooffer) | rechecked (JSON endpoint) | "may be true even if you haven't set up an introductory offer" | WP-F2, §5.12 |
+| S-10 | [`Transaction.currentEntitlements`](https://developer.apple.com/documentation/storekit/transaction/currententitlements) | rechecked (JSON endpoint) | latest transaction per auto-renewable subscription that is subscribed or in grace; refunded or revoked products do not appear | WP-F2 |
+| S-11 | [`RenewalState`](https://developer.apple.com/documentation/storekit/product/subscriptioninfo/renewalstate) | rechecked (JSON endpoint) | two states (subscribed, in grace period) are entitled to service; expired, in billing retry and revoked are not; Family Sharing can give a second, independent status | WP-F1, WP-F3, §5.12 |
+| S-12 | [Enable Billing Grace Period](https://developer.apple.com/help/app-store-connect/manage-subscriptions/enable-billing-grace-period-for-auto-renewable-subscriptions) | rechecked | "Without enabling Billing Grace Period, the subscriber's days of paid service pause until Apple is able to collect payment" | WP-F2, WP-F3, DEC-P3 |
+| S-13 | [Subscription presentation guidance](https://developer.apple.com/app-store/subscriptions/) | rechecked | "the amount that will be billed must be the most prominent pricing element"; an annual option shows its total, with any breakdown subordinate | WP-F3, §5.12 |
+| S-14 | [Testing at all stages](https://developer.apple.com/documentation/StoreKit/testing-at-all-stages-of-development-with-xcode-and-the-sandbox) | rechecked (JSON endpoint; row list to recheck) | a scenario table comparing sandbox and Xcode StoreKit testing | §5.12 |
+| S-15 | [Accessibility Nutrition Labels overview](https://developer.apple.com/help/app-store-connect/manage-app-accessibility/overview-of-accessibility-nutrition-labels) | rechecked | voluntary now, required over time; declare a feature only if all common tasks work with it, including the purchase experience | WP-F3, WP-G3 |
+| S-16 | [Third-party SDK requirements](https://developer.apple.com/support/third-party-SDK-requirements/) | rechecked | Capacitor is listed (privacy manifest; signature as a binary dependency) | WP-E4, WP-G4 |
+| S-17 | [App privacy details](https://developer.apple.com/app-store/app-privacy-details/) | rechecked | data processed only on device is not "collected" | WP-G4 |
+| S-18 | [EU DSA trader requirements](https://developer.apple.com/help/app-store-connect/manage-compliance-information/manage-european-union-digital-services-act-trader-requirements) | rechecked | trader status must be declared even without EU distribution | WP-G4 |
+| S-19 | [App information (territory fields)](https://developer.apple.com/help/app-store-connect/reference/app-information/app-information) | rechecked | MIIT requires some apps in China mainland to hold an ICP Filing Number | WP-G4, P-release-18 |
+| S-20 | [Set an app age rating](https://developer.apple.com/help/app-store-connect/manage-app-information/set-an-app-age-rating) | rechecked | "Override to Higher Age Rating"; the Kids category is a separate choice | WP-F4, WP-G4, P-release-16 |
+| S-21 | [Castoro upstream](https://github.com/TiroTypeworks/Castoro) | rechecked by the release tracer earlier on 30 Sep 2026; a re-fetch in this revision returned 403 | roman by John Hudson; italic with Paul Hanslow, assisted by Kaja Słojewska; OFL 1.1 | WP-D4 |
+| S-22 | Capacitor iOS documentation (capacitorjs.com) | **unfetched** (unreachable) | the Preferences caution the audit cites | WP-E2, WP-E4 |
 
 ---
 
@@ -2188,14 +2266,22 @@ Run in three environments: Xcode StoreKit configuration tests (`SKTestSession`, 
 
 | Order | Item | User value | Steps | Depends on | Decisions |
 |---|---|---|---|---|---|
-| 1 | **RM-7 Verified backup and recovery** | Trust that months of personal writing survive device loss, expiry and handoff. It also keeps a subscription's end from being the first time a user learns how to take their history away. | (1) Parse-back verification of a generated backup before offering it; "last verified backup" (date, scope, device), distinct from "generated"; honest `'downloaded-instead'` semantics (P-persistence-13 residual / P-creative-21). (2) One quiet first-backup invitation after meaningful history, with a preview-only "test restore" (P-persistence-18). (3) A restore preview showing actual differences (date range; habits and notes that would disappear; where the undo copy lives), plus a durable Undo receipt (P-persistence-17). (4) Erase everything (WP-A9). Password-protected backups (P-persistence-20): later, optional, never required. | **Hard dependency:** INV-1 and INV-4 (WP-A1, WP-A3), WP-A7 | DEC-P15 (threshold), DEC-P8 |
+| 1 | **RM-7 Verified backup and recovery** | Trust that months of personal writing survive device loss, expiry and handoff. It also keeps a subscription's end from being the first time a user learns how to take their history away. | (1) Parse-back verification of a generated backup before offering it; "last verified backup" (date, scope, device), distinct from "generated"; honest `'downloaded-instead'` semantics (P-persistence-13 residual / P-creative-21); plain copy that a backup file or CK1 text is readable by anyone who has it and may stay in clipboard history, with a "clear it when you're done" hint after Copy (P-persistence-25; VOICE rows under DEC-V). (2) One quiet first-backup invitation after meaningful history, with a preview-only "test restore" (P-persistence-18). (3) A restore preview showing actual differences (date range; habits and notes that would disappear; where the undo copy lives), plus a durable Undo receipt (P-persistence-17). (4) Erase everything (WP-A9). Password-protected backups (P-persistence-20) are **rejected for now** (DEC-P16(e), re-decided at the M-Paid review); never required. | **Hard dependency:** INV-1 and INV-4 (WP-A1, WP-A3), WP-A7 | DEC-P15 (threshold), DEC-P8 |
 | 2 | **RM-1 A controllable personal journal** | A person can find, correct, privately export and deliberately delete a six-month-old note without raw JSON. | (1) = WP-C6 (a mandatory repair). (2) Archive index: month/year jump, habit filter, starred-only, on-device grapheme-safe text search; each result opens the exact dated note and shows live versus corrected once RM-2 step 3 exists (P-ui-18). (3) A deliberate notes/journal export (Markdown or CSV with date, habit name, stable habit id and the rule at that date), separate from the small default CSV and never in share cards or diagnostics (P-persistence-19). (4) Pagination only if WP-G2 measurements require it. | WP-C6; INV-1 for "saved" claims; WP-G2 | DEC-P7 |
-| 3 | **RM-3 Complete quiet mode** | Adults who only want the tracker get a complete, calm five-minute daily journey. | = WP-D3 (mandatory) plus a clear, lossless way back to collecting, and optionally a "degree of collecting" choice later. | none | DEC-P6 |
-| 4 | **RM-2 Transparent history** | Confidence in the maths: "why did this count?", and a basis for support. | (1) Render the rule history the view model already carries (`state/views/habit.ts:83-84,200`; today only `vm.upcoming` renders), which is cheap and independent. (2) Dry-run before/after previews for rule, period, Finish and rest edits, computed by the pure domain (P-history-12). (3) Per-log provenance `via: 'live' \| 'corrected'`, set once and never compacted (additive, optional, future-schema; builds on WP-B4) (P-history-13). (4) Clearer avoidance-habit creation examples (P-history-05). | step 1: none; step 2: WP-B5, WP-B8; step 3: WP-B4, WP-A5 clause | none, beyond DEC-P12 |
+| 3 | **RM-3 Complete quiet mode** | Adults who only want the tracker get a complete, calm five-minute daily journey. | = WP-D3 (mandatory) plus a clear, lossless way back to collecting, and optionally a "degree of collecting" choice, decided with DEC-P6 (default: not built unless the RM-3 acceptance journey shows quiet mode alone is not enough). | none | DEC-P6 |
+| 4 | **RM-2 Transparent history** | Confidence in the maths: "why did this count?", and a basis for support. | (1) Render the rule history the view model already carries (`state/views/habit.ts:83-84,200`; today only `vm.upcoming` renders), which is cheap and independent. (2) Dry-run before/after previews for rule, period, Finish and rest edits, computed by the pure domain (P-history-12). (3) Per-log provenance `via: 'live' \| 'corrected'`, set once and never compacted (additive, optional, future-schema; builds on WP-B4) (P-history-13). (4) Clearer avoidance-habit creation examples (P-history-05). Step 2's explanation also says why a first partial week or month pays no goal bonus (P-history-16). | step 1: none; step 2: WP-B5, WP-B8; step 3: WP-B4, WP-A5 clause | none, beyond DEC-P12 |
 | 5 | **RM-4 Return after absence** | Coming back after weeks away without guilt or a backlog. | After N empty app days, a one-time "Pick up where you like" sheet: Keep / Pause / Finish / Make it tinier (reusing season review and Tiny), one realistic next action, and no missed-day copy. A finite habit's "bring back next season" (P-history-13) reuses its schedule and notes without rewriting the old period. Only a dismiss once-key is needed. | WP-B5 (Finish correctness: HM1, domain-d6) | N (the absence threshold) |
-| 6 | **RM-6 Companion continuity** | Long-term attachment you can see and name. | The repairs WP-D2, WP-D4, WP-C7 and WP-B7, then WP-D5 (behaviour), WP-D6 (honest personalisation), and later a bounded co-presence tally if attachment testing supports it (P-history-08). | the repairs first | DEC-P9, DEC-P10, DEC-P11 |
-| 7 | **RM-5 Useful reminders and shortcuts** | Finish a real task without opening the whole app. | (1) Define the command contract: WP-C7's shape plus `gen`, occurrence date and a unique command id, so repeated delivery never double-rewards. (2) Native local notifications only for scheduled, unpaused, incomplete habits, with generic lock-screen text and permission asked only when the user turns them on. (3) A read-only widget. (4) Mutating App Intents last (P-release-11). | INV-3, WP-E1, WP-E4 (native) | none now |
-| Later / validate first | O1 planning in flexible periods (P-creative-11), O2 recurrence after the last completion (P-creative-12), O4 quantity per period (P-creative-14), and economy/place-saving research (P-creative-09) | Uncertain; each is a new contract or needs research | Usability study or demand validation first | RM-1, RM-2 | none now |
+| 6 | **RM-6 Companion continuity** | Long-term attachment you can see and name. | The repairs WP-D2, WP-D4, WP-C7 and WP-B7, then WP-D5 (behaviour), WP-D6 (honest personalisation), and a bounded co-presence tally only if VAL-3 supports it (P-history-08; DEC-P16(f), decided at the M-Web-Complete review). | the repairs first | DEC-P9, DEC-P10, DEC-P11, DEC-P16(f) |
+| 7 | **RM-5 Useful reminders and shortcuts** | Finish a real task without opening the whole app. | (1) Define the command contract: WP-C7's shape plus `gen`, occurrence date and a unique command id, so repeated delivery never double-rewards. (2) Native local notifications only for scheduled, unpaused, incomplete habits, with generic lock-screen text and permission asked only when the user turns them on. The one-time `.ics` export stays, and no copy claims catkin can remove an event already in Calendar. Test cases (P-release-19): DST, travel, notification permission denied, a changed schedule, an archived habit, an expired subscription, a reopened device. (3) A read-only widget. (4) Mutating App Intents last (P-release-11). | INV-3, WP-E1, WP-E4 (native) | none now |
+| Gated bets (not "later") | O1 planning in flexible periods (P-creative-11), O2 recurrence after the last completion (P-creative-12), O4 quantity per period (P-creative-14), economy/place-saving pace (P-creative-09), password-protected backups (P-persistence-20), the co-presence tally (P-history-08) | Uncertain; each is a new contract or needs evidence | Each runs through a named validation item (VAL-1…VAL-3 below) and is decided at a named milestone review; if its validation does not run, it is recorded as **rejected for now**, not left open | VAL-1: RM-1, RM-2; VAL-2: none; VAL-3: WP-D5 | **DEC-P16(a)–(f)** |
+
+**Validation items for the gated bets.** Owner for each: the project owner (product), who runs or commissions the study and records the result in DEC-P16. Thresholds are proposals for the owner to confirm with DEC-P16.
+
+| ID | Question | Method | Success threshold (proposed) | Decides | Review point |
+|---|---|---|---|---|---|
+| VAL-1 | Do adults with flexible habits want to plan inside a period (O1), measure recurrence from the last completion (O2), or count a quantity per period (O4)? | Moderated sessions with 6–8 adults who keep at least two flexible habits, using clickable prototypes of each, after RM-1 step 2 and RM-2 step 1 ship | O1 or O2: at least 5 of 8 complete the task unaided **and** at least half say they would use it weekly. O4: at least half describe a current habit that needs it | DEC-P16(a), (b), (c) | (a) and (b) at the M-Web-Complete review; (c) at the M-Native-Proof review |
+| VAL-2 | Does the place-saving pace (about 71–100 days at the target pace) feel reachable? | The same sessions plus the arithmetic from the demo household at 3 target paces | At least 5 of 8 rate the next place "reachable" after seeing its date; otherwise adjust prices or add a visible goal before any new coin sink | DEC-P16(d) | M-Web-Complete review |
+| VAL-3 | After WP-D5 ships, can people tell a pet's best friend from its behaviour? | 5–8 participants watch a seeded Shelf for two minutes and name each pet's friend | At least 60% correct with WP-D5's heuristic; below that, the evidence-based co-presence tally is built (additive, optional) | DEC-P16(f) | M-Web-Complete review |
 
 ### 6.3 Where paid value can honestly come from
 
@@ -2219,25 +2305,34 @@ This section supports DEC-P1 and DEC-P3. It is a recommendation, not a decision.
 
 | Set | IDs | In §1 with status and evidence | Home (WP or decision) | Fixed / no work | Notes |
 |---|---|---|---|---|---|
-| Original register | 37 | 37 | 35 | 2 (i2, i7; residual guards in WP-E1 and X-02) | 34 still present, 1 partly fixed; data-d12 folded into data-d10 (not counted) |
+| Original register | 37 | 37 | 35 | 2 (i2, i7; residual guards in WP-E1 and X-02) | 34 still present, 1 partly fixed |
 | Deeper register | 22 | 22 | 22 | 0 | FS3, FS8 and FS10 extend D5, D7 and D2/D3; HM3 shares domain-d2's mechanism |
 | Attribution correction | 1 (SHIP1) | 1 | WP-D4 (+ WP-G4 check) | 0 | |
-| Release/platform/business | 10 | 10 | 10 | 0 | GLOBAL1 has an immediate fix (WP-03) and a scope decision |
-| P-persistence | 24 | 24 | 24 | P-14 fixed; P-22 disputed | 10 still present, 2 partly fixed, 3 unconfirmed, 5 decision, 2 future |
-| P-history (01–14, R1–R4) | 18 | 18 | 18 | P-14 fixed; R1–R4 disputed | 4 still present, 8 decision, 1 future |
-| P-ui | 19 (18 primary; P-ui-17 is an alias of P-release-06) | 19 | 19 | none | 9 still present, 4 unconfirmed, 1 partly fixed, 1 decision, 4 future (incl. the alias) |
-| P-creative | 25 (7 primary + 18 aliases) | 25 | 25 | none | aliases resolved in §1.4 |
-| P-release | 12 (9 primary + 3 aliases) | 12 | 12 | none | P-release-09 is new since the audit |
+| First-pass ID outside the registers | 1 (data-d12) | 1 (§1.2a) | WP-A3 (store half), WP-A7 (UI half) | 0 | still present; an **extension of data-d10**, not added to the 37 |
+| Release/platform/business | 10 | 10 | 10 | 0 | GLOBAL1 has an immediate fix (WP-03) and a scope decision; their sub-items have local IDs below |
+| P-persistence | 25 | 25 | 25 | P-14 fixed; P-22 disputed | 11 still present, 2 partly fixed, 3 unconfirmed, 5 decision (one recorded), 2 future; **4 are variants** (P-01, -03, -15, -23) |
+| P-history (01–16, R1–R4) | 20 | 20 | 20 | P-14 fixed; R1–R4 disputed | 5 still present, 1 partly fixed, 8 decision, 1 future |
+| P-ui | 21 (20 primary; P-ui-17 is an alias of P-release-06) | 21 | 21 | P-ui-20 fixed | 10 still present (one a verification gap), 4 unconfirmed, 1 partly fixed, 1 decision, 4 future (incl. the alias); **2 are variants** (P-ui-03, -14) |
+| P-creative | 28 (10 primary + 18 aliases) | 28 | 28 | P-creative-27 fixed | primary: 3 still present, 5 decision, 1 future; aliases resolved in §1.4 |
+| P-release | 20 (17 primary + 3 aliases) | 20 | 20 | P-release-13 fixed | primary: 4 still present, 2 unconfirmed, 7 future, 2 decision, 1 partly fixed |
 | Plan-level X | 3 | 3 | 3 | X-01, X-03 superseded | X-02 unconfirmed |
+| Wave-2 Progress requests | 6 requests | §1.4 table | 4 fixed IDs, 1 partly fixed (P-history-15 → WP-G2), P-history-14 covers two | 5 of 6 fixed | not bug counts |
 | Roadmap | 7 | §6 | §6 | n/a | enhancements, separate from repairs |
+| Validation items | 3 (VAL-1…3) | §6.2 | DEC-P16 | n/a | each names an owner, a threshold and a review point |
 
 **Result:**
-- 70 registered or release IDs.
-- 79 primary local IDs: 24 P-persistence, 18 P-history, 18 P-ui, 7 P-creative, 9 P-release and the 3 plan-level X IDs. The 22 aliases (18 P-creative, 3 P-release, 1 P-ui) are not counted again.
-- 7 roadmap items.
-- All mapped. **No item is left in a generic "later" bucket.** Every deferred item names its package, its decision or the gate it waits for.
+- **71 audit IDs:** 70 registered or release IDs (37 + 22 + SHIP1 + 10) plus data-d12, the first-pass ID outside the registers.
+- **95 primary local planning rows:** 25 P-persistence, 20 P-history, 20 P-ui, 10 P-creative, 17 P-release and 3 plan-level X. The 22 aliases (18 P-creative, 3 P-release, 1 P-ui) are not counted again.
+  - **95 counts planning rows, not independent defects.** Six rows are variants or named consequences of registered IDs (P-persistence-01, -03, -15, -23; P-ui-03, -14). They keep a row for their acceptance cases, but excluding them leaves **89 independent unnumbered items**.
+  - Of the 95: 5 are fixed (P-persistence-14, P-history-14, P-ui-20, P-creative-27, P-release-13) and 5 are disputed or refuted (P-persistence-22, P-history-R1…R4), so **85 have a work package, a decision or a validation item** (one of them, P-persistence-24, is a recorded decision to keep current behaviour).
+  - This revision added 16 rows the previous draft lacked: P-persistence-25; P-history-15, -16; P-ui-20, -21; P-creative-26, -27, -28; P-release-13…20.
+- 7 roadmap items and 3 validation items.
+- All mapped. **No item is left in a generic "later" bucket.** Every deferred item names its package, its decision, or a validation item with an owner, a threshold and the milestone review at which it is decided; an unvalidated bet is recorded as rejected for now.
 
-**Checking this mechanically:** a reviewer can grep this file for each ID in the audit's registers and the tracer notes. Every ID appears in §1 and in at least one of §4, §6 or §7.2.
+**Checking this mechanically:**
+- A reviewer can grep this file for each ID in the audit's registers and the tracer notes. Every ID appears in §1 and in at least one of §4, §6 or §7.2.
+- A script over §4 finds all ten template fields in each of the 46 packages.
+- The tallies above were recomputed from the §1.4 tables' status column.
 
 ### 7.2 Decisions needed
 
@@ -2245,21 +2340,22 @@ This section supports DEC-P1 and DEC-P3. It is a recommendation, not a decision.
 
 | ID | Decision | Recommendation | Blocks |
 |---|---|---|---|
-| DEC-P1 | **[Product decision] Post-expiry policy** (SUB3): what remains after the trial or subscription ends | Permanent read access to all history, plus export, backup retrieval, restore and deletion; check-ins continue; nothing earned vanishes; paid value comes from conveniences and tools (§6.3) | WP-F3, WP-F1 web behaviour, privacy policy |
+| DEC-P1 | **[Product decision] Post-expiry policy** (SUB3): what remains after the trial or subscription ends, and what happens during a payment problem | Permanent read access to all history, plus export, backup retrieval, restore and deletion; check-ins continue; nothing earned vanishes; paid value comes from conveniences and tools (§6.3). During billing retry **without** a grace period, follow the verified state (paid conveniences pause; nothing else changes); keep paid access through payment problems by enabling a Billing Grace Period (DEC-P3), not by a silent courtesy grant | WP-F3, WP-F1 web behaviour, privacy policy |
 | DEC-P2 | **[Product decision] Web/PWA/single-file edition** (P-release-10): keep free, freeze (keeping export), or retire with a migration period | Keep the web edition free, with native paid for native conveniences, unless the business case says otherwise | WP-F1 web implementation, deployment |
-| DEC-P3 | **[Product decision] Prices, periods, Family Sharing, and what is paid**; whether a labelled Progress sample shows during the trial | One group, monthly plus annual, a 14-day trial; Family Sharing on if affordable | WP-F2, WP-F3 |
-| DEC-P4 | **[Legal/product] Age assurance and rating by storefront, and the loot-box questionnaire answer** (P-release-09) | 18+; the Declared Age Range API only where legally required; answer the loot-box item with counsel (capsules are earned, not purchased) | WP-F4, WP-G4 |
-| DEC-P5 | **[Product decision] Launch territories and language scope** (GLOBAL1, IOS5) | An honest worldwide English launch; localisation later with an Intl display layer | WP-G4 |
-| DEC-P6 | **[Product decision] Quiet mode navigation** (integration-i5) | Hide the Capsules tab; keep a direct route and digits by route id; a lossless way back | WP-D3 |
+| DEC-P3 | **[Product decision] Prices, periods, Family Sharing, what is paid, device availability and Billing Grace Period**; whether a labelled Progress sample shows during the trial | One group, monthly plus annual (annual total always the most prominent price), a 14-day trial; Family Sharing on if affordable; **iPhone first, with iPad availability decided on WP-E4's layout cost**, because the subscription must work on every device where the app is available (P-release-20, [3.1.2(a)](https://developer.apple.com/app-store/review/guidelines/)); enable a Billing Grace Period ([S-12](https://developer.apple.com/help/app-store-connect/manage-subscriptions/enable-billing-grace-period-for-auto-renewable-subscriptions)) | WP-F2, WP-F3, WP-E4 target list |
+| DEC-P4 | **[Legal/product] Age assurance and rating by storefront, and the loot-box questionnaire answer** (P-release-09, P-release-16) | 18+ (never the Kids category); the Declared Age Range API only where legally required ([age assurance Q&A](https://developer.apple.com/support/age-assurance); today Apple names Brazil, Australia, Singapore, Utah and Louisiana in [its 24 Feb 2026 post](https://developer.apple.com/news/?id=f5zj08ey) and Texas from 4 Jun 2026 in [its 3 Jun 2026 post](https://developer.apple.com/news/?id=sg176nne); all rechecked 30 Sep 2026); answer the loot-box item with counsel, because capsules are earned, not purchased, and a "yes" makes the Brazil rating 18+ ([definitions](https://developer.apple.com/help/app-store-connect/reference/app-information/age-ratings-values-and-definitions/)) | WP-F4, WP-G4 |
+| DEC-P5 | **[Product decision] Launch territories, language scope and seasonal voice** (GLOBAL1, IOS5, P-release-14, P-release-18) | An honest worldwide English launch; a localised release only when the owner approves one, after an Intl display layer exists. Leave China mainland out until an ICP filing exists, if one is required. **Seasonal voice:** add a third "no seasons" (neutral) choice beside northern and southern, preselected for tropical zones, so Season Review prose never assumes four seasons | WP-G4, the seasonal copy (VOICE rows under DEC-V) |
+| DEC-P6 | **[Product decision] Quiet mode navigation** (integration-i5), and whether a "degree of collecting" choice is ever offered (RM-3) | Hide the Capsules tab; keep a direct route and digits by route id; a lossless way back. No "degree of collecting" choice unless the RM-3 acceptance journey shows quiet mode alone is not enough | WP-D3 |
 | DEC-P7 | **[Product decision] What removing a note means** for quoted Sunday Notes, snapshots and exports (UI2-08) | Offer "also remove it from Sunday Notes" (redact by reference); state plainly that recovery copies keep it until they age out or Erase everything | Remove in WP-C6, RM-1 |
 | DEC-P8 | **[Product decision] Offer "Erase everything on this device"**, and align the first Start over sentence (P-persistence-10) | Yes, behind Start over; fix the first dialog's copy | WP-A9, the privacy policy |
-| DEC-P9 | **[Product decision] Friendship promises** (creative-cr-04, P-history-08) | Build a modest behaviour profile for L5/L7/L8/L9; soften L11–L14 now; reword "most time" as "the pet's choice" | WP-D4 wording, WP-D5 |
+| DEC-P9 | **[Product decision] Friendship promises** (creative-cr-04, P-history-08) | Build a modest behaviour profile for L5/L7/L8/L9; soften L11–L14 now; reword "most time" as "the pet's choice". The evidence-based co-presence tally is DEC-P16(f) | WP-D4 wording, WP-D5 |
 | DEC-P10 | **[Product decision] Balcony auto-settlement** for never-placed pets in existing saves (domain-d5) | Suggestions and new purchases now; auto-settle with a one-time notice | WP-B7 |
 | DEC-P11 | **[Product decision] Personalisation**: completion versus last activity; sparse and night routines; foliage looks | Completion; offer a user-confirmed time or look after N waiting periods; disclose foliage limits unless art is authored | WP-B4 (`done`), WP-D6 |
 | DEC-P12 | **[Product decision] History semantics bundle:** (a) a late stage crossing is celebrated quietly with no retroactive coins (d1); (b) empty-lifetime representation (d6); (c) HM1 cut option; (d) backdating snaps to the existing grid (P-history-01); (e) does today's partial count earn a jar stem (d7); (f) freeze legacy event days with current settings (d4); (g) backdating lower bound (P-history-03); (h) old stack days use the current anchor (d2) | (a) quiet; (b) `unstarted` flag; (c) option A cut-time view; (d) snap; (e) yes, if showed up; (f) freeze once; (g) 10 years or 2000-01-01; (h) current anchor, documented | WP-B2, WP-B4, WP-B5, WP-B6, WP-B7 |
 | DEC-P13 | **[Product decision] Undo without durable snapshots** (FS9); "Undo restore" wording (data-d8) | A no-undo confirmation (reuses existing copy); a generic "Undo last replacement" label | WP-A3 |
 | DEC-P14 | **[Product decision] Imported clock guard** (P-persistence-21) | Keep the guard but cap it at the backup's `exportedAt` plus a tolerance | WP-A5 |
 | DEC-P15 | **[Product decision] Backup assistance**: first-backup nudge threshold (for example 30 check-ins); recovery preview scope | One quiet invitation; the preview after WP-A3 | RM-7 |
+| DEC-P16 | **[Product decision] Gated product bets**, each decided at a named review, never left open: (a) O1 planning in flexible periods (P-creative-11); (b) O2 recurrence from the last completion (P-creative-12); (c) O4 quantity per period (P-creative-14); (d) place-saving pace and any new coin sink (P-creative-09); (e) password-protected backups (P-persistence-20); (f) the evidence-based co-presence tally (P-history-08) | (a), (b): decide at the M-Web-Complete review from VAL-1; (b) is built only after INV-5 and INV-8 hold. (c): decide at the M-Native-Proof review from VAL-1; default rejected for now. (d): decide at the M-Web-Complete review from VAL-2; no new coin sink before then. (e): **rejected for now**; re-decide at the M-Paid review if the P-persistence-25 copy test or a cloud-backup proposal shows a need. (f): decide at the M-Web-Complete review from VAL-3. Any item whose validation has not run by its review is recorded as rejected for now | the roadmap's gated-bets row (§6.2); nothing in phases A–G |
 
 **Engineering decisions (recommended; the owner confirms or overrides):**
 
@@ -2275,26 +2371,33 @@ This section supports DEC-P1 and DEC-P3. It is a recommendation, not a decision.
 | DEC-E8 | Priority of app-owned drafts | The NoteSheet dirty confirm now; drafts after the device kill test | WP-C2, WP-G3 |
 | DEC-E9 | Native architecture (Capacitor, thin WKWebView host, or native UI) | Decide only on WP-E4 measurements | WP-F2, later estimates |
 | DEC-E10 | storage-full stays a non-blocking state (P-persistence-24) | Keep; make it truthful instead | recorded |
-| DEC-E11 | Freeze the Paired `partnerColour` when earned | Derive now; freeze later only if deleted-partner colour loss matters | WP-D2 |
-| DEC-V | VOICE rows for every new state and message (volatile, unavailable, recovered, corrupt, acquiring, superseded, no-undo, too-large, erase results, quiet helper, credits) | Draft them in VOICE first, as the repository does | WP-A1, WP-A3, WP-A5, WP-A7, WP-A9, WP-D3, WP-D4 |
+| DEC-E11 | Freeze the Paired `partnerColour` when earned | Derive now; re-decide only if WP-D2's deleted-partner test shows a visible colour loss | WP-D2 |
+| DEC-V | VOICE rows for every new state and message (volatile, unavailable, recovered, corrupt, **held/acquiring capsule notice**, **storage-full, unavailable and acquiring order errors**, superseded, no-undo, too-large, erase results, quiet helper, credits, backup and clipboard privacy, the neutral seasonal voice) | Draft them in VOICE first, as the repository does; **each package's rows are approved before it merges** (for WP-A1a: the capsule notice and the three order errors) | WP-A1 (A1a), WP-A3, WP-A5, WP-A7, WP-A9, WP-D3, WP-D4, RM-7, DEC-P5 copy |
+
+**Owner requests (evidence, not decisions):**
+
+| ID | Request | Why | Until it arrives |
+|---|---|---|---|
+| REQ-1 | Supply `catkin-combined-evidence.zip`, or at least the audit's Windows unit-test log (2,496 passed, 15 failed, 1 skipped) | The ZIP is not in the repository or on this machine (§0.4). The log is the only evidence naming the crescent precision failure (P-release-02), and the ZIP holds the audit's R201–R214 harnesses and logs | WP-01 identifies P-release-02 from the first full unit run on the new `windows-latest` lane before any tolerance change; every other status in this plan was re-derived from current source and does not depend on the ZIP |
 
 ### 7.3 Release blockers
 
 - **Blocks any wider web trial (M-Web-Safe):**
-  - FS1, data-d1, data-d2, FS4, FS10 (WP-A1);
+  - FS1, data-d1, data-d2, FS4, FS10, P-persistence-01, P-persistence-02 (WP-A1);
   - data-d5, FS3 (WP-A2);
-  - data-d3, data-d4, data-d8, data-d11, FS5, FS9 (WP-A3);
+  - data-d3, data-d4, data-d8, data-d11, FS5, FS9, data-d12 (store half), P-persistence-11 (WP-A3);
   - data-d6, FS2 (WP-A4; FS2 blocks any schema bump);
   - data-d7, FS7, FS8 (WP-A5);
   - FS6 (WP-A6);
-  - data-d10 and data-d12 (WP-A7);
-  - UI2-01, UI2-02, integration-i3, creative-cr-d2 (WP-A8: currency can be spent after the screen is gone).
+  - data-d10 and data-d12 (UI half) (WP-A7);
+  - UI2-01, UI2-02, integration-i3, creative-cr-d2 (WP-A8: currency can be spent after the screen is gone);
+  - **the decisions phase A needs, recorded before M-Web-Safe:** DEC-E1 (dev-era save shapes, WP-A4), DEC-E2 (`fake-indexeddb`, for the data-d4 and P-persistence-05 tests), DEC-P13 (undo without durable snapshots, FS9), DEC-P14 (imported clock guard, WP-A5) and the phase A DEC-V copy rows.
 - **Blocks a paid native release (M-Release), in addition:**
   - every P2 history and interaction finding (phases B and C);
-  - the phase D repairs (CR-01…04, i5, i6);
+  - the phase D repairs (CR-01…04, i5, i6, P-creative-26);
   - integration-i1 (macOS toolchain);
   - SHIP1 notices;
-  - WP-E1…E4, WP-F1…F4, WP-G1…G4;
+  - WP-E1…E4, WP-F1…F4, WP-G1…G4, including the IOS5 sub-items P-release-15…18, the subscription device-availability decision (P-release-20) and the ACCESS1 task matrix (P-ui-21);
   - DEC-P1…P5, DEC-P7 and DEC-P8;
   - Accessibility Nutrition Labels declared only for verified features.
 - **Not blockers (fix when convenient, or they are enhancements):**
@@ -2302,42 +2405,48 @@ This section supports DEC-P1 and DEC-P3. It is a recommendation, not a decision.
   - creative-cr-05 (latent until the copy has a consumer);
   - P-history-11;
   - RM-1 steps 2–4, RM-2, RM-4, RM-5, RM-6 beyond the repairs;
-  - P-creative-09, -11, -12, -14;
-  - P-persistence-20.
+  - the DEC-P16 gated bets (P-creative-09, -11, -12, -14, P-persistence-20, the P-history-08 tally), each decided at its named review;
+  - P-history-15 unless WP-G2's budget fails, P-history-16 (RM-2), P-creative-28 (DEC-P11), P-persistence-25 copy (RM-7; its privacy-policy half is in WP-G4).
 
 ### 7.4 Measurable exit criteria
 
 | Milestone | Exit criteria |
 |---|---|
 | Phase 0 | The Windows lane is green (typecheck, unit tests, build); `caseCollisions.test.ts` passes; the seeded Today e2e journeys run in CI (the skip count drops by at least 5); `npm audit` is clean for GHSA-82fw-gwwq-j7x9 with an unchanged test count; every §5.1 reproduction is ported as `test.fails` or explicitly owned. |
-| M-Web-Safe (phase A) | All phase A `.fails` entries flipped. The instrumented property holds: every `'saved'` is preceded by an owner's successful write. The two-runtime interleaving property finds no write from a disposed writer. Every replacement path returns a result, and no success UI appears without `{ok:true}`. The accepted-state property (10k plus corpus) never throws. Every store persistence state has a user-facing note. Two-page and import→reload→Undo e2e are green in Chromium and WebKit. |
+| M-Web-Safe (phase A) | DEC-E1, DEC-E2, DEC-P13, DEC-P14 and the phase A DEC-V rows are recorded. All phase A `.fails` entries flipped, including P-persistence-02 and -11. The instrumented property holds: every `'saved'` is preceded by an owner's successful write. The two-runtime interleaving property finds no write from a disposed writer. Every replacement path returns a result, and no success UI appears without `{ok:true}`. The accepted-state property (10k plus corpus) never throws. Every store persistence state has a user-facing note. Two-page and import→reload→Undo e2e are green in Chromium and WebKit. |
 | M-Web-True (phases B, C) | All phase B/C `.fails` flipped. The metamorphic harness is green for every operation in §5.7. The zone matrix is green. Keyboard-only journeys (§5.9) are green. The WebKit and normal-motion projects are blocking and green. Every decision-blocked item has a recorded decision. |
-| M-Web-Complete (phase D, WP-A9) | The parity fixture, copy-contract, quiet-journey and credits/licences tests are green; erase leaves no `catkin:*` key and an empty IndexedDB, and a failure is reported. |
-| M-Native-Proof | A signed build on a real iPhone: airplane-mode launch, check-in, kill and relaunch with the save intact; a large web save migrated with a receipt; Files backup and restore; one verified sandbox subscription; no install gate; recorded VoiceOver, Larger Text and latency measurements; DEC-E9 recorded. |
-| M-Paid | The §5.12 matrix is green in Xcode StoreKit tests, sandbox and TestFlight; INV-9 tests green; the consent screen shows the 3.1.2 content; the post-expiry policy (DEC-P1) is implemented and tested. |
+| M-Web-Complete (phase D, WP-A9) | The parity fixture (including the Detail hero's outfit), copy-contract, quiet-journey and credits/licences tests are green; erase leaves no `catkin:*` key and an empty IndexedDB, and a failure is reported; the M-Web-Complete review has recorded DEC-P16(a), (b), (d) and (f). |
+| M-Native-Proof | A signed build on a real iPhone: airplane-mode launch, check-in, kill and relaunch with the save intact; a large web save migrated with a receipt; Files backup and restore; one verified sandbox subscription; no install gate; recorded VoiceOver, Larger Text and latency measurements; DEC-E9 and DEC-P16(c) recorded. |
+| M-Paid | The §5.12 matrix is green in Xcode StoreKit tests, sandbox and TestFlight, including billing retry with and without grace and every reinstatement case; INV-9 tests green; the consent screen shows the 3.1.2 content with the billed amount as the most prominent price; the post-expiry policy (DEC-P1) is implemented and tested; DEC-P16(e) recorded. |
 | M-Release | The WP-G3 device checklist is passed or tracked for the release candidate; the WP-G4 checklist is complete (privacy label reconciled with a network capture, in-app policy and terms links, notices, rating and age assurance signed off, accurate metadata and screenshots); the migration and rollback drill has been rehearsed. |
 
 ### 7.5 Recommended first bounded package (not started)
 
-**WP-A1a: fence stale writers and stop reporting unsaved work as saved.** It covers FS1, data-d2, FS4 (queue half) and FS10, with the WP-04 fixtures it needs.
+**WP-A1a: fence stale writers and stop reporting unsaved work as saved.** It covers FS1, data-d2, FS4 (queue half) and FS10, with the WP-04 fixtures it needs. It includes the new `acquiring` result for pull and wish, because fixing FS4 means a held save can no longer be reported as `'saved'`, so the capsule UI must handle the new result.
 
 - **Why first:**
   - FS1 is the only P1 regression added since the first audit: another window's committed history can be overwritten.
   - D2, FS4 and FS10 make the app claim durability it does not have.
   - Everything later assumes INV-1 and INV-2: WP-A2, WP-A3, WP-E2, RM-7 and the subscription work.
   - It is contained and has no format change.
+- **Prerequisite (DEC-V):** the owner approves the VOICE rows for the held/acquiring capsule notice and the storage-full, unavailable and acquiring Special Order errors **before A1a merges**. They are drafted in `docs/VOICE.md` first, as the repository does.
 - **Scope:**
   - `src/state/persist.ts`: the SaveQueue fence, dirty retention with bounded retry, and the `'held'` status.
   - `src/state/store.ts`: `discardPending` on the stolen and hydrate paths, an injected `canWrite`, `commitDurable` for `pull` and `wish`, `hasUnsaved`, and a minimal `acquiring` ownership state.
-  - `src/state/api.ts` and `features/capsules/SpecialOrder.tsx`: the error union and its text, with VOICE rows first.
-  - Tests in `tests/unit/state/persistence.test.ts`, `store.test.ts` and `fixtures.ts`: the deferred lock manager, a capturing `afterFrame`, and a fault-injecting Storage.
+  - `src/state/api.ts`: `PullError` gains `acquiring`; the `WishOutcome` error union gains `storage-full`, `unavailable` and `acquiring`.
+  - `features/capsules/copy.ts`: `pullErrorNotice` and `orderErrorText` cases, with their text moved to `catalog/lines.ts` (VOICE rows first).
+  - `features/capsules/usePull.ts`: the `acquiring` notice on the existing failure path and re-enabling on the ownership signal.
+  - `features/onboarding/CapsuleSteps.tsx` (through `CapsuleMachine.tsx`): the free first pull stays on the capsule step, with the gift unspent, until a retry commits.
+  - `features/capsules/SpecialOrder.tsx`: shows the new order errors.
+  - Tests in `tests/unit/state/persistence.test.ts`, `store.test.ts` and `fixtures.ts` (the deferred lock manager, a capturing `afterFrame`, and a fault-injecting Storage), plus `usePull` and onboarding component tests for `acquiring`.
 - **Out of scope** (these follow as WP-A1b and later packages):
   - D1 storage mode and volatile status;
   - the PWA and demo gates;
   - shell banners;
   - envelope `gen`.
 - **Exit criteria:**
-  - R201, R210, R214 and the D2 retry regressions fail on HEAD and pass after;
+  - R201, R210 (restated: `acquiring` shows nothing, and one retry after the grant commits once), R214 and the D2 retry regressions fail on HEAD and pass after;
+  - the `usePull` and onboarding `acquiring` tests pass, and the approved VOICE rows are the only new strings;
   - the `'saved'` instrumentation property holds;
   - the unit suite count and results are otherwise unchanged;
   - no persisted-format change;
