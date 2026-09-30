@@ -18,7 +18,8 @@ export interface FakeBrowser {
 
 export function fakeBrowser(opts: { start?: string; hour?: number; quotaChars?: number; locks?: LockManagerLike | null; seed?: number } = {}): FakeBrowser {
   const storage = memoryStorage({}, opts.quotaChars ?? Infinity);
-  const snapshots = memorySnapshotStore();
+  // A stand-in for IndexedDB: its copies count as durable (outliving the page), as IndexedDB's do.
+  const snapshots = memorySnapshotStore({ durable: true });
   const clock = { now: at(opts.start ?? '2026-09-29', opts.hour ?? 9) };
   let nextId = 1;
   const timeouts = new Map<number, { at: number; fn: () => void }>();

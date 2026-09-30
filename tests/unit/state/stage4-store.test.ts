@@ -34,6 +34,7 @@ describe('import keeps an undo copy (DESIGN §13.8 "snapshots first … offers U
     const backup = store.exportData();
     store.createHabit(input);
     const broken: SnapshotStore = {
+      durable: true,
       put: () => Promise.reject(new Error('IndexedDB unavailable')),
       get: () => Promise.resolve(null),
       list: () => Promise.resolve([]),
@@ -42,7 +43,7 @@ describe('import keeps an undo copy (DESIGN §13.8 "snapshots first … offers U
     store.configureStore({ snapshots: broken });
     expect(await store.applyImport(backup)).toEqual({ ok: false, error: 'no-undo' });
     expect(store.state.value.habits).toHaveLength(1);
-    expect(await store.applyImport(backup, { withoutUndo: true })).toEqual({ ok: true });
+    expect(await store.applyImport(backup, { withoutUndo: true })).toEqual({ ok: true, undo: null });
     expect(store.state.value.habits).toHaveLength(0);
     expect(store.canUndoImport()).toBe(false);
     store.configureStore({ snapshots: b.snapshots });
