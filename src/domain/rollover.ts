@@ -16,7 +16,9 @@
  * 7. the birthday (1 ticket every year; the Paper Party Hat and the Tiny Cake once);
  * 8. compaction (ledger to the refund window, live stamps to 120 days, found things to 14).
  * Before all of it, and on every open of the same day too, `reconcilePrecisionMarks` quietly lifts
- * the growth marks an older build's rounding held a few millionths short (WP-B2, economy.ts).
+ * the growth marks an older build's rounding held a few millionths short (WP-B2, economy.ts), and,
+ * once per save, `settleUniversalOnce` settles never-placed pets in an already open Balcony Box,
+ * with a notice for Today (DEC-P10, shelf.ts).
  * Growth only adds (§3.1): nothing here ever takes a plant, a pet or a stage away.
  */
 import { BIRTHDAY_CAKE_ID, PARTY_HAT_ID } from '@/catalog/collectibles';
@@ -28,7 +30,7 @@ import { ensureEarlyWeeklyNote, ensureLetters } from './letters';
 import { pruneOldStamps, rewardPass } from './logging';
 import { pruneFoundThings } from './friendship';
 import { restockPantry } from './pantry';
-import { settleUnplacedPets } from './shelf';
+import { settleUniversalOnce, settleUnplacedPets } from './shelf';
 import { anniversaryNote } from './rituals';
 import { openSeason, retireEndedHabits } from './seasonReview';
 import { ruleAt } from './rules';
@@ -103,6 +105,8 @@ export function openDay(tx: Tx): boolean {
   if (rewardsPaused(tx.s, tx.env.now)) return false;
   // Before anything can celebrate a stage: marks an older build's rounding held back (WP-B2), quietly.
   reconcilePrecisionMarks(tx);
+  // Once per save: never-placed pets settle in the Balcony Box, now a place everyone loves (DEC-P10).
+  settleUniversalOnce(tx);
   const fresh = previous === '';
   if (!fresh && tx.env.today <= previous) {
     // Same app day: only the Sunday Note can come due (from 18:00 on the week's last day).
