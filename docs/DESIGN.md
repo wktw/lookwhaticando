@@ -171,7 +171,9 @@ scheduled active days count, and today counts only if done. A period spanning tw
 
 Each habit's plant grows on **sunshine**, a ledger like coins. Each rewarded occurrence records `7 / expectedPerWeek`
 (tiny = 50%). Flexible check-ins beyond `times` give none. Only un-checking the same occurrence in the refund window
-removes it.
+removes it. Grants are kept unrounded, and every threshold (stages, blooms, Flourishes, The Cutting, companion
+stories) counts a total within 1/1000 sunshine of it as reached, so nine Mon/Wed/Fri check-ins (9 × 7/3) reach
+Budding's 21 on the ninth (`domain/precision.ts`).
 
 | Stage | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 |
 |---|---|---|---|---|---|---|---|---|

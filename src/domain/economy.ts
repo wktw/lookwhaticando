@@ -74,6 +74,7 @@ import {
   flourishesFor,
   lifetimeSunshine,
   plantStage,
+  stageFromSunshine,
   stageName,
   stagesCrossed,
   sunshineFromHistory,
@@ -82,6 +83,7 @@ import {
   type CuttingVM,
 } from './growth';
 import { evaluatePeriod, flexPeriodAt, type FlexPeriod } from './periods';
+import { THRESHOLD_EPS, addToTotal, reaches, sameAmount } from './precision';
 import { ruleAt } from './rules';
 import { isDayBased, restAllowancePerWeek } from './schedule';
 import { RUNGS, streakInfo, type StreakInfo } from './streaks';
@@ -166,8 +168,6 @@ export const levelRank = (l: GrantLevel): number => RANK[l];
 export const ledgerKey = (habitId: string, date: DateKey): string => `${habitId}|${date}`;
 /** The date part of a '<habitId>|<date>' key. */
 export const ledgerKeyDate = (key: string): DateKey => key.slice(key.lastIndexOf('|') + 1);
-
-const round6 = (x: number): number => Math.round(x * 1e6) / 1e6;
 
 export function trackingCtx(s: Pick<AppState, 'settings' | 'offDays'>, today: DateKey): EvalContext {
   return { today, weekStart: s.settings.weekStart, offDays: s.offDays };
@@ -349,10 +349,11 @@ const completes = (l: GrantLevel): boolean => l === 'tiny' || l === 'full';
 
 const NO_CHANGE = (l: GrantLevel): Settlement => ({ prev: l, next: l, paid: 0, refunded: 0, refundBlocked: false, sunshine: 0, fresh: false });
 
+/** Moves a habit's sunshine total by an unrounded grant (the precision contract, precision.ts). */
 function addSunshine(tx: Tx, habitId: string, delta: number): void {
   if (delta === 0) return;
   const totals = tx.ledger('sunshine');
-  totals[habitId] = Math.max(0, round6((totals[habitId] ?? 0) + delta));
+  totals[habitId] = addToTotal(totals[habitId] ?? 0, delta);
 }
 
 /**
@@ -375,13 +376,14 @@ export function settleTo(tx: Tx, habitId: string, date: DateKey, next: GrantLeve
   const prev: GrantLevel = entry?.lvl ?? 'none';
   const rule = ruleAt(habit, date);
   const heldSun = entry?.sunshine ?? 0;
-  const wantSun = next === 'none' || next === 'over' ? 0 : round6(sunshinePerOccurrence(rule, next === 'tiny'));
+  const wantSun = next === 'none' || next === 'over' ? 0 : sunshinePerOccurrence(rule, next === 'tiny');
   const up = RANK[next] > RANK[prev];
   const down = RANK[next] < RANK[prev];
   if ((up && opts.only === 'down') || (down && opts.only === 'up')) return NO_CHANGE(prev);
   if (!up && !down) {
-    // Same level: coins stay; the sunshine follows the rule now governing the day (a rule edit).
-    if (!entry || Math.abs(wantSun - heldSun) < 1e-9) return NO_CHANGE(prev);
+    // Same level: coins stay; the sunshine follows the rule now governing the day (a rule edit). A
+    // grant stored rounded to 6 places by an older build is the same price, and is left as it is.
+    if (!entry || sameAmount(wantSun, heldSun)) return NO_CHANGE(prev);
     addSunshine(tx, habitId, wantSun - heldSun);
     const co = shareWithCompanion(tx, habit, entry, wantSun, completes(prev), completes(next));
     const { co: _old, ...rest } = entry;
@@ -859,7 +861,7 @@ function recordCutting(tx: Tx): void {
   const lifetime = lifetimeSunshine(tx.s.ledger.sunshine);
   const best = tx.s.ledger.once[CUTTING_KEY];
   const bestStage = typeof best === 'number' ? best : 0;
-  if (bestStage + 1 < CUTTING_THRESHOLDS.length && lifetime + 1e-9 >= CUTTING_THRESHOLDS[bestStage + 1]!) {
+  if (bestStage + 1 < CUTTING_THRESHOLDS.length && reaches(lifetime, CUTTING_THRESHOLDS[bestStage + 1]!)) {
     setOnce(tx, CUTTING_KEY, theCutting(lifetime).stage);
   }
 }
@@ -880,6 +882,56 @@ export function bestFlourishes(s: Pick<AppState, 'ledger'>, habitId: string): nu
  */
 function recordFlourishes(tx: Tx, habitId: string, flourishes: number): void {
   if (flourishes > bestFlourishes(tx.s, habitId)) setOnce(tx, flourishKey(habitId), flourishes);
+}
+
+/**
+ * The stage a sunshine total gave before the precision contract (a 1e-9 tolerance on totals of
+ * grants each rounded to 6 places): the reading an older build lifted `bestStage` by.
+ */
+const stageBeforeContract = (sunshine: number): number => stageFromSunshine(sunshine - THRESHOLD_EPS + 1e-9);
+
+/**
+ * Brings the high-water marks up to what the precision contract reads (WP-B2, domain-d1): an older
+ * build rounded every grant, so a total could sit a few millionths below a threshold it had earned
+ * (nine Mon/Wed/Fri check-ins at 20.999997, one short of Budding's 21), and the plant, The Cutting
+ * or a Flourish waited a check-in more. The plants now show those stages; this lifts `bestStage`,
+ * `stageDates` (dated today), the Flourish and Cutting marks, and leaves the keepsakes and the
+ * Laurel Sprig those stages bring, so the screens, the Sunday Note and the next check-in agree.
+ *
+ * - **Quiet (DEC-P12a):** no celebration events and no coins; a late crossing is noticed, not
+ *   celebrated.
+ * - **Only precision:** a plant is lifted only when the old reading holds it at its mark and the
+ *   contract's reading passes it. A stage the calendar pace or a missing check-in held back is still
+ *   reached, and celebrated, at the next check-in as before.
+ * - **Idempotent:** nothing is written when the marks already agree (it runs whenever the day is
+ *   opened, so a stale writer replaying an older state is lifted again the same way).
+ */
+export function reconcilePrecisionMarks(tx: Tx): void {
+  const mark = tx.events.length;
+  for (const habit of tx.s.habits) {
+    const sun = tx.s.ledger.sunshine[habit.id] ?? 0;
+    const best = tx.s.ledger.bestStage[habit.id] ?? 0;
+    if (best >= EVERGREEN) {
+      recordFlourishes(tx, habit.id, flourishesFor(sun, best));
+      continue;
+    }
+    if (stageFromSunshine(sun) <= best || stageBeforeContract(sun) > best) continue;
+    const since = habitCreatedOn(habit, tx.s.settings.dayStartsAt, tx.env.local);
+    const completed = completedOccurrences(habit, logsOf(tx.s, habit.id), trackingCtx(tx.s, tx.env.today), since);
+    const elapsed = daysSinceCreation(since, tx.env.today);
+    const stage = plantStage(sun, completed, elapsed);
+    // The old reading, with the same completed-occurrence and calendar-pace caps.
+    const before = Math.min(stageBeforeContract(sun), plantStage(Number.MAX_VALUE, completed, elapsed));
+    if (stage <= best || before > best) continue;
+    tx.ledger('bestStage')[habit.id] = stage;
+    const crossed = stagesCrossed(best, stage);
+    recordStageDates(tx, habit.id, crossed);
+    if (stage >= EVERGREEN) grantExclusive(tx, LAUREL_SPRIG_ID);
+    leaveKeepsakes(tx, habit.id, crossed);
+    recordFlourishes(tx, habit.id, flourishesFor(sun, stage));
+  }
+  recordCutting(tx);
+  tx.events.splice(mark);
 }
 
 /* ------------------------------------------------------------------ */

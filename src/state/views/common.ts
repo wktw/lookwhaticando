@@ -20,6 +20,7 @@ import { bestFlourishes, completedOccurrences, daysSinceCreation, habitCreatedOn
 import { POTTED, ROOTING, STAGE_THRESHOLDS, artBlooms, growthInfo, sunshinePerOccurrence, type GrowthInfo } from '@/domain/growth';
 import { evaluatePeriod, flexPeriodAt } from '@/domain/periods';
 import { isPausedOn, pauseReturnDay } from '@/domain/pauses';
+import { occurrencesToReach } from '@/domain/precision';
 import { ruleAt, scheduleStatusOn } from '@/domain/rules';
 import { effectiveTarget, everyOf, isDayBased, restAllowancePerWeek } from '@/domain/schedule';
 import type { StreakRun, StreakUnit } from '@/domain/streaks';
@@ -96,7 +97,7 @@ export function checkinsToStage(s: AppState, habit: Habit, today: DateKey, local
   const nextDay = showedUp(logStatus(logs[today], ruleAt(habit, today), false)) ? addDays(today, 1) : today;
   const per = sunshinePerOccurrence(ruleAt(habit, nextDay));
   const sun = s.ledger.sunshine[habit.id] ?? 0;
-  const bySun = Math.ceil(Math.max(0, STAGE_THRESHOLDS[stage]! - sun) / per - 1e-9);
+  const bySun = occurrencesToReach(sun, STAGE_THRESHOLDS[stage]!, per);
   return Math.max(1, bySun, stage - completed);
 }
 
@@ -115,7 +116,8 @@ export function plantVM(s: AppState, habit: Habit, today: DateKey, local: LocalT
     // Priced at the rule of the next check-in: tomorrow's once today is done (an edit may be pending).
     const nextDay = showedUp(logStatus(logs[today], ruleAt(habit, today), false)) ? addDays(today, 1) : today;
     const per = sunshinePerOccurrence(ruleAt(habit, nextDay));
-    checkinsToNext = info.heldBack || info.paced || info.sunshineToNext <= 1e-9 ? 1 : Math.max(1, Math.ceil(info.sunshineToNext / per - 1e-9));
+    const sun = s.ledger.sunshine[habit.id] ?? 0;
+    checkinsToNext = info.heldBack || info.paced ? 1 : Math.max(1, occurrencesToReach(sun, STAGE_THRESHOLDS[info.displayStage + 1]!, per));
   }
   return {
     ...info,

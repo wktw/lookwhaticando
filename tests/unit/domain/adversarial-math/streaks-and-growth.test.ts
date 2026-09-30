@@ -123,11 +123,15 @@ describe('plant stages (DESIGN §13.4)', () => {
 
   it('blooms, flourishes and The Cutting switch exactly at their thresholds (passes)', () => {
     // §13.4 blooms = min(6, floor((sunshine − 180) / 30)); §13.10 a Flourish every +60 after Evergreen (8 visitors).
+    // "Exactly" is the precision contract (WP-B2, domain/precision.ts): a total within 1/1000 sunshine of a
+    // threshold reaches it (so grants an older build rounded to 6 places still do); 2/1000 short does not.
     const table: [number, number, number][] = [
       [180, 0, 0],
-      [209.999, 0, 0],
+      [209.998, 0, 0],
+      [209.9995, 1, 0],
       [210, 1, 0],
-      [239.999, 1, 0],
+      [239.998, 1, 0],
+      [239.9995, 2, 1],
       [240, 2, 1],
       [360, 6, 3],
       [10_000, 6, 8],
@@ -141,7 +145,10 @@ describe('plant stages (DESIGN §13.4)', () => {
     expect(plantStage(9 * sunshinePerOccurrence({ schedule: { kind: 'days', days: [1, 3, 5] } }), 9)).toBe(4);
     CUTTING_THRESHOLDS.forEach((t, stage) => {
       expect(theCutting(t).stage).toBe(stage);
-      if (stage > 0) expect(theCutting(t - 1e-6).stage).toBe(stage - 1);
+      if (stage > 0) {
+        expect(theCutting(t - 2e-3).stage).toBe(stage - 1);
+        expect(theCutting(t - 1e-6).stage).toBe(stage);
+      }
     });
     expect(STAGE_THRESHOLDS).toEqual([0, 1, 4, 10, 21, 42, 90, 180]);
   });

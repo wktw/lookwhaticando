@@ -15,13 +15,15 @@
  * 6. the moving-in anniversary note (§13);
  * 7. the birthday (1 ticket every year; the Paper Party Hat and the Tiny Cake once);
  * 8. compaction (ledger to the refund window, live stamps to 120 days, found things to 14).
+ * Before all of it, and on every open of the same day too, `reconcilePrecisionMarks` quietly lifts
+ * the growth marks an older build's rounding held a few millionths short (WP-B2, economy.ts).
  * Growth only adds (§3.1): nothing here ever takes a plant, a pet or a stage away.
  */
 import { BIRTHDAY_CAKE_ID, PARTY_HAT_ID } from '@/catalog/collectibles';
 import type { DateKey } from '@/state/types';
 import { logStatus } from './activity';
 import { addDays, maxDateKey, parseDateKey, recurringDay } from './dates';
-import { bestStreakOccurrences, compactLedger, ledgerKey } from './economy';
+import { bestStreakOccurrences, compactLedger, ledgerKey, reconcilePrecisionMarks } from './economy';
 import { ensureEarlyWeeklyNote, ensureLetters } from './letters';
 import { pruneOldStamps, rewardPass } from './logging';
 import { pruneFoundThings } from './friendship';
@@ -99,6 +101,8 @@ export function openDay(tx: Tx): boolean {
   const previous = tx.s.clock.maxDateKey;
   observeClock(tx);
   if (rewardsPaused(tx.s, tx.env.now)) return false;
+  // Before anything can celebrate a stage: marks an older build's rounding held back (WP-B2), quietly.
+  reconcilePrecisionMarks(tx);
   const fresh = previous === '';
   if (!fresh && tx.env.today <= previous) {
     // Same app day: only the Sunday Note can come due (from 18:00 on the week's last day).

@@ -36,6 +36,7 @@ import { dayNumber } from './dates';
 import { dailyFor, addXp } from './friendship';
 import { BLOOMING, POTTED } from './growth';
 import { evaluatePeriod, flexPeriodAt } from './periods';
+import { addToTotal, reaches } from './precision';
 import { ruleAt } from './rules';
 import { KEEPSAKE_STAGES, SPECIES_ROUTINES, keepsakeKind, routineOf, routinePhase, type Routine, type RoutinePhase } from './routines';
 import { expectedPerWeek } from './schedule';
@@ -212,8 +213,8 @@ export function shareWithCompanion(
   if (!share) return undefined;
   const before = { sun: share.sun, watered: share.watered === true };
   if (delta > 0) {
-    if (share.pet === current) share.sun = round6(share.sun + delta);
-  } else if (delta < 0) share.sun = round6(Math.max(0, share.sun + delta));
+    if (share.pet === current) share.sun = addToTotal(share.sun, delta);
+  } else if (delta < 0) share.sun = addToTotal(share.sun, delta);
   share.sun = Math.min(share.sun, nextSun);
   if (shownAfter && !shownBefore && share.pet === current) share.watered = true;
   if (!shownAfter && share.watered) delete share.watered;
@@ -221,13 +222,11 @@ export function shareWithCompanion(
   const dWater = (share.watered ? 1 : 0) - (before.watered ? 1 : 0);
   if (dSun !== 0 || dWater !== 0) {
     const pair = ensurePair(tx, share.pet, habit.id);
-    pair.sunshine = round6(Math.max(0, pair.sunshine + dSun));
+    pair.sunshine = addToTotal(pair.sunshine, dSun);
     pair.waterings = Math.max(0, pair.waterings + dWater);
   }
   return share.sun > 0 || share.watered ? share : undefined;
 }
-
-const round6 = (x: number): number => Math.round(x * 1e6) / 1e6;
 
 /* ------------------------------------------------------------------ */
 /* After a completing check-in (called by logging.rewardPass)          */
@@ -300,7 +299,7 @@ export function nextStory(s: Pick<AppState, 'company' | 'ledger'>, habitId: stri
   if (!pair) return null;
   for (const id of STORIES) {
     if (pair.stories?.[id]) continue;
-    if (pair.sunshine + 1e-9 < STORY_SUNSHINE[id]) return null;
+    if (!reaches(pair.sunshine, STORY_SUNSHINE[id])) return null;
     if (id === 'lookAtUs' && (s.ledger.bestStage[habitId] ?? 0) < BLOOMING) return null;
     return id;
   }

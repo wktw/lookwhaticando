@@ -6,6 +6,7 @@
 import type { AppState, DateKey, Habit, Keepsake, StoryId } from '../types';
 import { STORIES, STORY_SUNSHINE, companionOf, habitOfPet, latestMoment, pairOf, routineOn, type RoutineOn } from '@/domain/company';
 import { BLOOMING, POTTED, sunshinePerOccurrence } from '@/domain/growth';
+import { occurrencesToReach } from '@/domain/precision';
 import { routineOf } from '@/domain/routines';
 import { ruleAt } from '@/domain/rules';
 import { checkinsToStage, plantVM, type ViewEnv } from './common';
@@ -52,7 +53,7 @@ export function companionVM(s: AppState, env: ViewEnv, habit: Habit): CompanionV
     if (st) return { id, unlocked: true, on: st.on, read: st.readAt !== undefined, remaining: null };
     if (blocked) return { id, unlocked: false, on: null, read: false, remaining: null };
     blocked = true;
-    const bySun = Math.ceil(Math.max(0, STORY_SUNSHINE[id] - (pair?.sunshine ?? 0)) / per - 1e-9);
+    const bySun = occurrencesToReach(pair?.sunshine ?? 0, STORY_SUNSHINE[id], per);
     const byStage = id === 'lookAtUs' ? (checkinsToStage(s, habit, env.today, env.local, BLOOMING) ?? 0) : 0;
     return { id, unlocked: false, on: null, read: false, remaining: Math.max(1, bySun, byStage) };
   });

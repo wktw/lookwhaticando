@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
+  BLOOMING,
+  BUDDING,
   CUTTING_THRESHOLDS,
+  EVERGREEN,
   STAGE_NAMES,
   STAGE_THRESHOLDS,
   extraBloomsFor,
@@ -21,7 +24,17 @@ import {
   theCutting,
 } from '@/domain/growth';
 import { addDays } from '@/domain/dates';
+import type { AppState, DateKey, Schedule } from '@/state/types';
+import * as company from '@/domain/company';
+import { compactLedger, cuttingOf, settleTo, CUTTING_KEY } from '@/domain/economy';
+import { newPetState } from '@/domain/friendship';
+import * as habits from '@/domain/habits';
+import { mulberry32 } from '@/domain/rng';
+import { transact } from '@/domain/tx';
+import { checkinsToStage, plantVM } from '@/state/views/common';
+import { companionVM } from '@/state/views/company';
 import { DAILY, ctx, habit, logs, monthly, on, onDays, range, tiny, weekly } from './helpers';
+import { Game, UTC, at } from './game';
 
 describe('sunshine per occurrence = 7 / expectedPerWeek (DESIGN §13.4)', () => {
   it.each([
@@ -241,5 +254,226 @@ describe('sunshine from history', () => {
       return plantStage(r.sunshine, r.completedOccurrences);
     };
     expect([at(1), at(21), at(42), at(90), at(180)]).toEqual([1, 4, 5, 6, 7]);
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/* The sunshine precision contract (audit domain-d1, WP-B2)            */
+/* ------------------------------------------------------------------ */
+
+describe('the sunshine precision contract: repeating-fraction grants reach their thresholds on time (domain-d1, WP-B2)', () => {
+  // Monday 2 March 2026; the first nine Mon/Wed/Fri days and the first nine Mon/Tue/Wed days.
+  const MON = '2026-03-02';
+  const MWF: DateKey[] = ['2026-03-02', '2026-03-04', '2026-03-06', '2026-03-09', '2026-03-11', '2026-03-13', '2026-03-16', '2026-03-18', '2026-03-20'];
+  const MTW: DateKey[] = ['2026-03-02', '2026-03-03', '2026-03-04', '2026-03-09', '2026-03-10', '2026-03-11', '2026-03-16', '2026-03-17', '2026-03-18'];
+  /** What the build before WP-B2 stored for nine Mon/Wed/Fri grants: each 7/3 rounded to 2.333333. */
+  const LEGACY_NINE = 9 * 2.333333;
+
+  const habitOf = (g: Game, id: string) => g.state.habits.find((h) => h.id === id)!;
+  const addPet = (g: Game, id: string): string => {
+    g.state = { ...g.state, pets: { ...g.state.pets, [id]: newPetState(id, g.rng, g.now, g.today, true) } };
+    return id;
+  };
+  const patch = (g: Game, f: (s: AppState) => AppState) => {
+    g.state = f(g.state);
+  };
+
+  it('nine Mon/Wed/Fri check-ins reach Budding on the ninth, and the forecast never asks for a check-in more', () => {
+    const g = new Game({ start: MON });
+    const a = g.addHabit({ schedule: onDays(1, 3, 5) });
+    MWF.forEach((d, i) => {
+      g.goTo(d);
+      // Before the ninth: one more check-in, not two for a rounding residue.
+      if (i === 8) expect(plantVM(g.state, habitOf(g, a), g.today, UTC).checkinsToNext).toBe(1);
+      g.checkIn(a);
+    });
+    expect(g.lastOf('plantStage').map((e) => e.stage)).toEqual([BUDDING]);
+    expect(g.state.ledger.bestStage[a]).toBe(BUDDING);
+    expect(g.state.stageDates?.[a]?.[BUDDING]).toBe('2026-03-20');
+    const vm = plantVM(g.state, habitOf(g, a), g.today, UTC);
+    expect(vm.displayStage).toBe(BUDDING);
+    // Nine more at 7/3 are exactly Blooming's 42.
+    expect(vm.checkinsToNext).toBe(9);
+    expect(checkinsToStage(g.state, habitOf(g, a), g.today, UTC, BLOOMING)).toBe(9);
+  });
+
+  it('a total a few millionths short of a threshold reads as reaching it, with nothing left to go', () => {
+    expect(stageFromSunshine(LEGACY_NINE)).toBe(BUDDING);
+    expect(sunshineToNextStage(LEGACY_NINE, 3)).toBe(0);
+    expect(growthInfo({ sunshine: LEGACY_NINE, completedOccurrences: 9, elapsedDays: 19 }).displayStage).toBe(BUDDING);
+    // Well short is still short.
+    expect(stageFromSunshine(20.99)).toBe(3);
+  });
+
+  it('a 3×/week flexible habit reaches Budding on its ninth check-in', () => {
+    const g = new Game({ start: MON });
+    const a = g.addHabit({ schedule: weekly(3) });
+    const reached: number[] = [];
+    MTW.forEach((d, i) => {
+      g.goTo(d);
+      g.checkIn(a);
+      if (g.lastOf('plantStage').some((e) => e.stage === BUDDING)) reached.push(i + 1);
+    });
+    expect(reached).toEqual([9]);
+    expect(plantVM(g.state, habitOf(g, a), g.today, UTC).displayStage).toBe(BUDDING);
+  });
+
+  it('a Mon/Wed/Fri companion tells its first story at the third check-in and the second at the ninth', () => {
+    const g = new Game({ start: MON });
+    const a = g.addHabit({ schedule: onDays(1, 3, 5) });
+    const cat = addPet(g, 'pet-cat-tortie');
+    g.run((tx) => company.setCompanion(tx, a, cat));
+    const unlockedAt: Record<string, number> = {};
+    MWF.forEach((d, i) => {
+      g.goTo(d);
+      if (i === 2) {
+        const vm = companionVM(g.state, { today: g.today, now: g.now, local: UTC }, habitOf(g, a))!;
+        expect(vm.stories[0]).toMatchObject({ id: 'start', unlocked: false, remaining: 1 });
+      }
+      g.checkIn(a);
+      for (const e of g.lastOf('story')) unlockedAt[e.story] = i + 1;
+    });
+    expect(unlockedAt).toEqual({ start: 3, why: 9 });
+  });
+
+  it('The Cutting reaches its thresholds across habits (14 from Mon/Wed/Fri + 6 from a daily habit = 20)', () => {
+    const g = new Game({ start: MON });
+    const a = g.addHabit({ schedule: onDays(1, 3, 5) });
+    const b = g.addHabit({ name: 'Yoga', icon: 'yoga' });
+    for (const d of ['2026-03-02', '2026-03-03', '2026-03-04', '2026-03-05', '2026-03-06', '2026-03-07', '2026-03-09', '2026-03-11', '2026-03-13']) {
+      g.goTo(d);
+      if (d <= '2026-03-07') g.checkIn(b);
+      if (MWF.includes(d)) g.checkIn(a);
+    }
+    expect(cuttingOf(g.state)).toMatchObject({ stage: 2 });
+    expect(g.state.ledger.once[CUTTING_KEY]).toBe(2);
+  });
+
+  it('tiny → full, undo and re-check, and a rule repricing conserve sunshine exactly (plant and companion)', () => {
+    const g = new Game({ start: MON });
+    const a = g.addHabit({ schedule: weekly(3), tiny: { label: 'a lap' } });
+    const cat = addPet(g, 'pet-cat-tortie');
+    g.run((tx) => company.setCompanion(tx, a, cat));
+    const sums = () => {
+      const entries = Object.entries(g.state.ledger.recent).filter(([k]) => k.startsWith(`${a}|`)).map(([, e]) => e);
+      return {
+        total: g.state.ledger.sunshine[a] ?? 0,
+        entries: entries.reduce((x, e) => x + e.sunshine, 0),
+        pair: company.pairOf(g.state, cat, a)?.sunshine ?? 0,
+        shares: entries.reduce((x, e) => x + (e.co?.sun ?? 0), 0),
+      };
+    };
+    g.tiny(a); // 7/6
+    g.checkIn(a); // up to 7/3
+    g.undo(a);
+    g.checkIn(a);
+    g.goTo('2026-03-04');
+    g.checkIn(a);
+    // This week's two grants are repriced to 7×/week (1 each), then back to 3×/week (7/3 each).
+    g.run((tx) => habits.updateHabit(tx, a, { schedule: weekly(7) }, 'today'));
+    const mid = sums();
+    expect(mid.total).toBeLessThan(14 / 3 - 0.5);
+    expect(Math.abs(mid.total - mid.entries)).toBeLessThan(1e-9);
+    g.run((tx) => habits.updateHabit(tx, a, { schedule: weekly(3) }, 'today'));
+    const end = sums();
+    expect(Math.abs(end.total - 14 / 3)).toBeLessThan(1e-9);
+    expect(Math.abs(end.total - end.entries)).toBeLessThan(1e-9);
+    expect(Math.abs(end.pair - 14 / 3)).toBeLessThan(1e-9);
+    expect(Math.abs(end.pair - end.shares)).toBeLessThan(1e-9);
+  });
+
+  it('property: ten years of repeating-fraction grants read the same stage, blooms, flourishes and Cutting as the exact sum', () => {
+    // Exact sums in 1/840ths (840 = lcm of every denominator below, tiny halves included).
+    const D = 840;
+    const rhythms: Schedule[] = [onDays(1, 3, 5), onDays(1, 2, 3, 4, 5, 6), weekly(3), weekly(5), weekly(2), monthly(1), DAILY];
+    const g = new Game({ start: MON });
+    const ids = rhythms.map((schedule, i) => g.addHabit({ name: `H${i}`, schedule, tiny: { label: 'a little' } }));
+    const exact: number[] = ids.map(() => 0);
+    const rng = mulberry32(2026);
+    const stageExact = (th: readonly number[], n: number) => th.reduce((st, t, i) => (n >= t * D ? i : st), 0);
+    const afterEvergreen = (n: number, per: number, max: number) => Math.max(0, Math.min(max, Math.floor((n - 180 * D) / (per * D))));
+    const misses: string[] = [];
+    let state = g.state;
+    for (let day = 0; day < 3653 && misses.length < 5; day++) {
+      const d = addDays(MON, day);
+      const out = transact(state, { now: at(d), today: d, local: UTC, rng: g.rng }, (tx) => {
+        ids.forEach((id, i) => {
+          if (rng() < 0.45) return;
+          const small = rng() < 0.2;
+          const st = settleTo(tx, id, d, small ? 'tiny' : 'full');
+          // The exact grant in 1/840ths (the settlement's own amount, whatever rounding it stored).
+          exact[i]! += Math.round(st.sunshine * D);
+        });
+        compactLedger(tx);
+        return {};
+      });
+      state = out.state;
+      ids.forEach((id, i) => {
+        const sun = state.ledger.sunshine[id] ?? 0;
+        const n = exact[i]!;
+        const got = [stageFromSunshine(sun), extraBloomsFor(sun, EVERGREEN), flourishesFor(sun, EVERGREEN)];
+        const want = [stageExact(STAGE_THRESHOLDS, n), afterEvergreen(n, 30, 6), afterEvergreen(n, 60, 8)];
+        if (got.join() !== want.join()) misses.push(`${d} ${rhythms[i]!.kind} ${sun}: [${got}] ≠ exact [${want}]`);
+      });
+      const lifetime = exact.reduce((x, n) => x + n, 0);
+      const cutting = theCutting(lifetimeSunshine(state.ledger.sunshine)).stage;
+      if (cutting !== stageExact(CUTTING_THRESHOLDS, lifetime)) misses.push(`${d} Cutting ${lifetimeSunshine(state.ledger.sunshine)}: ${cutting}`);
+    }
+    expect(misses).toEqual([]);
+    // The run really crossed every threshold kind.
+    expect(Math.min(...ids.map((id) => state.ledger.sunshine[id] ?? 0))).toBeGreaterThan(180 + 8 * 60);
+  });
+
+  it('an old save left a few millionths short is lifted quietly when the day opens: no celebration, no coins (DEC-P12a)', () => {
+    const g = new Game({ start: MON });
+    const a = g.addHabit({ schedule: onDays(1, 3, 5) });
+    const cat = addPet(g, 'pet-cat-tortie');
+    g.run((tx) => company.setCompanion(tx, a, cat));
+    for (const d of MWF) {
+      g.goTo(d);
+      g.checkIn(a);
+    }
+    // The save as the build before WP-B2 left it: 20.999997 sunshine, the plant still Leafy, no Budding keepsake.
+    patch(g, (s) => {
+      const { [BUDDING]: _budding, ...dates } = s.stageDates?.[a] ?? {};
+      return {
+        ...s,
+        ledger: { ...s.ledger, sunshine: { ...s.ledger.sunshine, [a]: LEGACY_NINE }, bestStage: { ...s.ledger.bestStage, [a]: 3 } },
+        stageDates: { ...s.stageDates, [a]: dates },
+        keepsakes: (s.keepsakes ?? []).filter((k) => k.id !== company.keepsakeId(a, BUDDING)),
+      };
+    });
+    const coins = g.coins;
+    g.goTo('2026-03-20', 13); // the same app day, a little later (the update has just loaded)
+    expect(g.state.ledger.bestStage[a]).toBe(BUDDING);
+    expect(g.state.stageDates?.[a]?.[BUDDING]).toBe('2026-03-20');
+    expect((g.state.keepsakes ?? []).some((k) => k.id === company.keepsakeId(a, BUDDING))).toBe(true);
+    expect(g.last.filter((e) => e.type === 'plantStage' || e.type === 'keepsake' || e.type === 'exclusive')).toEqual([]);
+    expect(g.coins).toBe(coins);
+    // Idempotent: opening again changes nothing.
+    const lifted = g.state;
+    g.run(() => undefined);
+    expect(g.state).toBe(lifted);
+    // The next check-in does not celebrate Budding a second time.
+    g.goTo('2026-03-23');
+    g.checkIn(a);
+    expect(g.lastOf('plantStage')).toEqual([]);
+  });
+
+  it('guard: a stage held by the calendar pace is still celebrated at the next check-in, not lifted at day open', () => {
+    const g = new Game({ start: MON });
+    const a = g.addHabit();
+    for (let d = MON; d <= '2026-03-15'; d = addDays(d, 1)) {
+      g.goTo(d);
+      g.checkIn(a);
+    }
+    expect(g.state.ledger.bestStage[a]).toBe(3);
+    // Sunshine banked ahead of the calendar (say by a rule flip): Budding's 21, but only 14 days old.
+    patch(g, (s) => ({ ...s, ledger: { ...s.ledger, sunshine: { ...s.ledger.sunshine, [a]: 21 } } }));
+    g.goTo('2026-03-16'); // day 15: the pace now allows Budding
+    expect(g.state.ledger.bestStage[a]).toBe(3);
+    expect(g.last.filter((e) => e.type === 'plantStage')).toEqual([]);
+    g.checkIn(a);
+    expect(g.lastOf('plantStage').map((e) => e.stage)).toEqual([BUDDING]);
   });
 });
