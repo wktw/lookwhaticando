@@ -745,6 +745,16 @@ export const ERRORS = {
   /** Another window started over (or erased the save), and this one followed it (WP-A2). DEC-V: pending owner approval. */
   startedOver: 'catkin was started over in another window, so it starts fresh here too. The daily copies stay on this device.',
   clock: 'The clock on this device reads earlier than catkin last saw. Coins and stamps wait until it’s right again.',
+  /**
+   * The load notes and their buttons (WP-A7, audit data-d10): a save that couldn't be read, so the
+   * one before it (`:backup`) opened, or so it was kept aside (`:corrupt`); "Try again" on a save
+   * that didn't go through, and what a Try again that still didn't save says. DEC-V: pending owner approval.
+   */
+  recovered: 'catkin couldn’t read the latest save on this device, so it opened the one before it.',
+  corrupt: 'catkin couldn’t read the save on this device. The file is kept aside, just as it was.',
+  saveDamaged: 'Save the damaged file',
+  tryAgain: 'Try again',
+  stillNotSaved: 'Still not saved. catkin keeps trying.',
   safariTab: 'In a Safari tab, a save can be cleared after 7 days. Keep catkin on your Home Screen to keep it safe.',
   copy: 'Couldn’t copy. Select the text and copy it by hand.',
   share: 'Saved to Downloads instead.',
@@ -770,6 +780,9 @@ export const INSTALL = {
   upToDate: 'Up to date.',
   checkUpdates: 'Check for updates',
   reloadApp: 'Reload app',
+  /** Reload while a change isn't written yet (WP-A7, P-persistence-01). DEC-V: pending owner approval. */
+  reloadUnsaved: 'Your latest changes aren’t saved yet. Reloading now would clear anything that isn’t saved.',
+  reloadAnyway: 'Reload anyway',
 } as const;
 
 /** Settings and the Habit Editor (§22). */
@@ -1200,6 +1213,15 @@ export const DATA_COPY = {
   copyTitle: 'Your backup',
   copyHelper: 'Select it all, copy it, and keep it somewhere safe.',
   csvSaved: 'Waterings saved.',
+  /**
+   * The storage row while this window waits to become the one that saves; the daily copies when
+   * they can't be read; a damaged save kept aside, saved as a file of its own bytes (WP-A7). DEC-V:
+   * pending owner approval.
+   */
+  storageAcquiring: 'Getting ready to save',
+  snapshotsError: 'The daily copies can’t be read on this device right now.',
+  damagedFile: 'catkin-damaged-save-{date}.txt',
+  damagedSaved: 'The damaged file is saved.',
   /**
    * The CSV of a newer catkin's save shown read-only: only what this catkin can read of it, so it
    * says so, in its note and its file name; and a newer save it can't read at all gives none (WP-A4,

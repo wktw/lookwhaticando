@@ -1001,6 +1001,11 @@ Say what happened and what to do. Never `failed`, never `Oops`, never a code in 
 | A save from a newer catkin | "This save is from a newer catkin, so it opens read-only here. Update to make changes." |
 | Started over in another window (this window follows, and the note has a Close button). DEC-V: pending owner approval | "catkin was started over in another window, so it starts fresh here too. The daily copies stay on this device." |
 | The device clock went back | "The clock on this device reads earlier than catkin last saw. Coins and stamps wait until it’s right again." |
+| The save couldn't be read, so catkin opened the one before it (its `:backup`); the note has these buttons and Close. DEC-V: pending owner approval | "catkin couldn’t read the latest save on this device, so it opened the one before it." · "Save a backup" · "Daily copies" |
+| The save couldn't be read at all, so it was kept aside (its `:corrupt`); the note has these buttons and Close. DEC-V: pending owner approval | "catkin couldn’t read the save on this device. The file is kept aside, just as it was." · "Save the damaged file" · "Daily copies" · "Import a backup" |
+| A save that doesn't go through: the note above gains two buttons. After a Try again that still didn't save, a note says so. DEC-V: pending owner approval | "Try again" · "Save a backup" → "Still not saved. catkin keeps trying." |
+| Nothing can be kept in this browser, and a save from a newer catkin: the notes above gain "Save a backup" (for a newer catkin's save, its own bytes). There is no Try again: a browser that keeps nothing can only be tried again by reloading | "Save a backup" |
+| Reload app, or the update's Reload, while a change isn't written yet (the note's button reloads all the same). DEC-V: pending owner approval | "Your latest changes aren’t saved yet. Reloading now would clear anything that isn’t saved." · "Reload anyway" |
 | Safari tab storage | "In a Safari tab, a save can be cleared after 7 days. Keep catkin on your Home Screen to keep it safe." |
 | Copy didn't work | "Couldn’t copy. Select the text and copy it by hand." |
 | Share sheet unavailable | "Saved to Downloads instead." |
@@ -1060,6 +1065,10 @@ Under You › Data.
 | CSV from a newer catkin’s save shown read-only: only what this catkin can read, labelled partial in its note and its file name. DEC-V: pending owner approval | "Saved the waterings this catkin can read. A backup keeps the whole newer save." (file "catkin-waterings-2025-09-29-partial.csv") |
 | CSV from a newer catkin’s save this catkin can’t read at all (no file). DEC-V: pending owner approval | "This catkin can’t read the waterings in a newer save. A backup keeps all of it." |
 | Storage | "Saved on this device" / "Saved in this browser tab" |
+| Storage, while a change didn't save yet, or nothing can be kept (the §18 lines) | "That change didn’t save yet. catkin is trying again, and your last backup is safe." / "This browser isn’t keeping catkin’s save right now. Save a backup before you close it." |
+| Storage, while this window waits to become the one that saves. DEC-V: pending owner approval | "Getting ready to save" |
+| Daily copies that can't be read right now (the sheet says so, never the empty line). DEC-V: pending owner approval | "The daily copies can’t be read on this device right now." · "Try again" |
+| A damaged save kept aside (a row until Start over, and the §18 note's button). DEC-V: pending owner approval | "Save the damaged file" → "The damaged file is saved." (file "catkin-damaged-save-2025-09-29.txt", its bytes exactly as they were) |
 | Last backup | "Last backup: Sep 20" / "No backup yet" |
 | The nudge | "Worth saving a backup: the last one is from Aug 2." |
 | Start over | "Start over" → "Start over? Every habit, plant and pet on this device goes. Save a backup first, just in case." · "Start over" · "Keep everything" |
@@ -1469,6 +1478,10 @@ under the constant named. Same rules as everywhere (section 1).
 | copyTitle | "Your backup" |
 | copyHelper | "Select it all, copy it, and keep it somewhere safe." |
 | csvSaved | "Waterings saved." |
+| storageAcquiring | "Getting ready to save" (DEC-V: pending owner approval) |
+| snapshotsError | "The daily copies can’t be read on this device right now." (DEC-V: pending owner approval) |
+| damagedFile | "catkin-damaged-save-{date}.txt" (DEC-V: pending owner approval) |
+| damagedSaved | "The damaged file is saved." (DEC-V: pending owner approval) |
 | fileBuild | "Saved in this browser, for this file" |
 
 ### You › About (`ABOUT_COPY`)
