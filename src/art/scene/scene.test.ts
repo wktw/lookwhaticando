@@ -31,7 +31,7 @@ import { POND } from './places/shapes';
 import { jarLevel, JAR_LEVELS } from './props/CoinJar';
 import { PLACE_SCENES, type RoomPlaceId } from './places';
 import { arrangePets, headBox } from './arrange';
-import type { ShelfPet, SillPot } from './model';
+import type { ShelfDecor, ShelfPet, SillPot } from './model';
 
 const pot = (i: number, stage = 4): SillPot => ({ habitId: `h${i}`, name: `Habit ${i}`, species: 'pothos', stage, pot: 'terracotta' });
 const POTS = Array.from({ length: 6 }, (_, i) => pot(i));
@@ -528,5 +528,73 @@ describe('the scene’s art tokens', () => {
     expect(norm(token(day, '--contact-lamp'))).toBe(norm(CONTACT_LAMP));
     expect(norm(SHADE_LAMP)).toBe(norm(token(night, '--shade')));
     expect(norm(CONTACT_LAMP)).toBe(norm(token(night, '--contact')));
+  });
+});
+
+describe('the rituals on the sill', () => {
+  const overlaps = (a: readonly [number, number], b: readonly [number, number]) => a[0] < b[1] && b[0] < a[1];
+  const noteSpan = (w: ReturnType<typeof sillWorld>) => {
+    const n = w.rituals.note!;
+    const hw = (n.size * depthScale(n.depth)) / 2;
+    return [n.x - hw, n.x + hw] as const;
+  };
+
+  it('the note leans by the coin jar when nothing is there', () => {
+    const w = sillWorld(SILL_SPEC, POTS, [], ROOM.day, 0.5, 0, 'spring', { note: true });
+    const jarS = SILL_SPEC.scale.jar * depthScale(w.layout.jar.depth);
+    expect(w.rituals.note!.x).toBeCloseTo(w.layout.jar.x - jarS * 0.5, 5);
+  });
+
+  // The Shelf's axe check failed from late morning to mid-afternoon: the frog asleep in the hot-water bottle beside
+  // the coin jar sat behind the note's button. This is the demo household as the Shelf drew it at 13:25.
+  it('never stands in front of a pet, in the demo household at midday', () => {
+    const pots: SillPot[] = [
+      { habitId: 'h-c6cfc1kh', name: 'Drink water', species: 'pothos', stage: 5, pot: 'terracotta', routine: 'water' },
+      { habitId: 'h-lr6ig8cq', name: 'Take vitamins', species: 'catgrass', stage: 6, pot: 'cream' },
+      { habitId: 'h-4bbqamss', name: 'Go for a walk', species: 'snakeplant', stage: 5, pot: 'terracotta', routine: 'walk' },
+      { habitId: 'h-n8kidz11', name: 'Read', species: 'begonia', stage: 5, pot: 'blush', routine: 'read' },
+      { habitId: 'h-8d1oyy9t', name: 'Yoga', species: 'pilea', stage: 6, pot: 'terracotta', routine: 'mat' },
+      { habitId: 'h-mi7f0ns7', name: 'Deep clean', species: 'snakeplant', stage: 4, pot: 'terracotta' },
+      { habitId: 'h-tie9r1bj', name: 'Phone-free bedtime', species: 'catgrass', stage: 5, pot: 'terracotta', routine: 'sleep' },
+    ];
+    const decor: ShelfDecor[] = [
+      { key: 'd-14fcpk', itemId: 'keepsake:k-h-n8kidz11-1', frac: { x: 0.308, y: 0.8 }, flip: false, keepsake: 'read' },
+      { key: 'd-dve3kp', itemId: 'decor-yarn-ball', frac: { x: 0.704, y: 0.522 }, flip: false },
+      { key: 'd-j1dab1', itemId: 'decor-lily-pad', frac: { x: 0.253, y: 0.749 }, flip: false },
+      { key: 'd-ntetvu', itemId: 'keepsake:k-h-n8kidz11-4', frac: { x: 0.771, y: 0.8 }, flip: false, keepsake: 'read' },
+      { key: 'd-y50a1c', itemId: 'decor-watering-can', frac: { x: 0.147, y: 0.421 }, flip: true },
+      { key: 'd-3fuwmv', itemId: 'decor-hot-water-bottle', frac: { x: 0.585, y: 0.652 }, flip: true },
+      { key: 'd-gpnb8g', itemId: 'decor-sandcastle', frac: { x: 0.357, y: 0.465 }, flip: false },
+      { key: 'd-cjm1hz', itemId: 'decor-beach-umbrella', frac: { x: 0.664, y: 0.809 }, flip: false },
+      { key: 'd-7ssfut', itemId: 'keepsake:k-h-n8kidz11-5', frac: { x: 0.649, y: 0.8 }, flip: false, keepsake: 'read' },
+      { key: 'd-v8g0d2', itemId: 'keepsake:k-h-4bbqamss-5', frac: { x: 0.789, y: 0.8 }, flip: false, keepsake: 'move' },
+      { key: 'd-8auax3', itemId: 'keepsake:k-h-mi7f0ns7-4', frac: { x: 0.56, y: 0.8 }, flip: false, keepsake: 'tidy' },
+      { key: 'd-f4kmxv', itemId: 'keepsake:k-h-tie9r1bj-5', frac: { x: 0.427, y: 0.8 }, flip: false, keepsake: 'rest' },
+    ];
+    const pets: ShelfPet[] = [
+      { petId: 'pet-cow-beltie', home: 'h-n8kidz11', favouriteSpot: 'pot:h-n8kidz11' },
+      { petId: 'pet-cat-smoke', favouriteSpot: 'sill' },
+      { petId: 'pet-bear-black', favouriteSpot: 'sill' },
+      { petId: 'pet-cat-tuxedo', home: 'h-mi7f0ns7', favouriteSpot: 'pot:h-mi7f0ns7' },
+      { petId: 'pet-dog-pom', home: 'h-4bbqamss', favouriteSpot: 'pot:h-4bbqamss' },
+      { petId: 'pet-cat-russianblue' },
+      { petId: 'pet-dog-golden', home: 'h-8d1oyy9t', favouriteSpot: 'pot:h-8d1oyy9t' },
+      { petId: 'pet-cat-abyssinian' },
+      { petId: 'pet-hamster-winterwhite', home: 'h-c6cfc1kh', favouriteSpot: 'pot:h-c6cfc1kh' },
+      { petId: 'pet-frog-tree', home: 'h-tie9r1bj', favouriteSpot: 'pot:h-tie9r1bj' },
+    ];
+    const w = sillWorld(SILL_SPEC, pots, decor, ROOM.day, 0.53, 0, 'autumn', { note: true, found: 1368 });
+    const half = SILL_SPEC.scale.pet * 0.2;
+    for (const hour of [7, 10, 12, 13.4, 15, 18, 22]) {
+      for (const [key, spot] of arrangePets(w.ground, pets, { ...at(0.53), hour })) {
+        expect(overlaps(noteSpan(w), [spot.x - half, spot.x + half]), `${hour}h ${key}`).toBe(false);
+      }
+    }
+  });
+
+  it('pets roaming the sill keep off the rituals', () => {
+    const w = sillWorld(SILL_SPEC, POTS, [], ROOM.day, 0.5, 0, 'spring', { note: true });
+    const [a, b] = noteSpan(w);
+    expect(w.ground.obstacles.some((o) => o.x0 <= a + 1e-6 && o.x1 >= b - 1e-6)).toBe(true);
   });
 });

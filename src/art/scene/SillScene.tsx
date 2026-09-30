@@ -97,7 +97,13 @@ export const SillScene = forwardRef(function SillScene(props: SillSceneProps, re
   const view = outsidePalette(moment.time, moment.season);
   const light = childLight(moment.light);
 
-  const world = useMemo(() => sillWorld(SILL_SPEC, pots, decor, room, moment.light.sun, widthU, moment.season), [pots, decor, room, moment.light.sun, widthU, moment.season]);
+  const foundSeed = props.found?.seed;
+  const hasNote = !!props.note;
+  const hasCake = !!props.cake;
+  const world = useMemo(
+    () => sillWorld(SILL_SPEC, pots, decor, room, moment.light.sun, widthU, moment.season, { found: foundSeed, note: hasNote, cake: hasCake }),
+    [pots, decor, room, moment.light.sun, widthU, moment.season, foundSeed, hasNote, hasCake],
+  );
   const start = useMemo(() => {
     const spots = arrangePets(world.ground, pets, moment);
     return props.vignette ? stageVignette(props.vignette, 'sill', world.ground, moment, pets, spots) : spots;

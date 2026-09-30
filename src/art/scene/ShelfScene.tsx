@@ -81,7 +81,13 @@ export const ShelfScene = forwardRef(function ShelfScene(props: ShelfSceneProps,
   const opened = useMemo(() => ORDER.filter((id): id is RoomPlaceId => id !== 'sill' && places.includes(id)), [places]);
 
   const sillDecor = useMemo(() => decor.filter((d) => !d.place || d.place === 'sill' || !opened.includes(d.place as RoomPlaceId)), [decor, opened]);
-  const world = useMemo(() => sillWorld(SILL_SPEC, pots, sillDecor, room, moment.light.sun, opened.length ? 0 : widthU, moment.season), [pots, sillDecor, room, moment.light.sun, widthU, opened.length, moment.season]);
+  const foundSeed = props.found?.seed;
+  const hasNote = !!props.note;
+  const hasCake = !!props.cake;
+  const world = useMemo(
+    () => sillWorld(SILL_SPEC, pots, sillDecor, room, moment.light.sun, opened.length ? 0 : widthU, moment.season, { found: foundSeed, note: hasNote, cake: hasCake }),
+    [pots, sillDecor, room, moment.light.sun, widthU, opened.length, moment.season, foundSeed, hasNote, hasCake],
+  );
 
   const segments = useMemo(() => {
     const out: Segment[] = [{ id: 'sill', x: 0, width: world.layout.width, ground: world.ground }];
