@@ -393,12 +393,95 @@ describe('the Shelf tab shows your closest pet (DESIGN §1 Many animals)', () =>
 describe('the month jar (DESIGN §13, Pressing Day)', () => {
   it('holds one stem per habit watered since the 1st, in habit order, and nothing from last month', () => {
     const [a, b] = demo.habits;
-    const s: Pick<typeof demo, 'habits' | 'logs'> = { habits: demo.habits, logs: { [a!.id]: { '2026-09-01': { kind: 'log' as const, count: 1 } }, [b!.id]: { '2026-08-31': { kind: 'log' as const, count: 1 }, '2026-09-02': { kind: 'rest' as const } } } };
+    // Drink water's target is 8 glasses: a stem needs the day watered (WP-B7), not a first glass.
+    const s: Pick<typeof demo, 'habits' | 'logs'> = { habits: demo.habits, logs: { [a!.id]: { '2026-09-01': { kind: 'log' as const, count: 8 } }, [b!.id]: { '2026-08-31': { kind: 'log' as const, count: 1 }, '2026-09-02': { kind: 'rest' as const } } } };
     expect(monthJarStems(s, '2026-09-29')).toEqual([{ habitId: a!.id, plant: a!.plant }]);
     expect(monthJarStems(s, '2026-10-01')).toEqual([]);
     const vm = todayVM(demo, demoEnv);
     expect(vm.monthJar.length).toBeGreaterThan(0);
     expect(vm.monthJar.every((m) => demo.habits.some((h) => h.id === m.habitId && h.plant === m.plant))).toBe(true);
+  });
+});
+
+describe('the month jar holds a stem for each habit she showed up for (domain-d7, WP-B7, DEC-P12e)', () => {
+  // A stem is the Herbarium page's reading of the month: a day she showed up (watered, or the Tiny
+  // version), inside the habit's lifetime, read as the page reads it (a day not yet over counts as
+  // shown up only once it is watered or Tiny). One helper feeds both jars: the Today band
+  // (`todayVM.monthJar`) and the Progress hero (`monthJarStems`).
+  const jar = (g: Game) => {
+    const env: ViewEnv = { today: g.today, now: g.now, local: UTC };
+    const band = todayVM(g.state, env).monthJar;
+    const hero = monthJarStems(g.state, g.today);
+    expect(band).toEqual(hero);
+    return hero.map((x) => x.habitId);
+  };
+
+  it('a zero-count Tiny watering earns its stem', () => {
+    const g = new Game({ start: '2026-09-01' });
+    const walk = g.addHabit({ name: 'Walk', tiny: { label: 'Shoes on' } });
+    g.goTo('2026-09-10');
+    expect(g.tiny(walk).completed).toBe(true);
+    expect(g.state.logs[walk]!['2026-09-10']).toMatchObject({ kind: 'log', count: 0, level: 'tiny' });
+    expect(jar(g)).toEqual([walk]);
+    g.advance(1);
+    expect(jar(g)).toEqual([walk]);
+  });
+
+  it('a partial count on a day that is over earns no stem; a count that reached the Tiny count does', () => {
+    const g = new Game({ start: '2026-09-01' });
+    const water = g.addHabit({ name: 'Water', icon: 'water', target: 8 });
+    const glasses = g.addHabit({ name: 'Glasses', icon: 'water', target: 8, tiny: { label: 'Two glasses', count: 2 } });
+    g.goTo('2026-09-10');
+    g.setCount(water, '2026-09-08', 3);
+    g.setCount(glasses, '2026-09-08', 2);
+    expect(jar(g)).toEqual([glasses]);
+  });
+
+  it('today: a partial count earns no stem yet; watered earns it, and not watered after all takes it back', () => {
+    const g = new Game({ start: '2026-09-01' });
+    const water = g.addHabit({ name: 'Water', icon: 'water', target: 8 });
+    const glasses = g.addHabit({ name: 'Glasses', icon: 'water', target: 8, tiny: { label: 'Two glasses', count: 2 } });
+    g.goTo('2026-09-10');
+    g.setCount(water, g.today, 3);
+    g.setCount(glasses, g.today, 2);
+    expect(jar(g)).toEqual([]);
+    // The day closes: the glasses reached their Tiny count, so that day counts from the next one.
+    g.advance(1);
+    expect(jar(g)).toEqual([glasses]);
+    g.setCount(water, g.today, 8);
+    expect(jar(g)).toEqual([water, glasses]);
+    g.undo(water);
+    expect(jar(g)).toEqual([glasses]);
+  });
+
+  it('a full watering earns a stem and undoing it takes the stem back; a rest day earns none', () => {
+    const g = new Game({ start: '2026-09-01' });
+    const walk = g.addHabit({ name: 'Walk' });
+    const yoga = g.addHabit({ name: 'Yoga', icon: 'yoga' });
+    g.goTo('2026-09-10');
+    g.checkIn(walk);
+    expect(g.rest(yoga, g.today)).toBe(true);
+    expect(jar(g)).toEqual([walk]);
+    g.undo(walk);
+    expect(jar(g)).toEqual([]);
+  });
+
+  it('counts only days inside the lifetime: an archived habit keeps the stems of its own days', () => {
+    const g = new Game({ start: '2026-09-01' });
+    const walk = g.addHabit({ name: 'Walk' });
+    const read = g.addHabit({ name: 'Read', icon: 'book' });
+    g.goTo('2026-09-10');
+    const h = (id: string) => g.state.habits.find((x) => x.id === id)!;
+    const log = { kind: 'log' as const, count: 1 };
+    g.state = {
+      ...g.state,
+      // Walk was archived on the 5th, with a log left on the 7th; Read started on the 6th, with a log on the 3rd.
+      habits: g.state.habits.map((x) => (x.id === walk ? { ...h(walk), archivedOn: '2026-09-05' } : x.id === read ? { ...h(read), startedOn: '2026-09-06' } : x)),
+      logs: { ...g.state.logs, [walk]: { '2026-09-07': log }, [read]: { '2026-09-03': log } },
+    };
+    expect(jar(g)).toEqual([]);
+    g.state = { ...g.state, logs: { ...g.state.logs, [walk]: { '2026-09-04': log, '2026-09-07': log } } };
+    expect(jar(g)).toEqual([walk]);
   });
 });
 

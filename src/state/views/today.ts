@@ -20,7 +20,7 @@ import { hemisphereOf, seasonAt } from '@/domain/seasonReview';
 import { petPlace } from '@/domain/places';
 import { ritualDate, ritualKind, type RitualKind } from './pets';
 import { seasonReviewVM, type SeasonReviewVM } from './season';
-import { OFF_DAYS_PER_MONTH, canLogOn, isInBackfillWindow, offDaysRemaining } from '@/domain/activity';
+import { OFF_DAYS_PER_MONTH, canLogOn, inLifetime, isInBackfillWindow, logStatus, offDaysRemaining, showedUp } from '@/domain/activity';
 import { dayCompletion, trackingOf } from '@/domain/consistency';
 import { WEEKDAY_LETTERS, addDays, parseDateKey, startOfWeek, weekday } from '@/domain/dates';
 import { isFlexible } from '@/domain/schedule';
@@ -221,23 +221,28 @@ export interface TodayVM {
   /** "Find {name} a plant": the Keeping Company offer, when it may be shown today. */
   companionOffer: CompanionOfferVM | null;
   /**
-   * This month's flowers (DESIGN §13, Pressing Day): one stem per habit watered so far this
-   * calendar month, in habit order, for the jar on the sill (`MonthJar` in @/art/progress).
+   * This month's flowers (DESIGN §13, Pressing Day): one stem per habit she showed up for so far
+   * this calendar month (`monthJarStems`), in habit order, for the jar on the sill (`MonthJar` in
+   * @/art/progress).
    */
   monthJar: { habitId: string; plant: PlantSpeciesId }[];
 }
 
-/** Habits with at least one watering from the 1st of `today`'s month through `today` (the month jar's stems). */
+/**
+ * The month jar's stems (DESIGN §13, Pressing Day), for both jars (the Today band's `monthJar` and
+ * the Progress hero): the habits she showed up for (watered, or the Tiny version) on a day of their
+ * lifetime from the 1st of `today`'s month through `today`, in habit order. It reads a day the way
+ * the Herbarium page counts it (`showedUp(logStatus(…, d < today))` inside `inLifetime`), so a
+ * zero-count Tiny watering earns its stem, a partial count does not, and today's watering earns it
+ * as soon as it shows up (DEC-P12e); a rest day earns none (domain-d7, WP-B7).
+ */
 export function monthJarStems(s: Pick<AppState, 'habits' | 'logs'>, today: DateKey): { habitId: string; plant: PlantSpeciesId }[] {
   const { day } = parseDateKey(today);
   const days = Array.from({ length: day }, (_, i) => addDays(today, -i));
   return s.habits
     .filter((h) => {
       const logs = s.logs[h.id];
-      return !!logs && days.some((d) => {
-        const l = logs[d];
-        return l?.kind === 'log' && l.count > 0;
-      });
+      return !!logs && days.some((d) => logs[d] !== undefined && inLifetime(h, d) && showedUp(logStatus(logs[d], ruleAt(h, d), d < today)));
     })
     .map((h) => ({ habitId: h.id, plant: h.plant }));
 }

@@ -636,7 +636,8 @@ third-person lines, no line repeated within the last 5 in a context). A lint tes
 * **Sunday Note** (weekly): a small card pinned to the sill with a paper clip, in the narrator's voice. It has two real highlights (the top
   habit, a plant stage-up, a newcomer), a quoted note if one exists (only a note she starred), a companion's P.S. line ("Juniper slept on the book four
   evenings"), and the stamps enclosed. It never shows a percentage. Kept in the memory shelf.
-* **This month's flowers → Pressing Day**: through the month, a jar on the sill fills with a stem from each habit you watered.
+* **This month's flowers → Pressing Day**: through the month, a jar on the sill fills with a stem from each habit you showed up
+  for (watered, or its Tiny version, on a day of its lifetime, as the Herbarium page counts it; a partial count earns none).
   On the 1st, the stems are pressed into a **Herbarium page**: each habit's pressing is sized by how often it was watered and
   labelled in small type ("Walk · 24"). Rest days press as a small flower. There's no percentage on the page, and a quiet month's page is
   as beautiful as any other.
