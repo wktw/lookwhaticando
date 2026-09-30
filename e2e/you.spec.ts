@@ -97,6 +97,30 @@ test('habits are arranged by dragging the grip', async ({ page }) => {
   await expect(section(page, 'Habits').getByRole('button', { name: /^Edit / }).first()).toHaveText(/Read/);
 });
 
+// Dragged down, the row itself is the one the list re-inserts mid-drag, and Chromium drops its
+// pointer capture when it does: that must not read as a cancelled drag (WP-C2 review).
+test('a habit dragged down lands where it is let go, and the order holds', async ({ page }) => {
+  test.skip(test.info().project.name.includes('dark'), 'once per size');
+  await openYou(page);
+  const habits = section(page, 'Habits');
+  await habits.getByRole('button', { name: 'Arrange' }).click();
+  const grips = page.locator('[data-move="grip"]');
+  const a = (await grips.nth(0).boundingBox())!;
+  const b = (await grips.nth(2).boundingBox())!;
+  const x = a.x + a.width / 2;
+  const y0 = a.y + a.height / 2;
+  const y1 = b.y + b.height / 2 + 10;
+  await page.mouse.move(x, y0);
+  await page.mouse.down();
+  for (let i = 1; i <= 12; i++) await page.mouse.move(x, y0 + ((y1 - y0) * i) / 12);
+  expect(await grips.evaluateAll((els) => els.map((e) => e.getAttribute('aria-label')))).toEqual(['Move Walk', 'Move Read', 'Move Drink water']);
+  await page.mouse.up();
+  await habits.getByRole('button', { name: 'Done' }).click();
+  await expect(habits.getByRole('button', { name: /^Edit / })).toHaveText([/Walk/, /Read/, /Drink water/]);
+  await page.reload();
+  await expect(section(page, 'Habits').getByRole('button', { name: /^Edit / })).toHaveText([/Walk/, /Read/, /Drink water/]);
+});
+
 test('a watering time offers its calendar file', async ({ page }) => {
   await openYou(page);
   await page.getByLabel('Morning', { exact: true }).selectOption('07:30');

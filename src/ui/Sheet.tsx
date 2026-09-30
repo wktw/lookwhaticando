@@ -7,6 +7,7 @@ import { IconButton } from './IconButton';
 import { overlayRoot, Z_SHEET } from './overlay';
 import { isTopLayer, layerDepth, layerIndex, onLayersChange, pushLayer, removeLayer, trapTab } from './sheetStack';
 import { pickSnap, rubberBand, velocityOf } from './sheetMotion';
+import { onInterrupt } from './gesture';
 import s from './Sheet.module.css';
 
 export type SheetDetent = 'content' | 'medium' | 'large';
@@ -202,21 +203,52 @@ export function Sheet(props: SheetProps) {
   }, [phase === 'closed']);
 
   /* ---------- drag: touch (with native scroll hand-off) + mouse on the handle ---------- */
+  // Each drag ends in a release (it may dismiss or change detent) or an abort (touchcancel, a
+  // cancelled mouse pointer, the window losing focus, unmounting): back to rest, nothing dismissed.
   useEffect(() => {
     const panel = panelRef.current;
     if (phase === 'closed' || !panel) return;
 
     type Drag = { startY: number; startX: number; base: number; y: number; samples: { y: number; t: number }[]; state: 'pending' | 'drag' | 'scroll'; handle: boolean };
     let drag: Drag | null = null;
+    /** Removes what the current drag listens to (the interruption watch; the mouse's window listeners). */
+    let detach: (() => void) | null = null;
+    let settle = 0;
 
     const offsets = () => list.map(detentOffset);
     const current = () => offsets()[detentIdx] ?? 0;
+    const toRest = () => {
+      const at = current();
+      panel.style.transform = at ? `translateY(${at}px)` : '';
+    };
+    const unstyle = () => {
+      panel.style.transition = '';
+      if (scrimRef.current) {
+        scrimRef.current.style.transition = '';
+        scrimRef.current.style.opacity = '';
+      }
+    };
+    /** The drag is over, however it ended: stop listening for it. */
+    const finish = (): Drag | null => {
+      const d = drag;
+      drag = null;
+      detach?.();
+      detach = null;
+      return d;
+    };
+    const abort = () => {
+      if (finish()?.state !== 'drag') return;
+      unstyle();
+      toRest();
+    };
 
     const begin = (target: EventTarget | null, x: number, y: number): boolean => {
       if (isWide() || phase !== 'open') return false;
       const el = target as HTMLElement | null;
       if (el?.closest('[data-sheet-nodrag], input[type="range"], textarea, [contenteditable="true"]')) return false;
+      abort();
       drag = { startY: y, startX: x, base: current(), y: current(), samples: [{ y, t: performance.now() }], state: 'pending', handle: !!el?.closest('[data-sheet-handle]') };
+      detach = onInterrupt(abort);
       return true;
     };
 
@@ -248,12 +280,9 @@ export function Sheet(props: SheetProps) {
       if (scrimRef.current) scrimRef.current.style.opacity = String(Math.min(1, Math.max(0, 1 - (next - bottom) / Math.max(1, h - bottom))));
     };
 
+    /** A release: settle on the nearest detent, or dismiss. */
     const end = (d: Drag) => {
-      panel.style.transition = '';
-      if (scrimRef.current) {
-        scrimRef.current.style.transition = '';
-        scrimRef.current.style.opacity = '';
-      }
+      unstyle();
       const pts = offsets();
       const dismissAt = panel.offsetHeight;
       const candidates = latest.current.dismissible === false ? pts : [...pts, dismissAt];
@@ -261,6 +290,9 @@ export function Sheet(props: SheetProps) {
       if (i >= pts.length) {
         panel.style.transform = `translateY(${dismissAt}px)`;
         latest.current.onClose();
+        // The owner may refuse (a form with something typed in it asks first): once it has
+        // answered, a sheet that is still open goes back to rest instead of staying pulled away.
+        settle = window.setTimeout(() => latest.current.open && toRest(), 0);
         return;
       }
       if (i !== detentIdx) setDetentIdx(i);
@@ -281,8 +313,8 @@ export function Sheet(props: SheetProps) {
       move(drag, t.clientY);
     };
     const onTouchEnd = () => {
-      if (drag?.state === 'drag') end(drag);
-      drag = null;
+      const d = finish();
+      if (d?.state === 'drag') end(d);
     };
 
     const onPointerDown = (e: PointerEvent) => {
@@ -294,26 +326,32 @@ export function Sheet(props: SheetProps) {
         if (drag.state === 'pending') decide(drag, ev.clientX - drag.startX, ev.clientY - drag.startY, e.target);
         if (drag.state === 'drag') move(drag, ev.clientY);
       };
-      const onUp = () => {
-        if (drag?.state === 'drag') end(drag);
-        drag = null;
-        window.removeEventListener('pointermove', onMove);
-        window.removeEventListener('pointerup', onUp);
-      };
+      // The window listeners belong to this drag: its end, its abort and the effect's cleanup remove them.
+      const watch = detach;
       window.addEventListener('pointermove', onMove);
-      window.addEventListener('pointerup', onUp);
+      window.addEventListener('pointerup', onTouchEnd);
+      window.addEventListener('pointercancel', abort);
+      detach = () => {
+        watch?.();
+        window.removeEventListener('pointermove', onMove);
+        window.removeEventListener('pointerup', onTouchEnd);
+        window.removeEventListener('pointercancel', abort);
+      };
     };
 
     panel.addEventListener('touchstart', onTouchStart, { passive: true });
     panel.addEventListener('touchmove', onTouchMove, { passive: false });
     panel.addEventListener('touchend', onTouchEnd);
-    panel.addEventListener('touchcancel', onTouchEnd);
+    panel.addEventListener('touchcancel', abort);
     panel.addEventListener('pointerdown', onPointerDown);
     return () => {
+      clearTimeout(settle);
+      // Mid-drag: the panel's resting place is the phase's and detent's layout effect's to set.
+      if (finish()?.state === 'drag') unstyle();
       panel.removeEventListener('touchstart', onTouchStart);
       panel.removeEventListener('touchmove', onTouchMove);
       panel.removeEventListener('touchend', onTouchEnd);
-      panel.removeEventListener('touchcancel', onTouchEnd);
+      panel.removeEventListener('touchcancel', abort);
       panel.removeEventListener('pointerdown', onPointerDown);
     };
   }, [phase, detentIdx, list.join()]);

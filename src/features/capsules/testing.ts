@@ -15,7 +15,7 @@ export function installDom(): void {
   proto.getAnimations = () => [];
   // jsdom has no on-pointer handler properties, so Preact would listen for "PointerDown" instead
   // of "pointerdown". Declaring them lets tests dispatch real pointer event names.
-  for (const name of ['onpointerdown', 'onpointermove', 'onpointerup', 'onpointercancel']) {
+  for (const name of ['onpointerdown', 'onpointermove', 'onpointerup', 'onpointercancel', 'onpointerleave', 'onlostpointercapture']) {
     if (!(name in HTMLElement.prototype)) Object.defineProperty(HTMLElement.prototype, name, { value: null, writable: true, configurable: true });
   }
   document.documentElement.dataset.motion = 'reduced';
@@ -75,6 +75,23 @@ export async function type(input: HTMLInputElement, value: string): Promise<void
 export async function click(el: Element | null, what = 'element'): Promise<void> {
   if (!el) throw new Error(`No ${what} to click`);
   await act(() => (el as HTMLElement).click());
+}
+
+/**
+ * A pointer event as jsdom can make one (it has no PointerEvent): a MouseEvent that carries
+ * `pointerId` and `pointerType`.
+ */
+export function pointer(type: string, init: MouseEventInit & { pointerId?: number; pointerType?: string } = {}): MouseEvent {
+  const { pointerId = 1, pointerType = 'mouse', ...rest } = init;
+  const e = new MouseEvent(type, { bubbles: true, cancelable: true, button: 0, ...rest });
+  Object.defineProperties(e, { pointerId: { value: pointerId }, pointerType: { value: pointerType } });
+  return e;
+}
+
+/** A click as a keyboard (Enter, Space) or an assistive activation sends it: no pointer behind it, detail 0. */
+export async function keyboardClick(el: Element | null, what = 'element'): Promise<void> {
+  if (!el) throw new Error(`No ${what} to activate`);
+  await act(() => void el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, detail: 0 })));
 }
 
 export async function key(target: EventTarget, k: string): Promise<void> {

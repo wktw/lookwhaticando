@@ -9,6 +9,7 @@ import { CapsuleFigure } from './CapsuleFigure';
 import { sfx } from '@/fx/sound';
 import { haptic } from '@/fx/haptics';
 import { cx } from '@/ui/cx';
+import { keyboardClick } from '@/ui/gesture';
 import { isTopLayer, layerDepth, onLayersChange, pushLayer, removeLayer, trapTab } from '@/ui/sheetStack';
 import { prefersReducedMotion } from './motion';
 import { angleDelta } from './ratchet';
@@ -194,6 +195,7 @@ export function RevealOverlay({
 
   const onPointerDown = (e: PointerEvent) => {
     if (e.button !== 0 || stage !== 'anticipate') return;
+    suppressClick.current = false;
     const el = e.currentTarget as HTMLElement;
     const r = el.getBoundingClientRect();
     const cx0 = r.left + r.width / 2;
@@ -220,11 +222,24 @@ export function RevealOverlay({
     tracker.current!.release();
     setTwist(0);
   };
-  const onClick = () => {
-    if (suppressClick.current) {
-      suppressClick.current = false;
-      return;
-    }
+  /**
+   * The twist was cancelled (pointercancel, the capture lost without a pointerup): what it earned
+   * stays, as on a release, but no click follows it, so nothing is left to suppress.
+   */
+  const onPointerAbort = (e: PointerEvent) => {
+    const d = drag.current;
+    if (!d || e.pointerId !== d.id) return;
+    drag.current = null;
+    suppressClick.current = false;
+    tracker.current!.release();
+    setTwist(0);
+  };
+  // A twist suppresses only the click that ends its own drag; a keyboard or assistive activation
+  // (no pointer behind it) is always a tap.
+  const onClick = (e: MouseEvent) => {
+    const suppress = suppressClick.current;
+    suppressClick.current = false;
+    if (suppress && !keyboardClick(e)) return;
     tracker.current!.tap();
     afterStep();
   };
@@ -276,7 +291,8 @@ export function RevealOverlay({
               onPointerDown={onPointerDown}
               onPointerMove={onPointerMove}
               onPointerUp={onPointerUp}
-              onPointerCancel={onPointerUp}
+              onPointerCancel={onPointerAbort}
+              onLostPointerCapture={onPointerAbort}
               onClick={onClick}
               onKeyDown={onKeyDown}
             >

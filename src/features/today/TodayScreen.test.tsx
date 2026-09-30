@@ -13,7 +13,7 @@ import * as habitsDomain from '@/domain/habits';
 import { mulberry32 } from '@/domain/rng';
 import { addDays, appDayKey, runtimeLocalTime, shortDateLabel, weekday } from '@/domain/dates';
 import { weekdayName } from '@/catalog/formatCore';
-import { archiveHabit, deleteHabit, now, setCount, state, today, updateHabit } from '@/state/store';
+import { archiveHabit, deleteHabit, now, setCount, setNote, state, today, updateHabit } from '@/state/store';
 import type { AppState, DateKey, Weekday } from '@/state/types';
 import { toasts } from '@/ui/toast';
 import { habitEditorRequest } from '@/features/habits/open';
@@ -21,7 +21,7 @@ import { SheetHosts } from '@/app/SheetHosts';
 import { TodayScreen } from './TodayScreen';
 import { selectDay, selectedDay } from './state';
 import { greetingLine } from './Band';
-import { button, click, installDom, key, mount, type, until } from '@/features/capsules/testing';
+import { button, click, installDom, key, keyboardClick, mount, pointer, type, until } from '@/features/capsules/testing';
 
 function seed(templateIds: string[], name = 'Sam', trackedFrom = 0): AppState {
   const now = Date.now() - 3_600_000;
@@ -479,5 +479,159 @@ describe('an open editor keeps its day (WP-C1)', () => {
     expect(notice()).toBe(`Back to today. ${weekdayName(asked)} is as you left it.`);
     expect(state.value.offDays[asked]).toBeUndefined();
     expect(state.value.offDays[today.value]).toBeUndefined();
+  });
+});
+
+/**
+ * WP-C2 (UI2-05, P-ui-04, P-ui-08's dirty confirm): a cancelled gesture commits nothing and never
+ * swallows the next keyboard activation, and the note sheet asks before it drops a line typed in it.
+ */
+describe('cancelled gestures on Today, and the note sheet’s draft (WP-C2)', () => {
+  const idOf = (name: string) => state.value.habits.find((h) => h.name === name)!.id;
+  const countOn = (id: string, d: DateKey) => {
+    const l = state.value.logs[id]?.[d];
+    return l?.kind === 'log' ? l.count : 0;
+  };
+  const noteOn = (id: string, d: DateKey) => {
+    const l = state.value.logs[id]?.[d];
+    return l && 'note' in l ? (l.note ?? null) : null;
+  };
+  const esc = () => act(() => void document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })));
+  const noteSheet = () => Array.from(document.querySelectorAll<HTMLElement>('[role="dialog"]')).find((d) => d.querySelector('textarea')) ?? null;
+  const question = () => document.querySelector<HTMLElement>('[role="alertdialog"]');
+  const questionButton = (text: string) => Array.from(question()?.querySelectorAll('button') ?? []).find((b) => b.textContent === text) ?? null;
+
+  async function openNote(name: string) {
+    await click(button(new RegExp(`^More for ${name}`)), `⋯ for ${name}`);
+    const menu = await until(() => document.querySelector('[role="menu"]'), 'the menu');
+    await click(Array.from(menu.querySelectorAll<HTMLElement>('[role^="menuitem"]')).find((b) => /note/i.test(b.textContent ?? ''))!, 'Add a note');
+    const sheet = await until(noteSheet, 'the note sheet');
+    // Two frames after opening, the sheet is 'open' and takes drags.
+    await until(() => sheet.closest<HTMLElement>('[data-state]')?.dataset.state === 'open', 'the sheet settled');
+    return sheet;
+  }
+  const typeNote = (sheet: HTMLElement, text: string) => type(sheet.querySelector('textarea') as unknown as HTMLInputElement, text);
+
+  it('P-ui-04: a long press that opened the number pad, then a cancelled pointer: the next keyboard Enter on the ring still adds', async () => {
+    state.value = seed(['water']);
+    view = mount(<TodayScreen />);
+    const id = idOf('Drink water');
+    const holder = ringIn(cardOf('Drink water'))!.parentElement!;
+    holder.dispatchEvent(pointer('pointerdown', { pointerType: 'touch' }));
+    await until(() => document.querySelector('[role="dialog"]')?.textContent?.includes('of 8 glasses'), 'the number pad');
+    holder.dispatchEvent(pointer('pointercancel', { pointerType: 'touch' }));
+    await esc();
+    await until(() => !document.querySelector('[role="dialog"]'), 'the pad closed');
+    expect(countOn(id, today.value)).toBe(0);
+    await keyboardClick(ringIn(cardOf('Drink water')), 'the ring');
+    await until(() => countOn(id, today.value) === 1, 'the glass added from the keyboard');
+  });
+
+  it('control: the click that ends a long press is not also a tap', async () => {
+    state.value = seed(['water']);
+    view = mount(<TodayScreen />);
+    const id = idOf('Drink water');
+    const ring = ringIn(cardOf('Drink water'))!;
+    ring.parentElement!.dispatchEvent(pointer('pointerdown'));
+    await until(() => document.querySelector('[role="dialog"]')?.textContent?.includes('of 8 glasses'), 'the number pad');
+    ring.parentElement!.dispatchEvent(pointer('pointerup'));
+    await act(() => void ring.dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 1 })));
+    await new Promise((r) => setTimeout(r, 50));
+    expect(countOn(id, today.value)).toBe(0);
+  });
+
+  it('P-ui-08: closing the note sheet with a line typed in it asks first; Keep editing keeps the line, Leave it drops it', async () => {
+    state.value = seed(['walk']);
+    view = mount(<TodayScreen />);
+    const id = idOf('Walk');
+    const sheet = await openNote('Walk');
+    await typeNote(sheet, 'It rained all the way.');
+    await esc();
+    const ask = await until(question, 'the question');
+    expect(ask.textContent).toContain('Leave without saving?');
+    expect(noteSheet()).toBe(sheet);
+    await click(questionButton('Keep editing'), 'Keep editing');
+    await until(() => !question(), 'the question gone');
+    expect(noteSheet()?.querySelector('textarea')?.value).toBe('It rained all the way.');
+    // The close button asks too.
+    await click(sheet.querySelector<HTMLButtonElement>('button[aria-label="Close"]'), 'Close');
+    await until(question, 'the question again');
+    await click(questionButton('Leave it'), 'Leave it');
+    await until(() => !noteSheet(), 'the note sheet closed');
+    expect(noteOn(id, today.value)).toBeNull();
+  });
+
+  it('control: an untouched note sheet closes at once; clearing a kept note asks', async () => {
+    state.value = seed(['walk']);
+    view = mount(<TodayScreen />);
+    const id = idOf('Walk');
+    await openNote('Walk');
+    await esc();
+    await until(() => !noteSheet(), 'the note sheet closed');
+    expect(question()).toBeNull();
+    await act(() => setNote(id, today.value, 'Shoes by the door.'));
+    const sheet = await openNote('Walk');
+    expect(sheet.querySelector('textarea')?.value).toBe('Shoes by the door.');
+    await typeNote(sheet, '');
+    await esc();
+    await until(question, 'the question');
+    expect(noteOn(id, today.value)).toBe('Shoes by the door.');
+  });
+
+  describe('dragging the note sheet (jsdom: the panel is 400 px tall)', () => {
+    let height: PropertyDescriptor | undefined;
+    beforeEach(() => {
+      height = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'offsetHeight');
+      Object.defineProperty(HTMLElement.prototype, 'offsetHeight', { configurable: true, get: () => 400 });
+    });
+    afterEach(() => {
+      if (height) Object.defineProperty(HTMLElement.prototype, 'offsetHeight', height);
+    });
+    const touch = (type: string, y = 0) => {
+      const e = new Event(type, { bubbles: true, cancelable: true });
+      Object.defineProperty(e, 'touches', { value: type === 'touchend' || type === 'touchcancel' ? [] : [{ clientX: 0, clientY: y }] });
+      return e;
+    };
+    const pullDown = (header: HTMLElement) =>
+      act(() => {
+        header.dispatchEvent(touch('touchstart', 100));
+        header.dispatchEvent(touch('touchmove', 110));
+        header.dispatchEvent(touch('touchmove', 400));
+      });
+
+    it('UI2-05: touchcancel after a dismissing pull keeps the sheet and the draft', async () => {
+      state.value = seed(['walk']);
+      view = mount(<TodayScreen />);
+      const sheet = await openNote('Walk');
+      await typeNote(sheet, 'It rained all the way.');
+      const header = sheet.querySelector<HTMLElement>('[data-sheet-header]')!;
+      await pullDown(header);
+      expect(sheet.style.transform).toBe('translateY(300px)');
+      await act(() => void header.dispatchEvent(touch('touchcancel')));
+      // Longer than the sheet's exit (320 ms): a sheet that was closing would be gone by now.
+      await act(() => new Promise((r) => setTimeout(r, 400)));
+      expect(noteSheet()).toBe(sheet);
+      expect(sheet.closest<HTMLElement>('[data-state]')?.dataset.state).toBe('open');
+      expect(question()).toBeNull();
+      expect(sheet.style.transform).toBe('');
+      expect(sheet.querySelector('textarea')?.value).toBe('It rained all the way.');
+    });
+
+    it('a finished pull with a draft asks, and Keep editing brings the sheet back to rest', async () => {
+      state.value = seed(['walk']);
+      view = mount(<TodayScreen />);
+      const sheet = await openNote('Walk');
+      await typeNote(sheet, 'It rained all the way.');
+      const header = sheet.querySelector<HTMLElement>('[data-sheet-header]')!;
+      await pullDown(header);
+      await act(() => void header.dispatchEvent(touch('touchend')));
+      await until(question, 'the question');
+      await click(questionButton('Keep editing'), 'Keep editing');
+      await until(() => !question(), 'the question gone');
+      expect(noteSheet()).toBe(sheet);
+      expect(sheet.closest<HTMLElement>('[data-state]')?.dataset.state).toBe('open');
+      expect(sheet.style.transform).toBe('');
+      expect(sheet.querySelector('textarea')?.value).toBe('It rained all the way.');
+    });
   });
 });

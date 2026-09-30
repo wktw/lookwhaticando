@@ -8,7 +8,7 @@ import { CapsuleMachine } from './CapsuleMachine';
 import { Sheet } from '@/ui/Sheet';
 import { RevealOverlay } from './RevealOverlay';
 import type { RevealData } from './reveal';
-import { button, buttonWithText, click, installDom, key, mount, pause, revealDialog, type, until } from './testing';
+import { button, buttonWithText, click, installDom, key, keyboardClick, mount, pause, pointer, revealDialog, type, until } from './testing';
 
 vi.mock('@/state/store', async (importOriginal) => {
   const store = await importOriginal<typeof import('@/state/store')>();
@@ -295,7 +295,8 @@ describe('twist to open', () => {
     el.dispatchEvent(new MouseEvent('pointerdown', at(0)));
     for (let a = 15; a <= degrees; a += 15) await pause(0).then(() => el.dispatchEvent(new MouseEvent('pointermove', at(a))));
     el.dispatchEvent(new MouseEvent('pointerup', at(degrees)));
-    el.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    // The click a pointer press sends after its pointerup (detail 1; a keyboard's has detail 0).
+    el.dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 1 }));
     await pause(0);
   }
 
@@ -305,6 +306,48 @@ describe('twist to open', () => {
     expect(capsule()).toBeTruthy();
     await twist(capsule(), 105);
     await until(() => document.activeElement?.tagName === 'H2', 'the card');
+  });
+
+  it('WP-C2 (P-ui-04): a twist the system cancels leaves no stale suppression; the next keyboard activation is a tap', async () => {
+    view = mount(<RevealOverlay data={secret} onClose={() => {}} />);
+    const el = capsule();
+    const at = (deg: number) => ({ clientX: Math.cos((deg * Math.PI) / 180) * 80, clientY: Math.sin((deg * Math.PI) / 180) * 80, pointerType: 'touch' });
+    el.dispatchEvent(pointer('pointerdown', at(0)));
+    for (let a = 15; a <= 45; a += 15) await pause(0).then(() => el.dispatchEvent(pointer('pointermove', at(a))));
+    el.dispatchEvent(pointer('pointercancel', at(45)));
+    await pause(0);
+    expect(capsule().getAttribute('aria-label')).toMatch(/3 more times/);
+    await keyboardClick(capsule(), 'the capsule');
+    expect(capsule().getAttribute('aria-label')).toMatch(/2 more times/);
+  });
+
+  it('WP-C2: a twist ended by a lost pointer capture (no pointerup) is over: the capsule levels, later moves do not twist it, and the next pointer click is a tap', async () => {
+    view = mount(<RevealOverlay data={secret} onClose={() => {}} />);
+    const el = capsule();
+    const art = el.firstElementChild as HTMLElement;
+    const at = (deg: number) => ({ clientX: Math.cos((deg * Math.PI) / 180) * 80, clientY: Math.sin((deg * Math.PI) / 180) * 80, pointerType: 'mouse' });
+    el.dispatchEvent(pointer('pointerdown', at(0)));
+    for (let a = 15; a <= 45; a += 15) await pause(0).then(() => el.dispatchEvent(pointer('pointermove', at(a))));
+    expect(art.style.getPropertyValue('--twist')).not.toBe('0.0deg');
+    el.dispatchEvent(pointer('lostpointercapture', at(45)));
+    await pause(0);
+    expect(art.style.getPropertyValue('--twist')).toBe('0.0deg');
+    // A mouse moving over the capsule afterwards, no button held: the twist is over, nothing turns.
+    for (let a = 60; a <= 90; a += 15) await pause(0).then(() => el.dispatchEvent(pointer('pointermove', at(a))));
+    expect(art.style.getPropertyValue('--twist')).toBe('0.0deg');
+    expect(capsule().getAttribute('aria-label')).toMatch(/3 more times/);
+    // A later pointer press's click (detail 1): after a finished twist it would be eaten.
+    capsule().dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, detail: 1 }));
+    await pause(0);
+    expect(capsule().getAttribute('aria-label')).toMatch(/2 more times/);
+  });
+
+  it('control: the click that ends a twist is still not a second tap, and a keyboard activation after a finished twist is', async () => {
+    view = mount(<RevealOverlay data={secret} onClose={() => {}} />);
+    await twist(capsule(), 45);
+    expect(capsule().getAttribute('aria-label')).toMatch(/3 more times/);
+    await keyboardClick(capsule(), 'the capsule');
+    expect(capsule().getAttribute('aria-label')).toMatch(/2 more times/);
   });
 
   it('the Secret takes three twists or taps, and says how many are left', async () => {

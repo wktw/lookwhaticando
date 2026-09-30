@@ -25,6 +25,7 @@ import { IconButton } from '@/ui/IconButton';
 import { Stepper } from '@/ui/Stepper';
 import { Button } from '@/ui/Button';
 import { cx } from '@/ui/cx';
+import { keyboardClick } from '@/ui/gesture';
 import { TODAY_COPY } from './copy';
 import s from './HabitCard.module.css';
 
@@ -179,11 +180,20 @@ export const HabitCard = memo(function HabitCard(props: HabitCardProps) {
   const moveHold = (e: PointerEvent) => {
     if (Math.hypot(e.clientX - hold.current.x, e.clientY - hold.current.y) > HOLD_SLOP_PX) endHold();
   };
-  const onClick = () => {
-    if (hold.current.fired) {
-      hold.current.fired = false;
-      return;
-    }
+  /**
+   * The press was cancelled (the number pad opening over it, a call): no click follows, so the
+   * fired hold has nothing left to suppress.
+   */
+  const abortHold = () => {
+    endHold();
+    hold.current.fired = false;
+  };
+  // A fired hold suppresses only the click that ends its own press. A keyboard or assistive
+  // activation (Enter, Space: no pointer behind it) always waters, however the last press ended.
+  const onClick = (e: MouseEvent) => {
+    const fired = hold.current.fired;
+    hold.current.fired = false;
+    if (fired && !keyboardClick(e)) return;
     props.onRing(card, ringEl(), date);
   };
   useEffect(() => () => clearTimeout(hold.current.timer), []);
@@ -227,7 +237,7 @@ export const HabitCard = memo(function HabitCard(props: HabitCardProps) {
         onPointerMove={holds ? moveHold : undefined}
         onPointerUp={endHold}
         onPointerLeave={endHold}
-        onPointerCancel={endHold}
+        onPointerCancel={abortHold}
         onContextMenu={(e) => holds && e.preventDefault()}
       >
         <CheckRing

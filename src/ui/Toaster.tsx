@@ -3,6 +3,7 @@ import { createPortal } from 'preact/compat';
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { cx } from './cx';
 import { toneClass } from './tone';
+import { onInterrupt } from './gesture';
 import { overlayRoot } from './overlay';
 import { anyLayerOpen, momentOpen, onLayersChange } from './sheetStack';
 import { dismissToast, runToastAction, toastActions, toastDuration, toastLaneTop, toasts, toastsHeld, visibleToasts, type ToastAction, type ToastItem } from './toast';
@@ -82,10 +83,23 @@ function ToastCard({ item }: { item: ToastItem }) {
     return () => clearTimeout(timer);
   }, [item.version, paused, held, item.leaving]);
 
-  // A flick (up or down) puts the note away.
+  // A flick (up or down) puts the note away; a cancelled one (pointercancel, a capture lost
+  // without a pointerup, the window losing focus) puts it back where it was and leaves it up.
+  const unwatch = useRef<(() => void) | null>(null);
+  const endDrag = () => {
+    const d = drag.current;
+    drag.current = null;
+    unwatch.current?.();
+    unwatch.current = null;
+    return d;
+  };
+  useEffect(() => () => void endDrag(), []);
+
   const onPointerDown = (e: PointerEvent) => {
     if ((e.target as HTMLElement).closest('button')) return;
+    endDrag();
     drag.current = { y: e.clientY, id: e.pointerId };
+    unwatch.current = onInterrupt(abort);
     const el = cardRef.current;
     el?.setPointerCapture(e.pointerId);
     if (el) el.style.transition = 'none';
@@ -98,9 +112,8 @@ function ToastCard({ item }: { item: ToastItem }) {
     el.style.transform = `translateY(${e.clientY - d.y}px)`;
   };
   const onPointerUp = (e: PointerEvent) => {
-    const d = drag.current;
+    const d = endDrag();
     const el = cardRef.current;
-    drag.current = null;
     setPaused(false);
     if (!d || !el) return;
     const dy = e.clientY - d.y;
@@ -109,6 +122,15 @@ function ToastCard({ item }: { item: ToastItem }) {
     if (Math.abs(dy) > 24) return dismissToast(item.id);
     el.style.transform = '';
     if (Math.abs(dy) < 4 && !toastActions(item).length) dismissToast(item.id);
+  };
+  const abort = (e?: PointerEvent) => {
+    if (!drag.current || (e && e.pointerId !== drag.current.id)) return;
+    endDrag();
+    setPaused(false);
+    const el = cardRef.current;
+    if (!el) return;
+    el.style.transition = '';
+    el.style.transform = '';
   };
 
   return (
@@ -123,7 +145,8 @@ function ToastCard({ item }: { item: ToastItem }) {
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
-      onPointerCancel={onPointerUp}
+      onPointerCancel={abort}
+      onLostPointerCapture={abort}
     />
   );
 }
