@@ -237,7 +237,9 @@ shifted, still asleep." · "{name} stirred, then settled." · cats "{name} twitc
 one wing." · hamsters, only between 23:00 and 06:00, "{name} is up anyway. Hamsters keep late hours."
 
 The add-a-note field: placeholder "A line about today", button "Save note". Moments list it as "Mon, Sep
-22 · Walk" with her words below.
+22 · Walk" with her words below. Closing it with a changed line asks first, in the Habit Editor's
+words (`EDITOR_COPY`, §24): "Leave without saving?", "Your changes aren’t saved yet.", with "Keep
+editing" (the default) and "Leave it". No new line.
 
 For screen readers, after 1.2 seconds of quiet: "Walk, watered. Plus 5 coins." Several at once: "3
 habits watered. Plus 14 coins."

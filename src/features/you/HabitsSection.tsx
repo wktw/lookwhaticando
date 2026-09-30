@@ -5,7 +5,7 @@
  * (for VoiceOver on a phone, where there are no arrow keys). Each move is saved at once
  * (`reorderHabits`) and read out ("Walk, 2 of 5.").
  */
-import { useLayoutEffect, useRef, useState } from 'preact/hooks';
+import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { DATA, EMPTY, TODAY_LINES, fillLine } from '@/catalog/lines';
 import { scheduleText } from '@/catalog/format';
 import { HabitIcon } from '@/art/habit-icons';
@@ -19,6 +19,7 @@ import { Button } from '@/ui/Button';
 import { IconButton } from '@/ui/IconButton';
 import { toast } from '@/ui/toast';
 import { cx } from '@/ui/cx';
+import { onInterrupt } from '@/ui/gesture';
 import { toneClass } from '@/ui/tone';
 import { prefersReducedMotion } from '@/fx/motion';
 import { haptic } from '@/fx/haptics';
@@ -52,6 +53,8 @@ interface Drag {
   /** The row's layout top when the drag began (offsetTop: transforms don't move it). */
   startTop: number;
   y: number;
+  /** The order when the drag began: a cancelled drag goes back to it. */
+  from: readonly string[];
 }
 
 function ArrangeList({ habits }: { habits: Habit[] }) {
@@ -107,7 +110,7 @@ function ArrangeList({ habits }: { habits: Habit[] }) {
     if (!el) return;
     e.preventDefault();
     (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
-    drag.current = { id, pointerId: e.pointerId, startY: e.clientY, startTop: el.offsetTop, y: e.clientY };
+    drag.current = { id, pointerId: e.pointerId, startY: e.clientY, startTop: el.offsetTop, y: e.clientY, from: ids };
     setDragging(id);
     haptic('light');
   };
@@ -132,9 +135,8 @@ function ArrangeList({ habits }: { habits: Habit[] }) {
     }
   };
 
-  const endDrag = (e: PointerEvent) => {
-    const d = drag.current;
-    if (!d || e.pointerId !== d.pointerId) return;
+  /** The row lets go of the finger: the transform goes, gliding back to its slot. */
+  const letGo = (d: Drag) => {
     drag.current = null;
     setDragging(null);
     const el = rows.current.get(d.id);
@@ -143,9 +145,30 @@ function ArrangeList({ habits }: { habits: Habit[] }) {
       el.style.transform = '';
       if (from && !prefersReducedMotion()) el.animate?.([{ transform: from }, { transform: 'none' }], { duration: 160, easing: 'cubic-bezier(.2,.8,.2,1)' });
     }
+  };
+
+  /** A release (pointerup): the order on screen is saved. */
+  const endDrag = (e: PointerEvent) => {
+    const d = drag.current;
+    if (!d || e.pointerId !== d.pointerId) return;
+    letGo(d);
     const saved = [...habits].sort(byOrder).map((h) => h.id);
     if (saved.join() !== ids.join()) commit(ids, d.id, undefined, true);
   };
+
+  /**
+   * An abort (pointercancel, the capture lost without a pointerup, the window losing focus): the
+   * list goes back to the order the drag began with, and nothing is saved.
+   */
+  const abortDrag = (e?: PointerEvent) => {
+    const d = drag.current;
+    if (!d || (e && e.pointerId !== d.pointerId)) return;
+    letGo(d);
+    setOrder(d.from);
+  };
+  const abortRef = useRef(abortDrag);
+  abortRef.current = abortDrag;
+  useEffect(() => (dragging ? onInterrupt(() => abortRef.current()) : undefined), [dragging]);
 
   return (
     <ol class={s.habits} aria-describedby="you-arrange-hint">
@@ -191,7 +214,8 @@ function ArrangeList({ habits }: { habits: Habit[] }) {
               onPointerDown={onPointerDown(id)}
               onPointerMove={onPointerMove}
               onPointerUp={endDrag}
-              onPointerCancel={endDrag}
+              onPointerCancel={abortDrag}
+              onLostPointerCapture={abortDrag}
               onKeyDown={(e) => {
                 const step = keyStep(e.key);
                 if (step === null) return;
