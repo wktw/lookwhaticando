@@ -892,6 +892,19 @@ function recordFlourishes(tx: Tx, habitId: string, flourishes: number): void {
 const stageBeforeContract = (sunshine: number): number => stageFromSunshine(sunshine - THRESHOLD_EPS + 1e-9);
 
 /**
+ * The latest day the habit has a check-in logged on (any count, or the tiny version), if any. A
+ * check-in is made on its day or later, and reads the plant's stage when it is made, so the calendar
+ * pace on this day is at most the pace the last check-in read the stage under.
+ */
+function lastCheckinDay(s: Pick<AppState, 'logs'>, habitId: string): DateKey | undefined {
+  let last: DateKey | undefined;
+  for (const [day, log] of Object.entries(logsOf(s, habitId))) {
+    if (log.kind === 'log' && (log.count > 0 || log.level === 'tiny') && (last === undefined || day > last)) last = day;
+  }
+  return last;
+}
+
+/**
  * Brings the high-water marks up to what the precision contract reads (WP-B2, domain-d1): an older
  * build rounded every grant, so a total could sit a few millionths below a threshold it had earned
  * (nine Mon/Wed/Fri check-ins at 20.999997, one short of Budding's 21), and the plant, The Cutting
@@ -903,8 +916,10 @@ const stageBeforeContract = (sunshine: number): number => stageFromSunshine(suns
  * - **Quiet (DEC-P12a):** no celebration events and no coins; a late crossing is noticed, not
  *   celebrated.
  * - **Only precision:** a plant is lifted only when the old reading holds it at its mark and the
- *   contract's reading passes it. A stage the calendar pace or a missing check-in held back is still
- *   reached, and celebrated, at the next check-in as before.
+ *   contract's reading passes it, and only as far as the completed check-ins and the calendar pace
+ *   on its last check-in day allowed (the stage the contract would have celebrated at that
+ *   check-in). A stage the calendar pace or a missing check-in held back then, even one the pace
+ *   allows by the day it is opened, is still reached, and celebrated, at the next check-in as before.
  * - **Idempotent:** nothing is written when the marks already agree (it runs whenever the day is
  *   opened, so a stale writer replaying an older state is lifted again the same way).
  */
@@ -918,13 +933,14 @@ export function reconcilePrecisionMarks(tx: Tx): void {
       continue;
     }
     if (stageFromSunshine(sun) <= best || stageBeforeContract(sun) > best) continue;
+    const last = lastCheckinDay(tx.s, habit.id);
+    if (last === undefined) continue;
     const since = habitCreatedOn(habit, tx.s.settings.dayStartsAt, tx.env.local);
     const completed = completedOccurrences(habit, logsOf(tx.s, habit.id), trackingCtx(tx.s, tx.env.today), since);
-    const elapsed = daysSinceCreation(since, tx.env.today);
-    const stage = plantStage(sun, completed, elapsed);
-    // The old reading, with the same completed-occurrence and calendar-pace caps.
-    const before = Math.min(stageBeforeContract(sun), plantStage(Number.MAX_VALUE, completed, elapsed));
-    if (stage <= best || before > best) continue;
+    // The stage the contract gave at the last check-in, under that day's calendar pace: a stage the
+    // pace allows only since then is reached, and celebrated, at the next check-in.
+    const stage = plantStage(sun, completed, daysSinceCreation(since, last));
+    if (stage <= best) continue;
     tx.ledger('bestStage')[habit.id] = stage;
     const crossed = stagesCrossed(best, stage);
     recordStageDates(tx, habit.id, crossed);

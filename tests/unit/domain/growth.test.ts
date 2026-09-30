@@ -31,6 +31,7 @@ import { owns } from '@/domain/collection';
 import { bestFlourishes, compactLedger, cuttingOf, flourishKey, settleTo, CUTTING_KEY } from '@/domain/economy';
 import { newPetState } from '@/domain/friendship';
 import * as habits from '@/domain/habits';
+import * as logging from '@/domain/logging';
 import { mulberry32 } from '@/domain/rng';
 import { transact } from '@/domain/tx';
 import { checkinsToStage, plantVM } from '@/state/views/common';
@@ -496,12 +497,14 @@ describe('the sunshine precision contract: repeating-fraction grants reach their
 
   it('an old save: a Flourishing plant a few millionths short of Evergreen is lifted with its Laurel Sprig, quietly', () => {
     const g = new Game({ start: MON });
-    const a = g.addHabit();
+    const a = g.addHabit({ tiny: { label: 'a little' } });
     for (let d = MON; d <= '2026-03-08'; d = addDays(d, 1)) {
       g.goTo(d);
       g.checkIn(a);
     }
-    g.goTo('2026-09-01'); // 184 days on: the calendar pace allows Evergreen
+    g.goTo('2026-09-01'); // 184 days on, the last check-in: the calendar pace allowed Evergreen then
+    g.tiny(a); // the tiny version: a day-based tiny log keeps count 0, and is still a check-in
+    expect(g.state.logs[a]?.['2026-09-01']).toMatchObject({ count: 0, level: 'tiny' });
     patch(g, (s) => ({ ...s, ledger: { ...s.ledger, sunshine: { ...s.ledger.sunshine, [a]: 179.99995 }, bestStage: { ...s.ledger.bestStage, [a]: 6 } } }));
     expect(owns(g.state.collection, LAUREL_SPRIG_ID)).toBe(false);
     const coins = g.coins;
@@ -578,6 +581,73 @@ describe('the sunshine precision contract: repeating-fraction grants reach their
     g.goTo('2026-03-16'); // day 15: the pace now allows Budding
     expect(g.state.ledger.bestStage[a]).toBe(3);
     expect(g.last.filter((e) => e.type === 'plantStage')).toEqual([]);
+    g.checkIn(a);
+    expect(g.lastOf('plantStage').map((e) => e.stage)).toEqual([BUDDING]);
+  });
+
+  /** A daily habit checked in 2–14 March (Leafy), its total then left as an older build rounded it. */
+  const pacedOldSave = (): { g: Game; a: string } => {
+    const g = new Game({ start: MON });
+    const a = g.addHabit();
+    for (let d = MON; d <= '2026-03-14'; d = addDays(d, 1)) {
+      g.goTo(d);
+      g.checkIn(a);
+    }
+    expect(g.state.ledger.bestStage[a]).toBe(3);
+    patch(g, (s) => ({ ...s, ledger: { ...s.ledger, sunshine: { ...s.ledger.sunshine, [a]: LEGACY_NINE } } }));
+    return { g, a };
+  };
+
+  it('an old save whose next stage the calendar pace still holds is not lifted at day open', () => {
+    const { g, a } = pacedOldSave();
+    g.goTo('2026-03-15'); // day 14: the pace still holds Leafy
+    expect(g.state.ledger.bestStage[a]).toBe(3);
+    expect(g.state.stageDates?.[a]?.[BUDDING]).toBeUndefined();
+  });
+
+  it('an old save whose stage the pace held at its last check-in keeps the celebration for its next check-in', () => {
+    const { g, a } = pacedOldSave();
+    g.goTo('2026-03-15');
+    g.goTo('2026-03-16'); // day 15: the pace now allows Budding, but it did not at the last check-in
+    // A note written today is not a check-in: the last check-in is still the 14th.
+    g.run((tx) => logging.setNote(tx, a, g.today, 'rained all day'));
+    g.goTo('2026-03-16', 18);
+    expect(g.state.ledger.bestStage[a]).toBe(3);
+    expect(g.state.stageDates?.[a]?.[BUDDING]).toBeUndefined();
+    g.checkIn(a);
+    expect(g.lastOf('plantStage').map((e) => e.stage)).toEqual([BUDDING]);
+    expect(g.state.stageDates?.[a]?.[BUDDING]).toBe('2026-03-16');
+  });
+
+  it('an old save whose next stage its completed check-ins still hold is not lifted at day open', () => {
+    const g = new Game({ start: MON });
+    const a = g.addHabit({ schedule: weekly(1) }); // 7 sunshine a check-in
+    for (const d of ['2026-03-02', '2026-03-09', '2026-03-16']) {
+      g.goTo(d);
+      g.checkIn(a);
+    }
+    // Three check-ins: Budding's 21 by sunshine, but a plant needs four check-ins for stage 4.
+    expect(g.state.ledger.bestStage[a]).toBe(3);
+    patch(g, (s) => ({ ...s, ledger: { ...s.ledger, sunshine: { ...s.ledger.sunshine, [a]: LEGACY_NINE } } }));
+    g.goTo('2026-03-17');
+    expect(g.state.ledger.bestStage[a]).toBe(3);
+    g.goTo('2026-03-23');
+    g.checkIn(a);
+    expect(g.lastOf('plantStage').map((e) => e.stage)).toEqual([BUDDING]);
+  });
+
+  it('only precision: a total the old reading also reaches is celebrated at the next check-in, not lifted at day open', () => {
+    const g = new Game({ start: MON });
+    const a = g.addHabit();
+    for (let d = MON; d <= '2026-03-16'; d = addDays(d, 1)) {
+      g.goTo(d);
+      g.checkIn(a);
+    }
+    expect(g.state.ledger.bestStage[a]).toBe(3);
+    // Budding's 21 exactly, banked without a stage update (say by a rule flip); day 15, the pace allows it.
+    patch(g, (s) => ({ ...s, ledger: { ...s.ledger, sunshine: { ...s.ledger.sunshine, [a]: 21 } } }));
+    g.goTo('2026-03-17');
+    expect(g.state.ledger.bestStage[a]).toBe(3);
     g.checkIn(a);
     expect(g.lastOf('plantStage').map((e) => e.stage)).toEqual([BUDDING]);
   });
