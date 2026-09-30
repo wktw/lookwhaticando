@@ -73,7 +73,7 @@ import {
   removeKey,
   removeNamespace,
   safeGet,
-  writeBackup,
+  replaceBackup,
   writeJson,
   writeRaw,
   type FlushOutcome,
@@ -263,9 +263,11 @@ export const loadIssue = signal<null | { kind: 'recovered-from-backup' | 'corrup
  * save shown read-only ('newer': a backup of it is these bytes, FS2; `readable` when this catkin
  * can show part of it), or a damaged save ('damaged': the main text that failed to decode, the
  * same text kept aside under `:corrupt` once this window owns the save). Never written over the
- * save, never a presentation state. Null when there is nothing to rescue.
+ * save, never a presentation state. Null when there is nothing to rescue. While a newer save is
+ * shown, damaged text found beside it (a damaged main save over a newer `:backup`, or a damaged
+ * write arriving after it) is kept as its `damaged`: the newer bytes stay the rescue (FS2).
  */
-export const rescue = signal<null | { kind: 'newer'; raw: string; version: number; readable: boolean } | { kind: 'damaged'; raw: string }>(null);
+export const rescue = signal<null | { kind: 'newer'; raw: string; version: number; readable: boolean; damaged?: string } | { kind: 'damaged'; raw: string }>(null);
 
 /**
  * The single-writer lock, as far as this window knows: 'acquiring' until Web Locks answers (saves
@@ -418,7 +420,7 @@ function makeQueue(key: string, head: SaveHead): SaveQueue {
   // Nothing is written before the writer lock answers (FS4, P-persistence-03), from whichever
   // path made the queue meanwhile (leaving the demo, starting over): the grant releases it, a
   // refusal drops what it holds.
-  if (ownership.value === 'acquiring') q.hold();
+  if (ownership.value === 'acquiring' || heldForDamage) q.hold();
   return q;
 }
 
@@ -540,23 +542,51 @@ function snapshotToday(): void {
 let recoveryCopies: { key: string; backup?: string; damaged?: string } | null = null;
 
 /**
+ * A damaged main save whose text could not be kept aside under `:corrupt` (no room): it is still
+ * the only copy, so this window's writes are held (and storage full is said) until it can be, or
+ * until it is no longer the main save. Retried whenever catkin comes back into view.
+ */
+let heldForDamage = false;
+
+/**
  * Writes the recovery copies once this window owns the save. They are copies of what is on disk
  * *now*: another window may have replaced, reset or repaired the save since it was read here, and
  * a copy of the text read then would bring the old save back through the `:backup` fallback (FS3).
  * So the damaged text is kept aside only while it is still the main save, and `:backup` gets the
  * good save on disk now (the one read then, or whatever replaced it), never a newer catkin's save
  * or a damaged one.
+ *
+ * Nothing is ever written over the only copy of a save this catkin can't read (the WP-A4 review):
+ * when the damaged text can't be kept aside, writes wait (`heldForDamage`); and a `:backup` that
+ * doesn't read as a good save here (damaged, or a newer catkin's) is kept aside under a free
+ * `:corrupt` before it is replaced, and otherwise left where it is (a damaged one may be replaced
+ * once `:corrupt` holds a damaged save already).
  */
 function writeRecoveryCopies(): void {
-  if (!recoveryCopies || !ownsSave()) return;
-  const { key, backup, damaged } = recoveryCopies;
-  recoveryCopies = null;
-  const store = storage();
-  const onDisk = safeGet(store, key);
-  // keepDamaged may fail (full storage): the damaged text then stays under the main key until
-  // this window's next save, as before.
-  if (damaged !== undefined && onDisk === damaged) keepDamaged(store, key, damaged);
-  if (backup !== undefined && onDisk !== null && (onDisk === backup || parseEnvelope(onDisk).kind === 'ok')) writeBackup(store, key, onDisk);
+  let attempted = false;
+  if (recoveryCopies && ownsSave()) {
+    attempted = true;
+    const { key, backup, damaged } = recoveryCopies;
+    recoveryCopies = null;
+    const store = storage();
+    const onDisk = safeGet(store, key);
+    if (damaged !== undefined && onDisk === damaged && !keepDamaged(store, key, damaged)) recoveryCopies = { key, damaged };
+    if (backup !== undefined && onDisk !== null && (onDisk === backup || parseEnvelope(onDisk).kind === 'ok')) replaceBackup(store, key, onDisk);
+  }
+  const stuck = recoveryCopies?.damaged !== undefined && (attempted || heldForDamage);
+  if (stuck) {
+    heldForDamage = true;
+    queue?.hold();
+    if (writable()) {
+      readOnly.value = 'storage-full';
+      saveStatus.value = { status: 'storage-full', rev: queue?.rev ?? 0, chars: 0, at: rt.now() };
+    }
+  } else if (heldForDamage) {
+    heldForDamage = false;
+    if (readOnly.value === 'storage-full') readOnly.value = false;
+    if (saveStatus.value.status === 'storage-full') saveStatus.value = { status: 'idle', rev: queue?.rev ?? 0, chars: 0, at: rt.now() };
+    if (ownsSave() && queue?.isHeld) queue.release();
+  }
 }
 
 /**
@@ -638,11 +668,19 @@ function adopt(res: LoadResult, context: AdoptContext): void {
       else if (context === 'hydrate') setState(createInitialState(ms), ms);
       readOnly.value = 'newer-version';
       loadIssue.value = { kind: 'newer-version' };
-      rescue.value = { kind: 'newer', raw: res.raw, version: res.version, readable: res.state !== undefined };
+      rescue.value = { kind: 'newer', raw: res.raw, version: res.version, readable: res.state !== undefined, ...(res.damaged !== undefined ? { damaged: res.damaged } : {}) };
       giveUpLock();
       saveReplaced();
       return;
     case 'corrupt':
+      if (readOnly.value === 'newer-version') {
+        // A damaged write after the newer save this window shows read-only: it keeps showing it,
+        // and its bytes stay the rescue (a backup of it is still them, FS2); the damaged text is
+        // kept beside them. This window writes nothing, so the damaged text stays on disk too.
+        const r = rescue.value;
+        if (!demoMode.value && r?.kind === 'newer') rescue.value = { ...r, damaged: res.raw };
+        return;
+      }
       loadIssue.value = { kind: 'corrupt-save', details: res.errors };
       if (!demoMode.value) rescue.value = { kind: 'damaged', raw: res.raw };
       recoveryCopies = { key, damaged: res.raw };
@@ -715,6 +753,7 @@ function whenOwned(): void {
     return;
   }
   writeRecoveryCopies();
+  if (heldForDamage) return; // the damaged save couldn't be kept aside: nothing is written over it
   if (queue?.isHeld) queue.release();
   snapshotToday();
 }
@@ -790,6 +829,7 @@ export function hydrate(): void {
   crossWindowNotice.value = null;
   lastSnapshotDay = null;
   recoveryCopies = null;
+  heldForDamage = false;
   shownHead = { gen: undefined, rev: 0 };
   setOwnership(rt.locks ? 'acquiring' : 'unsupported');
   volatileStorage.value = rt.storage === null;
@@ -865,6 +905,7 @@ function tick(): void {
  * so a large save is never encoded on every tick.
  */
 function comeBack(): void {
+  if (heldForDamage) writeRecoveryCopies();
   if (queue?.failing && writable()) queue.flush();
   tick();
 }
@@ -1052,7 +1093,7 @@ function notSaved(status: FlushOutcome | null): NotSavedError | null {
     case 'saved':
       return null;
     case 'held':
-      return 'acquiring';
+      return heldForDamage ? 'storage-full' : 'acquiring';
     case 'volatile':
     case 'storage-full':
       return status;
@@ -1641,6 +1682,7 @@ export function resetAll(): void {
   realState = null;
   lastSnapshotDay = null;
   recoveryCopies = null;
+  heldForDamage = false; // Start over erases the damaged save with the rest of catkin:*
   rescue.value = null; // its :corrupt copy went with the rest of catkin:*
   crossWindowNotice.value = null;
   // A new lineage: every other window adopts the reset, even after its rev starts again at 1.

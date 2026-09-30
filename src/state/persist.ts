@@ -28,7 +28,7 @@
  * - The theme is mirrored to its own tiny key for the pre-paint script in index.html.
  * Storage and timers are injected, so all of this runs under node in tests.
  */
-import type { AppState, Settings } from './types';
+import { SCHEMA_VERSION, type AppState, type Settings } from './types';
 import { decodeState } from './decode';
 
 export interface KeyValueStorage {
@@ -169,12 +169,23 @@ export type LoadResult =
       /** When read from `:backup`: the damaged main text, to keep aside under `:corrupt`. */
       damaged?: string;
     }
-  | { kind: 'newer'; version: number; raw: string; state?: AppState; rev?: number; gen?: string }
+  | {
+      kind: 'newer';
+      version: number;
+      raw: string;
+      state?: AppState;
+      rev?: number;
+      gen?: string;
+      /** When read from `:backup` (a newer catkin's, the main save being damaged): the damaged main text. */
+      damaged?: string;
+    }
   | { kind: 'corrupt'; errors: string[]; raw: string };
 
 /**
  * Parses an envelope string and decodes its state (`decodeState`: the allow-listed omissions,
- * migrations, validation). `source` is 'backup-copy' for the `:backup` text.
+ * migrations, validation). `source` is 'backup-copy' for the `:backup` text. An envelope stamped
+ * with a newer schema is 'newer' whatever its `state` holds (a newer catkin may store it another
+ * way), so it is never started over as damaged.
  */
 export function parseEnvelope(raw: string, source: 'main' | 'backup-copy' = 'main'): Exclude<LoadResult, { kind: 'empty' }> {
   let parsed: unknown;
@@ -184,7 +195,7 @@ export function parseEnvelope(raw: string, source: 'main' | 'backup-copy' = 'mai
     return { kind: 'corrupt', errors: ['not JSON'], raw };
   }
   const env = parsed as Partial<Envelope> | null;
-  if (!env || typeof env !== 'object' || typeof env.v !== 'number' || typeof env.state !== 'object') {
+  if (!env || typeof env !== 'object' || Array.isArray(env) || typeof env.v !== 'number') {
     return { kind: 'corrupt', errors: ['not a save envelope'], raw };
   }
   const gen = genOf(env.gen);
@@ -209,7 +220,9 @@ export function parseEnvelope(raw: string, source: 'main' | 'backup-copy' = 'mai
 /**
  * Reads the save under `key` and writes nothing. A corrupt save falls back to its `:backup` copy
  * when that one is valid, and the damaged main text comes back as `damaged`, for the window that
- * owns the save to keep aside (never destroyed; audit P-persistence-03).
+ * owns the save to keep aside (never destroyed; audit P-persistence-03). A `:backup` written by a
+ * newer catkin is that newer save (shown read-only, so neither it nor the damaged text is ever
+ * written over), with the damaged main text as `damaged` too.
  */
 export function readSave(storage: KeyValueStorage, key: string): LoadResult {
   const raw = safeGet(storage, key);
@@ -220,6 +233,7 @@ export function readSave(storage: KeyValueStorage, key: string): LoadResult {
   if (backupRaw !== null) {
     const backup = parseEnvelope(backupRaw, 'backup-copy');
     if (backup.kind === 'ok') return { ...backup, fromBackup: true, damaged: raw };
+    if (backup.kind === 'newer') return { ...backup, damaged: raw };
   }
   return main;
 }
@@ -244,6 +258,14 @@ export function keepDamaged(storage: KeyValueStorage, key: string, raw: string):
 function headOf(raw: string): string {
   const at = raw.indexOf('"state":');
   return raw.slice(0, at < 0 ? 300 : Math.min(at, 300));
+}
+
+/** Whether `prev` is an earlier write of the save `good` (the same lineage, not a newer schema), from their heads. */
+function olderWriteOf(prev: string, good: string): boolean {
+  const gen = (raw: string) => /"gen":"([0-9a-f]{32})"/.exec(headOf(raw))?.[1];
+  const v = /"v":(\d+)/.exec(headOf(prev));
+  const g = gen(prev);
+  return g !== undefined && g === gen(good) && v !== null && Number(v[1]) <= SCHEMA_VERSION;
 }
 
 /** The `rev` of the save under `key` without validating it (for `storage` events). */
@@ -290,6 +312,26 @@ export function encodeEnvelope(state: AppState, rev: number, savedAt: number, ap
 /** Keeps the loaded good save as `:backup` (DESIGN §11). */
 export function writeBackup(storage: KeyValueStorage, key: string, raw: string): void {
   trySet(storage, backupKeyOf(key), raw);
+}
+
+/**
+ * Keeps the good save `good` as `:backup`, never losing a `:backup` this catkin can't read (the
+ * WP-A4 review): one that is damaged or a newer catkin's may be the only copy of it, so it is kept
+ * aside under `:corrupt` first when that is free, and otherwise left where it is; a damaged one
+ * may go once `:corrupt` already holds a damaged save. An older write of the good save itself (the
+ * same lineage, no newer schema) is simply replaced, as ever, without decoding it.
+ */
+export function replaceBackup(storage: KeyValueStorage, key: string, good: string): void {
+  const prev = safeGet(storage, backupKeyOf(key));
+  if (prev !== null && prev !== good && !olderWriteOf(prev, good)) {
+    const kind = parseEnvelope(prev, 'backup-copy').kind;
+    if (kind !== 'ok') {
+      if (safeGet(storage, corruptKeyOf(key)) === null) {
+        if (!keepDamaged(storage, key, prev)) return;
+      } else if (kind === 'newer') return;
+    }
+  }
+  writeBackup(storage, key, good);
 }
 
 /**

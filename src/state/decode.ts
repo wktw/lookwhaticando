@@ -56,9 +56,14 @@ const wholeVersion = (v: unknown): number | undefined => (typeof v === 'number' 
 /** Reads `input` as a state of this build's schema (see the module comment). */
 export function decodeState(input: unknown, source: DecodeSource, opts: DecodeOptions = {}): Decoded {
   const target = opts.target ?? SCHEMA_VERSION;
-  if (!isObj(input)) return { kind: 'corrupt', raw: input, reason: 'not-an-object', errors: ['state: not an object'] };
-  const own = wholeVersion(input.version);
   const declared = wholeVersion(opts.declaredVersion);
+  // A wrapper stamped with a newer schema is newer whatever its state looks like here (a newer
+  // catkin may keep it in another shape): never damage, so its bytes are never started over.
+  if (!isObj(input)) {
+    if (declared !== undefined && declared > target) return { kind: 'newer', version: declared, raw: input };
+    return { kind: 'corrupt', raw: input, reason: 'not-an-object', errors: ['state: not an object'] };
+  }
+  const own = wholeVersion(input.version);
   const newest = Math.max(own ?? 0, declared ?? 0);
   if (newest > target) {
     if (source !== 'main') return { kind: 'newer', version: newest, raw: input };

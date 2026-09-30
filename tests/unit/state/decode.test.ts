@@ -13,7 +13,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { readFileSync, readdirSync } from 'node:fs';
 import { createInitialState } from '@/state/defaults';
-import { SAVE_KEY, backupKeyOf, corruptKeyOf, memoryStorage, readSave } from '@/state/persist';
+import { DEMO_KEY, SAVE_KEY, backupKeyOf, corruptKeyOf, memoryStorage, readSave } from '@/state/persist';
 import { decodePayload, parseBackupText } from '@/state/handoff';
 import * as store from '@/state/store';
 import type { AppState } from '@/state/types';
@@ -348,5 +348,261 @@ describe('P-persistence-04: daily copies and Undo go through the one decoder', (
       )
       .map((c) => c.at.split(':')[0]);
     expect([...new Set(calls)]).toEqual(['decode.ts']);
+  });
+});
+
+/*
+ * The WP-A4 review. Every case here failed on the first WP-A4 commit (0356da3) on what it did,
+ * except those marked "guard" (the review's untested claims, which that code already did).
+ */
+describe('WP-A4 review: a damaged save is never written over while it is the only copy', () => {
+  /**
+   * The lived-in save without its badges (damage under DEC-E1) and the same at the rev before, as
+   * its `:backup` (of another lineage than any save written here, like one from before a fresh start).
+   */
+  function badPair() {
+    const bad = damaged(without('badges'));
+    const env = envOf(bad);
+    const older = JSON.stringify({ ...env, rev: env.rev - 1, gen: 'a'.repeat(32) });
+    return { bad, older };
+  }
+  const onDisk = (b: ReturnType<typeof fakeBrowser>, text: string) => [...b.storage.data.values()].includes(text);
+
+  it('T2: with no room for :corrupt, the damaged main save stays, the change waits, and storage full is said', () => {
+    const { bad } = badPair();
+    const b = fakeBrowser({ quotaChars: Math.ceil(bad.length * 1.5) });
+    b.storage.setItem(SAVE_KEY, bad);
+    store.hydrate();
+    expect(store.loadIssue.value?.kind).toBe('corrupt-save');
+    b.advance(5000);
+    expect(b.storage.getItem(SAVE_KEY)).toBe(bad);
+    expect(store.durability.value).toEqual({ kind: 'failing', reason: 'quota' });
+    expect(store.hasUnsavedWork()).toBe(true);
+    // A reload finds it again, and the same holds.
+    store.hydrate();
+    b.advance(5000);
+    expect(b.storage.getItem(SAVE_KEY)).toBe(bad);
+    expect(store.rescue.value).toEqual({ kind: 'damaged', raw: bad });
+  });
+
+  it('T2: once there is room, coming back keeps the damaged text aside and then writes', () => {
+    const { bad } = badPair();
+    const b = fakeBrowser({ quotaChars: Math.ceil(bad.length * 2.2) });
+    b.storage.setItem(SAVE_KEY, bad);
+    b.storage.setItem('other-site:cache', 'x'.repeat(Math.ceil(bad.length * 0.8)));
+    store.hydrate();
+    const stop = store.startClock();
+    b.advance(5000);
+    expect(b.storage.getItem(SAVE_KEY)).toBe(bad);
+    expect(b.storage.getItem(corruptKeyOf(SAVE_KEY))).toBeNull();
+    // Room is made elsewhere; the next time catkin comes back into view it goes on.
+    b.storage.removeItem('other-site:cache');
+    b.fire('focus');
+    b.advance(5000);
+    expect(b.storage.getItem(corruptKeyOf(SAVE_KEY))).toBe(bad);
+    expect(b.storage.getItem(SAVE_KEY)).not.toBe(bad);
+    expect(store.durability.value).toEqual({ kind: 'ok' });
+    expect(store.hasUnsavedWork()).toBe(false);
+    stop();
+  });
+
+  it('T2, with Web Locks: the grant does not let the held change go over the damaged save', async () => {
+    const { deferredLocks } = await import('./fixtures');
+    const { bad } = badPair();
+    const locks = deferredLocks();
+    const b = fakeBrowser({ quotaChars: Math.ceil(bad.length * 1.5), locks });
+    b.storage.setItem(SAVE_KEY, bad);
+    store.hydrate();
+    await locks.grant();
+    expect(store.ownership.value).toBe('granted');
+    b.advance(5000);
+    expect(b.storage.getItem(SAVE_KEY)).toBe(bad);
+    expect(store.durability.value).toEqual({ kind: 'failing', reason: 'quota' });
+    store.completeOnboarding({ name: 'Sam', templateIds: [] });
+    b.advance(5000);
+    expect(b.storage.getItem(SAVE_KEY)).toBe(bad);
+  });
+
+  it('T2b: main and :backup both damaged, room for two copies but not three: neither is lost over two boots', () => {
+    const { bad, older } = badPair();
+    const b = fakeBrowser({ quotaChars: Math.ceil(bad.length * 2.6) });
+    b.storage.setItem(SAVE_KEY, bad);
+    b.storage.setItem(backupKeyOf(SAVE_KEY), older);
+    store.hydrate();
+    b.advance(5000);
+    store.hydrate();
+    b.advance(5000);
+    expect(onDisk(b, bad)).toBe(true);
+    expect(onDisk(b, older)).toBe(true);
+  });
+
+  it('a good save over a :backup this catkin can’t read keeps that :backup aside under :corrupt before replacing it', () => {
+    const { older } = badPair();
+    const b = fakeBrowser();
+    b.storage.setItem(SAVE_KEY, livedInRaw());
+    b.storage.setItem(backupKeyOf(SAVE_KEY), older);
+    store.hydrate();
+    expect(b.storage.getItem(backupKeyOf(SAVE_KEY))).toBe(livedInRaw());
+    expect(b.storage.getItem(corruptKeyOf(SAVE_KEY))).toBe(older);
+  });
+
+  it('guard: an older write of the same save is replaced as ever (without decoding it)', () => {
+    const b = fakeBrowser();
+    const env = envOf(livedInRaw());
+    const good = JSON.stringify({ ...env, gen: 'b'.repeat(32) });
+    const older = JSON.stringify({ ...envOf(damaged(without('badges'))), rev: env.rev - 1, gen: 'b'.repeat(32) });
+    b.storage.setItem(SAVE_KEY, good);
+    b.storage.setItem(backupKeyOf(SAVE_KEY), older);
+    store.hydrate();
+    expect(b.storage.getItem(backupKeyOf(SAVE_KEY))).toBe(good);
+    expect(b.storage.getItem(corruptKeyOf(SAVE_KEY))).toBeNull();
+  });
+
+  it('a :backup that can’t be kept aside (no room) is left as it is, not replaced', () => {
+    const { older } = badPair();
+    const good = livedInRaw();
+    const b = fakeBrowser({ quotaChars: Math.ceil(good.length * 2.6) });
+    b.storage.setItem(SAVE_KEY, good);
+    b.storage.setItem(backupKeyOf(SAVE_KEY), older);
+    store.hydrate();
+    expect(b.storage.getItem(backupKeyOf(SAVE_KEY))).toBe(older);
+  });
+});
+
+describe('WP-A4 review: a newer catkin’s save is never exported as this catkin’s, whatever comes after it', () => {
+  it.each([true, false])('T1: a damaged write after a newer save (readable %s) keeps the newer bytes as the backup', (readable) => {
+    const b = fakeBrowser();
+    const raw = newerRaw(readable);
+    b.storage.setItem(SAVE_KEY, raw);
+    store.hydrate();
+    expect(store.backupJson()).toBe(raw);
+    const partial = '{"v":2,"rev":13,"state":{"version":2,';
+    b.storage.setItem(SAVE_KEY, partial);
+    b.fire('storage', { key: SAVE_KEY });
+    expect(store.readOnly.value).toBe('newer-version');
+    expect(store.backupJson()).toBe(raw);
+    expect(store.rescue.value).toMatchObject({ kind: 'newer', raw, damaged: partial });
+    const csv = store.exportCsv();
+    if (readable) expect(csv?.partial).toBe(true);
+    else expect(csv).toBeNull();
+    expect(b.storage.getItem(SAVE_KEY)).toBe(partial);
+  });
+
+  it.each([true, false])('T3: a damaged main save over a newer catkin’s :backup (readable %s) opens that backup read-only, and neither is lost', (readable) => {
+    const b = fakeBrowser();
+    const raw = newerRaw(readable);
+    b.storage.setItem(SAVE_KEY, 'not json {');
+    b.storage.setItem(backupKeyOf(SAVE_KEY), raw);
+    store.hydrate();
+    expect(store.readOnly.value).toBe('newer-version');
+    expect(store.backupJson()).toBe(raw);
+    expect(store.rescue.value).toMatchObject({ kind: 'newer', raw, damaged: 'not json {' });
+    b.advance(5000);
+    store.hydrate();
+    b.advance(5000);
+    expect(b.storage.getItem(backupKeyOf(SAVE_KEY))).toBe(raw);
+    expect(b.storage.getItem(SAVE_KEY)).toBe('not json {');
+  });
+
+  it('T3: readSave gives the newer :backup, with the damaged main text', () => {
+    const raw = newerRaw(true);
+    expect(readSave(memoryStorage({ [SAVE_KEY]: 'not json {', [backupKeyOf(SAVE_KEY)]: raw }), SAVE_KEY)).toMatchObject({ kind: 'newer', version: 2, raw, damaged: 'not json {' });
+  });
+
+  it('a good save over a newer catkin’s :backup keeps those bytes (aside under :corrupt) before replacing it', () => {
+    const raw = newerRaw(true);
+    const b = fakeBrowser();
+    b.storage.setItem(SAVE_KEY, livedInRaw());
+    b.storage.setItem(backupKeyOf(SAVE_KEY), raw);
+    store.hydrate();
+    expect(b.storage.getItem(corruptKeyOf(SAVE_KEY))).toBe(raw);
+  });
+
+  it.each([
+    ['a non-object state', { v: 2, rev: 5, savedAt: 1, state: 'CK9:compressed' }],
+    ['a null state', { v: 2, rev: 5, savedAt: 1, state: null }],
+    ['no state at all', { v: 3, rev: 5, savedAt: 1, data: 'elsewhere' }],
+  ])('a newer envelope (v above this schema) with %s is newer, not corrupt', async (_, env) => {
+    const raw = JSON.stringify(env);
+    expect(readSave(memoryStorage({ [SAVE_KEY]: raw }), SAVE_KEY)).toMatchObject({ kind: 'newer', version: env.v, raw });
+    // An import needs a `state` to be a backup at all.
+    if ('state' in env) expect(await parseBackupText(raw)).toMatchObject({ ok: false, error: 'made-by-newer-version' });
+    const b = fakeBrowser();
+    b.storage.setItem(SAVE_KEY, raw);
+    store.hydrate();
+    expect(store.readOnly.value).toBe('newer-version');
+    store.completeOnboarding({ name: 'Sam', templateIds: [] });
+    b.advance(5000);
+    expect(b.storage.getItem(SAVE_KEY)).toBe(raw);
+    expect(store.backupJson()).toBe(raw);
+    expect(store.exportCsv()).toBeNull();
+  });
+
+  it('a catkin-backup file stamped v 2 around a non-object state is refused as newer', async () => {
+    expect(await parseBackupText(JSON.stringify({ format: 'catkin-backup', v: 2, appVersion: 'x', exportedAt: 1, state: 'packed' }))).toMatchObject({ ok: false, error: 'made-by-newer-version' });
+  });
+
+  it('guard: a v 1 envelope around a non-object state is still corrupt', () => {
+    expect(readSave(memoryStorage({ [SAVE_KEY]: JSON.stringify({ v: 1, rev: 1, state: 'x' }) }), SAVE_KEY).kind).toBe('corrupt');
+  });
+});
+
+describe('WP-A4 review: the declared version and the damaged-save rescue lifecycle', () => {
+  it('guard: an envelope stamped v 2 around a state of version 1 is newer', () => {
+    const env = envOf(livedInRaw());
+    const raw = JSON.stringify({ ...env, v: 2 });
+    expect(readSave(memoryStorage({ [SAVE_KEY]: raw }), SAVE_KEY)).toMatchObject({ kind: 'newer', version: 2, raw });
+  });
+
+  it('guard: a backup file stamped v 2 around a state of version 1 is refused as newer', async () => {
+    const file = JSON.stringify({ format: 'catkin-backup', v: 2, appVersion: 'x', exportedAt: 1, state: envOf(livedInRaw()).state });
+    expect(await parseBackupText(file)).toMatchObject({ ok: false, error: 'made-by-newer-version' });
+  });
+
+  it('guard: after a :backup recovery, the rescue record is the damaged main text', () => {
+    const b = fakeBrowser();
+    const bad = damaged(without('logs'));
+    b.storage.setItem(SAVE_KEY, bad);
+    b.storage.setItem(backupKeyOf(SAVE_KEY), livedInRaw());
+    store.hydrate();
+    expect(store.rescue.value).toEqual({ kind: 'damaged', raw: bad });
+  });
+
+  it('guard: a deletion adopted from another window clears a damaged rescue', () => {
+    const b = fakeBrowser();
+    const bad = damaged(without('wallet'));
+    b.storage.setItem(SAVE_KEY, bad);
+    store.hydrate();
+    store.completeOnboarding({ name: 'Sam', templateIds: [] });
+    b.advance(5000);
+    expect(store.rescue.value).toEqual({ kind: 'damaged', raw: bad });
+    for (const k of [...b.storage.data.keys()]) b.storage.removeItem(k);
+    b.fire('storage', { key: null });
+    expect(store.crossWindowNotice.value).toBe('started-over');
+    expect(store.rescue.value).toBeNull();
+  });
+
+  it('guard: a clean boot after a damaged one starts with no rescue record', () => {
+    const b = fakeBrowser();
+    b.storage.setItem(SAVE_KEY, damaged(without('wallet')));
+    store.hydrate();
+    expect(store.rescue.value?.kind).toBe('damaged');
+    b.storage.setItem(SAVE_KEY, livedInRaw());
+    store.hydrate();
+    expect(store.loadIssue.value).toBeNull();
+    expect(store.rescue.value).toBeNull();
+  });
+
+  it('guard: a damaged demo save is not the person’s, so it sets no rescue record', () => {
+    const b = fakeBrowser();
+    b.storage.setItem(SAVE_KEY, livedInRaw());
+    store.hydrate();
+    expect(store.enterDemo()).toBe(true);
+    b.advance(5000);
+    b.storage.setItem(DEMO_KEY, 'not json {');
+    b.fire('storage', { key: DEMO_KEY });
+    expect(store.loadIssue.value?.kind).toBe('corrupt-save');
+    expect(store.rescue.value).toBeNull();
+    store.exitDemo();
   });
 });

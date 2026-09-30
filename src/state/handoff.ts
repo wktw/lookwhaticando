@@ -185,7 +185,7 @@ export async function parseBackupText(text: string): Promise<ParsedBackup> {
     savedAt = typeof o.exportedAt === 'number' ? o.exportedAt : 0;
     device = typeof o.device === 'string' ? o.device : undefined;
     appVersion = typeof o.appVersion === 'string' ? o.appVersion : undefined;
-  } else if (typeof o.v === 'number' && typeof o.state === 'object') {
+  } else if (typeof o.v === 'number' && 'state' in o) {
     raw = o.state;
     declared = o.v;
     savedAt = typeof o.savedAt === 'number' ? o.savedAt : 0;
