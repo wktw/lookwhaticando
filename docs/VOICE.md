@@ -717,6 +717,10 @@ into it (up to its room). On the Pet Card: "Spends the day in" with the place's 
 the open places as chips → "{name} moved to the Saucer Pond." / "{name} moved back to the Sill." From "Let
 {name} choose": "{name} chose the Saucer Pond."
 
+Once per save, when a save’s Balcony Box was already open before every pet loved it (DEC-P10): its never-placed pets
+settle there, and Today says so once, with the existing line and a Pet Card button: "{name} moved to the Balcony Box." ·
+"{name}’s card". It adds no new line. DEC-V: pending owner approval (a new moment for existing lines).
+
 Opened, with the pet who loves it most, or without:
 
 - "The Saucer Pond is open. {name} went straight to the lily pad." / "The Saucer Pond is open: a saucer of

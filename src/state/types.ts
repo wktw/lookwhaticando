@@ -337,7 +337,10 @@ export interface AppState {
    *   'grow|<habitId>|<date>' (the accept day; the offer stays closed 28 days) ·
    *   'rest|<habitId>|<date>' (stage 3: an allowed rest that completed a paid perfect day; it keeps
    *   using the week's rest allowance for perfect days) · 'flourish|<habitId>' (stage 3: the most
-   *   Flourishes the plant has had; they are permanent visitors). Badges live in `badges`; plant
+   *   Flourishes the plant has had; they are permanent visitors) · 'settle|universal' (day number: the
+   *   save's never-placed pets had their one-time settling in the places everyone loves, DEC-P10) ·
+   *   'settled|<petId>' (day number: that settling moved the pet, until Today says so, 14 days at
+   *   most). Badges live in `badges`; plant
    *   stages in `bestStage`.
    *   Keys that can no longer be earned are pruned by compaction (domain/economy.ts).
    * - daily: coins paid by check-ins per WALL-CLOCK action day (the 40-coin full-rate budget).

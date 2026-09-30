@@ -1086,6 +1086,10 @@ export function buyPlace(place: PlaceId): PlacePurchase {
 export function setPetPlace(petId: string, place: PlaceId | null): boolean {
   return actValue((tx) => shelfDomain.setPetPlace(tx, petId, place), false);
 }
+/** Today showed the one-time Balcony settling notice (DEC-P10): it is not shown again. */
+export function noteSettledNotice(): void {
+  actVoid((tx) => shelfDomain.noteSettledNotice(tx));
+}
 /**
  * "Let {name} choose" (reveal, Pet Card): the pet picks a plant to keep company when it has none,
  * and a place its species loves. Null for an unknown pet.

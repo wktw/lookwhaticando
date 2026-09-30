@@ -83,6 +83,7 @@ import {
   type CuttingVM,
 } from './growth';
 import { evaluatePeriod, flexPeriodAt, type FlexPeriod } from './periods';
+import { SETTLED_NOTICE_DAYS } from './places';
 import { THRESHOLD_EPS, addToTotal, reaches, sameAmount } from './precision';
 import { ruleAt } from './rules';
 import { isDayBased, restAllowancePerWeek } from './schedule';
@@ -998,6 +999,9 @@ export function onceKeyExpired(s: AppState, key: string, value: number | true, t
       return parts[2]! < addDays(today, -(GROW_COOLDOWN_DAYS - 1));
     case 'home':
       return typeof value !== 'number' || todayN - value >= WELCOME_HOME.cooldownDays;
+    case 'settled':
+      // The one-time settling notice (DEC-P10): shown once, or gone unseen after two weeks.
+      return typeof value !== 'number' || todayN - value >= SETTLED_NOTICE_DAYS;
     case 'weekly':
       return parts[1]! < addDays(today, -21);
     case 'bloom':

@@ -364,7 +364,10 @@ Each place adds room for 2 more pets (8 → 18). Species prefer places but none 
 spends the day in a **place** (`PetState.place`; absent or not open = the Sill). The Sill holds everyone; every other place
 holds as many pets as the room it adds. Opening a place moves in the pets out who love it most and have never been placed
 (companions stay with their pots), up to its room, and each new day a never-placed pet settles the same way
-(`settleUnplacedPets`: a duck that came home after the pond opened); the Pet Card moves a pet to any open place with room ("Move {name}"),
+(`settleUnplacedPets`: a duck that came home after the pond opened). Every species loves the Balcony Box ("everyone": an
+empty `loves` list), after the places its own species loves, so a pet goes there only when its own place is closed or full
+(`lovedPlaces`). A save whose Balcony Box opened before it counted for everyone settles its never-placed pets there once, on
+its next open, and Today says so once ("{name} moved to the Balcony Box.", DEC-P10); the Pet Card moves a pet to any open place with room ("Move {name}"),
 and "Let {name} choose" picks by the same preferences (`suggestPlaceFor`). Plants live on the sill (it scrolls sideways,
 and overflow goes to the plant stand). **Residency**: a habit's companion lives in its plant (§14.1): while it is out, the Today band
 shows it in its pot, whatever place it spends the Shelf's day in (a companion brought indoors leaves its pot to the

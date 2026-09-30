@@ -10,7 +10,9 @@
  * - Each pet out spends the day in a place (places.ts): `setPetPlace` moves it (the place must be
  *   open and have room), "Let {name} choose" picks by species (`suggestPlaceFor`), and opening a
  *   place moves in the never-placed pets who love it most, up to its room (`buyPlace` → `movedIn`).
- *   Each new day, never-placed pets settle the same way (`settleUnplacedPets`).
+ *   Each new day, never-placed pets settle the same way (`settleUnplacedPets`). Every species loves
+ *   the Balcony Box (empty `loves`), after its own places (places.ts); a save whose Balcony opened
+ *   before that settles there once, with a notice (`settleUniversalOnce`, DEC-P10).
  * - Decor is placed freely: one placement per owned copy, up to 24 per place, coordinates 0..1
  *   within the place, optionally flipped. Placement ids are unique and stable. A companion's
  *   keepsake (§14.1) places like decor, as 'keepsake:<id>' (one copy).
@@ -22,9 +24,10 @@ import type { PlacePurchase } from '@/state/api';
 import type { AppState, PlacedDecor } from '@/state/types';
 import { owns } from './collection';
 import type { Tx } from './tx';
-import { spendCoins } from './wallet';
+import { hasOnce, setOnce, spendCoins } from './wallet';
 import { keepsakeOfItem, setCompanion, suggestHabitFor } from './company';
-import { hasRoomIn, lovedPlaces, petPlace, placeRoom, petsInPlace, speciesOfPet, suggestPlaceFor } from './places';
+import { dayNumber } from './dates';
+import { UNIVERSAL_SETTLE_KEY, firstLovedWithRoom, hasRoomIn, isUniversalPlace, petPlace, placeRoom, petsInPlace, settledKey, suggestPlaceFor } from './places';
 
 export const MAX_DECOR_PER_PLACE = 24;
 
@@ -48,7 +51,8 @@ export function hasRoomOut(s: Pick<AppState, 'pets' | 'shelf'>): boolean {
 /**
  * Opens a place with coins. Places stay in Shelf order (left to right) whatever order they were
  * bought in. The pets out who love it and have never been placed move in, up to its room (the
- * closest friends first; a companion stays with its pot): `movedIn`, for "The Saucer Pond is open.
+ * closest friends first; a companion stays with its pot; a pet whose own species' place is open
+ * with room goes there instead of the Balcony Box): `movedIn`, for "The Saucer Pond is open.
  * {name} went straight to the lily pad."
  */
 export function buyPlace(tx: Tx, place: PlaceId): PlacePurchase {
@@ -58,15 +62,21 @@ export function buyPlace(tx: Tx, place: PlaceId): PlacePurchase {
   tx.emit({ type: 'coins', amount: -def.price, reason: 'spend' });
   const shelf = tx.section('shelf');
   shelf.places = PLACES.map((p) => p.id).filter((id) => id === place || shelf.places.includes(id));
+  // Opening a place everyone loves announces who moved in: no one-time settling is owed any more.
+  if (isUniversalPlace(place) && !hasOnce(tx.s, UNIVERSAL_SETTLE_KEY)) setOnce(tx, UNIVERSAL_SETTLE_KEY, dayNumber(tx.env.today));
   return { ok: true, place, movedIn: settleNewPlace(tx, place) };
 }
 
-/** Moves the never-placed pets out who love `place` into it, up to its room. Returns their ids. */
+/**
+ * Moves the never-placed pets out for whom `place` is the first open place they love with room
+ * (so a pet goes to its own species' place before the Balcony Box) into it, up to its room.
+ * Returns their ids, the closest friends first.
+ */
 function settleNewPlace(tx: Tx, place: PlaceId): string[] {
   const busy = new Set(tx.s.habits.filter((h) => h.archivedOn === undefined).map((h) => h.companionId));
   const room = placeRoom(place) - petsInPlace(tx.s, place).length;
   const movers = Object.values(tx.s.pets)
-    .filter((p) => p.inMeadow && p.place === undefined && !busy.has(p.id) && lovedPlaces(tx.s, speciesOfPet(p.id)).includes(place))
+    .filter((p) => p.inMeadow && p.place === undefined && !busy.has(p.id) && firstLovedWithRoom(tx.s, p.id) === place)
     .sort((a, b) => b.xp - a.xp || a.obtainedAt - b.obtainedAt || (a.id < b.id ? -1 : 1))
     .slice(0, Math.max(0, room));
   for (const p of movers) tx.pet(p.id).place = place;
@@ -76,12 +86,59 @@ function settleNewPlace(tx: Tx, place: PlaceId): string[] {
 /**
  * Once a day (rollover.ts): pets out that have never been placed (a pet that came home after its
  * favourite place opened, or a save from before places held pets) settle into the open places
- * their species loves, up to each place's room. A pet that was moved, or chose the Sill, stays put.
+ * their species loves, up to each place's room: the places their species names first, then the
+ * places everyone loves (the Balcony Box). A pet that was moved, or chose the Sill, stays put.
  */
 export function settleUnplacedPets(tx: Tx): string[] {
   const moved: string[] = [];
-  for (const place of tx.s.shelf.places) if (place !== 'sill') moved.push(...settleNewPlace(tx, place));
+  const open = tx.s.shelf.places.filter((p) => p !== 'sill');
+  for (const place of [...open.filter((p) => !isUniversalPlace(p)), ...open.filter(isUniversalPlace)]) moved.push(...settleNewPlace(tx, place));
   return moved;
+}
+
+/**
+ * DEC-P10 (WP-B7, domain-d5), once per save: a save whose Balcony Box opened before it counted as a
+ * place every pet loves settles its never-placed pets there on its next open (the same day or a
+ * new one), up to its room, the closest friends first, and keeps a notice for Today naming them
+ * (`settledNotice`). Keyed by `UNIVERSAL_SETTLE_KEY`, so a reload never moves anyone again; a
+ * save with no such place open owes nothing and writes nothing. Pets already placed, companions
+ * and level-4 claims are left as they are. Returns the pets moved.
+ */
+export function settleUniversalOnce(tx: Tx): string[] {
+  if (hasOnce(tx.s, UNIVERSAL_SETTLE_KEY)) return [];
+  const universal = tx.s.shelf.places.filter(isUniversalPlace);
+  if (universal.length === 0) return [];
+  const day = dayNumber(tx.env.today);
+  setOnce(tx, UNIVERSAL_SETTLE_KEY, day);
+  const moved = universal.flatMap((place) => settleNewPlace(tx, place));
+  for (const id of moved) setOnce(tx, settledKey(id), day);
+  return moved;
+}
+
+/**
+ * The one-time settling notice (DEC-P10): each pet `settleUniversalOnce` moved that is still out
+ * in that place, in the order they moved. Empty once Today has shown it (`noteSettledNotice`) or
+ * after SETTLED_NOTICE_DAYS (compaction).
+ */
+export function settledNotice(s: Pick<AppState, 'ledger' | 'pets' | 'shelf'>): { petId: string; place: PlaceId }[] {
+  const out: { petId: string; place: PlaceId }[] = [];
+  for (const key of Object.keys(s.ledger.once)) {
+    if (!key.startsWith(settledKey(''))) continue;
+    const pet = s.pets[key.slice(settledKey('').length)];
+    if (!pet?.inMeadow) continue;
+    const place = petPlace(s, pet);
+    if (isUniversalPlace(place)) out.push({ petId: pet.id, place });
+  }
+  return out;
+}
+
+/** Today showed the settling notice: it is not shown again. */
+export function noteSettledNotice(tx: Tx): boolean {
+  const keys = Object.keys(tx.s.ledger.once).filter((k) => k.startsWith(settledKey('')));
+  if (keys.length === 0) return false;
+  const once = tx.ledger('once');
+  for (const k of keys) delete once[k];
+  return true;
 }
 
 /**

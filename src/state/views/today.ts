@@ -18,6 +18,7 @@ import { companionOfferOpen, habitsWithoutCompanion, pairOf, petsWithoutHabit, s
 import { birthdayCards, cameHomeToday } from '@/domain/rituals';
 import { hemisphereOf, seasonAt } from '@/domain/seasonReview';
 import { petPlace } from '@/domain/places';
+import { settledNotice } from '@/domain/shelf';
 import { ritualDate, ritualKind, type RitualKind } from './pets';
 import { seasonReviewVM, type SeasonReviewVM } from './season';
 import { OFF_DAYS_PER_MONTH, canLogOn, inLifetime, isInBackfillWindow, logStatus, offDaysRemaining, showedUp } from '@/domain/activity';
@@ -218,6 +219,11 @@ export interface TodayVM {
   birthday: { petIds: string[] } | null;
   /** Pets whose came-home day it is (a small bow on the pot). */
   cameHome: { petId: string; years: number }[];
+  /**
+   * The pets the one-time settling moved to the Balcony Box (DEC-P10, WP-B7), until Today has said
+   * so once ("{name} moved to the Balcony Box."). Only on today's page.
+   */
+  settled: { petId: string; place: PlaceId }[];
   /** "Find {name} a plant": the Keeping Company offer, when it may be shown today. */
   companionOffer: CompanionOfferVM | null;
   /**
@@ -456,6 +462,7 @@ export function todayVM(s: AppState, env: ViewEnv, date: DateKey = env.today): T
     storyWaiting: showCompanions ? storyWaiting(s) : null,
     birthday: birthday && isToday ? { petIds: birthdayCards(s) } : null,
     cameHome,
+    settled: isToday ? settledNotice(s) : [],
     companionOffer: offerPet && showCompanions ? { petId: offerPet, suggested: suggestHabitFor(s, offerPet), habitIds: habitsWithoutCompanion(s).map((h) => h.id) } : null,
   };
 }

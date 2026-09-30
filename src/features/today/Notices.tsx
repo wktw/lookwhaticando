@@ -2,7 +2,7 @@
  * The cards on Today below the list (DESIGN §9.1, §13, §14): what arrived on the sill and what is
  * offered, never modal. The first capsule, a letter waiting, a story on a plant tag, the Keeping
  * Company offer (at most once a day, never after 3 declines), the Season Review with its fresh-start
- * chips, the birthday and came-home days.
+ * chips, the birthday and came-home days, and (once) the pets that settled on the Balcony Box.
  */
 import type { ComponentChildren, Ref } from 'preact';
 import { forwardRef } from 'preact/compat';
@@ -12,11 +12,12 @@ import { CollectibleArt } from '@/art/CollectibleArt';
 import { NoteCard } from '@/art/progress';
 import { Icon } from '@/art/icons';
 import { BIRTHDAY, CAME_HOME, COMPANION, PET_CARD, TODAY_LINES, fillLine, plantPhrase } from '@/catalog/lines';
-import { plural } from '@/catalog/format';
+import { movedToPlaceLine, plural } from '@/catalog/format';
 import { navigate } from '@/app/router';
+import type { PlaceId } from '@/catalog/types';
 import type { DateKey } from '@/state/types';
 import type { CompanionOfferVM, TodayVM } from '@/state/selectors';
-import { declineCompanionOffer, noteCompanionOffer, setCompanion, state, today } from '@/state/store';
+import { declineCompanionOffer, noteCompanionOffer, noteSettledNotice, setCompanion, state, today } from '@/state/store';
 import { Button } from '@/ui/Button';
 import { toast } from '@/ui/toast';
 import { openPetCard } from '@/features/habits/open';
@@ -36,6 +37,12 @@ export interface NoticesHandle {
  * moment it appears, so the view model drops it at once).
  */
 const offerLatch = signal<{ day: DateKey; offer: CompanionOfferVM } | null>(null);
+
+/**
+ * The one-time Balcony settling notice (DEC-P10): shown once. The store forgets it the moment it
+ * appears (so a reload never shows it again), and it stays on Today for the rest of the day.
+ */
+const settledLatch = signal<{ day: DateKey; pets: { petId: string; place: PlaceId }[] } | null>(null);
 
 function Notice({ art, title, children, actions, below, tone }: { art?: ComponentChildren; title: string; children?: ComponentChildren; actions?: ComponentChildren; below?: ComponentChildren; tone?: 'butter' | 'lavender' | 'blush' | 'sage' }) {
   return (
@@ -74,6 +81,15 @@ export const Notices = forwardRef(function Notices({ vm }: { vm: TodayVM }, ref:
       noteCompanionOffer();
     }
   }, [vm.companionOffer, day]);
+  // The one-time settling notice: latch it for today and tell the store it was shown.
+  useEffect(() => {
+    if (vm.settled.length === 0 || !vm.isToday) return;
+    const held = settledLatch.value?.day === day ? settledLatch.value.pets : [];
+    settledLatch.value = { day, pets: [...held, ...vm.settled.filter((x) => !held.some((h) => h.petId === x.petId))] };
+    noteSettledNotice();
+  }, [vm.settled, vm.isToday, day]);
+  const settled = settledLatch.value?.day === day ? settledLatch.value.pets : vm.isToday ? vm.settled : [];
+
   const latched = offerLatch.value;
   const offer = latched && latched.day === day && vm.showCompanions ? latched.offer : null;
   const offerPet = offer ? st.pets[offer.petId] : undefined;
@@ -175,6 +191,18 @@ export const Notices = forwardRef(function Notices({ vm }: { vm: TodayVM }, ref:
             <div class={s.actions}>
               <Button variant="secondary" onClick={() => openPetCard(c.petId)}>
                 {fillLine(PET_CARD.nameTag, { name: st.pets[c.petId]!.name })}
+              </Button>
+            </div>
+          </Notice>
+        ) : null,
+      )}
+
+      {settled.map((x) =>
+        st.pets[x.petId] ? (
+          <Notice key={`settled-${x.petId}`} art={<CollectibleArt id={x.petId} size={56} />} title={movedToPlaceLine(st.pets[x.petId]!.name, x.place)} tone="sage">
+            <div class={s.actions}>
+              <Button variant="secondary" onClick={() => openPetCard(x.petId)}>
+                {fillLine(PET_CARD.nameTag, { name: st.pets[x.petId]!.name })}
               </Button>
             </div>
           </Notice>
