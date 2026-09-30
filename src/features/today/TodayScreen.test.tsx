@@ -527,6 +527,37 @@ describe('cancelled gestures on Today, and the note sheet’s draft (WP-C2)', ()
     await until(() => countOn(id, today.value) === 1, 'the glass added from the keyboard');
   });
 
+  it('P-ui-04: a long press that opened the number pad and was let go off the ring (no click follows): the next keyboard Enter on the ring still adds', async () => {
+    state.value = seed(['water']);
+    view = mount(<TodayScreen />);
+    const id = idOf('Drink water');
+    const holder = ringIn(cardOf('Drink water'))!.parentElement!;
+    holder.dispatchEvent(pointer('pointerdown'));
+    await until(() => document.querySelector('[role="dialog"]')?.textContent?.includes('of 8 glasses'), 'the number pad');
+    // Released off the ring: a pointerup, and no click for the ring to see.
+    holder.dispatchEvent(pointer('pointerup'));
+    await esc();
+    await until(() => !document.querySelector('[role="dialog"]'), 'the pad closed');
+    expect(countOn(id, today.value)).toBe(0);
+    await keyboardClick(ringIn(cardOf('Drink water')), 'the ring');
+    await until(() => countOn(id, today.value) === 1, 'the glass added from the keyboard');
+  });
+
+  it('P-ui-04: after a cancelled long press, an activation with no press behind it that still reports detail 1 (an assistive tap; WP-G3 checks what VoiceOver sends) adds', async () => {
+    state.value = seed(['water']);
+    view = mount(<TodayScreen />);
+    const id = idOf('Drink water');
+    const holder = ringIn(cardOf('Drink water'))!.parentElement!;
+    holder.dispatchEvent(pointer('pointerdown', { pointerType: 'touch' }));
+    await until(() => document.querySelector('[role="dialog"]')?.textContent?.includes('of 8 glasses'), 'the number pad');
+    holder.dispatchEvent(pointer('pointercancel', { pointerType: 'touch' }));
+    await esc();
+    await until(() => !document.querySelector('[role="dialog"]'), 'the pad closed');
+    const ring = ringIn(cardOf('Drink water'))!;
+    await act(() => void ring.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, detail: 1 })));
+    await until(() => countOn(id, today.value) === 1, 'the glass added');
+  });
+
   it('control: the click that ends a long press is not also a tap', async () => {
     state.value = seed(['water']);
     view = mount(<TodayScreen />);
