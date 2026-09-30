@@ -2,9 +2,12 @@ import { describe, expect, it } from 'vitest';
 import { STARTER_IDS } from '@/catalog/collectibles';
 import { TEMPLATES } from '@/catalog/templates';
 import { addDays } from '@/domain/dates';
-import { ledgerKey } from '@/domain/economy';
+import { cuttingOf, ledgerKey } from '@/domain/economy';
+import { lifetimeSunshine } from '@/domain/growth';
 import * as habits from '@/domain/habits';
-import { Game, baseInput } from './game';
+import { mulberry32, randomInt } from '@/domain/rng';
+import { rewardsPaused } from '@/domain/wallet';
+import { Game, at, baseInput } from './game';
 
 const issues = (g: Game, over: Parameters<typeof baseInput>[0]) => habits.validateHabitInput(g.state, baseInput(over)).map((i) => `${i.field}:${i.code}`);
 
@@ -133,6 +136,168 @@ describe('archive, restore, delete, reorder', () => {
     g.run((tx) => habits.reorderHabits(tx, [c, a]));
     const order = [...g.state.habits].sort((x, y) => x.order - y.order).map((h) => h.id);
     expect(order).toEqual([c, a, b]);
+  });
+});
+
+/*
+ * HM2 / R213 (WP-B1): deleting a habit reverses only the grants ordinary undo could still reverse
+ * (the refund window today−6 … today, with the clock trusted). The ledger keeps one day more
+ * (LEDGER_DAYS = 7); an entry on that extra day is dropped without taking anything back.
+ */
+describe('delete reverses only refundable grants (HM2, WP-B1)', () => {
+  const DAY0 = '2026-09-07';
+
+  /**
+   * Walk is checked in once on DAY0 (5 coins, 1 sunshine). Read is checked in on DAY0…DAY0+3, so
+   * lifetime sunshine is exactly 5, The Cutting's first threshold: reversing Walk's 1 sunshine
+   * drops it below. Then the clock moves to DAY0+age and the wallet is set to `balance`.
+   */
+  function walkAged(age: number, balance: number) {
+    const g = new Game({ start: DAY0 });
+    const walk = g.addHabit({ name: 'Walk' });
+    const read = g.addHabit({ name: 'Read' });
+    g.checkIn(walk);
+    for (let d = 0; d < 4; d++) {
+      g.goTo(addDays(DAY0, d));
+      g.checkIn(read);
+    }
+    g.goTo(addDays(DAY0, age));
+    g.setWallet({ coins: balance });
+    return { g, walk };
+  }
+  const facts = (g: Game) => ({
+    coins: g.coins,
+    lifetime: g.state.lifetime,
+    sunshine: lifetimeSunshine(g.state.ledger.sunshine),
+    cutting: cuttingOf(g.state),
+  });
+
+  it('the setup: Walk earned 5 coins and 1 sunshine on DAY0, and lifetime sunshine sits on the 5 threshold', () => {
+    const { g, walk } = walkAged(3, 100);
+    expect(g.state.ledger.recent[ledgerKey(walk, DAY0)]).toMatchObject({ coins: 5, sunshine: 1, lvl: 'full' });
+    expect(facts(g)).toMatchObject({ sunshine: 5, cutting: { stage: 1, toNext: 15 } });
+  });
+
+  it('age 6, enough coins: the grant is reversed (coins, sunshine, check-in count; The Cutting falls back below 5)', () => {
+    const { g, walk } = walkAged(6, 100);
+    const before = facts(g);
+    g.run((tx) => habits.deleteHabit(tx, walk));
+    const after = facts(g);
+    expect(after.coins).toBe(95);
+    expect(after.lifetime.coinsEarned).toBe(before.lifetime.coinsEarned - 5);
+    expect(after.lifetime.checkins).toBe(before.lifetime.checkins - 1);
+    expect(after.sunshine).toBe(4);
+    expect(g.state.ledger.sunshine[walk]).toBeUndefined();
+    expect(after.cutting).toMatchObject({ stage: 1, toNext: 16 }); // the stage is a high-water mark; the gauge is not
+    expect(g.lastOf('coins')).toEqual([{ type: 'coins', amount: -5, reason: 'refund', habitId: walk }]);
+  });
+
+  it('age 6, too few coins: no coins come back (all or nothing), the sunshine and check-in count still do', () => {
+    const { g, walk } = walkAged(6, 3);
+    const before = facts(g);
+    g.run((tx) => habits.deleteHabit(tx, walk));
+    const after = facts(g);
+    expect(after.coins).toBe(3);
+    expect(after.lifetime.coinsEarned).toBe(before.lifetime.coinsEarned);
+    expect(after.lifetime.checkins).toBe(before.lifetime.checkins - 1);
+    expect(after.sunshine).toBe(4);
+    expect(after.cutting).toMatchObject({ stage: 1, toNext: 16 });
+  });
+
+  for (const age of [7, 8]) {
+    for (const balance of [100, 3]) {
+      it(`age ${age}, balance ${balance}: nothing is taken back; wallet, lifetime, sunshine and The Cutting are unchanged`, () => {
+        const { g, walk } = walkAged(age, balance);
+        const before = facts(g);
+        g.run((tx) => habits.deleteHabit(tx, walk));
+        expect(facts(g)).toEqual(before);
+        expect(facts(g)).toMatchObject({ coins: balance, sunshine: 5, cutting: { stage: 1, toNext: 15 } });
+        expect(g.state.ledger.sunshine[walk]).toBe(1); // a deleted habit's lifetime sunshine stays (§13)
+        expect(g.lastOf('coins')).toEqual([]);
+        // The habit and any retained ledger entry are gone all the same.
+        expect(g.state.habits.map((h) => h.id)).not.toContain(walk);
+        expect(g.state.ledger.recent[ledgerKey(walk, DAY0)]).toBeUndefined();
+      });
+    }
+  }
+
+  it('ages 7 and 8 end the same way (the outcome no longer depends on whether compaction has run)', () => {
+    const end = (age: number) => {
+      const { g, walk } = walkAged(age, 100);
+      g.run((tx) => habits.deleteHabit(tx, walk));
+      return { ...facts(g), walkSunshine: g.state.ledger.sunshine[walk] };
+    };
+    expect(end(7)).toEqual(end(8));
+  });
+
+  it('keep the plant (archive) stays distinct: at age 6 nothing is reversed and the habit stays', () => {
+    const { g, walk } = walkAged(6, 100);
+    const before = facts(g);
+    g.run((tx) => habits.deleteHabit(tx, walk, { keepPlant: true }));
+    expect(facts(g)).toEqual(before);
+    expect(g.state.habits.find((h) => h.id === walk)?.archivedOn).toBe(addDays(DAY0, 6));
+    expect(g.state.ledger.recent[ledgerKey(walk, DAY0)]).toBeDefined();
+  });
+
+  describe('the clock guard (rewards paused)', () => {
+    /** Walk checked in on DAY0; the clock reached DAY0+3, then went 48 h back (the app day stays DAY0+3). */
+    function behind() {
+      const g = new Game({ start: DAY0 });
+      const walk = g.addHabit({ name: 'Walk' });
+      g.checkIn(walk);
+      g.goTo(addDays(DAY0, 3));
+      g.now = at(addDays(DAY0, 1));
+      g.setWallet({ coins: 100 });
+      return { g, walk };
+    }
+
+    it('undo reverses nothing while the clock is behind (the predicate delete must share)', () => {
+      const { g, walk } = behind();
+      expect(rewardsPaused(g.state, g.now)).toBe(true);
+      expect(g.today).toBe(addDays(DAY0, 3));
+      expect(g.undo(walk, DAY0)).toEqual({ refunded: 0 });
+      expect(g.coins).toBe(100);
+    });
+
+    it('delete reverses nothing while the clock is behind', () => {
+      const { g, walk } = behind();
+      const before = facts(g);
+      g.run((tx) => habits.deleteHabit(tx, walk));
+      expect(facts(g)).toEqual(before);
+      expect(g.state.ledger.sunshine[walk]).toBe(1);
+      expect(g.lastOf('coins')).toEqual([]);
+    });
+
+    it('once the clock catches up, the same delete reverses the grant', () => {
+      const { g, walk } = behind();
+      g.now = at(addDays(DAY0, 3));
+      expect(rewardsPaused(g.state, g.now)).toBe(false);
+      g.run((tx) => habits.deleteHabit(tx, walk));
+      expect(g.coins).toBe(95);
+      expect(g.state.ledger.sunshine[walk]).toBeUndefined();
+    });
+  });
+
+  it('property: over random ages 0–10 and balances 0–20, delete reverses the grant iff its day is in the refund window', () => {
+    const rng = mulberry32(213);
+    for (let i = 0; i < 60; i++) {
+      const age = randomInt(rng, 0, 10);
+      const balance = randomInt(rng, 0, 20);
+      const g = new Game({ start: DAY0 });
+      const walk = g.addHabit({ name: 'Walk' });
+      g.checkIn(walk);
+      g.goTo(addDays(DAY0, age));
+      g.setWallet({ coins: balance });
+      const before = facts(g);
+      g.run((tx) => habits.deleteHabit(tx, walk));
+      const after = facts(g);
+      const refundable = age <= 6;
+      const why = `age ${age}, balance ${balance}`;
+      expect(after.coins, why).toBe(refundable && balance >= 5 ? balance - 5 : balance);
+      expect(after.lifetime.checkins, why).toBe(before.lifetime.checkins - (refundable ? 1 : 0));
+      expect(after.sunshine, why).toBe(before.sunshine - (refundable ? 1 : 0));
+      expect(g.state.ledger.sunshine[walk], why).toBe(refundable ? undefined : 1);
+    }
   });
 });
 

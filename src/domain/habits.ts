@@ -42,7 +42,7 @@ import { inferHemisphere } from './hemisphere';
 import { ensureRecipe } from './pantry';
 import { ruleAt, withRuleEdit, withStartedOn, type RuleEditTiming } from './rules';
 import { RULE_LIMITS, isBiggerRule, isDayBased, normalizeRuleContent, sameRuleContent, validateRuleContent, type RuleContent } from './schedule';
-import { GROW_COOLDOWN_DAYS, forfeitLoweredGoal, ledgerKey, resettleHabit } from './economy';
+import { GROW_COOLDOWN_DAYS, forfeitLoweredGoal, isSettleableDay, ledgerKey, ledgerKeyDate, resettleHabit } from './economy';
 import type { Tx } from './tx';
 import { grantStars, hasOnce, refundCoins, setOnce } from './wallet';
 
@@ -290,10 +290,13 @@ export interface DeleteOptions {
 }
 
 /**
- * Deletes a habit with its logs. Its rewardable grants are un-checked first: coins refunded where
- * the balance allows (all or nothing per day), their sunshine and check-in counts removed. The
- * sunshine it grew before the window stays in `ledger.sunshine` (The Cutting is a lifetime gauge
- * across all habits, deleted ones included, §13; growth only adds, §3.1). Bonuses stay.
+ * Deletes a habit with its logs. Its grants that an un-check could still reverse (`isSettleableDay`:
+ * inside the refund window, clock trusted) are un-checked first: coins refunded where the balance
+ * allows (all or nothing per day), their sunshine and check-in counts removed. Older ledger entries
+ * the ledger still retains (it keeps one day more than the window) are dropped without reversal,
+ * so the outcome never depends on whether compaction has run yet (HM2). The sunshine it grew
+ * before the window stays in `ledger.sunshine` (The Cutting is a lifetime gauge across all habits,
+ * deleted ones included, §13; growth only adds, §3.1). Bonuses stay.
  */
 export function deleteHabit(tx: Tx, id: string, opts: DeleteOptions = {}): void {
   if (!tx.s.habits.some((h) => h.id === id)) return;
@@ -307,6 +310,7 @@ export function deleteHabit(tx: Tx, id: string, opts: DeleteOptions = {}): void 
   if (keys.length > 0) {
     for (const k of keys) {
       const e = tx.s.ledger.recent[k]!;
+      if (!isSettleableDay(tx.s, ledgerKeyDate(k), tx.env)) continue;
       if (e.coins > 0 && refundCoins(tx, e.coins, id)) {
         const daily = tx.ledger('daily');
         const today = tx.env.today;
