@@ -10,7 +10,7 @@
  */
 import type { PlaceId } from '@/catalog/types';
 import type { Light } from '@/art/light';
-import type { DecorEntry } from '../decor';
+import { DECOR_ENTRIES, type DecorEntry } from '../decor';
 import { decorEntry, fracToScene, type DecorFloor } from '../decorPlace';
 import type { ShelfDecor, SillPot } from '../model';
 import type { RoomPalette } from '../palette';
@@ -18,8 +18,8 @@ import { baseline, clamp, depthScale, depthZ, potMetrics, type PotMetrics } from
 import type { Ground, GroundLight, Obstacle, Perch } from '../arrange';
 import { decorSize } from '../fit';
 import { lightAtSun } from '../lighting';
-import { foundFor } from '../objects/found';
 import { ROUTINE_ART } from '../objects/routines';
+import { foundFor } from '../objects/found';
 import type { CastSpec } from './Backdrop';
 import { BEAM_WIDTH, castVector, POT_HALF, sillLayout, sunbeam, type Beam, type SillLayout, type SillSpec } from './layout';
 import type { Season } from '../time';
@@ -84,6 +84,22 @@ export interface SillWorld {
   /** Glowing decor after dark: small warm pools on the sill under each (x, y, radius in units). */
   pools: { x: number; y: number; r: number }[];
   light: Light;
+  /** Where the rituals on the sill stand (see `SillRituals`); pets roaming the sill keep off them. */
+  rituals: { found?: RitualPlace; note?: RitualPlace; cake?: RitualPlace };
+}
+
+/** The rituals standing on the Sill (DESIGN §13, §14.1): today's found thing (by its seed), a waiting note, a birthday cake. */
+export interface SillRituals {
+  found?: number;
+  note?: boolean;
+  cake?: boolean;
+}
+
+/** Where a ritual object stands: x and depth, and its canvas edge in units (before the depth scale). */
+export interface RitualPlace {
+  x: number;
+  depth: number;
+  size: number;
 }
 
 /** A resident faces into the room from its rim; its pot's tag stands on the other side (`tagSide`). */
@@ -151,7 +167,7 @@ function tallDecorWidth(decor: readonly ShelfDecor[], petSize: number, potH: num
   return w;
 }
 
-export function sillWorld(spec: SillSpec, pots: readonly SillPot[], decor: readonly ShelfDecor[], room: RoomPalette, sun: number, minWidth: number, season: Season = 'spring'): SillWorld {
+export function sillWorld(spec: SillSpec, pots: readonly SillPot[], decor: readonly ShelfDecor[], room: RoomPalette, sun: number, minWidth: number, season: Season = 'spring', rituals: SillRituals = {}): SillWorld {
   const { rows, scale } = spec;
   const typicalPotH = scale.pot * potMetrics('terracotta').height;
   const extraRoam = Math.max(0, tallDecorWidth(decor, scale.pet, typicalPotH) - spec.roam * 0.6);
@@ -240,6 +256,9 @@ export function sillWorld(spec: SillSpec, pots: readonly SillPot[], decor: reado
     if (!entry.flat) casts.push({ x: d.x, y: d.y, foot: (x1 - x0) * 0.8, top: (x1 - x0) * 0.7, height: size * 0.45 });
   }
 
+  const placedRituals = placeRituals(layout, potPlaces, perches, obstacles, rituals, [layout.window.x0 + 2, layout.width - 4]);
+  for (const r of Object.values(placedRituals)) obstacles.push({ x0: r.x - r.hw, x1: r.x + r.hw });
+
   const ground: Ground = {
     rows,
     x0: layout.window.x0 + 2,
@@ -254,60 +273,46 @@ export function sillWorld(spec: SillSpec, pots: readonly SillPot[], decor: reado
     obstacles,
     petSize: scale.pet,
   };
-  return { layout, beam, casts, cast, decor: placed, pots: potPlaces, ground, floor, pools, light };
+  const ritualPlaces = Object.fromEntries(Object.entries(placedRituals).map(([k, r]) => [k, { x: r.x, depth: r.depth, size: r.size }]));
+  return { layout, beam, casts, cast, decor: placed, pots: potPlaces, ground, floor, pools, light, rituals: ritualPlaces };
 }
 
-/** Where a thing on the Sill a person can open stands: its button's centre x, its depth and drawn size, in units. */
-export interface SillThingPlace {
-  x: number;
-  depth: number;
-  size: number;
-}
-
-/** The things on the Sill a person can open, placed (`sillThings`). */
-export interface SillThings {
-  note?: SillThingPlace;
-  found?: SillThingPlace;
-}
-
-/** Half a thing's button, in units (a small thing still takes a 12-unit button, as `SillThing` draws it). */
-const thingHalf = (t: SillThingPlace) => (Math.max(t.size, 12) * depthScale(t.depth)) / 2;
+/** Half the width of a sill ritual's button, as a share of its size (the tap box is the whole square). */
+const RITUAL_HALF = 0.5;
 
 /**
- * Where the things on the Sill a person can open stand (DESIGN §8.2, §13): a waiting note leaning on the coin jar's
- * left, in front of the back row; a found thing lying just right of the pot it was left by, at the front. Each keeps
- * clear of the pets' seats at sill level (a routine's object, the glass beside a cutting, a bed; rims sit higher) and
- * of the other, moving along the sill to the nearest clear spot, so its button never lies over a pet's: a pet under
- * one could not be touched. The note never moves further left than its own spot (that is in front of the pots).
+ * Where the rituals stand: each keeps to its own spot (the found thing by a pot, the note leaning by the coin jar,
+ * the cake past it) unless that would cover a bed, a routine's object or the glass a pet settles by, or tall decor.
+ * Then it moves along the sill to the nearest clear stretch. Nothing a pet is sitting in ends up behind a note, at
+ * any hour.
  */
-export function sillThings(world: Pick<SillWorld, 'layout' | 'ground' | 'pots'>, want: { note?: boolean; found?: number }): SillThings {
-  const { layout, ground } = world;
-  const scale = layout.spec.scale;
-  // Half a pet's footprint (arrange's reach) around each seat.
-  const pet = ground.petSize * 0.3;
-  const seats: Span[] = ground.perches.filter((p) => p.kind !== 'rim').map((p) => [p.x - p.w / 2 - pet, p.x + p.w / 2 + pet] as const);
-  const out: SillThings = {};
-  if (want.note) {
-    const jarS = scale.jar * depthScale(layout.jar.depth);
-    const n = { x: layout.jar.x - jarS * 0.5, depth: 0.7, size: scale.pet * 0.62 };
-    const hw = thingHalf(n);
-    out.note = { ...n, x: clearX(n.x, hw, seats, n.x - hw, ground.x1) ?? n.x };
+function placeRituals(
+  layout: SillLayout,
+  pots: readonly PotPlace[],
+  perches: readonly Perch[],
+  obstacles: readonly Obstacle[],
+  rituals: SillRituals,
+  [lo, hi]: readonly [number, number],
+): Record<string, RitualPlace & { hw: number }> {
+  const { scale } = layout.spec;
+  const pad = scale.pet * 0.3;
+  const jarS = scale.jar * depthScale(layout.jar.depth);
+  const blocked: Span[] = [...perches.filter((p) => p.kind !== 'rim').map((p): Span => [p.x - p.w / 2 - pad, p.x + p.w / 2 + pad]), ...obstacles.map((o): Span => [o.x0, o.x1])];
+  const out: Record<string, RitualPlace & { hw: number }> = {};
+  const put = (key: string, want: number, depth: number, size: number, box = size) => {
+    const hw = box * depthScale(depth) * RITUAL_HALF;
+    const x = clearX(want, hw, blocked, lo, hi) ?? want;
+    out[key] = { x, depth, size, hw };
+    blocked.push([x - hw, x + hw]);
+  };
+  if (rituals.found != null) {
+    const size = decorSize(foundFor(rituals.found), scale.pet);
+    const by = pots.length ? pots[Math.abs(Math.floor(rituals.found)) % pots.length]! : null;
+    put('found', (by?.x ?? layout.window.x0 + 30) + 9, 0.97, size, Math.max(size, 12));
   }
-  if (want.found != null) {
-    const by = world.pots.length ? world.pots[Math.abs(Math.floor(want.found)) % world.pots.length]! : null;
-    const f = { x: (by?.x ?? layout.window.x0 + 30) + 9, depth: 0.97, size: decorSize(foundFor(want.found), scale.pet) };
-    const note = out.note;
-    const blocked = note ? [...seats, [note.x - thingHalf(note), note.x + thingHalf(note)] as const] : seats;
-    out.found = { ...f, x: clearX(f.x, thingHalf(f), blocked, ground.x0, ground.x1) ?? f.x };
-  }
+  if (rituals.note) put('note', layout.jar.x - jarS * 0.5, 0.7, scale.pet * 0.62);
+  if (rituals.cake) put('cake', layout.jar.x + jarS * 0.5 + 8, 0.82, decorSize(DECOR_ENTRIES['decor-birthday-cake'], scale.pet));
   return out;
-}
-
-/** The Sill with things on it to open (`sillThings`): pets roaming it keep clear of them, as they do of standing decor. */
-export function withThings(world: SillWorld, things: SillThings): SillWorld {
-  const spans = [things.note, things.found].filter((t): t is SillThingPlace => !!t).map((t) => ({ x0: t.x - thingHalf(t), x1: t.x + thingHalf(t) }));
-  if (!spans.length) return world;
-  return { ...world, ground: { ...world.ground, obstacles: [...world.ground.obstacles, ...spans] } };
 }
 
 /**

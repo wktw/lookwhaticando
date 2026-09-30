@@ -24,7 +24,7 @@ import { NoteArt } from '../objects/note';
 import { CuttingPot, CuttingVine, vineReach } from '../objects/cutting';
 import type { Pt } from '../decor/geo';
 import { SillBackdrop } from './Backdrop';
-import { sillThings, type SillWorld } from './world';
+import type { SillWorld } from './world';
 import s from '../shelf.module.css';
 
 export interface SillSegmentProps {
@@ -79,7 +79,6 @@ export function SillSegment({ world, room, view, light, pots, coins, uid, tags, 
   const cutX = layout.window.x0 - 5.6;
   const cutSize = scale.pot * 0.58;
   const cutY = baseline(rows, cutDepth);
-  const jarS = scale.jar * depthScale(jar.depth);
   return (
     <>
       <SillBackdrop layout={layout} room={room} view={view} beam={beam} casts={casts} cast={cast} uid={uid} pool={!pinned} moonX={moonX} />
@@ -141,32 +140,28 @@ export function SillSegment({ world, room, view, light, pots, coins, uid, tags, 
           // A box's front face goes over whoever is asleep in it.
           d.entry.front ? <DecorItem key={`${d.key}/front`} entry={d.entry} itemId={d.itemId} x={d.x} y={d.y} z={d.z + 3} size={d.size} light={light} flip={d.flip} scale={d.scale} front /> : null,
         ])}
-      {!pinned && extras && <SillExtrasArt world={world} extras={extras} light={light} jarS={jarS} />}
+      {!pinned && extras && <SillExtrasArt world={world} extras={extras} light={light} />}
       {edit && <DecorEditLayer decor={decor} floor={world.floor} rows={rows} place="sill" edit={edit.decor} sceneRef={edit.sceneRef} />}
       {children}
     </>
   );
 }
 
-/** A found thing, a waiting note and a birthday cake on the Sill (the band puts them at its pinned end instead). */
-function SillExtrasArt({ world, extras, light, jarS }: { world: SillWorld; extras: SillExtras; light: Light; jarS: number }) {
-  const { layout } = world;
-  const { rows, scale } = layout.spec;
-  const jar = layout.jar;
+/** A found thing, a waiting note and a birthday cake on the Sill, where the world placed them (the band puts them at its pinned end instead). */
+function SillExtrasArt({ world, extras, light }: { world: SillWorld; extras: SillExtras; light: Light }) {
+  const { rows, scale } = world.layout.spec;
+  const { found, note, cake } = world.rituals;
   const out = [];
-  // Where they stand clear of the pets' seats (the scene keeps the roaming pets clear of them with the same places).
-  const things = sillThings(world, { note: !!extras.note, found: extras.found?.seed });
-  if (extras.found && things.found) {
-    const f = things.found;
-    out.push(<SillThing key="found" kind="found" x={f.x} depth={f.depth} size={f.size} rows={rows} light={light} entry={foundFor(extras.found.seed)} label={extras.found.label ?? 'Something on the sill'} onTap={extras.found.onTap} />);
+  if (extras.found && found) {
+    const entry = foundFor(extras.found.seed);
+    out.push(<SillThing key="found" kind="found" x={found.x} depth={found.depth} size={found.size} rows={rows} light={light} entry={entry} label={extras.found.label ?? 'Something on the sill'} onTap={extras.found.onTap} />);
   }
-  if (extras.note && things.note) {
-    const n = things.note;
-    out.push(<SillNote key="note" x={n.x} depth={n.depth} size={n.size} rows={rows} light={light} note={extras.note} />);
+  if (extras.note && note) {
+    out.push(<SillNote key="note" x={note.x} depth={note.depth} size={note.size} rows={rows} light={light} note={extras.note} />);
   }
-  if (extras.cake) {
+  if (extras.cake && cake) {
     const entry = DECOR_ENTRIES['decor-birthday-cake']!;
-    out.push(<SillThing key="cake" kind="cake" x={jar.x + jarS * 0.5 + 8} depth={0.82} size={decorSize(entry, scale.pet)} rows={rows} light={light} entry={entry} />);
+    out.push(<SillThing key="cake" kind="cake" x={cake.x} depth={cake.depth} size={decorSize(entry, scale.pet)} rows={rows} light={light} entry={entry} />);
   }
   return <>{out}</>;
 }

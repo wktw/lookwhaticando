@@ -20,7 +20,7 @@ import { outsidePalette, ROOM } from './palette';
 import { childLight } from './lighting';
 import { arrangePets, homePerch, type Ground } from './arrange';
 import { SILL_SPEC } from './sill/layout';
-import { openScroll, sillThings, sillWorld, withThings } from './sill/world';
+import { openScroll, sillWorld } from './sill/world';
 import { SillSegment } from './sill/SillSegment';
 import { PLACE_SCENES, type RoomPlaceId } from './places';
 import { PlaceSegment, placeLampAt, placeOnGround } from './places/PlaceSegment';
@@ -81,13 +81,13 @@ export const ShelfScene = forwardRef(function ShelfScene(props: ShelfSceneProps,
   const opened = useMemo(() => ORDER.filter((id): id is RoomPlaceId => id !== 'sill' && places.includes(id)), [places]);
 
   const sillDecor = useMemo(() => decor.filter((d) => !d.place || d.place === 'sill' || !opened.includes(d.place as RoomPlaceId)), [decor, opened]);
-  // Pets keep clear of the things on the sill a person can open (their buttons would otherwise cover the pets').
-  const noted = !!props.note;
   const foundSeed = props.found?.seed;
-  const world = useMemo(() => {
-    const w = sillWorld(SILL_SPEC, pots, sillDecor, room, moment.light.sun, opened.length ? 0 : widthU, moment.season);
-    return withThings(w, sillThings(w, { note: noted, found: foundSeed }));
-  }, [pots, sillDecor, room, moment.light.sun, widthU, opened.length, moment.season, noted, foundSeed]);
+  const hasNote = !!props.note;
+  const hasCake = !!props.cake;
+  const world = useMemo(
+    () => sillWorld(SILL_SPEC, pots, sillDecor, room, moment.light.sun, opened.length ? 0 : widthU, moment.season, { found: foundSeed, note: hasNote, cake: hasCake }),
+    [pots, sillDecor, room, moment.light.sun, widthU, opened.length, moment.season, foundSeed, hasNote, hasCake],
+  );
 
   const segments = useMemo(() => {
     const out: Segment[] = [{ id: 'sill', x: 0, width: world.layout.width, ground: world.ground }];
