@@ -620,6 +620,37 @@ describe('the selectors follow the local wall clock, not the UTC hour (data-d9, 
     expect(tuneView.value.season.hemisphere).toBe('south');
   });
 
+  it('a move between two zones with the same offset is followed too: the Today view’s own hemisphere', () => {
+    // Johannesburg and Berlin are both +02:00 in July: the hour, the block and the day stay put.
+    const { b } = bootIn('Africa/Johannesburg', '2026-07-15', 10, 10);
+    expect(todayView.value.season.hemisphere).toBe('south');
+    const before = shown(todayView.value);
+    const berlin = zonedLocalTime('Europe/Berlin');
+    store.configureStore({ local: berlin, timeZone: () => 'Europe/Berlin' });
+    b.advance(30_000);
+    expect(shown(todayView.value)).toEqual(before);
+    expect(todayView.value.season.hemisphere).toBe('north');
+  });
+
+  it('a day start on the half hour turns the block at :30 while today is held after a westward move', () => {
+    // 04:00 in London on 1 Oct with a 03:30 day start; then she lands in New York (23:00 on 30 Sep),
+    // and today stays 1 Oct (the day never goes back). At 03:30 in New York today is still 1 Oct, so
+    // only the minute tells the Today view that the morning has started.
+    const { b } = bootIn('Europe/London', '2026-10-01', 4, 0, { dayStartsAt: 210 });
+    expect(store.today.value).toBe('2026-10-01');
+    const ny = zonedLocalTime('America/New_York');
+    store.configureStore({ local: ny, timeZone: () => 'America/New_York' });
+    b.advance(30_000);
+    expect(store.today.value).toBe('2026-10-01');
+    b.advance(epochAtLocal('2026-10-01', 3, 10, ny) - b.clock.now);
+    expect(store.today.value).toBe('2026-10-01');
+    expect(shown(todayView.value)).toEqual({ block: 'evening', hour: 3, period: 'late' });
+    b.advance(epochAtLocal('2026-10-01', 3, 35, ny) - b.clock.now);
+    expect(store.today.value).toBe('2026-10-01');
+    expect(shown(todayView.value)).toEqual(expected(ny, b.clock.now, 210));
+    expect(shown(todayView.value)).toEqual({ block: 'morning', hour: 3, period: 'late' });
+  });
+
   it('the clock banner reads the real clock, not the hour it is in', () => {
     const { b } = bootIn('UTC', '2026-09-30', 12, 20);
     const max = store.state.value.clock.maxEpochMs;
