@@ -7,7 +7,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { AppState } from '@/state/types';
 import { validateState } from '@/state/validate';
 import { epochAtLocal } from '@/state/demo';
-import { addDays, eachDay, zonedLocalTime } from '@/domain/dates';
+import { addDays, eachDay, zonedLocalTime, type LocalTimeReader } from '@/domain/dates';
 import { BLOOMING, EVERGREEN } from '@/domain/growth';
 import * as habits from '@/domain/habits';
 import * as logging from '@/domain/logging';
@@ -248,5 +248,48 @@ describe('"You set Walk for mornings but usually water it after 6 pm. Move it to
     expect(g.state.wallet).toEqual(wallet);
     expect(g.allOf('coins').some((e) => e.reason !== 'checkin' && e.reason !== 'gift' && e.reason !== 'rung' && e.reason !== 'perfect')).toBe(false);
     void logging;
+  });
+});
+
+describe('the eligible-times memo is keyed by the zone too (P-history-04, WP-B3)', () => {
+  /** A habit watered at 07:30 UTC on 12 days: one reading per zone. */
+  function watered() {
+    const g = new Game({ start: '2026-03-02' });
+    const a = g.addHabit();
+    for (const d of eachDay('2026-03-02', '2026-03-13')) {
+      g.goTo(d, 7, 30);
+      g.checkIn(a);
+    }
+    return { s: g.state, habit: habitOf(g.state, a), today: g.today };
+  }
+  const minutes = (t: EligibleTime[]) => [...new Set(t.map((x) => x.minute))];
+
+  it('the same state read in another zone is read again, not served from the memo', () => {
+    const { s, habit, today } = watered();
+    expect(minutes(eligibleTimes(s, habit, today, zonedLocalTime('UTC'), 'UTC'))).toEqual([450]);
+    // Kathmandu (+05:45): 13:15.
+    expect(minutes(eligibleTimes(s, habit, today, zonedLocalTime('Asia/Kathmandu'), 'Asia/Kathmandu'))).toEqual([795]);
+    // A reader for a zone passed without its name still gets its own reading: Chatham in March is +13:45, so 21:15.
+    expect(minutes(eligibleTimes(s, habit, today, zonedLocalTime('Pacific/Chatham')))).toEqual([21 * 60 + 15]);
+    expect(minutes(eligibleTimes(s, habit, today, zonedLocalTime('UTC'), 'UTC'))).toEqual([450]);
+  });
+
+  it('the device’s own reader after the device moves zone (the same function) is read again', () => {
+    const { s, habit, today } = watered();
+    let zone = 'Europe/London'; // GMT in March before the 29th
+    const device: LocalTimeReader = (ms) => zonedLocalTime(zone)(ms);
+    expect(minutes(eligibleTimes(s, habit, today, device, zone))).toEqual([450]);
+    zone = 'Asia/Kolkata';
+    expect(minutes(eligibleTimes(s, habit, today, device, zone))).toEqual([13 * 60]);
+    // …and its usual time, colour and nudge follow: 13:00 is Sunlit and Midday.
+    expect(readTimes(eligibleTimes(s, habit, today, device, zone), s.settings.dayStartsAt)).toMatchObject({ usualMinute: 780, band: 'sunlit', block: 'midday' });
+    expect(timeNudge(s, { ...habit, timeOfDay: 'morning' }, today, device, zone)).toMatchObject({ from: 'morning', to: 'midday' });
+  });
+
+  it('a repeated reading in one zone is still served from the memo', () => {
+    const { s, habit, today } = watered();
+    const reader = zonedLocalTime('Asia/Kathmandu');
+    const first = eligibleTimes(s, habit, today, reader, 'Asia/Kathmandu');
+    expect(eligibleTimes(s, habit, today, reader, 'Asia/Kathmandu')).toBe(first);
   });
 });

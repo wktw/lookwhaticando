@@ -1,7 +1,10 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { effect } from '@preact/signals';
 import * as habitsDomain from '@/domain/habits';
 import * as logging from '@/domain/logging';
-import { addDays } from '@/domain/dates';
+import { CLOCK_ROLLBACK_TOLERANCE_MS, addDays, appDayKey, zonedLocalTime, type LocalTimeReader } from '@/domain/dates';
+import { greetingPeriod } from '@/catalog/lines';
+import { epochAtLocal } from '@/state/demo';
 import * as gacha from '@/domain/gacha';
 import { CUTTING_THRESHOLDS } from '@/domain/growth';
 import {
@@ -15,15 +18,22 @@ import {
   petVM,
   petsVM,
   progressVM,
+  progressView,
+  selectToday,
   seriesVM,
   shelfVM,
   todayVM,
+  todayView,
+  tuneView,
   walletVM,
   wishListVM,
   yearQuiltVM,
+  type TodayVM,
   type ViewEnv,
 } from '@/state/selectors';
+import * as store from '@/state/store';
 import { machineStatusOf } from '@/state/store';
+import { fakeBrowser } from './fixtures';
 import { Game, UTC, at } from '../domain/game';
 import { backdatingBanner, blockSummary, bestFactLine, forecastLine, goalsLine, monthBarLabel, restingRow, runText, showedUpLine, statusLine, trendLine, vineChip, weekDayAria, weekLine, yearSummaryLine } from '@/catalog/format';
 
@@ -509,5 +519,162 @@ describe('selectors are cheap: repeated views reuse memoised history walks', () 
     todayVM(g.state, envOf(g));
     const second = performance.now() - t1;
     expect(second).toBeLessThan(Math.max(first / 2, 25)); // slack for a busy machine
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/* The store-bound selectors follow the local clock (data-d9, WP-B3)   */
+/* ------------------------------------------------------------------ */
+
+describe('the selectors follow the local wall clock, not the UTC hour (data-d9, P-history-04, P-history-R3; WP-B3)', () => {
+  let stopClock: (() => void) | null = null;
+  afterEach(() => {
+    stopClock?.();
+    stopClock = null;
+  });
+
+  /** A running store in a zone, its wall clock at `hh:mm` local on `date`, with a daily habit in each block. */
+  function bootIn(zone: string, date: string, hh: number, mm: number, opts: { dayStartsAt?: number } = {}) {
+    const b = fakeBrowser({ start: date });
+    const local = zonedLocalTime(zone);
+    b.clock.now = epochAtLocal(date, hh, mm, local);
+    store.configureStore({ local, timeZone: () => zone });
+    store.hydrate();
+    if (opts.dayStartsAt !== undefined) store.updateSettings({ dayStartsAt: opts.dayStartsAt });
+    for (const timeOfDay of ['morning', 'midday', 'evening'] as const) {
+      store.createHabit({ name: `H-${timeOfDay}`, icon: 'walk', color: 'sage', plant: 'pothos', pot: 'terracotta', schedule: { kind: 'daily' }, target: 1, step: 1, effort: 'steady', timeOfDay, polarity: 'build' });
+    }
+    stopClock = store.startClock();
+    return { b, local };
+  }
+  const shown = (vm: TodayVM) => ({ block: vm.blocks.find((x) => x.current)?.id, hour: vm.greeting.hour, period: vm.greeting.period });
+  const expected = (local: LocalTimeReader, ms: number, dayStartsAt = 180) => {
+    const t = local(ms);
+    return { block: currentBlock(t.hour, dayStartsAt, t.minute), hour: t.hour, period: greetingPeriod(t.hour) };
+  };
+
+  it('IST 11:05 is Midday, and 12:05 is the afternoon (data-d9 A)', () => {
+    const { b, local } = bootIn('Asia/Kolkata', '2026-09-30', 11, 5);
+    expect(shown(todayView.value)).toEqual({ block: 'midday', hour: 11, period: 'morning' });
+    expect(shown(selectToday().value)).toEqual({ block: 'midday', hour: 11, period: 'morning' });
+    b.advance(60 * 60_000); // 12:05 IST (06:35 UTC)
+    expect(shown(todayView.value)).toEqual(expected(local, b.clock.now));
+    expect(shown(todayView.value)).toEqual({ block: 'midday', hour: 12, period: 'afternoon' });
+  });
+
+  it('with a 03:30 day start, 03:35 in an integer zone is the new day’s morning (data-d9 B)', () => {
+    const { b } = bootIn('UTC', '2026-09-30', 2, 0, { dayStartsAt: 210 });
+    expect(store.today.value).toBe('2026-09-29');
+    expect(shown(todayView.value).block).toBe('evening');
+    b.advance(95 * 60_000); // 03:35
+    expect(store.today.value).toBe('2026-09-30');
+    expect(shown(todayView.value)).toEqual({ block: 'morning', hour: 3, period: 'late' });
+  });
+
+  // Every five minutes of a day, the Today view's block and greeting are the wall clock's. The
+  // dates put Lord Howe's half-hour DST change (4 Oct 2026, 02:00 → 02:30), New York's fall-back
+  // and spring-forward, and London's spring-forward inside the day (P-history-R3 at selector level).
+  it.each([
+    ['Asia/Kathmandu', '2026-10-03'], // +05:45
+    ['Asia/Kolkata', '2026-10-03'], // +05:30
+    ['Pacific/Chatham', '2026-10-03'], // +13:45 (DST)
+    ['Australia/Lord_Howe', '2026-10-03'], // +10:30 → +11:00 overnight
+    ['America/St_Johns', '2026-10-03'], // −02:30 (DST)
+    ['America/New_York', '2026-10-31'], // integer zone, fall-back overnight
+    ['America/New_York', '2027-03-13'], // integer zone, spring-forward overnight
+    ['Europe/London', '2027-03-27'], // integer zone, spring-forward overnight
+  ])('%s from noon on %s: block and greeting follow the wall clock through the day', (zone, date) => {
+    const { b, local } = bootIn(zone, date, 12, 0);
+    const wrong: string[] = [];
+    for (let step = 0; step < 288; step++) {
+      const want = expected(local, b.clock.now);
+      const got = shown(todayView.value);
+      if (JSON.stringify(got) !== JSON.stringify(want)) wrong.push(`${JSON.stringify(local(b.clock.now))}: ${JSON.stringify(got)} ≠ ${JSON.stringify(want)}`);
+      expect(store.today.value).toBe(appDayKey(b.clock.now, 180, local));
+      b.advance(5 * 60_000);
+    }
+    expect(wrong).toEqual([]);
+  });
+
+  it('a leap day in a fractional zone: today moves Feb 28 → Feb 29 → Mar 1 at the local day start', () => {
+    const { b } = bootIn('Asia/Kathmandu', '2028-02-28', 12, 0);
+    const days: string[] = [];
+    for (let i = 0; i < 2 * 24 * 12; i++) {
+      if (days.at(-1) !== store.today.value) days.push(store.today.value);
+      b.advance(5 * 60_000);
+    }
+    expect(days).toEqual(['2028-02-28', '2028-02-29', '2028-03-01']);
+    expect(todayView.value.weekStrip.at(-1)).toMatchObject({ date: '2028-03-01', isToday: true });
+  });
+
+  it('a zone change mid-session is followed at the next tick: the block, the greeting and the hemisphere', () => {
+    const { b } = bootIn('Europe/London', '2026-09-30', 10, 50);
+    expect(shown(todayView.value)).toEqual({ block: 'morning', hour: 10, period: 'morning' });
+    expect(tuneView.value.season.hemisphere).toBe('north');
+    // She lands in Sydney (+10:00): 19:50 there, the same UTC hour and the same date.
+    const sydney = zonedLocalTime('Australia/Sydney');
+    store.configureStore({ local: sydney, timeZone: () => 'Australia/Sydney' });
+    b.advance(30_000);
+    expect(shown(todayView.value)).toEqual(expected(sydney, b.clock.now));
+    expect(shown(todayView.value)).toEqual({ block: 'evening', hour: 19, period: 'evening' });
+    expect(tuneView.value.season.hemisphere).toBe('south');
+  });
+
+  it('a move between two zones with the same offset is followed too: the Today view’s own hemisphere', () => {
+    // Johannesburg and Berlin are both +02:00 in July: the hour, the block and the day stay put.
+    const { b } = bootIn('Africa/Johannesburg', '2026-07-15', 10, 10);
+    expect(todayView.value.season.hemisphere).toBe('south');
+    const before = shown(todayView.value);
+    const berlin = zonedLocalTime('Europe/Berlin');
+    store.configureStore({ local: berlin, timeZone: () => 'Europe/Berlin' });
+    b.advance(30_000);
+    expect(shown(todayView.value)).toEqual(before);
+    expect(todayView.value.season.hemisphere).toBe('north');
+  });
+
+  it('a day start on the half hour turns the block at :30 while today is held after a westward move', () => {
+    // 04:00 in London on 1 Oct with a 03:30 day start; then she lands in New York (23:00 on 30 Sep),
+    // and today stays 1 Oct (the day never goes back). At 03:30 in New York today is still 1 Oct, so
+    // only the minute tells the Today view that the morning has started.
+    const { b } = bootIn('Europe/London', '2026-10-01', 4, 0, { dayStartsAt: 210 });
+    expect(store.today.value).toBe('2026-10-01');
+    const ny = zonedLocalTime('America/New_York');
+    store.configureStore({ local: ny, timeZone: () => 'America/New_York' });
+    b.advance(30_000);
+    expect(store.today.value).toBe('2026-10-01');
+    b.advance(epochAtLocal('2026-10-01', 3, 10, ny) - b.clock.now);
+    expect(store.today.value).toBe('2026-10-01');
+    expect(shown(todayView.value)).toEqual({ block: 'evening', hour: 3, period: 'late' });
+    b.advance(epochAtLocal('2026-10-01', 3, 35, ny) - b.clock.now);
+    expect(store.today.value).toBe('2026-10-01');
+    expect(shown(todayView.value)).toEqual(expected(ny, b.clock.now, 210));
+    expect(shown(todayView.value)).toEqual({ block: 'morning', hour: 3, period: 'late' });
+  });
+
+  it('the clock banner reads the real clock, not the hour it is in', () => {
+    const { b } = bootIn('UTC', '2026-09-30', 12, 20);
+    const max = store.state.value.clock.maxEpochMs;
+    // The device clock goes back to 5 minutes inside the 36-hour tolerance.
+    b.clock.now = max - CLOCK_ROLLBACK_TOLERANCE_MS + 5 * 60_000;
+    b.fire('focus'); // back in view: the clock ticks
+    expect(store.clockBehind.value).toBe(false);
+    expect(todayView.value.clockBehind).toBe(false);
+    // …and then past it.
+    b.clock.now = max - CLOCK_ROLLBACK_TOLERANCE_MS - 60_000;
+    b.fire('focus');
+    expect(store.clockBehind.value).toBe(true);
+    expect(todayView.value.clockBehind).toBe(true);
+  });
+
+  it('recomputation stays bounded: the Today view about once an hour, the day views about once a day', () => {
+    const { b } = bootIn('Asia/Kathmandu', '2026-09-30', 12, 0);
+    let todayRuns = 0;
+    let dayRuns = 0;
+    const offs = [effect(() => void (todayView.value, todayRuns++)), effect(() => void (progressView.value, dayRuns++))];
+    b.advance(2 * 24 * 3_600_000); // two days of 30-second ticks: 5,760 of them
+    for (const off of offs) off();
+    expect(todayRuns).toBeGreaterThan(2 * 24); // it does follow the hour
+    expect(todayRuns).toBeLessThanOrEqual(2 * 30);
+    expect(dayRuns).toBeLessThanOrEqual(2 * 4);
   });
 });

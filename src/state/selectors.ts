@@ -9,15 +9,19 @@
  *   `selectYearQuilt(year, habitId?)`, `selectSeries(machineId)`, `selectPet(id)`: each returns the
  *   same signal for the same arguments (a small LRU), so components can call them on every render.
  *
- * Views depend on `now` only through the hour (greetings and time blocks), so the 30-second clock
- * tick doesn't recompute the screens.
+ * Views depend on the wall clock only through `clockKey` (the local hour, the time block, the
+ * greeting period, the clock banner and the zone), so the 30-second clock tick doesn't recompute
+ * the screens, yet they follow the local clock to the minute in any zone (audit data-d9).
  */
 import { computed, type ReadonlySignal } from '@preact/signals';
+import { greetingPeriod } from '@/catalog/lines';
+import { zoneKey } from '@/domain/dates';
+import { rewardsPaused } from '@/domain/wallet';
 import type { MachineId } from '@/catalog/types';
 import type { DateKey } from './types';
 import { machineStatusOf, now, state, storeLocal, storeTimeZone, today } from './store';
 import type { ViewEnv } from './views/common';
-import { todayVM, type TodayVM } from './views/today';
+import { currentBlock, todayVM, type TodayVM } from './views/today';
 import { habitDetailVM, habitEditorVM, type HabitDetailVM, type HabitEditorVM } from './views/habit';
 import { calendarMonthVM, yearQuiltVM, type CalendarMonthVM, type YearQuiltVM } from './views/calendar';
 import { progressVM, type ProgressVM } from './views/progress';
@@ -35,13 +39,40 @@ export * from './views/pets';
 export * from './views/company';
 export * from './views/season';
 
-/** `now` rounded down to the hour: changes 24 times a day, not every tick. */
-const hourNow = computed(() => Math.floor(now.value / 3_600_000) * 3_600_000);
+/**
+ * The zone the device is in (`zoneKey`: its IANA name and UTC offsets). The runtime gives no event
+ * for a move, so it is read again on every clock tick; it changes only when she changes zone
+ * (audit P-history-04).
+ */
+const zone = computed(() => {
+  void now.value;
+  return zoneKey(storeLocal(), storeTimeZone());
+});
 
-/** The view env for views that don't need the wall clock (stable across ticks). */
-const dayEnv = computed<ViewEnv>(() => ({ today: today.value, now: hourNow.peek(), local: storeLocal(), timeZone: storeTimeZone() }));
-/** The view env for views that use the hour (greeting, current time block, clock banner). */
-const hourEnv = computed<ViewEnv>(() => ({ today: today.value, now: hourNow.value, local: storeLocal(), timeZone: storeTimeZone() }));
+/**
+ * Everything the hour-based views read from the wall clock, as one key (audit data-d9): the local
+ * hour, the time block (to the minute, with the day start), the greeting period, whether the clock
+ * is behind, and the zone. It is worked out from the real local time on every tick but changes only
+ * at those boundaries, about 25 times a day, so a block that starts at :30 or :45 (a fractional
+ * zone, a 03:30 day start) starts on time instead of at the next UTC hour.
+ */
+const clockKey = computed(() => {
+  const ms = now.value;
+  const s = state.value;
+  const t = storeLocal()(ms);
+  return `${zone.value}|${t.hour}|${currentBlock(t.hour, s.settings.dayStartsAt, t.minute)}|${greetingPeriod(t.hour)}|${rewardsPaused(s, ms) ? 'behind' : 'ok'}`;
+});
+
+/** The view env for views that don't need the wall clock: new on a new day or in a new zone. */
+const dayEnv = computed<ViewEnv>(() => {
+  void zone.value;
+  return { today: today.value, now: now.peek(), local: storeLocal(), timeZone: storeTimeZone() };
+});
+/** The view env for views that use the wall clock (greeting, current time block, clock banner): the real time as of the key's last change. */
+const hourEnv = computed<ViewEnv>(() => {
+  void clockKey.value;
+  return { today: today.value, now: now.peek(), local: storeLocal(), timeZone: storeTimeZone() };
+});
 
 export const todayView: ReadonlySignal<TodayVM> = computed(() => todayVM(state.value, hourEnv.value));
 export const progressView: ReadonlySignal<ProgressVM> = computed(() => progressVM(state.value, dayEnv.value));

@@ -307,6 +307,25 @@ export function zonedLocalTime(timeZone: string): LocalTimeReader {
   };
 }
 
+/** A reader's offset from UTC at an instant, in minutes (+345 in Kathmandu, −150 in St John's in summer). */
+export function utcOffsetMinutes(local: LocalTimeReader, epochMs: number): number {
+  const t = local(epochMs);
+  return Math.round((Date.UTC(t.year, t.month - 1, t.day, t.hour, t.minute) - epochMs) / 60_000);
+}
+
+/** Mid-January and mid-July, noon UTC: a zone's winter and summer offsets both show. */
+const ZONE_PROBES = [Date.UTC(2026, 0, 15, 12), Date.UTC(2026, 6, 15, 12)] as const;
+
+/**
+ * Which zone a reader reads in, as a memo key (audit P-history-04): the IANA name when known, and
+ * the reader's offsets at two fixed instants. The device's reader is one function wherever the
+ * device is, so a memo keyed by the reader alone would keep a reading made before a move; the
+ * offsets tell zones apart even when the name is unknown.
+ */
+export function zoneKey(local: LocalTimeReader, timeZone?: string): string {
+  return `${timeZone ?? ''}@${utcOffsetMinutes(local, ZONE_PROBES[0])}/${utcOffsetMinutes(local, ZONE_PROBES[1])}`;
+}
+
 export const DAY_STARTS_AT_MIN = 0;
 export const DAY_STARTS_AT_MAX = 360;
 

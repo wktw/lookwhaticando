@@ -35,7 +35,7 @@
  */
 import type { AppState, BloomColour, BloomShape, DateKey, Habit, PlantLook, PlantLooks, TimeBand, TimeOfDay } from '@/state/types';
 import { inLifetime, logStatus, showedUp } from './activity';
-import { addDays, type LocalTimeReader } from './dates';
+import { addDays, zoneKey, type LocalTimeReader } from './dates';
 import { BLOOMING, EVERGREEN } from './growth';
 import { ruleAt } from './rules';
 import { keptTogetherDays } from './stacking';
@@ -100,9 +100,11 @@ const memo = new WeakMap<object, WeakMap<object, Map<string, EligibleTime[]>>>()
 
 /**
  * The habit's eligible live check-in times over the kept stamps, oldest first (see module doc).
- * Memoised by the identity of the habit and of the whole logs section (bursts read other habits).
+ * Memoised by the identity of the habit and of the whole logs section (bursts read other habits),
+ * the day, and the zone the stamps are read in (`zoneKey`: `timeZone` when known, and the reader's
+ * offsets), so a reading made before the device moved zone is never served after it (P-history-04).
  */
-export function eligibleTimes(s: Pick<AppState, 'habits' | 'logs'>, habit: Habit, today: DateKey, local: LocalTimeReader): EligibleTime[] {
+export function eligibleTimes(s: Pick<AppState, 'habits' | 'logs'>, habit: Habit, today: DateKey, local: LocalTimeReader, timeZone?: string): EligibleTime[] {
   // Sealed: a transaction copies them before writing, so a memoised reading can never go stale.
   seal(habit);
   seal(s.logs);
@@ -110,7 +112,8 @@ export function eligibleTimes(s: Pick<AppState, 'habits' | 'logs'>, habit: Habit
   if (!byLogs) memo.set(habit, (byLogs = new WeakMap()));
   let map = byLogs.get(s.logs);
   if (!map) byLogs.set(s.logs, (map = new Map()));
-  const hit = map.get(today);
+  const key = `${today}|${zoneKey(local, timeZone)}`;
+  const hit = map.get(key);
   if (hit) return hit;
   const horizon = addDays(today, -SIGNATURE.stampDays);
   const out: EligibleTime[] = [];
@@ -126,7 +129,7 @@ export function eligibleTimes(s: Pick<AppState, 'habits' | 'logs'>, habit: Habit
   }
   out.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
   if (map.size > 16) map.clear();
-  map.set(today, out);
+  map.set(key, out);
   return out;
 }
 
@@ -234,8 +237,8 @@ export function readShape(s: Pick<AppState, 'habits' | 'logs'>, habit: Habit, to
 /* ------------------------------------------------------------------ */
 
 /** The look the plant reads as now, or null with too few eligible days (the read waits). */
-export function readLook(s: Pick<AppState, 'habits' | 'logs'>, habit: Habit, today: DateKey, local: LocalTimeReader, read: PlantLook['read']): PlantLook | null {
-  const time = readTimes(eligibleTimes(s, habit, today, local));
+export function readLook(s: Pick<AppState, 'habits' | 'logs'>, habit: Habit, today: DateKey, local: LocalTimeReader, read: PlantLook['read'], timeZone?: string): PlantLook | null {
+  const time = readTimes(eligibleTimes(s, habit, today, local, timeZone));
   if (time.colour === null || time.usualMinute === null) return null;
   const shape = readShape(s, habit, today);
   return {
@@ -279,7 +282,7 @@ export function readPlantLook(tx: Tx, habitId: string, displayStage: number): vo
   const cur = looksOf(tx.s, habitId);
   const due = dueRead(cur, displayStage);
   if (!due) return;
-  const look = readLook(tx.s, habit, tx.env.today, tx.env.local, due);
+  const look = readLook(tx.s, habit, tx.env.today, tx.env.local, due, tx.env.timeZone);
   if (!look) return;
   const today = tx.env.today;
   const reads = due === 'evergreen' ? { bloom: cur.reads.bloom ?? today, evergreen: today } : { ...cur.reads, bloom: today };
@@ -311,9 +314,9 @@ export interface TimeNudge {
 }
 
 /** "Move it to Evening?" (see module doc), or null. */
-export function timeNudge(s: Pick<AppState, 'habits' | 'logs' | 'settings'>, habit: Habit, today: DateKey, local: LocalTimeReader): TimeNudge | null {
+export function timeNudge(s: Pick<AppState, 'habits' | 'logs' | 'settings'>, habit: Habit, today: DateKey, local: LocalTimeReader, timeZone?: string): TimeNudge | null {
   if (habit.timeNudge !== undefined || habit.timeOfDay === 'anytime' || habit.archivedOn !== undefined) return null;
-  const r = readTimes(eligibleTimes(s, habit, today, local), s.settings.dayStartsAt);
+  const r = readTimes(eligibleTimes(s, habit, today, local, timeZone), s.settings.dayStartsAt);
   if (r.block === null || r.block === habit.timeOfDay || r.usualMinute === null) return null;
   return { from: habit.timeOfDay, to: r.block, band: r.band, usualMinute: r.usualMinute };
 }
@@ -322,7 +325,7 @@ export function timeNudge(s: Pick<AppState, 'habits' | 'logs' | 'settings'>, hab
 export function answerTimeNudge(tx: Tx, habitId: string, move: boolean): boolean {
   const habit = tx.s.habits.find((h) => h.id === habitId);
   if (!habit) return false;
-  const nudge = timeNudge(tx.s, habit, tx.env.today, tx.env.local);
+  const nudge = timeNudge(tx.s, habit, tx.env.today, tx.env.local, tx.env.timeZone);
   if (!nudge) return false;
   const h = tx.habit(habitId);
   if (move) h.timeOfDay = nudge.to;

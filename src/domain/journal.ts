@@ -42,6 +42,8 @@ export type JournalEntry =
 export interface JournalInput {
   today: DateKey;
   local: LocalTimeReader;
+  /** The device's IANA zone, when known (the eligible-times memo is keyed by the zone). */
+  timeZone?: string;
   weekStart: 0 | 1;
   /** Check-ins still needed to reach Blooming (null once there). */
   checkinsToBlooming: number | null;
@@ -55,7 +57,7 @@ export function gardenJournal(s: Pick<AppState, 'habits' | 'logs' | 'plantLooks'
   const out: JournalEntry[] = [];
 
   // 1. Usual time.
-  const times = readTimes(eligibleTimes(s, habit, today, input.local));
+  const times = readTimes(eligibleTimes(s, habit, today, input.local, input.timeZone));
   if (ink && times.usualMinute !== null && times.eligibleDays >= SIGNATURE.minEligibleDays) {
     out.push({ kind: 'usualTime', inked: true, minute: times.usualMinute, band: times.band });
   } else out.push({ kind: 'usualTime', inked: false, remaining: Math.max(1, SIGNATURE.minEligibleDays - times.eligibleDays) });
