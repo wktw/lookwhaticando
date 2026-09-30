@@ -10,7 +10,9 @@
  * clock guard pauses rewards. Anything else is history: it changes stats but never the wallet,
  * sunshine or once-keys, in either direction. The measures rewards are paid on (streak rungs,
  * completed occurrences for plant stages) count only days since the creation day, so history
- * filled in before a habit existed can't unlock them either.
+ * filled in before a habit existed can't unlock them either. Reversal follows the same window and
+ * clock guard (`isSettleableDay`): deleting a habit reverses only the grants an un-check still
+ * could, whatever the ledger happens to retain.
  *
  * ## The ledger entry: one per rewarded occurrence
  * `ledger.recent['<habitId>|<date>'] = { coins, sunshine, cap, lvl }` holds what the occurrence has
@@ -103,7 +105,11 @@ export const PERFECT_DAY = { perDone: 2, minCoins: 4, maxCoins: 16, minDone: 2, 
 export const WELCOME_HOME = { quietDays: 3, coins: 20, tickets: 1, cooldownDays: 14 } as const;
 /** First Sprout: the first check-in ever tops the wallet up to exactly one capsule (v1 §13.10). */
 export const FIRST_SPROUT_COINS = 25;
-/** Ledger entries older than today−7 are folded into the totals (v1 §13.8). */
+/**
+ * Ledger entries older than today−7 are folded into the totals (v1 §13.8). This is storage
+ * retention, one day wider than the refund window: whether an entry can still be reversed is
+ * `isSettleableDay`, never whether it is still here.
+ */
 export const LEDGER_DAYS = 7;
 /** After "Ready to grow?" is accepted, the offer stays closed this long (its 28-day look-back). */
 export const GROW_COOLDOWN_DAYS = 28;
@@ -193,14 +199,19 @@ function sinceDay<H extends Habit>(habit: H, since: DateKey): H {
   return since > habit.startedOn ? { ...habit, startedOn: since } : habit;
 }
 
+/**
+ * Whether a grant dated `date` can be settled now, paid or reversed: its day is inside the refund
+ * window (today−6 … today) and the clock is trusted. The one refund predicate: an un-check and a
+ * delete both reverse a grant only when it holds. The ledger keeps one day more (LEDGER_DAYS), so
+ * an entry being retained never makes it reversible (HM2).
+ */
+export function isSettleableDay(s: AppState, date: DateKey, env: Tx['env']): boolean {
+  return isInBackfillWindow(date, env.today) && !rewardsPaused(s, env.now);
+}
+
 /** Whether a (habit, date) can earn rewards now (see module doc "Which days pay"). */
 export function isRewardableDay(s: AppState, habit: Habit, date: DateKey, env: Tx['env']): boolean {
-  return (
-    isInBackfillWindow(date, env.today) &&
-    inLifetime(habit, date) &&
-    date >= habitCreatedOn(habit, s.settings.dayStartsAt, env.local) &&
-    !rewardsPaused(s, env.now)
-  );
+  return isSettleableDay(s, date, env) && inLifetime(habit, date) && date >= habitCreatedOn(habit, s.settings.dayStartsAt, env.local);
 }
 
 /** Coins a full-level check-in is worth right now, given the coins already paid on the action day. */
