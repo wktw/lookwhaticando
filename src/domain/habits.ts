@@ -36,6 +36,7 @@ import { logStatus, showedUp } from './activity';
 import { owns, ownedTreats } from './collection';
 import { addDays, clampDayStartsAt, isDateKey } from './dates';
 import { addPause, archivedStretchPause, isPausedOn, resumePauses } from './pauses';
+import { addToTotal } from './precision';
 import { forgetHabitPairs, freeCompanion } from './company';
 import { anchorIssue, unstackFollowers } from './stacking';
 import { inferHemisphere } from './hemisphere';
@@ -333,7 +334,7 @@ export function deleteHabit(tx: Tx, id: string, opts: DeleteOptions = {}): void 
   if (tx.s.logs[id]) delete tx.section('logs')[id];
   const sun = tx.s.ledger.sunshine[id];
   if (sun !== undefined && refundedSunshine > 0) {
-    const left = Math.round(Math.max(0, sun - refundedSunshine) * 1e6) / 1e6;
+    const left = addToTotal(sun, -refundedSunshine);
     if (left > 0) tx.ledger('sunshine')[id] = left;
     else delete tx.ledger('sunshine')[id];
   }

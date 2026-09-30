@@ -28,6 +28,7 @@
 import type { Habit, HabitRule } from '@/state/types';
 import { dayEvaluations, type EvalContext, type HabitLogs } from './activity';
 import { periodEvaluations } from './periods';
+import { reaches, shortfall, stepsReached } from './precision';
 import { expectedPerWeek } from './schedule';
 
 export type PlantStage = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7;
@@ -51,12 +52,6 @@ export const TINY_SUNSHINE_FACTOR = 0.5;
 /** The Cutting's stages (§13): lifetime sunshine across all habits needed for each (index = stage). */
 export const CUTTING_THRESHOLDS = [0, 5, 20, 50, 105, 210, 450, 900] as const;
 
-/**
- * Sunshine sums are floats (7/3 per Mon/Wed/Fri occurrence); comparisons allow this much rounding
- * error so 9 × 7/3 reaches the 21 threshold exactly as the design intends.
- */
-const EPS = 1e-9;
-
 const clampStage = (n: number): PlantStage => Math.max(0, Math.min(EVERGREEN, Math.floor(n))) as PlantStage;
 
 /** Sunshine earned by one rewarded occurrence under `rule` (half for the tiny version). */
@@ -64,9 +59,13 @@ export function sunshinePerOccurrence(rule: Pick<HabitRule, 'schedule'>, tiny = 
   return (7 / expectedPerWeek(rule)) * (tiny ? TINY_SUNSHINE_FACTOR : 1);
 }
 
+/**
+ * Sunshine sums are floats of repeating fractions (7/3 per Mon/Wed/Fri occurrence): every threshold
+ * is read through the precision contract (precision.ts), so 9 × 7/3 reaches 21 as the design intends.
+ */
 function stageOn(thresholds: readonly number[], sunshine: number): PlantStage {
   let stage = 0;
-  for (let s = 1; s < thresholds.length; s++) if (sunshine + EPS >= thresholds[s]!) stage = s;
+  for (let s = 1; s < thresholds.length; s++) if (reaches(sunshine, thresholds[s]!)) stage = s;
   return stage as PlantStage;
 }
 
@@ -110,7 +109,7 @@ export function stageName(stage: number): StageName {
  */
 export function extraBloomsFor(sunshine: number, stage: number): number {
   if (stage < EVERGREEN) return 0;
-  return Math.max(0, Math.min(MAX_BLOOMS, Math.floor((sunshine - STAGE_THRESHOLDS[EVERGREEN] + EPS) / SUNSHINE_PER_BLOOM)));
+  return Math.min(MAX_BLOOMS, stepsReached(sunshine, STAGE_THRESHOLDS[EVERGREEN], SUNSHINE_PER_BLOOM));
 }
 
 /**
@@ -138,14 +137,14 @@ const clamp01 = (x: number): number => (x <= 0 ? 0 : x >= 1 ? 1 : x);
  */
 export function flourishesFor(sunshine: number, stage: number): number {
   if (stage < EVERGREEN) return 0;
-  return Math.max(0, Math.min(MAX_FLOURISHES, Math.floor((sunshine - STAGE_THRESHOLDS[EVERGREEN] + EPS) / SUNSHINE_PER_FLOURISH)));
+  return Math.min(MAX_FLOURISHES, stepsReached(sunshine, STAGE_THRESHOLDS[EVERGREEN], SUNSHINE_PER_FLOURISH));
 }
 
 /** Sunshine still needed to reach the next stage; null at Evergreen (the screens show check-ins, never sunshine). */
 export function sunshineToNextStage(sunshine: number, stage: number): number | null {
   const s = clampStage(stage);
   if (s === EVERGREEN) return null;
-  return Math.max(0, STAGE_THRESHOLDS[s + 1]! - sunshine);
+  return shortfall(sunshine, STAGE_THRESHOLDS[s + 1]!);
 }
 
 /** Stages passed when growing from `before` to `after` (each animates in turn, ~350 ms). */
@@ -247,7 +246,7 @@ export function theCutting(lifetime: number, bestStage = 0): CuttingVM {
     stage,
     progress,
     overall: stage >= top ? 1 : (stage + progress) / top,
-    toNext: stage >= top ? null : Math.max(0, CUTTING_THRESHOLDS[stage + 1]! - lifetime),
+    toNext: stage >= top ? null : shortfall(lifetime, CUTTING_THRESHOLDS[stage + 1]!),
     framed: stage >= top,
   };
 }
