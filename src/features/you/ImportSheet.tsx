@@ -45,8 +45,10 @@ export function replaceErrorText(error: ReplaceError): string | null {
     case 'damaged-copy':
       return DATA_COPY.copyUnreadable;
     case 'not-found':
-    case 'expired':
       return DATA_COPY.copyGone;
+    case 'expired':
+      // The Undo is over, not its copy: that may still be under Daily copies.
+      return DATA_COPY.undoGone;
     default:
       return importErrorText(error);
   }

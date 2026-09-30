@@ -512,7 +512,12 @@ export class SaveQueue {
     const now = this.o.now();
     const gen = (this.gen ??= mintGen());
     let res = trySet(storage, key, encodeEnvelope(state, rev, now, appVersion, gen));
+    // Room is made by letting the kept-aside copies go, but only for a write that then succeeds: a
+    // write that fails anyway puts them back, so a failed write never costs a damaged save's only
+    // bytes (the WP-A3 review).
+    let damaged: string | null = null;
     if (!res.ok && res.reason === 'quota') {
+      damaged = safeGet(storage, corruptKeyOf(key));
       safeRemove(storage, corruptKeyOf(key));
       res = trySet(storage, key, encodeEnvelope(state, rev, now, appVersion, gen));
     }
@@ -522,6 +527,7 @@ export class SaveQueue {
       res = trySet(storage, key, encodeEnvelope(this.o.compact(state), rev, now, appVersion, gen));
       if (!res.ok && backup !== null) trySet(storage, backupKeyOf(key), backup);
     }
+    if (!res.ok && damaged !== null) trySet(storage, corruptKeyOf(key), damaged);
     if (!res.ok) return res.reason === 'quota' ? 'storage-full' : 'unavailable';
     this.rev = rev;
     this.lastChars = res.chars;

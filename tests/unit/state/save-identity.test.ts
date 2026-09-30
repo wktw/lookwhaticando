@@ -117,13 +117,13 @@ describe('INV-3: the envelope carries a save identity (gen) beside its rev', () 
     expect(afterReset).toMatch(GEN);
     expect(afterReset).not.toBe(first);
 
-    expect(await store.applyImport(backup)).toMatchObject({ ok: true });
+    expect(await store.applyImport(backup)).toEqual({ ok: true, undo: { until: b.clock.now + store.UNDO_IMPORT_MS } });
     const afterImport = saved(b).gen;
     expect(afterImport).toMatch(GEN);
     expect(afterImport).not.toBe(afterReset);
 
     const pre = (await preImports()).find((m) => m.kind === 'pre-import')!;
-    expect(await store.restoreSnapshot(pre.id)).toMatchObject({ ok: true });
+    expect(await store.restoreSnapshot(pre.id)).toEqual({ ok: true, undo: { until: b.clock.now + store.UNDO_IMPORT_MS } });
     const afterRestore = saved(b).gen;
     expect(afterRestore).toMatch(GEN);
     expect(afterRestore).not.toBe(afterImport);
@@ -655,7 +655,7 @@ describe('review: nothing is written before the lock answers, on every path that
     store.completeOnboarding({ name: 'Sam', templateIds: [] });
     store.checkIn(store.createHabit(input()));
     b.advance(1000);
-    expect(await store.applyImport(store.backupJson())).toMatchObject({ ok: true });
+    expect(await store.applyImport(store.backupJson())).toEqual({ ok: true, undo: { until: b.clock.now + store.UNDO_IMPORT_MS } });
     b.advance(1000);
     const pre = (await preImports()).find((m) => m.kind === 'pre-import')!;
     store.configureStore({ locks: deferredLocks() });
@@ -676,7 +676,7 @@ describe('review: nothing is written before the lock answers, on every path that
     store.hydrate();
     store.completeOnboarding({ name: 'Sam', templateIds: [] });
     b.advance(1000);
-    expect(await store.applyImport(store.backupJson())).toMatchObject({ ok: true });
+    expect(await store.applyImport(store.backupJson())).toEqual({ ok: true, undo: { until: b.clock.now + store.UNDO_IMPORT_MS } });
     const afterImport = saved(b).gen;
     expect(await store.undoImport()).toEqual({ ok: true, undo: null });
     expect(saved(b).gen).toMatch(GEN);

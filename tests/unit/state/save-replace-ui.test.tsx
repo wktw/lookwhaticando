@@ -6,11 +6,14 @@
  * before WP-A3.
  */
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
-import { SAVE_KEY } from '@/state/persist';
+import { render } from 'preact';
+import { act } from 'preact/test-utils';
+import { SAVE_KEY, encodeEnvelope } from '@/state/persist';
+import { createInitialState } from '@/state/defaults';
 import type { SnapshotStore } from '@/state/snapshots';
 import * as store from '@/state/store';
 import { DATA, DATA_COPY } from '@/catalog/lines';
-import { ImportSheet } from '@/features/you/ImportSheet';
+import { ImportSheet, replaceErrorText } from '@/features/you/ImportSheet';
 import { DataSection } from '@/features/you/DataSection';
 import { toasts } from '@/ui/toast';
 import { button, click, installDom, mount, type, until } from '@/features/capsules/testing';
@@ -131,5 +134,81 @@ describe('Daily copies: a restore that keeps a copy', () => {
     const undone = await until(() => toast('import-undone'), 'the undone note');
     expect(undone.message).toBe(DATA_COPY.undoneRestore);
     expect(store.state.value.profile.name).toBe('Renamed');
+  });
+});
+
+/** A copy store whose next put is held (after it was written) until released. */
+function heldPut(inner: SnapshotStore) {
+  let reached!: () => void;
+  let open!: () => void;
+  const hit = new Promise<void>((r) => (reached = r));
+  const wait = new Promise<void>((r) => (open = r));
+  let armed = true;
+  const s: SnapshotStore = {
+    durable: inner.durable,
+    list: inner.list,
+    get: inner.get,
+    remove: inner.remove,
+    put: async (r) => {
+      await inner.put(r);
+      if (armed) {
+        armed = false;
+        reached();
+        await wait;
+      }
+    },
+  };
+  return { store: s, reached: hit, release: () => open() };
+}
+
+/** The WP-A3 review round: here "failed before" means against WP-A3 as first committed (d23d43c); a guard was checked by mutation. */
+describe('review: the interface while a replacement is under way', () => {
+  it('Start over, Try the demo and Import are disabled while one is in flight, and come back after (a guard)', async () => {
+    const { b, backup } = twoSaves();
+    await new Promise((r) => setTimeout(r, 0));
+    const gate = heldPut(b.snapshots);
+    store.configureStore({ snapshots: gate.store });
+    view = mount(<DataSection />);
+    const rows = () => [button(DATA.startOver), button(new RegExp(`^${DATA.demo}`)), button(DATA.import)];
+    expect(rows().map((r) => r?.disabled)).toEqual([false, false, false]);
+    const p = store.applyImport(backup);
+    try {
+      await gate.reached;
+      await until(() => rows().every((r) => r?.disabled), 'the rows to be disabled');
+    } finally {
+      gate.release();
+    }
+    expect(await p).toMatchObject({ ok: true });
+    await until(() => rows().every((r) => r && !r.disabled), 'the rows to come back');
+  });
+
+  it('closing the Import sheet mid-import lets the import go: nothing is replaced and nothing says Imported (a guard)', async () => {
+    const { b, backup } = twoSaves();
+    await new Promise((r) => setTimeout(r, 0));
+    const gate = heldPut(b.snapshots);
+    store.configureStore({ snapshots: gate.store });
+    const disk = b.storage.getItem(SAVE_KEY);
+    view = mount(<ImportSheet open onClose={() => undefined} />);
+    await pasteAndImport(backup);
+    await gate.reached;
+    act(() => render(<ImportSheet open={false} onClose={() => undefined} />, view!.root));
+    gate.release();
+    await until(() => !store.replacing.value, 'the import to end');
+    expect(store.state.value.profile.name).toBe('Other');
+    expect(b.storage.getItem(SAVE_KEY)).toBe(disk);
+    expect(b.storage.getItem('catkin:undo-import')).toBeNull();
+    expect((await b.snapshots.list()).filter((m) => m.kind === 'pre-import')).toEqual([]);
+    expect(toast('imported')).toBeUndefined();
+  });
+
+  it('an Undo refused because the save shown is another one never claims the copy is gone (failed before)', async () => {
+    const { b, backup } = twoSaves();
+    expect(await store.applyImport(backup)).toMatchObject({ ok: true });
+    const s = createInitialState(b.clock.now);
+    b.storage.setItem(SAVE_KEY, encodeEnvelope({ ...s, profile: { ...s.profile, name: 'Elsewhere', onboarded: true } }, 1, 0, 'other', 'c'.repeat(32)));
+    b.fire('storage', { key: SAVE_KEY });
+    expect(await store.undoImport()).toEqual({ ok: false, error: 'expired' });
+    expect(replaceErrorText('expired')).not.toBe(DATA_COPY.copyGone);
+    expect(replaceErrorText('expired')).toBe(DATA_COPY.undoGone);
   });
 });

@@ -1184,6 +1184,8 @@ export const DATA_COPY = {
   superseded: 'The save changed just then, so nothing was replaced. Try again.',
   copyUnreadable: 'That copy can’t be read on this device right now, so nothing changed.',
   copyGone: 'That copy isn’t on this device any more, so nothing changed.',
+  /** An Undo no longer on offer (expired, or the save shown is another one): its copy may still be there. DEC-V: pending owner approval. */
+  undoGone: 'That Undo isn’t on offer any more, so nothing changed.',
   cannotOpen: 'This browser can’t open that backup. Try the backup file instead.',
   readOnly: 'This window can’t change the save right now.',
   inDemo: 'Leave the demo to import a backup. The demo keeps its own plants.',

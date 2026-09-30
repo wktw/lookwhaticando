@@ -492,3 +492,88 @@ describe('P-persistence-11: pre-import copies are pruned after commit, never the
     expect(await store.undoImport()).toEqual({ ok: true, undo: null });
   });
 });
+
+/** The WP-A3 review round: here "failed before" means against WP-A3 as first committed (d23d43c); a guard was checked by mutation. */
+describe('review: what the adversarial pass found', () => {
+  it('a change to the save shown while the protective copy is being written is in the copy: Undo gives it back (failed before)', async () => {
+    const b = boot();
+    const backup = twoSaves(b);
+    await settle();
+    const g = gated(b.snapshots);
+    store.configureStore({ snapshots: g.store });
+    const hold = g.hold('put');
+    const p = store.applyImport(backup);
+    await hold.reached;
+    store.setName('Written mid-import');
+    b.advance(1000);
+    expect(saved(b).state.profile.name).toBe('Written mid-import');
+    hold.release();
+    expect(await p).toEqual({ ok: true, undo: { until: b.clock.now + store.UNDO_IMPORT_MS } });
+    expect(store.state.value.profile.name).toBe('Sam');
+    expect(await store.undoImport()).toEqual({ ok: true, undo: null });
+    expect(store.state.value.profile.name).toBe('Written mid-import');
+  });
+
+  it('a replacement that can’t be written leaves the kept-aside damaged save and the backup copy where they were (failed before)', async () => {
+    const b = boot();
+    const backup = twoSaves(b);
+    b.storage.setItem(`${SAVE_KEY}:corrupt`, 'DAMAGED-BYTES-THE-ONLY-COPY');
+    const keptBackup = b.storage.getItem(`${SAVE_KEY}:backup`);
+    failWrites(b.storage, 'quota', [SAVE_KEY]);
+    expect(await store.applyImport(backup)).toEqual({ ok: false, error: 'not-saved' });
+    expect(b.storage.getItem(`${SAVE_KEY}:corrupt`)).toBe('DAMAGED-BYTES-THE-ONLY-COPY');
+    expect(b.storage.getItem(`${SAVE_KEY}:backup`)).toBe(keptBackup);
+  });
+
+  it('an ordinary save that can’t be written even without the damaged save puts it back (failed before)', () => {
+    const storage = memoryStorage();
+    const timers = { setTimeout: () => 0, clearTimeout: () => undefined };
+    storage.setItem(`${SAVE_KEY}:corrupt`, 'DAMAGED');
+    const q = new SaveQueue({ storage, key: SAVE_KEY, appVersion: 't', rev: 0, gen: 'a'.repeat(32), now: () => 5, timers, compact: (s) => s });
+    failWrites(storage, 'quota', [SAVE_KEY]);
+    q.schedule(createInitialState(0));
+    expect(q.flush()).toBe('storage-full');
+    expect(storage.getItem(`${SAVE_KEY}:corrupt`)).toBe('DAMAGED');
+  });
+
+  it('Undo keeps a copy of what it replaces, so the progress since the import can still be restored (failed before)', async () => {
+    const b = boot();
+    const backup = twoSaves(b);
+    expect(await store.applyImport(backup)).toEqual({ ok: true, undo: { until: b.clock.now + store.UNDO_IMPORT_MS } });
+    b.advance(20 * 3_600_000);
+    store.setName('Progress since import');
+    b.advance(1000);
+    const before = new Set(await preImports(b.snapshots));
+    expect(await store.undoImport()).toEqual({ ok: true, undo: null });
+    expect(store.state.value.profile.name).toBe('Other');
+    expect(b.storage.getItem(UNDO_IMPORT_KEY)).toBeNull();
+    const fresh = (await preImports(b.snapshots)).filter((id) => !before.has(id));
+    expect(fresh).toHaveLength(1);
+    expect((await b.snapshots.get(fresh[0]!))!.state.profile.name).toBe('Progress since import');
+    expect(await store.restoreSnapshot(fresh[0]!)).toMatchObject({ ok: true });
+    expect(store.state.value.profile.name).toBe('Progress since import');
+  });
+
+  it('the next day’s daily copy never prunes the copy the Undo note names, even when it is the oldest (a guard: it fails when the daily copy is not told which copy to keep)', async () => {
+    const b = boot();
+    const backup = twoSaves(b);
+    const base = b.clock.now;
+    for (const hours of [4, 3, 2, 1]) {
+      b.clock.now = base + hours * 3_600_000;
+      expect(await store.applyImport(backup)).toMatchObject({ ok: true });
+    }
+    const active = token(b)!.id;
+    // A newer pre-import copy that no prune has seen yet (another build's, or one whose prune failed).
+    const extra = (await b.snapshots.get(active))!;
+    await b.snapshots.put({ ...extra, id: `pre-import-${base + 5 * 3_600_000}`, savedAt: base + 5 * 3_600_000 });
+    expect((await preImports(b.snapshots)).length).toBeGreaterThan(KEEP['pre-import']);
+    const stop = store.startClock();
+    b.clock.now += 20 * 3_600_000; // the next morning, with the Undo still on offer
+    b.fire('focus');
+    stop();
+    await settle();
+    expect((await b.snapshots.list()).some((m) => m.kind === 'daily' && m.day === '2026-09-30')).toBe(true);
+    expect(await preImports(b.snapshots)).toContain(active);
+    expect(await store.undoImport()).toEqual({ ok: true, undo: null });
+  });
+});

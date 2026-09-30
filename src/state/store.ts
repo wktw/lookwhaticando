@@ -1329,7 +1329,7 @@ interface Replacement {
   kind: 'import' | 'restore' | 'undo';
   /** Reads (and validates) the state that replaces the save. */
   load: () => Promise<Loaded>;
-  /** Keep a protective copy of what's here first, for Undo (import, restore; never an undo). */
+  /** Keep a protective copy of what's here first: for Undo (import, restore), or just kept (an Undo). */
   protect: boolean;
   /** The person confirmed going ahead without an Undo. */
   withoutUndo?: boolean;
@@ -1367,9 +1367,11 @@ function opStopped(t: OpToken): 'aborted' | 'superseded' | null {
  *
  * 1. An op token (`beginOp`), checked after every await and again at the commit.
  * 2. The new state is read and validated (`load`).
- * 3. A protective copy of what's here, committed in IndexedDB before anything else (not for an
- *    Undo). With no lasting copy store (FS9), or when the copy is refused (data-d8), the answer is
- *    'no-undo' unless there is nothing to lose yet or the person confirmed going ahead without one.
+ * 3. A protective copy of what's here, committed in IndexedDB before anything else, and taken
+ *    again if the save shown changed meanwhile, so it is exactly what the commit replaces. With no
+ *    lasting copy store (FS9), or when the copy is refused (data-d8), the answer is 'no-undo'
+ *    unless there is nothing to lose yet or the person confirmed going ahead without one. An Undo
+ *    keeps a copy of what it replaces too, when it can, but goes ahead without one.
  * 4. A new lineage (`gen`), and the exact undo note `{id, until, gen, kind}`, written and checked.
  * 5. The save itself, written at once and checked (`queue.writeNow`), memory untouched.
  * 6. Only then: memory, the theme mirror, `saveReplaced()`. A replacement with no Undo clears any
@@ -1403,25 +1405,42 @@ async function runReplacement(r: Replacement): Promise<ReplaceResult> {
   if (stop) return refuse(stop);
   if (!loaded.ok) return loaded;
 
-  // 3. A protective copy of what's here, committed before anything else.
+  // 3. A protective copy of what's here, committed before anything else. An Undo keeps one too, of
+  // what it replaces, so the progress since the import or restore is still among the copies; it
+  // promises no Undo of its own, so for an Undo the copy is kept when it can be and never asked for.
   const nothingToLose = !state.value.profile.onboarded;
+  const needed = r.kind !== 'undo' && !nothingToLose;
   let copyId: string | null = null;
   if (r.protect && !r.withoutUndo) {
-    const shown = state.value;
-    if (!copies.durable || !validateState(shown).ok) {
-      if (!nothingToLose) return refuse('no-undo');
+    if (!copies.durable || !validateState(state.value).ok) {
+      if (needed) return refuse('no-undo');
     } else {
       const ms = rt.now();
       let id = `pre-import-${ms}`;
       if (readUndoToken()?.id === id) id = `${id}-1`; // never overwrite the copy an Undo still needs
-      const put = await copies.put({ ...snapshotMeta(shown, 'pre-import', id, today.value, ms, rt.appVersion), state: shown });
-      stop = opStopped(op);
-      if (stop) {
-        if (put.ok) await copies.remove(id);
-        return refuse(stop);
+      // The copy must be what the commit replaces: a change to the save shown while it was being
+      // written (a new day, the Sunday Note) is copied again, a few times at most.
+      let kept = false;
+      for (let tries = 1; ; tries++) {
+        const shown = state.value;
+        const put = validateState(shown).ok ? await copies.put({ ...snapshotMeta(shown, 'pre-import', id, today.value, ms, rt.appVersion), state: shown }) : { ok: false as const };
+        kept ||= put.ok;
+        stop = opStopped(op) ?? (put.ok && state.value !== shown && tries >= 3 ? 'superseded' : null);
+        if (stop) {
+          if (kept) await copies.remove(id);
+          return refuse(stop);
+        }
+        if (put.ok && state.value === shown) {
+          copyId = id;
+          break;
+        }
+        if (!put.ok) {
+          // No copy of what's here now: an earlier try's copy is out of date, so it goes too.
+          if (kept) await copies.remove(id);
+          if (needed) return refuse('no-undo');
+          break;
+        }
       }
-      if (put.ok) copyId = id;
-      else if (!nothingToLose) return refuse('no-undo');
     }
   }
 
@@ -1440,7 +1459,7 @@ async function runReplacement(r: Replacement): Promise<ReplaceResult> {
     else writeRaw(store, UNDO_IMPORT_KEY, noteBefore);
   };
   let undo: { until: number } | null = null;
-  if (copyId !== null) {
+  if (copyId !== null && r.kind !== 'undo') {
     const note: UndoToken = { id: copyId, until: ms + UNDO_IMPORT_MS, gen, kind: r.kind === 'restore' ? 'restore' : 'import' };
     if (writeJson(store, UNDO_IMPORT_KEY, note)) undo = { until: note.until };
     else {
@@ -1525,7 +1544,7 @@ export function applyImport(text: string, opts: { withoutUndo?: boolean; signal?
 export function undoImport(opts: { signal?: AbortSignal } = {}): Promise<ReplaceResult> {
   return replaceSave({
     kind: 'undo',
-    protect: false,
+    protect: true,
     signal: opts.signal,
     load: async () => {
       const t = activeUndo();
