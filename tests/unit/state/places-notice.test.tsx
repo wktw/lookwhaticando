@@ -49,7 +49,7 @@ describe('an imported save from before the change settles on the Balcony once, a
     store.hydrate();
     store.completeOnboarding({ name: 'Sam', templateIds: [] });
     const backup = JSON.stringify(makeBackup(oldSave(store.state.value, b.clock.now), { now: b.clock.now, appVersion: 'old', device: 'Test · Node' }));
-    expect(await store.applyImport(backup, { withoutUndo: true })).toEqual({ ok: true });
+    expect(await store.applyImport(backup, { withoutUndo: true })).toEqual({ ok: true, undo: null });
 
     const placeOf = () => cats.slice(0, 3).map((id) => store.state.value.pets[id]!.place ?? null);
     expect(placeOf()).toEqual(['balcony', 'balcony', null]);
@@ -86,7 +86,7 @@ describe('the cards Today holds for the rest of the day stay on today\'s page', 
     store.hydrate();
     store.completeOnboarding({ name: 'Sam', templateIds: ['walk'] });
     const backup = JSON.stringify(makeBackup(oldSave(store.state.value, b.clock.now), { now: b.clock.now, appVersion: 'old', device: 'Test · Node' }));
-    expect(await store.applyImport(backup, { withoutUndo: true })).toEqual({ ok: true });
+    expect(await store.applyImport(backup, { withoutUndo: true })).toEqual({ ok: true, undo: null });
 
     const vm = todayView.value;
     expect(vm.settled.map((x) => x.petId)).toEqual(cats.slice(0, 2));
