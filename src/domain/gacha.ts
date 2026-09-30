@@ -40,7 +40,7 @@ import { NEW_ITEM_WEIGHT, PITY_RARE, PITY_ULTRA, STARDUST_FOR_DUPLICATE, WISH_PR
 import type { CollectibleDef, MachineId, Rarity } from '@/catalog/types';
 import { RARITIES } from '@/catalog/types';
 import type { PullError, PullResult, WishOutcome } from '@/state/api';
-import type { AppState, DateKey, PetState, PityCounter } from '@/state/types';
+import type { AppState, DateKey, PendingReveal, PetState, PityCounter } from '@/state/types';
 import { evaluateBadges } from './badges';
 import { eligibleMoonlitIds, isMachineComplete, isMachineSource, isMoonlitAvailable, machineLineup, owns } from './collection';
 import { appDayKey } from './dates';
@@ -375,9 +375,38 @@ export function pull(tx: Tx, machineId: MachineId, opts: PullOptions = {}): Pull
   };
 }
 
-/** Clears the pending reveal once the UI has shown it. */
-export function finishReveal(tx: Tx): void {
-  if (tx.s.pendingReveal) tx.set('pendingReveal', undefined);
+/**
+ * Which pending reveal a screen showed: a capsule is named by its cabinet, item and commit time
+ * (`at`); a Special Order by its item and `order: true` (all the counter knows of it). Fields left
+ * out are not compared.
+ */
+export interface RevealKey {
+  machineId?: MachineId;
+  itemId: string;
+  at?: number;
+  order?: boolean;
+}
+
+/** Whether `p` is the reveal `key` names. */
+export function isReveal(p: PendingReveal, key: RevealKey): boolean {
+  return (
+    p.itemId === key.itemId &&
+    (key.machineId === undefined || p.machineId === key.machineId) &&
+    (key.at === undefined || p.at === key.at) &&
+    (key.order === undefined || !!p.order === key.order)
+  );
+}
+
+/**
+ * Clears the pending reveal once the UI has shown it: only the one it showed, when `expected` says
+ * which (WP-A8: a close left over from another reveal never clears this one). Without `expected`
+ * it clears whatever waits. True when something was cleared.
+ */
+export function finishReveal(tx: Tx, expected?: RevealKey): boolean {
+  const p = tx.s.pendingReveal;
+  if (!p || (expected && !isReveal(p, expected))) return false;
+  tx.set('pendingReveal', undefined);
+  return true;
 }
 
 /* ------------------------------------------------------------------ */

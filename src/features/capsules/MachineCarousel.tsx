@@ -49,11 +49,12 @@ export function MachineCarousel({ machines, index, onIndex, busy, onBusyChange, 
     el.scrollTo({ left, behavior: smooth && !prefersReducedMotion() ? 'smooth' : 'auto' });
   };
 
-  // Come back to the cabinet you were last looking at.
+  // Come back to the cabinet you were last looking at, or go to one the screen picked (the cabinet
+  // a capsule waits in). A page we are already scrolling to, or one scrolled to by hand, is left be.
   useEffect(() => {
     const el = track.current;
-    if (el && el.clientWidth && Math.round(el.scrollLeft / el.clientWidth) !== index) scrollToIndex(index, false);
-  }, []);
+    if (el && el.clientWidth && heading.current === null && Math.round(el.scrollLeft / el.clientWidth) !== index) scrollToIndex(index, false);
+  }, [index]);
 
   useEffect(() => {
     const onResize = () => scrollToIndex(index, false);

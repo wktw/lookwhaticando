@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
-import type { MachineDef } from '@/catalog/types';
+import type { MachineDef, MachineId } from '@/catalog/types';
 import type { DomeBody } from '@/fx/physics';
 import type { PullError } from '@/state/api';
-import { finishReveal, machineStatus, ownership, pull, state } from '@/state/store';
+import type { PendingReveal } from '@/state/types';
+import type { RevealKey } from '@/domain/gacha';
+import { finishReveal, machineStatus, ownership, pull, saveEpoch, state } from '@/state/store';
 import { HANDLE_REST } from '@/art/machines/geometry';
 import { sfx } from '@/fx/sound';
 import { haptic } from '@/fx/haptics';
@@ -12,18 +14,32 @@ import { TICK_DEG, TURN_TARGET, ticksCrossed } from './ratchet';
 import { animateChute, animateCoin, animateSink, closeFlap, jolt } from './choreography';
 import { insertLabel, landedLine, nudgeText, pullErrorNotice, type FriendlyNotice } from './copy';
 import { nextPayment, pullOptions, type Payment } from './payment';
-import { prefersReducedMotion, wait } from './motion';
+import { prefersReducedMotion } from './motion';
 import { capsuleShell, isWhiteish, revealFromPending, revealFromPull, type RevealData } from './reveal';
 import type { TokenKind } from './Token';
 
 export type Phase = 'idle' | 'inserting' | 'ready' | 'turning' | 'dropping' | 'waiting' | 'revealing';
 
 /**
- * A pull that hasn't been opened yet. The item is already yours once the handle completes its
- * turn, so if you leave mid-drop (another tab, say), the capsule is waiting when you come back.
- * After a reload the store's pendingReveal does the same (commit before animate, §7.1).
+ * A capsule the store committed, as a cabinet shows it: the pending reveal it is (`key`; null when
+ * a stand-in pull committed nothing) in the save it was shown in (`epoch`, the store's `saveEpoch`).
  */
-const unopened = new Map<MachineDef['id'], RevealData>();
+interface Shown {
+  data: RevealData;
+  key: RevealKey | null;
+  epoch: number;
+}
+
+/**
+ * How each unopened capsule looked as it dropped (its shell's tint, the pet it brought), kept while
+ * you visit other tabs. It is only choreography: the store's pendingReveal is the one authority for
+ * "a capsule waits" (commit before animate, §7.1), and this look is used only while the pending
+ * reveal is still that capsule, in the same save (`{epoch, machineId, itemId, at}`; WP-A8, UI2-02).
+ */
+const unopened = new Map<MachineId, Shown>();
+
+const keyOf = (p: PendingReveal): RevealKey => ({ machineId: p.machineId, itemId: p.itemId, at: p.at });
+const sameKey = (a: RevealKey, b: RevealKey) => a.machineId === b.machineId && a.itemId === b.itemId && a.at === b.at;
 
 export interface PullOptions {
   /** The first capsule is on the house (onboarding): no price, and no second pull offered. */
@@ -32,13 +48,18 @@ export interface PullOptions {
   pull?: typeof pull;
 }
 
-function resumeFor(machine: MachineDef): RevealData | null {
-  const held = unopened.get(machine.id);
-  if (held) return held;
+/** The capsule waiting in this cabinet in the save shown now, whenever and however it was committed. */
+function resumeFor(machine: MachineDef): Shown | null {
   const pending = state.value.pendingReveal;
+  const epoch = saveEpoch.value;
+  const held = unopened.get(machine.id);
   // A Special Order's reveal belongs to the counter (CapsulesScreen), never to a cabinet's pull.
-  if (pending?.machineId !== machine.id || pending.order) return null;
-  return revealFromPending(pending, capsuleShell(machine.theme.capsules, 0));
+  if (!pending || pending.machineId !== machine.id || pending.order) return null;
+  const key = keyOf(pending);
+  if (held?.key && held.epoch === epoch && sameKey(held.key, key)) return held;
+  if (held) unopened.delete(machine.id);
+  const data = revealFromPending(pending, capsuleShell(machine.theme.capsules, 0));
+  return data ? { data, key, epoch } : null;
 }
 
 /**
@@ -49,12 +70,16 @@ function resumeFor(machine: MachineDef): RevealData | null {
  */
 export function usePull(machine: MachineDef, active: boolean, options: PullOptions = {}) {
   const dome = useDome(machine, active);
-  const [phase, setPhase] = useState<Phase>(() => (active && resumeFor(machine) ? 'revealing' : 'idle'));
+  // The save shown: when it is replaced, this cabinet drops what it was doing (the effect below).
+  const epoch = saveEpoch.value;
+  const [resumed] = useState(() => (active ? resumeFor(machine) : null));
+  const [phase, setPhase] = useState<Phase>(resumed ? 'revealing' : 'idle');
   const [payment, setPayment] = useState<Payment>(options.free ? 'free' : 'price');
   const [notice, setNotice] = useState<FriendlyNotice | null>(null);
   const [say, setSay] = useState('');
   const [nudging, setNudging] = useState(false);
-  const [reveal, setReveal] = useState<RevealData | null>(() => (active ? resumeFor(machine) : null));
+  const [shown, setShown] = useState<Shown | null>(resumed);
+  const shownNow = useRef(shown);
   const [sinking, setSinking] = useState<DomeBody | null>(null);
   const [chuteTint, setChuteTint] = useState(0);
   const [origin, setOrigin] = useState<DOMRect | null>(null);
@@ -74,7 +99,67 @@ export function usePull(machine: MachineDef, active: boolean, options: PullOptio
     handleControl: useRef<HTMLDivElement>(null),
     insertButton: useRef<HTMLButtonElement>(null),
   };
-  const run = useRef({ progress: 0, completing: false, autoTurning: false, refocus: false, nudgeTimer: 0, openTimer: 0 }).current;
+  const run = useRef({ progress: 0, completing: false, autoTurning: false, refocus: false, refillOwed: false, nudgeTimer: 0, openTimer: 0 }).current;
+
+  /*
+   * The interaction's lifetime (WP-A8, INV-7): it belongs to this mount and to the save shown when it
+   * began. Every frame and timeout goes through `frame`/`later`, so unmounting or a replaced save
+   * cancels them, and each awaited step asks `live()` before carrying on. Before the commit an
+   * interruption pulls nothing; after it, the store's pendingReveal brings the capsule back.
+   */
+  const life = useRef({ alive: true, epoch, gen: 0, frames: new Set<number>(), timers: new Set<number>() }).current;
+  /** Whether what started now may still act: this mount, this save, and no reset since. */
+  const session = () => {
+    const gen = life.gen;
+    return () => life.alive && gen === life.gen && life.epoch === saveEpoch.peek();
+  };
+  const current = () => life.alive && life.epoch === saveEpoch.peek();
+  const frame = (fn: FrameRequestCallback) => {
+    const id = requestAnimationFrame((t) => {
+      life.frames.delete(id);
+      if (current()) fn(t);
+    });
+    life.frames.add(id);
+  };
+  const later = (fn: () => void, ms: number): number => {
+    const id = window.setTimeout(() => {
+      life.timers.delete(id);
+      if (current()) fn();
+    }, ms);
+    life.timers.add(id);
+    return id;
+  };
+  const cancel = (id: number) => {
+    clearTimeout(id);
+    life.timers.delete(id);
+  };
+  /** A pause that simply never ends if the interaction is cancelled meanwhile. */
+  const sleep = (ms: number) => new Promise<void>((resolve) => void later(resolve, ms));
+  const cancelAll = () => {
+    for (const id of life.frames) cancelAnimationFrame(id);
+    for (const id of life.timers) clearTimeout(id);
+    life.frames.clear();
+    life.timers.clear();
+    // The pile is the session's, not this interaction's: a capsule owed to it still goes back, at once.
+    refill();
+  };
+  /** A fresh capsule tumbles in to take the opened one's place (once). */
+  const refill = () => {
+    if (!run.refillOwed) return;
+    run.refillOwed = false;
+    dome.refill();
+  };
+
+  const show = (next: Shown | null) => {
+    shownNow.current = next;
+    setShown(next);
+  };
+  /** Open a capsule the store already has waiting (a remount, a cabinet coming on screen, another save). */
+  const resume = (r: Shown) => {
+    show(r);
+    phaseNow.current = 'revealing';
+    setPhase('revealing');
+  };
 
   const turnable = phase === 'ready' || phase === 'turning';
   const token: TokenKind = payment === 'ticket' ? 'ticket' : machine.currency === 'stars' && payment !== 'free' ? 'stamp' : 'coin';
@@ -98,7 +183,7 @@ export function usePull(machine: MachineDef, active: boolean, options: PullOptio
       const clicks = ticksCrossed(run.progress, progress);
       for (let i = 0; i < clicks; i++) {
         const tick = Math.floor(progress / TICK_DEG) - clicks + 1 + i;
-        setTimeout(() => sfx.play('ratchet', { pitch: 1 + tick * 0.035 }), i * 45);
+        later(() => sfx.play('ratchet', { pitch: 1 + tick * 0.035 }), i * 45);
       }
       if (clicks > 0) {
         haptic('tick');
@@ -127,7 +212,8 @@ export function usePull(machine: MachineDef, active: boolean, options: PullOptio
   };
 
   const insert = async (pay: Payment) => {
-    if (phaseNow.current !== 'idle') return;
+    if (phaseNow.current !== 'idle' || !current()) return;
+    const live = session();
     phaseNow.current = 'inserting';
     sfx.unlock();
     const err = payError(pay);
@@ -144,7 +230,7 @@ export function usePull(machine: MachineDef, active: boolean, options: PullOptio
     setNudging(false);
     setPayment(pay);
     setPhase('inserting');
-    await wait(0);
+    await sleep(0);
     const reduced = prefersReducedMotion();
     const kind: TokenKind = pay === 'ticket' ? 'ticket' : machine.currency === 'stars' && pay !== 'free' ? 'stamp' : 'coin';
     if (refs.coin.current) {
@@ -152,12 +238,14 @@ export function usePull(machine: MachineDef, active: boolean, options: PullOptio
         refs.coin.current,
         reduced,
         () => {
+          if (!live()) return;
           sfx.play('coin');
           haptic('light');
           jolt(refs.stage.current, 'clink', reduced);
         },
         kind,
       );
+      if (!live()) return;
     }
     setPhase('ready');
     setSay(`The ${kind === 'ticket' ? 'ticket' : kind} is in. Turn the handle: drag it round, or Space or Enter turns it.`);
@@ -167,8 +255,8 @@ export function usePull(machine: MachineDef, active: boolean, options: PullOptio
   const nudge = () => {
     if (phaseNow.current !== 'idle') return;
     setNudging(true);
-    clearTimeout(run.nudgeTimer);
-    run.nudgeTimer = window.setTimeout(() => setNudging(false), 1800);
+    cancel(run.nudgeTimer);
+    run.nudgeTimer = later(() => setNudging(false), 1800);
     setSay(`${nudgeText(machine)} ${insertLabel(machine)}, then turn the handle.`);
     haptic('light');
     if (prefersReducedMotion()) return;
@@ -181,12 +269,18 @@ export function usePull(machine: MachineDef, active: boolean, options: PullOptio
   /* ---------------- the handle ---------------- */
 
   const autoTurn = () => {
-    if (run.autoTurning || run.completing) return;
-    run.autoTurning = true;
+    if (run.autoTurning || run.completing || !current()) return;
     setPhase('turning');
     const from = crank.progress();
     const remaining = TURN_TARGET - from;
-    const duration = prefersReducedMotion() ? 420 : 420 + remaining * 3.4;
+    // Reduced motion: a static crank (DESIGN §7.2, DEC-E7). The handle goes round in one step, still
+    // through the slider's value, so the turn is announced and the pull commits at once.
+    if (prefersReducedMotion()) {
+      crank.advanceBy(remaining);
+      return;
+    }
+    run.autoTurning = true;
+    const duration = 420 + remaining * 3.4;
     const t0 = performance.now();
     let turned = 0;
     const step = (now: number) => {
@@ -195,10 +289,10 @@ export function usePull(machine: MachineDef, active: boolean, options: PullOptio
       const target = eased * remaining;
       crank.advanceBy(target - turned);
       turned = target;
-      if (k < 1 && !run.completing) requestAnimationFrame(step);
+      if (k < 1 && !run.completing) frame(step);
       else run.autoTurning = false;
     };
-    requestAnimationFrame(step);
+    frame(step);
   };
 
   /** Carry the handle the last bit round to a full turn (back to its resting angle). */
@@ -213,19 +307,22 @@ export function usePull(machine: MachineDef, active: boolean, options: PullOptio
       const step = (now: number) => {
         const k = Math.min(1, (now - t0) / 240);
         setHandle(TURN_TARGET + (360 - TURN_TARGET) * (1 - (1 - k) ** 3), dir);
-        if (k < 1) requestAnimationFrame(step);
+        if (k < 1) frame(step);
         else {
           setHandle(0, dir);
           resolve();
         }
       };
-      requestAnimationFrame(step);
+      frame(step);
     });
 
   /* ---------------- ka-chunk → the chute ---------------- */
 
   const complete = async (dir: 1 | -1) => {
     if (run.completing) return;
+    // Nothing is pulled for a screen that has gone, or into a save the turn didn't begin on (UI2-01).
+    if (!current()) return;
+    const live = session();
     run.completing = true;
     setPhase('dropping');
     const reduced = prefersReducedMotion();
@@ -243,6 +340,11 @@ export function usePull(machine: MachineDef, active: boolean, options: PullOptio
       setSay(`Your ${token === 'ticket' ? 'ticket' : token} came back out. ${n.text}`);
       sfx.play('undo');
       resetMachine();
+      // A capsule already waits here (another window pulled it into this same save): open that one.
+      if (outcome.error === 'reveal-pending') {
+        const r = resumeFor(machine);
+        if (r) resume(r);
+      }
       return;
     }
 
@@ -251,29 +353,38 @@ export function usePull(machine: MachineDef, active: boolean, options: PullOptio
     const body = dome.release((b) => !isWhiteish(colors[b.tint % colors.length]!));
     const tint = body?.tint ?? 0;
     const pulled = revealFromPull(outcome, capsuleShell(colors, tint));
-    unopened.set(machine.id, pulled);
-    setReveal(pulled);
+    // The pending reveal the store just committed is this capsule's identity (null for a stand-in pull).
+    const p = state.peek().pendingReveal;
+    const committed: Shown = { data: pulled, key: p && !p.order && p.machineId === machine.id && p.itemId === pulled.itemId ? keyOf(p) : null, epoch: life.epoch };
+    if (committed.key) unopened.set(machine.id, committed);
+    show(committed);
     setSinking(body);
     setChuteTint(tint);
     dome.stir(0.2, dir * 0.5);
-    await wait(reduced ? 0 : 60);
-    if (refs.sink.current) await animateSink(refs.sink.current, reduced);
+    // From here on the capsule is committed: if this screen goes, the pending reveal brings it back.
+    await sleep(reduced ? 0 : 60);
+    if (refs.sink.current) {
+      await animateSink(refs.sink.current, reduced);
+      if (!live()) return;
+    }
     setSinking(null);
     if (refs.chute.current) {
       await animateChute(refs.chute.current, refs.flap.current, reduced, (strength) => {
+        if (!live()) return;
         sfx.play('thunk', { volume: strength });
         haptic(strength > 0.5 ? 'light' : 'tick');
       });
+      if (!live()) return;
     }
     setPhase('waiting');
     phaseNow.current = 'waiting';
     setSay(landedLine(pulled.rarity, pulled.secret));
-    run.openTimer = window.setTimeout(openReveal, reduced ? 300 : 700);
+    run.openTimer = later(openReveal, reduced ? 300 : 700);
   };
 
   /** Take the capsule out of the chute and into the reveal (after a beat, or right away when tapped). */
   const openReveal = () => {
-    clearTimeout(run.openTimer);
+    cancel(run.openTimer);
     if (phaseNow.current !== 'waiting') return;
     phaseNow.current = 'revealing';
     setOrigin(refs.chute.current?.getBoundingClientRect() ?? null);
@@ -295,15 +406,24 @@ export function usePull(machine: MachineDef, active: boolean, options: PullOptio
 
   /* ---------------- the reveal ---------------- */
 
-  /** Close the reveal; `again` goes straight into the next pull, paid as its button said. */
+  /**
+   * Close the reveal; `again` goes straight into the next pull, paid as its button said. It clears
+   * only the capsule this reveal showed, in the save it was shown in: a close left over from another
+   * reveal or another save does nothing (UI2-02).
+   */
   const closeReveal = (again?: Payment) => {
-    unopened.delete(machine.id);
-    finishReveal();
-    setReveal(null);
+    const was = shown;
+    if (!life.alive || was !== shownNow.current || (was && was.epoch !== saveEpoch.peek())) return;
+    if (was) {
+      if (unopened.get(machine.id) === was) unopened.delete(machine.id);
+      if (was.key) finishReveal({ ...was.key, epoch: was.epoch });
+    }
+    show(null);
     setOrigin(null);
     resetMachine();
     // A fresh capsule tumbles in to take its place.
-    setTimeout(() => dome.refill(), 260);
+    run.refillOwed = true;
+    later(refill, 260);
     // Straight into the next token, so the carousel never unlocks in between.
     if (again) void insert(again);
     else run.refocus = true;
@@ -324,13 +444,39 @@ export function usePull(machine: MachineDef, active: boolean, options: PullOptio
     }
   }, [phase]);
 
+  // Unmounted: nothing it scheduled runs, and nothing it awaited carries on (UI2-01).
   useEffect(
     () => () => {
-      clearTimeout(run.nudgeTimer);
-      clearTimeout(run.openTimer);
+      life.alive = false;
+      cancelAll();
     },
     [],
   );
+
+  // The save shown was replaced (an import, an Undo, a restore, Start over, the demo, another
+  // window): what this cabinet was doing belonged to the old save. Before the commit nothing was
+  // pulled, and the crank comes back; after it, only the new save's own waiting capsule is shown.
+  useEffect(() => {
+    if (life.epoch === epoch) return;
+    life.epoch = epoch;
+    life.gen++;
+    cancelAll();
+    show(null);
+    setOrigin(null);
+    setSinking(null);
+    setNotice(null);
+    setNudging(false);
+    resetMachine();
+    const r = active ? resumeFor(machine) : null;
+    if (r) resume(r);
+  }, [epoch]);
+
+  // A neighbour becoming the cabinet on screen opens the capsule waiting in it (integration-i3).
+  useEffect(() => {
+    if (!active || phaseNow.current !== 'idle') return;
+    const r = resumeFor(machine);
+    if (r) resume(r);
+  }, [active]);
 
   // "One moment" clears itself once this window has the writer lock (or knows it won't).
   useEffect(
@@ -364,7 +510,8 @@ export function usePull(machine: MachineDef, active: boolean, options: PullOptio
     notice,
     say,
     nudging,
-    reveal,
+    /** The capsule on show, only while it belongs to the save shown. */
+    reveal: shown && shown.epoch === epoch ? shown.data : null,
     sinking,
     chuteTint,
     origin,

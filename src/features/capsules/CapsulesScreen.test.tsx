@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { WISH_PRICE } from '@/catalog/machines';
-import { getCollectible } from '@/catalog/collectibles';
+import { WISH_PRICE, getMachine, seriesLabel } from '@/catalog/machines';
+import { getCollectible, itemsInMachine } from '@/catalog/collectibles';
+import type { MachineId } from '@/catalog/types';
 import { newPetState } from '@/domain/friendship';
 import { ownership, state, today, wish } from '@/state/store';
 import { toasts } from '@/ui/toast';
@@ -20,6 +21,7 @@ class FakeObserver {
     observers.push(cb);
   }
   observe() {}
+  unobserve() {}
   disconnect() {}
 }
 
@@ -205,5 +207,59 @@ describe('Special Order', () => {
     const note = await until(() => toasts.value.find((t) => t.key === `chose-${itemId}`), 'the note');
     expect(String(note.message)).toMatch(new RegExp(`^${pet.name} chose .+\\.$`));
     expect(state.value.pendingReveal).toBeUndefined();
+  });
+});
+
+describe('integration-i3: a capsule left waiting opens on its own cabinet, wherever the counter was (WP-A8)', () => {
+  /** A capsule the store committed on `machineId` (commit before animate) that was never opened. */
+  const waitingOn = (machineId: MachineId, at = 1) => {
+    const itemId = itemsInMachine(machineId).find((i) => i.category !== 'pet')!.id;
+    state.value = { ...state.value, pendingReveal: { machineId, itemId, isNew: true, stardust: 0, fusedStars: 0, at } };
+    return itemId;
+  };
+  const cardName = async () => {
+    await click(await until(() => button(/^Open the capsule/), 'the capsule'), 'the capsule');
+    return until(() => revealDialog()?.querySelector('h2')?.textContent, 'the card');
+  };
+  const onCounter = () => document.querySelector('[aria-label="Choose a cabinet"] [aria-current="true"]')?.getAttribute('aria-label');
+
+  it.each(['cows', 'dogs', 'pond', 'garden', 'pantry', 'night', 'autumn', 'cats'] as const)(
+    'a %s capsule: the counter opens on that cabinet with it, and closing it clears it (failed before, except cats)',
+    async (id) => {
+      view?.unmount();
+      const was = today.value;
+      today.value = '2026-09-29';
+      try {
+        const itemId = waitingOn(id);
+        view = mount(<CapsulesScreen />);
+        await until(revealDialog, 'the waiting capsule');
+        expect(onCounter()).toBe(seriesLabel(getMachine(id)));
+        expect(await cardName()).toBe(getCollectible(itemId)!.name);
+        await key(document.activeElement!, 'Escape');
+        await until(() => !revealDialog(), 'the reveal to close');
+        expect(state.value.pendingReveal).toBeUndefined();
+      } finally {
+        today.value = was;
+      }
+    },
+  );
+
+  it('a capsule from a season that has gone since opens over the counter, and once shown the cabinets are free (failed before)', async () => {
+    view?.unmount();
+    const was = today.value;
+    today.value = '2026-12-01';
+    try {
+      expect(availableCabinets().map((m) => m.id)).not.toContain('autumn');
+      const itemId = waitingOn('autumn');
+      view = mount(<CapsulesScreen />);
+      await until(revealDialog, 'the waiting capsule');
+      expect(await cardName()).toBe(getCollectible(itemId)!.name);
+      await key(document.activeElement!, 'Escape');
+      await until(() => !revealDialog(), 'the reveal to close');
+      expect(state.value.pendingReveal).toBeUndefined();
+      expect(document.querySelectorAll('[role="dialog"]')).toHaveLength(0);
+    } finally {
+      today.value = was;
+    }
   });
 });

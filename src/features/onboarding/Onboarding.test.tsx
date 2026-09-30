@@ -2,7 +2,10 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { act } from 'preact/test-utils';
 import { createInitialState } from '@/state/defaults';
-import { ownership, state } from '@/state/store';
+import { completeOnboarding, configureStore, hydrate, ownership, pull, state } from '@/state/store';
+import { getMachine, seriesLabel } from '@/catalog/machines';
+import { getCollectible } from '@/catalog/collectibles';
+import { fakeBrowser } from '../../../tests/unit/state/fixtures';
 import { holdUpdates } from '@/app/pwa';
 import { currentTab } from '@/app/router';
 import { button, click, installDom, mount, type, until } from '@/features/capsules/testing';
@@ -126,4 +129,41 @@ describe('onboarding (DESIGN §9.6)', () => {
     view = mount(<Onboarding />);
     await until(() => h1() === 'Who comes home first?' && button(/^No\. 01 · Cats/), 'step 4 again');
   });
+});
+
+describe('CR-D2: a reload after the first capsule is committed resumes that capsule (WP-A8)', () => {
+  afterEach(() => configureStore({ locks: null }));
+
+  it.each(['cats', 'cows', 'dogs', 'pond'] as const)(
+    '%s: the same cabinet and the same pet, no second gift, then on to "Find {name} a plant" (failed before)',
+    async (id) => {
+      view!.unmount();
+      fakeBrowser();
+      hydrate();
+      completeOnboarding({ name: 'Maya', templateIds: [] });
+      saveProgress({ step: 'first', habitIds: [] });
+      // The handle went round: the store committed the free first capsule, then the page reloaded.
+      const got = pull(id, { free: true });
+      if (!got.ok || !got.pet) throw new Error(`no first pet from ${id}`);
+      const pet = got.pet;
+      const wallet = state.value.wallet;
+      hydrate();
+      await act(() => reloadProgress());
+      expect(state.value.pendingReveal).toMatchObject({ machineId: id, itemId: pet.id });
+
+      view = mount(<Onboarding />);
+      await until(() => h1() === seriesLabel(getMachine(id)), `the ${id} cabinet again`);
+      await until(() => document.querySelector('[role="dialog"][aria-label="Capsule reveal"]'), 'the waiting capsule');
+      await click(await until(() => button(/^Open the capsule/), 'the capsule'), 'the capsule');
+      await until(() => document.activeElement?.tagName === 'H2', 'the card');
+      expect(document.activeElement?.textContent).toBe(getCollectible(pet.id)!.name);
+      const name = state.value.pets[pet.id]!.name;
+      await click(await until(() => button(`Find ${name} a plant`), 'Find a plant'), 'Find a plant');
+      await until(() => h1() === `Find ${name} a plant`, 'step 5');
+      expect(onboardingProgress.value).toMatchObject({ step: 'place', petId: pet.id });
+      expect(state.value.lifetime.pulls).toBe(1);
+      expect(state.value.wallet).toEqual(wallet);
+      expect(state.value.pendingReveal).toBeUndefined();
+    },
+  );
 });
