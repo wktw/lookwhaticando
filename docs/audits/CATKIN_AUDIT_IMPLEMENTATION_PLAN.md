@@ -2245,7 +2245,15 @@ The recommendation is still to fix the P3 items with their packages, because eac
 
 ## 13. Recommended first implementation package
 
-**Package P1-A, "Save-queue integrity."** This is WP-0's fixtures and ledger tests for its IDs, plus WP-1, plus the queue-retirement and ownership-state half of WP-2. **It has not been started.**
+**Package P1-A, "Save-queue integrity."** This is WP-0's fixtures and ledger tests for its IDs, plus WP-1, plus the queue-retirement and ownership-state half of WP-2.
+
+> **Status (30 September 2026): implemented on this branch after the owner's go-ahead.**
+>
+> - **Tests.** `tests/unit/state/save-integrity.test.ts` and `save-integrity-ui.test.tsx` cover FS1 (R201 plus the re-hydrate variant), data-d2, FS4 (R210 and refusal), data-d1, RISK-01, RISK-06 and RISK-07. Each was run against the original source and failed for the audited reason: 12 of 13 store cases and 4 of 4 interface cases. The 13th store case guards behaviour that was already correct. All pass after the change.
+> - **Two small departures from §4 C1:**
+>   - `flush()` keeps `null` for "nothing pending", an existing tested contract, and adds distinct `'held'` and `'disposed'` outcomes.
+>   - `durability` uses one `ok` kind for "written or about to be". The UI never needed to tell those two apart.
+> - **Deferred.** WP-1's refusal of demo *exit* is unnecessary, because entry is now refused while a write is failing or held. The rest of WP-2 (epoch and adoption) is package P1-B.
 
 ### 13.1 Why this package first
 
