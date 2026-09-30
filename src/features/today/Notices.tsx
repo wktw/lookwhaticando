@@ -88,10 +88,11 @@ export const Notices = forwardRef(function Notices({ vm }: { vm: TodayVM }, ref:
     settledLatch.value = { day, pets: [...held, ...vm.settled.filter((x) => !held.some((h) => h.petId === x.petId))] };
     noteSettledNotice();
   }, [vm.settled, vm.isToday, day]);
-  const settled = settledLatch.value?.day === day ? settledLatch.value.pets : vm.isToday ? vm.settled : [];
+  // Both latches are held for today's page only: a past day picked in the week strip shows neither.
+  const settled = !vm.isToday ? [] : settledLatch.value?.day === day ? settledLatch.value.pets : vm.settled;
 
   const latched = offerLatch.value;
-  const offer = latched && latched.day === day && vm.showCompanions ? latched.offer : null;
+  const offer = latched && latched.day === day && vm.isToday && vm.showCompanions ? latched.offer : null;
   const offerPet = offer ? st.pets[offer.petId] : undefined;
   const freeHabits = offer ? offer.habitIds.map((id) => st.habits.find((h) => h.id === id && h.archivedOn === undefined && h.companionId === undefined)).filter((h) => h !== undefined) : [];
   const closeOffer = () => (offerLatch.value = null);

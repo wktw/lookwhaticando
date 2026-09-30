@@ -7,11 +7,13 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { PETS } from '@/catalog/collectibles';
 import { movedToPlaceLine } from '@/catalog/format';
+import { COMPANION, fillLine } from '@/catalog/lines';
+import { addDays } from '@/domain/dates';
 import { newPetState } from '@/domain/friendship';
 import { mulberry32 } from '@/domain/rng';
 import { settledNotice } from '@/domain/shelf';
 import { makeBackup } from '@/state/handoff';
-import { todayView } from '@/state/selectors';
+import { selectToday, todayView } from '@/state/selectors';
 import * as store from '@/state/store';
 import type { AppState } from '@/state/types';
 import { Notices } from '@/features/today/Notices';
@@ -75,5 +77,40 @@ describe('an imported save from before the change settles on the Balcony once, a
     b.advance(24 * 3_600_000);
     expect(settledNotice(store.state.value)).toEqual([]);
     expect(placeOf()).toEqual(['balcony', 'balcony', null]);
+  });
+});
+
+describe('the cards Today holds for the rest of the day stay on today\'s page', () => {
+  it('a past day shows neither the settling notice nor the Keeping Company offer, once both are latched', async () => {
+    const b = fakeBrowser({ start: '2026-10-06' });
+    store.hydrate();
+    store.completeOnboarding({ name: 'Sam', templateIds: ['walk'] });
+    const backup = JSON.stringify(makeBackup(oldSave(store.state.value, b.clock.now), { now: b.clock.now, appVersion: 'old', device: 'Test · Node' }));
+    expect(await store.applyImport(backup, { withoutUndo: true })).toEqual({ ok: true });
+
+    const vm = todayView.value;
+    expect(vm.settled.map((x) => x.petId)).toEqual(cats.slice(0, 2));
+    expect(vm.companionOffer).not.toBeNull();
+    const pets = store.state.value.pets;
+    const cards = [...cats.slice(0, 2).map((id) => movedToPlaceLine(pets[id]!.name, 'balcony')), fillLine(COMPANION.reveal.find, { name: pets[vm.companionOffer!.petId]!.name })];
+
+    // Today shows both, and the store forgets them the moment they appear.
+    view = mount(<Notices vm={vm} />);
+    expect(noticeTitles()).toEqual(expect.arrayContaining(cards));
+    expect(todayView.value.settled).toEqual([]);
+    expect(todayView.value.companionOffer).toBeNull();
+    view.unmount();
+
+    // She picks yesterday in the week strip: neither card is there.
+    const past = selectToday(addDays(store.today.value, -1)).value;
+    expect(past.isToday).toBe(false);
+    view = mount(<Notices vm={past} />);
+    const onPast = noticeTitles();
+    for (const c of cards) expect(onPast).not.toContain(c);
+    view.unmount();
+
+    // Back to today: both are still there for the rest of the day.
+    view = mount(<Notices vm={todayView.value} />);
+    expect(noticeTitles()).toEqual(expect.arrayContaining(cards));
   });
 });

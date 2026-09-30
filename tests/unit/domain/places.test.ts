@@ -251,6 +251,10 @@ describe('an existing save with the Balcony already open settles its never-place
     g.run(() => undefined);
     g.run((tx) => shelf.setPetPlace(tx, ids[1]!, null));
     expect(shelf.settledNotice(g.state)).toEqual([{ petId: ids[2], place: 'balcony' }]);
+    // Brought indoors, a pet keeps its place for when it comes out again, but it is not out there now.
+    g.run((tx) => shelf.togglePetOut(tx, ids[2]!));
+    expect(g.state.pets[ids[2]!]).toMatchObject({ inMeadow: false, place: 'balcony' });
+    expect(shelf.settledNotice(g.state)).toEqual([]);
   });
 
   it('a save without the Balcony open moves nothing and keeps no notice; opening it later is its own announcement', () => {
