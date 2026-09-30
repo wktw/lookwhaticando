@@ -1,8 +1,9 @@
 /**
- * Save-queue integrity (audit plan package P1-A, docs/audits/CATKIN_AUDIT_IMPLEMENTATION_PLAN.md §13):
- * a write reported as saved is on disk, a failed write stays pending until it lands, a retired
- * writer never writes again, and nothing durable is promised before this window owns the save.
- * Each case names its audit finding; each failed against the code before this package.
+ * Save-queue integrity (package P1-A in docs/audits/CATKIN_AUDIT_IMPLEMENTATION_PLAN_ALTERNATE.md
+ * §13; WP-A1a/A1b in the canonical CATKIN_AUDIT_IMPLEMENTATION_PLAN.md): a write reported as saved
+ * is on disk, a failed write stays pending until it lands, a retired writer never writes again,
+ * and nothing durable is promised before this window owns the save. Each case names its audit
+ * finding; every case but one guard failed against the code before this package.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createInitialState } from '@/state/defaults';

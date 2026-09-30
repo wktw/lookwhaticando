@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 /**
- * Save-queue integrity in the interface (audit plan package P1-A): the shell says when a change is
- * being retried or can't be kept at all, and a window waiting for the writer lock leaves the
- * onboarding sidecar alone.
+ * Save-queue integrity in the interface (package P1-A in CATKIN_AUDIT_IMPLEMENTATION_PLAN_ALTERNATE.md):
+ * the shell says when a change is being retried or can't be kept at all, and a window waiting for
+ * the writer lock leaves the onboarding sidecar alone.
  */
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { SAVE_KEY } from '@/state/persist';
