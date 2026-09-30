@@ -2,7 +2,7 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { act } from 'preact/test-utils';
 import { createInitialState } from '@/state/defaults';
-import { state } from '@/state/store';
+import { ownership, state } from '@/state/store';
 import { holdUpdates } from '@/app/pwa';
 import { currentTab } from '@/app/router';
 import { button, click, installDom, mount, type, until } from '@/features/capsules/testing';
@@ -35,6 +35,7 @@ beforeEach(() => {
 afterEach(() => {
   view?.unmount();
   view = null;
+  ownership.value = 'unsupported';
 });
 
 describe('onboarding (DESIGN §9.6)', () => {
@@ -90,6 +91,30 @@ describe('onboarding (DESIGN §9.6)', () => {
     expect(localStorage.getItem(ONBOARDING_KEY)).toBeNull();
     expect(onboardingActive.value).toBe(false);
     expect(currentTab.value).toBe('today');
+  });
+
+  it('the first capsule waits, unspent, while this window is still getting ready (audit FS4)', async () => {
+    view!.unmount();
+    state.value = { ...state.value, profile: { ...state.value.profile, onboarded: true } };
+    saveProgress({ step: 'first', habitIds: [] });
+    await act(() => reloadProgress());
+    view = mount(<Onboarding />);
+    await click(await until(() => button(/^No\. 01 · Cats/), 'the Cats cabinet'), 'Cats');
+    ownership.value = 'acquiring';
+    const before = state.value;
+    await click(await until(() => byText('Put a coin in'), 'the coin slot'), 'Put a coin in');
+    const note = await until(() => document.querySelector('[role="note"]'), 'a notice');
+    expect(note.textContent).toMatch(/^One moment: catkin is still getting ready in this window\. Nothing was spent\./);
+    // Still on the capsule step, the gift unspent, and the way back still open.
+    expect(h1()).toBe('No. 01 · Cats');
+    expect(state.value).toBe(before);
+    expect(onboardingProgress.value?.step).toBe('first');
+    expect(button('Who comes home first? Choose a cabinet')?.disabled).toBe(false);
+    await act(() => {
+      ownership.value = 'granted';
+    });
+    await until(() => !document.querySelector('[role="note"]'), 'the notice to clear');
+    expect(byText('Put a coin in')?.disabled).toBe(false);
   });
 
   it('comes back to the same step after a reload', async () => {

@@ -125,10 +125,14 @@ export interface CheckInResult extends ActionResult {
 }
 
 /**
- * 'storage-full' (stage 3, additive): the pull couldn't be saved (storage full or unavailable, or this
- * window doesn't own the save yet), so it was rolled back rather than shown (v1 §13.6, audit FS4).
+ * The save didn't go through, so a commit-before-reveal command was rolled back rather than shown
+ * (v1 §13.6; audit FS4, FS10):
+ * storage is full or unavailable, the browser keeps nothing ('volatile'), or this window is still
+ * getting the writer lock ('acquiring'; try again in a moment).
  */
-export type PullError = 'not-enough-coins' | 'not-enough-stars' | 'machine-unavailable' | 'no-ticket' | 'reveal-pending' | 'storage-full';
+export type NotSavedError = 'storage-full' | 'unavailable' | 'volatile' | 'acquiring';
+
+export type PullError = 'not-enough-coins' | 'not-enough-stars' | 'machine-unavailable' | 'no-ticket' | 'reveal-pending' | NotSavedError;
 
 export interface PullResult extends ActionResult {
   ok: true;
@@ -157,7 +161,7 @@ export type PullOutcome = PullResult | { ok: false; error: PullError };
 
 export type WishOutcome =
   | ({ ok: true; itemId: string; stars: number; pet?: PetState } & ActionResult)
-  | { ok: false; error: 'not-enough-stars' | 'already-owned' | 'not-wishable' | 'season-not-visited' };
+  | { ok: false; error: 'not-enough-stars' | 'already-owned' | 'not-wishable' | 'season-not-visited' | NotSavedError };
 
 /**
  * What a gesture or a treat did. The caption is the screen's to pick (lines.ts, by the pet's

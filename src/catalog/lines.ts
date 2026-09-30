@@ -838,6 +838,13 @@ export const CAPSULE_NOTICES = {
   owned: 'Already in the Field Guide.',
   notSold: 'This one isn’t sold at the counter. It comes from showing up.',
   notVisited: 'The {season} hasn’t visited yet. Its things can be ordered once it has.',
+  /** Commit before reveal (audit FS4, FS10): a capsule or order whose save didn't go through is rolled back, never shown. */
+  notSaved: 'This capsule couldn’t be saved, so it wasn’t opened. Nothing was spent.',
+  notKept: 'This browser isn’t keeping catkin’s save, so the capsule stayed closed. Nothing was spent.',
+  settling: 'One moment: catkin is still getting ready in this window. Nothing was spent.',
+  orderNotSaved: 'That order couldn’t be saved, so it wasn’t placed. No stamps were spent.',
+  orderNotKept: 'This browser isn’t keeping catkin’s save, so the order wasn’t placed. No stamps were spent.',
+  orderSettling: 'One moment: catkin is still getting ready in this window. No stamps were spent.',
 } as const;
 
 /** The names the M1 contract map uses for two of the groups above. */

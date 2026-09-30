@@ -35,6 +35,7 @@ import type {
   HabitInput,
   ImportPreview,
   MachineStatus,
+  NotSavedError,
   PetInteractionResult,
   PullOutcome,
   PlacePurchase,
@@ -321,6 +322,7 @@ function makeQueue(key: string, rev: number): SaveQueue {
     rev,
     now: rt.now,
     timers: rt.timers,
+    volatile: rt.storage === null,
     compact: (s) =>
       transact(s, envAt(rt.now(), s), (tx) => {
         compactSave(tx);
@@ -587,8 +589,6 @@ function sundayNoteDue(s: AppState, t: DateKey, ms: number): boolean {
 
 /** One clock tick: refresh `now`/`today`; on a new app day run the day's work and snapshot; deliver the Sunday Note at 18:00. */
 function tick(): void {
-  // A write that failed is tried again on every tick, focus and return to the app (audit data-d2).
-  if (queue?.failing && writable()) queue.flush();
   const ms = rt.now();
   const s = state.value;
   const t = todayFor(s, ms);
@@ -601,6 +601,16 @@ function tick(): void {
   snapshotToday();
 }
 
+/**
+ * Back in view (visible, pageshow, focus, online): a write that failed is tried again at once
+ * (audit data-d2), then the clock ticks. Between these, the queue's own backoff (RETRY_MS) retries,
+ * so a large save is never encoded on every tick.
+ */
+function comeBack(): void {
+  if (queue?.failing && writable()) queue.flush();
+  tick();
+}
+
 /** Keep `today` current (day rollover on focus/resume + minute timer; daily restock). Returns a stop fn. */
 export function startClock(): () => void {
   tick();
@@ -608,11 +618,11 @@ export function startClock(): () => void {
   const offs: Unlisten[] = [];
   if (rt.listen) {
     offs.push(
-      rt.listen('document', 'visibilitychange', () => (rt.hidden() ? flushSaves() : tick())),
-      rt.listen('window', 'pageshow', () => tick()),
-      rt.listen('window', 'focus', () => tick()),
+      rt.listen('document', 'visibilitychange', () => (rt.hidden() ? flushSaves() : comeBack())),
+      rt.listen('window', 'pageshow', () => comeBack()),
+      rt.listen('window', 'focus', () => comeBack()),
       rt.listen('window', 'pagehide', () => flushSaves()),
-      rt.listen('window', 'online', () => tick()),
+      rt.listen('window', 'online', () => comeBack()),
     );
   }
   return () => {
@@ -750,39 +760,75 @@ export function availableMachines(): MachineId[] {
 }
 /**
  * Decides the pull, commits it and writes it at once (pendingReveal), then returns it for the
- * reveal. Commit before animate (§7.1): when the save isn't written (storage full or unavailable, or
- * this window doesn't own the save yet), the pull is rolled back and refused ('storage-full'), so a
- * reload can never re-roll a pull already shown and a pet is never shown that wasn't saved.
+ * reveal. Commit before animate (§7.1): when the save isn't written, the pull is rolled back and
+ * refused with the reason ('storage-full', 'unavailable', 'volatile', or 'acquiring' while this window
+ * waits for the writer lock), so a reload can never re-roll a pull already shown and a pet is never
+ * shown that wasn't saved (`commitDurable`).
  * `free` is onboarding's "Who comes home first?" capsule (gacha.ts; `canPullFree` says when it is offered).
  */
 export function pull(machineId: MachineId, opts: { useTicket?: boolean; free?: boolean } = {}): PullOutcome {
   if (!writable()) return { ok: false, error: 'machine-unavailable' };
-  const ms = rt.now();
-  const prev = state.value;
-  const out = transact(prev, envAt(ms, prev), (tx) => {
-    openDay(tx);
-    return { o: gacha.pull(tx, machineId, opts) as PullOutcome };
-  });
-  setState(out.state, ms);
-  const status = out.state !== prev ? persist(prev, out.state, true) : null;
-  // Commit before reveal: anything short of a write that went through (storage full or gone, the
-  // writer lock not granted yet, the queue retired) rolls the pull back (audit FS4).
-  if (out.o.ok && status !== 'saved') {
-    setState(prev, ms);
-    queue?.schedule(prev);
-    return { ok: false, error: 'storage-full' };
-  }
-  if (out.events.length > 0) emitGameEvents(out.events);
-  return out.o.ok ? { ...out.o, events: out.events } : out.o;
+  const res = commitDurable((tx) => gacha.pull(tx, machineId, opts) as PullOutcome);
+  if (res.kind === 'not-saved') return { ok: false, error: res.error };
+  return res.o.ok ? { ...res.o, events: res.events } : res.o;
 }
 /** Clear state.pendingReveal once the reveal has been shown. */
 export function finishReveal(): void {
   actVoid((tx) => gacha.finishReveal(tx));
 }
-/** Special Order (internally the wish): an unowned item for stamps. */
+/**
+ * Special Order (internally the wish): an unowned item for stamps. Commit before reveal, like a
+ * pull: the order is written at once, and rolled back and refused when that write doesn't go
+ * through, so an order is never shown that a reload would take back (audit FS10).
+ */
 export function wish(itemId: string): WishOutcome {
-  const out = act((tx) => ({ o: gacha.wish(tx, itemId) }), { o: { ok: false, error: 'not-wishable' } as WishOutcome });
-  return out.o.ok ? { ...out.o, events: out.events } : out.o;
+  if (!writable()) return { ok: false, error: 'not-wishable' };
+  const res = commitDurable((tx) => gacha.wish(tx, itemId));
+  if (res.kind === 'not-saved') return { ok: false, error: res.error };
+  return res.o.ok ? { ...res.o, events: res.events } : res.o;
+}
+
+/** Why a write that should have gone through didn't. */
+function notSaved(status: FlushOutcome | null): NotSavedError | null {
+  switch (status) {
+    case 'saved':
+      return null;
+    case 'held':
+      return 'acquiring';
+    case 'volatile':
+    case 'storage-full':
+      return status;
+    default:
+      return 'unavailable';
+  }
+}
+
+/**
+ * A commit-before-reveal command (a pull, a Special Order): the transaction, then an immediate
+ * write. A success whose write doesn't go through (storage full or unavailable, memory-only
+ * storage, or the writer lock not granted yet) is rolled back to `prev` and refused with the
+ * reason, so nothing is revealed that a reload would take back (audit FS4, FS10). A refusal from
+ * the domain itself is returned as it is.
+ */
+function commitDurable<O extends { ok: boolean }>(body: (tx: Tx) => O): { kind: 'done'; o: O; events: GameEvent[] } | { kind: 'not-saved'; error: NotSavedError } {
+  const ms = rt.now();
+  const prev = state.value;
+  const out = transact(prev, envAt(ms, prev), (tx) => {
+    openDay(tx);
+    return { o: body(tx) };
+  });
+  setState(out.state, ms);
+  const status = out.state !== prev ? persist(prev, out.state, true) : null;
+  if (out.o.ok && out.state !== prev) {
+    const error = notSaved(status);
+    if (error) {
+      setState(prev, ms);
+      queue?.schedule(prev);
+      return { kind: 'not-saved', error };
+    }
+  }
+  if (out.events.length > 0) emitGameEvents(out.events);
+  return { kind: 'done', o: out.o, events: out.events };
 }
 /** Swap-in on a completed series: 250 coins → 40 swaps. */
 export function sparkleExchange(machineId: MachineId): ActionResult & { ok: boolean } {
@@ -1082,7 +1128,7 @@ let realState: AppState | null = null;
 export function enterDemo(): boolean {
   if (demoMode.value) return true;
   const out = queue?.flush() ?? null;
-  if (out !== null && out !== 'saved') return false;
+  if (out !== null && out !== 'saved' && out !== 'volatile') return false;
   realState = state.value;
   demoMode.value = true;
   const res = loadSave(storage(), DEMO_KEY);

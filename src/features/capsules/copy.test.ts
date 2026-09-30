@@ -89,13 +89,26 @@ describe('capsules copy', () => {
     expect(orderErrorText('not-enough-stars', { rarity: 'rare', price: 8 }, 0)).toBe('A Rare is 8 stamps at the counter. The card fills from showing up.');
     expect(orderErrorText('season-not-visited', { rarity: 'rare', price: 8, machine: getMachine('winter') }, 0)).toBe('The Winter Edition hasn’t visited yet. Its things can be ordered once it has.');
     for (const m of MACHINES) {
-      for (const e of ['not-enough-coins', 'not-enough-stars', 'no-ticket', 'machine-unavailable', 'reveal-pending'] as const) {
+      for (const e of ['not-enough-coins', 'not-enough-stars', 'no-ticket', 'machine-unavailable', 'reveal-pending', 'storage-full', 'unavailable', 'volatile', 'acquiring'] as const) {
         const n = pullErrorNotice(e, m, 3);
         expect(n.text.length).toBeGreaterThan(10);
         voiceOk(n.text);
       }
     }
-    for (const e of ['not-enough-stars', 'already-owned', 'not-wishable', 'season-not-visited'] as const) voiceOk(orderErrorText(e, { rarity: 'uncommon', price: 4 }, 2));
+    for (const e of ['not-enough-stars', 'already-owned', 'not-wishable', 'season-not-visited', 'storage-full', 'unavailable', 'volatile', 'acquiring'] as const) voiceOk(orderErrorText(e, { rarity: 'uncommon', price: 4 }, 2));
+  });
+
+  it('a capsule or order that could not be saved says nothing was spent, and why, without blame (audit FS4, FS10)', () => {
+    const cats = getMachine('cats');
+    const order = { rarity: 'uncommon', price: 4 } as const;
+    expect(pullErrorNotice('storage-full', cats).text).toBe('This capsule couldn’t be saved, so it wasn’t opened. Nothing was spent.');
+    expect(pullErrorNotice('unavailable', cats).text).toBe(pullErrorNotice('storage-full', cats).text);
+    expect(pullErrorNotice('volatile', cats).text).toBe('This browser isn’t keeping catkin’s save, so the capsule stayed closed. Nothing was spent.');
+    expect(pullErrorNotice('acquiring', cats).text).toBe('One moment: catkin is still getting ready in this window. Nothing was spent.');
+    expect(orderErrorText('storage-full', order, 2)).toBe('That order couldn’t be saved, so it wasn’t placed. No stamps were spent.');
+    expect(orderErrorText('unavailable', order, 2)).toBe(orderErrorText('storage-full', order, 2));
+    expect(orderErrorText('volatile', order, 2)).toBe('This browser isn’t keeping catkin’s save, so the order wasn’t placed. No stamps were spent.');
+    expect(orderErrorText('acquiring', order, 2)).toBe('One moment: catkin is still getting ready in this window. No stamps were spent.');
   });
 
   it('announces a reveal as a sentence; only the Secret may exclaim', () => {

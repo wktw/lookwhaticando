@@ -3,7 +3,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite
 import { WISH_PRICE } from '@/catalog/machines';
 import { getCollectible } from '@/catalog/collectibles';
 import { newPetState } from '@/domain/friendship';
-import { state, today, wish } from '@/state/store';
+import { ownership, state, today, wish } from '@/state/store';
 import { toasts } from '@/ui/toast';
 import { CapsulesScreen, availableCabinets } from './CapsulesScreen';
 import { button, buttonWithText, click, installDom, key, mount, pause, revealDialog, until } from './testing';
@@ -42,6 +42,7 @@ beforeEach(() => {
 afterEach(() => {
   view?.unmount();
   view = null;
+  ownership.value = 'unsupported';
 });
 
 describe('the counter', () => {
@@ -127,6 +128,32 @@ describe('Special Order', () => {
     await click(button('Order'), 'Order');
     const alert = await until(() => document.querySelector('[role="alert"]'), 'the notice');
     expect(alert.textContent).toBe(`A Classic is ${WISH_PRICE.common} stamps at the counter. There are 30 on the card.`);
+  });
+
+  it('an order that could not be saved is not shown, says nothing was spent, and the sheet stays (audit FS10)', async () => {
+    vi.mocked(wish).mockImplementation(() => ({ ok: false, error: 'storage-full' }));
+    await click(buttonWithText('Special Order'), 'Special Order');
+    await until(orderSheet, 'the Special Order sheet');
+    await click(orderSheet()!.querySelector('ul li button'), 'a tile');
+    await click(button('Order'), 'Order');
+    const alert = await until(() => document.querySelector('[role="alert"]'), 'the notice');
+    expect(alert.textContent).toBe('That order couldn’t be saved, so it wasn’t placed. No stamps were spent.');
+    expect(revealDialog()).toBeNull();
+    expect(orderSheet()).toBeTruthy();
+  });
+
+  it('"one moment" while this window gets ready, gone once it is (audit FS4)', async () => {
+    ownership.value = 'acquiring';
+    vi.mocked(wish).mockImplementation(() => ({ ok: false, error: 'acquiring' }));
+    await click(buttonWithText('Special Order'), 'Special Order');
+    await until(orderSheet, 'the Special Order sheet');
+    await click(orderSheet()!.querySelector('ul li button'), 'a tile');
+    await click(button('Order'), 'Order');
+    const alert = await until(() => document.querySelector('[role="alert"]'), 'the notice');
+    expect(alert.textContent).toBe('One moment: catkin is still getting ready in this window. No stamps were spent.');
+    ownership.value = 'granted';
+    await until(() => !document.querySelector('[role="alert"]'), 'the notice to clear');
+    expect(button('Order')?.disabled).toBe(false);
   });
 
   it('the order’s reveal is cleared from the store once shown, so the cabinet never replays it', async () => {

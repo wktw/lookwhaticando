@@ -9,7 +9,7 @@ import type { Category, CollectibleDef, MachineDef, MachineId, Rarity, Species }
 import { RARITY_FINISH, RARITY_LABEL as TIER } from '@/catalog/types';
 import { seriesLabel } from '@/catalog/machines';
 import { CAPSULE_NOTICES as N, CATEGORY_LABELS, DUPLICATE_LINES, REVEAL_LINES, SECRET_LINES, SECRET_REVEAL, capitalise, fillLine, withArticle } from '@/catalog/lines';
-import type { PullError } from '@/state/api';
+import type { PullError, WishOutcome } from '@/state/api';
 import type { Payment } from './payment';
 
 /** Display tiers (internal ids stay common/uncommon/rare/ultra): Classic · Special · Rare · Super rare. */
@@ -193,13 +193,18 @@ export function pullErrorNotice(error: PullError, m: MachineDef, have?: number, 
     case 'reveal-pending':
       return { text: N.tray };
     case 'storage-full':
-      return { text: 'This capsule couldn’t be saved, so it wasn’t opened. Nothing was spent.' };
+    case 'unavailable':
+      return { text: N.notSaved };
+    case 'volatile':
+      return { text: N.notKept };
+    case 'acquiring':
+      return { text: N.settling };
   }
 }
 
 /** Calm notices for a Special Order that can't be placed (VOICE §10). */
 export function orderErrorText(
-  error: 'not-enough-stars' | 'already-owned' | 'not-wishable' | 'season-not-visited',
+  error: Extract<WishOutcome, { ok: false }>['error'],
   item: { rarity: Rarity; price: number; machine?: Pick<MachineDef, 'name'> },
   stamps: number,
 ): string {
@@ -212,6 +217,13 @@ export function orderErrorText(
       return item.machine ? fillLine(N.notVisited, { season: item.machine.name }) : 'That season hasn’t visited yet. Its things can be ordered once it has.';
     case 'not-wishable':
       return N.notSold;
+    case 'storage-full':
+    case 'unavailable':
+      return N.orderNotSaved;
+    case 'volatile':
+      return N.orderNotKept;
+    case 'acquiring':
+      return N.orderSettling;
   }
 }
 

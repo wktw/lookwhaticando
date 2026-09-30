@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import type { Category, MachineId } from '@/catalog/types';
 import { MACHINE_BY_ID, WISH_PRICE } from '@/catalog/machines';
 import { MOONLIT_WISH_PRICE, SPARKLE_EXCHANGE } from '@/domain/gacha';
-import { sparkleExchange, wish } from '@/state/store';
+import { ownership, sparkleExchange, wish } from '@/state/store';
 import { capsulesView, walletView, wishListView } from '@/state/selectors';
 import type { WishItemVM } from '@/state/views/capsules';
 import { CollectibleArt } from '@/art/CollectibleArt';
@@ -121,6 +121,15 @@ function OrderBody({ initialMachine, onOrdered }: { initialMachine: MachineId; o
 
   const items = all.filter((t) => (series === 'all' || t.series === series) && (category === 'all' || t.category === category));
   const more = items.length > limit;
+
+  // "One moment" clears itself once this window has the writer lock (or knows it won't).
+  useEffect(
+    () =>
+      ownership.subscribe((o) => {
+        if (o !== 'acquiring') setError((e) => (e === orderErrorText('acquiring', { rarity: 'common', price: 0 }, 0) ? '' : e));
+      }),
+    [],
+  );
 
   // The next page arrives as the end of the grid scrolls near.
   useEffect(() => {

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 import type { MachineDef } from '@/catalog/types';
 import type { DomeBody } from '@/fx/physics';
 import type { PullError } from '@/state/api';
-import { finishReveal, machineStatus, pull, state } from '@/state/store';
+import { finishReveal, machineStatus, ownership, pull, state } from '@/state/store';
 import { HANDLE_REST } from '@/art/machines/geometry';
 import { sfx } from '@/fx/sound';
 import { haptic } from '@/fx/haptics';
@@ -116,6 +116,9 @@ export function usePull(machine: MachineDef, active: boolean, options: PullOptio
   const payError = (pay: Payment): { error: PullError; have?: number } | null => {
     const status = machineStatus(machine.id);
     if (!status.available) return { error: 'machine-unavailable' };
+    // Still getting the writer lock: nothing could be saved yet, so the coin (or the free first
+    // capsule) stays put and the machine works again a moment later (audit FS4).
+    if (ownership.value === 'acquiring') return { error: 'acquiring' };
     if (pay === 'free') return null;
     if (pay === 'ticket') return state.value.wallet.tickets > 0 ? null : { error: 'no-ticket' };
     if (status.canAfford) return null;
@@ -327,6 +330,15 @@ export function usePull(machine: MachineDef, active: boolean, options: PullOptio
       clearTimeout(run.openTimer);
     },
     [],
+  );
+
+  // "One moment" clears itself once this window has the writer lock (or knows it won't).
+  useEffect(
+    () =>
+      ownership.subscribe((o) => {
+        if (o !== 'acquiring') setNotice((n) => (n?.text === pullErrorNotice('acquiring', machine).text ? null : n));
+      }),
+    [machine],
   );
 
   // Space turns the handle (DESIGN §7.2) when nothing else wants the key.

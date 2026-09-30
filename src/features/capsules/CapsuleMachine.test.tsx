@@ -3,7 +3,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite
 import type { MachineId } from '@/catalog/types';
 import { getMachine, itemsInMachine } from '@/catalog';
 import type { PullOutcome } from '@/state/api';
-import { finishReveal, pull, renamePet, state } from '@/state/store';
+import { finishReveal, ownership, pull, renamePet, state } from '@/state/store';
 import { CapsuleMachine } from './CapsuleMachine';
 import { Sheet } from '@/ui/Sheet';
 import { RevealOverlay } from './RevealOverlay';
@@ -89,6 +89,7 @@ beforeEach(() => {
 afterEach(() => {
   view?.unmount();
   view = null;
+  ownership.value = 'unsupported';
 });
 
 describe('the pull', () => {
@@ -132,6 +133,23 @@ describe('the pull', () => {
     expect(document.querySelector('[role="status"]')?.textContent).toMatch(/came back out/);
     expect(insertButton()).toBeTruthy();
     expect(revealDialog()).toBeNull();
+  });
+
+  it('while this window is still getting ready, the coin stays out and nothing is asked of the store (audit FS4)', async () => {
+    ownership.value = 'acquiring';
+    view = mount(<CapsuleMachine machine={cats} active />);
+    await click(insertButton(), 'Insert');
+    const note = await until(() => document.querySelector('[role="note"]'), 'a notice');
+    expect(note.textContent).toMatch(/^One moment: catkin is still getting ready in this window\. Nothing was spent\./);
+    expect(handle().getAttribute('aria-disabled')).toBe('true');
+    expect(pull).not.toHaveBeenCalled();
+    expect(state.value.wallet.coins).toBe(100);
+    // The note goes once the window is ready, and the same coin works.
+    ownership.value = 'granted';
+    await until(() => !document.querySelector('[role="note"]'), 'the notice to clear');
+    await pullOnce();
+    expect(pull).toHaveBeenCalledTimes(1);
+    await finishOpenReveal();
   });
 
   it('a try of the handle before paying points at the slot', async () => {

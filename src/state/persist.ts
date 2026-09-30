@@ -217,7 +217,11 @@ export function writeBackup(storage: KeyValueStorage, key: string, raw: string):
   trySet(storage, backupKeyOf(key), raw);
 }
 
-export type SaveStatus = 'saved' | 'storage-full' | 'unavailable';
+/**
+ * A write's outcome. 'volatile': written, but only to memory (no persistent storage this session),
+ * so it goes when catkin closes; never reported as 'saved'.
+ */
+export type SaveStatus = 'saved' | 'volatile' | 'storage-full' | 'unavailable';
 
 /**
  * What a write attempt did: the write's status, or why nothing was written: 'held' (this window
@@ -245,6 +249,8 @@ export interface SaveQueueOptions {
   compact: (s: AppState) => AppState;
   onStatus?: (status: SaveStatus, info: { rev: number; chars?: number }) => void;
   debounceMs?: number;
+  /** The storage is memory only (no persistent storage): writes report 'volatile', never 'saved'. */
+  volatile?: boolean;
 }
 
 /**
@@ -362,7 +368,7 @@ export class SaveQueue {
     if (state === null) return null;
     if (this.held) return 'held';
     const status = this.write(state);
-    if (status === 'saved') {
+    if (status === 'saved' || status === 'volatile') {
       if (this.pending === state) this.pending = null;
       this.attempts = 0;
       if (this.retryHandle !== null) {
@@ -412,7 +418,7 @@ export class SaveQueue {
     if (!res.ok) return res.reason === 'quota' ? 'storage-full' : 'unavailable';
     this.rev = rev;
     this.lastChars = res.chars;
-    return 'saved';
+    return this.o.volatile ? 'volatile' : 'saved';
   }
 
   /** Retires the queue: its pending state is forgotten and it never writes again. */

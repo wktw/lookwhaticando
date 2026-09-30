@@ -699,6 +699,12 @@ in the jar or on the card, the notice leaves the count out.
 | Special Order, already yours | "Already in the Field Guide." |
 | Special Order, not sold | "This one isn’t sold at the counter. It comes from showing up." |
 | Special Order, season not yet visited | "The Winter Edition hasn’t visited yet. Its things can be ordered once it has." |
+| A capsule that couldn’t be saved (storage full or unavailable) | "This capsule couldn’t be saved, so it wasn’t opened. Nothing was spent." |
+| A capsule in a browser that keeps nothing | "This browser isn’t keeping catkin’s save, so the capsule stayed closed. Nothing was spent." |
+| A capsule while this window is still getting ready | "One moment: catkin is still getting ready in this window. Nothing was spent." |
+| Special Order that couldn’t be saved | "That order couldn’t be saved, so it wasn’t placed. No stamps were spent." |
+| Special Order in a browser that keeps nothing | "This browser isn’t keeping catkin’s save, so the order wasn’t placed. No stamps were spent." |
+| Special Order while this window is still getting ready | "One moment: catkin is still getting ready in this window. No stamps were spent." |
 
 ## 11. Places
 
