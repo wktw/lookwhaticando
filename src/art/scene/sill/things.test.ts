@@ -61,7 +61,8 @@ describe('the rituals on the sill never lie over a pet', () => {
             }
     // The rule is exercised: some layouts do put a seat where the note leans.
     expect(moved).toBeGreaterThan(0);
-  });
+    // 1,500 layouts: past the 5 s default on a loaded machine.
+  }, 60_000);
 
   it('pets roaming the sill keep clear of them, as they do of standing decor', () => {
     const w = sillWorld(SILL_SPEC, pots(5), [], ROOM.day, 0.5, 200, 'autumn', { note: true, found: 3 });

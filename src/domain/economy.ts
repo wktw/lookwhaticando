@@ -895,8 +895,9 @@ const stageBeforeContract = (sunshine: number): number => stageFromSunshine(suns
  * build rounded every grant, so a total could sit a few millionths below a threshold it had earned
  * (nine Mon/Wed/Fri check-ins at 20.999997, one short of Budding's 21), and the plant, The Cutting
  * or a Flourish waited a check-in more. The plants now show those stages; this lifts `bestStage`,
- * `stageDates` (dated today), the Flourish and Cutting marks, and leaves the keepsakes and the
- * Laurel Sprig those stages bring, so the screens, the Sunday Note and the next check-in agree.
+ * `stageDates` (dated today), the Flourish mark of an Evergreen plant and The Cutting's mark, and
+ * leaves the keepsakes and the Laurel Sprig those stages bring, so the screens, the Sunday Note and
+ * the next check-in agree.
  *
  * - **Quiet (DEC-P12a):** no celebration events and no coins; a late crossing is noticed, not
  *   celebrated.
@@ -928,7 +929,8 @@ export function reconcilePrecisionMarks(tx: Tx): void {
     recordStageDates(tx, habit.id, crossed);
     if (stage >= EVERGREEN) grantExclusive(tx, LAUREL_SPRIG_ID);
     leaveKeepsakes(tx, habit.id, crossed);
-    recordFlourishes(tx, habit.id, flourishesFor(sun, stage));
+    // No Flourish to record here: a lift only crosses a threshold the total is within THRESHOLD_EPS
+    // below, so a plant lifted to Evergreen holds under 180 sunshine, short of the first Flourish.
   }
   recordCutting(tx);
   tx.events.splice(mark);

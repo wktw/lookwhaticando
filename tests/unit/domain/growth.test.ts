@@ -26,7 +26,9 @@ import {
 import { addDays } from '@/domain/dates';
 import type { AppState, DateKey, Schedule } from '@/state/types';
 import * as company from '@/domain/company';
-import { compactLedger, cuttingOf, settleTo, CUTTING_KEY } from '@/domain/economy';
+import { LAUREL_SPRIG_ID } from '@/catalog/collectibles';
+import { owns } from '@/domain/collection';
+import { bestFlourishes, compactLedger, cuttingOf, flourishKey, settleTo, CUTTING_KEY } from '@/domain/economy';
 import { newPetState } from '@/domain/friendship';
 import * as habits from '@/domain/habits';
 import { mulberry32 } from '@/domain/rng';
@@ -422,7 +424,8 @@ describe('the sunshine precision contract: repeating-fraction grants reach their
     expect(misses).toEqual([]);
     // The run really crossed every threshold kind.
     expect(Math.min(...ids.map((id) => state.ledger.sunshine[id] ?? 0))).toBeGreaterThan(180 + 8 * 60);
-  });
+    // Ten years of seven habits: ~3 s alone, past the 5 s default on a loaded machine.
+  }, 60_000);
 
   it('an old save left a few millionths short is lifted quietly when the day opens: no celebration, no coins (DEC-P12a)', () => {
     const g = new Game({ start: MON });
@@ -458,6 +461,108 @@ describe('the sunshine precision contract: repeating-fraction grants reach their
     g.goTo('2026-03-23');
     g.checkIn(a);
     expect(g.lastOf('plantStage')).toEqual([]);
+  });
+
+  it('an old save: The Cutting a few millionths short of 20 is lifted to stage 2 at day open, and an un-check keeps it', () => {
+    const g = new Game({ start: MON });
+    const a = g.addHabit();
+    for (let d = MON; d <= '2026-03-21'; d = addDays(d, 1)) {
+      g.goTo(d);
+      g.checkIn(a);
+    }
+    // The build before WP-B2 left lifetime sunshine at 19.999998 and The Cutting's mark at 1.
+    patch(g, (s) => ({ ...s, ledger: { ...s.ledger, sunshine: { ...s.ledger.sunshine, [a]: 19.999998 }, once: { ...s.ledger.once, [CUTTING_KEY]: 1 } } }));
+    g.goTo('2026-03-21', 13);
+    expect(g.state.ledger.once[CUTTING_KEY]).toBe(2);
+    expect(g.last).toEqual([]);
+    // The gauge never shrinks back after an un-check takes a day's sunshine away.
+    g.undo(a);
+    expect(lifetimeSunshine(g.state.ledger.sunshine)).toBeLessThan(19.5);
+    expect(cuttingOf(g.state).stage).toBe(2);
+  });
+
+  it('an old save: an Evergreen plant a few millionths short of its first Flourish gets the Flourish at day open, and keeps it', () => {
+    const g = new Game({ start: MON });
+    const a = g.addHabit();
+    g.checkIn(a);
+    patch(g, (s) => ({ ...s, ledger: { ...s.ledger, sunshine: { ...s.ledger.sunshine, [a]: 239.99995 }, bestStage: { ...s.ledger.bestStage, [a]: EVERGREEN } } }));
+    expect(g.state.ledger.once[flourishKey(a)]).toBeUndefined();
+    g.goTo(MON, 13);
+    expect(bestFlourishes(g.state, a)).toBe(1);
+    expect(g.last).toEqual([]);
+    g.undo(a);
+    expect(plantVM(g.state, habitOf(g, a), g.today, UTC).flourishes).toBe(1);
+  });
+
+  it('an old save: a Flourishing plant a few millionths short of Evergreen is lifted with its Laurel Sprig, quietly', () => {
+    const g = new Game({ start: MON });
+    const a = g.addHabit();
+    for (let d = MON; d <= '2026-03-08'; d = addDays(d, 1)) {
+      g.goTo(d);
+      g.checkIn(a);
+    }
+    g.goTo('2026-09-01'); // 184 days on: the calendar pace allows Evergreen
+    patch(g, (s) => ({ ...s, ledger: { ...s.ledger, sunshine: { ...s.ledger.sunshine, [a]: 179.99995 }, bestStage: { ...s.ledger.bestStage, [a]: 6 } } }));
+    expect(owns(g.state.collection, LAUREL_SPRIG_ID)).toBe(false);
+    const coins = g.coins;
+    g.goTo('2026-09-01', 13);
+    expect(g.state.ledger.bestStage[a]).toBe(EVERGREEN);
+    expect(g.state.stageDates?.[a]?.[EVERGREEN]).toBe('2026-09-01');
+    expect(owns(g.state.collection, LAUREL_SPRIG_ID)).toBe(true);
+    expect(g.last).toEqual([]);
+    expect(g.coins).toBe(coins);
+  });
+
+  it('an old save: the forecasts read its rounded totals, and the next check-in reaches the stage they promised', () => {
+    const g = new Game({ start: MON });
+    const a = g.addHabit({ schedule: onDays(1, 3, 5) });
+    for (const d of MWF.slice(0, 8)) {
+      g.goTo(d);
+      g.checkIn(a);
+    }
+    // Eight Mon/Wed/Fri grants as the build before WP-B2 stored them: 8 × 2.333333 = 18.666664.
+    patch(g, (s) => ({ ...s, ledger: { ...s.ledger, sunshine: { ...s.ledger.sunshine, [a]: 8 * 2.333333 } } }));
+    g.goTo('2026-03-20');
+    expect(plantVM(g.state, habitOf(g, a), g.today, UTC).checkinsToNext).toBe(1);
+    expect(checkinsToStage(g.state, habitOf(g, a), g.today, UTC, BUDDING)).toBe(1);
+    g.checkIn(a);
+    expect(g.lastOf('plantStage').map((e) => e.stage)).toEqual([BUDDING]);
+  });
+
+  it('an old save: a companion two rounded shares in is one check-in from its first story, and that check-in tells it', () => {
+    const g = new Game({ start: MON });
+    const a = g.addHabit({ schedule: onDays(1, 3, 5) });
+    const cat = addPet(g, 'pet-cat-tortie');
+    g.run((tx) => company.setCompanion(tx, a, cat));
+    for (const d of MWF.slice(0, 2)) {
+      g.goTo(d);
+      g.checkIn(a);
+    }
+    // The pair's two shares as the build before WP-B2 stored them: 2 × 2.333333 = 4.666666.
+    const key = company.pairKey(cat, a);
+    patch(g, (s) => {
+      const c = company.companyOf(s);
+      return { ...s, company: { ...c, pairs: { ...c.pairs, [key]: { ...c.pairs[key]!, sunshine: 2 * 2.333333 } } } };
+    });
+    g.goTo('2026-03-06');
+    const vm = companionVM(g.state, { today: g.today, now: g.now, local: UTC }, habitOf(g, a))!;
+    expect(vm.stories[0]).toMatchObject({ id: 'start', unlocked: false, remaining: 1 });
+    g.checkIn(a);
+    expect(g.lastOf('story').map((e) => e.story)).toEqual(['start']);
+  });
+
+  it('deleting a habit keeps the sunshine it grew before the refund window unrounded (lifetime conserved)', () => {
+    const g = new Game({ start: MON });
+    const a = g.addHabit({ schedule: onDays(1, 3, 5) });
+    for (const d of ['2026-03-02', '2026-03-04', '2026-03-06', '2026-03-09', '2026-03-20']) {
+      g.goTo(d);
+      g.checkIn(a);
+    }
+    // Today's check-in is refunded; the four before the window stay: 4 × 7/3 = 28/3.
+    g.run((tx) => habits.deleteHabit(tx, a));
+    expect(g.state.habits.some((h) => h.id === a)).toBe(false);
+    expect(Math.abs((g.state.ledger.sunshine[a] ?? 0) - 28 / 3)).toBeLessThan(1e-9);
+    expect(Math.abs(lifetimeSunshine(g.state.ledger.sunshine) - 28 / 3)).toBeLessThan(1e-9);
   });
 
   it('guard: a stage held by the calendar pace is still celebrated at the next check-in, not lifted at day open', () => {
