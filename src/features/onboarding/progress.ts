@@ -8,7 +8,7 @@
  * (so Start over clears it too), and a reload lands back on the same step.
  */
 import { computed, signal } from '@preact/signals';
-import { demoMode, state } from '@/state/store';
+import { demoMode, ownsSave, state } from '@/state/store';
 
 export const ONBOARDING_KEY = 'catkin:onboarding';
 
@@ -49,6 +49,9 @@ export const onboardingProgress = signal<OnboardingProgress | null>(typeof local
 
 export function saveProgress(p: OnboardingProgress | null): void {
   onboardingProgress.value = p;
+  // Only the window that owns the save writes the sidecar, so a second window can't put stale
+  // progress back after the owner has finished (audit RISK-01; cross-window sync is later work).
+  if (!ownsSave()) return;
   try {
     if (p) localStorage.setItem(ONBOARDING_KEY, JSON.stringify(p));
     else localStorage.removeItem(ONBOARDING_KEY);

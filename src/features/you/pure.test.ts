@@ -93,6 +93,7 @@ describe('the shell’s copies of VOICE lines', () => {
     expect(SHELL_LINES.useHere).toBe(ERRORS.useHere);
     expect(SHELL_LINES.newerSave).toBe(ERRORS.newerSave);
     expect(SHELL_LINES.save).toBe(ERRORS.save);
+    expect(SHELL_LINES.volatile).toBe(ERRORS.volatile);
     expect(SHELL_LINES.clock).toBe(ERRORS.clock);
     expect(SHELL_LINES.leaveDemo).toBe(DATA.leaveDemo);
     expect(SHELL_LINES.updateReady).toBe(INSTALL.updateReady);

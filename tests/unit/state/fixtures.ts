@@ -107,3 +107,55 @@ export function fakeLocks(held: { byOther: boolean }): LockManagerLike & { stole
     },
   };
 }
+
+/**
+ * A Web Locks stand-in that answers only when the test says so, so the window between asking for
+ * the writer lock and getting it (saves held) can be exercised.
+ */
+export function deferredLocks(): LockManagerLike & { grant(): Promise<void>; refuse(): Promise<void>; steal(): Promise<void>; asked: number } {
+  let answer: ((lock: unknown) => void) | null = null;
+  let reject: ((e: unknown) => void) | null = null;
+  const settle = () => new Promise<void>((r) => setTimeout(r, 0));
+  const locks = {
+    asked: 0,
+    request(_name: string, _options: { ifAvailable?: boolean; steal?: boolean }, callback: (lock: unknown) => Promise<unknown> | unknown) {
+      locks.asked++;
+      return new Promise<unknown>((resolve, rej) => {
+        reject = rej;
+        answer = (lock) => void Promise.resolve(callback(lock)).then(resolve, rej);
+      });
+    },
+    async grant() {
+      answer?.({ name: 'lock' });
+      await settle();
+    },
+    async refuse() {
+      answer?.(null);
+      await settle();
+    },
+    async steal() {
+      reject?.(new DOMException('stolen', 'AbortError'));
+      await settle();
+    },
+  };
+  return locks;
+}
+
+/** Makes chosen keys' writes throw (a full disk, or storage that went away) until `heal()`. */
+export function failWrites(storage: ReturnType<typeof memoryStorage>, how: 'quota' | 'error', keys?: readonly string[]): { heal(): void } {
+  const setItem = storage.setItem.bind(storage);
+  let failing = true;
+  storage.setItem = (k: string, v: string) => {
+    if (failing && (!keys || keys.includes(k))) {
+      const e = new Error(how) as Error & { name: string };
+      e.name = how === 'quota' ? 'QuotaExceededError' : 'SecurityError';
+      throw e;
+    }
+    setItem(k, v);
+  };
+  return {
+    heal() {
+      failing = false;
+    },
+  };
+}

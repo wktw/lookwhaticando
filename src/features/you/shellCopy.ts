@@ -9,6 +9,7 @@ export const SHELL_LINES = {
   useHere: 'Use here',
   newerSave: 'This save is from a newer catkin, so it opens read-only here. Update to make changes.',
   save: 'That change didn’t save yet. catkin is trying again, and your last backup is safe.',
+  volatile: 'This browser isn’t keeping catkin’s save right now. Save a backup before you close it.',
   clock: 'The clock on this device reads earlier than catkin last saw. Coins and stamps wait until it’s right again.',
   leaveDemo: 'Leave the demo',
   /** INSTALL.updateReady: "A new version is ready · Reload". */

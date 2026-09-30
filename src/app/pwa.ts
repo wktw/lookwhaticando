@@ -18,6 +18,7 @@
 import { signal } from '@preact/signals';
 import { toast } from '@/ui/toast';
 import { anyLayerOpen } from '@/ui/sheetStack';
+import { hasUnsavedWork } from '@/state/store';
 import { SHELL_LINES } from '@/features/you/shellCopy';
 import { UPDATE_COPY } from './copy';
 
@@ -60,9 +61,12 @@ function offerReload(): void {
   });
 }
 
-/** Whether a reload now would interrupt her (a sheet, a reveal, onboarding). */
+/**
+ * Whether a reload now would interrupt her (a sheet, a reveal, onboarding) or lose a change that
+ * isn't written yet (a save that is failing, or no storage at all; audit data-d2).
+ */
 function busy(): boolean {
-  return holdUpdates.value || anyLayerOpen();
+  return holdUpdates.value || anyLayerOpen() || hasUnsavedWork();
 }
 
 /** "Reload app": the waiting version takes over and the page reloads (or it simply reloads). */
@@ -121,7 +125,7 @@ function onVisibility(): void {
     if (updateReady.value && !autoApplied && !busy()) {
       autoApplied = true;
       setTimeout(() => {
-        if (document.visibilityState === 'hidden') reloadApp();
+        if (document.visibilityState === 'hidden' && !busy()) reloadApp();
         else autoApplied = false;
       }, 0);
     }

@@ -124,7 +124,10 @@ export interface CheckInResult extends ActionResult {
   rewarded: boolean;
 }
 
-/** 'storage-full' (stage 3, additive): the pull couldn't be saved, so it was rolled back rather than shown (v1 §13.6). */
+/**
+ * 'storage-full' (stage 3, additive): the pull couldn't be saved (storage full or unavailable, or this
+ * window doesn't own the save yet), so it was rolled back rather than shown (v1 §13.6, audit FS4).
+ */
 export type PullError = 'not-enough-coins' | 'not-enough-stars' | 'machine-unavailable' | 'no-ticket' | 'reveal-pending' | 'storage-full';
 
 export interface PullResult extends ActionResult {

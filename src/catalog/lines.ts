@@ -737,6 +737,8 @@ export const ERRORS = {
   screen: 'This screen didn’t load. Your plants and coins are saved.',
   reload: 'Reload',
   save: 'That change didn’t save yet. catkin is trying again, and your last backup is safe.',
+  /** No persistent storage at all this session (blocked or missing): nothing is kept past closing. */
+  volatile: 'This browser isn’t keeping catkin’s save right now. Save a backup before you close it.',
   otherWindow: 'catkin is open in another window · Use here',
   useHere: 'Use here',
   newerSave: 'This save is from a newer catkin, so it opens read-only here. Update to make changes.',
@@ -1166,6 +1168,8 @@ export const DATA_COPY = {
   startOverAgainTitle: 'Start over now?',
   startOverAgain: 'Everything here goes. The daily copies stay on this device.',
   demoLine: 'A made-up sill with a few months of watering. Your own sill stays just as it is.',
+  /** The demo doesn't open over a change that hasn't been written yet. */
+  demoWaits: 'The demo opens once your last change is saved.',
   demoPill: 'The demo',
   copyTitle: 'Your backup',
   copyHelper: 'Select it all, copy it, and keep it somewhere safe.',

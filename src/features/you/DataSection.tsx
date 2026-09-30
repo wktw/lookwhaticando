@@ -21,7 +21,7 @@ import {
   readOnly,
   resetAll,
   restoreSnapshot,
-  saveStatus,
+  durability,
   state,
   today,
   undoImport,
@@ -64,7 +64,7 @@ function isStandalone(): boolean {
 function StatusRow() {
   const app = state.value;
   const standalone = isStandalone();
-  const full = saveStatus.value.status === 'storage-full';
+  const full = durability.value.kind === 'failing';
   const last = app.lastBackupAt;
   const nudge = backupNudge({ lastBackupAt: last, checkins: app.lifetime.checkins, now: Date.now() });
   const platform = currentInstallPlatform();
@@ -276,7 +276,11 @@ export function DataSection() {
           subtitle={inDemo ? undefined : DATA_COPY.demoLine}
           chevron={false}
           disabled={locked}
-          onClick={() => (inDemo ? exitDemo() : (enterDemo(), navigate('today')))}
+          onClick={() => {
+            if (inDemo) exitDemo();
+            else if (enterDemo()) navigate('today');
+            else toast({ key: 'demo-waits', message: DATA_COPY.demoWaits, tone: 'butter' });
+          }}
         />
       </div>
       <div class={s.card} style={{ marginTop: 'var(--s-3)' }}>

@@ -7,7 +7,8 @@
  * - Every storage access is in try/catch; nothing here throws. A QuotaExceeded write retries after
  *   dropping the `:corrupt` copy, then after dropping `:backup` and compacting the state's stale
  *   ledger; the backup is put back if even that fails (so a failed save never costs the backup),
- *   and 'storage-full' is reported.
+ *   and 'storage-full' is reported. A failed write keeps its state pending and is retried, so the
+ *   last change is never dropped (audit data-d2); a held or retired queue never reports 'saved'.
  * - A queue can be *held* (a window still waiting for the single-writer lock): writes stay pending
  *   until it is released, and a window that is refused the lock discards them, so it never writes
  *   over the owner's save. Adopting another window's newer save discards the pending one too.
@@ -73,18 +74,29 @@ export function memoryStorage(initial: Record<string, string> = {}, quotaChars =
   };
 }
 
-/** The browser's localStorage, or null when it is missing or blocked (private mode, file:// quirks). */
+/**
+ * The browser's localStorage, or null when it can't be read at all (missing or blocked: some private
+ * modes, file:// quirks). A store that reads but refuses the probe write because it is full is still
+ * returned: its save loads, and the first write reports 'storage-full' and keeps retrying, rather than
+ * the app starting over on a memory save that looks saved (audit data-d1).
+ */
 export function browserStorage(): KeyValueStorage | null {
+  let ls: KeyValueStorage | undefined;
   try {
-    const ls = (globalThis as { localStorage?: KeyValueStorage }).localStorage;
+    ls = (globalThis as { localStorage?: KeyValueStorage }).localStorage;
     if (!ls) return null;
-    const probe = `${NAMESPACE}probe`;
-    ls.setItem(probe, '1');
-    ls.removeItem(probe);
-    return ls;
+    ls.getItem(SAVE_KEY);
   } catch {
     return null;
   }
+  const probe = `${NAMESPACE}probe`;
+  try {
+    ls.setItem(probe, '1');
+    ls.removeItem(probe);
+  } catch (e) {
+    if (!isQuotaError(e)) return null;
+  }
+  return ls;
 }
 
 export function isQuotaError(e: unknown): boolean {
@@ -207,6 +219,16 @@ export function writeBackup(storage: KeyValueStorage, key: string, raw: string):
 
 export type SaveStatus = 'saved' | 'storage-full' | 'unavailable';
 
+/**
+ * What a write attempt did: the write's status, or why nothing was written: 'held' (this window
+ * doesn't own the save yet, so the state waits) or 'disposed' (the queue was retired). Neither is
+ * ever reported as 'saved'.
+ */
+export type FlushOutcome = SaveStatus | 'held' | 'disposed';
+
+/** Waits between retries of a failed write (the last one repeats). */
+export const RETRY_MS = [1_000, 4_000, 15_000, 60_000] as const;
+
 export interface Timers {
   setTimeout(fn: () => void, ms: number): unknown;
   clearTimeout(handle: unknown): void;
@@ -228,24 +250,48 @@ export interface SaveQueueOptions {
 /**
  * Debounced, quota-aware writer for one key. `schedule` coalesces writes within 250 ms; `saveNow`
  * writes at once (cancelling a pending one); `flush` writes whatever is pending.
+ *
+ * A state stays pending until it is actually written: a failed write keeps it and retries (after
+ * RETRY_MS, and whenever `flush` is called again), so the last change is never dropped from the
+ * retry path (audit data-d2). A retired queue (`dispose`) forgets its pending state and never writes
+ * again, even from a frame or timer callback scheduled before it was retired (audit FS1).
  */
 export class SaveQueue {
   rev: number;
   private pending: AppState | null = null;
   private handle: unknown = null;
+  private retryHandle: unknown = null;
+  private attempts = 0;
   private lastStatus: SaveStatus | null = null;
   private held = false;
+  private disposed = false;
   lastChars = 0;
 
   constructor(private readonly o: SaveQueueOptions) {
     this.rev = o.rev;
   }
 
+  /** A state waiting to be written (debounced, held for the lock, or after a failed write). */
   get hasPending(): boolean {
     return this.pending !== null;
   }
 
+  /** The last write failed and its state is still waiting to be written. */
+  get failing(): boolean {
+    return this.pending !== null && (this.lastStatus === 'storage-full' || this.lastStatus === 'unavailable');
+  }
+
+  /** Waiting for the writer lock: writes are held. */
+  get isHeld(): boolean {
+    return this.held && !this.disposed;
+  }
+
+  get isDisposed(): boolean {
+    return this.disposed;
+  }
+
   schedule(state: AppState): void {
+    if (this.disposed) return;
     this.pending = state;
     if (this.handle !== null) return;
     this.handle = this.o.timers.setTimeout(() => {
@@ -254,9 +300,10 @@ export class SaveQueue {
     }, this.o.debounceMs ?? DEBOUNCE_MS);
   }
 
-  saveNow(state: AppState): SaveStatus {
+  saveNow(state: AppState): FlushOutcome {
+    if (this.disposed) return 'disposed';
     this.pending = state;
-    return this.flush() ?? 'saved';
+    return this.flush() ?? 'held';
   }
 
   private soon = false;
@@ -264,9 +311,11 @@ export class SaveQueue {
   /**
    * Writes on the next chance `afterFrame` gives (just after the frame that shows the change), so
    * a tap's frame never waits for the save. A flush in between (pagehide, hidden, another save)
-   * writes it sooner, and the late call then finds nothing pending.
+   * writes it sooner, and the late call then finds nothing pending; a queue retired in between
+   * ignores it.
    */
   saveSoon(state: AppState, afterFrame: (fn: () => void) => void): void {
+    if (this.disposed) return;
     this.pending = state;
     if (this.handle !== null) {
       this.o.timers.clearTimeout(this.handle);
@@ -276,7 +325,7 @@ export class SaveQueue {
     this.soon = true;
     afterFrame(() => {
       this.soon = false;
-      this.flush();
+      if (!this.disposed) this.flush();
     });
   }
 
@@ -286,32 +335,63 @@ export class SaveQueue {
   }
 
   /** Ends a hold and writes whatever is pending. */
-  release(): SaveStatus | null {
+  release(): FlushOutcome | null {
     this.held = false;
     return this.flush();
   }
 
   /** Forgets the pending state without writing it (lock refused, or another window's save adopted). */
   discardPending(): void {
-    if (this.handle !== null) this.o.timers.clearTimeout(this.handle);
-    this.handle = null;
+    this.clearTimers();
     this.pending = null;
+    this.attempts = 0;
   }
 
-  /** Writes the pending state, if any (nothing while held). */
-  flush(): SaveStatus | null {
+  /**
+   * Writes the pending state, if any. Null when nothing is pending; 'held' while held (the state
+   * stays pending); 'disposed' once retired. On a failed write the state stays pending and a retry
+   * is scheduled.
+   */
+  flush(): FlushOutcome | null {
     if (this.handle !== null) {
       this.o.timers.clearTimeout(this.handle);
       this.handle = null;
     }
-    if (this.held) return null;
+    if (this.disposed) return null;
     const state = this.pending;
     if (state === null) return null;
-    this.pending = null;
+    if (this.held) return 'held';
     const status = this.write(state);
+    if (status === 'saved') {
+      if (this.pending === state) this.pending = null;
+      this.attempts = 0;
+      if (this.retryHandle !== null) {
+        this.o.timers.clearTimeout(this.retryHandle);
+        this.retryHandle = null;
+      }
+    } else {
+      this.attempts++;
+      this.scheduleRetry();
+    }
     if (status !== this.lastStatus || status === 'saved') this.o.onStatus?.(status, { rev: this.rev, chars: this.lastChars });
     this.lastStatus = status;
     return status;
+  }
+
+  private scheduleRetry(): void {
+    if (this.retryHandle !== null) return;
+    const wait: number = RETRY_MS[Math.min(this.attempts, RETRY_MS.length) - 1] ?? RETRY_MS[RETRY_MS.length - 1]!;
+    this.retryHandle = this.o.timers.setTimeout(() => {
+      this.retryHandle = null;
+      this.flush();
+    }, wait);
+  }
+
+  private clearTimers(): void {
+    if (this.handle !== null) this.o.timers.clearTimeout(this.handle);
+    this.handle = null;
+    if (this.retryHandle !== null) this.o.timers.clearTimeout(this.retryHandle);
+    this.retryHandle = null;
   }
 
   private write(state: AppState): SaveStatus {
@@ -335,9 +415,11 @@ export class SaveQueue {
     return 'saved';
   }
 
+  /** Retires the queue: its pending state is forgotten and it never writes again. */
   dispose(): void {
-    if (this.handle !== null) this.o.timers.clearTimeout(this.handle);
-    this.handle = null;
+    this.disposed = true;
+    this.clearTimers();
+    this.pending = null;
   }
 }
 

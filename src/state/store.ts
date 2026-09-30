@@ -18,7 +18,10 @@
  * While another window owns the save, or it was written by a newer app version, actions are no-ops.
  * A window writes nothing until the single-writer lock is granted (its saves are held, then
  * discarded if the lock is refused), and adopting another window's newer save drops any pending
- * save of its own, so a second window can never roll the owner's save back (v1 §13.8).
+ * save of its own, so a second window can never roll the owner's save back (v1 §13.8). A queue
+ * that is replaced or loses the lock is retired: it never writes again, even from a callback
+ * already scheduled (audit FS1). A failed write stays pending and is retried (audit data-d2), and
+ * `durability` says what is true about the save right now.
  *
  * Everything browser-specific (localStorage, IndexedDB, Web Locks, DOM events, timers, crypto) is
  * reached through `StoreRuntime`, which tests replace with `configureStore`.
@@ -58,6 +61,7 @@ import {
   removeNamespace,
   writeBackup,
   writeJson,
+  type FlushOutcome,
   type KeyValueStorage,
   type SaveStatus,
   type Timers,
@@ -235,6 +239,41 @@ export const saveStatus = signal<{ status: SaveStatus | 'idle'; rev: number; cha
 /** Something about loading the save the UI should explain (null when all is well). */
 export const loadIssue = signal<null | { kind: 'recovered-from-backup' | 'corrupt-save' | 'newer-version'; details?: string[] }>(null);
 
+/**
+ * The single-writer lock, as far as this window knows: 'acquiring' until Web Locks answers (saves
+ * are held), 'granted' while this window owns the save, 'refused'/'stolen' when another window
+ * does, 'unsupported' without Web Locks (best effort: this window writes).
+ */
+export const ownership = signal<'unsupported' | 'acquiring' | 'granted' | 'refused' | 'stolen'>('unsupported');
+
+/** No persistent storage this session: changes live only in memory and go when catkin closes. */
+export const volatileStorage = signal(false);
+
+/**
+ * What is true about the save right now (audit data-d1, data-d2, FS4). 'ok': every change so far is
+ * written, or waiting a moment for its debounce/frame; 'acquiring': waiting for the writer lock
+ * (changes are held, nothing durable is promised); 'failing': the last write didn't go through and
+ * is being retried; 'volatile': nothing can be kept; 'not-owner': another window, or a newer
+ * catkin, owns the save.
+ */
+export type Durability =
+  | { kind: 'ok' }
+  | { kind: 'acquiring' }
+  | { kind: 'failing'; reason: 'quota' | 'error' }
+  | { kind: 'volatile' }
+  | { kind: 'not-owner'; why: 'other-window' | 'newer-version' };
+
+export const durability = computed<Durability>(() => {
+  const ro = readOnly.value;
+  if (ro === 'other-window' || ro === 'newer-version') return { kind: 'not-owner', why: ro };
+  if (volatileStorage.value) return { kind: 'volatile' };
+  const st = saveStatus.value.status;
+  if (st === 'storage-full' || ro === 'storage-full') return { kind: 'failing', reason: 'quota' };
+  if (st === 'unavailable') return { kind: 'failing', reason: 'error' };
+  if (ownership.value === 'acquiring') return { kind: 'acquiring' };
+  return { kind: 'ok' };
+});
+
 /* ------------------------------------------------------------------ */
 /* Core: act & commit                                                  */
 /* ------------------------------------------------------------------ */
@@ -252,6 +291,27 @@ function envAt(ms: number, s: AppState): Env {
 }
 
 const writable = (): boolean => readOnly.value !== 'other-window' && readOnly.value !== 'newer-version';
+
+/** This window owns the save: it may write recovery copies and sidecar keys, not just queue changes. */
+export function ownsSave(): boolean {
+  return writable() && (ownership.value === 'granted' || ownership.value === 'unsupported');
+}
+
+/**
+ * Changes that are not on disk yet: pending (debounced, held for the lock, or failing), or all of
+ * them when there is no persistent storage. A reload or a switch of save now would lose them.
+ */
+export function hasUnsavedWork(): boolean {
+  return volatileStorage.value || (queue?.hasPending ?? false);
+}
+
+/** Retires the current queue (it never writes again) and forgets its status. */
+function retireQueue(): void {
+  queue?.dispose();
+  queue = null;
+  if (saveStatus.value.status !== 'idle') saveStatus.value = { status: 'idle', rev: 0, chars: 0, at: rt.now() };
+  if (readOnly.value === 'storage-full') readOnly.value = false;
+}
 
 function makeQueue(key: string, rev: number): SaveQueue {
   return new SaveQueue({
@@ -274,10 +334,10 @@ function makeQueue(key: string, rev: number): SaveQueue {
   });
 }
 
-/** Swaps the save queue (flushing the old one first). */
+/** Swaps the save queue (flushing the old one first, then retiring it). */
 function switchQueue(key: string, rev: number): void {
   queue?.flush();
-  queue?.dispose();
+  retireQueue();
   queue = makeQueue(key, rev);
 }
 
@@ -292,10 +352,10 @@ function urgent(prev: AppState, next: AppState): boolean {
  * frame when urgent (a check-in's coins: the tap paints first, then the save), else debounced.
  * Returns the write's status when it wrote at once.
  */
-function persist(prev: AppState, next: AppState, force = false): SaveStatus | null {
+function persist(prev: AppState, next: AppState, force = false): FlushOutcome | null {
   if (!writable()) return null;
   queue ??= makeQueue(currentKey(), 0);
-  let status: SaveStatus | null = null;
+  let status: FlushOutcome | null = null;
   if (force || prev.pendingReveal !== next.pendingReveal) status = queue.saveNow(next);
   else if (urgent(prev, next)) {
     if (rt.afterFrame) queue.saveSoon(next, rt.afterFrame);
@@ -367,7 +427,8 @@ let unlisteners: Unlisten[] = [];
 let lastSnapshotDay: DateKey | null = null;
 
 function snapshotToday(): void {
-  if (demoMode.value || !writable()) return;
+  // Recovery copies are written only by the window that owns the save (audit FS4, related hole).
+  if (demoMode.value || !ownsSave()) return;
   const s = state.value;
   const day = today.value;
   if (lastSnapshotDay === day || !s.profile.onboarded) return;
@@ -383,36 +444,50 @@ function snapshotToday(): void {
  */
 function acquireLock(steal = false): void {
   const locks = rt.locks;
-  if (!locks) return;
+  if (!locks) {
+    ownership.value = 'unsupported';
+    return;
+  }
   releaseLock?.();
   releaseLock = null;
   let granted = false;
+  let answered = false;
   queue?.hold();
-  locks
-    .request(LOCK_NAME, steal ? { steal: true } : { ifAvailable: true }, (lock) => {
-      if (!lock) {
-        queue?.discardPending();
-        queue?.dispose();
-        readOnly.value = 'other-window';
-        return undefined;
-      }
-      granted = true;
-      if (readOnly.value === 'other-window') readOnly.value = false;
-      queue?.release();
-      return new Promise<void>((resolve) => (releaseLock = resolve));
-    })
-    .catch(() => {
-      // Web Locks failed before answering (e.g. unavailable in this context): best effort without
-      // them, like a browser that has none, so the held saves are written after all.
-      if (!granted) {
-        if (readOnly.value !== 'other-window') queue?.release();
-        return;
-      }
-      // Our lock was stolen by another window ("Use here" over there): stop writing.
-      queue?.dispose();
-      queue = null;
+  ownership.value = 'acquiring';
+  const request = locks.request(LOCK_NAME, steal ? { steal: true } : { ifAvailable: true }, (lock) => {
+    answered = true;
+    if (!lock) {
+      queue?.discardPending();
+      retireQueue();
+      ownership.value = 'refused';
       readOnly.value = 'other-window';
-    });
+      return undefined;
+    }
+    granted = true;
+    ownership.value = 'granted';
+    if (readOnly.value === 'other-window') readOnly.value = false;
+    queue?.release();
+    snapshotToday();
+    return new Promise<void>((resolve) => (releaseLock = resolve));
+  });
+  request.catch(() => {
+    // Web Locks failed before answering (e.g. unavailable in this context): best effort without
+    // them, like a browser that has none, so the held saves are written after all.
+    if (!granted) {
+      if (answered) return;
+      ownership.value = 'unsupported';
+      if (readOnly.value !== 'other-window') {
+        queue?.release();
+        snapshotToday();
+      }
+      return;
+    }
+    // Our lock was stolen by another window ("Use here" over there): stop writing, and retire the
+    // queue so no frame or timer it already scheduled can write either (audit FS1).
+    retireQueue();
+    ownership.value = 'stolen';
+    readOnly.value = 'other-window';
+  });
 }
 
 /** Adopts a newer save written by another window (`storage` event), dropping our pending save. */
@@ -430,12 +505,13 @@ export function hydrate(): void {
   unlisteners = [];
   releaseLock?.();
   releaseLock = null;
-  queue?.dispose();
-  queue = null;
+  retireQueue();
   demoMode.value = false;
   readOnly.value = false;
   loadIssue.value = null;
   lastSnapshotDay = null;
+  ownership.value = rt.locks ? 'acquiring' : 'unsupported';
+  volatileStorage.value = rt.storage === null;
   const store = storage();
   const res = loadSave(store, SAVE_KEY);
   let initial: AppState;
@@ -490,6 +566,7 @@ export function hydrate(): void {
 export function useHere(): void {
   if (readOnly.value !== 'other-window') return;
   const res = loadSave(storage(), currentKey());
+  retireQueue();
   queue = makeQueue(currentKey(), res.kind === 'ok' ? res.rev : 0);
   if (res.kind === 'ok') setState(res.state, rt.now());
   readOnly.value = false;
@@ -510,6 +587,8 @@ function sundayNoteDue(s: AppState, t: DateKey, ms: number): boolean {
 
 /** One clock tick: refresh `now`/`today`; on a new app day run the day's work and snapshot; deliver the Sunday Note at 18:00. */
 function tick(): void {
+  // A write that failed is tried again on every tick, focus and return to the app (audit data-d2).
+  if (queue?.failing && writable()) queue.flush();
   const ms = rt.now();
   const s = state.value;
   const t = todayFor(s, ms);
@@ -533,6 +612,7 @@ export function startClock(): () => void {
       rt.listen('window', 'pageshow', () => tick()),
       rt.listen('window', 'focus', () => tick()),
       rt.listen('window', 'pagehide', () => flushSaves()),
+      rt.listen('window', 'online', () => tick()),
     );
   }
   return () => {
@@ -670,8 +750,9 @@ export function availableMachines(): MachineId[] {
 }
 /**
  * Decides the pull, commits it and writes it at once (pendingReveal), then returns it for the
- * reveal. Commit before animate (§7.1): when the save can't be written (storage full), the pull is
- * rolled back and refused ('storage-full'), so a reload can never re-roll a pull already shown.
+ * reveal. Commit before animate (§7.1): when the save isn't written (storage full or unavailable, or
+ * this window doesn't own the save yet), the pull is rolled back and refused ('storage-full'), so a
+ * reload can never re-roll a pull already shown and a pet is never shown that wasn't saved.
  * `free` is onboarding's "Who comes home first?" capsule (gacha.ts; `canPullFree` says when it is offered).
  */
 export function pull(machineId: MachineId, opts: { useTicket?: boolean; free?: boolean } = {}): PullOutcome {
@@ -684,7 +765,9 @@ export function pull(machineId: MachineId, opts: { useTicket?: boolean; free?: b
   });
   setState(out.state, ms);
   const status = out.state !== prev ? persist(prev, out.state, true) : null;
-  if (out.o.ok && (status === 'storage-full' || status === 'unavailable')) {
+  // Commit before reveal: anything short of a write that went through (storage full or gone, the
+  // writer lock not granted yet, the queue retired) rolls the pull back (audit FS4).
+  if (out.o.ok && status !== 'saved') {
     setState(prev, ms);
     queue?.schedule(prev);
     return { ok: false, error: 'storage-full' };
@@ -971,8 +1054,7 @@ export async function restoreSnapshot(id: string): Promise<boolean> {
 export function resetAll(): void {
   if (!writable()) return;
   if (demoMode.value) {
-    queue?.discardPending();
-    queue?.dispose();
+    retireQueue();
     for (const k of [DEMO_KEY, `${DEMO_KEY}:backup`, `${DEMO_KEY}:corrupt`]) removeKey(storage(), k);
     queue = makeQueue(DEMO_KEY, 0);
     const ms = rt.now();
@@ -981,8 +1063,7 @@ export function resetAll(): void {
     replaceState({ ...demo, settings: { ...demo.settings, theme: base.settings.theme, reduceMotion: base.settings.reduceMotion } });
     return;
   }
-  queue?.discardPending();
-  queue?.dispose();
+  retireQueue();
   removeNamespace(storage());
   demoMode.value = false;
   realState = null;
@@ -993,10 +1074,15 @@ export function resetAll(): void {
 
 let realState: AppState | null = null;
 
-/** Opens the demo under its own key; the real save is flushed and left untouched. */
-export function enterDemo(): void {
-  if (demoMode.value) return;
-  queue?.flush();
+/**
+ * Opens the demo under its own key; the real save is flushed and left untouched. Refused (false)
+ * while the real save has changes that aren't written (failing, or held for the writer lock): the
+ * demo would leave them behind in memory (audit RISK-07).
+ */
+export function enterDemo(): boolean {
+  if (demoMode.value) return true;
+  const out = queue?.flush() ?? null;
+  if (out !== null && out !== 'saved') return false;
   realState = state.value;
   demoMode.value = true;
   const res = loadSave(storage(), DEMO_KEY);
@@ -1009,6 +1095,7 @@ export function enterDemo(): void {
   }
   demo = { ...demo, settings: { ...demo.settings, theme: realState.settings.theme, reduceMotion: realState.settings.reduceMotion } };
   replaceState(demo);
+  return true;
 }
 
 /** Leaves the demo: its save stays in its own namespace; the real save is reloaded untouched. */

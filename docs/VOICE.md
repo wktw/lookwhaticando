@@ -989,6 +989,8 @@ Say what happened and what to do. Never `failed`, never `Oops`, never a code in 
 |---|---|
 | A screen doesn't load | "This screen didn’t load. Your plants and coins are saved." · "Reload" |
 | A save doesn't go through | "That change didn’t save yet. catkin is trying again, and your last backup is safe." |
+| Nothing can be kept in this browser | "This browser isn’t keeping catkin’s save right now. Save a backup before you close it." |
+| The demo waits for a save | "The demo opens once your last change is saved." |
 | Open in another window | "catkin is open in another window · Use here" |
 | A save from a newer catkin | "This save is from a newer catkin, so it opens read-only here. Update to make changes." |
 | The device clock went back | "The clock on this device reads earlier than catkin last saw. Coins and stamps wait until it’s right again." |
