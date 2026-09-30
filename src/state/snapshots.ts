@@ -1,6 +1,6 @@
 /**
  * Daily snapshots in IndexedDB (DESIGN v1 §13.8): 7 daily + 4 weekly copies of the save, taken only
- * when `validateState` passes, listed and restorable from You › Data. Imports also snapshot first
+ * when the state decodes as a good save (`decodeState`), listed and restorable from You › Data. Imports also snapshot first
  * ('pre-import') so they can be undone for 24 h.
  *
  * The store works against the small `SnapshotStore` interface: an IndexedDB implementation for the
@@ -13,7 +13,7 @@
  */
 import { startOfWeek, type WeekStart } from '@/domain/dates';
 import type { AppState, DateKey } from './types';
-import { validateState } from './validate';
+import { decodesAsSave } from './decode';
 
 export type SnapshotKind = 'daily' | 'weekly' | 'pre-import';
 
@@ -78,7 +78,7 @@ export async function takeDailySnapshot(
   state: AppState,
   opts: { day: DateKey; now: number; weekStart: WeekStart; appVersion: string; keep?: string | null },
 ): Promise<boolean> {
-  if (!validateState(state).ok) return false;
+  if (!decodesAsSave(state)) return false;
   const daily = `daily-${opts.day}`;
   await store.put({ ...snapshotMeta(state, 'daily', daily, opts.day, opts.now, opts.appVersion), state });
   const weekly = `weekly-${startOfWeek(opts.day, opts.weekStart)}`;

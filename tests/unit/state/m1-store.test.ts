@@ -125,7 +125,7 @@ describe('the CSV and the watering-time file (DESIGN §9.5)', () => {
     const water = store.createHabit(input('=Water', { icon: 'water', target: 8, unit: 'glasses' }));
     store.checkIn(walk);
     store.checkIn(water);
-    const csv = store.exportCsv();
+    const csv = store.exportCsv()!;
     expect(csv.name).toBe('catkin-waterings-2026-09-29.csv');
     expect(csv.text.split('\r\n')).toEqual(['date,habit,count,target,state', '2026-09-29,"Walk, then tea",1,1,watered', "2026-09-29,'=Water,1,8,partial", '']);
   });

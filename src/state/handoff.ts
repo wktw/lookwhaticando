@@ -1,19 +1,21 @@
 /**
  * Backups and the Safari → app handoff (DESIGN v1 §13.8 "Handoff", "Export/import").
  *
- * - Backup file: `{ format: 'catkin-backup', v, appVersion, exportedAt, device, state }`.
+ * - Backup file: `{ format: 'catkin-backup', v, appVersion, exportedAt, device, state }`. A backup of
+ *   a newer catkin's save is that save's own envelope text instead (the store's `backupJson`, FS2),
+ *   which import reads as a raw envelope and refuses as 'made-by-newer-version'.
  * - Clipboard payload: `'CK1:' + base64url(gzip(json))` using CompressionStream, or, where
  *   CompressionStream is unavailable, the graceful fallback `'CK0:' + base64url(utf8(json))`.
- * - Import accepts a backup file, a CK1/CK0 payload, or a raw save envelope; it migrates and
- *   validates before anything is applied, and describes the result for the preview
- *   ("12 habits, 1,284 check-ins, 23 friends, saved Sep 27"). Applying (snapshot first, replace
+ * - Import accepts a backup file, a CK1/CK0 payload, or a raw save envelope; it decodes the state
+ *   (`decodeState`: the allow-listed omissions, migrations, validation) before anything is applied,
+ *   and describes the result for the preview ("12 habits, 1,284 check-ins, 23 friends, saved
+ *   Sep 27"). Applying (snapshot first, replace
  *   never merge, undo for 24 h) is the store's job.
  */
 import type { ImportPreview } from './api';
 import type { AppState } from './types';
-import { migrate } from './migrate';
+import { decodeState } from './decode';
 import { countCheckins } from './snapshots';
-import { validateState } from './validate';
 
 export const BACKUP_FORMAT = 'catkin-backup';
 export const PAYLOAD_GZIP = 'CK1:';
@@ -152,7 +154,11 @@ export type ParsedBackup =
   | { ok: true; state: AppState; savedAt: number; device?: string; appVersion?: string }
   | { ok: false; error: string; details?: string[] };
 
-/** Accepts a backup file, a CK1/CK0 payload or a raw save envelope; migrates and validates. */
+/**
+ * Accepts a backup file, a CK1/CK0 payload or a raw save envelope, and decodes its state. A newer
+ * catkin's (by the state's version or the wrapper's `v`) is 'made-by-newer-version'; one missing
+ * anything a real build wrote is 'damaged-backup' (data-d6).
+ */
 export async function parseBackupText(text: string): Promise<ParsedBackup> {
   let json = text.trim();
   if (json.startsWith(PAYLOAD_GZIP) || json.startsWith(PAYLOAD_PLAIN)) {
@@ -169,25 +175,27 @@ export async function parseBackupText(text: string): Promise<ParsedBackup> {
   if (typeof obj !== 'object' || obj === null) return { ok: false, error: 'not-a-backup' };
   const o = obj as Record<string, unknown>;
   let raw: unknown;
+  let declared: unknown;
   let savedAt = 0;
   let device: string | undefined;
   let appVersion: string | undefined;
   if (o.format === BACKUP_FORMAT) {
     raw = o.state;
+    declared = o.v;
     savedAt = typeof o.exportedAt === 'number' ? o.exportedAt : 0;
     device = typeof o.device === 'string' ? o.device : undefined;
     appVersion = typeof o.appVersion === 'string' ? o.appVersion : undefined;
   } else if (typeof o.v === 'number' && typeof o.state === 'object') {
     raw = o.state;
+    declared = o.v;
     savedAt = typeof o.savedAt === 'number' ? o.savedAt : 0;
     appVersion = typeof o.appVersion === 'string' ? o.appVersion : undefined;
   } else if (typeof o.version === 'number' && Array.isArray(o.habits)) raw = o;
   else return { ok: false, error: 'not-a-backup' };
-  const m = migrate(raw);
-  if (!m.ok) return { ok: false, error: m.error === 'newer-version' ? 'made-by-newer-version' : 'not-a-backup' };
-  const v = validateState(m.state);
-  if (!v.ok) return { ok: false, error: 'damaged-backup', details: v.errors };
-  return { ok: true, state: v.state, savedAt, ...(device ? { device } : {}), ...(appVersion ? { appVersion } : {}) };
+  const d = decodeState(raw, 'import', { declaredVersion: declared });
+  if (d.kind === 'newer') return { ok: false, error: 'made-by-newer-version' };
+  if (d.kind === 'corrupt') return d.reason === 'invalid' ? { ok: false, error: 'damaged-backup', details: d.errors } : { ok: false, error: 'not-a-backup' };
+  return { ok: true, state: d.state, savedAt, ...(device ? { device } : {}), ...(appVersion ? { appVersion } : {}) };
 }
 
 /** The import preview line's numbers. */

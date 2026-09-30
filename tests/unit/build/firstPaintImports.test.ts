@@ -14,6 +14,8 @@ const FIRST_PAINT: readonly string[] = [
   'src/domain',
   'src/state/store.ts',
   'src/state/persist.ts',
+  'src/state/decode.ts',
+  'src/state/migrate.ts',
   'src/state/validate.ts',
   'src/state/handoff.ts',
   'src/state/demo.ts',

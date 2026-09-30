@@ -85,7 +85,9 @@ import {
 } from './persist';
 import { indexedDbSnapshotStore, memorySnapshotStore, retentionPlan, safely, snapshotMeta, takeDailySnapshot, type SnapshotStore } from './snapshots';
 import { deviceLabel, describeBackup, encodePayload, makeBackup, parseBackupText } from './handoff';
-import { validateState } from './validate';
+import { decodeState, decodesAsSave } from './decode';
+import { fillLine } from '@/catalog/lineKit';
+import { DATA } from '@/catalog/linesCore';
 import { buildDemo } from './demo';
 import { CLOCK_ROLLBACK_TOLERANCE_MS, appDayKey, monotonicDayKey, runtimeLocalTime, type LocalTimeReader } from '@/domain/dates';
 import type { Rng } from '@/domain/rng';
@@ -255,6 +257,15 @@ export const saveStatus = signal<{ status: SaveStatus | 'idle'; rev: number; cha
 
 /** Something about loading the save the UI should explain (null when all is well). */
 export const loadIssue = signal<null | { kind: 'recovered-from-backup' | 'corrupt-save' | 'newer-version'; details?: string[] }>(null);
+
+/**
+ * The bytes of a save this window could not take in, kept for rescue (WP-A4): a newer catkin's
+ * save shown read-only ('newer': a backup of it is these bytes, FS2; `readable` when this catkin
+ * can show part of it), or a damaged save ('damaged': the main text that failed to decode, the
+ * same text kept aside under `:corrupt` once this window owns the save). Never written over the
+ * save, never a presentation state. Null when there is nothing to rescue.
+ */
+export const rescue = signal<null | { kind: 'newer'; raw: string; version: number; readable: boolean } | { kind: 'damaged'; raw: string }>(null);
 
 /**
  * The single-writer lock, as far as this window knows: 'acquiring' until Web Locks answers (saves
@@ -590,6 +601,7 @@ function leaveNewerVersion(): void {
   if (readOnly.value !== 'newer-version') return;
   readOnly.value = 'other-window';
   if (loadIssue.value?.kind === 'newer-version') loadIssue.value = null;
+  if (rescue.value?.kind === 'newer') rescue.value = null;
 }
 
 /**
@@ -626,11 +638,13 @@ function adopt(res: LoadResult, context: AdoptContext): void {
       else if (context === 'hydrate') setState(createInitialState(ms), ms);
       readOnly.value = 'newer-version';
       loadIssue.value = { kind: 'newer-version' };
+      rescue.value = { kind: 'newer', raw: res.raw, version: res.version, readable: res.state !== undefined };
       giveUpLock();
       saveReplaced();
       return;
     case 'corrupt':
       loadIssue.value = { kind: 'corrupt-save', details: res.errors };
+      if (!demoMode.value) rescue.value = { kind: 'damaged', raw: res.raw };
       recoveryCopies = { key, damaged: res.raw };
       if (context === 'hydrate') {
         startFresh(ms);
@@ -661,6 +675,7 @@ function adopt(res: LoadResult, context: AdoptContext): void {
       startFresh(ms);
       lastSnapshotDay = null;
       recoveryCopies = null;
+      if (rescue.value?.kind === 'damaged') rescue.value = null; // started over there: its :corrupt went too
       crossWindowNotice.value = 'started-over';
       leaveNewerVersion();
       saveReplaced();
@@ -674,6 +689,7 @@ function adopt(res: LoadResult, context: AdoptContext): void {
       if (res.fromBackup) {
         loadIssue.value = { kind: 'recovered-from-backup' };
         recoveryCopies = res.damaged !== undefined ? { key, damaged: res.damaged } : null;
+        if (res.damaged !== undefined && !demoMode.value) rescue.value = { kind: 'damaged', raw: res.damaged };
       } else if (context === 'hydrate') recoveryCopies = { key, backup: res.raw };
       leaveNewerVersion();
       saveReplaced();
@@ -770,6 +786,7 @@ export function hydrate(): void {
   demoMode.value = false;
   readOnly.value = false;
   loadIssue.value = null;
+  rescue.value = null;
   crossWindowNotice.value = null;
   lastSnapshotDay = null;
   recoveryCopies = null;
@@ -1207,26 +1224,50 @@ export function completeOnboarding(opts: { name: string; templateIds: string[]; 
 /* ---------------- Data ---------------- */
 /**
  * The save a backup or handoff carries: always the user's own. While peeking at the demo it is the
- * real save (the demo's made-up history must never become a real one).
+ * real save (the demo's made-up history must never become a real one). A newer catkin's save is
+ * its own bytes (`raw`, FS2), with the part of it this catkin can read (`state`) only for a CSV,
+ * which then says it is partial; a backup is never built from that presentation state.
  */
-function ownSave(): AppState {
-  if (!demoMode.value) return state.value;
+type OwnSave = { kind: 'save'; state: AppState } | { kind: 'newer'; raw: string; state?: AppState };
+
+function ownSave(): OwnSave {
+  if (!demoMode.value) {
+    const r = rescue.value;
+    if (r?.kind === 'newer') return { kind: 'newer', raw: r.raw, ...(r.readable ? { state: state.value } : {}) };
+    return { kind: 'save', state: state.value };
+  }
   const res = readSave(storage(), SAVE_KEY);
-  return res.kind === 'ok' ? res.state : (realState ?? createInitialState(rt.now()));
+  if (res.kind === 'ok') return { kind: 'save', state: res.state };
+  if (res.kind === 'newer') return { kind: 'newer', raw: res.raw, ...(res.state ? { state: res.state } : {}) };
+  return { kind: 'save', state: realState ?? createInitialState(rt.now()) };
 }
 
-/** Backup file contents (`catkin-backup` JSON) of the user's own save (the real one inside the demo). Marks nothing: call `markBackup` once it is really saved. */
+/**
+ * Backup file contents of the user's own save (the real one inside the demo): `catkin-backup` JSON,
+ * or, for a newer catkin's save shown read-only, that save's own text, byte for byte and still
+ * stamped with its version, so this catkin never imports it and the newer one reads it whole (FS2).
+ * Marks nothing: call `markBackup` once it is really saved.
+ */
 export function backupJson(): string {
-  return JSON.stringify(makeBackup(ownSave(), { now: rt.now(), appVersion: rt.appVersion, device: rt.device }));
+  const own = ownSave();
+  if (own.kind === 'newer') return own.raw;
+  return JSON.stringify(makeBackup(own.state, { now: rt.now(), appVersion: rt.appVersion, device: rt.device }));
 }
 
 /**
  * "Export waterings as CSV" (§9.5): the user's own save (the real one inside the demo), one row per
- * logged day. `name` is "catkin-waterings-2025-09-29.csv".
+ * logged day. `name` is "catkin-waterings-2025-09-29.csv". From a newer catkin's save it is only
+ * what this catkin can read of it, so it is `partial` ("…-partial.csv"), and null when it can read
+ * none of it (never a CSV of an empty profile: FS2).
  */
-export function exportCsv(): { name: string; text: string } {
+export function exportCsv(): { name: string; text: string; partial: boolean } | null {
   const t = today.value;
-  return { name: profileDomain.wateringsCsvFileName(t), text: profileDomain.wateringsCsv(ownSave(), t) };
+  const own = ownSave();
+  if (own.kind === 'newer') {
+    if (!own.state) return null;
+    return { name: fillLine(DATA.csvPartialFile, { date: t }), text: profileDomain.wateringsCsv(own.state, t), partial: true };
+  }
+  return { name: profileDomain.wateringsCsvFileName(t), text: profileDomain.wateringsCsv(own.state, t), partial: false };
 }
 
 /**
@@ -1412,7 +1453,7 @@ async function runReplacement(r: Replacement): Promise<ReplaceResult> {
   const needed = r.kind !== 'undo' && !nothingToLose;
   let copyId: string | null = null;
   if (r.protect && !r.withoutUndo) {
-    if (!copies.durable || !validateState(state.value).ok) {
+    if (!copies.durable || !decodesAsSave(state.value)) {
       if (needed) return refuse('no-undo');
     } else {
       const ms = rt.now();
@@ -1423,7 +1464,7 @@ async function runReplacement(r: Replacement): Promise<ReplaceResult> {
       let kept = false;
       for (let tries = 1; ; tries++) {
         const shown = state.value;
-        const put = validateState(shown).ok ? await copies.put({ ...snapshotMeta(shown, 'pre-import', id, today.value, ms, rt.appVersion), state: shown }) : { ok: false as const };
+        const put = decodesAsSave(shown) ? await copies.put({ ...snapshotMeta(shown, 'pre-import', id, today.value, ms, rt.appVersion), state: shown }) : { ok: false as const };
         kept ||= put.ok;
         stop = opStopped(op) ?? (put.ok && state.value !== shown && tries >= 3 ? 'superseded' : null);
         if (stop) {
@@ -1508,13 +1549,18 @@ async function pruneCopies(keep: string): Promise<void> {
   for (const id of retentionPlan(list.value.filter((m) => m.kind === 'pre-import'), keep)) await copies.remove(id);
 }
 
-/** A stored copy, checked: it must still read as a save. */
-async function loadCopy(id: string): Promise<Loaded> {
+/**
+ * A stored copy, read through the one decoder like a load (P-persistence-04): a copy an older
+ * build kept is migrated, a newer catkin's copy is refused as 'newer-copy', a damaged one as
+ * 'damaged-copy'.
+ */
+async function loadCopy(id: string, source: 'snapshot' | 'undo'): Promise<Loaded> {
   const got = await safely(snapshots()).get(id);
   if (!got.ok) return refuse('unavailable') as Loaded;
   if (!got.value) return refuse('not-found') as Loaded;
-  const valid = validateState(got.value.state);
-  return valid.ok ? { ok: true, state: valid.state } : (refuse('damaged-copy') as Loaded);
+  const d = decodeState(got.value.state, source);
+  if (d.kind === 'ok') return { ok: true, state: d.state };
+  return refuse(d.kind === 'newer' ? 'newer-copy' : 'damaged-copy') as Loaded;
 }
 
 /**
@@ -1549,7 +1595,7 @@ export function undoImport(opts: { signal?: AbortSignal } = {}): Promise<Replace
     load: async () => {
       const t = activeUndo();
       if (!t) return refuse('expired') as Loaded;
-      const res = await loadCopy(t.id);
+      const res = await loadCopy(t.id, 'undo');
       if (!res.ok && res.error === 'not-found' && readUndoToken()?.id === t.id) removeKey(storage(), UNDO_IMPORT_KEY);
       return res;
     },
@@ -1568,7 +1614,7 @@ export async function listSnapshots(): Promise<SnapshotList> {
  * itself be undone for 24 hours; with no lasting copy it answers 'no-undo' until confirmed.
  */
 export function restoreSnapshot(id: string, opts: { withoutUndo?: boolean; signal?: AbortSignal } = {}): Promise<ReplaceResult> {
-  return replaceSave({ kind: 'restore', protect: true, withoutUndo: opts.withoutUndo ?? false, signal: opts.signal, load: () => loadCopy(id) });
+  return replaceSave({ kind: 'restore', protect: true, withoutUndo: opts.withoutUndo ?? false, signal: opts.signal, load: () => loadCopy(id, 'snapshot') });
 }
 
 /**
@@ -1595,6 +1641,7 @@ export function resetAll(): void {
   realState = null;
   lastSnapshotDay = null;
   recoveryCopies = null;
+  rescue.value = null; // its :corrupt copy went with the rest of catkin:*
   crossWindowNotice.value = null;
   // A new lineage: every other window adopts the reset, even after its rev starts again at 1.
   queue = makeQueue(SAVE_KEY, { gen: mintGen(), rev: 0 });

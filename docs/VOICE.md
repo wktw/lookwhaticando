@@ -1055,7 +1055,10 @@ Under You › Data.
 | A daily copy that can't be read right now. DEC-V: pending owner approval | "That copy can’t be read on this device right now, so nothing changed." |
 | A copy that is gone (its Undo goes too). DEC-V: pending owner approval | "That copy isn’t on this device any more, so nothing changed." |
 | An Undo that is no longer on offer (over 24 hours, or the save shown has been replaced since, say from another window; its copy may still be under Daily copies). DEC-V: pending owner approval | "That Undo isn’t on offer any more, so nothing changed." |
+| A daily copy a newer catkin kept (restoring it is refused, and nothing changes). DEC-V: pending owner approval | "That copy is from a newer catkin. Update, then restore it." |
 | CSV | "Export waterings as CSV" (file "catkin-waterings-2025-09-29.csv"; columns "date", "habit", "count", "target", "state"; states "watered", "tiny", "partial", "rest") |
+| CSV from a newer catkin’s save shown read-only: only what this catkin can read, labelled partial in its note and its file name. DEC-V: pending owner approval | "Saved the waterings this catkin can read. A backup keeps the whole newer save." (file "catkin-waterings-2025-09-29-partial.csv") |
+| CSV from a newer catkin’s save this catkin can’t read at all (no file). DEC-V: pending owner approval | "This catkin can’t read the waterings in a newer save. A backup keeps all of it." |
 | Storage | "Saved on this device" / "Saved in this browser tab" |
 | Last backup | "Last backup: Sep 20" / "No backup yet" |
 | The nudge | "Worth saving a backup: the last one is from Aug 2." |
