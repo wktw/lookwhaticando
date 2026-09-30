@@ -11,7 +11,7 @@
 >
 > - **Package P1-A (§13)** covered WP-A1a's FS1, data-d2 and FS4 (queue half), and WP-A1b's data-d1 storage mode, volatile status, PWA and demo gates and shell banners.
 > - **A follow-up commit finished WP-A1a:** FS10 (Special Order saved before it is shown), one `commitDurable` shared by `pull` and `wish`, and the distinct `acquiring` result with its "one moment" notices in the capsule machine, onboarding's free capsule and Special Order. The `volatile` result is also refused there, as WP-A1 §5 specifies.
-> - **Still open from WP-A1:** the envelope `gen` (out of A1a's scope) and the owner's DEC-V approval of the new VOICE rows, which the canonical plan requires before A1a merges.
+> - **DEC-V:** the owner approved the new VOICE rows on 30 September 2026. **Still open from WP-A1:** the envelope `gen` (out of A1a's scope).
 > - The canonical plan's WP-A1 carries a status note listing where the implementation departs from its design.
 
 

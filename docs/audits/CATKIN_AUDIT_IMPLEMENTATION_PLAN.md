@@ -701,7 +701,7 @@ Every package in this section fills every field (a mechanical check of the ten l
 
 #### WP-A1 Commit truth and writer fencing (M, low–medium). Tracer WP-P1. Recommended first package (§7.5)
 
-> **Status (30 September 2026): WP-A1a is implemented on `claude/cool-hopper-0cgkon` (PR wktw/lookwhaticando#1), with most of WP-A1b.** It is not merged: DEC-V approval of the new VOICE rows (§10 capsule notices, §18) is still needed.
+> **Status (30 September 2026): WP-A1a is implemented on `claude/cool-hopper-0cgkon` (PR wktw/lookwhaticando#1), with most of WP-A1b.** The owner approved its DEC-V rows (the §10 capsule and order notices and the §18 volatile and demo lines) on 30 September 2026, so it is ready to merge.
 >
 > - **Done:** FS1, data-d2, FS4, FS10, `commitDurable` for `pull` and `wish` with `storage-full | unavailable | volatile | acquiring`, the `usePull`/onboarding/Special Order "one moment" handling, D1 storage mode, the volatile status and banner, the PWA and demo gates, and RISK-01 (snapshot and onboarding sidecar wait for ownership). Tests: `tests/unit/state/save-integrity.test.ts` and `save-integrity-ui.test.tsx`, plus component tests in `CapsuleMachine`, `CapsulesScreen`, `Onboarding` and `copy`. Each regression fails on the code before the change.
 > - **Where it departs from the design below:**
@@ -2383,7 +2383,7 @@ This section supports DEC-P1 and DEC-P3. It is a recommendation, not a decision.
 | DEC-E9 | Native architecture (Capacitor, thin WKWebView host, or native UI) | Decide only on WP-E4 measurements | WP-F2, later estimates |
 | DEC-E10 | storage-full stays a non-blocking state (P-persistence-24) | Keep; make it truthful instead | recorded |
 | DEC-E11 | Freeze the Paired `partnerColour` when earned | Derive now; re-decide only if WP-D2's deleted-partner test shows a visible colour loss | WP-D2 |
-| DEC-V | VOICE rows for every new state and message (volatile, unavailable, recovered, corrupt, **held/acquiring capsule notice**, **storage-full, unavailable and acquiring order errors**, superseded, no-undo, too-large, erase results, quiet helper, credits, backup and clipboard privacy, the neutral seasonal voice) | Draft them in VOICE first, as the repository does; **each package's rows are approved before it merges** (for WP-A1a: the capsule notice and the three order errors) | WP-A1 (A1a), WP-A3, WP-A5, WP-A7, WP-A9, WP-D3, WP-D4, RM-7, DEC-P5 copy |
+| DEC-V | VOICE rows for every new state and message (volatile, unavailable, recovered, corrupt, **held/acquiring capsule notice**, **storage-full, unavailable and acquiring order errors**, superseded, no-undo, too-large, erase results, quiet helper, credits, backup and clipboard privacy, the neutral seasonal voice) | Draft them in VOICE first, as the repository does; **each package's rows are approved before it merges** (for WP-A1a: the capsule notice and the three order errors; **approved 30 September 2026**, with the volatile banner and demo-row lines) | WP-A1 (A1a), WP-A3, WP-A5, WP-A7, WP-A9, WP-D3, WP-D4, RM-7, DEC-P5 copy |
 
 **Owner requests (evidence, not decisions):**
 
@@ -2433,7 +2433,7 @@ This section supports DEC-P1 and DEC-P3. It is a recommendation, not a decision.
 
 ### 7.5 Recommended first bounded package
 
-> **Status (30 September 2026):** implemented on `claude/cool-hopper-0cgkon` (PR wktw/lookwhaticando#1) and awaiting DEC-V approval of its VOICE rows. See the status note under WP-A1.
+> **Status (30 September 2026):** implemented on `claude/cool-hopper-0cgkon` (PR wktw/lookwhaticando#1). Its DEC-V rows were approved on 30 September 2026. See the status note under WP-A1.
 
 **WP-A1a: fence stale writers and stop reporting unsaved work as saved.** It covers FS1, data-d2, FS4 (queue half) and FS10, with the WP-04 fixtures it needs. It includes the new `acquiring` result for pull and wish, because fixing FS4 means a held save can no longer be reported as `'saved'`, so the capsule UI must handle the new result.
 
