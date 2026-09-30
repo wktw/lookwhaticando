@@ -1,10 +1,12 @@
 // @vitest-environment jsdom
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'preact';
 import { act } from 'preact/test-utils';
 import { useState } from 'preact/hooks';
 import { Button, Card, CandyButton, ConfirmDialog, IconButton, RarityPill, Segmented, Sheet, Toggle } from '@/ui';
-import { ToastNote } from '@/ui/Toaster';
+import { Stepper } from '@/ui/Stepper';
+import { Toaster, ToastNote } from '@/ui/Toaster';
+import { toast, toasts } from '@/ui/toast';
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 // jsdom has no layout: scrolling is a no-op here.
@@ -239,5 +241,338 @@ describe('controls', () => {
     setup();
     const host = mount(<IconButton icon="close" label="Close" />);
     expect(host.querySelector('button')!.getAttribute('aria-label')).toBe('Close');
+  });
+});
+
+/* ---------- gesture abort (WP-C2: UI2-05, UI2-06, P-ui-01, P-ui-02, P-ui-03) ---------- */
+
+beforeAll(() => {
+  // jsdom has no on-pointer handler properties, so Preact would listen for "PointerDown" instead of
+  // "pointerdown"; declaring them lets these tests dispatch the real event names.
+  for (const name of ['onpointerdown', 'onpointermove', 'onpointerup', 'onpointercancel', 'onpointerleave', 'onlostpointercapture']) {
+    if (!(name in HTMLElement.prototype)) Object.defineProperty(HTMLElement.prototype, name, { value: null, writable: true, configurable: true });
+  }
+  const proto = Element.prototype as Element & { setPointerCapture?: unknown; releasePointerCapture?: unknown };
+  proto.setPointerCapture ??= () => undefined;
+  proto.releasePointerCapture ??= () => undefined;
+});
+
+/** A pointer event (jsdom has no PointerEvent): a MouseEvent carrying pointerId and pointerType. */
+function pointer(type: string, init: MouseEventInit & { pointerId?: number; pointerType?: string } = {}) {
+  const { pointerId = 1, pointerType = 'mouse', ...rest } = init;
+  const e = new MouseEvent(type, { bubbles: true, cancelable: true, button: 0, ...rest });
+  Object.defineProperties(e, { pointerId: { value: pointerId }, pointerType: { value: pointerType } });
+  return e;
+}
+
+/** A one-finger touch event at `y` (none left on the screen for touchend and touchcancel). */
+function touch(type: 'touchstart' | 'touchmove' | 'touchend' | 'touchcancel', y = 0) {
+  const e = new Event(type, { bubbles: true, cancelable: true });
+  Object.defineProperty(e, 'touches', { value: type === 'touchend' || type === 'touchcancel' ? [] : [{ clientX: 0, clientY: y }] });
+  return e;
+}
+
+/** A click as a keyboard (Enter, Space) or assistive activation sends it: no pointer, detail 0. */
+const keyboardClick = (el: Element) => act(() => void el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, detail: 0 })));
+/** The click a finished pointer press sends. */
+const pointerClick = (el: Element) => act(() => void el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, detail: 1 })));
+
+describe('Sheet gestures: a cancelled drag is not a release (UI2-05, P-ui-01)', () => {
+  // jsdom has no layout: the panel is 400 px tall, so a 300 px pull is a dismissing drag.
+  let height: PropertyDescriptor | undefined;
+  beforeEach(() => {
+    height = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'offsetHeight');
+    Object.defineProperty(HTMLElement.prototype, 'offsetHeight', { configurable: true, get: () => 400 });
+  });
+  afterEach(() => {
+    if (height) Object.defineProperty(HTMLElement.prototype, 'offsetHeight', height);
+  });
+
+  function Draft({ onClose, refuse = false }: { onClose: () => void; refuse?: boolean }) {
+    const [open, setOpen] = useState(true);
+    const [text, setText] = useState('');
+    return (
+      <Sheet
+        open={open}
+        title="A note for Walk"
+        onClose={() => {
+          onClose();
+          if (!refuse) setOpen(false);
+        }}
+      >
+        <textarea value={text} onInput={(e) => setText(e.currentTarget.value)} />
+      </Sheet>
+    );
+  }
+
+  async function openDraft(onClose: () => void, refuse = false) {
+    setup();
+    mount(<Draft onClose={onClose} refuse={refuse} />);
+    const panel = document.querySelector<HTMLElement>('[role="dialog"]')!;
+    // Two frames after mounting the sheet is 'open', and only then takes drags.
+    for (let i = 0; i < 100 && panel.closest<HTMLElement>('[data-state]')!.dataset.state !== 'open'; i++) await act(() => sleep(10));
+    expect(panel.closest<HTMLElement>('[data-state]')!.dataset.state).toBe('open');
+    const header = panel.querySelector<HTMLElement>('[data-sheet-header]')!;
+    const area = panel.querySelector('textarea')!;
+    act(() => {
+      area.value = 'It rained all the way.';
+      area.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    return { panel, header, area };
+  }
+
+  /** Pull the sheet down by its header far enough to dismiss it on release. */
+  function pullDown(header: HTMLElement) {
+    act(() => {
+      header.dispatchEvent(touch('touchstart', 100));
+      header.dispatchEvent(touch('touchmove', 110));
+      header.dispatchEvent(touch('touchmove', 250));
+      header.dispatchEvent(touch('touchmove', 400));
+    });
+  }
+
+  it('touchcancel after a dismissing pull: the sheet stays, back at rest, and the draft is intact', async () => {
+    const onClose = vi.fn();
+    const { panel, header, area } = await openDraft(onClose);
+    pullDown(header);
+    expect(panel.style.transform).toBe('translateY(300px)');
+    act(() => void header.dispatchEvent(touch('touchcancel')));
+    await act(() => sleep(20));
+    expect(onClose).not.toHaveBeenCalled();
+    expect(document.querySelector('[role="dialog"]')).toBe(panel);
+    expect(panel.style.transform).toBe('');
+    expect(panel.style.transition).toBe('');
+    expect(area.value).toBe('It rained all the way.');
+  });
+
+  it('control: touchend after the same pull still dismisses', async () => {
+    const onClose = vi.fn();
+    const { header } = await openDraft(onClose);
+    pullDown(header);
+    act(() => void header.dispatchEvent(touch('touchend')));
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('the window losing focus mid-pull puts the sheet back and a later release does nothing', async () => {
+    const onClose = vi.fn();
+    const { panel, header } = await openDraft(onClose);
+    pullDown(header);
+    expect(panel.style.transform).toBe('translateY(300px)');
+    act(() => void window.dispatchEvent(new Event('blur')));
+    expect(panel.style.transform).toBe('');
+    act(() => void header.dispatchEvent(touch('touchend')));
+    await act(() => sleep(20));
+    expect(onClose).not.toHaveBeenCalled();
+    expect(panel.style.transform).toBe('');
+  });
+
+  it('a dismissing pull whose close is refused (a form that asks first) springs back to rest', async () => {
+    const onClose = vi.fn();
+    const { panel, header } = await openDraft(onClose, true);
+    pullDown(header);
+    act(() => void header.dispatchEvent(touch('touchend')));
+    expect(onClose).toHaveBeenCalledTimes(1);
+    await act(() => sleep(20));
+    expect(document.querySelector('[role="dialog"]')).toBe(panel);
+    expect(panel.style.transform).toBe('');
+  });
+
+  it('unmounting mid mouse-drag leaves no window listeners behind', async () => {
+    const onClose = vi.fn();
+    const { header } = await openDraft(onClose);
+    const added: [string, unknown][] = [];
+    const removed: [string, unknown][] = [];
+    const add = vi.spyOn(window, 'addEventListener').mockImplementation(function (this: Window, type: string, fn: unknown) {
+      added.push([type, fn]);
+    } as never);
+    const remove = vi.spyOn(window, 'removeEventListener').mockImplementation(function (this: Window, type: string, fn: unknown) {
+      removed.push([type, fn]);
+    } as never);
+    try {
+      act(() => {
+        header.dispatchEvent(pointer('pointerdown', { clientY: 100 }));
+        window.dispatchEvent(pointer('pointermove', { clientY: 200 }));
+      });
+      const pointerListeners = added.filter(([t]) => t.startsWith('pointer'));
+      expect(pointerListeners.length).toBeGreaterThan(0);
+      for (const host of hosts.splice(0)) act(() => render(null, host));
+      for (const [type, fn] of pointerListeners) expect(removed.some(([t, f]) => t === type && f === fn)).toBe(true);
+    } finally {
+      add.mockRestore();
+      remove.mockRestore();
+    }
+    expect(onClose).not.toHaveBeenCalled();
+  });
+});
+
+describe('Stepper: a cancelled press never eats the next activation (UI2-06, P-ui-03)', () => {
+  function Harness({ start = 0, max = 99, onValue }: { start?: number; max?: number; onValue?: (v: number) => void }) {
+    const [v, setV] = useState(start);
+    return (
+      <Stepper
+        value={v}
+        max={max}
+        label="Glasses"
+        onChange={(n) => {
+          onValue?.(n);
+          setV(n);
+        }}
+      />
+    );
+  }
+  const plus = () => document.querySelector<HTMLButtonElement>('button[aria-label="Increase Glasses"]')!;
+  const minus = () => document.querySelector<HTMLButtonElement>('button[aria-label="Decrease Glasses"]')!;
+  const shown = () => Number(document.querySelector('output')!.textContent);
+
+  it('R208 inverted: pointerdown, pointercancel, then a keyboard activation still counts', () => {
+    setup();
+    mount(<Harness />);
+    act(() => void plus().dispatchEvent(pointer('pointerdown', { pointerType: 'touch' })));
+    expect(shown()).toBe(1);
+    act(() => void plus().dispatchEvent(pointer('pointercancel', { pointerType: 'touch' })));
+    keyboardClick(plus());
+    expect(shown()).toBe(2);
+  });
+
+  it('a press that reaches the maximum (the button goes disabled, no click comes) does not eat the other button’s keyboard activation', () => {
+    setup();
+    mount(<Harness start={9} max={10} />);
+    act(() => void plus().dispatchEvent(pointer('pointerdown')));
+    expect(shown()).toBe(10);
+    expect(plus().disabled).toBe(true);
+    keyboardClick(minus());
+    expect(shown()).toBe(9);
+  });
+
+  it('a press released outside the button (no click) does not eat the next keyboard activation', () => {
+    setup();
+    mount(<Harness />);
+    act(() => {
+      plus().dispatchEvent(pointer('pointerdown'));
+      plus().dispatchEvent(pointer('pointerleave'));
+      document.body.dispatchEvent(pointer('pointerup'));
+    });
+    expect(shown()).toBe(1);
+    keyboardClick(plus());
+    expect(shown()).toBe(2);
+  });
+
+  it('a hold stops repeating when the window loses focus mid-hold (no pointerup may ever come)', async () => {
+    setup();
+    mount(<Harness />);
+    act(() => void plus().dispatchEvent(pointer('pointerdown')));
+    act(() => void window.dispatchEvent(new Event('blur')));
+    await act(() => sleep(420 + 90 * 4));
+    expect(shown()).toBe(1);
+  });
+
+  it('control: a short pointer press gives exactly one step, and keyboard activations one each', () => {
+    setup();
+    const onValue = vi.fn();
+    mount(<Harness onValue={onValue} />);
+    act(() => {
+      plus().dispatchEvent(pointer('pointerdown'));
+      plus().dispatchEvent(pointer('pointerup'));
+    });
+    pointerClick(plus());
+    expect(shown()).toBe(1);
+    keyboardClick(plus());
+    keyboardClick(plus());
+    expect(shown()).toBe(3);
+    expect(onValue).toHaveBeenCalledTimes(3);
+  });
+
+  it('control: a long press repeats while held and adds no extra step on release', async () => {
+    setup();
+    mount(<Harness />);
+    act(() => void plus().dispatchEvent(pointer('pointerdown')));
+    await act(() => sleep(420 + 90 * 3 + 45));
+    const held = shown();
+    expect(held).toBeGreaterThanOrEqual(3);
+    act(() => void plus().dispatchEvent(pointer('pointerup')));
+    pointerClick(plus());
+    await act(() => sleep(200));
+    expect(shown()).toBe(held);
+  });
+});
+
+describe('Toaster: a cancelled flick never puts a note away (P-ui-02)', () => {
+  beforeEach(() => {
+    toasts.value = [];
+  });
+  afterEach(() => {
+    toasts.value = [];
+  });
+
+  function showNote(withUndo: boolean) {
+    setup();
+    const id = toast({ message: 'Walk, watered.', ...(withUndo ? { action: { label: 'Undo', onAction: () => undefined } } : {}), duration: 0 });
+    mount(<Toaster />);
+    const card = document.querySelector<HTMLElement>(`[data-toast-id="${id}"]`)!;
+    expect(card).not.toBeNull();
+    return { id, card, leaving: () => toasts.value.find((t) => t.id === id)?.leaving === true };
+  }
+
+  it('pointercancel after a flick-length drag: the note with Undo stays, back in place', () => {
+    const { card, leaving } = showNote(true);
+    act(() => {
+      card.dispatchEvent(pointer('pointerdown', { clientY: 100, pointerType: 'touch' }));
+      card.dispatchEvent(pointer('pointermove', { clientY: 160, pointerType: 'touch' }));
+    });
+    expect(card.style.transform).toBe('translateY(60px)');
+    act(() => void card.dispatchEvent(pointer('pointercancel', { clientY: 160, pointerType: 'touch' })));
+    expect(leaving()).toBe(false);
+    expect(card.style.transform).toBe('');
+    expect(card.style.transition).toBe('');
+  });
+
+  it('pointercancel without moving is not a tap: a plain note stays', () => {
+    const { card, leaving } = showNote(false);
+    act(() => {
+      card.dispatchEvent(pointer('pointerdown', { clientY: 100, pointerType: 'touch' }));
+      card.dispatchEvent(pointer('pointercancel', { clientY: 100, pointerType: 'touch' }));
+    });
+    expect(leaving()).toBe(false);
+  });
+
+  it('losing the pointer capture without a pointerup puts the note back and leaves it up', () => {
+    const { card, leaving } = showNote(true);
+    act(() => {
+      card.dispatchEvent(pointer('pointerdown', { clientY: 100 }));
+      card.dispatchEvent(pointer('pointermove', { clientY: 160 }));
+      card.dispatchEvent(pointer('lostpointercapture', { clientY: 160 }));
+    });
+    expect(leaving()).toBe(false);
+    expect(card.style.transform).toBe('');
+  });
+
+  it('the window losing focus mid-flick puts the note back, and a later pointerup does not put it away', () => {
+    const { card, leaving } = showNote(true);
+    act(() => {
+      card.dispatchEvent(pointer('pointerdown', { clientY: 100 }));
+      card.dispatchEvent(pointer('pointermove', { clientY: 160 }));
+      window.dispatchEvent(new Event('blur'));
+    });
+    expect(card.style.transform).toBe('');
+    act(() => void card.dispatchEvent(pointer('pointerup', { clientY: 160 })));
+    expect(leaving()).toBe(false);
+  });
+
+  it('control: a flick then pointerup still puts the note away, and so does a tap on a plain note', () => {
+    const first = showNote(true);
+    act(() => {
+      first.card.dispatchEvent(pointer('pointerdown', { clientY: 100 }));
+      first.card.dispatchEvent(pointer('pointermove', { clientY: 160 }));
+      first.card.dispatchEvent(pointer('pointerup', { clientY: 160 }));
+    });
+    expect(first.leaving()).toBe(true);
+    for (const host of hosts.splice(0)) act(() => render(null, host));
+    toasts.value = [];
+    const second = showNote(false);
+    act(() => {
+      second.card.dispatchEvent(pointer('pointerdown', { clientY: 100 }));
+      second.card.dispatchEvent(pointer('pointerup', { clientY: 101 }));
+    });
+    expect(second.leaving()).toBe(true);
   });
 });

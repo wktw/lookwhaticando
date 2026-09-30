@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'preact/hooks';
 import { cx } from './cx';
+import { keyboardClick, onInterrupt } from './gesture';
 import s from './Stepper.module.css';
 
 export interface StepperProps {
@@ -25,7 +26,14 @@ export function Stepper({ value, onChange, label, min = 0, max = 99, step = 1, u
   const latest = useRef({ value, onChange, min, max, step });
   latest.current = { value, onChange, min, max, step };
   const timer = useRef<number>(0);
-  const fromPointer = useRef(false);
+  /**
+   * A pointer press counts on pointerdown, so the click it ends with is not another step. The
+   * suppression belongs to that one press, on that one button: a press that is cancelled, released
+   * elsewhere or disables its button (at min or max) sends no click, and must never eat a later
+   * keyboard activation, of this button or the other one. (The click's own pointerId is not
+   * compared: engines disagree on what a click carries.)
+   */
+  const pressed = useRef<1 | -1 | null>(null);
 
   const nudge = (dir: 1 | -1) => {
     const { value: v, onChange: set, min: lo, max: hi, step: st } = latest.current;
@@ -36,17 +44,25 @@ export function Stepper({ value, onChange, label, min = 0, max = 99, step = 1, u
     return true;
   };
 
+  /** Stops watching for the window losing focus mid-hold. */
+  const unwatch = useRef<(() => void) | null>(null);
+
   const stopHold = () => {
     clearTimeout(timer.current);
     clearInterval(timer.current);
+    unwatch.current?.();
+    unwatch.current = null;
   };
   useEffect(() => stopHold, []);
 
   const startHold = (dir: 1 | -1) => (e: PointerEvent) => {
     if (e.button !== 0) return;
-    fromPointer.current = true;
+    pressed.current = dir;
     nudge(dir);
     stopHold();
+    // A hold that loses the window (a call, an app switch) may never see its pointerup: it stops
+    // repeating. Its click, if one still comes, is still this press's.
+    unwatch.current = onInterrupt(stopHold);
     timer.current = window.setTimeout(() => {
       timer.current = window.setInterval(() => {
         if (!nudge(dir)) stopHold();
@@ -54,12 +70,17 @@ export function Stepper({ value, onChange, label, min = 0, max = 99, step = 1, u
     }, HOLD_DELAY);
   };
 
+  /** The press was cancelled: no click follows, so nothing is left to suppress. */
+  const abort = () => {
+    stopHold();
+    pressed.current = null;
+  };
+
   /** Keyboard activation (pointer presses are handled on pointerdown). */
-  const onClick = (dir: 1 | -1) => () => {
-    if (fromPointer.current) {
-      fromPointer.current = false;
-      return;
-    }
+  const onClick = (dir: 1 | -1) => (e: MouseEvent) => {
+    const press = pressed.current;
+    pressed.current = null;
+    if (press === dir && !keyboardClick(e)) return;
     nudge(dir);
   };
 
@@ -72,7 +93,7 @@ export function Stepper({ value, onChange, label, min = 0, max = 99, step = 1, u
       onPointerDown={startHold(dir)}
       onPointerUp={stopHold}
       onPointerLeave={stopHold}
-      onPointerCancel={stopHold}
+      onPointerCancel={abort}
       onClick={onClick(dir)}
     >
       <span class={s.face}>
