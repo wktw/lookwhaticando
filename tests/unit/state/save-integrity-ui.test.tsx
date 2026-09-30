@@ -23,7 +23,7 @@ afterEach(() => {
   localStorage.clear();
 });
 
-const bannerText = () => [...document.querySelectorAll('[data-banner]')].map((b) => b.textContent ?? '');
+const bannerText = () => [...document.querySelectorAll('[data-banner]')].map((b) => b.querySelector('p')?.textContent ?? '');
 
 describe('the shell says what is true about the save', () => {
   it('a write that is being retried shows the "didn’t save yet" note until it lands', () => {

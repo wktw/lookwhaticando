@@ -5,30 +5,30 @@
  * behind two confirmations. Restores and Undo go through the store's one replacement protocol
  * (WP-A3): every "Back to…" note comes from `{ ok: true }`, and while a replacement is under way
  * the other replacements, the demo and Start over wait.
+ *
+ * The storage row says what is true about the save right now (WP-A7): saved, a change that didn't
+ * save yet, a browser that keeps nothing, or a window still getting ready to save. While a damaged
+ * save is kept aside, "Save the damaged file" gives its bytes.
  */
-import { useEffect, useId, useRef, useState } from 'preact/hooks';
+import { useId, useRef, useState } from 'preact/hooks';
 import { DATA, ERRORS, fillLine } from '@/catalog/lines';
-import { num } from '@/catalog/format';
 import { dayOf } from './when';
 import {
+  damagedSave,
   demoMode,
   enterDemo,
   exitDemo,
   exportCsv,
-  backupJson,
   backupPayload,
   markBackup,
-  listSnapshots,
   readOnly,
   replacing,
   resetAll,
-  restoreSnapshot,
   durability,
   state,
-  today,
   undoOffer,
+  type Durability,
 } from '@/state/store';
-import type { SnapshotList } from '@/state/api';
 import { navigate } from '@/app/router';
 import { currentInstallPlatform } from '@/app/installPrompt';
 import { reloadProgress } from '@/features/onboarding/progress';
@@ -39,10 +39,11 @@ import { Sheet } from '@/ui/Sheet';
 import { toast } from '@/ui/toast';
 import { cx } from '@/ui/cx';
 import { SectionHeader } from '@/ui/SectionHeader';
-import { EMPTY } from '@/catalog/lines';
 import { DATA_COPY, YOU } from './copy';
 import { copyLater, saveFile } from './files';
-import { ImportSheet, replaceErrorText, toastRestored, undoLastReplacement } from './ImportSheet';
+import { ImportSheet, undoLastReplacement } from './ImportSheet';
+import { SnapshotsSheet } from './SnapshotsSheet';
+import { backupFileName, saveBackupNow, saveDamagedFile } from './recovery';
 import { saveLocked } from './lock';
 import s from './You.module.css';
 import cs from '@/ui/ConfirmDialog.module.css';
@@ -51,8 +52,7 @@ const DAY = 86_400_000;
 
 export const dateOfMs = (ms: number) => dayOf(ms);
 
-/** "catkin-backup-2025-09-29.json" */
-export const backupFileName = (day: string) => fillLine(DATA.file, { date: day });
+export { backupFileName };
 
 /** A backup nudge: only once there is something worth keeping, and the last backup is over a month old. */
 export function backupNudge(opts: { lastBackupAt?: number; checkins: number; now: number }): string | null {
@@ -64,10 +64,28 @@ function isStandalone(): boolean {
   return currentInstallPlatform() === 'installed';
 }
 
+/**
+ * What the storage row says (WP-A7, audit data-d1, data-d10): never "Saved" while a change is
+ * failing, nothing can be kept, or this window is still waiting to become the one that saves. A
+ * window that doesn't own the save (another window, a newer catkin) shows where the save is; the
+ * shell's note says who owns it.
+ */
+export function storageLine(d: Durability, standalone: boolean): string {
+  switch (d.kind) {
+    case 'volatile':
+      return ERRORS.volatile;
+    case 'failing':
+      return ERRORS.save;
+    case 'acquiring':
+      return DATA_COPY.storageAcquiring;
+    default:
+      return standalone ? DATA.storage.device : DATA.storage.tab;
+  }
+}
+
 function StatusRow() {
   const app = state.value;
   const standalone = isStandalone();
-  const full = durability.value.kind === 'failing';
   const last = app.lastBackupAt;
   const nudge = backupNudge({ lastBackupAt: last, checkins: app.lifetime.checkins, now: Date.now() });
   const platform = currentInstallPlatform();
@@ -75,7 +93,7 @@ function StatusRow() {
   return (
     <ListRow
       leading={<span class={cx(s.dot, !standalone && s.dotTab)} aria-hidden="true" />}
-      title={full ? ERRORS.save : standalone ? DATA.storage.device : DATA.storage.tab}
+      title={storageLine(durability.value, standalone)}
       subtitle={
         <>
           {last ? fillLine(DATA.lastBackup, { date: dateOfMs(last) }) : DATA.noBackup}
@@ -84,83 +102,6 @@ function StatusRow() {
         </>
       }
     />
-  );
-}
-
-type Snapshot = Extract<SnapshotList, { ok: true }>['snapshots'][number];
-
-function SnapshotsSheet({ open, onClose, onRestored }: { open: boolean; onClose: () => void; onRestored: () => void }) {
-  const [list, setList] = useState<Snapshot[] | null>(null);
-  const [confirm, setConfirm] = useState<{ id: string; label: string; withoutUndo?: boolean } | null>(null);
-  const [busy, setBusy] = useState(false);
-  useEffect(() => {
-    if (!open) return setList(null);
-    let live = true;
-    // A list that can't be read shows as none for now (its own error state is WP-A7's).
-    void listSnapshots().then((l) => live && setList(l.ok ? [...l.snapshots].sort((a, b) => b.savedAt - a.savedAt) : []));
-    return () => {
-      live = false;
-    };
-  }, [open]);
-  const restore = async () => {
-    if (!confirm) return;
-    setBusy(true);
-    const res = await restoreSnapshot(confirm.id, { withoutUndo: confirm.withoutUndo ?? false });
-    setBusy(false);
-    if (!res.ok && res.error === 'no-undo') {
-      // No copy of what's here could be kept: asked once more, like an import.
-      setConfirm({ ...confirm, withoutUndo: true });
-      return;
-    }
-    setConfirm(null);
-    if (res.ok) {
-      onClose();
-      toastRestored(confirm.label, res.undo, onRestored);
-      onRestored();
-      return;
-    }
-    const text = replaceErrorText(res.error);
-    if (text) toast({ key: 'snapshot-no', message: text, tone: 'butter' });
-  };
-  const withoutUndo = confirm?.withoutUndo ?? false;
-  return (
-    <>
-      <Sheet open={open} onClose={onClose} title={DATA_COPY.snapshotsRow} description={DATA_COPY.snapshotsKept} size="md">
-        {list === null ? null : list.length === 0 ? (
-          <p class={s.helper}>{EMPTY.snapshots}</p>
-        ) : (
-          <ul class={s.snapshots}>
-            {list.map((snap) => {
-              const label = dateOfMs(snap.savedAt);
-              return (
-                <li key={snap.id} class={s.snapshot}>
-                  <span class={s.rowText}>
-                    <span class={s.label}>
-                      {label} · {DATA_COPY.snapshotKinds[snap.kind as keyof typeof DATA_COPY.snapshotKinds] ?? DATA_COPY.snapshotKinds.daily}
-                    </span>
-                    <span class={s.helper}>{fillLine(DATA_COPY.snapshotLine, { habits: num(snap.habits), waterings: num(snap.checkins) })}</span>
-                  </span>
-                  <Button variant="secondary" size="sm" disabled={demoMode.value || saveLocked() || replacing.value} onClick={() => setConfirm({ id: snap.id, label })}>
-                    {DATA.restoreSnapshot}
-                  </Button>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </Sheet>
-      <ConfirmDialog
-        open={confirm !== null}
-        title={withoutUndo ? DATA_COPY.restoreNoUndoTitle : DATA.restoreSnapshot}
-        message={confirm ? (withoutUndo ? DATA_COPY.restoreNoUndo : `${confirm.label}. ${DATA.snapshots}`) : undefined}
-        confirmLabel={DATA.restoreSnapshot}
-        cancelLabel={DATA.keep}
-        tone={withoutUndo ? 'danger' : 'primary'}
-        busy={busy}
-        onConfirm={() => void restore()}
-        onCancel={() => setConfirm(null)}
-      />
-    </>
   );
 }
 
@@ -231,15 +172,7 @@ export function DataSection() {
   const locked = saveLocked();
   const busyReplacing = replacing.value;
   const offer = !inDemo && !locked ? undoOffer() : null;
-
-  const saveBackup = async () => {
-    const json = backupJson();
-    const outcome = await saveFile(backupFileName(today.value), json);
-    if (outcome === 'cancelled') return;
-    // Marked only once it is really saved (a cancelled share leaves the nudge up).
-    markBackup();
-    toast({ key: 'backup', message: outcome === 'downloaded-instead' ? ERRORS.share : DATA.saved, tone: 'sage' });
-  };
+  const damaged = damagedSave() !== null;
 
   // No await before the copy starts: iPhone Safari only copies from inside the tap.
   const copyBackup = () => {
@@ -268,6 +201,7 @@ export function DataSection() {
 
   const undo = async () => {
     if (!offer) return;
+    // It never rejects: a failure is said in a note (data-d12).
     await undoLastReplacement(offer.kind);
     bump((n) => n + 1);
   };
@@ -284,7 +218,7 @@ export function DataSection() {
       <SectionHeader title={YOU.sections.data} id="you-data" />
       <div class={s.card}>
         <StatusRow />
-        <ListRow leading="download" leadingTone="sage" title={DATA.save} chevron={false} onClick={() => void saveBackup()} />
+        <ListRow leading="download" leadingTone="sage" title={DATA.save} chevron={false} onClick={() => void saveBackupNow()} />
         <ListRow leading="export" leadingTone="sage" title={DATA.copy} chevron={false} onClick={copyBackup} />
         <ListRow leading="import" leadingTone="sky" title={DATA.import} subtitle={inDemo ? DATA_COPY.inDemo : undefined} disabled={locked || busyReplacing} onClick={() => setImporting(true)} />
         {offer && (
@@ -298,6 +232,7 @@ export function DataSection() {
           />
         )}
         <ListRow leading="calendar" leadingTone="lavender" title={DATA_COPY.snapshotsRow} onClick={() => setSnapshots(true)} />
+        {damaged && <ListRow leading="download" leadingTone="peach" title={ERRORS.saveDamaged} chevron={false} onClick={() => void saveDamagedFile()} />}
         <ListRow leading="note" leadingTone="butter" title={DATA.csv} chevron={false} onClick={() => void csv()} />
         <ListRow
           leading="sprout"

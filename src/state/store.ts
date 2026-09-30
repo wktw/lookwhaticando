@@ -62,6 +62,7 @@ import {
   SaveQueue,
   UNDO_IMPORT_KEY,
   browserStorage,
+  corruptKeyOf,
   keepDamaged,
   memoryStorage,
   mintGen,
@@ -733,6 +734,7 @@ function adopt(res: LoadResult, context: AdoptContext): void {
       lastSnapshotDay = null;
       recoveryCopies = null;
       if (rescue.value?.kind === 'damaged') rescue.value = null; // started over there: its :corrupt went too
+      if (loadIssue.value?.kind === 'recovered-from-backup' || loadIssue.value?.kind === 'corrupt-save') loadIssue.value = null; // its note was about that save (WP-A7)
       crossWindowNotice.value = 'started-over';
       leaveNewerVersion();
       saveReplaced();
@@ -898,6 +900,31 @@ export function useHere(): void {
 /** Writes any pending save now (pagehide / hidden). Never from a window that doesn't own the save. */
 export function flushSaves(): void {
   if (writable()) queue?.flush();
+}
+
+/**
+ * "Try again" on a save that didn't go through (WP-A7, audit data-d10): a damaged save that
+ * couldn't be kept aside is tried again first, then whatever is waiting is written now, without
+ * waiting for the backoff. Answers what the write did (null: nothing was waiting); `durability`
+ * says whether the save is still failing.
+ */
+export function retrySaving(): FlushOutcome | null {
+  if (heldForDamage) writeRecoveryCopies();
+  if (!writable()) return null;
+  if (heldForDamage) return 'held';
+  return queue?.flush() ?? null;
+}
+
+/**
+ * The text of a damaged save this catkin couldn't read, for "Save the damaged file" (WP-A7): the
+ * one this window found (`rescue`), else the one kept aside under `:corrupt` by an earlier visit,
+ * which stays until Start over. Byte for byte, never decoded. Null when there is none.
+ */
+export function damagedSave(): string | null {
+  const r = rescue.value;
+  if (r?.kind === 'damaged') return r.raw;
+  if (r?.kind === 'newer' && r.damaged !== undefined) return r.damaged;
+  return safeGet(storage(), corruptKeyOf(SAVE_KEY));
 }
 
 /** The Sunday Note is due this evening and not written yet (it arrives at 18:00 on the week's last day). */
@@ -1606,6 +1633,8 @@ async function runReplacement(r: Replacement): Promise<ReplaceResult> {
   if (undo === null) removeKey(store, UNDO_IMPORT_KEY);
   shownHead = { gen: q.gen, rev: q.rev };
   setState(next, ms);
+  // A note about the save that couldn't be read is over: she has chosen what is here now (WP-A7).
+  if (loadIssue.value?.kind === 'recovered-from-backup' || loadIssue.value?.kind === 'corrupt-save') loadIssue.value = null;
   if (!demoMode.value) mirrorTheme(store, next.settings);
   saveReplaced();
 
@@ -1715,6 +1744,7 @@ export function resetAll(): void {
   recoveryCopies = null;
   heldForDamage = false; // Start over erases the damaged save with the rest of catkin:*
   rescue.value = null; // its :corrupt copy went with the rest of catkin:*
+  loadIssue.value = null; // and with it, the note about it (WP-A7)
   crossWindowNotice.value = null;
   // A new lineage: every other window adopts the reset, even after its rev starts again at 1.
   queue = makeQueue(SAVE_KEY, { gen: mintGen(), rev: 0 });
