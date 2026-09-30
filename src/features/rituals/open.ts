@@ -7,8 +7,8 @@ import { signal } from '@preact/signals';
  * the memory shelf opens any of them.
  *
  * The reader's host (`./RitualReaderHost`, default export) renders whatever is requested. It is
- * mounted by the app shell (SheetHosts) whenever one is asked for, and by the Progress screen;
- * only one mounted host ever draws the sheet.
+ * loaded and mounted by the app shell (SheetHosts) the first time one is asked for, with a retry
+ * if its chunk can't load; if two hosts are ever mounted, only one draws the sheet.
  */
 /** `fromSill`: opened from the note on the sill, so closing it says where it went (the memory shelf). */
 export type RitualRequest = { kind: 'letter'; id: string; fromSill?: boolean } | { kind: 'season'; key: string };

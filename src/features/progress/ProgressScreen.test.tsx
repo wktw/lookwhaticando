@@ -10,6 +10,7 @@ import type { AppState } from '@/state/types';
 import { state } from '@/state/store';
 import * as store from '@/state/store';
 import { toasts } from '@/ui/toast';
+import { SheetHosts } from '@/app/SheetHosts';
 import { ProgressScreen } from './ProgressScreen';
 import { NOW, TODAY, UTC, button, click, demoState, dialog, installDom, key, mount, until, useState_ } from './testing';
 
@@ -95,6 +96,8 @@ describe('the Progress screen', () => {
 
   it('the memory shelf opens a Sunday Note in the reader, and reading it files it as read', async () => {
     await open();
+    // The reader is a shared sheet: the app shell's SheetHosts loads and hosts it (WP-C4).
+    const shell = mount(<SheetHosts />);
     const note = document.querySelector<HTMLButtonElement>('button[data-ritual="sundayNote"]')!;
     const id = state.value.inbox.filter((l) => l.kind === 'weekly').sort((a, b) => (a.kind === 'weekly' && b.kind === 'weekly' && a.weekStart < b.weekStart ? 1 : -1))[0]!.id;
     await click(note, 'the newest note');
@@ -103,6 +106,7 @@ describe('the Progress screen', () => {
     expect(paper.textContent).toMatch(/^Week of [A-Z][a-z]{2} \d+\./);
     expect(paper.textContent).not.toMatch(/%/);
     await until(() => state.value.inbox.find((l) => l.id === id)?.readAt !== undefined, 'the note to be read');
+    shell.unmount();
   });
 });
 

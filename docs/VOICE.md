@@ -1006,6 +1006,7 @@ Say what happened and what to do. Never `failed`, never `Oops`, never a code in 
 | When | Copy |
 |---|---|
 | A screen doesn't load | "This screen didn’t load. Your plants and coins are saved." · "Reload" |
+| A sheet doesn't open: its part of catkin hasn’t downloaded (offline before it was ever kept, or an update took the old part away). A small sheet; "Try again" keeps what was asked for, "Close" lets it go (WP-C4). DEC-V: pending owner approval | "This didn’t open" · "It needs a connection the first time it opens. Your plants and coins are saved." · "Try again" · "Close" |
 | A save doesn't go through | "That change didn’t save yet. catkin is trying again, and your last backup is safe." |
 | Nothing can be kept in this browser | "This browser isn’t keeping catkin’s save right now. Save a backup before you close it." |
 | The demo waits for a save | "The demo opens once your last change is saved." |

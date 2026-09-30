@@ -16,7 +16,7 @@
  * visibly lands. Steps 3–5 survive a reload (./progress).
  */
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
-import { DATA, DATA_COPY, INSTALL, ONBOARDING, fillLine } from '@/catalog/lines';
+import { COMPANION, DATA, DATA_COPY, INSTALL, ONBOARDING, fillLine } from '@/catalog/lines';
 import { TEMPLATES } from '@/catalog/templates';
 import { Wordmark } from '@/art/icons/brand';
 import { useArtLight } from '@/art/scene/moment';
@@ -25,6 +25,8 @@ import { navigate } from '@/app/router';
 import { holdUpdates } from '@/app/pwa';
 import { InstallGate, shouldGateInstall } from '@/app/InstallGuide';
 import { currentInstallPlatform } from '@/app/installPrompt';
+import { ScreenError, ScreenLoading } from '@/app/ScreenHost';
+import { lazyModule, useLazyModule } from '@/app/useLazyModule';
 import { Button } from '@/ui/Button';
 import { announce } from '@/ui/announce';
 import { dismissToast, findToast } from '@/ui/toast';
@@ -68,24 +70,18 @@ function firstPhase(): Phase {
   return !gateSeen() && shouldGateInstall(currentInstallPlatform(), hasSave) ? 'gate' : 'sill';
 }
 
-type CapsuleSteps = typeof import('./CapsuleSteps');
-let capsuleSteps: Promise<CapsuleSteps> | null = null;
-/** Steps 4 and 5 bring the cabinets and the pets: fetched while she is on the sill. */
-const loadCapsuleSteps = () => (capsuleSteps ??= import('./CapsuleSteps').catch((e) => ((capsuleSteps = null), Promise.reject(e))));
+/**
+ * Steps 4 and 5 bring the cabinets and the pets: fetched while she is on the sill. Until they
+ * arrive the step shows its heading and a loading line; if they can't load, its heading and the
+ * load error with "Try again" (WP-C4).
+ */
+const CAPSULE_STEPS = lazyModule(() => import('./CapsuleSteps'));
 
-function useCapsuleSteps(): CapsuleSteps | null {
-  const [mod, setMod] = useState<CapsuleSteps | null>(null);
-  useEffect(() => {
-    let live = true;
-    void loadCapsuleSteps().then(
-      (m) => live && setMod(m),
-      () => undefined,
-    );
-    return () => {
-      live = false;
-    };
-  }, []);
-  return mod;
+/** Gives a step's heading focus, so VoiceOver starts reading from its top. */
+function focusHeading(h: HTMLElement | null | undefined): void {
+  if (!h) return;
+  h.tabIndex = -1;
+  h.focus({ preventScroll: true });
 }
 
 /**
@@ -109,7 +105,9 @@ export function Onboarding() {
     setClip(readClipboard());
     setImporting('paste');
   };
-  const capsules = useCapsuleSteps();
+  const capsuleLoad = useLazyModule(CAPSULE_STEPS);
+  const capsules = capsuleLoad.module;
+  const page = useRef<HTMLDivElement>(null);
   const light = useArtLight();
   const progress = onboardingProgress.value;
   const habitIds = progress?.habitIds ?? [];
@@ -138,6 +136,19 @@ export function Onboarding() {
   }, [phase]);
 
   useHoldCelebrations(phase === 'today' || phase === 'first' || phase === 'place');
+
+  // Steps 4 and 5 wait for their chunk. When it arrives after she waited for it, its heading takes
+  // focus, unless she has moved focus somewhere of her own meanwhile. ("Try again" reloads the page
+  // if importing again in it fails; steps 4 and 5 come back after a reload, ./progress.)
+  const later = phase === 'first' || phase === 'place';
+  const waited = useRef(false);
+  if (later && !capsules) waited.current = true;
+  useEffect(() => {
+    if (!capsules || !waited.current) return;
+    waited.current = false;
+    const active = document.activeElement;
+    if (!active || active === document.body) focusHeading(page.current?.querySelector('h1'));
+  }, [!!capsules]);
 
   const finish = () => {
     // The step's own watering notes had their say there; Today starts clean (the pins still wait for it).
@@ -198,7 +209,7 @@ export function Onboarding() {
   const standalone = currentInstallPlatform() === 'installed';
 
   return (
-    <div class={cx(s.page, onSill && s.withSill)} data-step={phase}>
+    <div ref={page} class={cx(s.page, onSill && s.withSill)} data-step={phase}>
       <header class={s.top}>
         <Wordmark size={22} light={light} class={s.brand} />
         <span class={s.dotsWrap}>
@@ -231,7 +242,13 @@ export function Onboarding() {
         )}
         {phase === 'pick' && <PickStep picks={picks} onPicks={setPicks} onPlant={plant} />}
         {phase === 'today' && <DoneTodayStep habitIds={habitIds} onNext={() => go('first')} />}
-        {(phase === 'first' || phase === 'place') && !capsules && <p class={s.lead}>{ONBOARDING.firstPickLead}</p>}
+        {later && !capsules && (
+          <CapsuleStepsPending
+            heading={phase === 'place' && progress?.petId && state.value.pets[progress.petId] ? fillLine(COMPANION.reveal.find, { name: state.value.pets[progress.petId]!.name }) : ONBOARDING.firstPick}
+            failed={capsuleLoad.status === 'error'}
+            onRetry={capsuleLoad.retry}
+          />
+        )}
         {phase === 'first' && capsules && <capsules.FirstPickStep onFinish={finish} onPlace={(petId) => go('place', habitIds, petId)} />}
         {phase === 'place' && capsules && <capsules.PlaceStep petId={progress?.petId ?? ''} habitIds={habitIds} onDone={finish} />}
       </div>
@@ -247,6 +264,33 @@ export function Onboarding() {
           finish();
         }}
       />
+    </div>
+  );
+}
+
+/**
+ * Steps 4 and 5 before their chunk is here: the step's own heading (so the step always has its one
+ * h1), then a quiet loading line, or the load error with "Try again" in place of the lead. Skip
+ * stays in the header. "Try again" hands focus to the heading first, since the button goes.
+ */
+function CapsuleStepsPending({ heading, failed, onRetry }: { heading: string; failed: boolean; onRetry: () => void }) {
+  const title = useRef<HTMLHeadingElement>(null);
+  return (
+    <div class={s.step}>
+      <h1 ref={title} class={s.title}>
+        {heading}
+      </h1>
+      {failed ? (
+        <ScreenError
+          as="h2"
+          onRetry={() => {
+            focusHeading(title.current);
+            onRetry();
+          }}
+        />
+      ) : (
+        <ScreenLoading />
+      )}
     </div>
   );
 }
