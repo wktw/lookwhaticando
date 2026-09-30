@@ -269,6 +269,7 @@ export const Band = forwardRef(function Band({ vm, state, coins, onOpenNote, onW
     : vm.storyWaiting
       ? { kind: 'story' as const, label: fillLine(TODAY_LINES.storyWaiting, { habit: state.habits.find((h) => h.id === vm.storyWaiting!.habitId)?.name ?? '' }), onOpen: () => onOpenNote?.() }
       : undefined;
+  const monthJar = useMemo(() => ({ stems: vm.monthJar }), [JSON.stringify(vm.monthJar)]); // eslint-disable-line react-hooks/exhaustive-deps
   const walletLabel = `${amountHead(coins, COUNTS.coins)}. ${TODAY_COPY.whatCanIGet}`;
 
   return (
@@ -297,6 +298,7 @@ export const Band = forwardRef(function Band({ vm, state, coins, onOpenNote, onW
             {...(found ? { found: { seed: found.seed, label: foundPet ? foundLine(foundPet.name, found.seed) : undefined, onTap: () => openPetCard(found.petId) } } : {})}
             {...(note ? { note } : {})}
             cake={vm.birthday !== null}
+            monthJar={monthJar}
           />
         ) : (
           <div class={cx(s.band, s.placeholder)} aria-hidden="true" />

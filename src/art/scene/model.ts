@@ -98,6 +98,10 @@ export interface EditDecor {
   onMove(key: string, frac: { x: number; y: number }, place: PlaceId): void;
   onFlip(key: string): void;
   onRemove(key: string): void;
+  /** The item's name for its button ("A paper bookmark"); left out, the catalog name ("Keepsake" for one). */
+  label?(key: string): string;
+  /** The keyboard hint after the name; left out, "Arrow keys move it, F flips it, Delete removes it." */
+  hint?: string;
 }
 
 /** Ritual things on the sill (DESIGN §8.2, §13, §14.1), for the Today band and the Sill. */
@@ -110,6 +114,8 @@ export interface SillExtras {
   note?: { kind: 'sundayNote' | 'herbarium' | 'anniversary' | 'story'; label?: string; onOpen: () => void };
   /** Her birthday: a tiny cake on the sill. */
   cake?: boolean;
+  /** This month's flowers (the Today band): a jam jar by the coin jar with a stem from each habit watered this month. */
+  monthJar?: { stems: readonly { habitId: string; plant: PlantSpeciesId }[] };
 }
 
 /** Where and how a pet is shown right now. */

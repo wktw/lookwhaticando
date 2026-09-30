@@ -210,7 +210,7 @@ describe('"Ready to grow?" (DESIGN §5.2)', () => {
   });
 });
 
-describe('"Keep it as it is" (NOTES-w2-progress 9)', () => {
+describe('"Keep it as it is"', () => {
   it('closes that offer until the habit earns it afresh, 28 days on', () => {
     const g = new Game({ start: '2026-03-01' });
     const id = g.addHabit({ name: 'Read', target: 1 });

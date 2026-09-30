@@ -1101,3 +1101,419 @@ works" · "Credits" · "Version {version}".
 - The capsule flow: "Put a coin in" → "Turn the handle" → "Open capsule, Rare finish", and the reveal as
   one sentence (section 10).
 - Pets: "Pudding, orange tabby, asleep" for the art; the caption is the live text.
+
+## 24. Screen chrome
+
+The screens' own small words: section names, buttons, labels and a few notes, each in `src/catalog/lines.ts`
+under the constant named. Same rules as everywhere (section 1).
+
+### Today (`TODAY_COPY`)
+
+| Key | Line |
+|---|---|
+| today | "Today" |
+| whatCanIGet | "What can I get?" |
+| week | "The last 7 days" |
+| more | "More for {habit}" |
+| menu.tiny | "Tiny version" |
+| menu.howMany | "How many…" |
+| menu.rest | "Rest day" |
+| menu.note | "Add a note" |
+| menu.editNote | "Edit the note" |
+| menu.details | "Details" |
+| menu.edit | "Edit" |
+| howMany | "How many for {habit}" |
+| pad.done | "Done" |
+| pad.tiny | "Tiny version" |
+| show | "Show" |
+| addHabit | "Add a habit" |
+| noteTitle | "A note for {habit}" |
+| open | "Open" |
+| read | "Read it" |
+| close | "Close" |
+| toCapsules | "Go to Capsules" |
+| pickPlant | "Pick a plant for {name}" |
+
+### Today: the Season Review after its first day (`SEASON_ASK_LATER`)
+
+| Key | Line |
+|---|---|
+| (the line) | "{Season} is here. How should each habit go on?" |
+
+### The Habit Editor (`EDITOR_COPY`)
+
+| Key | Line |
+|---|---|
+| newTitle | "A new habit" |
+| editTitle | "Edit {habit}" |
+| ideas | "Ideas" |
+| ideaGroups | "Kinds of ideas" |
+| more | "Colour, plant, amount and more" |
+| leaveTitle | "Leave without saving?" |
+| leaveNew | "The habit isn’t planted yet." |
+| leaveEdit | "Your changes aren’t saved yet." |
+| keepEditing | "Keep editing" |
+| leave | "Leave it" |
+| searchIcons | "Find an icon" |
+| chooseIcon | "Choose an icon" |
+| suggested | "Suggested from the name" |
+| unit | "Unit" |
+| step | "Each tap adds" |
+| amount | "Amount" |
+| times | "How many times" |
+| every | "Every" |
+| days | "Which days" |
+| follow | "Or follow a habit" |
+| followHelp | "On Today, it comes just after {habit}." |
+| tinyCount | "Tiny amount" |
+| seasonHelp | "Until {date}, then it goes to the balcony shelf with a ribbon." |
+| whyPlaceholder | "A line, just for you" |
+| applyFrom | "From when?" |
+| applyOptions.today | "From today" |
+| applyOptions.next-period | "From next {period}" |
+| applyOptions.tomorrow | "From tomorrow" |
+| archive | "Archive" |
+| delete | "Delete" |
+| keepsCompany | "Keeps {habit} company" |
+| locked | "In {series}" |
+| planted | "{Plant} is a cutting in a glass of water now." |
+| saved | "Saved." |
+
+### The Shelf (`SHELF_COPY`)
+
+| Key | Line |
+|---|---|
+| title | "Shelf" |
+| sceneLabel | "The Shelf: the sill and the places you have opened" |
+| placesNav | "Go to a place on the Shelf" |
+| decorate | "Decorate" |
+| done | "Done" |
+| basket | "Basket" |
+| fieldGuide | "Field Guide" |
+| pets | "Pets" |
+| out | "Out on the Shelf" |
+| indoors | "Indoors" |
+| places | "Places" |
+| decor.title | "Decorate" |
+| decor.hint | "Drag a thing to move it. Tap one to flip it or put it away." |
+| decor.keys | "Arrow keys move it, F flips it, Delete removes it." |
+| decor.add | "Add to {place}" |
+| decor.flip | "Flip" |
+| decor.putAway | "Put away" |
+| decor.full | "{Place} has room for 24 things." |
+| decor.keepsake | "Keepsake" |
+| decor.placed | "{thing}, on {place}." |
+| decor.removed | "{thing}, put away." |
+| decor.allOut | "Everything you have is out. More comes from the capsules." |
+| basketSheet.title | "Basket and pantry" |
+| basketSheet.basket | "The basket" |
+| basketSheet.pantry | "The pantry" |
+| basketSheet.servings.one | "1 serving" |
+| basketSheet.servings.other | "{count} servings" |
+| basketSheet.none | "More in the morning" |
+| basketSheet.restock | "Each treat restocks 2 servings every morning, up to 5." |
+| fieldGuideSheet.title | "Field Guide" |
+| fieldGuideSheet.pages | "Pages" |
+| fieldGuideSheet.notYet | "not yet" |
+| fieldGuideSheet.secret | "Secret" |
+| fieldGuideSheet.of | "{owned} of {total}" |
+| fieldGuideSheet.visits | "Visits {from} to {to}" |
+| fieldGuideSheet.pageFull | "This page is full." |
+| fieldGuideSheet.moonlit | "Moonlit" |
+| placeMap.here | "{count} here" |
+| placeMap.short | "{Place} is {price} coins. There are {count} in the jar." |
+| placeMap.shortOne | "{Place} is {price} coins. There’s 1 in the jar." |
+| placeMap.shortNone | "{Place} is {price} coins. Watering fills the jar." |
+| placeMap.go | "Go to {place}" |
+| placeMap.visit | "Go there" |
+| placeMap.confirm | "Open {place}?" |
+| placeMap.jar | "There are {count} coins in the jar." |
+| placeMap.jarOne | "There’s 1 coin in the jar." |
+| placeMap.jarNone | "Watering fills the jar." |
+| foundLabel | "{A}, from {name}" |
+| capsules | "Go to Capsules" |
+
+### The Pet Card (`PET_CARD_UI`)
+
+| Key | Line |
+|---|---|
+| friendshipAria | "Friendship: {level}" |
+| out | "Out on the Shelf" |
+| outHint | "Indoors, {name} rests and waits for a place on the Shelf." |
+| noRoom | "The Shelf has room for {count} pets out. Bring someone indoors first." |
+| keep | "Keep it" |
+| cancel | "Not now" |
+| nameHint | "Or one of these" |
+| slots.head | "Head" |
+| slots.face | "Face" |
+| slots.neck | "Neck" |
+| slots.body | "Outfit" |
+| wearing | "Wearing" |
+| nothingToWear | "Things to wear come from the capsules." |
+| noTreats | "Treats you collect restock here every morning." |
+| servingsOne | "1 serving" |
+| servings | "{count} servings" |
+| servingsNone | "More in the morning" |
+| favourite | "Favourite" |
+| markFavourite | "Favourite" |
+| keepsakes | "Left by the pot" |
+| pantry | "Basket and pantry" |
+| indoors | "Indoors" |
+| keptBy | "{name} keeps it company" |
+| moveOutAsk | "Move {name} out of {plant}?" |
+
+### Progress (`PROGRESS_UI`)
+
+| Key | Line |
+|---|---|
+| title | "Progress" |
+| sections.months | "Recent months" |
+| sections.plants | "Plants" |
+| sections.balcony | "Balcony shelf" |
+| sections.calendar | "Calendar" |
+| sections.year | "The year" |
+| sections.records | "Records" |
+| sections.insights | "Insights" |
+| sections.pins | "Pins" |
+| sections.memory | "Memory shelf" |
+| hero.ringCaption | "of this month’s waterings" |
+| soFarMark | "so far" |
+| calendar.prev | "Previous month" |
+| calendar.next | "Next month" |
+| calendar.filter | "Show habit" |
+| calendar.all | "All habits" |
+| calendar.water | "Water it for {date}" |
+| calendar.unwater | "Not watered after all" |
+| calendar.windowNote | "The last 6 days are watered from the week strip on Today." |
+| calendar.openToday | "Open Today" |
+| calendar.refused | "That day is watered from the week strip on Today." |
+| calendar.watered | "watered" |
+| calendar.tiny | "the tiny version" |
+| calendar.rest | "resting" |
+| calendar.off | "a day off" |
+| calendar.paused | "resting" |
+| calendar.note | "a note" |
+| calendar.part | "{count} of {target}" |
+| calendar.partUnit | "{count} of {target} {unit}" |
+| year.prev | "Previous year" |
+| year.next | "Next year" |
+| plants.open | "{habit}, {stage}" |
+| plants.retired | "{habit}, on the balcony shelf" |
+| pins.notYet | "not yet" |
+| pins.earned | "Earned {date}" |
+| pins.progress | "{have} of {need}" |
+| pins.stamps.one | "+1 stamp" |
+| pins.stamps.other | "+{count} stamps" |
+| pins.pinLabel | "{name}, not yet" |
+| pins.more.one | "1 more pin" |
+| pins.more.other | "{count} more pins" |
+| memory.new | "New" |
+| memory.balcony.one | "1 plant on the balcony shelf" |
+| memory.balcony.other | "{count} plants on the balcony shelf" |
+
+### Habit Detail (`DETAIL_UI`)
+
+| Key | Line |
+|---|---|
+| forecastEvergreen | "Evergreen" |
+| sections.tag | "The plant tag" |
+| sections.journal | "Garden Journal" |
+| sections.stats | "How it’s going" |
+| sections.why | "Why it matters" |
+| sections.moments | "Moments" |
+| sections.history | "History" |
+| sections.ladder | "In a row" |
+| sections.company | "Keeping company" |
+| sections.actions | "Look after it" |
+| ladder.reached | "Rungs reached: {count} of {total}" |
+| stats.lately | "Lately" |
+| stats.now | "Now" |
+| stats.longest | "Longest run" |
+| stats.longestLine | "Longest run: {run}" |
+| stats.waterings | "Waterings" |
+| stats.newRhythm | "New rhythm" |
+| stats.since | "Since {date}" |
+| stats.tiny | "Tiny versions: {count}" |
+| star | "Star this note" |
+| starred | "Starred for the Sunday Note" |
+| quoteHelp | "Only notes you’ve starred are quoted in the Sunday Note." |
+| grow.title | "A bigger pot?" |
+| grow.text | "{habit} has been steady for 4 weeks. Make it a little bigger? +1 stamp" |
+| grow.textQuiet | "{habit} has been steady for 4 weeks. Make it a little bigger?" |
+| grow.yes | "Grow it" |
+| grow.no | "Keep it as it is" |
+| tinier.title | "Make it tinier?" |
+| tinier.text | "A smaller version still counts, and still waters the plant." |
+| tinier.yes | "Make it tinier" |
+| tinier.no | "Keep it as it is" |
+| tinier.done | "{habit} is tinier now." |
+| story.new | "New" |
+| story.remaining.one | "About 1 more watering together." |
+| story.remaining.other | "About {count} more waterings together." |
+| story.waits | "After the one before it." |
+| actions.edit | "Edit" |
+| actions.pause | "Pause {habit}" |
+| actions.pauseShort | "Pause" |
+| actions.backOn | "Back on…" |
+| actions.backOnLabel | "Back on" |
+| actions.pauseOpen | "Until you bring it back" |
+| actions.bringBack | "Bring it back" |
+| actions.startFrom | "Start tracking from…" |
+| actions.startFromLabel | "Start tracking from" |
+| actions.archive | "Archive" |
+| actions.restore | "Bring it back to the sill" |
+| actions.delete | "Delete" |
+| actions.tune | "Tune my habits" |
+| actions.cancel | "Not now" |
+| actions.confirmArchive | "Archive" |
+| pausedUntil | "Resting until {date}" |
+| pausedOpen | "Resting until you bring it back" |
+| pauseFrom | "Resting from {date}" |
+| archivedOn | "On the balcony shelf since {date}" |
+| ribbon | "Finished {date}, with a ribbon" |
+| looks.label | "Which look" |
+| looks.stake | "Classic" |
+| close | "Close" |
+
+### You (`YOU_UI`)
+
+| Key | Line |
+|---|---|
+| title | "You" |
+| sinceLine | "On this sill since {date}" |
+| sections.profile | "Profile" |
+| sections.habits | "Habits" |
+| sections.days | "Your days" |
+| sections.look | "Look and sound" |
+| sections.today | "Today and capsules" |
+| sections.access | "Accessibility" |
+| sections.data | "Your data" |
+| sections.install | "On your Home Screen" |
+| sections.about | "About" |
+
+### You › Habits (`HABITS_COPY`)
+
+| Key | Line |
+|---|---|
+| arrange | "Arrange" |
+| done | "Done" |
+| archived | "Archived" |
+| bringBack | "Bring it back" |
+| bringBackLabel | "Bring it back: {habit}" |
+| editWord | "Edit" |
+| move | "Move {habit}" |
+| moveUp | "Move {habit} up" |
+| moveDown | "Move {habit} down" |
+| moveHint | "Drag, or use the arrow keys." |
+| moved | "{habit}, {pos} of {count}." |
+| resting | "Resting" |
+
+### You › Look and sound, Today and capsules (`PREFS_COPY`)
+
+| Key | Line |
+|---|---|
+| weekdays.0 | "Sunday" |
+| weekdays.1 | "Monday" |
+| shortcuts.label | "Keyboard shortcuts" |
+| shortcuts.helper | "1–5 switch tabs, N plants a habit." |
+| birthdayMonth | "Month" |
+| birthdayDay | "Day" |
+| notSet | "Not set" |
+| off | "Off" |
+
+### You › Your data (`DATA_COPY`)
+
+| Key | Line |
+|---|---|
+| snapshotsRow | "Daily copies" |
+| snapshotsKept | "Kept on this device: 7 daily and 4 weekly." |
+| snapshotKinds.daily | "Daily copy" |
+| snapshotKinds.weekly | "Weekly copy" |
+| snapshotKinds.pre-import | "Before an import" |
+| snapshotLine | "{habits} habits · {waterings} waterings" |
+| restoredSnapshot | "Back to the copy from {date}." |
+| chooseFile | "Choose a file" |
+| pasteLabel | "Or paste a backup here" |
+| pasteHelper | "A backup starts with CK1, or it is a catkin backup file." |
+| noUndoTitle | "Import without an undo?" |
+| noUndo | "catkin couldn’t keep a copy of what’s here, so there is no Undo import this time." |
+| importAnyway | "Import anyway" |
+| cannotOpen | "This browser can’t open that backup. Try the backup file instead." |
+| readOnly | "This window can’t change the save right now." |
+| inDemo | "Leave the demo to import a backup. The demo keeps its own plants." |
+| startOverAgainTitle | "Start over now?" |
+| startOverAgain | "Everything here goes. The daily copies stay on this device." |
+| demoLine | "A made-up sill with a few months of watering. Your own sill stays just as it is." |
+| demoPill | "The demo" |
+| copyTitle | "Your backup" |
+| copyHelper | "Select it all, copy it, and keep it somewhere safe." |
+| csvSaved | "Waterings saved." |
+| fileBuild | "Saved in this browser, for this file" |
+
+### You › About (`ABOUT_COPY`)
+
+| Key | Line |
+|---|---|
+| principlesTitle | "What catkin keeps to" |
+| principles[0] | "Growth only adds. A resting plant keeps every leaf." |
+| principles[1] | "With Quiet rewards on, catkin is just the tracker." |
+| principles[2] | "The odds are printed on every cabinet." |
+| how[0].title | "Your habits are plants" |
+| how[0].text | "Each habit starts as a cutting in a glass of water. Watering it counts the day, and the plant grows as you keep the habit: roots, a pot, leaves, buds, flowers." |
+| how[1].title | "Showing up, over time" |
+| how[1].text | "Progress reads as days you showed up, like 26 of the last 30. Rest days and paused habits count as rest." |
+| how[2].title | "Coins and capsules" |
+| how[2].text | "Watering drops brass coins in the jar. The capsule cabinets take coins, and each capsule holds a small animal, something to wear, a treat or a bit of decor." |
+| how[3].title | "Pets and plants" |
+| how[3].text | "Pets keep habits company. Each pet moves into a plant and is there on the sill at every watering. The friendship grows with the habit." |
+| how[4].title | "Kept on this device" |
+| how[4].text | "Your plants live in this browser or on your Home Screen. There is no account. Save a backup now and then." |
+| how[5].title | "Sound and haptics" |
+| how[5].text | "Both are extras. Everything works with both off." |
+| credits[0].title | "Drawn in code" |
+| credits[0].text | "Every plant, pot, pet and cabinet is drawn by hand as code, lit by one window." |
+| credits[1].title | "Type" |
+| credits[1].text | "Castoro by Tiffany Wardle and Nunito by Vernon Adams, both under the SIL Open Font License." |
+| credits[2].title | "Made with" |
+| credits[2].text | "Preact, Vite and Workbox." |
+| build.pwa | "Home Screen app" |
+| build.tab | "In the browser" |
+| build.single | "Single file" |
+| build.dev | "Development" |
+| updatesSingle | "This copy updates when you download a new catkin.html." |
+| updatesOther | "Updates arrive with the hosted app." |
+| checking | "Checking" |
+| diagnosticsIn | "Diagnostics in {n} taps" |
+
+### You › Diagnostics (`DIAG_COPY`)
+
+| Key | Line |
+|---|---|
+| title | "Diagnostics" |
+| back | "You" |
+| lead | "What this device says about catkin. Copy the report to share it." |
+| device | "This device" |
+| copied | "Report copied." |
+| measure | "Measure frame timing" |
+| checkClock | "Check the clock" |
+
+### Onboarding (`ONBOARDING_COPY`)
+
+| Key | Line |
+|---|---|
+| next | "Next" |
+| plantOne | "Plant it" |
+| plantMany | "Plant these" |
+| makeOwnLabel | "Your own habit" |
+| add | "Add" |
+| lessIdeas | "Fewer ideas" |
+| pickFull | "That’s 3. More can go on the sill anytime." |
+| remove | "Take {habit} off the sill" |
+| toToday | "On to Today" |
+| choose | "Who comes home first? Choose a cabinet" |
+| notice | "Name" |
+| nameIdeas | "Name ideas" |
+| anotherName | "Another name" |
+| plantsLead | "Tap a plant, and {name} moves in." |
+| stepOf | "Step {n} of {count}" |
+

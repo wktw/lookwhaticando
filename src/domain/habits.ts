@@ -439,7 +439,7 @@ export function currentOffer(s: AppState, habit: Habit, today: DateKey): 'grow' 
 
 /**
  * "Keep it as it is" on "A bigger pot?" or "Make it tinier?": that offer stays closed for its 28-day
- * look-back, so it only comes back once the habit has earned it afresh (NOTES-w2-progress 9). The
+ * look-back, so it only comes back once the habit has earned it afresh. The
  * day is recorded as `decline-<kind>|<id>|<day>`. False when that offer isn't standing.
  */
 export function declineOffer(tx: Tx, id: string, kind: 'grow' | 'tinier'): boolean {

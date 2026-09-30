@@ -11,6 +11,8 @@ import s from './FirstPick.module.css';
 export interface FirstPickProps extends PlaceHandlers {
   /** The first capsule has been opened and put away: onboarding moves on. */
   onDone?: (machineId: MachineId) => void;
+  /** The title's heading level (default h2); a screen whose only heading this is passes 'h1'. */
+  heading?: 'h1' | 'h2' | 'h3';
 }
 
 /**
@@ -19,7 +21,7 @@ export interface FirstPickProps extends PlaceHandlers {
  * a row on wide screens. Choosing one brings it forward for the first capsule, which is on the
  * house (`pull(id, { free: true })`): a coin in, the handle, the twist.
  */
-export function FirstPick({ onDone, onPlace, onLetThemChoose }: FirstPickProps) {
+export function FirstPick({ onDone, onPlace, onLetThemChoose, heading: Heading = 'h2' }: FirstPickProps) {
   const light = useSceneLight();
   const [picked, setPicked] = useState<MachineId | null>(null);
 
@@ -41,9 +43,9 @@ export function FirstPick({ onDone, onPlace, onLetThemChoose }: FirstPickProps) 
 
   return (
     <section class={s.pick} aria-labelledby="first-pick-title">
-      <h2 id="first-pick-title" class={s.title}>
+      <Heading id="first-pick-title" class={s.title}>
         Who comes home first?
-      </h2>
+      </Heading>
       <p class={s.lead}>Your first capsule is on the house. Choose a cabinet.</p>
       <div class={s.row}>
         {FIRST_CAPSULE_MACHINES.map((id) => {

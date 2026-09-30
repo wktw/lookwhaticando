@@ -1,8 +1,7 @@
 /**
  * Words for the Progress screen and Habit Detail (DESIGN §9.2, VOICE.md §6, §7, §14, §15, §23).
- * Templates come from src/catalog/lines.ts and the formatters in src/catalog/format.ts; the few
- * lines the deck has no constant for yet sit in `PROGRESS_UI` below, verbatim from VOICE.md where
- * it has them (a request to move them into lines.ts is in NOTES-w2-progress.md).
+ * Templates come from src/catalog/lines.ts and the formatters in src/catalog/format.ts; the
+ * screens' chrome is `PROGRESS_UI` and `DETAIL_UI` (lines.ts, VOICE §24), re-exported here.
  *
  * The rules: numerals, sentence case, curly apostrophes, no 0 and no count of what's undone (a
  * line that would say one is null and the screen shows nothing), "watered" for done.
@@ -16,97 +15,10 @@ import type { TimeNudge } from '@/domain/signature';
 import type { BloomColour, BloomShape, PlantLook, TimeBand } from '@/state/types';
 import type { CalendarCell, DayState } from '@/state/views/calendar';
 import type { StoryVM } from '@/state/views/company';
+import { PROGRESS_UI, DETAIL_UI } from '@/catalog/lines';
 
-/** The screen's own words: section names, buttons and labels (VOICE.md where it has them). */
-export const PROGRESS_UI = {
-  title: 'Progress',
-  sections: {
-    months: 'Recent months',
-    plants: 'Plants',
-    balcony: 'Balcony shelf',
-    calendar: 'Calendar',
-    year: 'The year',
-    records: 'Records',
-    insights: 'Insights',
-    pins: 'Pins',
-    memory: 'Memory shelf',
-  },
-  /** Under the month's ring: what the percentage is a share of. */
-  hero: { ringCaption: 'of this month’s waterings' },
-  soFarMark: 'so far',
-  calendar: {
-    prev: 'Previous month',
-    next: 'Next month',
-    filter: 'Show habit',
-    all: 'All habits',
-    water: 'Water it for {date}',
-    unwater: 'Not watered after all',
-    windowNote: 'The last 6 days are watered from the week strip on Today.',
-    openToday: 'Open Today',
-    refused: 'That day is watered from the week strip on Today.',
-    watered: 'watered',
-    tiny: 'the tiny version',
-    rest: 'resting',
-    off: 'a day off',
-    paused: 'resting',
-    note: 'a note',
-    part: '{count} of {target}',
-    partUnit: '{count} of {target} {unit}',
-  },
-  year: { prev: 'Previous year', next: 'Next year' },
-  plants: { open: '{habit}, {stage}', retired: '{habit}, on the balcony shelf' },
-  pins: { notYet: 'not yet', earned: 'Earned {date}', progress: '{have} of {need}', stamps: { one: '+1 stamp', other: '+{count} stamps' }, pinLabel: '{name}, not yet', more: { one: '1 more pin', other: '{count} more pins' } },
-  memory: { new: 'New', balcony: { one: '1 plant on the balcony shelf', other: '{count} plants on the balcony shelf' } },
-} as const;
-
-/** Habit Detail's own words (VOICE.md §7, §12, §13, §14, §21 where it has them). */
-export const DETAIL_UI = {
-  forecastEvergreen: 'Evergreen',
-  sections: {
-    tag: 'The plant tag',
-    journal: 'Garden Journal',
-    stats: 'How it’s going',
-    why: STORIES.titles.why,
-    moments: 'Moments',
-    history: 'History',
-    ladder: 'In a row',
-    company: 'Keeping company',
-    actions: 'Look after it',
-  },
-  ladder: { reached: 'Rungs reached: {count} of {total}' },
-  stats: { lately: 'Lately', now: 'Now', longest: 'Longest run', longestLine: 'Longest run: {run}', waterings: 'Waterings', newRhythm: 'New rhythm', since: 'Since {date}', tiny: 'Tiny versions: {count}' },
-  star: 'Star this note',
-  starred: 'Starred for the Sunday Note',
-  quoteHelp: 'Only notes you’ve starred are quoted in the Sunday Note.',
-  /** VOICE §7, graduation. */
-  grow: { title: 'A bigger pot?', text: '{habit} has been steady for 4 weeks. Make it a little bigger? +1 stamp', textQuiet: '{habit} has been steady for 4 weeks. Make it a little bigger?', yes: 'Grow it', no: 'Keep it as it is' },
-  tinier: { title: 'Make it tinier?', text: 'A smaller version still counts, and still waters the plant.', yes: 'Make it tinier', no: 'Keep it as it is', done: '{habit} is tinier now.' },
-  story: { new: 'New', remaining: { one: 'About 1 more watering together.', other: 'About {count} more waterings together.' }, waits: 'After the one before it.' },
-  actions: {
-    edit: 'Edit',
-    pause: 'Pause {habit}',
-    pauseShort: 'Pause',
-    backOn: 'Back on…',
-    backOnLabel: 'Back on',
-    pauseOpen: 'Until you bring it back',
-    bringBack: 'Bring it back',
-    startFrom: 'Start tracking from…',
-    startFromLabel: 'Start tracking from',
-    archive: 'Archive',
-    restore: 'Bring it back to the sill',
-    delete: 'Delete',
-    tune: 'Tune my habits',
-    cancel: 'Not now',
-    confirmArchive: 'Archive',
-  },
-  pausedUntil: 'Resting until {date}',
-  pausedOpen: 'Resting until you bring it back',
-  pauseFrom: 'Resting from {date}',
-  archivedOn: 'On the balcony shelf since {date}',
-  ribbon: 'Finished {date}, with a ribbon',
-  looks: { label: 'Which look', stake: 'Classic' },
-  close: 'Close',
-} as const;
+/** The chrome words live in lines.ts (VOICE.md §24); re-exported for this feature's modules. */
+export { PROGRESS_UI, DETAIL_UI };
 
 /* ------------------------------------------------------------------ */
 /* Small formatters                                                    */

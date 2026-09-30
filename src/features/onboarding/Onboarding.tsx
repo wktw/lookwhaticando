@@ -5,7 +5,7 @@
  *  (the install gate, in iPhone and Mac Safari tabs: "Just peek" · "Paste my plants")
  *  1. The empty sill in morning light: "New place. Which plants came with you?" and her name.
  *  2. "Pick up to 3.": the eight starters, "More ideas" and "Make my own". Each pick stands on the
- *     sill as a cutting in a glass. "Plant them" calls `completeOnboarding`.
+ *     sill as a cutting in a glass. "Plant these" calls `completeOnboarding`.
  *  3. "Anything already done today?": live water buttons with the whole choreography, and the
  *     one-time top-up to 25 coins.
  *  4. "Who comes home first?": the four cabinets, and the first capsule on the house.

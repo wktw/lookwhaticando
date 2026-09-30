@@ -87,6 +87,11 @@ export function anyLayerOpen(): boolean {
   return stack.length > 0;
 }
 
+/** How many layers are open. */
+export function layerCount(): number {
+  return stack.length;
+}
+
 let holds = 0;
 
 /**

@@ -166,6 +166,24 @@ function contactD(foot: number, k: Kit, tight = false): string {
   return tight ? ell(50 + k.away * 1.2, FOOT_Y + 0.3, foot + 2.2, 1.9) : ell(50 + k.away * 2.2, FOOT_Y + 0.4, foot + 5.5, 2.3);
 }
 
+/** Composed plants kept across mounts, per light (a kit is one object per light): a switch back to a screen, or the same plant on the band and its card, composes once. */
+const composedCache = new WeakMap<Kit, Map<string, Composed>>();
+/** How many compositions each light keeps (the oldest goes first). */
+export const COMPOSED_CACHE_SIZE = 240;
+
+/** `composePlant`, remembered by everything that shapes the drawing. */
+export function composePlantCached(species: PlantSpeciesId, g: Growth, pot: PotId, k: Kit, damp: boolean, look?: PlantLookArt, flourishes = 0): Composed {
+  const key = `${species}|${g.stage}|${g.progress}|${g.blooms}|${pot}|${damp ? 1 : 0}|${look ? `${look.colour}/${look.shape}/${look.partnerColour ?? ''}` : ''}|${flourishes}`;
+  let byKey = composedCache.get(k);
+  if (!byKey) composedCache.set(k, (byKey = new Map()));
+  const hit = byKey.get(key);
+  if (hit) return hit;
+  const c = composePlant(species, g, pot, k, damp, look, flourishes);
+  if (byKey.size >= COMPOSED_CACHE_SIZE) byKey.delete(byKey.keys().next().value!);
+  byKey.set(key, c);
+  return c;
+}
+
 /** A habit's plant at any moment of its life (DESIGN §5.5, §10.4). */
 export function PlantArt(props: PlantArtProps) {
   const { species, pot, size = 64, animated = false, pulse, title, layer = 'all', look, flourishes = 0 } = props;
@@ -180,7 +198,7 @@ export function PlantArt(props: PlantArtProps) {
 
   const lookKey = look ? `${look.colour}/${look.shape}/${look.partnerColour ?? ''}` : '';
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const c = useMemo(() => composePlant(species, g, pot, k, damp, look, flourishes), [species, g.stage, g.progress, g.blooms, pot, k, damp, lookKey, flourishes]);
+  const c = useMemo(() => composePlantCached(species, g, pot, k, damp, look, flourishes), [species, g.stage, g.progress, g.blooms, pot, k, damp, lookKey, flourishes]);
 
   const icon = props.fit === 'icon';
   const besidePot = !!props.withPot && c.kind !== 'pot';

@@ -19,7 +19,7 @@ async function onboard(page: Page) {
   await name.fill('Sam');
   await page.getByRole('button', { name: 'Next' }).click();
   for (const name of ['Drink water', 'Walk', 'Read']) await page.getByRole('button', { name, exact: true }).click();
-  await page.getByRole('button', { name: 'Plant them' }).click();
+  await page.getByRole('button', { name: 'Plant these' }).click();
   await page.getByRole('button', { name: 'Skip' }).click();
   await page.getByRole('button', { name: 'Not yet, I’ll earn it' }).first().click();
   await expect(page.locator('main')).toHaveAttribute('aria-label', 'Today');
@@ -210,7 +210,7 @@ test('a second window shows every setting disabled until "Use here"', async ({ p
 /**
  * The installed app's "Add to calendar" (iPhone) links a static file in cal/. Under the service
  * worker that link is a navigation, so it must reach the file, not the app shell, and work offline.
- * Runs only where a service worker runs (the preview's pwa projects; see NOTES-w2-you request 1).
+ * Runs only where a service worker runs (the preview's pwa-screens project).
  */
 test('@pwa a watering-time file is a calendar under the service worker, online and offline', async ({ page, context }, info) => {
   test.skip(info.project.use.serviceWorkers !== 'allow', 'needs the service worker (E2E_TARGET=preview, pwa project)');

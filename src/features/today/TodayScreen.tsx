@@ -237,7 +237,7 @@ export function TodayScreen() {
 
       <div class={s.content}>
         <div class={s.main}>
-          {vm.clockBehind && <p class={s.notice}>{TODAY_LINES.clockBehind}</p>}
+          {/* A clock behind is the shell's banner, on every tab (App.tsx), so Today doesn't say it twice. */}
           {vm.offDay.isOff && <p class={cx(s.notice, s.offNotice)}>{CHECKIN_TOASTS.offDay}</p>}
 
           {vm.empty ? (

@@ -1,8 +1,8 @@
 /**
  * The Pet Card's words (DESIGN §8.2, §8.5, §14.1; VOICE §9, §11, §13), from the view model's data:
  * every template is lines.ts's (PET_CARD, FRIENDSHIP_LEVELS, KNOWN_FOR, MEMORIES, PLACE_LINES,
- * COMPANION). The chrome that VOICE.md has no row for yet is in `PET_CARD_UI`, and NOTES-w2-shelf.md
- * asks for its rows. Pure functions, so the card's wording is unit-tested.
+ * COMPANION); its chrome is `PET_CARD_UI` (lines.ts, VOICE §24). Pure functions, so the card's
+ * wording is unit-tested.
  */
 import { getCollectible } from '@/catalog/collectibles';
 import { FRIENDSHIP_LEVELS, KEEPSAKE_CAPTIONS, PET_CARD, capitalise, fillLine, fitsSpecies, knownFor, lineText, pickFrom, plantPhrase } from '@/catalog/lines';
@@ -12,33 +12,10 @@ import type { PlaceId, PlantSpeciesId, Species, WearableSlot } from '@/catalog/t
 import type { PetVM } from '@/state/selectors';
 import type { Keepsake, PetMemory } from '@/state/types';
 import { monthDayLabel } from '@/domain/dates';
+import { PET_CARD_UI } from '@/catalog/lines';
 
-/** The Pet Card's chrome where VOICE.md has no line yet (sentence case, no pronouns). */
-export const PET_CARD_UI = {
-  friendshipAria: 'Friendship: {level}',
-  out: 'Out on the Shelf',
-  outHint: 'Indoors, {name} rests and waits for a place on the Shelf.',
-  noRoom: 'The Shelf has room for {count} pets out. Bring someone indoors first.',
-  keep: 'Keep it',
-  cancel: 'Not now',
-  nameHint: 'Or one of these',
-  slots: { head: 'Head', face: 'Face', neck: 'Neck', body: 'Outfit' } as Record<WearableSlot, string>,
-  wearing: 'Wearing',
-  nothingToWear: 'Things to wear come from the capsules.',
-  noTreats: 'Treats you collect restock here every morning.',
-  servingsOne: '1 serving',
-  servings: '{count} servings',
-  servingsNone: 'More in the morning',
-  favourite: 'Favourite',
-  markFavourite: 'Favourite',
-  keepsakes: 'Left by the pot',
-  pantry: 'Basket and pantry',
-  indoors: 'Indoors',
-  /** A Find-a-plant chip for a habit someone already keeps company. */
-  keptBy: '{name} keeps it company',
-  /** Asked before a companion moves out to make room. */
-  moveOutAsk: 'Move {name} out of {plant}?',
-} as const;
+/** The chrome words live in lines.ts (VOICE.md §24); re-exported for this feature's modules. */
+export { PET_CARD_UI };
 
 /** How many treats the Pet Card shows before "Basket and pantry". */
 export const FEED_ROW = 6;

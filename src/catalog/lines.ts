@@ -26,9 +26,9 @@
  * {Count}) is the same value with a capital, because it opens a sentence. A slot filled with ''
  * also drops the ", " before it.
  */
-import type { PlantSpeciesId, Rarity, Species } from './types';
+import type { PlantSpeciesId, Rarity, Species, WearableSlot } from './types';
 import { atLevel, only, type Line } from './lineKit';
-import { LETTER_WAITING, PET_CARD_CORE } from './linesCore';
+import { LETTER_WAITING, PET_CARD_CORE, STORIES } from './linesCore';
 
 // The deck is split in three so the first paint carries only what it needs; this module re-exports
 // all of it, so screens import every line from here.
@@ -841,3 +841,389 @@ export const CAPSULE_NOTICES = {
 /** The names the M1 contract map uses for two of the groups above. */
 export const PROGRESS_HERO = PROGRESS_LINES;
 export const PLACES_OPENED = PLACE_LINES.opened;
+
+/* ------------------------------------------------------------------------ */
+/* Screen chrome: section names, buttons and small labels (VOICE.md §24)     */
+/* ------------------------------------------------------------------------ */
+
+/* Today (DESIGN §9.1): features/today/copy.ts re-exports these. */
+/** The Season Review's ask once the new season is under way (the deck's ask says "starts today"). */
+export const SEASON_ASK_LATER = '{Season} is here. How should each habit go on?';
+
+export const TODAY_COPY = {
+  /** The day's progressbar name. */
+  today: 'Today',
+  whatCanIGet: 'What can I get?',
+  /** The week strip. */
+  week: 'The last 7 days',
+  /** The ⋯ menu (DESIGN §9.1): Tiny version · Rest day · Add note · Details · Edit. */
+  more: 'More for {habit}',
+  menu: { tiny: 'Tiny version', howMany: 'How many…', rest: 'Rest day', note: 'Add a note', editNote: 'Edit the note', details: 'Details', edit: 'Edit' },
+  /** A count habit's inline stepper and number pad. */
+  howMany: 'How many for {habit}',
+  pad: { done: 'Done', tiny: 'Tiny version' },
+  /** Folded rows open and close. */
+  show: 'Show',
+  addHabit: 'Add a habit',
+  /** The note field's sheet title. */
+  noteTitle: 'A note for {habit}',
+  /** Letters and stories on the sill. */
+  open: 'Open',
+  read: 'Read it',
+  close: 'Close',
+  toCapsules: 'Go to Capsules',
+  /** The Keeping Company offer's habit chips. */
+  pickPlant: 'Pick a plant for {name}',
+} as const;
+
+/* The Habit Editor (VOICE §22): features/habits/editor/copy.ts re-exports these. */
+/**
+ * The Habit Editor's own words that the copy deck has no constant for yet (VOICE §22 names the
+ * fields; these are the small labels around them).
+ */
+export const EDITOR_COPY = {
+  newTitle: 'A new habit',
+  editTitle: 'Edit {habit}',
+  ideas: 'Ideas',
+  ideaGroups: 'Kinds of ideas',
+  /** The disclosure after name, ideas, how often and when. */
+  more: 'Colour, plant, amount and more',
+  /** Closing a form with something in it. */
+  leaveTitle: 'Leave without saving?',
+  leaveNew: 'The habit isn’t planted yet.',
+  leaveEdit: 'Your changes aren’t saved yet.',
+  keepEditing: 'Keep editing',
+  leave: 'Leave it',
+  searchIcons: 'Find an icon',
+  chooseIcon: 'Choose an icon',
+  suggested: 'Suggested from the name',
+  unit: 'Unit',
+  step: 'Each tap adds',
+  amount: 'Amount',
+  times: 'How many times',
+  every: 'Every',
+  days: 'Which days',
+  follow: 'Or follow a habit',
+  /** Under the chips once one is picked: a follower sorts after its habit on Today, whatever the arrangement in You. */
+  followHelp: 'On Today, it comes just after {habit}.',
+  tinyCount: 'Tiny amount',
+  seasonHelp: 'Until {date}, then it goes to the balcony shelf with a ribbon.',
+  whyPlaceholder: 'A line, just for you',
+  applyFrom: 'From when?',
+  applyOptions: { today: 'From today', 'next-period': 'From next {period}', tomorrow: 'From tomorrow' },
+  archive: 'Archive',
+  delete: 'Delete',
+  keepsCompany: 'Keeps {habit} company',
+  locked: 'In {series}',
+  planted: '{Plant} is a cutting in a glass of water now.',
+  saved: 'Saved.',
+} as const;
+
+/* The Shelf (DESIGN §9.4): features/shelf/copy.ts re-exports these. */
+export const SHELF_COPY = {
+  title: 'Shelf',
+  sceneLabel: 'The Shelf: the sill and the places you have opened',
+  /** The row of place names under the scene: a jump to each. */
+  placesNav: 'Go to a place on the Shelf',
+  decorate: 'Decorate',
+  done: 'Done',
+  basket: 'Basket',
+  fieldGuide: 'Field Guide',
+  pets: 'Pets',
+  out: 'Out on the Shelf',
+  indoors: 'Indoors',
+  places: 'Places',
+  /** Decor edit mode (DESIGN §9.4). */
+  decor: {
+    title: 'Decorate',
+    hint: 'Drag a thing to move it. Tap one to flip it or put it away.',
+    /** A thing's button in edit mode, after its name (screen readers). */
+    keys: 'Arrow keys move it, F flips it, Delete removes it.',
+    add: 'Add to {place}',
+    flip: 'Flip',
+    putAway: 'Put away',
+    full: '{Place} has room for 24 things.',
+    keepsake: 'Keepsake',
+    placed: '{thing}, on {place}.',
+    removed: '{thing}, put away.',
+    /** She owns things, and every one of them is already out. */
+    allOut: 'Everything you have is out. More comes from the capsules.',
+  },
+  /** The basket and the pantry (DESIGN §8.2). */
+  basketSheet: {
+    title: 'Basket and pantry',
+    basket: 'The basket',
+    pantry: 'The pantry',
+    servings: { one: '1 serving', other: '{count} servings' },
+    none: 'More in the morning',
+    restock: 'Each treat restocks 2 servings every morning, up to 5.',
+  },
+  fieldGuideSheet: {
+    title: 'Field Guide',
+    pages: 'Pages',
+    notYet: 'not yet',
+    secret: 'Secret',
+    of: '{owned} of {total}',
+    visits: 'Visits {from} to {to}',
+    pageFull: 'This page is full.',
+    moonlit: 'Moonlit',
+  },
+  placeMap: {
+    here: '{count} here',
+    short: '{Place} is {price} coins. There are {count} in the jar.',
+    shortOne: '{Place} is {price} coins. There’s 1 in the jar.',
+    shortNone: '{Place} is {price} coins. Watering fills the jar.',
+    go: 'Go to {place}',
+    visit: 'Go there',
+    confirm: 'Open {place}?',
+    /** Said once, under Places, while a place is out of reach. */
+    jar: 'There are {count} coins in the jar.',
+    jarOne: 'There’s 1 coin in the jar.',
+    jarNone: 'Watering fills the jar.',
+  },
+  /** The found thing on the sill, for VoiceOver: "A button, from Pudding". */
+  foundLabel: '{A}, from {name}',
+  capsules: 'Go to Capsules',
+} as const;
+
+/* The Pet Card (VOICE §9): features/pets/petCopy.ts re-exports these. */
+/** The Pet Card's chrome where VOICE.md has no line yet (sentence case, no pronouns). */
+export const PET_CARD_UI = {
+  friendshipAria: 'Friendship: {level}',
+  out: 'Out on the Shelf',
+  outHint: 'Indoors, {name} rests and waits for a place on the Shelf.',
+  noRoom: 'The Shelf has room for {count} pets out. Bring someone indoors first.',
+  keep: 'Keep it',
+  cancel: 'Not now',
+  nameHint: 'Or one of these',
+  slots: { head: 'Head', face: 'Face', neck: 'Neck', body: 'Outfit' } as Record<WearableSlot, string>,
+  wearing: 'Wearing',
+  nothingToWear: 'Things to wear come from the capsules.',
+  noTreats: 'Treats you collect restock here every morning.',
+  servingsOne: '1 serving',
+  servings: '{count} servings',
+  servingsNone: 'More in the morning',
+  favourite: 'Favourite',
+  markFavourite: 'Favourite',
+  keepsakes: 'Left by the pot',
+  pantry: 'Basket and pantry',
+  indoors: 'Indoors',
+  /** A Find-a-plant chip for a habit someone already keeps company. */
+  keptBy: '{name} keeps it company',
+  /** Asked before a companion moves out to make room. */
+  moveOutAsk: 'Move {name} out of {plant}?',
+} as const;
+
+/* Progress and Habit Detail (VOICE §6, §7): features/progress/copy.ts re-exports these. */
+/** The screen's own words: section names, buttons and labels (VOICE.md where it has them). */
+export const PROGRESS_UI = {
+  title: 'Progress',
+  sections: {
+    months: 'Recent months',
+    plants: 'Plants',
+    balcony: 'Balcony shelf',
+    calendar: 'Calendar',
+    year: 'The year',
+    records: 'Records',
+    insights: 'Insights',
+    pins: 'Pins',
+    memory: 'Memory shelf',
+  },
+  /** Under the month's ring: what the percentage is a share of. */
+  hero: { ringCaption: 'of this month’s waterings' },
+  soFarMark: 'so far',
+  calendar: {
+    prev: 'Previous month',
+    next: 'Next month',
+    filter: 'Show habit',
+    all: 'All habits',
+    water: 'Water it for {date}',
+    unwater: 'Not watered after all',
+    windowNote: 'The last 6 days are watered from the week strip on Today.',
+    openToday: 'Open Today',
+    refused: 'That day is watered from the week strip on Today.',
+    watered: 'watered',
+    tiny: 'the tiny version',
+    rest: 'resting',
+    off: 'a day off',
+    paused: 'resting',
+    note: 'a note',
+    part: '{count} of {target}',
+    partUnit: '{count} of {target} {unit}',
+  },
+  year: { prev: 'Previous year', next: 'Next year' },
+  plants: { open: '{habit}, {stage}', retired: '{habit}, on the balcony shelf' },
+  pins: { notYet: 'not yet', earned: 'Earned {date}', progress: '{have} of {need}', stamps: { one: '+1 stamp', other: '+{count} stamps' }, pinLabel: '{name}, not yet', more: { one: '1 more pin', other: '{count} more pins' } },
+  memory: { new: 'New', balcony: { one: '1 plant on the balcony shelf', other: '{count} plants on the balcony shelf' } },
+} as const;
+
+/** Habit Detail's own words (VOICE.md §7, §12, §13, §14, §21 where it has them). */
+export const DETAIL_UI = {
+  forecastEvergreen: 'Evergreen',
+  sections: {
+    tag: 'The plant tag',
+    journal: 'Garden Journal',
+    stats: 'How it’s going',
+    why: STORIES.titles.why,
+    moments: 'Moments',
+    history: 'History',
+    ladder: 'In a row',
+    company: 'Keeping company',
+    actions: 'Look after it',
+  },
+  ladder: { reached: 'Rungs reached: {count} of {total}' },
+  stats: { lately: 'Lately', now: 'Now', longest: 'Longest run', longestLine: 'Longest run: {run}', waterings: 'Waterings', newRhythm: 'New rhythm', since: 'Since {date}', tiny: 'Tiny versions: {count}' },
+  star: 'Star this note',
+  starred: 'Starred for the Sunday Note',
+  quoteHelp: 'Only notes you’ve starred are quoted in the Sunday Note.',
+  /** VOICE §7, graduation. */
+  grow: { title: 'A bigger pot?', text: '{habit} has been steady for 4 weeks. Make it a little bigger? +1 stamp', textQuiet: '{habit} has been steady for 4 weeks. Make it a little bigger?', yes: 'Grow it', no: 'Keep it as it is' },
+  tinier: { title: 'Make it tinier?', text: 'A smaller version still counts, and still waters the plant.', yes: 'Make it tinier', no: 'Keep it as it is', done: '{habit} is tinier now.' },
+  story: { new: 'New', remaining: { one: 'About 1 more watering together.', other: 'About {count} more waterings together.' }, waits: 'After the one before it.' },
+  actions: {
+    edit: 'Edit',
+    pause: 'Pause {habit}',
+    pauseShort: 'Pause',
+    backOn: 'Back on…',
+    backOnLabel: 'Back on',
+    pauseOpen: 'Until you bring it back',
+    bringBack: 'Bring it back',
+    startFrom: 'Start tracking from…',
+    startFromLabel: 'Start tracking from',
+    archive: 'Archive',
+    restore: 'Bring it back to the sill',
+    delete: 'Delete',
+    tune: 'Tune my habits',
+    cancel: 'Not now',
+    confirmArchive: 'Archive',
+  },
+  pausedUntil: 'Resting until {date}',
+  pausedOpen: 'Resting until you bring it back',
+  pauseFrom: 'Resting from {date}',
+  archivedOn: 'On the balcony shelf since {date}',
+  ribbon: 'Finished {date}, with a ribbon',
+  looks: { label: 'Which look', stake: 'Classic' },
+  close: 'Close',
+} as const;
+
+/* You and onboarding (DESIGN §9.5, §9.6): features/you/copy.ts re-exports these. */
+export const YOU_UI = {
+  title: 'You',
+  sinceLine: 'On this sill since {date}',
+  sections: {
+    profile: 'Profile',
+    habits: 'Habits',
+    days: 'Your days',
+    look: 'Look and sound',
+    today: 'Today and capsules',
+    access: 'Accessibility',
+    data: 'Your data',
+    install: 'On your Home Screen',
+    about: 'About',
+  },
+} as const;
+
+export const HABITS_COPY = {
+  arrange: 'Arrange',
+  done: 'Done',
+  archived: 'Archived',
+  bringBack: 'Bring it back',
+  bringBackLabel: 'Bring it back: {habit}',
+  editWord: 'Edit',
+  move: 'Move {habit}',
+  moveUp: 'Move {habit} up',
+  moveDown: 'Move {habit} down',
+  moveHint: 'Drag, or use the arrow keys.',
+  moved: '{habit}, {pos} of {count}.',
+  resting: 'Resting',
+} as const;
+
+export const PREFS_COPY = {
+  weekdays: { 1: 'Monday', 0: 'Sunday' },
+  shortcuts: { label: 'Keyboard shortcuts', helper: '1–5 switch tabs, N plants a habit.' },
+  birthdayMonth: 'Month',
+  birthdayDay: 'Day',
+  notSet: 'Not set',
+  off: 'Off',
+} as const;
+
+export const DATA_COPY = {
+  snapshotsRow: 'Daily copies',
+  /** DATA.snapshots without repeating the sheet's title. */
+  snapshotsKept: 'Kept on this device: 7 daily and 4 weekly.',
+  snapshotKinds: { daily: 'Daily copy', weekly: 'Weekly copy', 'pre-import': 'Before an import' },
+  snapshotLine: '{habits} habits · {waterings} waterings',
+  restoredSnapshot: 'Back to the copy from {date}.',
+  chooseFile: 'Choose a file',
+  pasteLabel: 'Or paste a backup here',
+  pasteHelper: 'A backup starts with CK1, or it is a catkin backup file.',
+  noUndoTitle: 'Import without an undo?',
+  noUndo: 'catkin couldn’t keep a copy of what’s here, so there is no Undo import this time.',
+  importAnyway: 'Import anyway',
+  cannotOpen: 'This browser can’t open that backup. Try the backup file instead.',
+  readOnly: 'This window can’t change the save right now.',
+  inDemo: 'Leave the demo to import a backup. The demo keeps its own plants.',
+  startOverAgainTitle: 'Start over now?',
+  startOverAgain: 'Everything here goes. The daily copies stay on this device.',
+  demoLine: 'A made-up sill with a few months of watering. Your own sill stays just as it is.',
+  demoPill: 'The demo',
+  copyTitle: 'Your backup',
+  copyHelper: 'Select it all, copy it, and keep it somewhere safe.',
+  csvSaved: 'Waterings saved.',
+  fileBuild: 'Saved in this browser, for this file',
+} as const;
+
+export const ABOUT_COPY = {
+  principlesTitle: 'What catkin keeps to',
+  principles: [
+    'Growth only adds. A resting plant keeps every leaf.',
+    'With Quiet rewards on, catkin is just the tracker.',
+    'The odds are printed on every cabinet.',
+  ],
+  how: [
+    { title: 'Your habits are plants', text: 'Each habit starts as a cutting in a glass of water. Watering it counts the day, and the plant grows as you keep the habit: roots, a pot, leaves, buds, flowers.' },
+    { title: 'Showing up, over time', text: 'Progress reads as days you showed up, like 26 of the last 30. Rest days and paused habits count as rest.' },
+    { title: 'Coins and capsules', text: 'Watering drops brass coins in the jar. The capsule cabinets take coins, and each capsule holds a small animal, something to wear, a treat or a bit of decor.' },
+    { title: 'Pets and plants', text: 'Pets keep habits company. Each pet moves into a plant and is there on the sill at every watering. The friendship grows with the habit.' },
+    { title: 'Kept on this device', text: 'Your plants live in this browser or on your Home Screen. There is no account. Save a backup now and then.' },
+    { title: 'Sound and haptics', text: 'Both are extras. Everything works with both off.' },
+  ],
+  credits: [
+    { title: 'Drawn in code', text: 'Every plant, pot, pet and cabinet is drawn by hand as code, lit by one window.' },
+    { title: 'Type', text: 'Castoro by Tiffany Wardle and Nunito by Vernon Adams, both under the SIL Open Font License.' },
+    { title: 'Made with', text: 'Preact, Vite and Workbox.' },
+  ],
+  build: { pwa: 'Home Screen app', tab: 'In the browser', single: 'Single file', dev: 'Development' },
+  updatesSingle: 'This copy updates when you download a new catkin.html.',
+  updatesOther: 'Updates arrive with the hosted app.',
+  checking: 'Checking',
+  diagnosticsIn: 'Diagnostics in {n} taps',
+} as const;
+
+export const DIAG_COPY = {
+  title: 'Diagnostics',
+  back: 'You',
+  lead: 'What this device says about catkin. Copy the report to share it.',
+  device: 'This device',
+  copied: 'Report copied.',
+  measure: 'Measure frame timing',
+  checkClock: 'Check the clock',
+} as const;
+
+export const ONBOARDING_COPY = {
+  next: 'Next',
+  plantOne: 'Plant it',
+  plantMany: 'Plant these',
+  makeOwnLabel: 'Your own habit',
+  add: 'Add',
+  lessIdeas: 'Fewer ideas',
+  pickFull: 'That’s 3. More can go on the sill anytime.',
+  remove: 'Take {habit} off the sill',
+  toToday: 'On to Today',
+  choose: 'Who comes home first? Choose a cabinet',
+  notice: 'Name',
+  nameIdeas: 'Name ideas',
+  anotherName: 'Another name',
+  plantsLead: 'Tap a plant, and {name} moves in.',
+  stepOf: 'Step {n} of {count}',
+} as const;

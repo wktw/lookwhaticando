@@ -6,7 +6,7 @@ import { ObjectArt } from '@/art/scene';
  * A keepsake drawn to fill its tile. `ObjectArt` draws on the Sill's 100 canvas, where a flat thing
  * (a paper bookmark, a pressed leaf) is a sliver along the bottom; at tile size that reads as an empty
  * square. This crops the canvas to the drawing (its measured box, squared, with a little air), so a
- * bookmark is a bookmark at 48 px. (NOTES-w2-shelf.md asks for a `fit` prop on ObjectArt instead.)
+ * bookmark is a bookmark at 48 px. (A `fit` prop on ObjectArt would retire this: NOTES-open.md.)
  */
 export function FitObject({ keepsake, size }: { keepsake: KeepsakeKind; size: number }) {
   const box = useRef<HTMLSpanElement>(null);

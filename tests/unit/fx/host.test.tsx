@@ -108,6 +108,22 @@ describe('CelebrationHost', () => {
     expect(document.querySelector('[data-toast-id]')).not.toBeNull();
   });
 
+  it('a banner steps aside when a sheet opens over it, but stays up for one already open', async () => {
+    await loadCelebrationArt();
+    mountHost();
+    act(() => pushLayer('sheet-under'));
+    act(() => emitGameEvents([{ type: 'badge', badgeId: 'checkins-50', stars: 2 }]));
+    await act(() => sleep(BATCH_MS + 30));
+    expect(document.querySelectorAll('#overlay-root [role="region"]')).toHaveLength(1);
+    act(() => pushLayer('sheet-over'));
+    await act(() => sleep(400));
+    expect(document.querySelectorAll('#overlay-root [role="region"]')).toHaveLength(0);
+    act(() => {
+      removeLayer('sheet-over');
+      removeLayer('sheet-under');
+    });
+  });
+
   it('reserves rewards the instant they arrive, and hands check-in coins to the screen’s own flourish', async () => {
     mountHost();
     act(() =>

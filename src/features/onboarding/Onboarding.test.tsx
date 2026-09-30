@@ -58,7 +58,7 @@ describe('onboarding (DESIGN §9.6)', () => {
     await click(button('Stretch'), 'Stretch');
     expect(button('Stretch')!.getAttribute('aria-pressed')).toBe('false');
     expect(view!.root.textContent).toContain('That’s 3. More can go on the sill anytime.');
-    await click(byText('Plant them'), 'Plant them');
+    await click(byText('Plant these'), 'Plant these');
 
     expect(state.value.profile).toMatchObject({ name: 'Maya', onboarded: true });
     expect(state.value.habits.map((h) => h.name)).toEqual(['Walk', 'Read', 'Practise piano']);

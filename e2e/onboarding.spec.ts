@@ -60,7 +60,7 @@ test('a first boot is onboarding: sill → picks → water → the four cabinets
   await page.getByRole('button', { name: 'Walk', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Walk', exact: true })).toHaveAttribute('aria-pressed', 'true');
   await expectNoAxeViolations(page, info);
-  await page.getByRole('button', { name: 'Plant them' }).click();
+  await page.getByRole('button', { name: 'Plant these' }).click();
 
   await expect(h1(page)).toHaveText('Anything already done today?');
   await expectNoAxeViolations(page, info);
