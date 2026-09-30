@@ -12,7 +12,7 @@
  */
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act } from 'preact/test-utils';
-import { button, click, installDom, key, mount, until } from '@/features/capsules/testing';
+import { button, click, installDom, key, mount, pause, until } from '@/features/capsules/testing';
 import { createInitialState } from '@/state/defaults';
 import type { AppState } from '@/state/types';
 import { ERRORS } from '@/catalog/lines';
@@ -23,22 +23,36 @@ vi.setConfig({ testTimeout: 30_000 });
 const ctl = vi.hoisted(() => {
   const offline = new Set<string>();
   const attempts: Record<string, number> = {};
+  /** While set for `what`, its import waits for it (a slow fetch). */
+  const holds: Record<string, Promise<void>> = {};
   return {
     offline,
     attempts,
+    holds,
     /** Throws as a dynamic import of a missing chunk does, while `what` is offline. */
-    gate(what: string) {
+    async gate(what: string) {
       attempts[what] = (attempts[what] ?? 0) + 1;
+      const hold = holds[what];
+      if (hold) await hold;
       if (offline.has(what)) throw new TypeError(`Failed to fetch dynamically imported module: ${what}`);
     },
   };
 });
 /** The real host modules, behind the switch (registered afresh with each fresh module graph). */
 function gateChunks() {
-  vi.doMock('@/features/habits/editor/HabitEditorHost', async (orig) => (ctl.gate('editor'), orig()));
-  vi.doMock('@/features/habits/detail/HabitDetailHost', async (orig) => (ctl.gate('detail'), orig()));
-  vi.doMock('@/features/pets/PetCardHost', async (orig) => (ctl.gate('pet'), orig()));
-  vi.doMock('@/features/rituals/RitualReaderHost', async (orig) => (ctl.gate('ritual'), orig()));
+  vi.doMock('@/features/habits/editor/HabitEditorHost', async (orig) => (await ctl.gate('editor'), orig()));
+  vi.doMock('@/features/habits/detail/HabitDetailHost', async (orig) => (await ctl.gate('detail'), orig()));
+  vi.doMock('@/features/pets/PetCardHost', async (orig) => (await ctl.gate('pet'), orig()));
+  vi.doMock('@/features/rituals/RitualReaderHost', async (orig) => (await ctl.gate('ritual'), orig()));
+}
+/** Holds `what`'s next import until the returned function lets it through. */
+function hold(what: string): () => void {
+  let letThrough = () => {};
+  ctl.holds[what] = new Promise<void>((r) => (letThrough = r));
+  return () => {
+    delete ctl.holds[what];
+    letThrough();
+  };
 }
 
 let view: ReturnType<typeof mount> | null = null;
@@ -71,6 +85,8 @@ async function fresh(save?: AppState) {
 }
 
 const errorSheet = () => document.querySelector<HTMLElement>('[role="alertdialog"]');
+/** The error sheet's phase (src/ui/Sheet.tsx): 'enter' or 'open' while it is up, 'exit' as it goes. */
+const errorSheetPhase = () => errorSheet()?.closest('[data-state]')?.getAttribute('data-state') ?? null;
 const dialogs = () => document.querySelectorAll('[role="dialog"], [role="alertdialog"]');
 
 beforeAll(() => {
@@ -90,6 +106,7 @@ beforeEach(() => {
   reloads.mockClear();
   ctl.offline.clear();
   for (const k of Object.keys(ctl.attempts)) delete ctl.attempts[k];
+  for (const k of Object.keys(ctl.holds)) delete ctl.holds[k];
 });
 afterEach(() => {
   delete (navigator as { onLine?: boolean }).onLine;
@@ -165,6 +182,85 @@ describe('a shared sheet whose chunk can’t load (WP-C4, integration-i4)', () =
     await click(button('Try again'), 'Try again');
     await until(() => document.querySelector(`[data-habit-detail="${walk}"]`), 'Walk’s detail', LOAD);
     expect(dialogs()).toHaveLength(1);
+  });
+
+  it('while Try again is under way the error sheet stays up, busy; Close then, and the retry failing after changes nothing', async () => {
+    ctl.offline.add('detail');
+    const { open, walk } = await fresh();
+    await act(() => open.openHabitDetail(walk));
+    await until(errorSheet, 'the error sheet', LOAD);
+    await until(() => errorSheetPhase() === 'open', 'the error sheet to settle');
+    const letThrough = hold('detail');
+    await click(button('Try again'), 'Try again');
+    await until(() => ctl.attempts.detail === 2, 'the second attempt to start', LOAD);
+    // Still up (not sliding out), past the time a closing sheet takes to go, and busy.
+    await pause(400);
+    expect(errorSheetPhase()).toBe('open');
+    expect(button('Try again')?.getAttribute('aria-busy')).toBe('true');
+
+    // She closes it while it tries; then the retry fails. She chose Close: no reload, nothing kept.
+    await click(button('Close'), 'Close');
+    expect(open.habitDetailRequest.value).toBeNull();
+    await act(() => letThrough());
+    await until(() => !errorSheet(), 'the error sheet to go');
+    await pause(50);
+    expect(reloads).not.toHaveBeenCalled();
+    expect(sessionStorage.getItem('catkin-sheet-retry')).toBeNull();
+    expect(errorSheet()).toBeNull();
+    expect(open.habitDetailRequest.value).toBeNull();
+
+    // The next request is a first load, not a retry left busy.
+    ctl.offline.delete('detail');
+    await act(() => open.openHabitDetail(walk));
+    await until(() => document.querySelector(`[data-habit-detail="${walk}"]`), 'Walk’s detail', LOAD);
+    expect(errorSheet()).toBeNull();
+    expect(dialogs()).toHaveLength(1);
+  });
+
+  // A reload would lose what lives only in this page: changes not yet on disk (a write that keeps
+  // failing, or a save with no persistent storage at all), or the demo peek.
+  it.each([
+    ['a write that keeps failing', 'failing'],
+    ['no persistent storage', 'volatile'],
+    ['the demo', 'demo'],
+  ] as const)('with %s, a failed retry does not reload: the error sheet comes back with its request', async (_, what) => {
+    ctl.offline.add('detail');
+    const { store, open } = await fresh();
+    let restore = () => {};
+    if (what === 'volatile') store.volatileStorage.value = true;
+    if (what === 'demo') store.demoMode.value = true;
+    if (what === 'failing') {
+      // A real save queue whose writes fail, holding a change: flushSaves() can't write it.
+      store.hydrate();
+      store.completeOnboarding({ name: '', templateIds: ['walk'] });
+      store.flushSaves();
+      const real = Storage.prototype.setItem;
+      Storage.prototype.setItem = function (this: Storage, k: string, v: string) {
+        if (this === localStorage) throw new DOMException('The quota has been exceeded.', 'QuotaExceededError');
+        return real.call(this, k, v);
+      };
+      restore = () => (Storage.prototype.setItem = real);
+      const id = store.state.value.habits.find((h) => h.name === 'Walk')!.id;
+      store.checkIn(id);
+      store.flushSaves();
+      expect(store.hasUnsavedWork()).toBe(true);
+    }
+    try {
+      const id = store.state.value.habits.find((h) => h.name === 'Walk')!.id;
+      await act(() => open.openHabitDetail(id));
+      await until(errorSheet, 'the error sheet', LOAD);
+      await click(button('Try again'), 'Try again');
+      await until(() => ctl.attempts.detail === 2 && !button('Try again')?.hasAttribute('aria-busy') && button('Try again'), 'the second attempt to fail', LOAD);
+      expect(reloads).not.toHaveBeenCalled();
+      expect(sessionStorage.getItem('catkin-sheet-retry')).toBeNull();
+      expect(errorSheetPhase()).not.toBe('exit');
+      expect(dialogs()).toHaveLength(1);
+      expect(open.habitDetailRequest.value).toBe(id);
+    } finally {
+      restore();
+      store.volatileStorage.value = false;
+      store.demoMode.value = false;
+    }
   });
 
   it('a kept request that isn’t one is dropped after a reload', async () => {

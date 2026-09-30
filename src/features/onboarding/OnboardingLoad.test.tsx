@@ -112,6 +112,9 @@ describe('onboarding’s capsule steps load, fail and retry (WP-C4, creative-cr-
     await until(() => byText('Try again'), 'the error in place of the lead', LOAD);
     expect(h1s()).toHaveLength(1);
     expect(h1()).toBe('Who comes home first?');
+    // The error's own title sits under the step's h1, as an h2.
+    const errorTitle = Array.from(document.querySelectorAll('h1, h2, h3, h4')).find((h) => h.textContent === 'This page didn’t load');
+    expect(errorTitle?.tagName).toBe('H2');
     expect(view!.root.textContent).not.toContain(LEAD);
     expect(byText('Skip')).not.toBeNull();
 
@@ -193,6 +196,23 @@ describe('onboarding’s capsule steps load, fail and retry (WP-C4, creative-cr-
     expect(h1s()).toHaveLength(1);
     expect(h1()).toBe('Who comes home first?');
     expect(document.activeElement).toBe(h1s()[0]);
+  });
+
+  it('when the cabinets arrive after she moved focus herself, focus stays where she put it', async () => {
+    let letThrough = () => {};
+    ctl.hold = new Promise<void>((r) => (letThrough = r));
+    await fresh();
+    await click(byText('Skip'), 'Skip');
+    await click(byText('Skip'), 'Skip');
+    await until(() => h1() === 'Who comes home first?', 'step 4’s heading while it loads', LOAD);
+    const skip = byText('Skip')!;
+    await act(() => skip.focus());
+    expect(document.activeElement).toBe(skip);
+
+    await act(() => letThrough());
+    await until(() => button(/^No\. 01 · Cats/), 'the four cabinets', LOAD);
+    await pause(0);
+    expect(document.activeElement).toBe(skip);
   });
 
   it('after a reload into step 5, the heading names the pet, and Skip still goes to Today', async () => {

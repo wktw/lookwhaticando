@@ -147,8 +147,22 @@ test('offline, step 4’s chunk can’t load: its heading, Try again in place of
   await expect(page.getByText('Your first capsule is on the house. Choose a cabinet.')).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Skip' })).toBeVisible();
 
-  // Chromium keeps the failed chunk for the life of the page, so Try again reloads (online, nothing
-  // unsaved), and step 4 comes back from its saved progress with the cabinets.
+  // Offline, Try again does not reload (that could land on the browser's own offline page): the
+  // error comes back in the same page, under the same heading.
+  let loads = 0;
+  page.on('load', () => loads++);
+  await page.evaluate(() => ((window as unknown as { samePage: boolean }).samePage = true));
+  await page.context().setOffline(true);
+  await retry.click();
+  await page.waitForTimeout(600);
+  await expect(retry).toBeVisible();
+  await expect(h1(page)).toHaveText('Who comes home first?');
+  expect(loads).toBe(0);
+  expect(await page.evaluate(() => (window as unknown as { samePage?: boolean }).samePage)).toBe(true);
+
+  // Back online, Chromium still keeps the failed chunk for the life of the page, so Try again
+  // reloads (online, nothing unsaved), and step 4 comes back from its saved progress with the cabinets.
+  await page.context().setOffline(false);
   await page.unroute(chunk);
   await retry.click();
   await expect(page.getByRole('button', { name: /^No\. 01 · Cats/ })).toBeVisible();

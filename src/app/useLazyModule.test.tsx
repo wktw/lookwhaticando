@@ -4,6 +4,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite
 import { render } from 'preact';
 import { act } from 'preact/test-utils';
 import { installDom, mount, pause } from '@/features/capsules/testing';
+import { demoMode, volatileStorage } from '@/state/store';
 import { lazyModule, pageReload, useLazyModule, type LazyModule, type LazyState } from './useLazyModule';
 
 type Mod = { name: string };
@@ -29,6 +30,8 @@ beforeAll(() => {
 beforeEach(() => reloads.mockClear());
 afterEach(() => {
   delete (navigator as { onLine?: boolean }).onLine;
+  demoMode.value = false;
+  volatileStorage.value = false;
 });
 
 describe('lazyModule', () => {
@@ -110,6 +113,8 @@ describe('useLazyModule', () => {
 
     await act(() => render(<Probe mod={mod} wanted />, root));
     expect(seen!.status).toBe('loading');
+    // A fresh first load, not a retry: the stale failure left no count behind.
+    expect(seen!.retrying).toBe(false);
     expect(imp.calls).toHaveLength(2);
     await act(() => imp.calls[1]!.resolve({ name: 'sheet' }));
     await pause(0);
@@ -157,6 +162,66 @@ describe('useLazyModule', () => {
     expect(reloads).toHaveBeenCalledTimes(1);
     // Busy until the page goes.
     expect(seen!.retrying).toBe(true);
+    view.unmount();
+  });
+
+  it('a retry that fails after it stopped being wanted does not reload, and leaves no failure behind', async () => {
+    // Try again, then Close while it is busy, then that retry fails: she chose Close.
+    const imp = importer();
+    const mod = lazyModule(imp.load);
+    const before = vi.fn();
+    const Retry = ({ wanted }: { wanted: boolean }) => {
+      seen = useLazyModule(mod, wanted, { beforeReload: before });
+      return null;
+    };
+    const root = document.createElement('div');
+    document.body.append(root);
+    await act(() => render(<Retry wanted />, root));
+    await act(() => imp.calls[0]!.reject(new Error('offline')));
+    await pause(0);
+    expect(seen!.status).toBe('error');
+    await act(() => seen!.retry());
+    expect(seen!.retrying).toBe(true);
+    await act(() => render(<Retry wanted={false} />, root));
+    await act(() => imp.calls[1]!.reject(new Error('still cached as failed')));
+    await pause(0);
+    expect(reloads).not.toHaveBeenCalled();
+    expect(before).not.toHaveBeenCalled();
+    expect(seen!.status).toBe('idle');
+
+    // Asked for again, it is a first load: loading, not a busy retry.
+    await act(() => render(<Retry wanted />, root));
+    expect(seen!.status).toBe('loading');
+    expect(seen!.retrying).toBe(false);
+    expect(imp.calls).toHaveLength(3);
+    await act(() => render(null, root));
+    root.remove();
+  });
+
+  // A reload would lose what lives only in this page: changes not on disk (here, a save with no
+  // persistent storage at all), or the demo peek.
+  it.each([
+    ['with changes that are not on disk', () => (volatileStorage.value = true)],
+    ['in the demo', () => (demoMode.value = true)],
+  ])('%s, a retry that fails shows the error again instead of reloading', async (_, set) => {
+    set();
+    const imp = importer();
+    const mod = lazyModule(imp.load);
+    const before = vi.fn();
+    const Retry = () => {
+      seen = useLazyModule(mod, true, { beforeReload: before });
+      return null;
+    };
+    const view = mount(<Retry />);
+    await act(() => imp.calls[0]!.reject(new Error('offline')));
+    await pause(0);
+    await act(() => seen!.retry());
+    await act(() => imp.calls[1]!.reject(new Error('still cached as failed')));
+    await pause(0);
+    expect(reloads).not.toHaveBeenCalled();
+    expect(before).not.toHaveBeenCalled();
+    expect(seen!.status).toBe('error');
+    expect(seen!.retrying).toBe(false);
     view.unmount();
   });
 
