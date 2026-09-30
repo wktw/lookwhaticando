@@ -1,5 +1,4 @@
-import type { ComponentType } from 'preact';
-import { useEffect, useState } from 'preact/hooks';
+import { useEffect } from 'preact/hooks';
 import { cx } from '@/ui/cx';
 import { SHELL_LINES } from '@/features/you/shellCopy';
 import { clockBehind, crossWindowNotice, demoMode, dismissCrossWindowNotice, durability, exitDemo, readOnly, useHere } from '@/state/store';
@@ -13,6 +12,7 @@ import { routeFor } from './routes';
 import { preloadAllWhenIdle } from './screens';
 import { ScreenHost, ScreenLoading, ScreenError } from './ScreenHost';
 import { SheetHosts } from './SheetHosts';
+import { lazyModule, useLazyModule } from './useLazyModule';
 import { Sidebar } from './Sidebar';
 import { TabBar } from './TabBar';
 import { NEW_HABIT_EVENT } from './shortcuts';
@@ -91,24 +91,12 @@ export function ShellBanners() {
   );
 }
 
-/** Onboarding's chunk, loaded only for a save that needs it. */
-function useOnboarding(needed: boolean): { Flow: ComponentType | null; failed: boolean; retry: () => void } {
-  const [Flow, setFlow] = useState<ComponentType | null>(null);
-  const [failed, setFailed] = useState(false);
-  const [attempt, setAttempt] = useState(0);
-  useEffect(() => {
-    if (!needed || Flow) return;
-    let live = true;
-    setFailed(false);
-    import('@/features/onboarding/Onboarding')
-      .then((m) => live && setFlow(() => m.Onboarding))
-      .catch(() => live && setFailed(true));
-    return () => {
-      live = false;
-    };
-  }, [needed, attempt]);
-  return { Flow, failed, retry: () => setAttempt((n) => n + 1) };
-}
+/**
+ * Onboarding's chunk, loaded only for a save that needs it. If it can't load, an error with Try
+ * again; a retry that fails in the page reloads it when that is safe, and onboarding comes back
+ * from the save (./useLazyModule.ts, P-ui-22).
+ */
+const onboardingFlow = lazyModule(() => import('@/features/onboarding/Onboarding').then((m) => m.Onboarding));
 
 /**
  * The responsive shell. Phones: the screen over a paper tab bar. ≥ 900 px: an oat sidebar and a
@@ -119,7 +107,7 @@ export function App() {
   const tab = currentTab.value;
   const route = routeFor(tab);
   const onboarding = onboardingActive.value;
-  const { Flow, failed, retry } = useOnboarding(onboarding);
+  const { status: flowStatus, module: Flow, retry } = useLazyModule(onboardingFlow, onboarding);
 
   useEffect(() => {
     document.title = onboarding || tab === 'today' ? SHELL_COPY.appName : `${route.label} · ${SHELL_COPY.appName}`;
@@ -148,7 +136,7 @@ export function App() {
         {skip}
         <main id="main" class={s.onboarding} tabIndex={-1} aria-label={SHELL_COPY.appName}>
           <ShellBanners />
-          {Flow ? <Flow /> : failed ? <ScreenError onRetry={retry} /> : <ScreenLoading />}
+          {Flow ? <Flow /> : flowStatus === 'error' ? <ScreenError onRetry={retry} /> : <ScreenLoading />}
         </main>
       </div>
     );

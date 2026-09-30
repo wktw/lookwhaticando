@@ -25,6 +25,7 @@ export const SCREEN_COPY = {
   sheetText: 'It needs a connection the first time it opens. Your plants and coins are saved.',
   sheetRetry: 'Try again',
   sheetClose: 'Close',
+  sheetSlow: 'One moment',
 } as const;
 
 /** Service worker notes. */

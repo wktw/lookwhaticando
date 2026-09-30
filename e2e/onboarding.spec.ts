@@ -171,6 +171,37 @@ test('offline, step 4’s chunk can’t load: its heading, Try again in place of
   await expect(h1(page)).toBeFocused();
 });
 
+test('offline, onboarding’s own chunk can’t load: Try again, and back online onboarding (WP-C4 follow-up, P-ui-22)', async ({ page }) => {
+  // The chunk is aborted the way an offline fetch fails, from the first boot.
+  const chunk = /\/Onboarding[-.][^/]*$/;
+  await page.route(chunk, (r) => r.abort('internetdisconnected'));
+  await page.goto('./#/today');
+  const stay = page.getByRole('button', { name: 'Keep it in this tab' });
+  const failed = page.getByRole('heading', { name: 'This page didn’t load' });
+  await expect(failed).toBeVisible();
+  const retry = page.getByRole('button', { name: 'Try again' });
+
+  let loads = 0;
+  page.on('load', () => loads++);
+  await page.evaluate(() => ((window as unknown as { samePage: boolean }).samePage = true));
+  await page.context().setOffline(true);
+  await retry.click();
+  await page.waitForTimeout(600);
+  await expect(retry).toBeVisible();
+  expect(loads).toBe(0);
+  expect(await page.evaluate(() => (window as unknown as { samePage?: boolean }).samePage)).toBe(true);
+
+  // Back online, Try again reloads (Chromium keeps the failed chunk for the life of the page), and
+  // onboarding comes back from the save (on a phone, its install gate first: it is in that chunk).
+  await page.context().setOffline(false);
+  await page.unroute(chunk);
+  await retry.click();
+  const sill = page.getByRole('heading', { level: 1, name: 'New place. Which plants came with you?' });
+  await expect(stay.or(sill)).toBeVisible();
+  if (await stay.isVisible()) await stay.click();
+  await expect(sill).toBeVisible();
+});
+
 test.describe('in an iPhone Safari tab', () => {
   test.use({ userAgent: IPHONE_SAFARI });
 

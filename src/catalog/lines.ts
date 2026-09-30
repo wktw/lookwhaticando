@@ -755,6 +755,8 @@ export const ERRORS = {
   sheetText: 'It needs a connection the first time it opens. Your plants and coins are saved.',
   sheetRetry: 'Try again',
   sheetClose: 'Close',
+  /** The same sheet while a first load takes a moment (P-ui-23): its title, over a busy "Try again" and "Close". DEC-V: pending owner approval. */
+  sheetSlow: 'One moment',
   save: 'That change didn’t save yet. catkin is trying again, and your last backup is safe.',
   /** No persistent storage at all this session (blocked or missing): nothing is kept past closing. */
   volatile: 'This browser isn’t keeping catkin’s save right now. Save a backup before you close it.',

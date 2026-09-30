@@ -174,3 +174,34 @@ test.describe('journeys', () => {
     expect(o.scrollWidth, o.culprits.join('\n')).toBeLessThanOrEqual(o.clientWidth);
   });
 });
+
+test('a screen whose chunk can’t load says so; back online, Try again brings it (WP-C4 follow-up, P-ui-22)', async ({ page }) => {
+  // The Progress screen's chunk is aborted the way an offline fetch fails (its idle preload fails too).
+  const chunk = '**/*ProgressScreen*';
+  await page.route(chunk, (r) => r.abort('internetdisconnected'));
+  await openRoute(page, 'today');
+  await page.evaluate(() => (location.hash = '#/progress'));
+  await expect(page.getByRole('heading', { name: 'This page didn’t load' })).toBeVisible();
+  const retry = page.getByRole('button', { name: 'Try again' });
+
+  // Offline, Try again does not reload (that could land on the browser's own offline page): the
+  // error comes back in the same page.
+  let loads = 0;
+  page.on('load', () => loads++);
+  await page.evaluate(() => ((window as unknown as { samePage: boolean }).samePage = true));
+  await page.context().setOffline(true);
+  await retry.click();
+  await page.waitForTimeout(600);
+  await expect(retry).toBeVisible();
+  expect(loads).toBe(0);
+  expect(await page.evaluate(() => (window as unknown as { samePage?: boolean }).samePage)).toBe(true);
+
+  // Back online, Chromium still keeps the failed chunk for the life of the page, so Try again
+  // reloads (online, nothing unsaved), and the tab in the URL comes back with its screen.
+  await page.context().setOffline(false);
+  await page.unroute(chunk);
+  await retry.click();
+  await expect(page.locator('main h1')).toHaveText('Progress');
+  await expect(page).toHaveURL(/#\/progress$/);
+  await expect(page.getByRole('heading', { name: 'This page didn’t load' })).toHaveCount(0);
+});

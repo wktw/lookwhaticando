@@ -82,8 +82,12 @@ export function useLazyModule<T>(mod: LazyModule<T>, wanted = true, options: Laz
   const module = mod.current();
   const [attempt, setAttempt] = useState(0);
   const [loading, setLoading] = useState(false);
-  /** Failed attempts since the module was last wanted (0 once it loads). */
-  const [failures, setFailures] = useState(0);
+  /**
+   * Failed attempts since the module was last wanted (0 once it loads), counted for one module: a
+   * component that asks for another (a tab's screen after another tab's) starts at 0 for it.
+   */
+  const [failed, setFailed] = useState<{ mod: LazyModule<T> | null; n: number }>({ mod: null, n: 0 });
+  const failures = failed.mod === mod ? failed.n : 0;
   /** The next attempt was asked for by `retry()`. */
   const retried = useRef(false);
   const latest = useRef(options);
@@ -94,7 +98,7 @@ export function useLazyModule<T>(mod: LazyModule<T>, wanted = true, options: Laz
     retried.current = false;
     if (!wanted) {
       setLoading(false);
-      setFailures(0);
+      setFailed({ mod, n: 0 });
       return;
     }
     if (mod.current()) return;
@@ -104,13 +108,13 @@ export function useLazyModule<T>(mod: LazyModule<T>, wanted = true, options: Laz
       () => {
         if (!live) return;
         setLoading(false);
-        setFailures(0);
+        setFailed({ mod, n: 0 });
       },
       () => {
         if (!live) return;
         if (byRetry && reloadToRetry(latest.current.beforeReload)) return;
         setLoading(false);
-        setFailures((n) => n + 1);
+        setFailed((f) => ({ mod, n: (f.mod === mod ? f.n : 0) + 1 }));
       },
     );
     return () => {

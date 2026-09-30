@@ -1,6 +1,6 @@
 import type { ComponentType } from 'preact';
 import type { Signal } from '@preact/signals';
-import { useEffect } from 'preact/hooks';
+import { useEffect, useRef, useState } from 'preact/hooks';
 import { PET_INTENTS, closeHabitDetail, closeHabitEditor, closePetCard, habitDetailRequest, habitEditorRequest, petCardRequest, type PetIntent } from '@/features/habits/open';
 import { closeRitual, ritualRequest } from '@/features/rituals/open';
 import { ConfirmDialog } from '@/ui/ConfirmDialog';
@@ -76,28 +76,54 @@ function askAgainAfterReload(): void {
 }
 
 /**
- * A sheet host, loaded the first time its sheet is asked for and then kept mounted (WP-C4). If its
- * chunk can't load (offline before it was ever kept, or an update took the old chunk away), a
+ * How long a sheet's first load may take before a small sheet says so (P-ui-23). The service worker
+ * keeps every chunk once it is installed, so this is only ever seen before that: a quick load
+ * opens its sheet with nothing in between.
+ */
+export const SLOW_SHEET_MS = 700;
+
+/** True once `active` has held for `ms` (false again as soon as it stops). */
+function useHeldFor(active: boolean, ms: number): boolean {
+  const [held, setHeld] = useState(false);
+  useEffect(() => {
+    setHeld(false);
+    if (!active) return;
+    const t = setTimeout(() => setHeld(true), ms);
+    return () => clearTimeout(t);
+  }, [active, ms]);
+  return active && held;
+}
+
+/**
+ * A sheet host, loaded the first time its sheet is asked for and then kept mounted (WP-C4). A first
+ * load that takes a moment gets a small sheet, "One moment", with Close (P-ui-23). If its
+ * chunk can't load (offline before it was ever kept, or an update took the old chunk away), the
  * small sheet says so: "Try again" keeps the request and opens what was asked for once it loads
  * (the sheet stays up, busy, while it tries; a retry that fails in the page reloads it when that is
  * safe, and the request is asked for again after); "Close" (and Esc) clears the request, so the
- * next request loads afresh.
+ * next request loads afresh. It is one sheet throughout: loading, the error and a retry change its
+ * words, and it goes the moment the sheet asked for opens.
  */
 function LazySheet({ name }: { name: SheetName }) {
   const sheet: SheetSpec = SHEETS[name];
   const { status, module, retrying, retry } = useLazyModule(sheet.host, sheet.request.value !== null, { beforeReload: () => keepForReload(name) });
+  const slow = useHeldFor(status === 'loading' && !retrying, SLOW_SHEET_MS);
+  const open = status === 'error' || retrying || slow;
+  // What it says while it is up, and still as it slides away (Close clears what it was showing).
+  const face = useRef({ slow: false, busy: false });
+  if (open) face.current = { slow, busy: retrying || slow };
   if (module) {
     const Loaded = module.default;
     return <Loaded />;
   }
   return (
     <ConfirmDialog
-      open={status === 'error' || retrying}
-      title={SCREEN_COPY.sheetTitle}
-      message={SCREEN_COPY.sheetText}
+      open={open}
+      title={face.current.slow ? SCREEN_COPY.sheetSlow : SCREEN_COPY.sheetTitle}
+      message={face.current.slow ? undefined : SCREEN_COPY.sheetText}
       confirmLabel={SCREEN_COPY.sheetRetry}
       cancelLabel={SCREEN_COPY.sheetClose}
-      busy={retrying}
+      busy={face.current.busy}
       onConfirm={retry}
       onCancel={sheet.close}
     />
