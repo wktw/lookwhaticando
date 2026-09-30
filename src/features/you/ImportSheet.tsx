@@ -3,16 +3,18 @@
  * app) "Paste my plants" straight from the clipboard. The backup is described before anything
  * changes ("This backup has 5 habits, 312 waterings and 7 pets. Saved Sep 20."), then "Import"
  * replaces what's here (never a merge) and "Undo import" stands for 24 hours. When no undo copy
- * could be kept, she is asked once more ('no-undo').
+ * could be kept, she is asked once more ('no-undo'). Every note says only what the import answered
+ * (`{ ok: true, undo }`, WP-A3): no Undo is offered when none was kept, and closing the sheet lets
+ * an import that hasn't committed yet go.
  *
  * Shared by You › Data, the install gate and onboarding's first step.
  */
 import { useEffect, useRef, useState } from 'preact/hooks';
-import { DATA, ERRORS, INSTALL, fillLine } from '@/catalog/lines';
+import { CHECKIN_TOASTS, DATA, ERRORS, INSTALL, fillLine } from '@/catalog/lines';
 import { num } from '@/catalog/format';
 import { dayOf } from './when';
 import { applyImport, demoMode, previewImport, undoImport } from '@/state/store';
-import type { ImportPreview } from '@/state/api';
+import type { ImportPreview, ReplaceError, ReplaceResult } from '@/state/api';
 import { Button } from '@/ui/Button';
 import { ConfirmDialog } from '@/ui/ConfirmDialog';
 import { Sheet } from '@/ui/Sheet';
@@ -23,9 +25,40 @@ import { DATA_COPY } from './copy';
 import { readClipboard, readFileText } from './files';
 import s from './You.module.css';
 
+/**
+ * The words for an import, restore or Undo that changed nothing (VOICE §21), or null when there is
+ * nothing to say: she let it go, or another one was under way (its button was busy).
+ */
+export function replaceErrorText(error: ReplaceError): string | null {
+  switch (error) {
+    case 'aborted':
+    case 'busy':
+      return null;
+    case 'not-saved':
+      return DATA_COPY.notReplaced;
+    case 'superseded':
+      return DATA_COPY.superseded;
+    case 'demo-mode':
+    case 'read-only':
+      return DATA_COPY.readOnly;
+    case 'unavailable':
+    case 'damaged-copy':
+      return DATA_COPY.copyUnreadable;
+    case 'not-found':
+    case 'expired':
+      return DATA_COPY.copyGone;
+    default:
+      return importErrorText(error);
+  }
+}
+
 /** The words for an import that can't go ahead (VOICE §18). */
 export function importErrorText(error: string): string {
   switch (error) {
+    case 'not-saved':
+      return DATA_COPY.notReplaced;
+    case 'superseded':
+      return DATA_COPY.superseded;
     case 'made-by-newer-version':
       return ERRORS.newerBackup;
     case 'cannot-decompress-here':
@@ -46,31 +79,53 @@ export function previewLine(p: ImportPreview): string {
   return p.savedAt ? line : line.replace(/ Saved \.$/, '');
 }
 
-/** "Imported. You can undo this for 24 hours." with "Undo import" on the note. */
-export function toastImported(onUndone?: () => void): void {
+/** Takes the last import or restore back, and says what happened (VOICE §21). */
+export function undoLastReplacement(kind: 'import' | 'restore', onUndone?: () => void): Promise<void> {
+  return undoImport().then((res) => {
+    if (res.ok) {
+      toast({ key: 'import-undone', message: kind === 'restore' ? DATA_COPY.undoneRestore : DATA.undone, tone: 'sage' });
+      onUndone?.();
+      return;
+    }
+    const text = replaceErrorText(res.error);
+    if (text) toast({ key: 'import-undo-no', message: text, tone: 'butter' });
+  });
+}
+
+/**
+ * The note after an import, from what it answered: "Imported. You can undo this for 24 hours." with
+ * "Undo import" when a copy was kept, else "Imported. There is no Undo import this time." with no
+ * Undo (data-d11).
+ */
+export function toastImported(undo: { until: number } | null, onUndone?: () => void): void {
+  if (!undo) {
+    toast({ key: 'imported', message: DATA_COPY.importedNoUndo, tone: 'sage', duration: 8000 });
+    return;
+  }
   toast({
     key: 'imported',
     message: DATA.imported,
     tone: 'sage',
     duration: 8000,
-    action: {
-      label: DATA.undoImport,
-      onAction: () =>
-        void undoImport().then((ok) => {
-          if (ok) {
-            toast({ key: 'import-undone', message: DATA.undone, tone: 'sage' });
-            onUndone?.();
-          }
-        }),
-    },
+    action: { label: DATA.undoImport, onAction: () => void undoLastReplacement('import', onUndone) },
+  });
+}
+
+/** The note after a restore: "Back to the copy from Sep 20.", with "Undo" when a copy was kept. */
+export function toastRestored(date: string, undo: { until: number } | null, onUndone?: () => void): void {
+  toast({
+    key: 'snapshot-restored',
+    message: fillLine(DATA_COPY.restoredSnapshot, { date }),
+    tone: 'sage',
+    ...(undo ? { duration: 8000, action: { label: CHECKIN_TOASTS.undo, onAction: () => void undoLastReplacement('restore', onUndone) } } : {}),
   });
 }
 
 export interface ImportSheetProps {
   open: boolean;
   onClose: () => void;
-  /** After a backup was imported (the sheet has closed). */
-  onImported?: () => void;
+  /** After a backup was imported (the sheet has closed), with the Undo it promises, if any. */
+  onImported?: (res: Extract<ReplaceResult, { ok: true }>) => void;
   /**
    * "Paste my plants": the clipboard read that the tap opening the sheet started (iPhone Safari
    * only reads it inside a tap). Its text is described as soon as it arrives; if it can't be
@@ -89,15 +144,23 @@ export function ImportSheet({ open, onClose, onImported, clip, title = DATA.impo
   const [askNoUndo, setAskNoUndo] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
   const run = useRef(0);
+  /** The import under way, let go when the sheet closes or goes (FS5). */
+  const importing = useRef<AbortController | null>(null);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      importing.current?.abort();
+      importing.current = null;
+      return;
+    }
     setText('');
     setPreview(null);
     setError(null);
     setBusy(false);
     if (clip) void clip.then(take);
   }, [open]);
+
+  useEffect(() => () => importing.current?.abort(), []);
 
   const describe = async (value: string) => {
     const mine = ++run.current;
@@ -148,22 +211,30 @@ export function ImportSheet({ open, onClose, onImported, clip, title = DATA.impo
   const source = () => pending.current ?? text;
 
   const doImport = async (withoutUndo = false) => {
+    importing.current?.abort();
+    const ctl = new AbortController();
+    importing.current = ctl;
     setBusy(true);
-    const res = await applyImport(source().trim(), { withoutUndo });
+    const res = await applyImport(source().trim(), { withoutUndo, signal: ctl.signal });
+    if (importing.current === ctl) importing.current = null;
+    // Closed meanwhile: whatever it answered, this visit of the sheet is over.
+    if (ctl.signal.aborted && !res.ok) return;
     setBusy(false);
     if (!res.ok) {
       if (res.error === 'no-undo') {
         setAskNoUndo(true);
         return;
       }
-      setError(importErrorText(res.error));
+      setAskNoUndo(false);
+      const text = replaceErrorText(res.error);
+      if (text) setError(text);
       return;
     }
     setAskNoUndo(false);
     pending.current = null;
     onClose();
-    toastImported();
-    onImported?.();
+    toastImported(res.undo);
+    onImported?.(res);
   };
 
   const inDemo = demoMode.value;

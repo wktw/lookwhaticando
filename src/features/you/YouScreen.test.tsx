@@ -2,7 +2,8 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { act } from 'preact/test-utils';
 import { createInitialState } from '@/state/defaults';
-import { archiveHabit, completeOnboarding, exportData, readOnly, setName, state } from '@/state/store';
+import { archiveHabit, completeOnboarding, configureStore, exportData, readOnly, setName, state } from '@/state/store';
+import { memorySnapshotStore } from '@/state/snapshots';
 import { routeRest } from '@/app/router';
 import { toasts } from '@/ui/toast';
 import { button, click, installDom, key, mount, type, until } from '@/features/capsules/testing';
@@ -16,6 +17,8 @@ const byText = (text: string, root: ParentNode = document) => Array.from(root.qu
 
 beforeAll(() => {
   installDom();
+  // jsdom has no IndexedDB: stand a lasting copy store in for it, as a browser has (an import's Undo needs one).
+  configureStore({ snapshots: memorySnapshotStore({ durable: true }) });
   window.matchMedia ??= ((q: string) => ({ matches: false, media: q, addEventListener() {}, removeEventListener() {}, addListener() {}, removeListener() {}, onchange: null, dispatchEvent: () => false })) as never;
 });
 beforeEach(() => {

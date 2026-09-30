@@ -2,14 +2,15 @@
  * You › Your data (DESIGN §9.5, VOICE §21): where the save lives and when it was last backed up,
  * "Save a backup" (the share sheet, else a download), "Copy backup" (CK1), "Import a backup" with
  * a preview and 24 hours of "Undo import", the daily copies, the CSV, the demo, and "Start over"
- * behind two confirmations.
+ * behind two confirmations. Restores and Undo go through the store's one replacement protocol
+ * (WP-A3): every "Back to…" note comes from `{ ok: true }`, and while a replacement is under way
+ * the other replacements, the demo and Start over wait.
  */
 import { useEffect, useId, useRef, useState } from 'preact/hooks';
 import { DATA, ERRORS, fillLine } from '@/catalog/lines';
 import { num } from '@/catalog/format';
 import { dayOf } from './when';
 import {
-  canUndoImport,
   demoMode,
   enterDemo,
   exitDemo,
@@ -19,13 +20,15 @@ import {
   markBackup,
   listSnapshots,
   readOnly,
+  replacing,
   resetAll,
   restoreSnapshot,
   durability,
   state,
   today,
-  undoImport,
+  undoOffer,
 } from '@/state/store';
+import type { SnapshotList } from '@/state/api';
 import { navigate } from '@/app/router';
 import { currentInstallPlatform } from '@/app/installPrompt';
 import { reloadProgress } from '@/features/onboarding/progress';
@@ -39,7 +42,7 @@ import { SectionHeader } from '@/ui/SectionHeader';
 import { EMPTY } from '@/catalog/lines';
 import { DATA_COPY, YOU } from './copy';
 import { copyLater, saveFile } from './files';
-import { ImportSheet } from './ImportSheet';
+import { ImportSheet, replaceErrorText, toastRestored, undoLastReplacement } from './ImportSheet';
 import { saveLocked } from './lock';
 import s from './You.module.css';
 import cs from '@/ui/ConfirmDialog.module.css';
@@ -84,17 +87,17 @@ function StatusRow() {
   );
 }
 
-function SnapshotsSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const [list, setList] = useState<Awaited<ReturnType<typeof listSnapshots>> | null>(null);
-  const [confirm, setConfirm] = useState<{ id: string; label: string } | null>(null);
+type Snapshot = Extract<SnapshotList, { ok: true }>['snapshots'][number];
+
+function SnapshotsSheet({ open, onClose, onRestored }: { open: boolean; onClose: () => void; onRestored: () => void }) {
+  const [list, setList] = useState<Snapshot[] | null>(null);
+  const [confirm, setConfirm] = useState<{ id: string; label: string; withoutUndo?: boolean } | null>(null);
   const [busy, setBusy] = useState(false);
   useEffect(() => {
     if (!open) return setList(null);
     let live = true;
-    listSnapshots().then(
-      (l) => live && setList([...l].sort((a, b) => b.savedAt - a.savedAt)),
-      () => live && setList([]),
-    );
+    // A list that can't be read shows as none for now (its own error state is WP-A7's).
+    void listSnapshots().then((l) => live && setList(l.ok ? [...l.snapshots].sort((a, b) => b.savedAt - a.savedAt) : []));
     return () => {
       live = false;
     };
@@ -102,14 +105,24 @@ function SnapshotsSheet({ open, onClose }: { open: boolean; onClose: () => void 
   const restore = async () => {
     if (!confirm) return;
     setBusy(true);
-    const ok = await restoreSnapshot(confirm.id);
+    const res = await restoreSnapshot(confirm.id, { withoutUndo: confirm.withoutUndo ?? false });
     setBusy(false);
+    if (!res.ok && res.error === 'no-undo') {
+      // No copy of what's here could be kept: asked once more, like an import.
+      setConfirm({ ...confirm, withoutUndo: true });
+      return;
+    }
     setConfirm(null);
-    if (ok) {
+    if (res.ok) {
       onClose();
-      toast({ key: 'snapshot-restored', message: fillLine(DATA_COPY.restoredSnapshot, { date: confirm.label }), tone: 'sage' });
-    } else toast({ key: 'snapshot-no', message: readOnly.value || demoMode.value ? DATA_COPY.readOnly : ERRORS.notBackup, tone: 'butter' });
+      toastRestored(confirm.label, res.undo, onRestored);
+      onRestored();
+      return;
+    }
+    const text = replaceErrorText(res.error);
+    if (text) toast({ key: 'snapshot-no', message: text, tone: 'butter' });
   };
+  const withoutUndo = confirm?.withoutUndo ?? false;
   return (
     <>
       <Sheet open={open} onClose={onClose} title={DATA_COPY.snapshotsRow} description={DATA_COPY.snapshotsKept} size="md">
@@ -127,7 +140,7 @@ function SnapshotsSheet({ open, onClose }: { open: boolean; onClose: () => void 
                     </span>
                     <span class={s.helper}>{fillLine(DATA_COPY.snapshotLine, { habits: num(snap.habits), waterings: num(snap.checkins) })}</span>
                   </span>
-                  <Button variant="secondary" size="sm" disabled={demoMode.value || saveLocked()} onClick={() => setConfirm({ id: snap.id, label })}>
+                  <Button variant="secondary" size="sm" disabled={demoMode.value || saveLocked() || replacing.value} onClick={() => setConfirm({ id: snap.id, label })}>
                     {DATA.restoreSnapshot}
                   </Button>
                 </li>
@@ -138,10 +151,11 @@ function SnapshotsSheet({ open, onClose }: { open: boolean; onClose: () => void 
       </Sheet>
       <ConfirmDialog
         open={confirm !== null}
-        title={DATA.restoreSnapshot}
-        message={confirm ? `${confirm.label}. ${DATA.snapshots}` : undefined}
+        title={withoutUndo ? DATA_COPY.restoreNoUndoTitle : DATA.restoreSnapshot}
+        message={confirm ? (withoutUndo ? DATA_COPY.restoreNoUndo : `${confirm.label}. ${DATA.snapshots}`) : undefined}
         confirmLabel={DATA.restoreSnapshot}
         cancelLabel={DATA.keep}
+        tone={withoutUndo ? 'danger' : 'primary'}
         busy={busy}
         onConfirm={() => void restore()}
         onCancel={() => setConfirm(null)}
@@ -215,7 +229,8 @@ export function DataSection() {
   const [, bump] = useState(0);
   const inDemo = demoMode.value;
   const locked = saveLocked();
-  const undoable = !inDemo && !locked && canUndoImport();
+  const busyReplacing = replacing.value;
+  const offer = !inDemo && !locked ? undoOffer() : null;
 
   const saveBackup = async () => {
     const json = backupJson();
@@ -247,7 +262,8 @@ export function DataSection() {
   };
 
   const undo = async () => {
-    if (await undoImport()) toast({ key: 'import-undone', message: DATA.undone, tone: 'sage' });
+    if (!offer) return;
+    await undoLastReplacement(offer.kind);
     bump((n) => n + 1);
   };
 
@@ -265,8 +281,17 @@ export function DataSection() {
         <StatusRow />
         <ListRow leading="download" leadingTone="sage" title={DATA.save} chevron={false} onClick={() => void saveBackup()} />
         <ListRow leading="export" leadingTone="sage" title={DATA.copy} chevron={false} onClick={copyBackup} />
-        <ListRow leading="import" leadingTone="sky" title={DATA.import} subtitle={inDemo ? DATA_COPY.inDemo : undefined} disabled={locked} onClick={() => setImporting(true)} />
-        {undoable && <ListRow leading="undo" leadingTone="sky" title={DATA.undoImport} chevron={false} onClick={() => void undo()} />}
+        <ListRow leading="import" leadingTone="sky" title={DATA.import} subtitle={inDemo ? DATA_COPY.inDemo : undefined} disabled={locked || busyReplacing} onClick={() => setImporting(true)} />
+        {offer && (
+          <ListRow
+            leading="undo"
+            leadingTone="sky"
+            title={offer.kind === 'restore' ? DATA_COPY.undoRestore : DATA.undoImport}
+            chevron={false}
+            disabled={busyReplacing}
+            onClick={() => void undo()}
+          />
+        )}
         <ListRow leading="calendar" leadingTone="lavender" title={DATA_COPY.snapshotsRow} onClick={() => setSnapshots(true)} />
         <ListRow leading="note" leadingTone="butter" title={DATA.csv} chevron={false} onClick={() => void csv()} />
         <ListRow
@@ -275,7 +300,7 @@ export function DataSection() {
           title={inDemo ? DATA.leaveDemo : DATA.demo}
           subtitle={inDemo ? undefined : DATA_COPY.demoLine}
           chevron={false}
-          disabled={locked}
+          disabled={locked || busyReplacing}
           onClick={() => {
             if (inDemo) exitDemo();
             else if (enterDemo()) navigate('today');
@@ -284,11 +309,11 @@ export function DataSection() {
         />
       </div>
       <div class={s.card} style={{ marginTop: 'var(--s-3)' }}>
-        <ListRow leading="trash" leadingTone="peach" title={DATA.startOver} destructive chevron={false} disabled={locked || !!readOnly.value} onClick={() => setResetStep(1)} />
+        <ListRow leading="trash" leadingTone="peach" title={DATA.startOver} destructive chevron={false} disabled={locked || !!readOnly.value || busyReplacing} onClick={() => setResetStep(1)} />
       </div>
 
       <ImportSheet open={importing} onClose={() => setImporting(false)} onImported={() => bump((n) => n + 1)} />
-      <SnapshotsSheet open={snapshots} onClose={() => setSnapshots(false)} />
+      <SnapshotsSheet open={snapshots} onClose={() => setSnapshots(false)} onRestored={() => bump((n) => n + 1)} />
       <CopyByHand text={byHand} onClose={() => setByHand(null)} />
       <ConfirmDialog
         open={resetStep === 1}

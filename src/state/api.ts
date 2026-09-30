@@ -210,3 +210,31 @@ export interface ImportPreview {
 
 /** `movedIn`: the pets who went straight to the new place (the ones who love it most, up to its room). */
 export type PlacePurchase = { ok: true; place: PlaceId; movedIn: string[] } | { ok: false; error: 'not-enough-coins' | 'owned' };
+
+/** Why a backup can't be imported at all (handoff.ts `parseBackupText`). */
+export type BackupError = 'not-a-backup' | 'made-by-newer-version' | 'damaged-backup' | 'not-a-payload' | 'damaged-payload' | 'cannot-decompress-here';
+
+/**
+ * Why a replacement of the whole save (an import, an Undo, a restore: WP-A3) changed nothing.
+ * - 'not-saved': the save couldn't be written, so the state, the disk and any undo stay as they were.
+ * - 'no-undo': no lasting copy of what's here could be kept; ask, then go ahead `withoutUndo`.
+ * - 'superseded': the save changed while it was under way (Start over, the demo, another window,
+ *   the writer lock lost); 'aborted': the caller let it go (the sheet closed).
+ * - 'busy': another replacement is under way (they are one at a time).
+ * - 'read-only' / 'demo-mode': this window can't replace the save now.
+ * - 'unavailable': the daily copies can't be read right now; 'not-found': that copy is gone;
+ *   'damaged-copy': it no longer reads as a save.
+ * - 'expired': there is no Undo to take (none, over 24 hours old, or for another save).
+ */
+export type ReplaceError = 'not-saved' | 'no-undo' | 'superseded' | 'aborted' | 'busy' | 'read-only' | 'demo-mode' | 'unavailable' | 'not-found' | 'damaged-copy' | 'expired' | BackupError;
+
+/**
+ * What a replacement did. `undo` is the Undo it promises (until when), or null when there is none:
+ * no lasting copy, a confirmed import without one, or the Undo itself.
+ */
+export type ReplaceResult = { ok: true; undo: { until: number } | null } | { ok: false; error: ReplaceError };
+
+/** The daily copies, or that they can't be read right now. */
+export type SnapshotList =
+  | { ok: true; snapshots: { id: string; savedAt: number; habits: number; checkins: number; kind: string; day: DateKey }[] }
+  | { ok: false; error: 'unavailable' };

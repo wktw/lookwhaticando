@@ -1171,6 +1171,19 @@ export const DATA_COPY = {
   noUndoTitle: 'Import without an undo?',
   noUndo: 'catkin couldn’t keep a copy of what’s here, so there is no Undo import this time.',
   importAnyway: 'Import anyway',
+  /** An import that kept no copy to go back to (WP-A3, VOICE §21). DEC-V: pending owner approval. */
+  importedNoUndo: 'Imported. There is no Undo import this time.',
+  /** A restore with no copy of what's here: asked once more, like import (WP-A3). DEC-V: pending owner approval. */
+  restoreNoUndoTitle: 'Restore without an undo?',
+  restoreNoUndo: 'catkin couldn’t keep a copy of what’s here, so there is no undo for this restore.',
+  /** The Undo row after a restore (DEC-P13's generic label). DEC-V: pending owner approval. */
+  undoRestore: 'Undo last replacement',
+  undoneRestore: 'Back to how things were before the restore.',
+  /** An import, restore or Undo that changed nothing, and why (WP-A3). DEC-V: pending owner approval. */
+  notReplaced: 'That couldn’t be saved on this device, so nothing changed.',
+  superseded: 'The save changed just then, so nothing was replaced. Try again.',
+  copyUnreadable: 'That copy can’t be read on this device right now, so nothing changed.',
+  copyGone: 'That copy isn’t on this device any more, so nothing changed.',
   cannotOpen: 'This browser can’t open that backup. Try the backup file instead.',
   readOnly: 'This window can’t change the save right now.',
   inDemo: 'Leave the demo to import a backup. The demo keeps its own plants.',

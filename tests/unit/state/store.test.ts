@@ -153,7 +153,8 @@ describe('the clock', () => {
     expect(events.some((e) => e.type === 'restock')).toBe(true);
     stop();
     await Promise.resolve();
-    expect((await store.listSnapshots()).map((m) => m.id)).toContain('daily-2026-09-30');
+    const list = await store.listSnapshots();
+    expect(list.ok && list.snapshots.map((m) => m.id)).toContain('daily-2026-09-30');
   });
 
   it('a later day start keeps today where it is (never earlier than a day already seen)', () => {
@@ -212,11 +213,11 @@ describe('data', () => {
     store.completeOnboarding({ name: 'Other', templateIds: ['read'] });
     const preview = await store.previewImport(payload);
     expect(preview).toMatchObject({ ok: true, habits: 2, friends: 1, device: 'Test · Node' });
-    expect(await store.applyImport(backup)).toEqual({ ok: true });
+    expect(await store.applyImport(backup)).toEqual({ ok: true, undo: { until: b.clock.now + store.UNDO_IMPORT_MS } });
     expect(store.state.value.profile.name).toBe('Sam');
     expect(saved(b).state.profile.name).toBe('Sam');
     expect(store.canUndoImport()).toBe(true);
-    expect(await store.undoImport()).toBe(true);
+    expect(await store.undoImport()).toEqual({ ok: true, undo: null });
     expect(store.state.value.profile.name).toBe('Other');
     expect(await store.applyImport('garbage')).toEqual({ ok: false, error: 'not-a-backup' });
   });
@@ -228,7 +229,7 @@ describe('data', () => {
     await store.applyImport(backup);
     b.clock.now += 25 * 3_600_000;
     expect(store.canUndoImport()).toBe(false);
-    expect(await store.undoImport()).toBe(false);
+    expect(await store.undoImport()).toEqual({ ok: false, error: 'expired' });
   });
 
   it('resetAll removes only catkin:* keys', () => {
@@ -247,11 +248,13 @@ describe('data', () => {
     boot();
     store.completeOnboarding({ name: 'Sam', templateIds: [] });
     await Promise.resolve();
-    const [snap] = await store.listSnapshots();
+    const list = await store.listSnapshots();
+    const [snap] = list.ok ? list.snapshots : [];
     store.setName('Renamed');
-    expect(await store.restoreSnapshot(snap!.id)).toBe(true);
+    expect(await store.restoreSnapshot(snap!.id)).toMatchObject({ ok: true, undo: { until: expect.any(Number) } });
     expect(store.state.value.profile.name).toBe('Sam');
-    expect((await store.listSnapshots()).some((m) => m.kind === 'pre-import')).toBe(true);
+    const after = await store.listSnapshots();
+    expect(after.ok && after.snapshots.some((m) => m.kind === 'pre-import')).toBe(true);
   });
 });
 

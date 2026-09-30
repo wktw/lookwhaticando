@@ -36,6 +36,7 @@ import { batch, computed, signal } from '@preact/signals';
 import type { AppState, DateKey, PlacedDecor, Settings, StoryId } from './types';
 import type {
   ActionResult,
+  BackupError,
   CheckInResult,
   GameEvent,
   HabitInput,
@@ -45,6 +46,9 @@ import type {
   PetInteractionResult,
   PullOutcome,
   PlacePurchase,
+  ReplaceError,
+  ReplaceResult,
+  SnapshotList,
   WishOutcome,
 } from './api';
 import type { MachineId, PlaceId, WearableSlot } from '@/catalog/types';
@@ -71,6 +75,7 @@ import {
   safeGet,
   writeBackup,
   writeJson,
+  writeRaw,
   type FlushOutcome,
   type KeyValueStorage,
   type LoadResult,
@@ -78,7 +83,7 @@ import {
   type SaveStatus,
   type Timers,
 } from './persist';
-import { indexedDbSnapshotStore, memorySnapshotStore, snapshotMeta, takeDailySnapshot, type SnapshotStore } from './snapshots';
+import { indexedDbSnapshotStore, memorySnapshotStore, retentionPlan, safely, snapshotMeta, takeDailySnapshot, type SnapshotStore } from './snapshots';
 import { deviceLabel, describeBackup, encodePayload, makeBackup, parseBackupText } from './handoff';
 import { validateState } from './validate';
 import { buildDemo } from './demo';
@@ -259,6 +264,28 @@ export const loadIssue = signal<null | { kind: 'recovered-from-backup' | 'corrup
  */
 export const ownership = signal<'unsupported' | 'acquiring' | 'granted' | 'refused' | 'stolen'>('unsupported');
 
+/**
+ * Bumped whenever what this window shows, or whether it may write, changes underneath a
+ * replacement that is under way (an import, an Undo, a restore): an adoption or any other
+ * replacement of what is shown (`saveReplaced`), Start over, entering or leaving the demo, a new
+ * boot, and every change of writer-lock ownership. A replacement captures it when it starts and
+ * commits only while it is unchanged (audit FS5, WP-A3).
+ */
+let opEpoch = 0;
+
+/** Sets the writer lock's state as this window knows it; a change supersedes any replacement under way. */
+function setOwnership(next: typeof ownership.value): void {
+  if (ownership.value === next) return;
+  ownership.value = next;
+  opEpoch++;
+}
+
+/**
+ * A replacement of the whole save (an import, an Undo, a restore) is under way. They run one at a
+ * time; You › Data keeps Start over, the demo and the other replacements disabled meanwhile (WP-A3).
+ */
+export const replacing = signal(false);
+
 /** No persistent storage this session: changes live only in memory and go when catkin closes. */
 export const volatileStorage = signal(false);
 
@@ -391,15 +418,6 @@ function switchQueue(key: string, head: SaveHead): void {
   queue = makeQueue(key, head);
 }
 
-/**
- * Starts a new save lineage for what this window writes next (an import, a restore): a new `gen`,
- * so every other window adopts it whatever its `rev` (INV-3).
- */
-function newLineage(): void {
-  if (queue) queue.gen = mintGen();
-  else if (writable()) queue = makeQueue(currentKey(), { gen: mintGen(), rev: currentHead().rev });
-}
-
 /** Whether a change must be written at once (wallet-changing, commit-before-animate). */
 function urgent(prev: AppState, next: AppState): boolean {
   return prev.wallet !== next.wallet || prev.collection !== next.collection || prev.pendingReveal !== next.pendingReveal || prev.lifetime !== next.lifetime;
@@ -465,7 +483,10 @@ function actVoid(body: (tx: Tx) => unknown): GameEvent[] {
   ).events;
 }
 
-/** Replaces the whole state (import, snapshot restore, demo) and writes it at once. */
+/**
+ * Replaces the whole state for the demo (entering it, starting it over) and writes it at once. An
+ * import, an Undo and a restore go through `replaceSave` instead, which writes before it shows.
+ */
 function replaceState(next: AppState): void {
   const ms = rt.now();
   const out = transact(next, envAt(ms, next), (tx) => {
@@ -494,7 +515,8 @@ function snapshotToday(): void {
   const day = today.value;
   if (lastSnapshotDay === day || !s.profile.onboarded) return;
   lastSnapshotDay = day;
-  void takeDailySnapshot(snapshots(), s, { day, now: rt.now(), weekStart: s.settings.weekStart, appVersion: rt.appVersion }).catch(() => {
+  const keep = readUndoToken()?.id ?? null; // the copy an Undo still needs is never pruned (P-persistence-11)
+  void takeDailySnapshot(snapshots(), s, { day, now: rt.now(), weekStart: s.settings.weekStart, appVersion: rt.appVersion, keep }).catch(() => {
     lastSnapshotDay = null;
   });
 }
@@ -527,11 +549,13 @@ function writeRecoveryCopies(): void {
 }
 
 /**
- * Hook for WP-A8's `saveEpoch`, which does not exist yet: called whenever an adoption replaces what
- * this window shows, so that callbacks scheduled against the old save can tell. When WP-A8 lands,
- * it bumps the epoch here.
+ * Called whenever what this window shows is replaced by another save: an adoption, an import, an
+ * Undo or a restore committing (WP-A3), Start over, entering or leaving the demo, a new boot. It
+ * supersedes any replacement still under way (`opEpoch`), and is the hook for WP-A8's `saveEpoch`,
+ * which does not exist yet: callbacks scheduled against the old save will check that epoch.
  */
 function saveReplaced(): void {
+  opEpoch++;
   // WP-A8: saveEpoch.value++ goes here.
 }
 
@@ -555,7 +579,7 @@ function giveUpLock(): void {
   lockTicket++;
   releaseLock?.();
   releaseLock = null;
-  if (ownership.value === 'granted' || ownership.value === 'acquiring') ownership.value = 'refused';
+  if (ownership.value === 'granted' || ownership.value === 'acquiring') setOwnership('refused');
 }
 
 /**
@@ -689,14 +713,14 @@ function acquireLock(steal = false): void {
   releaseLock?.();
   releaseLock = null;
   if (!locks) {
-    ownership.value = 'unsupported';
+    setOwnership('unsupported');
     whenOwned();
     return;
   }
   let granted = false;
   let answered = false;
   queue?.hold();
-  ownership.value = 'acquiring';
+  setOwnership('acquiring');
   const request = locks.request(LOCK_NAME, steal ? { steal: true } : { ifAvailable: true }, (lock) => {
     // An answer to a request this window has moved on from (a later request, a new boot, a newer
     // catkin's save): give the lock straight back.
@@ -705,12 +729,12 @@ function acquireLock(steal = false): void {
     if (!lock) {
       queue?.discardPending();
       retireQueue();
-      ownership.value = 'refused';
+      setOwnership('refused');
       readOnly.value = 'other-window';
       return undefined;
     }
     granted = true;
-    ownership.value = 'granted';
+    setOwnership('granted');
     if (readOnly.value === 'other-window') readOnly.value = false;
     const held = new Promise<void>((resolve) => (releaseLock = resolve));
     whenOwned();
@@ -722,14 +746,14 @@ function acquireLock(steal = false): void {
     // them, like a browser that has none, so the held saves are written after all.
     if (!granted) {
       if (answered) return;
-      ownership.value = 'unsupported';
+      setOwnership('unsupported');
       if (readOnly.value !== 'other-window') whenOwned();
       return;
     }
     // Our lock was stolen by another window ("Use here" over there): stop writing, and retire the
     // queue so no frame or timer it already scheduled can write either (audit FS1).
     retireQueue();
-    ownership.value = 'stolen';
+    setOwnership('stolen');
     readOnly.value = 'other-window';
   });
 }
@@ -742,6 +766,7 @@ export function hydrate(): void {
   releaseLock?.();
   releaseLock = null;
   retireQueue();
+  saveReplaced();
   demoMode.value = false;
   readOnly.value = false;
   loadIssue.value = null;
@@ -749,7 +774,7 @@ export function hydrate(): void {
   lastSnapshotDay = null;
   recoveryCopies = null;
   shownHead = { gen: undefined, rev: 0 };
-  ownership.value = rt.locks ? 'acquiring' : 'unsupported';
+  setOwnership(rt.locks ? 'acquiring' : 'unsupported');
   volatileStorage.value = rt.storage === null;
   adopt(readSave(storage(), SAVE_KEY), 'hydrate');
   if (queue && rt.locks && writable()) queue.hold(); // nothing is written before the writer lock answers
@@ -1252,64 +1277,279 @@ export async function previewImport(text: string): Promise<ImportPreview | { ok:
 
 export const UNDO_IMPORT_MS = 24 * 3_600_000;
 
-async function snapshotCurrent(): Promise<string | null> {
-  const s = state.value;
-  if (!validateState(s).ok) return null;
-  const ms = rt.now();
-  const id = `pre-import-${ms}`;
-  await snapshots().put({ ...snapshotMeta(s, 'pre-import', id, today.value, ms, rt.appVersion), state: s });
-  return id;
+/**
+ * The undo note (`catkin:undo-import`): which protective copy an Undo takes back to (`id`), until
+ * when, which save it undoes (`gen`: the lineage the replacement was written as) and what made it.
+ * An older build's note has only `{id, until}`; it is honoured until it expires (at most 24 h), and
+ * old builds read a new note's `{id, until}` and ignore the rest.
+ */
+interface UndoToken {
+  id: string;
+  until: number;
+  gen?: string;
+  kind: 'import' | 'restore';
 }
 
-/** Snapshot the current save, then replace it with the backup (never merge). Undo available for 24 h. */
-export async function applyImport(text: string, opts: { withoutUndo?: boolean } = {}): Promise<{ ok: true } | { ok: false; error: string }> {
-  if (demoMode.value) return { ok: false, error: 'demo-mode' };
-  // Its undo copy and the undo note are written before the save: only by the owner (P-persistence-03).
-  if (!ownsSave()) return { ok: false, error: 'read-only' };
-  const parsed = await parseBackupText(text);
-  if (!parsed.ok) return { ok: false, error: parsed.error };
-  const snapshotId = await snapshotCurrent().catch(() => null);
-  // Import snapshots first (§9.5 "Import with preview + Undo 24 h"). When no undo copy could be
-  // kept, the current save would be replaced for good: refuse ('no-undo') unless the user confirmed
-  // importing anyway (or there is nothing yet to lose).
-  if (!snapshotId && !opts.withoutUndo && state.value.profile.onboarded) return { ok: false, error: 'no-undo' };
-  if (snapshotId) writeJson(storage(), UNDO_IMPORT_KEY, { id: snapshotId, until: rt.now() + UNDO_IMPORT_MS });
-  newLineage();
-  replaceState(parsed.state);
-  return { ok: true };
+function readUndoToken(): UndoToken | null {
+  const t = readJson<Partial<UndoToken>>(storage(), UNDO_IMPORT_KEY);
+  if (!t || typeof t !== 'object' || typeof t.id !== 'string' || typeof t.until !== 'number') return null;
+  return { id: t.id, until: t.until, ...(typeof t.gen === 'string' ? { gen: t.gen } : {}), kind: t.kind === 'restore' ? 'restore' : 'import' };
 }
 
-/** Whether "Undo import" is still offered (within 24 h of an import). */
+/**
+ * The Undo this window can take now: an unexpired note for the save it shows. A note for another
+ * lineage (the save was started over, replaced again or taken in from another window since) is
+ * never taken; an older build's note without a lineage is taken until it expires.
+ */
+function activeUndo(): UndoToken | null {
+  if (demoMode.value) return null;
+  const t = readUndoToken();
+  if (!t || rt.now() >= t.until) return null;
+  if (t.gen !== undefined && t.gen !== currentHead().gen) return null;
+  return t;
+}
+
+/** Whether an Undo is offered (within 24 h of an import or a restore, for the save shown). */
 export function canUndoImport(): boolean {
-  const info = readJson<{ id: string; until: number }>(storage(), UNDO_IMPORT_KEY);
-  return info !== null && rt.now() < info.until;
+  return activeUndo() !== null;
 }
 
-export async function undoImport(): Promise<boolean> {
-  const info = readJson<{ id: string; until: number }>(storage(), UNDO_IMPORT_KEY);
-  if (!info || rt.now() >= info.until || demoMode.value || !ownsSave()) return false;
-  const snap = await snapshots().get(info.id);
-  if (!snap || !validateState(snap.state).ok) return false;
-  newLineage();
-  replaceState(snap.state);
-  removeKey(storage(), UNDO_IMPORT_KEY);
-  return true;
+/** The Undo on offer, and what it undoes ("Undo import" after an import). Null when there is none. */
+export function undoOffer(): { kind: 'import' | 'restore'; until: number } | null {
+  const t = activeUndo();
+  return t ? { kind: t.kind, until: t.until } : null;
 }
 
-export async function listSnapshots(): Promise<{ id: string; savedAt: number; habits: number; checkins: number; kind: string; day: DateKey }[]> {
-  const metas = await snapshots().list();
-  return metas.map((m) => ({ id: m.id, savedAt: m.savedAt, habits: m.habits, checkins: m.checkins, kind: m.kind, day: m.day }));
+const refuse = (error: ReplaceError): ReplaceResult => ({ ok: false, error });
+
+type Loaded = { ok: true; state: AppState } | { ok: false; error: ReplaceError };
+
+/** What a replacement is: where its state comes from, and whether what's here is copied first. */
+interface Replacement {
+  kind: 'import' | 'restore' | 'undo';
+  /** Reads (and validates) the state that replaces the save. */
+  load: () => Promise<Loaded>;
+  /** Keep a protective copy of what's here first, for Undo (import, restore; never an undo). */
+  protect: boolean;
+  /** The person confirmed going ahead without an Undo. */
+  withoutUndo?: boolean;
+  /** Aborted when the person lets it go (the sheet closes) before it commits. */
+  signal?: AbortSignal | undefined;
 }
 
-/** Restores a snapshot (the current save is snapshotted first, so a restore can itself be undone). */
-export async function restoreSnapshot(id: string): Promise<boolean> {
-  if (demoMode.value || !ownsSave()) return false;
-  const snap = await snapshots().get(id);
-  if (!snap || !validateState(snap.state).ok) return false;
-  await snapshotCurrent().catch(() => null);
-  newLineage();
-  replaceState(snap.state);
-  return true;
+/** What a replacement is bound to: it commits only while all of this still holds (FS5). */
+interface OpToken {
+  epoch: number;
+  gen: string | undefined;
+  demo: boolean;
+  owner: typeof ownership.value;
+  signal?: AbortSignal | undefined;
+}
+
+function beginOp(signal: AbortSignal | undefined): OpToken {
+  // The lineage this window writes, fixed now: a legacy save's first ordinary write would mint one
+  // mid-way and read as a change of save.
+  queue ??= makeQueue(currentKey(), shownHead);
+  queue.gen ??= mintGen();
+  return { epoch: opEpoch, gen: currentHead().gen, demo: demoMode.value, owner: ownership.value, signal };
+}
+
+/** Why the replacement must stop now, or null while it may go on. */
+function opStopped(t: OpToken): 'aborted' | 'superseded' | null {
+  if (t.signal?.aborted) return 'aborted';
+  if (t.epoch !== opEpoch || t.demo !== demoMode.value || t.owner !== ownership.value || !ownsSave() || currentHead().gen !== t.gen) return 'superseded';
+  return null;
+}
+
+/**
+ * The one replacement protocol (WP-A3, INV-4): an import, an Undo and a restore each either commit
+ * the new state together with an exact Undo, or change nothing and say why.
+ *
+ * 1. An op token (`beginOp`), checked after every await and again at the commit.
+ * 2. The new state is read and validated (`load`).
+ * 3. A protective copy of what's here, committed in IndexedDB before anything else (not for an
+ *    Undo). With no lasting copy store (FS9), or when the copy is refused (data-d8), the answer is
+ *    'no-undo' unless there is nothing to lose yet or the person confirmed going ahead without one.
+ * 4. A new lineage (`gen`), and the exact undo note `{id, until, gen, kind}`, written and checked.
+ * 5. The save itself, written at once and checked (`queue.writeNow`), memory untouched.
+ * 6. Only then: memory, the theme mirror, `saveReplaced()`. A replacement with no Undo clears any
+ *    earlier note (data-d11); an Undo removes the note it took.
+ * On any failure before 6, the earlier note is put back and the fresh copy removed. After 6, the
+ * pre-import copies beyond KEEP are pruned, never the one the note names (P-persistence-11).
+ * Nothing here rejects.
+ */
+async function replaceSave(r: Replacement): Promise<ReplaceResult> {
+  if (demoMode.value) return refuse('demo-mode');
+  if (!ownsSave()) return refuse('read-only');
+  if (replacing.peek()) return refuse('busy');
+  replacing.value = true;
+  try {
+    return await runReplacement(r);
+  } catch {
+    // Nothing above should throw; if it does, nothing was committed (memory changes last).
+    return refuse('not-saved');
+  } finally {
+    replacing.value = false;
+  }
+}
+
+async function runReplacement(r: Replacement): Promise<ReplaceResult> {
+  const op = beginOp(r.signal);
+  const copies = safely(snapshots());
+
+  // 2. What replaces the save.
+  const loaded = await r.load();
+  let stop = opStopped(op);
+  if (stop) return refuse(stop);
+  if (!loaded.ok) return loaded;
+
+  // 3. A protective copy of what's here, committed before anything else.
+  const nothingToLose = !state.value.profile.onboarded;
+  let copyId: string | null = null;
+  if (r.protect && !r.withoutUndo) {
+    const shown = state.value;
+    if (!copies.durable || !validateState(shown).ok) {
+      if (!nothingToLose) return refuse('no-undo');
+    } else {
+      const ms = rt.now();
+      let id = `pre-import-${ms}`;
+      if (readUndoToken()?.id === id) id = `${id}-1`; // never overwrite the copy an Undo still needs
+      const put = await copies.put({ ...snapshotMeta(shown, 'pre-import', id, today.value, ms, rt.appVersion), state: shown });
+      stop = opStopped(op);
+      if (stop) {
+        if (put.ok) await copies.remove(id);
+        return refuse(stop);
+      }
+      if (put.ok) copyId = id;
+      else if (!nothingToLose) return refuse('no-undo');
+    }
+  }
+
+  // From here to the commit nothing awaits, so nothing can come in between.
+  const store = storage();
+  const dropCopy = () => {
+    if (copyId !== null) void copies.remove(copyId);
+  };
+
+  // 4. The new lineage, and the exact undo note.
+  const ms = rt.now();
+  const gen = mintGen();
+  const noteBefore = safeGet(store, UNDO_IMPORT_KEY);
+  const putNoteBack = () => {
+    if (noteBefore === null) removeKey(store, UNDO_IMPORT_KEY);
+    else writeRaw(store, UNDO_IMPORT_KEY, noteBefore);
+  };
+  let undo: { until: number } | null = null;
+  if (copyId !== null) {
+    const note: UndoToken = { id: copyId, until: ms + UNDO_IMPORT_MS, gen, kind: r.kind === 'restore' ? 'restore' : 'import' };
+    if (writeJson(store, UNDO_IMPORT_KEY, note)) undo = { until: note.until };
+    else {
+      putNoteBack();
+      dropCopy();
+      copyId = null;
+      if (!nothingToLose) return refuse('no-undo');
+    }
+  }
+
+  // 5. The save itself, checked, with memory untouched.
+  stop = opStopped(op);
+  if (stop) {
+    putNoteBack();
+    dropCopy();
+    return refuse(stop);
+  }
+  const next = transact(loaded.state, envAt(ms, loaded.state), (tx) => {
+    openDay(tx);
+    return {};
+  }).state;
+  const q = (queue ??= makeQueue(currentKey(), currentHead()));
+  const status = q.writeNow(next, gen);
+  if (status !== 'saved' && status !== 'volatile') {
+    putNoteBack();
+    dropCopy();
+    return refuse('not-saved');
+  }
+
+  // 6. Commit: memory follows the disk.
+  if (undo === null) removeKey(store, UNDO_IMPORT_KEY);
+  shownHead = { gen: q.gen, rev: q.rev };
+  setState(next, ms);
+  if (!demoMode.value) mirrorTheme(store, next.settings);
+  saveReplaced();
+
+  if (copyId !== null) await pruneCopies(copyId);
+  return { ok: true, undo };
+}
+
+/** Pre-import copies beyond KEEP['pre-import'] go, never `keep` (the copy the Undo note names). */
+async function pruneCopies(keep: string): Promise<void> {
+  const copies = safely(snapshots());
+  const list = await copies.list();
+  if (!list.ok) return;
+  for (const id of retentionPlan(list.value.filter((m) => m.kind === 'pre-import'), keep)) await copies.remove(id);
+}
+
+/** A stored copy, checked: it must still read as a save. */
+async function loadCopy(id: string): Promise<Loaded> {
+  const got = await safely(snapshots()).get(id);
+  if (!got.ok) return refuse('unavailable') as Loaded;
+  if (!got.value) return refuse('not-found') as Loaded;
+  const valid = validateState(got.value.state);
+  return valid.ok ? { ok: true, state: valid.state } : (refuse('damaged-copy') as Loaded);
+}
+
+/**
+ * Replaces the save with a backup (never a merge), keeping a copy of what's here first so the
+ * import can be undone for 24 hours. With no lasting copy (no IndexedDB, or it refused), the answer
+ * is 'no-undo' until the person confirms importing anyway (`withoutUndo`), unless there is nothing
+ * here yet to lose. `signal` lets the sheet let it go before it commits.
+ */
+export function applyImport(text: string, opts: { withoutUndo?: boolean; signal?: AbortSignal } = {}): Promise<ReplaceResult> {
+  return replaceSave({
+    kind: 'import',
+    protect: true,
+    withoutUndo: opts.withoutUndo ?? false,
+    signal: opts.signal,
+    load: async () => {
+      const parsed = await parseBackupText(text);
+      return parsed.ok ? { ok: true, state: parsed.state } : (refuse(parsed.error as BackupError) as Loaded);
+    },
+  });
+}
+
+/**
+ * Takes the last import or restore back (within 24 hours, and only for the save it replaced),
+ * through the same protocol. A copy that is gone clears the note ('not-found'); one that can't be
+ * read right now keeps it ('unavailable').
+ */
+export function undoImport(opts: { signal?: AbortSignal } = {}): Promise<ReplaceResult> {
+  return replaceSave({
+    kind: 'undo',
+    protect: false,
+    signal: opts.signal,
+    load: async () => {
+      const t = activeUndo();
+      if (!t) return refuse('expired') as Loaded;
+      const res = await loadCopy(t.id);
+      if (!res.ok && res.error === 'not-found' && readUndoToken()?.id === t.id) removeKey(storage(), UNDO_IMPORT_KEY);
+      return res;
+    },
+  });
+}
+
+/** The daily, weekly and pre-import copies, newest first, or that they can't be read right now. */
+export async function listSnapshots(): Promise<SnapshotList> {
+  const res = await safely(snapshots()).list();
+  if (!res.ok) return res;
+  return { ok: true, snapshots: res.value.map((m) => ({ id: m.id, savedAt: m.savedAt, habits: m.habits, checkins: m.checkins, kind: m.kind, day: m.day })) };
+}
+
+/**
+ * Restores a daily copy through the same protocol: what's here is copied first, so the restore can
+ * itself be undone for 24 hours; with no lasting copy it answers 'no-undo' until confirmed.
+ */
+export function restoreSnapshot(id: string, opts: { withoutUndo?: boolean; signal?: AbortSignal } = {}): Promise<ReplaceResult> {
+  return replaceSave({ kind: 'restore', protect: true, withoutUndo: opts.withoutUndo ?? false, signal: opts.signal, load: () => loadCopy(id) });
 }
 
 /**
@@ -1319,6 +1559,7 @@ export async function restoreSnapshot(id: string): Promise<boolean> {
  */
 export function resetAll(): void {
   if (!writable()) return;
+  saveReplaced();
   if (demoMode.value) {
     retireQueue();
     for (const k of [DEMO_KEY, `${DEMO_KEY}:backup`, `${DEMO_KEY}:corrupt`]) removeKey(storage(), k);
@@ -1357,6 +1598,7 @@ export function enterDemo(): boolean {
   realState = state.value;
   realHead = currentHead();
   demoMode.value = true;
+  saveReplaced();
   const res = readSave(storage(), DEMO_KEY);
   switchQueue(DEMO_KEY, res.kind === 'ok' ? { gen: res.gen, rev: res.rev } : { gen: mintGen(), rev: 0 });
   let demo: AppState;
@@ -1380,6 +1622,7 @@ export function exitDemo(): void {
   queue?.flush();
   retireQueue();
   demoMode.value = false;
+  saveReplaced();
   shownHead = realHead;
   setState(realState ?? createInitialState(rt.now()), rt.now());
   realState = null;

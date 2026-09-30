@@ -16,7 +16,7 @@
  * visibly lands. Steps 3–5 survive a reload (./progress).
  */
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
-import { DATA, INSTALL, ONBOARDING, fillLine } from '@/catalog/lines';
+import { DATA, DATA_COPY, INSTALL, ONBOARDING, fillLine } from '@/catalog/lines';
 import { TEMPLATES } from '@/catalog/templates';
 import { Wordmark } from '@/art/icons/brand';
 import { useArtLight } from '@/art/scene/moment';
@@ -241,8 +241,9 @@ export function Onboarding() {
         title={importing === 'paste' ? INSTALL.paste : DATA.import}
         clip={importing === 'paste' ? clip : null}
         onClose={() => setImporting(false)}
-        onImported={() => {
-          announce(DATA.imported);
+        onImported={(res) => {
+          // Only what the import answered: no Undo is promised when no copy was kept (WP-A3).
+          announce(res.undo ? DATA.imported : DATA_COPY.importedNoUndo);
           finish();
         }}
       />

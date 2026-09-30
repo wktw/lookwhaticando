@@ -1045,7 +1045,15 @@ Under You › Data.
 | Import preview | "This backup has 5 habits, 312 waterings and 7 pets. Saved Sep 20." · "Import" · "Keep what’s here" |
 | Imported | "Imported. You can undo this for 24 hours." |
 | Undo import | "Undo import" → "Back to how things were before the import." |
+| Imported with no Undo (she confirmed importing anyway, or there was no lasting copy and nothing yet to lose). DEC-V: pending owner approval | "Imported. There is no Undo import this time." |
 | Snapshots | "Daily copies, kept on this device: 7 daily and 4 weekly." · "Restore this copy" |
+| Restored (the note carries "Undo") | "Back to the copy from Sep 20." · "Undo" |
+| Restore with no copy of what's here (asked once more, like import). DEC-V: pending owner approval | "Restore without an undo?" · "catkin couldn’t keep a copy of what’s here, so there is no undo for this restore." · "Restore this copy" · "Keep what’s here" |
+| Undo a restore (the row after a restore; DEC-P13's generic label). DEC-V: pending owner approval | "Undo last replacement" → "Back to how things were before the restore." |
+| An import, restore or Undo whose save couldn't be written (nothing changed). DEC-V: pending owner approval | "That couldn’t be saved on this device, so nothing changed." |
+| The save changed while an import, restore or Undo was under way (Start over, the demo, another window). DEC-V: pending owner approval | "The save changed just then, so nothing was replaced. Try again." |
+| A daily copy that can't be read right now. DEC-V: pending owner approval | "That copy can’t be read on this device right now, so nothing changed." |
+| A copy that is gone (its Undo goes too). DEC-V: pending owner approval | "That copy isn’t on this device any more, so nothing changed." |
 | CSV | "Export waterings as CSV" (file "catkin-waterings-2025-09-29.csv"; columns "date", "habit", "count", "target", "state"; states "watered", "tiny", "partial", "rest") |
 | Storage | "Saved on this device" / "Saved in this browser tab" |
 | Last backup | "Last backup: Sep 20" / "No backup yet" |

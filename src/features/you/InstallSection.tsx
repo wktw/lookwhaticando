@@ -7,7 +7,7 @@ import { useState } from 'preact/hooks';
 import { INSTALL } from '@/catalog/lines';
 import { InstallGuide } from '@/app/InstallGuide';
 import { currentInstallPlatform } from '@/app/installPrompt';
-import { backupPayload, markBackup, state } from '@/state/store';
+import { backupPayload, markBackup, replacing, state } from '@/state/store';
 import { ListRow } from '@/ui/ListRow';
 import { SectionHeader } from '@/ui/SectionHeader';
 import { toast } from '@/ui/toast';
@@ -42,7 +42,7 @@ export function InstallSection() {
       {(installed || (hasPlants && !single)) && (
         <div class={s.card} style={{ marginTop: 'var(--s-3)' }}>
           {installed ? (
-            <ListRow leading="import" leadingTone="sage" title={INSTALL.paste} disabled={saveLocked()} onClick={() => setPasting(readClipboard())} />
+            <ListRow leading="import" leadingTone="sage" title={INSTALL.paste} disabled={saveLocked() || replacing.value} onClick={() => setPasting(readClipboard())} />
           ) : (
             <ListRow leading="export" leadingTone="sage" title={INSTALL.handoff} chevron={false} onClick={handoff} />
           )}

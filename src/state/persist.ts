@@ -415,6 +415,32 @@ export class SaveQueue {
     });
   }
 
+  /**
+   * One checked write of a whole new state (an import, an undo, a restore: WP-A3), on the lineage
+   * `gen`, at once. It never touches the store's memory, and it answers with what happened:
+   * - 'saved' / 'volatile': written. The queue now writes that lineage, and a change still pending
+   *   from the save it replaced is dropped (it belongs to the old save).
+   * - anything else: nothing changed here, not rev, not lineage, not the pending change (which keeps
+   *   its own retries). A failed replacement is not retried: the caller says nothing changed.
+   */
+  writeNow(state: AppState, gen: string): FlushOutcome {
+    if (this.disposed) return 'disposed';
+    if (this.held) return 'held';
+    const before = this.gen;
+    this.gen = gen;
+    const status = this.write(state);
+    if (status !== 'saved' && status !== 'volatile') {
+      this.gen = before;
+      return status;
+    }
+    this.clearTimers();
+    this.pending = null;
+    this.attempts = 0;
+    this.lastStatus = status;
+    this.o.onStatus?.(status, { rev: this.rev, chars: this.lastChars });
+    return status;
+  }
+
   /** Keeps writes pending (not written) until `release()`. */
   hold(): void {
     this.held = true;
@@ -550,6 +576,11 @@ export function readThemeMirror(storage: KeyValueStorage): Pick<Settings, 'theme
 /** Writes a small JSON value (import undo info etc.); false on failure. */
 export function writeJson(storage: KeyValueStorage, key: string, value: unknown): boolean {
   return trySet(storage, key, JSON.stringify(value)).ok;
+}
+
+/** Writes a stored text back as it was (an undo note being put back); false on failure. */
+export function writeRaw(storage: KeyValueStorage, key: string, text: string): boolean {
+  return trySet(storage, key, text).ok;
 }
 
 export function readJson<T>(storage: KeyValueStorage, key: string): T | null {

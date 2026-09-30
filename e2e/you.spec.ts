@@ -2,7 +2,7 @@
  * You (DESIGN §9.5) on a phone and a desktop, light and dark: one h1 and every section, axe clean
  * (and with a sheet open), no sideways scroll at 320 px, and the main journeys: a setting saved
  * across a reload, arranging habits by keyboard, a watering time, a backup copied and imported
- * again with Undo import, the demo and its pill, Start over's two confirmations, and seven taps to
+ * again with Undo import (also after a reload), the demo and its pill, Start over's two confirmations, and seven taps to
  * Diagnostics.
  */
 import { expect, test, type Page } from '@playwright/test';
@@ -137,6 +137,35 @@ test('a backup is copied, and imported again with Undo import', async ({ page, c
   await expect(page.getByLabel('Your name')).toHaveValue('Sam');
   await page.getByRole('button', { name: 'Undo import' }).first().click();
   await expect(page.getByLabel('Your name')).toHaveValue('Someone else');
+});
+
+test('an import can still be undone after a reload: its copy is kept in IndexedDB (WP-A3)', async ({ page, context }, info) => {
+  test.skip(info.project.name.includes('dark'), 'once per size');
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+  await openYou(page);
+  const data = section(page, 'Your data');
+  await data.getByRole('button', { name: 'Copy backup' }).click();
+  await expect(page.getByText('Copied. Paste it somewhere safe, like a note to yourself.').first()).toBeVisible();
+  const payload = await page.evaluate(() => navigator.clipboard.readText());
+
+  await page.getByLabel('Your name').fill('Someone else');
+  await page.getByLabel('Your name').press('Enter');
+  await data.getByRole('button', { name: 'Import a backup' }).click();
+  const sheet = page.getByRole('dialog', { name: 'Import a backup' });
+  await sheet.getByLabel('Or paste a backup here').fill(payload);
+  await sheet.getByRole('button', { name: 'Import', exact: true }).click();
+  await expect(page.getByText('Imported. You can undo this for 24 hours.').first()).toBeVisible();
+  await expect(page.getByLabel('Your name')).toHaveValue('Sam');
+
+  await page.reload();
+  await expect(page.locator('main h1')).toHaveText('You');
+  await expect(page.getByLabel('Your name')).toHaveValue('Sam');
+  await section(page, 'Your data').getByRole('button', { name: 'Undo import' }).click();
+  await expect(page.getByText('Back to how things were before the import.').first()).toBeVisible();
+  await expect(page.getByLabel('Your name')).toHaveValue('Someone else');
+  await page.reload();
+  await expect(page.getByLabel('Your name')).toHaveValue('Someone else');
+  await expect(section(page, 'Your data').getByRole('button', { name: 'Undo import' })).toHaveCount(0);
 });
 
 test('the demo opens with its pill, and leaving it brings her own plants back', async ({ page }) => {

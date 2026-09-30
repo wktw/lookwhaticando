@@ -61,6 +61,12 @@ function newer(now: number): AppState {
 
 const hasWalk = (s: AppState) => s.habits.some((h) => h.name === 'Walk');
 
+/** The daily and pre-import copies, as You › Data lists them. */
+async function preImports() {
+  const list = await store.listSnapshots();
+  return list.ok ? list.snapshots : [];
+}
+
 afterEach(() => {
   store.configureStore({ locks: null });
 });
@@ -111,13 +117,13 @@ describe('INV-3: the envelope carries a save identity (gen) beside its rev', () 
     expect(afterReset).toMatch(GEN);
     expect(afterReset).not.toBe(first);
 
-    expect(await store.applyImport(backup)).toEqual({ ok: true });
+    expect(await store.applyImport(backup)).toMatchObject({ ok: true });
     const afterImport = saved(b).gen;
     expect(afterImport).toMatch(GEN);
     expect(afterImport).not.toBe(afterReset);
 
-    const pre = (await store.listSnapshots()).find((m) => m.kind === 'pre-import')!;
-    expect(await store.restoreSnapshot(pre.id)).toBe(true);
+    const pre = (await preImports()).find((m) => m.kind === 'pre-import')!;
+    expect(await store.restoreSnapshot(pre.id)).toMatchObject({ ok: true });
     const afterRestore = saved(b).gen;
     expect(afterRestore).toMatch(GEN);
     expect(afterRestore).not.toBe(afterImport);
@@ -649,16 +655,16 @@ describe('review: nothing is written before the lock answers, on every path that
     store.completeOnboarding({ name: 'Sam', templateIds: [] });
     store.checkIn(store.createHabit(input()));
     b.advance(1000);
-    expect(await store.applyImport(store.backupJson())).toEqual({ ok: true });
+    expect(await store.applyImport(store.backupJson())).toMatchObject({ ok: true });
     b.advance(1000);
-    const pre = (await store.listSnapshots()).find((m) => m.kind === 'pre-import')!;
+    const pre = (await preImports()).find((m) => m.kind === 'pre-import')!;
     store.configureStore({ locks: deferredLocks() });
     store.hydrate();
     expect(store.ownership.value).toBe('acquiring');
     const w = watchWrites(b);
     const before = b.storage.getItem(SAVE_KEY);
-    expect(await store.undoImport()).toBe(false);
-    expect(await store.restoreSnapshot(pre.id)).toBe(false);
+    expect(await store.undoImport()).toEqual({ ok: false, error: 'read-only' });
+    expect(await store.restoreSnapshot(pre.id)).toEqual({ ok: false, error: 'read-only' });
     b.advance(60_000);
     expect(w.keys).toEqual([]);
     expect(w.put).not.toHaveBeenCalled();
@@ -670,9 +676,9 @@ describe('review: nothing is written before the lock answers, on every path that
     store.hydrate();
     store.completeOnboarding({ name: 'Sam', templateIds: [] });
     b.advance(1000);
-    expect(await store.applyImport(store.backupJson())).toEqual({ ok: true });
+    expect(await store.applyImport(store.backupJson())).toMatchObject({ ok: true });
     const afterImport = saved(b).gen;
-    expect(await store.undoImport()).toBe(true);
+    expect(await store.undoImport()).toEqual({ ok: true, undo: null });
     expect(saved(b).gen).toMatch(GEN);
     expect(saved(b).gen).not.toBe(afterImport);
   });
