@@ -187,7 +187,8 @@ describe('onboarding’s capsule steps load, fail and retry (WP-C4, creative-cr-
     await click(byText('Skip'), 'Skip');
     await until(() => h1() === 'Who comes home first?', 'step 4’s heading while it loads', LOAD);
     expect(h1s()).toHaveLength(1);
-    expect(document.querySelector('[role="status"]')?.textContent).toContain('One moment');
+    // Step 4 can hold more than one live status (the coin jar's line too): the loading line must be one of them.
+    expect([...document.querySelectorAll('[role="status"]')].map((e) => e.textContent ?? '').some((t) => t.includes('One moment'))).toBe(true);
     expect(view!.root.textContent).not.toContain(LEAD);
     expect(document.activeElement).toBe(h1s()[0]);
 
