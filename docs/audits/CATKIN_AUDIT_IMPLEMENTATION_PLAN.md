@@ -700,6 +700,17 @@ Every package in this section fills every field (a mechanical check of the ten l
 ### Phase A: Urgent data protection
 
 #### WP-A1 Commit truth and writer fencing (M, low–medium). Tracer WP-P1. Recommended first package (§7.5)
+
+> **Status (30 September 2026): WP-A1a is implemented on `claude/cool-hopper-0cgkon` (PR wktw/lookwhaticando#1), with most of WP-A1b.** It is not merged: DEC-V approval of the new VOICE rows (§10 capsule notices, §18) is still needed.
+>
+> - **Done:** FS1, data-d2, FS4, FS10, `commitDurable` for `pull` and `wish` with `storage-full | unavailable | volatile | acquiring`, the `usePull`/onboarding/Special Order "one moment" handling, D1 storage mode, the volatile status and banner, the PWA and demo gates, and RISK-01 (snapshot and onboarding sidecar wait for ownership). Tests: `tests/unit/state/save-integrity.test.ts` and `save-integrity-ui.test.tsx`, plus component tests in `CapsuleMachine`, `CapsulesScreen`, `Onboarding` and `copy`. Each regression fails on the code before the change.
+> - **Where it departs from the design below:**
+>   - `'held'` is a `FlushOutcome` that `saveNow`/`flush` return, not a `SaveStatus` shown in the interface.
+>   - Ownership is `unsupported | acquiring | granted | refused | stolen`. `unsupported` is the plan's `unlocked`, `granted` its `owner`, and `refused`/`stolen` its `other`.
+>   - Fencing uses a `disposed` flag on every retired queue (one `retireQueue()` on the stolen, refused, hydrate, reset, use-here and demo paths) instead of a generation plus an injected `canWrite()`. A queue is never reused, so the flag is enough.
+>   - `browserStorage()` keeps its name. It returns localStorage whenever `getItem` works, so a full store is used and reports `storage-full` on its first write. Only unreadable storage falls back to memory, which reports `volatile`.
+>   - The backoff is 1 s, 4 s, 15 s, then every 60 s. It also retries at once on visible, pageshow, focus and online, but not on the 30-second clock tick.
+> - **Not done:** the envelope `gen` (out of scope for A1a, as below).
 - **Covers:** FS1, data-d2, FS4 (queue half), FS10, data-d1, P-persistence-01, P-persistence-02. It also records P-persistence-24 as a decision (DEC-E10).
 - **Files:**
   - `src/state/persist.ts`: `SaveQueue`, `SaveStatus`, and `browserStorage` replaced by `openBrowserStorage`.
@@ -2420,7 +2431,9 @@ This section supports DEC-P1 and DEC-P3. It is a recommendation, not a decision.
 | M-Paid | The §5.12 matrix is green in Xcode StoreKit tests, sandbox and TestFlight, including billing retry with and without grace and every reinstatement case; INV-9 tests green; the consent screen shows the 3.1.2 content with the billed amount as the most prominent price; the post-expiry policy (DEC-P1) is implemented and tested; DEC-P16(e) recorded. |
 | M-Release | The WP-G3 device checklist is passed or tracked for the release candidate; the WP-G4 checklist is complete (privacy label reconciled with a network capture, in-app policy and terms links, notices, rating and age assurance signed off, accurate metadata and screenshots); the migration and rollback drill has been rehearsed. |
 
-### 7.5 Recommended first bounded package (not started)
+### 7.5 Recommended first bounded package
+
+> **Status (30 September 2026):** implemented on `claude/cool-hopper-0cgkon` (PR wktw/lookwhaticando#1) and awaiting DEC-V approval of its VOICE rows. See the status note under WP-A1.
 
 **WP-A1a: fence stale writers and stop reporting unsaved work as saved.** It covers FS1, data-d2, FS4 (queue half) and FS10, with the WP-04 fixtures it needs. It includes the new `acquiring` result for pull and wish, because fixing FS4 means a held save can no longer be reported as `'saved'`, so the capsule UI must handle the new result.
 

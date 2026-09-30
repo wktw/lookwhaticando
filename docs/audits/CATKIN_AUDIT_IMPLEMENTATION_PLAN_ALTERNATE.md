@@ -7,14 +7,12 @@
 >
 > When the two branches met in a merge, the canonical path kept the base branch's plan, so no other session's work was overwritten.
 >
-> **Package P1-A (§13), already implemented on this branch, overlaps the canonical plan's first package:**
+> **The canonical plan governs.** This branch implements its first package, WP-A1a, and most of WP-A1b:
 >
-> - It covers WP-A1a's FS1, data-d2 and FS4.
-> - It also covers WP-A1b's data-d1 storage mode, volatile status, PWA and demo gates, and shell banners.
-> - It does **not** cover FS10 (Special Order).
-> - It reuses the existing "couldn't be saved" capsule notice for the held case. It does not add a separate `acquiring` result.
->
-> Which plan governs, and how P1-A maps onto WP-A1a/A1b, is the owner's call.
+> - **Package P1-A (§13)** covered WP-A1a's FS1, data-d2 and FS4 (queue half), and WP-A1b's data-d1 storage mode, volatile status, PWA and demo gates and shell banners.
+> - **A follow-up commit finished WP-A1a:** FS10 (Special Order saved before it is shown), one `commitDurable` shared by `pull` and `wish`, and the distinct `acquiring` result with its "one moment" notices in the capsule machine, onboarding's free capsule and Special Order. The `volatile` result is also refused there, as WP-A1 §5 specifies.
+> - **Still open from WP-A1:** the envelope `gen` (out of A1a's scope) and the owner's DEC-V approval of the new VOICE rows, which the canonical plan requires before A1a merges.
+> - The canonical plan's WP-A1 carries a status note listing where the implementation departs from its design.
 
 
 **Status:** plan only. No application source, test, configuration, deployment, App Store or purchasing change has been made. Nothing below authorises implementation; each work package starts only when the owner releases it.
