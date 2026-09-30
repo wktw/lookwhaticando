@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { buildDemo } from '@/state/demo';
 import { progressVM } from '@/state/views/progress';
-import type { LocalTimeReader } from '@/domain/dates';
+import { zonedLocalTime, type LocalTimeReader } from '@/domain/dates';
 
 const UTC: LocalTimeReader = (ms) => {
   const d = new Date(ms);
@@ -31,5 +31,17 @@ describe('progressVM keeps its parts until their own inputs change', () => {
     const warm = progressVM(next, env);
     expect(warm.hero).not.toBe(first.hero);
     expect(warm.rests.rests).toBeGreaterThanOrEqual(first.rests.rests);
+  });
+
+  it('the same save read in another zone recomputes the times of day (P-history-04, WP-B3)', () => {
+    // The device's own reader is one function wherever the device is: only the zone tells them apart.
+    let zone = 'UTC';
+    const device: LocalTimeReader = (ms) => zonedLocalTime(zone)(ms);
+    const here = progressVM(s, { ...env, local: device, timeZone: zone });
+    expect(here.insights.busiestTime).toEqual(first.insights.busiestTime);
+    zone = 'Pacific/Chatham'; // +13:45
+    const there = progressVM(s, { ...env, local: device, timeZone: zone });
+    expect(there.insights.busiestTime).toEqual(progressVM(s, { ...env, local: zonedLocalTime(zone), timeZone: zone }).insights.busiestTime);
+    expect(there.insights.busiestTime?.peakHour).not.toBe(here.insights.busiestTime?.peakHour);
   });
 });

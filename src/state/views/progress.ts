@@ -10,7 +10,7 @@
 import { BADGES } from '@/catalog/badges';
 import type { AppState, DateKey, Habit } from '../types';
 import { EMPTY_TALLY, addTally, aggregateTally, habitTally, isPctReady, monthToDateComparison, monthWindow, percent, trackingOf, weekWindow, trailingWindow, type Tally } from '@/domain/consistency';
-import { WEEKDAY_NAMES, eachDay, endOfMonth, monthFromIndex, monthIndex, monthLabel, type MonthKey } from '@/domain/dates';
+import { WEEKDAY_NAMES, eachDay, endOfMonth, monthFromIndex, monthIndex, monthLabel, zoneKey, type MonthKey } from '@/domain/dates';
 import type { BestFact, RunData, TrendData } from '@/catalog/format';
 import type { CuttingVM } from '@/domain/growth';
 import { busiestTimeOfDay, checkinCounts, firstTrackedDay, goalsOnTrack, mostConsistentHabit, showedUpDays, showedUpDaysIn, strongestWeekday, type TimeBlock } from '@/domain/insights';
@@ -161,11 +161,13 @@ const gardenMemo = lastOf<GardenPlantVM[]>();
  * The Progress screen's numbers. Two parts walk the history, and each is kept until its own inputs
  * change (the save is copy-on-write, so an unchanged part keeps its identity): the statistics
  * (habits, logs, off days, the week's start, the day), and the plants (those, plus the growth
- * ledger). A coin, a pet moving or a pin costs nothing here.
+ * ledger), each also keyed by the zone the stamps are read in (`zoneKey`, P-history-04). A coin, a
+ * pet moving or a pin costs nothing here.
  */
 export function progressVM(s: AppState, env: ViewEnv): ProgressVM {
-  const stats = statsMemo([s.habits, s.logs, s.offDays, s.settings.weekStart, s.settings.dayStartsAt, env.today, env.local], () => progressStats(s, env));
-  const garden = gardenMemo([s.habits, s.logs, s.offDays, s.ledger, s.settings, env.today, env.local], () => gardenOf(s, env));
+  const zone = zoneKey(env.local, env.timeZone);
+  const stats = statsMemo([s.habits, s.logs, s.offDays, s.settings.weekStart, s.settings.dayStartsAt, env.today, env.local, zone], () => progressStats(s, env));
+  const garden = gardenMemo([s.habits, s.logs, s.offDays, s.ledger, s.settings, env.today, env.local, zone], () => gardenOf(s, env));
   return {
     ...stats,
     records: { ...stats.records, perfectDays: s.lifetime.perfectDays, showUpDays: s.lifetime.showUpDays },
