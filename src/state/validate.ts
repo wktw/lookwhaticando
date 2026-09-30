@@ -145,6 +145,10 @@ function checkLog(r: Report, log: unknown, path: string): void {
   r.check(o.at === undefined || (Array.isArray(o.at) && o.at.every(nonNeg)), `${path}.at`, 'not a list of timestamps');
   // §5.1: `at` holds at most 24 live check-in times (logging.ts caps it; Blooms Like You reads them).
   r.check(!Array.isArray(o.at) || o.at.length <= MAX_STAMPS_PER_DAY, `${path}.at`, `more than ${MAX_STAMPS_PER_DAY} stamps`);
+  // WP-B4: check-in provenance, optional (absent means unknown); a timestamp when present.
+  r.check(o.first === undefined || nonNeg(o.first), `${path}.first`, 'not a timestamp');
+  r.check(o.done === undefined || nonNeg(o.done), `${path}.done`, 'not a timestamp');
+  r.check(o.beforeAnchor === undefined || isStr(o.beforeAnchor), `${path}.beforeAnchor`, 'not a habit id');
 }
 
 function checkLetter(r: Report, l: unknown, path: string): void {

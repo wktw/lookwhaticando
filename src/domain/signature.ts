@@ -2,8 +2,12 @@
  * Blooms Like You (DESIGN §14.2): a plant's look comes from *how* she keeps the habit.
  *
  * ## The colour: when she usually waters it
- * - Only live check-in stamps (`DayLog.at`) count: backfill and history edits never write them.
- *   A day's time is its last stamp (the check-in that completed it; a count habit's last glass).
+ * - Only live check-ins count: backfill and history edits never write them. A day's time is the
+ *   live check-in that made it count (`DayLog.done`: the completing tap, a count habit's glass that
+ *   reached its target, or the tiny version), never a later over-target tap, pad entry or undo
+ *   (DEC-P11: it describes completion, not last activity; WP-B4). An older build's day reads the
+ *   stamp that completed it when every tap was live, and is left out when that is unknown
+ *   (provenance.ts `completedAt`). A count that closes on its tiny count reads the tap that reached it.
  * - Dropped: catch-up bursts (the stamp sits in a 120-second window holding check-ins of ≥ 3
  *   habits, this one included, measured in time across app days: logging a morning's worth at
  *   once says nothing about the morning)
@@ -37,6 +41,7 @@ import type { AppState, BloomColour, BloomShape, DateKey, Habit, PlantLook, Plan
 import { inLifetime, logStatus, showedUp } from './activity';
 import { addDays, zoneKey, type LocalTimeReader } from './dates';
 import { BLOOMING, EVERGREEN } from './growth';
+import { completedAt } from './provenance';
 import { ruleAt } from './rules';
 import { keptTogetherDays } from './stacking';
 import { seal, type Tx } from './tx';
@@ -118,10 +123,9 @@ export function eligibleTimes(s: Pick<AppState, 'habits' | 'logs'>, habit: Habit
   const horizon = addDays(today, -SIGNATURE.stampDays);
   const out: EligibleTime[] = [];
   for (const [date, log] of Object.entries(s.logs[habit.id] ?? {})) {
-    if (date < horizon || date > today || log.kind !== 'log' || !log.at || log.at.length === 0 || !inLifetime(habit, date)) continue;
-    if (!showedUp(logStatus(log, ruleAt(habit, date), date < today))) continue;
-    const t = log.at[log.at.length - 1]!;
-    if (!Number.isFinite(t)) continue;
+    if (date < horizon || date > today || log.kind !== 'log' || !inLifetime(habit, date)) continue;
+    const t = completedAt(log, ruleAt(habit, date), date < today); // null: not counted, never live, or unknown
+    if (t === null) continue;
     const clock = local(t);
     if (clock.hour >= SIGNATURE.lateFrom || clock.hour < SIGNATURE.earlyUntil) continue;
     if (inBurst(s, date, habit.id, t)) continue;

@@ -12,7 +12,7 @@ import { BLOOMING, EVERGREEN } from '@/domain/growth';
 import * as habits from '@/domain/habits';
 import * as logging from '@/domain/logging';
 import { answerTimeNudge, eligibleTimes, readShape, readTimes, setPlantLook, timeNudge, type EligibleTime } from '@/domain/signature';
-import { Game, at } from './game';
+import { Game, at, deepFreeze } from './game';
 
 vi.setConfig({ testTimeout: 60_000 });
 
@@ -50,7 +50,7 @@ describe('eligible check-in times: live stamps only, no catch-up bursts, nothing
     expect(days(c!)).toEqual(['2026-03-04', '2026-03-05']);
   });
 
-  it('drops late nights (23:00–03:59) and backfill, and reads a count habit’s last stamp', () => {
+  it('drops late nights (23:00–03:59) and backfill, and reads the stamp that completed a count habit’s day', () => {
     const g = new Game({ start: '2026-03-02' });
     const a = g.addHabit({ name: 'Read' });
     const w = g.addHabit({ name: 'Water', target: 3 });
@@ -293,3 +293,136 @@ describe('the eligible-times memo is keyed by the zone too (P-history-04, WP-B3)
     expect(eligibleTimes(s, habit, today, reader, 'Asia/Kathmandu')).toBe(first);
   });
 });
+
+describe('a day’s time is the check-in that made it count, not the last tap (P-history-02, DEC-P11, WP-B4)', () => {
+  const D = '2026-03-02';
+  /** A count habit (target 3) completed at 08:10 on D, after taps at 08:00 and 08:05. */
+  function completedAt810() {
+    const g = new Game({ start: D, hour: 7 });
+    const a = g.addHabit({ name: 'Water', target: 3 });
+    for (const m of [0, 5, 10]) {
+      g.goTo(D, 8, m);
+      g.checkIn(a);
+    }
+    return { g, a, read: () => read(g, a) };
+  }
+  const minute = (h: number, m = 0) => h * 60 + m;
+
+  it('over-target taps in the evening leave the day at its completing check-in', () => {
+    const { g, a, read } = completedAt810();
+    for (const m of [0, 30]) {
+      g.goTo(D, 20, m);
+      g.checkIn(a);
+    }
+    expect(g.state.logs[a]![D]).toMatchObject({ count: 5 });
+    expect(read()).toEqual([{ date: D, minute: minute(8, 10) }]);
+  });
+
+  it('a number-pad entry past the target, then a decrease, leave it there too', () => {
+    const { g, a, read } = completedAt810();
+    g.goTo(D, 21, 0);
+    g.setCount(a, D, 10);
+    g.goTo(D, 21, 30);
+    g.setCount(a, D, 5);
+    expect(read()).toEqual([{ date: D, minute: minute(8, 10) }]);
+  });
+
+  it('undoing an over-target tap leaves it there; undoing below the target and completing again moves it to the new completion', () => {
+    const { g, a, read } = completedAt810();
+    for (const m of [0, 5]) {
+      g.goTo(D, 20, m);
+      g.checkIn(a);
+    }
+    g.goTo(D, 20, 10);
+    g.undo(a);
+    expect(read()).toEqual([{ date: D, minute: minute(8, 10) }]);
+    const again = completedAt810();
+    again.g.goTo(D, 8, 15);
+    again.g.undo(again.a); // 2 of 3: the day no longer counts
+    expect(again.read()).toEqual([]);
+    again.g.goTo(D, 19, 0);
+    again.g.checkIn(again.a);
+    expect(again.read()).toEqual([{ date: D, minute: minute(19) }]);
+  });
+
+  it('the completing check-in outlives the 24-stamp cap', () => {
+    const g = new Game({ start: D, hour: 6 });
+    const a = g.addHabit({ name: 'Water', target: 2 });
+    for (const m of [0, 1]) {
+      g.goTo(D, 7, m);
+      g.checkIn(a);
+    }
+    for (let i = 0; i < 30; i++) {
+      g.goTo(D, 19, i);
+      g.checkIn(a);
+    }
+    expect(read(g, a)).toEqual([{ date: D, minute: minute(7, 1) }]);
+  });
+
+  it('the tiny version makes the day count; upgrading it later in the day does not move it', () => {
+    const g = new Game({ start: D, hour: 7 });
+    const a = g.addHabit({ name: 'Walk', tiny: { label: 'Shoes on' } });
+    g.goTo(D, 8);
+    g.tiny(a);
+    g.goTo(D, 20);
+    g.checkIn(a);
+    expect(g.state.logs[a]![D]).toMatchObject({ count: 1 });
+    expect(read(g, a)).toEqual([{ date: D, minute: minute(8) }]);
+  });
+
+  it('a count that closes on its tiny count reads the check-in that reached it', () => {
+    const g = new Game({ start: D, hour: 6 });
+    const a = g.addHabit({ name: 'Water', target: 8, tiny: { label: 'Three glasses', count: 3 } });
+    for (const m of [0, 5, 10]) {
+      g.goTo(D, 7, m);
+      g.checkIn(a);
+    }
+    expect(read(g, a)).toEqual([]); // today it is partial
+    g.goTo(addDays(D, 1), 12);
+    expect(read(g, a)).toEqual([{ date: D, minute: minute(7, 10) }]);
+  });
+
+  it('ten mornings completed at dawn with evening extras read as Dawn, not Twilight', () => {
+    const g = new Game({ start: D, hour: 6 });
+    const a = g.addHabit({ name: 'Read', target: 2 });
+    for (let i = 0; i < 10; i++) {
+      const d = addDays(D, i);
+      for (const [h, m] of [
+        [6, 50],
+        [7, 0],
+        [19, 0],
+        [19, 10],
+        [19, 20],
+      ] as const) {
+        g.goTo(d, h, m);
+        g.checkIn(a);
+      }
+    }
+    expect(readTimes(read(g, a))).toMatchObject({ eligibleDays: 10, band: 'dawn', colour: 'dawn', usualMinute: minute(7) });
+  });
+
+  it('an older build’s day reads its completing stamp when every tap was live, and is left out when that is unknown', () => {
+    const g = new Game({ start: D, hour: 7 });
+    const a = g.addHabit({ name: 'Water', target: 3 });
+    const b = g.addHabit({ name: 'Pages', target: 3 });
+    g.goTo(addDays(D, 2), 12);
+    const t = (h: number, m = 0) => at(D, h, m);
+    // As an older build wrote them: stamps only. Water: five live taps (08:00 … 08:20).
+    // Pages: 10 counted, but only two taps were live (a number-pad entry): which one completed it is unknown.
+    const logs: AppState['logs'] = {
+      ...g.state.logs,
+      [a]: { [D]: { kind: 'log', count: 5, at: [t(8, 0), t(8, 5), t(8, 10), t(8, 15), t(8, 20)] } },
+      [b]: { [D]: { kind: 'log', count: 10, at: [t(9), t(21)] } },
+    };
+    g.state = deepFreeze({ ...g.state, logs });
+    expect(read(g, a)).toEqual([{ date: D, minute: minute(8, 10) }]);
+    expect(read(g, b)).toEqual([]);
+    g.goTo(addDays(D, 3), 12); // the day's reconciler runs: the same readings
+    expect(read(g, a)).toEqual([{ date: D, minute: minute(8, 10) }]);
+    expect(read(g, b)).toEqual([]);
+  });
+});
+
+function read(g: Game, id: string): EligibleTime[] {
+  return eligibleTimes(g.state, habitOf(g.state, id), g.today, g.local);
+}

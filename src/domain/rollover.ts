@@ -14,7 +14,8 @@
  * 5. a new season files the seasons that ended, and raises the Season Review card (§14.3);
  * 6. the moving-in anniversary note (§13);
  * 7. the birthday (1 ticket every year; the Paper Party Hat and the Tiny Cake once);
- * 8. compaction (ledger to the refund window, live stamps to 120 days, found things to 14).
+ * 8. compaction (ledger to the refund window, live stamps to 120 days, found things to 14); a
+ *    follower's day checked in before its anchor keeps that verdict when its stamps go (WP-B4).
  * Before all of it, and on every open of the same day too, `reconcilePrecisionMarks` quietly lifts
  * the growth marks an older build's rounding held a few millionths short (WP-B2, economy.ts), and,
  * once per save, `settleUniversalOnce` settles never-placed pets in an already open Balcony Box,
