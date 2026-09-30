@@ -91,6 +91,34 @@ The handoff asks for current primary documentation before committing to platform
 
 Policy details are re-verified again at the start of the paid-release phases, because they change faster than this plan.
 
+### 1.6 Base update merged on 30 September 2026
+
+After this plan was first written, the base branch advanced to `d1554a0` and was merged into this branch. The new work (10 commits):
+- copy moved into `lines.ts` and `VOICE.md`;
+- the month jar on the Today band;
+- a `PlantArt` composition cache;
+- decor labels;
+- a celebration banner that steps aside when a sheet opens;
+- clock pinning in two tests;
+- `NOTES-w2-*.md` consolidated into `NOTES-open.md`.
+
+Reconciliation against the findings:
+
+- **Save and domain code unchanged.** `src/state`, `src/app/pwa.ts`, import, validation and domain logic did not change (only a comment in `habits.ts`). Every Phase 1–3 finding stands as described.
+- **domain-d7 is now more visible.** The month jar (still `count > 0`, `src/state/views/today.ts:239`) is drawn on the Today band, so a tiny-only month also shows no stem there. Still P3; WP-15 covers it.
+- **creative-cr-02 unchanged.** `PlantArt.tsx:197` still ORs `damp` with the watering count; the new composition cache keys on the resulting value.
+- **UI2-04 unchanged.** The celebration banner now steps aside for a newly opened sheet. Actionable `Toaster` notes are still portalled outside the sheet's focus trap.
+- **integration-i5 unchanged.** `NOTES-open.md` item 7 records hiding the Capsules tab as an open design decision (DEC-15).
+- **Line shifts.** Citations in this plan refer to `6aad1d3`. In files the merge touched, the lines moved:
+  - `PlantArt.tsx`: the damp line is now `:197`.
+  - `WindowsillBand.tsx`: the damp set is now `:149`.
+  - `sheetStack.ts`: `trapTab` is now `:136`.
+  - `ShelfScreen.tsx`: +6 lines after `:362`.
+  - `src/catalog/lines.ts` and the per-screen `copy.ts` files: copy moved; for example, the Castoro credit is now `lines.ts:1193` and the Start over copy is `lines.ts:1167`.
+
+  Packages re-locate their targets by symbol when they start.
+- **Moved notes.** References below to `NOTES-w2-*.md` requests point to git history. Where still open, those requests are now in `NOTES-open.md`.
+
 ---
 
 ## 2. Product constraints every package preserves
@@ -424,7 +452,7 @@ Every package lists: covered IDs; size and uncertainty; dependencies; current fi
   7. Correct the `lock.ts` comment once retry exists.
 - **Alternatives.** (a) Block all actions while a write is failing: rejected; it punishes the user for the browser's quota and hides the tracker. (b) Retry only on the next mutation: rejected; the audit's scenario is precisely the last mutation. (c) Move the main save to IndexedDB now: deferred to WP-N2 and WP-25 evidence; it does not by itself fix the reporting contract.
 - **Migration/compatibility:** no stored-format change.
-- **Preserved behaviour:** instant taps; the after-frame save timing from the `NOTES-w2-today.md` request 15 performance work (the tap still paints first); quota compaction and backup preservation in `write()`; `pull`'s rollback path.
+- **Preserved behaviour:** instant taps; the after-frame save timing from the former `NOTES-w2-today.md` request 15 performance work (the tap still paints first); quota compaction and backup preservation in `write()`; `pull`'s rollback path.
 - **Regression tests (ledger → normal):**
   - data-d2: check-in → `setItem` fails → storage recovers → `flushSaves()` with no new mutation → reload contains the check-in.
   - FS4 (R210): deferred lock; hydrate; onboarding; free pull before grant → result is not success (or waits), and nothing is revealed until the pull is durable; refusal leaves no shown-but-lost pet.
@@ -929,7 +957,7 @@ Every package lists: covered IDs; size and uncertainty; dependencies; current fi
   - UI2-04;
   - RISK-17 (toast timers ignore page visibility);
   - RISK-18 (medium-detent sheets have no explicit expand control; needs device measurement);
-  - `NOTES-w2-today.md` request 21 (toasts over a sheet's header), which is the same boundary.
+  - the former `NOTES-w2-today.md` request 21 (toasts over a sheet's header), which is the same boundary. The base now moves celebration banners aside when a sheet opens; actionable toasts are still outside the trap.
 - **Size:** M. **Uncertainty:** medium (VoiceOver behaviour). **Depends on:** WP-0.
 - **Current files:**
   - `src/ui/Sheet.tsx:334` (focus trap), `src/ui/sheetStack.ts:131–149`.
@@ -994,7 +1022,7 @@ Every package lists: covered IDs; size and uncertainty; dependencies; current fi
 - **Covers:**
   - integration-i5, which is partly fixed: the wallet is hidden, and the remaining surfaces are listed below;
   - OPP-03's mandatory half;
-  - `NOTES-w2-today.md` request 4 (fx layer).
+  - the former `NOTES-w2-today.md` request 4 (fx layer; amounts are now hidden, per `NOTES-open.md` item 7).
 - **Size:** M. **Uncertainty:** low. **Depends on:** WP-0; DEC-15 (a default is given).
 - **Current files:**
   - `src/app/Sidebar.tsx:29–31` and `src/app/TabBar.tsx:28` map every route, including Capsules (`routes.ts:24`).
@@ -1150,7 +1178,7 @@ Every package lists: covered IDs; size and uncertainty; dependencies; current fi
 - **Current files:** `.github/workflows/ci.yml` (Ubuntu, Chromium only); `playwright.config.ts` (every project Chromium; `reducedMotion: 'reduce'` global at `:64`); `package.json` (`dev`/`preview` use `--host`; Vitest `^3.2.7`); `src/app/App.module.css:31–36`.
 - **Design.**
   - **CI lanes.** Add a Windows lane (typecheck and unit tests) and a macOS lane (typecheck and build), both on push to the default branch and nightly.
-  - **Playwright projects.** Add WebKit phone and desktop projects, a **normal-motion** project for the interaction specs (capsule, sheet, check-in), a touch-phone project (`NOTES-w2-today.md` request 22), and a `capsules.spec.ts` covering pull → reveal → reload → resume.
+  - **Playwright projects.** Add WebKit phone and desktop projects, a **normal-motion** project for the interaction specs (capsule, sheet, check-in), a touch-phone project (the former `NOTES-w2-today.md` request 22), and a `capsules.spec.ts` covering pull → reveal → reload → resume.
   - **Crescent test.** Triage the crescent-generation precision failure: use an explicit tolerance or deterministic arithmetic, and document which.
   - **Vitest.** Upgrade to a patched release in a dedicated compatibility change. Do not run `npm audit fix --force`.
   - **Dev servers.** Make `--host` opt-in (`npm run dev:lan`) so dev servers are not exposed by default. The native bridge (WP-N1) must never load a development origin in release builds.
@@ -2100,7 +2128,7 @@ DEC-01 to DEC-05 are owner decisions; DEC-06 to DEC-17 have defaults (§10).
 | HIST-25 | "Progress drops looks" | Progress shelf and Detail forward looks | Superseded |
 | HIST-26 | Domain appendix "M2 placeholder" exclusions | Screens exist | Superseded |
 | HIST-27 | Public-site observation of an older build | Read-only | No action |
-| HIST-28 | `NOTES-w2-progress.md` known requests | Lead requests, not findings | Tracked in NOTES |
+| HIST-28 | The former `NOTES-w2-progress.md` known requests | Lead requests, not findings | Consolidated into `NOTES-open.md` |
 | HIST-29 | Fresh-start faithful; existing users, demo and import bypass onboarding; Quiet rewards not a first-run choice | Verified | No finding; quiet first-run choice → OPP-03 |
 | HIST-30 | No outbound transfer, remote code or note-as-HTML found; diagnostics excludes notes | Source review | Verified; not a penetration test |
 
@@ -2221,7 +2249,7 @@ The recommendation is still to fix the P3 items with their packages, because eac
 
 ### 13.1 Why this package first
 
-- It contains the only **new regression** among the P1 findings (FS1). That regression came from the after-frame save performance change (`NOTES-w2-today.md` request 15), so the fix belongs next to that code while the context is fresh.
+- It contains the only **new regression** among the P1 findings (FS1). That regression came from the after-frame save performance change (the former `NOTES-w2-today.md` request 15), so the fix belongs next to that code while the context is fresh.
 - It fixes two further P1 findings (data-d2 and data-d1) and one P2 finding (FS4) that share the same object (`SaveQueue`) and the same boundary (`persist()`/`acquireLock()`).
 - Every later persistence package (WP-2's epoch adoption, WP-4's replacement coordinator, WP-8's durable acquisitions) depends on the durability contract it establishes.
 - It needs **no product decision** and **no stored-format change**. It is small: mostly `src/state/persist.ts` and `src/state/store.ts`, one line in `src/app/pwa.ts`, and tests. A clean revert restores today's behaviour with no data implications.
@@ -2251,7 +2279,7 @@ The recommendation is still to fix the P3 items with their packages, because eac
 
 **Regression safety:**
 - The existing unit and e2e suites are unchanged and green.
-- Tap-to-paint is unchanged: the `NOTES-w2-today.md` request 15 measurement is repeated on the 3-year × 20-habit fixture.
+- Tap-to-paint is unchanged: the former `NOTES-w2-today.md` request 15 measurement is repeated on the 3-year × 20-habit fixture.
 
 **Browser check.** A two-context Playwright test (Chromium now; WebKit when WP-24 lands) runs "Use here" during a burst of check-ins; the other tab's newer save survives.
 
