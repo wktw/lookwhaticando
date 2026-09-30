@@ -18,6 +18,7 @@ import { baseline, clamp, depthScale, depthZ, potMetrics, type PotMetrics } from
 import type { Ground, GroundLight, Obstacle, Perch } from '../arrange';
 import { decorSize } from '../fit';
 import { lightAtSun } from '../lighting';
+import { foundFor } from '../objects/found';
 import { ROUTINE_ART } from '../objects/routines';
 import type { CastSpec } from './Backdrop';
 import { BEAM_WIDTH, castVector, POT_HALF, sillLayout, sunbeam, type Beam, type SillLayout, type SillSpec } from './layout';
@@ -254,6 +255,59 @@ export function sillWorld(spec: SillSpec, pots: readonly SillPot[], decor: reado
     petSize: scale.pet,
   };
   return { layout, beam, casts, cast, decor: placed, pots: potPlaces, ground, floor, pools, light };
+}
+
+/** Where a thing on the Sill a person can open stands: its button's centre x, its depth and drawn size, in units. */
+export interface SillThingPlace {
+  x: number;
+  depth: number;
+  size: number;
+}
+
+/** The things on the Sill a person can open, placed (`sillThings`). */
+export interface SillThings {
+  note?: SillThingPlace;
+  found?: SillThingPlace;
+}
+
+/** Half a thing's button, in units (a small thing still takes a 12-unit button, as `SillThing` draws it). */
+const thingHalf = (t: SillThingPlace) => (Math.max(t.size, 12) * depthScale(t.depth)) / 2;
+
+/**
+ * Where the things on the Sill a person can open stand (DESIGN §8.2, §13): a waiting note leaning on the coin jar's
+ * left, in front of the back row; a found thing lying just right of the pot it was left by, at the front. Each keeps
+ * clear of the pets' seats at sill level (a routine's object, the glass beside a cutting, a bed; rims sit higher) and
+ * of the other, moving along the sill to the nearest clear spot, so its button never lies over a pet's: a pet under
+ * one could not be touched. The note never moves further left than its own spot (that is in front of the pots).
+ */
+export function sillThings(world: Pick<SillWorld, 'layout' | 'ground' | 'pots'>, want: { note?: boolean; found?: number }): SillThings {
+  const { layout, ground } = world;
+  const scale = layout.spec.scale;
+  // Half a pet's footprint (arrange's reach) around each seat.
+  const pet = ground.petSize * 0.3;
+  const seats: Span[] = ground.perches.filter((p) => p.kind !== 'rim').map((p) => [p.x - p.w / 2 - pet, p.x + p.w / 2 + pet] as const);
+  const out: SillThings = {};
+  if (want.note) {
+    const jarS = scale.jar * depthScale(layout.jar.depth);
+    const n = { x: layout.jar.x - jarS * 0.5, depth: 0.7, size: scale.pet * 0.62 };
+    const hw = thingHalf(n);
+    out.note = { ...n, x: clearX(n.x, hw, seats, n.x - hw, ground.x1) ?? n.x };
+  }
+  if (want.found != null) {
+    const by = world.pots.length ? world.pots[Math.abs(Math.floor(want.found)) % world.pots.length]! : null;
+    const f = { x: (by?.x ?? layout.window.x0 + 30) + 9, depth: 0.97, size: decorSize(foundFor(want.found), scale.pet) };
+    const note = out.note;
+    const blocked = note ? [...seats, [note.x - thingHalf(note), note.x + thingHalf(note)] as const] : seats;
+    out.found = { ...f, x: clearX(f.x, thingHalf(f), blocked, ground.x0, ground.x1) ?? f.x };
+  }
+  return out;
+}
+
+/** The Sill with things on it to open (`sillThings`): pets roaming it keep clear of them, as they do of standing decor. */
+export function withThings(world: SillWorld, things: SillThings): SillWorld {
+  const spans = [things.note, things.found].filter((t): t is SillThingPlace => !!t).map((t) => ({ x0: t.x - thingHalf(t), x1: t.x + thingHalf(t) }));
+  if (!spans.length) return world;
+  return { ...world, ground: { ...world.ground, obstacles: [...world.ground.obstacles, ...spans] } };
 }
 
 /**

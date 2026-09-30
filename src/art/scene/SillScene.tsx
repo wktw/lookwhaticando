@@ -20,7 +20,7 @@ import { outsidePalette, ROOM } from './palette';
 import { childLight } from './lighting';
 import { arrangePets, homePerch } from './arrange';
 import { SILL_SPEC } from './sill/layout';
-import { openScroll, sillWorld } from './sill/world';
+import { openScroll, sillThings, sillWorld, withThings } from './sill/world';
 import { SillSegment } from './sill/SillSegment';
 import { PetLayer } from './actors/PetLayer';
 import { usePetTouch } from './actors/usePetTouch';
@@ -97,7 +97,13 @@ export const SillScene = forwardRef(function SillScene(props: SillSceneProps, re
   const view = outsidePalette(moment.time, moment.season);
   const light = childLight(moment.light);
 
-  const world = useMemo(() => sillWorld(SILL_SPEC, pots, decor, room, moment.light.sun, widthU, moment.season), [pots, decor, room, moment.light.sun, widthU, moment.season]);
+  // Pets keep clear of the things on the sill a person can open (their buttons would otherwise cover the pets').
+  const noted = !!props.note;
+  const foundSeed = props.found?.seed;
+  const world = useMemo(() => {
+    const w = sillWorld(SILL_SPEC, pots, decor, room, moment.light.sun, widthU, moment.season);
+    return withThings(w, sillThings(w, { note: noted, found: foundSeed }));
+  }, [pots, decor, room, moment.light.sun, widthU, moment.season, noted, foundSeed]);
   const start = useMemo(() => {
     const spots = arrangePets(world.ground, pets, moment);
     return props.vignette ? stageVignette(props.vignette, 'sill', world.ground, moment, pets, spots) : spots;

@@ -24,7 +24,7 @@ import { NoteArt } from '../objects/note';
 import { CuttingPot, CuttingVine, vineReach } from '../objects/cutting';
 import type { Pt } from '../decor/geo';
 import { SillBackdrop } from './Backdrop';
-import type { SillWorld } from './world';
+import { sillThings, type SillWorld } from './world';
 import s from '../shelf.module.css';
 
 export interface SillSegmentProps {
@@ -154,14 +154,15 @@ function SillExtrasArt({ world, extras, light, jarS }: { world: SillWorld; extra
   const { rows, scale } = layout.spec;
   const jar = layout.jar;
   const out = [];
-  if (extras.found) {
-    const entry = foundFor(extras.found.seed);
-    const pots = world.pots;
-    const by = pots.length ? pots[Math.abs(Math.floor(extras.found.seed)) % pots.length]! : null;
-    out.push(<SillThing key="found" kind="found" x={(by?.x ?? layout.window.x0 + 30) + 9} depth={0.97} size={decorSize(entry, scale.pet)} rows={rows} light={light} entry={entry} label={extras.found.label ?? 'Something on the sill'} onTap={extras.found.onTap} />);
+  // Where they stand clear of the pets' seats (the scene keeps the roaming pets clear of them with the same places).
+  const things = sillThings(world, { note: !!extras.note, found: extras.found?.seed });
+  if (extras.found && things.found) {
+    const f = things.found;
+    out.push(<SillThing key="found" kind="found" x={f.x} depth={f.depth} size={f.size} rows={rows} light={light} entry={foundFor(extras.found.seed)} label={extras.found.label ?? 'Something on the sill'} onTap={extras.found.onTap} />);
   }
-  if (extras.note) {
-    out.push(<SillNote key="note" x={jar.x - jarS * 0.5} depth={0.7} size={scale.pet * 0.62} rows={rows} light={light} note={extras.note} />);
+  if (extras.note && things.note) {
+    const n = things.note;
+    out.push(<SillNote key="note" x={n.x} depth={n.depth} size={n.size} rows={rows} light={light} note={extras.note} />);
   }
   if (extras.cake) {
     const entry = DECOR_ENTRIES['decor-birthday-cake']!;

@@ -11,9 +11,14 @@ import { encodeEnvelope, SAVE_KEY } from '../src/state/persist';
 import type { AppState } from '../src/state/types';
 import { expectNoAxeViolations, horizontalOverflow, openRoute, watchErrors } from './support';
 
+const pad = (n: number) => String(n).padStart(2, '0');
+/** The app day at `ms` (the day starts at 03:00). */
+const dayKey = (ms: number) => {
+  const d = new Date(ms - 3 * 3_600_000);
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+};
 const now = Date.now();
-const d = new Date(now - 3 * 3_600_000);
-const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+const today = dayKey(now);
 const demo = buildDemo({ today, now });
 
 /** Loads a save before the app boots, then opens the Shelf. */
@@ -171,4 +176,31 @@ test.describe('phone journeys', () => {
     const o = await horizontalOverflow(page);
     expect(o.scrollWidth, o.culprits.join('\n')).toBeLessThanOrEqual(o.clientWidth);
   });
+});
+
+/**
+ * A note or a found thing on the sill never covers a pet. The pets' places follow the clock, so the axe check above
+ * caught these only at some hours; these are the moments it did, pinned (local time) so they run every time: the
+ * Sunday Note over Fern, napping on the hot-water bottle by the coin jar; a found thing over a pet by its pot.
+ */
+test.describe('nothing on the sill covers a pet', () => {
+  const MOMENTS = [
+    [2026, 9, 30, 13, 32],
+    [2026, 10, 4, 11, 32],
+    [2026, 12, 1, 10, 32],
+  ] as const;
+  for (const size of SIZES)
+    for (const [y, mo, day, h, mi] of MOMENTS) {
+      test(`${size.name}, ${y}-${pad(mo)}-${pad(day)} ${pad(h)}:${pad(mi)}`, async ({ page }, info) => {
+        const at = new Date(y, mo - 1, day, h, mi).getTime();
+        await page.setViewportSize(size.viewport);
+        await page.clock.setFixedTime(at);
+        const save = encodeEnvelope(buildDemo({ today: dayKey(at), now: at }), 1, at, 'e2e');
+        await page.addInitScript(([k, v]) => localStorage.setItem(k!, v!), [SAVE_KEY, save]);
+        await openRoute(page, 'shelf');
+        await page.waitForLoadState('networkidle');
+        await expect(page.locator('[data-sill="note"], [data-sill="found"]').first()).toBeVisible();
+        await expectNoAxeViolations(page, info);
+      });
+    }
 });
