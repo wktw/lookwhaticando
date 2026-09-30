@@ -38,6 +38,9 @@ export function ScreenHost({ tab }: { tab: TabId }) {
     announced.current = tab;
     announce(routeFor(tab).label);
     if (!lastInputWasKeyboard()) return;
+    // A screen that placed focus itself as it arrived (a hand-off's target, WP-C7) keeps it.
+    const now = document.activeElement;
+    if (now && now !== hostRef.current && hostRef.current?.contains(now)) return;
     const heading = hostRef.current?.querySelector<HTMLElement>('h1');
     if (!heading) return;
     if (!heading.hasAttribute('tabindex')) heading.tabIndex = -1;

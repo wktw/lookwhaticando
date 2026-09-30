@@ -32,7 +32,7 @@ import { Notices, type NoticesHandle } from './Notices';
 import { WalletSheet } from './WalletSheet';
 import { WeekStrip } from './WeekStrip';
 import { cancelChoreography, countTo, flipRest, tapAction, unwater, water, type Stage } from './checkin';
-import { HIDDEN_RESET_MS, bandOrder, cardsById, liveGroups, selectDay, selectedDay, snapshotGroups, structureKey, type GroupSnapshot } from './state';
+import { HIDDEN_RESET_MS, bandOrder, cardsById, liveGroups, selectDay, selectedDay, snapshotGroups, structureKey, todayFocus, type GroupSnapshot } from './state';
 import { TODAY_COPY } from './copy';
 import s from './TodayScreen.module.css';
 
@@ -68,6 +68,9 @@ function padCardFor(pad: EditorTarget, today: DateKey): HabitCardVM | null {
  * ("Thu, Sep 24"). A day a week back has today's weekday, so "Thursday" on a Thursday would read as
  * today (VOICE §5).
  */
+/** How many frames a hand-off waits for its habit's card before it settles for the page's heading. */
+const FOCUS_FRAMES = 20;
+
 const leftDay = (d: DateKey, today: DateKey): string => (isInBackfillWindow(d, today) ? weekdayName(d) : shortDateLabel(d));
 
 /**
@@ -173,6 +176,35 @@ export function TodayScreen() {
     };
   }, []);
 
+
+  // A hand-off that brought her here for a habit on this day ("Open Today" on a calendar day,
+  // src/app/handoff.ts): focus goes to its ring once the card is on the page (a folded row opens for
+  // it), so the next Enter waters it; with no card for it that day, to the page's heading. A request
+  // for another day than the one shown is stale and dropped.
+  const screen = useRef<HTMLElement>(null);
+  const focusFor = todayFocus.value;
+  useEffect(() => {
+    if (!focusFor) return;
+    if (focusFor.date !== date) {
+      todayFocus.value = null;
+      return;
+    }
+    let frames = 0;
+    let raf = 0;
+    const land = () => {
+      const root = screen.current;
+      const card = Array.from(root?.querySelectorAll<HTMLElement>('article[data-habit]') ?? []).find((a) => a.dataset.habit === focusFor.habitId);
+      const ring = card?.querySelector<HTMLElement>('button[data-state]');
+      if (!ring && ++frames < FOCUS_FRAMES) {
+        raf = requestAnimationFrame(land);
+        return;
+      }
+      (ring ?? root?.querySelector<HTMLElement>('#today-title'))?.focus();
+      todayFocus.value = null;
+    };
+    raf = requestAnimationFrame(land);
+    return () => cancelAnimationFrame(raf);
+  }, [focusFor, date]);
 
   // "N plants a habit" (src/app/shortcuts.ts).
   useEffect(() => {
@@ -308,7 +340,7 @@ export function TodayScreen() {
   };
 
   return (
-    <section class={cx(s.screen, past && s.past, compact && s.compact)} aria-labelledby="today-title">
+    <section ref={screen} class={cx(s.screen, past && s.past, compact && s.compact)} aria-labelledby="today-title">
       <Band ref={band} vm={bandVm} state={st} coins={st.wallet.coins} scene={ready} onOpenNote={() => notices.current?.openSill()} onWallet={() => setWalletOpen(true)} />
 
       <WeekStrip days={vm.weekStrip} onSelect={(d: DateKey) => selectDay(d, t)} />
@@ -346,7 +378,7 @@ export function TodayScreen() {
             <>
               {nothingOn && <p class={s.quiet}>{EMPTY.nothingOn}</p>}
               {allResting && !vm.offDay.isOff && <p class={s.quiet}>{EMPTY.allResting}</p>}
-              <HabitList key={snap.current.key} groups={groups} paused={vm.paused} renderCard={renderCard} onOpenHabit={openHabitDetail} />
+              <HabitList key={snap.current.key} groups={groups} paused={vm.paused} renderCard={renderCard} onOpenHabit={openHabitDetail} reveal={focusFor?.date === date ? focusFor.habitId : null} />
             </>
           )}
         </div>

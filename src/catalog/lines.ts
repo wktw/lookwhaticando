@@ -1036,7 +1036,10 @@ export const PET_CARD_UI = {
   favourite: 'Favourite',
   markFavourite: 'Favourite',
   keepsakes: 'Left by the pot',
-  pantry: 'Basket and pantry',
+  /** Under the Feed row's first 6 treats: opens the rest in the card (WP-C7). */
+  allTreats: 'All treats ({count})',
+  /** The card opened to find a plant with no live habit, above "Add a habit" (WP-C7). */
+  noPlants: '{name} keeps a plant company. Plants grow from habits, starting as a cutting in a glass of water.',
   indoors: 'Indoors',
   /** A Find-a-plant chip for a habit someone already keeps company. */
   keptBy: '{name} keeps it company',

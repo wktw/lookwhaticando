@@ -21,6 +21,7 @@ import { CoinIcon } from '@/art/icons';
 import { memoryShelfView, petsView, plantVM, shelfView, todayView, walletView } from '@/state/selectors';
 import { buyPlace, moveDecor, now, petPet, placeDecor, removeDecor, state, storeLocal, today } from '@/state/store';
 import { openHabitDetail, openPetCard } from '@/features/habits/open';
+import { PLACE_SEGMENT, replaceRest, routeRest } from '@/app/router';
 import { openRitual } from '@/features/rituals/open';
 import { petVoice } from '@/features/pets/voice';
 import { AnimatedNumber } from '@/ui/AnimatedNumber';
@@ -199,7 +200,7 @@ function Coins() {
 }
 
 /** Decor edit mode's tray, reading the placed things and her inventory itself. */
-function EditTray({ place, selected, onAdd, onFlip, onRemove, onDone }: { place: PlaceId; selected: string | null; onAdd: (itemId: string, label: string) => void; onFlip: (id: string) => void; onRemove: (id: string) => void; onDone: () => void }) {
+function EditTray({ place, selected, focusItem, onAdd, onFlip, onRemove, onDone }: { place: PlaceId; selected: string | null; focusItem: string | null; onAdd: (itemId: string, label: string) => void; onFlip: (id: string) => void; onRemove: (id: string) => void; onDone: () => void }) {
   const shelf = shelfView.value;
   const count = shelf.decor.filter((d) => d.place === place).length;
   return (
@@ -209,6 +210,7 @@ function EditTray({ place, selected, onAdd, onFlip, onRemove, onDone }: { place:
       count={count}
       placedAnywhere={shelf.decor.length}
       selected={selected ? (shelf.decor.find((d) => d.id === selected) ?? null) : null}
+      focusItem={focusItem}
       onAdd={onAdd}
       onFlip={onFlip}
       onRemove={onRemove}
@@ -242,7 +244,15 @@ const EmptyPets = memo(function EmptyPets() {
 export function ShelfScreen() {
   const sceneRef = useRef<ShelfSceneHandle>(null);
   const stageRef = useRef<HTMLDivElement>(null);
-  const [editing, setEditing] = useState(false);
+  // Arriving with a thing to place ('#/shelf/place/<itemId>', a reveal's "Find it a place"; WP-C7):
+  // edit mode, with that thing ready in the tray. Taken in once; the route goes back to plain Shelf.
+  const [arriving] = useState<string | null>(() => {
+    const [head, itemId] = routeRest.peek();
+    if (head !== PLACE_SEGMENT) return null;
+    replaceRest('shelf', []);
+    return itemId && shelfView.peek().inventory.some((i) => i.itemId === itemId) ? itemId : null;
+  });
+  const [editing, setEditing] = useState(arriving !== null);
   const [selected, setSelected] = useState<string | null>(null);
   const [sheet, setSheet] = useState<Sheet>(null);
   const [guidePage, setGuidePage] = useState<string | null>(null);
@@ -471,6 +481,7 @@ export function ShelfScreen() {
         <EditTray
           place={inView}
           selected={selected}
+          focusItem={arriving}
           onAdd={addDecor}
           onFlip={(id) => edit.onFlip(id)}
           onRemove={(id) => edit.onRemove(id)}

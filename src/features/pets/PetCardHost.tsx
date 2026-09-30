@@ -1,40 +1,37 @@
-import { useCallback, useEffect, useState } from 'preact/hooks';
+import { useEffect, useRef, useState } from 'preact/hooks';
 import { PET_CARD } from '@/catalog/lines';
 import { selectPet, shelfView } from '@/state/selectors';
 import { Sheet } from '@/ui/Sheet';
 import { IconButton } from '@/ui/IconButton';
-import { closePetCard, petCardRequest } from '../habits/open';
-import { BasketSheet } from '../shelf/BasketSheet';
+import { closePetCard, petCardRequest, type PetCardRequest } from '../habits/open';
 import { FavouriteButton, PetCard, RenameForm } from './PetCard';
-import { FEED_ROW } from './petCopy';
 import s from './PetCard.module.css';
 
 /**
- * The Pet Card sheet, for any screen (`openPetCard(petId)` in src/features/habits/open.ts): mounted
- * once by src/app/SheetHosts.tsx and loaded the first time a card is asked for. It keeps the last pet
- * while the sheet slides away, and closes itself if the pet is gone.
+ * The Pet Card sheet, for any screen (`openPetCard(petId, { intent })` in src/features/habits/open.ts):
+ * mounted once by src/app/SheetHosts.tsx and loaded the first time a card is asked for. It keeps the
+ * last pet while the sheet slides away, and closes itself if the pet is gone. Each request is a new
+ * visit: the card mounts afresh and opens on what it was asked for (WP-C7).
  */
 export default function PetCardHost() {
   const requested = petCardRequest.value;
-  const [shown, setShown] = useState<string | null>(requested);
+  const [shown, setShown] = useState<string | null>(requested?.id ?? null);
   const [renaming, setRenaming] = useState(false);
-  // "Basket and pantry" from the card's Feed row: every treat, over the card.
-  const [pantry, setPantry] = useState(false);
   useEffect(() => {
     if (requested) {
-      setShown(requested);
+      setShown(requested.id);
       setRenaming(false);
     }
-    setPantry(false);
   }, [requested]);
+  // A new request, even for the pet already shown, is a new visit.
+  const visit = useRef<{ req: PetCardRequest | null; n: number }>({ req: requested, n: 0 });
+  if (requested && requested !== visit.current.req) visit.current = { req: requested, n: visit.current.n + 1 };
   // The card asked for now, else the one sliding away.
-  const id = requested ?? shown;
+  const id = requested?.id ?? shown;
   const pet = id ? selectPet(id).value : null;
   useEffect(() => {
     if (requested && !pet) closePetCard();
   }, [requested, pet]);
-  const openPantry = useCallback(() => setPantry(true), []);
-  const closePantry = useCallback(() => setPantry(false), []);
   if (!pet) return null;
   const shelf = shelfView.value;
   return (
@@ -54,8 +51,7 @@ export default function PetCardHost() {
       }
     >
       {renaming && <RenameForm pet={pet} onDone={() => setRenaming(false)} />}
-      <PetCard key={pet.id} pet={pet} places={shelf.places} out={shelf.out} capacity={shelf.capacity} onPantry={pet.treats.length > FEED_ROW ? openPantry : undefined} />
-      <BasketSheet open={pantry && requested !== null} onClose={closePantry} />
+      <PetCard key={`${pet.id}:${visit.current.n}`} pet={pet} places={shelf.places} out={shelf.out} capacity={shelf.capacity} intent={requested?.intent} />
     </Sheet>
   );
 }

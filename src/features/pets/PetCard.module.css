@@ -274,7 +274,7 @@
 }
 
 /* ---------- feed ---------- */
-/* One row, the favourite first; the rest are in "Basket and pantry". */
+/* One row, the favourite first; "All treats (N)" opens the rest below it, wrapping (WP-C7). */
 .treats {
   display: flex;
   gap: 8px;
@@ -287,6 +287,20 @@
 }
 .treats::-webkit-scrollbar {
   display: none;
+}
+.treatsAll {
+  flex-wrap: wrap;
+  margin-top: 8px;
+  overflow: visible;
+}
+.treatsAll[hidden] {
+  display: none;
+}
+.allTreats svg {
+  transition: transform 160ms ease;
+}
+.allOpen svg {
+  transform: rotate(180deg);
 }
 
 .treatItem {

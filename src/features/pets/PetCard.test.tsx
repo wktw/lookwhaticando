@@ -1,11 +1,12 @@
 // @vitest-environment jsdom
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { buildDemo } from '@/state/demo';
-import { getCollectible } from '@/catalog/collectibles';
+import { COLLECTIBLES, getCollectible } from '@/catalog/collectibles';
 import { runtimeLocalTime } from '@/domain/dates';
 import { now, state, today } from '@/state/store';
+import * as store from '@/state/store';
 import type { AppState } from '@/state/types';
-import { closePetCard, openPetCard, petCardRequest } from '@/features/habits/open';
+import { closeHabitEditor, closePetCard, habitEditorRequest, openPetCard, petCardRequest } from '@/features/habits/open';
 import { toasts } from '@/ui/toast';
 import { buttonWithText, click, installDom, mount, type, until } from '@/features/capsules/testing';
 import { lint, PET_PRONOUN } from '../../../tests/unit/voiceLint';
@@ -39,8 +40,10 @@ afterAll(() => {
 });
 afterEach(() => {
   closePetCard();
+  closeHabitEditor();
   view?.unmount();
   view = null;
+  vi.restoreAllMocks();
 });
 
 const card = () => until(() => document.querySelector<HTMLElement>('[role="dialog"]'), 'the Pet Card');
@@ -172,5 +175,130 @@ describe('the Pet Card', () => {
     view = mount(<PetCardHost />);
     openPetCard('pet-nobody');
     await until(() => petCardRequest.value === null, 'the request to clear');
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/* WP-C7: the Pet Card as the end of a hand-off                         */
+/* ------------------------------------------------------------------ */
+
+/** Eight treats she can bake, in name order (the card's order when every one has the same servings). */
+const EIGHT = COLLECTIBLES.filter((c) => c.category === 'treat' && c.source !== 'harvest')
+  .slice(0, 8)
+  .sort((a, b) => a.name.localeCompare(b.name));
+
+/** The demo pet with exactly these treats in the pantry, its favourite not known yet, and 100 coins. */
+function withTreats(servings: (i: number) => number): AppState {
+  const p = demo.pets[petId]!;
+  const collection = Object.fromEntries(Object.entries(demo.collection).filter(([id]) => getCollectible(id)?.category !== 'treat'));
+  for (const t of EIGHT) collection[t.id] = { count: 1, firstAt: 0 };
+  return {
+    ...demo,
+    pets: { ...demo.pets, [petId]: { ...p, favoriteKnown: false, daily: { ...p.daily, treats: 0 } } },
+    collection,
+    pantry: Object.fromEntries(EIGHT.map((t, i) => [t.id, { servings: servings(i), restockedOn: TODAY }])),
+    wallet: { ...demo.wallet, coins: 100 },
+  };
+}
+
+/** The demo with the pet keeping no plant company. */
+function unpaired(s: AppState = demo): AppState {
+  return { ...s, habits: s.habits.map((h) => (h.companionId === petId ? { ...h, companionId: undefined } : h)) };
+}
+
+const feedButtons = (d: ParentNode) => Array.from(d.querySelectorAll<HTMLButtonElement>('button[aria-label^="Feed "]'));
+
+describe('the Pet Card feeds every treat, not just the first six (WP-C7, creative-cr-01)', { timeout: 20_000 }, () => {
+  it('"All treats (8)" shows the rest in the card, focus goes to the first of them, and the 8th of 8 can be fed', async () => {
+    state.value = withTreats(() => 3);
+    const d = await open();
+    expect(feedButtons(d)).toHaveLength(6);
+    const all = await until(() => Array.from(d.querySelectorAll<HTMLButtonElement>('button')).find((b) => b.textContent?.trim() === 'All treats (8)'), 'All treats (8)');
+    expect(all.getAttribute('aria-expanded')).toBe('false');
+    await click(all, 'All treats (8)');
+    expect(all.getAttribute('aria-expanded')).toBe('true');
+    const buttons = feedButtons(d);
+    expect(buttons).toHaveLength(8);
+    await until(() => document.activeElement === buttons[6], 'focus on the first treat shown');
+    const eighth = EIGHT[7]!;
+    expect(buttons[7]!.getAttribute('aria-label')).toBe(`Feed ${eighth.name}, 3 servings`);
+    await click(buttons[7] ?? null, 'the 8th treat');
+    expect(state.value.pantry[eighth.id]!.servings).toBe(2);
+    for (const t of EIGHT.slice(0, 7)) expect(state.value.pantry[t.id]!.servings, t.name).toBe(3);
+    expect(pet().daily.treats).toBe(1);
+    const caption = await until(() => d.querySelector('p[class*="caption"]')?.textContent, 'the caption');
+    expect(caption).toContain(pet().name);
+    // The list stays where it was: the 8th is still the 8th, and still there to feed again.
+    expect(feedButtons(d)[7]).toBe(buttons[7]);
+  });
+
+  it('an empty treat at 7th or later can be baked from the card', async () => {
+    // Most servings first: the empty one sorts last, the 8th.
+    state.value = withTreats((i) => (i === 0 ? 0 : 4));
+    const d = await open();
+    const empty = EIGHT[0]!;
+    expect(d.querySelector(`button[aria-label="Bake a tray · 10 coins, ${empty.name}"]`)).toBeNull();
+    await click(Array.from(d.querySelectorAll('button')).find((b) => b.textContent?.trim() === 'All treats (8)') ?? null, 'All treats (8)');
+    const bake = await until(() => d.querySelector<HTMLButtonElement>(`button[aria-label="Bake a tray · 10 coins, ${empty.name}"]`), 'its bake button');
+    await click(bake, 'Bake a tray');
+    expect(state.value.wallet.coins).toBe(90);
+    expect(state.value.pantry[empty.id]!.servings).toBe(5);
+  });
+
+  it('six or fewer treats: no "All treats" button', async () => {
+    state.value = withTreats(() => 3);
+    state.value = { ...state.value, collection: Object.fromEntries(Object.entries(state.value.collection).filter(([id]) => !EIGHT.slice(6).some((t) => t.id === id))) };
+    const d = await open();
+    expect(feedButtons(d)).toHaveLength(6);
+    expect(Array.from(d.querySelectorAll('button')).some((b) => b.textContent?.startsWith('All treats'))).toBe(false);
+  });
+
+  it('opened to feed, focus is on the first treat she can feed', async () => {
+    state.value = withTreats((i) => (i === 0 ? 0 : 3));
+    view = mount(<PetCardHost />);
+    openPetCard(petId, { intent: 'feed' });
+    const d = await card();
+    const first = await until(() => feedButtons(d).find((b) => !b.disabled), 'a treat to feed');
+    await until(() => document.activeElement === first, 'focus on the first treat she can feed');
+  });
+});
+
+describe('the Pet Card opened to find a plant (WP-C7, integration-i6)', { timeout: 20_000 }, () => {
+  it('opens on the chooser with focus on its first plant, and a choice moves the pet in once', async () => {
+    state.value = unpaired();
+    const spy = vi.spyOn(store, 'setCompanion');
+    view = mount(<PetCardHost />);
+    openPetCard(petId, { intent: 'findPlant' });
+    const d = await card();
+    const chooser = await until(() => d.querySelector<HTMLElement>(`ul[aria-label="Find ${pet().name} a plant"]`), 'the chooser');
+    const first = chooser.querySelector<HTMLButtonElement>('button')!;
+    await until(() => document.activeElement === first, 'focus on the first plant');
+    const free = Array.from(chooser.querySelectorAll<HTMLButtonElement>('button')).find((b) => !b.textContent?.includes('keeps it company'))!;
+    const habit = state.value.habits.find((h) => h.name === free.textContent?.trim())!;
+    await click(free, 'a plant');
+    expect(spy).toHaveBeenCalledTimes(1);
+    expect(spy).toHaveBeenCalledWith(habit.id, petId);
+    expect(state.value.habits.find((h) => h.id === habit.id)!.companionId).toBe(petId);
+  });
+
+  it('with no plant on the sill, says how one comes, and "Add a habit" (focused) opens the Habit Editor', async () => {
+    state.value = { ...unpaired(), habits: demo.habits.map((h) => ({ ...h, companionId: undefined, archivedOn: h.archivedOn ?? '2026-09-01' })) };
+    view = mount(<PetCardHost />);
+    openPetCard(petId, { intent: 'findPlant' });
+    const d = await card();
+    const add = await until(() => Array.from(d.querySelectorAll<HTMLButtonElement>('button')).find((b) => b.textContent?.trim() === 'Add a habit'), 'Add a habit');
+    expect(d.textContent).toContain(`${pet().name} keeps a plant company.`);
+    await until(() => document.activeElement === add, 'focus on Add a habit');
+    for (const p of d.querySelectorAll('p')) expect(lint(p.textContent ?? '', { pronouns: PET_PRONOUN }), p.textContent ?? '').toEqual([]);
+    await click(add, 'Add a habit');
+    expect(habitEditorRequest.value).toEqual({});
+  });
+
+  it('opened as usual, the card keeps "Find {name} a plant" as a button and puts focus nowhere in it', async () => {
+    state.value = unpaired();
+    const d = await open();
+    expect(buttonWithText(`Find ${pet().name} a plant`)).not.toBeNull();
+    expect(d.querySelector(`ul[aria-label="Find ${pet().name} a plant"]`)).toBeNull();
+    expect(petCardRequest.value).toEqual({ id: petId });
   });
 });

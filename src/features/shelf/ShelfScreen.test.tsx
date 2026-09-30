@@ -7,6 +7,7 @@ import { petPet, state, today } from '@/state/store';
 import { collectionView } from '@/state/selectors';
 import type { AppState } from '@/state/types';
 import { closePetCard, petCardRequest } from '@/features/habits/open';
+import { routeRest } from '@/app/router';
 import { toasts } from '@/ui/toast';
 import { button, buttonWithText, click, installDom, key, mount, until } from '@/features/capsules/testing';
 import { ShelfScreen, scenePets, scenePots } from './ShelfScreen';
@@ -54,7 +55,7 @@ describe('the Shelf', () => {
     for (const p of out) expect(view.root.querySelector(`[data-pet="${p.id}"]`), p.name).not.toBeNull();
     const tile = view.root.querySelector<HTMLButtonElement>('[data-pet-tile]')!;
     await click(tile);
-    expect(petCardRequest.value).toBe(tile.dataset.petTile);
+    expect(petCardRequest.value).toEqual({ id: tile.dataset.petTile });
   });
 
   it('opens on a line from the sill about a pet out, by name', async () => {
@@ -143,6 +144,38 @@ describe('the Shelf', () => {
     expect(state.value.shelf.decor.find((d) => d.id === placed.id)).toBeUndefined();
     await click(buttonWithText('Done'), 'Done');
     expect(view.root.querySelector('[data-editing]')).toBeNull();
+  });
+
+  it('arriving with a thing to place ("Find it a place", WP-C7): edit mode, focus on that thing in the tray, and the route is plain Shelf again', async () => {
+    const placedYarn = demo.shelf.decor.filter((d) => d.itemId === 'decor-yarn-ball').length;
+    state.value = { ...demo, collection: { ...demo.collection, 'decor-yarn-ball': { count: placedYarn + 1, firstAt: 0 } } };
+    location.hash = '#/shelf/place/decor-yarn-ball';
+    routeRest.value = ['place', 'decor-yarn-ball'];
+    try {
+      const view = await mountShelf();
+      await until(() => view.root.querySelector('[data-editing]'), 'edit mode');
+      const tray = view.root.querySelector('section[aria-labelledby="shelf-decorate"]')!;
+      const tile = Array.from(tray.querySelectorAll<HTMLButtonElement>('button')).find((b) => b.getAttribute('aria-label')?.startsWith('Yarn Ball'))!;
+      await until(() => document.activeElement === tile, 'focus on the yarn ball');
+      expect(routeRest.value).toEqual([]);
+      expect(location.hash).toBe('#/shelf');
+      // Nothing is placed until she says where.
+      expect(state.value.shelf.decor.filter((d) => d.itemId === 'decor-yarn-ball')).toHaveLength(placedYarn);
+    } finally {
+      routeRest.value = [];
+    }
+  });
+
+  it('a thing to place that isn’t in the tray (already out, or not hers) opens the Shelf as usual', async () => {
+    location.hash = '#/shelf/place/decor-not-a-thing';
+    routeRest.value = ['place', 'decor-not-a-thing'];
+    try {
+      const view = await mountShelf();
+      expect(view.root.querySelector('[data-editing]')).toBeNull();
+      expect(routeRest.value).toEqual([]);
+    } finally {
+      routeRest.value = [];
+    }
   });
 
   it('the scene’s keys flip and remove a thing in edit mode', async () => {

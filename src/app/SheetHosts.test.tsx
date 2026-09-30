@@ -271,6 +271,21 @@ describe('a shared sheet whose chunk can’t load (WP-C4, integration-i4)', () =
     expect(sessionStorage.getItem('catkin-sheet-retry')).toBeNull();
   });
 
+  it.each([
+    ['one opened to find a plant keeps its intent', { id: 'pet-cat-calico', intent: 'findPlant' }, { id: 'pet-cat-calico', intent: 'findPlant' }],
+    ['one opened as usual', { id: 'pet-cat-calico' }, { id: 'pet-cat-calico' }],
+    ['an unknown intent is dropped', { id: 'pet-cat-calico', intent: 'dance' }, null],
+    ['one kept by the build before, as a bare id, opens that pet’s card', 'pet-cat-calico', { id: 'pet-cat-calico' }],
+  ])('a kept Pet Card request after a reload (WP-C7): %s', async (_, request, expected) => {
+    // Its chunk still can't load, so the request stays as it was asked for again.
+    ctl.offline.add('pet');
+    sessionStorage.setItem('catkin-sheet-retry', JSON.stringify({ name: 'pet', request }));
+    const { open } = await fresh();
+    await act(() => Promise.resolve());
+    expect(open.petCardRequest.value).toEqual(expected);
+    expect(sessionStorage.getItem('catkin-sheet-retry')).toBeNull();
+  });
+
   it('Close clears the request, and the next request loads', async () => {
     ctl.offline.add('editor');
     const { open, walk } = await fresh();

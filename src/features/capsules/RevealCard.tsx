@@ -13,6 +13,7 @@ import { OpenCapsuleArt } from '@/art/machines/CapsuleArt';
 import { pillFace } from '@/art/machines/theme';
 import { mix } from '@/art/machines/color';
 import { CoinIcon, StampIcon, SwapIcon, TicketIcon } from '@/art/icons';
+import { handOff } from '@/app/handoff';
 import { sfx } from '@/fx/sound';
 import { haptic } from '@/fx/haptics';
 import { Button } from '@/ui/Button';
@@ -146,10 +147,19 @@ export function RevealCard({ data, light, onClose, pullAgain, onPlace, onLetThem
     stopNaming();
   };
 
+  // Where "Find {name} a plant" and "Find it a place" go. A host can take over (onboarding has a
+  // step of its own); otherwise, as on the routed Capsules screen, the hand-off carries the thing
+  // and what to do with it (WP-C7): the pet's card on its plant chooser, or the Shelf's edit mode.
   const place = () => {
     onClose();
     if (onPlace) onPlace(def.id);
-    else location.hash = '#/shelf';
+    else handOff(isPet ? { target: 'pet', entityId: def.id, intent: 'findPlant' } : { target: 'shelf', entityId: def.id, intent: 'place' });
+  };
+  // "Visit {name}": a repeat pet is already home; its card.
+  const visitPet = () => {
+    onClose();
+    if (onPlace) onPlace(def.id);
+    else handOff({ target: 'pet', entityId: def.id });
   };
 
   // "Let {name} choose" (VOICE §10): the pet picks a plant to keep company, or a place it loves,
@@ -165,7 +175,7 @@ export function RevealCard({ data, light, onClose, pullAgain, onPlace, onLetThem
 
   // Only something new needs a place: a repeat pet is already home, and a repeat decor already has a spot.
   const placeable = data.isNew && (isPet || def.category === 'decor');
-  const visit = !data.isNew && isPet && !!onPlace;
+  const visit = !data.isNew && isPet;
 
   return (
     <div class={s.scene} data-finish={finish} style={vars}>
@@ -269,7 +279,7 @@ export function RevealCard({ data, light, onClose, pullAgain, onPlace, onLetThem
 
         <div class={s.actions}>
           {visit && (
-            <Button variant="quiet" onClick={place}>
+            <Button variant="quiet" onClick={visitPet}>
               Visit {petName}
             </Button>
           )}

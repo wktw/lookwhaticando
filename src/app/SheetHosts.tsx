@@ -1,7 +1,7 @@
 import type { ComponentType } from 'preact';
 import type { Signal } from '@preact/signals';
 import { useEffect } from 'preact/hooks';
-import { closeHabitDetail, closeHabitEditor, closePetCard, habitDetailRequest, habitEditorRequest, petCardRequest } from '@/features/habits/open';
+import { PET_INTENTS, closeHabitDetail, closeHabitEditor, closePetCard, habitDetailRequest, habitEditorRequest, petCardRequest, type PetIntent } from '@/features/habits/open';
 import { closeRitual, ritualRequest } from '@/features/rituals/open';
 import { ConfirmDialog } from '@/ui/ConfirmDialog';
 import { SCREEN_COPY } from './copy';
@@ -15,6 +15,8 @@ interface SheetSpec {
   request: Signal<unknown>;
   close: () => void;
   valid: (r: unknown) => boolean;
+  /** A kept request in an older shape (a reload can land on a newer build), as this build asks for it. */
+  upgrade?: (r: unknown) => unknown;
 }
 
 const isId = (r: unknown) => typeof r === 'string' && r.length > 0;
@@ -28,7 +30,14 @@ const SHEETS = {
     valid: (r) => isObject(r) && Object.entries(r).every(([k, v]) => (k === 'id' || k === 'templateId') && isId(v)),
   },
   detail: { host: lazyModule(() => import('@/features/habits/detail/HabitDetailHost')), request: habitDetailRequest, close: closeHabitDetail, valid: isId },
-  pet: { host: lazyModule(() => import('@/features/pets/PetCardHost')), request: petCardRequest, close: closePetCard, valid: isId },
+  pet: {
+    host: lazyModule(() => import('@/features/pets/PetCardHost')),
+    request: petCardRequest,
+    close: closePetCard,
+    valid: (r) => isObject(r) && isId(r.id) && Object.entries(r).every(([k, v]) => k === 'id' || (k === 'intent' && PET_INTENTS.includes(v as PetIntent))),
+    // Before WP-C7 a Pet Card request was the pet's id.
+    upgrade: (r) => (isId(r) ? { id: r } : r),
+  },
   ritual: {
     host: lazyModule(() => import('@/features/rituals/RitualReaderHost')),
     request: ritualRequest,
@@ -62,7 +71,8 @@ function askAgainAfterReload(): void {
   }
   if (!isObject(kept) || typeof kept.name !== 'string' || !Object.prototype.hasOwnProperty.call(SHEETS, kept.name)) return;
   const sheet: SheetSpec = SHEETS[kept.name as SheetName];
-  if (sheet.valid(kept.request) && sheet.request.peek() === null) sheet.request.value = kept.request;
+  const request = sheet.upgrade ? sheet.upgrade(kept.request) : kept.request;
+  if (sheet.valid(request) && sheet.request.peek() === null) sheet.request.value = request;
 }
 
 /**

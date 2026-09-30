@@ -5,7 +5,7 @@
  * card. Every group header is a disclosure button inside an h2.
  */
 import type { ComponentChildren } from 'preact';
-import { useState } from 'preact/hooks';
+import { useLayoutEffect, useState } from 'preact/hooks';
 import { Icon } from '@/art/icons';
 import { CHECKIN_TOASTS, TODAY_LINES, fillLine } from '@/catalog/lines';
 import { blockLabel, blockSummary, dayProgressAria, periodWord, restingRow } from '@/catalog/format';
@@ -50,9 +50,11 @@ export interface HabitListProps {
   paused: PausedSummaryVM | null;
   renderCard: (card: HabitCardVM, eager: boolean) => ComponentChildren;
   onOpenHabit: (habitId: string) => void;
+  /** A habit a hand-off is bringing her to (src/app/handoff.ts): the folded row it is in opens. */
+  reveal?: string | null;
 }
 
-export function HabitList({ groups, paused, renderCard, onOpenHabit }: HabitListProps) {
+export function HabitList({ groups, paused, renderCard, onOpenHabit, reveal = null }: HabitListProps) {
   // Which groups she has opened or folded herself; otherwise the snapshot decides.
   const [flipped, setFlipped] = useState<ReadonlySet<string>>(() => new Set());
   const flip = (key: string) =>
@@ -62,6 +64,12 @@ export function HabitList({ groups, paused, renderCard, onOpenHabit }: HabitList
       else next.add(key);
       return next;
     });
+  useLayoutEffect(() => {
+    const g = reveal ? groups.find((x) => x.folded && x.cards.some((c) => c.id === reveal)) : undefined;
+    if (g) setFlipped((f) => (f.has(g.key) ? f : new Set(f).add(g.key)));
+    // Only when the habit asked for changes: a row she folds again afterwards stays folded.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reveal]);
 
   let drawn = 0;
   return (

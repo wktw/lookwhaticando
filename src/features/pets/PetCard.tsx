@@ -24,6 +24,7 @@ import { bakeTray, feedPet, letPetChoose, petPet, renamePet, setCompanion, setOu
 import { BAKE } from '@/domain/pantry';
 import { MAX_PET_NAME } from '@/domain/friendship';
 import { nameIdeas } from '@/features/capsules/names';
+import { openHabitEditor, type PetIntent } from '@/features/habits/open';
 import { Button } from '@/ui/Button';
 import { ConfirmDialog } from '@/ui/ConfirmDialog';
 import { IconButton } from '@/ui/IconButton';
@@ -38,7 +39,7 @@ import { sfx } from '@/fx/sound';
 import { FitObject } from '@/features/shelf/FitObject';
 import { useSame } from '@/features/shelf/stable';
 import { petVoice } from './voice';
-import { FEED_ROW, PET_CARD_UI, PlacePhrase, boopLabel, feedOrder, keepsakeCaption, keepsLine, knownForLine, levelLine, levelName, likesLine, memoryEntries, memoryLine, servingsLine, spotLine, withName } from './petCopy';
+import { FEED_ROW, PET_CARD_UI, PlacePhrase, boopLabel, keepOrder, keepsakeCaption, keepsLine, knownForLine, levelLine, levelName, likesLine, memoryEntries, memoryLine, servingsLine, spotLine, withName } from './petCopy';
 import s from './PetCard.module.css';
 
 export interface PetCardProps {
@@ -48,8 +49,12 @@ export interface PetCardProps {
   /** Pets out, for the room left in each place. */
   out: ShelfVM['out'];
   capacity: number;
-  /** "Basket and pantry": every treat, when the card shows only the first few. */
-  onPantry?: () => void;
+  /**
+   * What the card was opened to do (WP-C7): 'findPlant' opens the plant chooser (or, with no live
+   * habit, says how a plant comes) and 'feed' the Feed row, each with focus in it. Read once, when
+   * the card mounts: the host mounts a card per request.
+   */
+  intent?: PetIntent;
 }
 
 type Gesture = 'tap' | 'stroke' | 'boop' | 'carry';
@@ -66,7 +71,7 @@ let seed = Math.floor(Math.random() * 100_000);
  * handlers stable (they read the pet as it is now through a ref), so a stroke re-renders the top of
  * the card only.
  */
-export function PetCard({ pet, places, out, capacity, onPantry }: PetCardProps) {
+export function PetCard({ pet, places, out, capacity, intent }: PetCardProps) {
   const light = useArtLight();
   const habits = useSame(state.value.habits.filter((h) => h.archivedOn === undefined).map((h): HabitLite => ({ id: h.id, name: h.name, plant: h.plant, pot: h.pot, companionId: h.companionId })));
   const species = pet.species;
@@ -186,8 +191,8 @@ export function PetCard({ pet, places, out, capacity, onPantry }: PetCardProps) 
       </Section>
 
       <About about={about} habits={habits} />
-      <Company petId={pet.id} name={pet.name} habitId={pet.company.habitId ?? null} habits={habits} />
-      <Feed petId={pet.id} name={pet.name} treats={treats} coins={coins} say={say} onReact={show} caption={caption_} onPantry={onPantry} />
+      <Company petId={pet.id} name={pet.name} habitId={pet.company.habitId ?? null} habits={habits} intent={intent} />
+      <Feed petId={pet.id} name={pet.name} treats={treats} coins={coins} say={say} onReact={show} caption={caption_} intent={intent} />
       <Wardrobe petId={pet.id} wardrobe={wardrobe} outfit={wearing} preview={preview} onPreview={setPreview} say={say} caption={caption_} />
       <Where petId={pet.id} name={pet.name} isOut={pet.out} place={pet.place} places={placesLite} out={whereOut} capacity={capacity} />
       <Memories memories={memories} keepsakes={keepsakes} habits={habits} />
@@ -243,11 +248,35 @@ const About = memo(function About({ about, habits }: { about: AboutVM; habits: H
   );
 });
 
-const Company = memo(function Company({ petId, name, habitId, habits }: { petId: string; name: string; habitId: string | null; habits: HabitLite[] }) {
-  const [choosing, setChoosing] = useState(false);
+/** Focus the first button in `box` that can be pressed, bringing it into view. */
+const focusFirst = (box: HTMLElement | null | undefined) => box?.querySelector<HTMLElement>('button:not([disabled])')?.focus();
+
+const Company = memo(function Company({ petId, name, habitId, habits, intent }: { petId: string; name: string; habitId: string | null; habits: HabitLite[]; intent?: PetIntent }) {
+  // Opened to find a plant (a reveal's "Find {name} a plant"): the chooser is open, with focus on it.
+  const finding = intent === 'findPlant' && !habitId;
+  const [choosing, setChoosing] = useState(finding);
   const [asking, setAsking] = useState<HabitLite | null>(null);
+  const box = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (finding) focusFirst(box.current);
+    // Once, as the card opens.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const habit = habitId ? habits.find((h) => h.id === habitId) : undefined;
-  if (habits.length === 0) return null;
+  if (habits.length === 0) {
+    // No plant to keep company yet: on the way here from "Find {name} a plant", say how one comes.
+    if (!finding) return null;
+    return (
+      <div class={s.section} ref={box}>
+        <p class={s.note}>{withName(PET_CARD_UI.noPlants, name)}</p>
+        <div class={s.actions}>
+          <Button variant="secondary" size="sm" icon="plus" onClick={() => openHabitEditor()}>
+            {EMPTY.addHabit}
+          </Button>
+        </div>
+      </div>
+    );
+  }
   if (habit) {
     return (
       <section class={s.company} aria-labelledby="pc-company">
@@ -281,7 +310,7 @@ const Company = memo(function Company({ petId, name, habitId, habits }: { petId:
   const sorted = [...habits].sort((a, b) => Number(!!a.companionId) - Number(!!b.companionId));
   // No title of its own: the button says it ("Find Humbug a plant"), then the plants to choose from.
   return (
-    <div class={s.section}>
+    <div class={s.section} ref={box}>
       {!choosing ? (
         <div class={s.actions}>
           <Button variant="secondary" size="sm" icon="sprout" onClick={() => setChoosing(true)}>
@@ -324,77 +353,122 @@ const Company = memo(function Company({ petId, name, habitId, habits }: { petId:
 
 type Treat = PetVM['treats'][number];
 
-const Feed = memo(function Feed({ petId, name, treats, coins, say, onReact, caption, onPantry }: { petId: string; name: string; treats: Treat[]; coins: number; say: Say; onReact: React_; caption: Caption; onPantry?: () => void }) {
-  const ordered = useMemo(() => feedOrder(treats), [treats]);
+/**
+ * Feeding and baking, shared by the Feed row's first few and the rest it opens (WP-C7): the same
+ * store calls, the same reaction and the same words either way.
+ */
+function useFeeding(petId: string, name: string, say: Say, onReact: React_, caption: Caption) {
+  return useMemo(
+    () => ({
+      feed(t: Treat) {
+        const r = feedPet(petId, t.id);
+        const treat = t.name.toLowerCase();
+        if (r.reaction === 'full') {
+          onReact('blink', 900);
+          return say(fillLine(PET_CARD.enough, { name }));
+        }
+        if (r.reaction === 'none') return say(fillLine(PET_CARD.lastServing, { treat }));
+        haptic('light');
+        sfx.play('munch');
+        onReact('chew', 1400);
+        setTimeout(() => onReact('happy', 1200), 1400);
+        const line = caption(r.reaction === 'love' ? 'fedFavourite' : 'fed', { treat });
+        const left = (state.value.pantry[t.id]?.servings ?? 0) === 0;
+        say(left ? `${line} ${fillLine(PET_CARD.lastServing, { treat })}` : line);
+      },
+      bake(t: Treat) {
+        if (bakeTray(t.id).ok) {
+          haptic('light');
+          toast({ message: fillLine(PET_CARD.baked, { treat: t.name.toLowerCase() }), tone: 'butter', key: `bake-${t.id}` });
+        }
+      },
+    }),
+    [petId, name, say, onReact, caption],
+  );
+}
+
+/** One treat: feed it (a serving goes), or, run out and not a harvest, bake a tray of it. */
+function TreatItem({ t, coins, onFeed, onBake }: { t: Treat; coins: number; onFeed: (t: Treat) => void; onBake: (t: Treat) => void }) {
+  const empty = t.servings < 1;
+  // Baking is its own button, only where a treat has run out (never a harvest).
+  const bakeable = empty && getCollectible(t.id)?.source !== 'harvest';
+  return (
+    <li class={s.treatItem}>
+      <button type="button" class={s.treat} data-empty={empty ? '' : undefined} disabled={empty} onClick={() => onFeed(t)} aria-label={`${PET_CARD.buttons.feed} ${t.name}, ${servingsLine(t.servings)}${t.favorite ? `, ${PET_CARD_UI.favourite}` : ''}`}>
+        <span class={s.treatArt} aria-hidden="true">
+          <CollectibleArt id={t.id} size={44} px={44} animated={false} />
+        </span>
+        <span class={s.treatName} aria-hidden="true">
+          {t.name}
+        </span>
+        <span class={s.treatMeta} aria-hidden="true">
+          {servingsLine(t.servings)}
+        </span>
+        {t.favorite && (
+          <span class={s.fav} aria-hidden="true">
+            {PET_CARD_UI.favourite}
+          </span>
+        )}
+      </button>
+      {bakeable && (
+        <Button variant="quiet" size="sm" class={s.bake} disabled={coins < BAKE.coins} onClick={() => onBake(t)} aria-label={`${PET_CARD.buttons.bakeTray}, ${t.name}`}>
+          {PET_CARD.buttons.bakeTray}
+        </Button>
+      )}
+    </li>
+  );
+}
+
+/**
+ * Feed: the first FEED_ROW treats in a row (the favourite first, then what there is most of), then
+ * "All treats (N)", which opens the rest in the card with focus on the first of them (WP-C7,
+ * creative-cr-01). The order is taken when the card opens and kept while it is open, so a treat fed
+ * down a serving stays where it was, under her finger.
+ */
+const Feed = memo(function Feed({ petId, name, treats, coins, say, onReact, caption, intent }: { petId: string; name: string; treats: Treat[]; coins: number; say: Say; onReact: React_; caption: Caption; intent?: PetIntent }) {
+  const order = useRef<string[] | null>(null);
+  const ordered = useMemo(() => keepOrder(order.current, treats), [treats]);
+  order.current = ordered.map((t) => t.id);
   const shown = ordered.slice(0, FEED_ROW);
-  const feed = (t: Treat) => {
-    const r = feedPet(petId, t.id);
-    const treat = t.name.toLowerCase();
-    if (r.reaction === 'full') {
-      onReact('blink', 900);
-      return say(fillLine(PET_CARD.enough, { name }));
-    }
-    if (r.reaction === 'none') return say(fillLine(PET_CARD.lastServing, { treat }));
-    haptic('light');
-    sfx.play('munch');
-    onReact('chew', 1400);
-    setTimeout(() => onReact('happy', 1200), 1400);
-    const line = caption(r.reaction === 'love' ? 'fedFavourite' : 'fed', { treat });
-    const left = (state.value.pantry[t.id]?.servings ?? 0) === 0;
-    say(left ? `${line} ${fillLine(PET_CARD.lastServing, { treat })}` : line);
-  };
-  const bake = (t: Treat) => {
-    if (bakeTray(t.id).ok) {
-      haptic('light');
-      toast({ message: fillLine(PET_CARD.baked, { treat: t.name.toLowerCase() }), tone: 'butter', key: `bake-${t.id}` });
-    }
-  };
+  const rest = ordered.slice(FEED_ROW);
+  const [all, setAll] = useState(false);
+  const { feed, bake } = useFeeding(petId, name, say, onReact, caption);
+  const box = useRef<HTMLDivElement>(null);
+  const more = useRef<HTMLUListElement>(null);
+  // Opened to feed: focus on the first treat there is to feed.
+  useEffect(() => {
+    if (intent === 'feed') focusFirst(box.current);
+    // Once, as the card opens.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  // "All treats" opened: focus on the first of the rest.
+  useEffect(() => {
+    if (all) focusFirst(more.current);
+  }, [all]);
   return (
     <Section id="pc-feed" title={PET_CARD.buttons.feed}>
       {treats.length === 0 ? (
         <p class={s.note}>{PET_CARD_UI.noTreats}</p>
       ) : (
-        <>
+        <div ref={box}>
           <ul class={s.treats}>
-            {shown.map((t) => {
-              const empty = t.servings < 1;
-              // Baking is its own button, only where a treat has run out (never a harvest).
-              const bakeable = empty && getCollectible(t.id)?.source !== 'harvest';
-              return (
-                <li key={t.id} class={s.treatItem}>
-                  <button type="button" class={s.treat} data-empty={empty ? '' : undefined} disabled={empty} onClick={() => feed(t)} aria-label={`${PET_CARD.buttons.feed} ${t.name}, ${servingsLine(t.servings)}${t.favorite ? `, ${PET_CARD_UI.favourite}` : ''}`}>
-                    <span class={s.treatArt} aria-hidden="true">
-                      <CollectibleArt id={t.id} size={44} px={44} animated={false} />
-                    </span>
-                    <span class={s.treatName} aria-hidden="true">
-                      {t.name}
-                    </span>
-                    <span class={s.treatMeta} aria-hidden="true">
-                      {servingsLine(t.servings)}
-                    </span>
-                    {t.favorite && (
-                      <span class={s.fav} aria-hidden="true">
-                        {PET_CARD_UI.favourite}
-                      </span>
-                    )}
-                  </button>
-                  {bakeable && (
-                    <Button variant="quiet" size="sm" class={s.bake} disabled={coins < BAKE.coins} onClick={() => bake(t)} aria-label={`${PET_CARD.buttons.bakeTray}, ${t.name}`}>
-                      {PET_CARD.buttons.bakeTray}
-                    </Button>
-                  )}
-                </li>
-              );
-            })}
+            {shown.map((t) => (
+              <TreatItem key={t.id} t={t} coins={coins} onFeed={feed} onBake={bake} />
+            ))}
           </ul>
-          {onPantry && (
+          {rest.length > 0 && (
             <div class={s.actions}>
-              <Button variant="quiet" size="sm" iconRight="chevron-right" onClick={onPantry}>
-                {PET_CARD_UI.pantry}
+              <Button variant="quiet" size="sm" iconRight="chevron-down" class={cx(s.allTreats, all && s.allOpen)} aria-expanded={all} aria-controls="pc-feed-rest" onClick={() => setAll((a) => !a)}>
+                {fillLine(PET_CARD_UI.allTreats, { count: ordered.length })}
               </Button>
             </div>
           )}
-        </>
+          {rest.length > 0 && (
+            <ul id="pc-feed-rest" ref={more} class={cx(s.treats, s.treatsAll)} hidden={!all}>
+              {all && rest.map((t) => <TreatItem key={t.id} t={t} coins={coins} onFeed={feed} onBake={bake} />)}
+            </ul>
+          )}
+        </div>
       )}
     </Section>
   );
