@@ -107,8 +107,11 @@ period. `expectedPerWeek` = 7, |days|, times/every, or times×12/52/every.
 **Edits "this period"**: when a flexible edit keeps the period geometry (same unit and `every`; only `times` changes),
 the new rule takes over the whole current period. When the geometry changes (weekly ↔ monthly, another `every`,
 flexible → day-based), the new rule starts today and the old period is *cut*: it is judged as it stood that day, with
-its full goal, and the days it lost count as still open. A day-based edit made after today's check-in was rewarded
-applies from tomorrow (the detail view shows the pending rule). No edit can turn a past day or a closed period into a
+its full goal, and the days it lost count as still open. Those lost days are read as they stood at the cut: the ones
+already paused or taken off when the edit was made stay inactive (their count is kept on the new rule, `cutInactive`),
+and the rest stay active whatever later happens to the habit. So the edit keeps the goal the period had, and Finish,
+Archive, Restore, a pause, a resume or a day off never move a cut period into or out of a shortfall (WP-B5). A day-based edit made after today's check-in was rewarded applies from tomorrow (the detail
+view shows the pending rule). No edit, and no later lifecycle action, can turn a past day or a closed period into a
 new shortfall.
 
 **DayLog** is either `{kind:'log', count, level?:'tiny', at?:number[], note?}` or `{kind:'rest'}`, never both. `at`
@@ -139,7 +142,10 @@ records the times of **live** check-ins only (≤ 24). Backfill and history edit
 * **Pauses** may start today or later ("Back on Oct 6"). Resume sets end = yesterday. Restoring an archived habit adds a
   pause over the archived stretch. Today shows one collapsed row: "Resting: 2 habits · back Oct 6".
 * **Backfill**: rewards come only from the 6-day window, for days ≥ the habit's `createdAt` day, through the
-  check-in path. Logging before `startedOn` asks "Start tracking Walk from Mon, Sep 22?". The calendar edits older days as
+  check-in path. Logging before `startedOn` asks "Start tracking Walk from Mon, Sep 22?". That moves `startedOn` to the
+  exact day, at most ten years back and never before 2000-01-01; a flexible habit keeps its period grid (`gridFrom` on
+  its first rule when `every > 1`), so the periods already lived keep their place, goals and grants, and the new days
+  join earlier periods of the same grid (WP-B5). The calendar edits older days as
   **history only**: those edits never touch the wallet, sunshine or once-keys. It refuses days inside the 6-day window,
   and un-ticking a flexible check-in whose period still reaches into the window (both go through the week strip).
 * **Selected past day is never silent**: a sticky "Logging for Sat, Sep 27 · Back to today" banner, a shifted
@@ -726,7 +732,12 @@ season** · **Finish** (to the balcony shelf with a ribbon), plus a one-tap **Ke
 beyond Grow's stamp (paid only while "A bigger pot?" stands), and seasons that passed unopened are filed silently. The card is
 for the season just ended, when she opened the app in it and something was watered; a card still waiting when the next season
 begins is filed. Rest runs to the day before the next season; Finish and a finished "just this season" archive the habit as of
-its last day, so no later day is ever expected of it.
+its last day, so no later day is ever expected of it (today is kept when it already shows up as it will once closed: watered,
+the tiny version, or a count at its Tiny count). Finished on the day it was created with nothing watered (or archived
+before its first day), a habit has no day at all: it is kept `unstarted`, with `archivedOn = startedOn` so older builds
+still read the save, and its first day is never a missed day. Restoring it brings it back from that day, with the days in
+between paused (WP-B5). The flag counts only while it matches (archived on `startedOn`): an older build that restores or
+backdates the habit keeps the field without knowing it, and the habit then reads by its dates; the save is not corrupt.
 
 ## 15. Milestones & adversarial audits
 

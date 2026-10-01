@@ -162,6 +162,14 @@ export function periodGrid(x: ScheduleLike, from: DateKey, weekStart: WeekStart)
   throw new Error(`periodGrid: ${s.kind} schedules have no periods`);
 }
 
+/**
+ * The grid a flexible rule cuts its periods on: from its `from` period, or from `gridFrom` when a
+ * backdated first rule keeps the grid it had (WP-B5, P-history-01).
+ */
+export function ruleGrid(rule: Pick<HabitRule, 'schedule' | 'from' | 'gridFrom'>, weekStart: WeekStart): PeriodGrid {
+  return periodGrid(rule, rule.gridFrom ?? rule.from, weekStart);
+}
+
 /** The period with this index. */
 export function periodSlot(grid: PeriodGrid, index: number): PeriodSlot {
   if (grid.unit === 'week') {

@@ -30,17 +30,26 @@
  * the day of the cut: its goal is the one it had (target over the whole period from its rule's
  * start), and the days it lost to the next rule count as open. So an edit never turns a shortfall
  * that could still have been made up into a settled one, and a cut period is met only by its full
- * goal (so a mid-period switch can't cheapen a period-goal bonus).
+ * goal (so a mid-period switch can't cheapen a period-goal bonus). Those lost days are read in a
+ * **cut-time view** (WP-B5, HM1): open whatever today is, and active or not as they stood when the
+ * edit was made. The days already paused or off then are counted on the next rule
+ * (`HabitRule.cutInactive`, stamped by `withCutStamp`); every other lost day is active whatever
+ * later happens to the habit (Finish, Archive, Restore, pauses, days off). So the edit keeps the
+ * goal the period had, and no later lifecycle action can move a cut period into, or out of, a
+ * shortfall.
+ * Grid: a rule's periods are cut from its `from` period, or from `gridFrom` when a backdated first
+ * rule keeps the grid it had (WP-B5, P-history-01), so "Start tracking from…" regroups nothing.
  * Attribution: a period belongs to the month containing its last day (its last *governed* day for
  * a cut period), even while current.
  */
 import type { DateKey, Habit, HabitRule } from '@/state/types';
 import { addDays, daysInRange, eachDay, maxDateKey, minDateKey, monthKey, type MonthKey, type WeekStart } from './dates';
-import { inLifetime, isFlexActiveDay, logStatus, type EvalContext, type HabitLogs } from './activity';
+import { inLifetime, isFlexActiveDay, logStatus, type EvalContext, type HabitLogs, type TrackingContext } from './activity';
+import { isPausedOn } from './pauses';
 import { ruleSegments } from './rules';
-import { isFlexible, periodGrid, periodSlot, periodSlotAt, type FlexibleSchedule, type PeriodUnit } from './schedule';
+import { isFlexible, periodSlot, periodSlotAt, ruleGrid, type FlexibleSchedule, type PeriodUnit } from './schedule';
 
-type HabitDays = Pick<Habit, 'rules' | 'startedOn' | 'archivedOn' | 'pauses'>;
+type HabitDays = Pick<Habit, 'rules' | 'startedOn' | 'archivedOn' | 'unstarted' | 'pauses'>;
 
 /** A flexible period of one rule. */
 export interface FlexPeriod {
@@ -71,7 +80,7 @@ export function flexPeriodsOverlapping(habit: Pick<Habit, 'rules'>, start: DateK
     const lo = seg.start === null ? start : maxDateKey(start, seg.start);
     const hi = seg.end === null ? end : minDateKey(end, seg.end);
     if (lo > hi) continue;
-    const grid = periodGrid(seg.rule, seg.rule.from, weekStart);
+    const grid = ruleGrid(seg.rule, weekStart);
     const times = (seg.rule.schedule as FlexibleSchedule).times;
     for (let k = periodSlotAt(grid, lo).index, last = periodSlotAt(grid, hi).index; k <= last; k++) {
       const slot = periodSlot(grid, k);
@@ -150,21 +159,21 @@ export function evaluatePeriod(habit: HabitDays, logs: HabitLogs, p: FlexPeriod,
     if (s === 'done' || s === 'tiny') checkins.push({ date: d, tiny: s === 'tiny' });
   }
   const usedToday = checkins.length > 0 && checkins[checkins.length - 1]!.date === T;
-  let activeDays = 0;
+  // The days the period lost to a later rule (cut periods only), read in the cut-time view: open
+  // whatever today is, and active unless already paused or off when the edit was made, whatever the
+  // habit's lifecycle did to them afterwards (Finish, Archive, Restore, a pause, a resume, a day
+  // off). The cut period is frozen as it stood on the day of the cut (HM1, WP-B5).
+  const lost = cut ? daysInRange(addDays(p.to, 1), p.end) : 0;
+  let activeDays = lost - lostInactive(habit, p);
   let remainingActiveDays = 0;
-  let openDays = 0;
-  for (const d of eachDay(p.from, cut ? p.end : p.to)) {
+  let openDays = lost;
+  for (const d of eachDay(p.from, p.to)) {
     const active = isFlexActiveDay(habit, d, ctx);
     if (active) activeDays++;
-    if (d < T || (d === T && usedToday) || !inLifetime(habit, d)) {
-      // Days already lived under this rule are settled. Days the period lost to a later rule stay
-      // open whatever today is: the cut period is frozen as it stood on the day of the cut.
-      if (!(cut && d > p.to && inLifetime(habit, d))) continue;
-      openDays++;
-      continue;
-    }
+    // Days already lived under this rule are settled.
+    if (d < T || (d === T && usedToday) || !inLifetime(habit, d)) continue;
     openDays++;
-    if (active && d <= p.to) remainingActiveDays++;
+    if (active) remainingActiveDays++;
   }
   const target = Math.round((p.times * activeDays) / totalDays);
   const tinyDays = checkins.filter((c) => c.tiny).length;
@@ -236,7 +245,7 @@ export function periodPace(habit: HabitDays, logs: HabitLogs, ctx: EvalContext):
   const e = evaluatePeriod(habit, logs, p, ctx);
   // The goal shown is max(1, target) ("0 of 1 this week"), so what is needed is measured against it.
   const needed = Math.max(0, Math.max(1, e.target) - e.checkinDays);
-  const elapsed = Math.max(0, e.activeDays - e.remainingActiveDays - (e.cut ? activeAfter(habit, p, ctx) : 0));
+  const elapsed = Math.max(0, e.activeDays - e.remainingActiveDays - (e.cut ? activeAfter(habit, p) : 0));
   const paceSoFar = e.activeDays > 0 ? Math.floor((e.target * elapsed) / e.activeDays) : 0;
   return {
     period: e,
@@ -251,9 +260,47 @@ export function periodPace(habit: HabitDays, logs: HabitLogs, ctx: EvalContext):
   };
 }
 
-/** Active days a cut period lost to the next rule (not "elapsed" for its pace). */
-function activeAfter(habit: HabitDays, p: FlexPeriod, ctx: EvalContext): number {
-  let n = 0;
-  for (const d of eachDay(addDays(p.to, 1), p.end)) if (isFlexActiveDay(habit, d, ctx)) n++;
-  return n;
+/** Active days a cut period lost to the next rule (not "elapsed" for its pace), in the cut-time view. */
+function activeAfter(habit: Pick<Habit, 'rules'>, p: FlexPeriod): number {
+  return p.to < p.end ? daysInRange(addDays(p.to, 1), p.end) - lostInactive(habit, p) : 0;
+}
+
+/** How many of the days a cut period lost were already paused or off at the cut (0 when not cut). */
+function lostInactive(habit: Pick<Habit, 'rules'>, p: FlexPeriod): number {
+  if (!(p.to < p.end)) return 0;
+  const n = habit.rules[p.ruleIndex + 1]?.cutInactive ?? 0;
+  return Math.max(0, Math.min(daysInRange(addDays(p.to, 1), p.end), n));
+}
+
+/**
+ * The habit after a rule edit (`next`, from `before`), with its newest rule stamped with how many
+ * of the days it cuts from the previous rule's period are already paused or taken off
+ * (`HabitRule.cutInactive`), so that period keeps the goal it had at the edit (WP-B5, HM1). The
+ * goal it had is the one it read just before, so days an earlier edit had already cut from the
+ * same period keep that edit's stamp: a rule replacing one that starts the same day (a second edit
+ * that day) keeps its stamp as it is, and one replacing a later cut (a "this period" edit after
+ * "Ready to grow?" was accepted for tomorrow) adds its own new days to it. Pure; returns `next`
+ * when nothing changes.
+ */
+export function withCutStamp<H extends Pick<Habit, 'rules' | 'pauses'>>(next: H, before: Pick<Habit, 'rules'>, ctx: TrackingContext): H {
+  if (next.rules === before.rules) return next;
+  const idx = next.rules.length - 1;
+  const last = next.rules[idx];
+  if (!last || idx === 0) return next;
+  const same = before.rules.find((r) => r.from === last.from);
+  let n: number | undefined;
+  if (same) n = same.cutInactive;
+  else {
+    const p = flexPeriodAt(next, addDays(last.from, -1), ctx.weekStart);
+    if (!p || p.ruleIndex !== idx - 1 || !(p.to < p.end)) return next;
+    // The first rule the edit superseded, when it had cut this same period later on.
+    const replaced = before.rules.find((r) => r.from > last.from && r.from <= p.end);
+    n = replaced?.cutInactive ?? 0;
+    for (const d of eachDay(last.from, replaced ? addDays(replaced.from, -1) : p.end)) if (isPausedOn(next.pauses, d) || ctx.offDays[d] === true) n++;
+  }
+  if ((n ?? 0) === (last.cutInactive ?? 0)) return next;
+  const stamped: HabitRule = { ...last };
+  if (n !== undefined && n > 0) stamped.cutInactive = n;
+  else delete stamped.cutInactive;
+  return { ...next, rules: [...next.rules.slice(0, idx), stamped] };
 }

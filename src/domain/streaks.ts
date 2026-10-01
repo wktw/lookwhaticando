@@ -26,7 +26,7 @@ import { dayEvaluations, type EvalContext, type HabitLogs } from './activity';
 import { periodEvaluations } from './periods';
 import { rhythmSpans, ruleAt } from './rules';
 
-type HabitDays = Pick<Habit, 'rules' | 'startedOn' | 'archivedOn' | 'pauses'>;
+type HabitDays = Pick<Habit, 'rules' | 'startedOn' | 'archivedOn' | 'unstarted' | 'pauses'>;
 
 /** 'days' for daily, 'times' for certain days ("12 in a row"), 'weeks', 'months'. */
 export type StreakUnit = 'days' | 'times' | 'weeks' | 'months';

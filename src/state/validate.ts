@@ -155,6 +155,10 @@ function checkHabit(r: Report, h: unknown, path: string): void {
   r.check(optional(isDay)(o.createdOn), `${path}.createdOn`, 'not a date');
   r.check(isDay(o.startedOn), `${path}.startedOn`, 'not a date');
   r.check(o.archivedOn === undefined || (isDay(o.archivedOn) && o.archivedOn >= String(o.startedOn)), `${path}.archivedOn`, 'not a date on/after startedOn');
+  // WP-B5: an empty lifetime, written as archivedOn === startedOn (what older builds accept). Not
+  // checked against the dates: an older build's Restore or backdate keeps the flag, and the domain
+  // honours it only while it is consistent (isUnstarted), so such a save is not corrupt.
+  r.check(o.unstarted === undefined || o.unstarted === true, `${path}.unstarted`, 'not true');
   r.check(isNum(o.order), `${path}.order`, 'not a number');
   for (const k of ['unit', 'anchor', 'notes'] as const) r.check(optional(isStr)(o[k]), `${path}.${k}`, 'not a string');
   r.check(o.dueDay === undefined || o.dueDay === 'last' || (isInt(o.dueDay) && o.dueDay >= 1 && o.dueDay <= 31), `${path}.dueDay`, 'bad due day');
@@ -183,6 +187,10 @@ function checkHabit(r: Report, h: unknown, path: string): void {
     checkSchedule(r, ro.schedule, `${rp}.schedule`);
     if (r.errors.length > before) shapesOk = false;
     if (ro.tiny !== undefined) shapesOk = r.check(isObj(ro.tiny) && isStr(ro.tiny.label) && optional(nonNeg)(ro.tiny.count), `${rp}.tiny`, 'bad tiny version') && shapesOk;
+    // WP-B5: a backdated first rule's kept period grid.
+    if (ro.gridFrom !== undefined) shapesOk = r.check(isDay(ro.gridFrom), `${rp}.gridFrom`, 'not a date') && shapesOk;
+    // WP-B5: the days of the period it cut that were already paused or off at the edit.
+    if (ro.cutInactive !== undefined) shapesOk = r.check(isInt(ro.cutInactive) && ro.cutInactive >= 1, `${rp}.cutInactive`, 'not a positive whole number') && shapesOk;
     return undefined;
   });
   if (shapesOk && isDay(o.startedOn)) {

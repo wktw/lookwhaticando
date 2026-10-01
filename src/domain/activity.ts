@@ -35,7 +35,10 @@ export interface EvalContext extends TrackingContext {
   readonly today: DateKey;
 }
 
-type HabitDays = Pick<Habit, 'rules' | 'startedOn' | 'archivedOn' | 'pauses'>;
+type HabitDays = Pick<Habit, 'rules' | 'startedOn' | 'archivedOn' | 'unstarted' | 'pauses'>;
+
+/** What a lifetime is made of. */
+export type Lifetime = Pick<Habit, 'startedOn' | 'archivedOn' | 'unstarted'>;
 
 export const EMPTY_LOGS: HabitLogs = Object.freeze({});
 
@@ -43,13 +46,27 @@ export const EMPTY_LOGS: HabitLogs = Object.freeze({});
 /* Lifetime & activity                                                 */
 /* ------------------------------------------------------------------ */
 
-/** startedOn ≤ date ≤ archivedOn (the archive day itself still counts, DESIGN §5.3). */
-export function inLifetime(habit: Pick<Habit, 'startedOn' | 'archivedOn'>, date: DateKey): boolean {
-  return date >= habit.startedOn && (habit.archivedOn === undefined || date <= habit.archivedOn);
+/**
+ * Retired before its first day was over, with nothing watered (WP-B5): an empty lifetime. The flag
+ * is honoured only while it is consistent, archived on `startedOn`: an older build's Restore or
+ * "Start tracking from…" keeps an unknown field it does not understand, and such a habit is live
+ * (or archived) as its dates say.
+ */
+export function isUnstarted(habit: Lifetime): boolean {
+  return habit.unstarted === true && habit.archivedOn !== undefined && habit.archivedOn === habit.startedOn;
+}
+
+/**
+ * startedOn ≤ date ≤ archivedOn (the archive day itself still counts, DESIGN §5.3). An unstarted
+ * habit (`isUnstarted`) has an empty lifetime.
+ */
+export function inLifetime(habit: Lifetime, date: DateKey): boolean {
+  return !isUnstarted(habit) && date >= habit.startedOn && (habit.archivedOn === undefined || date <= habit.archivedOn);
 }
 
 /** Last day of the lifetime that is ≤ `until`, or null when the habit has not started by then. */
-export function lifetimeEnd(habit: Pick<Habit, 'startedOn' | 'archivedOn'>, until: DateKey): DateKey | null {
+export function lifetimeEnd(habit: Lifetime, until: DateKey): DateKey | null {
+  if (isUnstarted(habit)) return null;
   const end = habit.archivedOn === undefined ? until : minDateKey(habit.archivedOn, until);
   return end >= habit.startedOn ? end : null;
 }
@@ -90,7 +107,7 @@ export function restStanding(habit: HabitDays, logs: HabitLogs, date: DateKey, c
 /** Why `date` is transparent for the habit, or null when it is an active day. */
 export function inactiveReason(habit: HabitDays, logs: HabitLogs, date: DateKey, ctx: TrackingContext): InactiveReason | null {
   if (date < habit.startedOn) return 'before-start';
-  if (habit.archivedOn !== undefined && date > habit.archivedOn) return 'archived';
+  if (isUnstarted(habit) || (habit.archivedOn !== undefined && date > habit.archivedOn)) return 'archived';
   if (isPausedOn(habit.pauses, date)) return 'paused';
   if (ctx.offDays[date] === true) return 'off';
   if (restStanding(habit, logs, date, ctx) === 'allowed') return 'rest';
@@ -106,7 +123,7 @@ export function isActiveDay(habit: HabitDays, logs: HabitLogs, date: DateKey, ct
  * Active for a flexible period's goal: in lifetime, not paused, not off. (Rests do not apply to
  * flexible habits.)
  */
-export function isFlexActiveDay(habit: Pick<Habit, 'startedOn' | 'archivedOn' | 'pauses'>, date: DateKey, ctx: TrackingContext): boolean {
+export function isFlexActiveDay(habit: Lifetime & Pick<Habit, 'pauses'>, date: DateKey, ctx: TrackingContext): boolean {
   return inLifetime(habit, date) && !isPausedOn(habit.pauses, date) && ctx.offDays[date] !== true;
 }
 

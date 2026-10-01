@@ -14,7 +14,7 @@ import { companionOf, routineOn, type RoutineOn } from '@/domain/company';
 import { stackOrder } from '@/domain/stacking';
 import type { LocalTimeReader } from '@/domain/dates';
 import { addDays, monthDayLabel, startOfWeek, type WeekStart } from '@/domain/dates';
-import { canSetRest, logStatus, restStanding, showedUp, type LogStatus } from '@/domain/activity';
+import { canSetRest, inLifetime, logStatus, restStanding, showedUp, type LogStatus } from '@/domain/activity';
 import { habitPhrase, habitTally, trailingWindow, isPctReady, type HabitPhrase } from '@/domain/consistency';
 import { bestFlourishes, completedOccurrences, daysSinceCreation, habitCreatedOn, logsOf, memoByHabit, streakOf, trackingCtx } from '@/domain/economy';
 import { POTTED, ROOTING, STAGE_THRESHOLDS, artBlooms, growthInfo, sunshinePerOccurrence, type GrowthInfo } from '@/domain/growth';
@@ -393,9 +393,9 @@ export function cardSubtitle(i: SubtitleInput): StatusLine {
 /* Small helpers                                                       */
 /* ------------------------------------------------------------------ */
 
-/** Habits alive on `date` (started, not archived before it), in display order: followers right after their anchors (§14.2). */
+/** Habits alive on `date` (inside their lifetime: started, not archived before it, not unstarted), in display order: followers right after their anchors (§14.2). */
 export function liveHabits(s: AppState, date: DateKey): Habit[] {
-  return stackOrder(s.habits.filter((h) => h.startedOn <= date && (h.archivedOn === undefined || h.archivedOn >= date)));
+  return stackOrder(s.habits.filter((h) => inLifetime(h, date)));
 }
 
 export function habitName(s: AppState, id: string | undefined): string | null {
