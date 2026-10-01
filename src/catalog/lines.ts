@@ -1185,6 +1185,8 @@ export const DATA_COPY = {
   chooseFile: 'Choose a file',
   pasteLabel: 'Or paste a backup here',
   pasteHelper: 'A backup starts with CK1, or it is a catkin backup file.',
+  /** While a chosen backup is read and described; what was described before has gone (WP-A6). DEC-V: pending owner approval. */
+  reading: 'Reading the backup…',
   noUndoTitle: 'Import without an undo?',
   noUndo: 'catkin couldn’t keep a copy of what’s here, so there is no Undo import this time.',
   importAnyway: 'Import anyway',
