@@ -299,6 +299,63 @@ describe('the Sunday Note credits a companion only with the days it kept the pla
     expect(psOf(g)?.kind).not.toBe('companion');
   });
 
+  it('a plant Potted before stage days were recorded counts as started; one not yet Potted does not', () => {
+    const { g, read } = garden();
+    addPet(g, CAT);
+    pair(g, read, CAT);
+    waterDays(g, [read], W, SUN);
+    // As an older save left it: past Potted (bestStage), with no day recorded for Potted.
+    const { [POTTED]: _p, ...rest } = g.state.stageDates![read]!;
+    g.state = { ...g.state, stageDates: { ...g.state.stageDates, [read]: rest } };
+    expect(g.state.ledger.bestStage[read]).toBeGreaterThanOrEqual(POTTED);
+    expect(psOf(g)).toMatchObject({ kind: 'companion', petId: CAT, habitId: read, days: 7 });
+
+    // A plant planted on Monday and watered once is not Potted: its routine has not started.
+    const g2 = new Game({ start: W });
+    const read2 = g2.addHabit({ name: 'Read', icon: 'book', timeOfDay: 'evening' });
+    addPet(g2, CAT);
+    pair(g2, read2, CAT);
+    g2.checkIn(read2);
+    g2.goTo(SUN, 10);
+    expect(g2.state.stageDates?.[read2]?.[POTTED]).toBeUndefined();
+    expect(g2.state.ledger.bestStage[read2] ?? 0).toBeLessThan(POTTED);
+    expect(psOf(g2)?.kind).not.toBe('companion');
+  });
+
+  it('an older save’s pairing (no stints) names its companion on a stage-up from its first day on', () => {
+    const run = (since: (upDate: DateKey) => DateKey) => {
+      const g = new Game({ start: W });
+      const read = g.addHabit({ name: 'Read', icon: 'book', timeOfDay: 'evening' });
+      addPet(g, CAT);
+      pair(g, read, CAT);
+      waterDays(g, [read], W, '2026-03-07');
+      const up = sundayNoteFacts(g.state, W, g.today, UTC).highlights[0] as Extract<SundayHighlight, { kind: 'stageUp' }>;
+      expect(up.kind).toBe('stageUp');
+      expect(up.date > W).toBe(true);
+      // As an older build left it: no spans, only the day they first kept company.
+      const key = `${CAT}|${read}`;
+      const legacy: CompanyPair = { petId: CAT, habitId: read, since: since(up.date), sunshine: 0, waterings: 0 };
+      g.state = { ...g.state, company: { ...g.state.company!, pairs: { ...g.state.company!.pairs, [key]: legacy } } };
+      return sundayNoteFacts(g.state, W, g.today, UTC).highlights[0];
+    };
+    expect(run((d) => d)).toMatchObject({ kind: 'stageUp', petId: CAT });
+    expect(run((d) => addDays(d, 1))).not.toHaveProperty('petId');
+  });
+
+  it('a tie between the pet that left and the current companion goes to the current companion', () => {
+    const { g, read } = garden();
+    addPet(g, CAT);
+    addPet(g, DOG);
+    // The cat Mon–Wed, the dog Thu–Sat: three days each (Sunday not watered).
+    waterDays(g, [read], W, '2026-03-07', (d) => {
+      if (d === W) pair(g, read, CAT);
+      if (d === '2026-03-05') pair(g, read, DOG);
+    });
+    g.goTo(SUN, 10);
+    // The pet ids alone would pick the cat ('pet-cat…' < 'pet-dog…').
+    expect(psOf(g)).toMatchObject({ kind: 'companion', petId: DOG, habitId: read, days: 3 });
+  });
+
   it('property: over random pairings, moves, swaps and frees, the P.S. is the pair with the most shared days (day-end rule)', () => {
     for (let seed = 1; seed <= 8; seed++) {
       const { g, read, walk } = garden();
@@ -493,6 +550,53 @@ describe('arrival and moving-in days stay where they fell (domain-d4, DEC-P12f)'
     expect(petVM(out.state, { today: g.today, now: g.now, local: UTC }, CAT)!.arrivedOn).toBe('2026-09-29');
   });
 
+  it('a pet that came home at 04:00 on a Monday stays among that week’s new friends after a later day start', () => {
+    const g = new Game({ start: '2026-09-28', hour: 4 });
+    addPet(g, CAT);
+    withSettings(g, { dayStartsAt: 360 });
+    // Before: read again with 06:00, the arrival fell on Sunday 27 Sep, the week before.
+    expect(weeklyFacts(g.state, '2026-09-28', '2026-10-04', UTC).newFriends).toEqual([CAT]);
+    expect(weeklyFacts(g.state, '2026-09-21', '2026-10-04', UTC).newFriends).toEqual([]);
+    const read = g.addHabit({ name: 'Read' });
+    g.goTo('2026-09-30', 12);
+    g.checkIn(read);
+    g.goTo('2026-10-05', 9);
+    expect(weekly(g.state, '2026-09-28')!.newFriends).toEqual([CAT]);
+  });
+
+  it('the letters’ first-week guard keeps the moving-in day: no note for the week before it, after a later day start', () => {
+    const g = new Game({ start: '2026-09-28', hour: 4 }); // moved in on Monday 28 Sep (03:00 start)
+    const read = g.addHabit({ name: 'Read' });
+    expect(g.run((tx) => habits.setStartedOn(tx, read, '2026-09-21'))).toBe(true);
+    g.checkIn(read, '2026-09-25');
+    expect(weeklyFacts(g.state, '2026-09-21', g.today, UTC).showUpDays).toBeGreaterThanOrEqual(1);
+    withSettings(g, { dayStartsAt: 360 });
+    expect(movedInOn(g.state, UTC)).toBe('2026-09-28');
+    g.goTo('2026-09-29', 9); // the next open tries last week's note again
+    // Before: moving in read again as Sunday 27 Sep, so a note for 21–27 Sep, a week before she came.
+    expect(weekly(g.state, '2026-09-21')).toBeUndefined();
+  });
+
+  it('onboarding fixes the moving-in day with the day start chosen there, and freezes older days first', () => {
+    const g = new Game({ start: '2026-09-29', hour: 4, onboard: false });
+    g.goTo('2026-09-29', 5);
+    // Not onboarded yet: opening the app fixes no moving-in day.
+    expect(g.state.profile.createdOn).toBeUndefined();
+    // An older save, not onboarded, with a pet whose day was never stored (it came home at 05:00).
+    addPet(g, CAT);
+    const { arrivedOn: _a, ...pet } = g.state.pets[CAT]!;
+    const legacy = { ...g.state, pets: { [CAT]: pet as PetState } };
+    const out = transact(legacy, g.env(), (tx) => {
+      habits.completeOnboarding(tx, { name: 'Sam', templateIds: [], dayStartsAt: 360 });
+      return {};
+    });
+    // Frozen with the 03:00 start it had before onboarding moved it to 06:00 (else 28 Sep).
+    expect(petVM(out.state, { today: g.today, now: g.now, local: UTC }, CAT)!.arrivedOn).toBe('2026-09-29');
+    expect(out.state.pets[CAT]!.arrivedOn).toBe('2026-09-29');
+    // The moving-in day, from 04:00 with the 06:00 start chosen there.
+    expect(out.state.profile.createdOn).toBe('2026-09-28');
+  });
+
   it('leap-day arrivals: Feb 29 comes round on Feb 28; Mar 1 at 04:00 stays Mar 1 after a later start', () => {
     const g = new Game({ start: '2028-02-29', hour: 12 });
     addPet(g, CAT);
@@ -574,6 +678,23 @@ describe('a written Sunday Note reads the same after an icon or plant edit (doma
     g.run((tx) => habits.updateHabit(tx, id, { plant: 'monstera' }));
     // Before: "The monstera …" in both.
     expect([noteText(g.state, note), pageText()]).toEqual(before);
+  });
+
+  it('a long-named habit planted that week keeps its plant’s name in the new-plant line', () => {
+    const g = new Game({ start: '2026-02-23' });
+    const read = g.addHabit({ name: 'Read', icon: 'book', timeOfDay: 'evening', plant: 'pothos' });
+    waterDays(g, [read], '2026-02-23', W);
+    g.goTo(SUN, 10);
+    const id = g.addHabit({ name: 'Tidy for 10 minutes', icon: 'broom', plant: 'snakeplant' });
+    g.goTo('2026-03-09', 9);
+    const note = weekly(g.state, W)!;
+    expect(note.highlights).toContainEqual({ kind: 'newHabit', habitId: id, date: SUN, plant: 'snakeplant' });
+    const before = noteText(g.state, note);
+    expect(before).toContain('The snake plant was planted on Sunday');
+    own(g, 'plant-monstera');
+    g.run((tx) => habits.updateHabit(tx, id, { plant: 'monstera' }));
+    // Before: "The monstera was planted on Sunday …".
+    expect(noteText(g.state, note)).toBe(before);
   });
 
   it('a note written before WP-B6 (no routine or plant kept) uses generic wording, not today’s icon', () => {
@@ -741,9 +862,17 @@ describe('no schema change: the new fields validate and survive a save round tri
       ['stints: bad from', stints([{ from: 'monday' }])],
       ['stints: to before from', stints([{ from: '2026-03-05', to: '2026-03-04' }])],
       ['stints: an open stint before the last', stints([{ from: '2026-03-01' }, { from: '2026-03-05' }])],
+      ['stints: overlapping (a span starting on the day the last one ended)', stints([{ from: '2026-03-05', to: '2026-03-06' }, { from: '2026-03-06' }])],
+      ['stints: out of order', stints([{ from: '2026-03-05', to: '2026-03-06' }, { from: '2026-03-01', to: '2026-03-02' }])],
       ['ps.icon', letter({ ps: { ...note.ps!, icon: 7 } })],
       ['highlight plant', letter({ highlights: [{ kind: 'stageUp', habitId: readId, stage: 2, date: W, plant: 4 }] })],
     ];
+    // A Herbarium margin's plant (the March page, as written, then with a species and with a number).
+    const page = s.inbox.find((l) => l.kind === 'monthly' && l.month === '2026-03')!;
+    const margin = (m: Record<string, unknown>) => ({ ...s, inbox: s.inbox.map((x) => (x.id === page.id ? { ...x, margin: m } : x)) });
+    expect(validateState(margin({ kind: 'planted', habitId: readId, date: W, plant: 'pothos' })).ok).toBe(true);
+    expect(validateState(stints([{ from: '2026-03-01', to: '2026-03-02' }, { from: '2026-03-04', to: '2026-03-05' }, { from: '2026-03-07' }])).ok).toBe(true);
+    bad.push(['margin plant', margin({ kind: 'planted', habitId: readId, date: W, plant: 4 })]);
     for (const [what, state] of bad) expect(validateState(state).ok, what).toBe(false);
   });
 });

@@ -30,5 +30,5 @@ export function freezeEventDays(tx: Tx): void {
   const { dayStartsAt } = s.settings;
   for (const p of Object.values(s.pets)) if (p.arrivedOn === undefined) tx.pet(p.id).arrivedOn = appDayKey(p.obtainedAt, dayStartsAt, tx.env.local);
   for (const h of s.habits) if (h.createdOn === undefined) tx.habit(h.id).createdOn = appDayKey(h.createdAt, dayStartsAt, tx.env.local);
-  if (s.profile.onboarded && s.profile.createdOn === undefined) tx.section('profile').createdOn = appDayKey(s.profile.createdAt, dayStartsAt, tx.env.local);
+  if (s.profile.createdOn === undefined) tx.section('profile').createdOn = appDayKey(s.profile.createdAt, dayStartsAt, tx.env.local);
 }
