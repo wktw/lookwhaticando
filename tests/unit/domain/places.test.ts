@@ -102,6 +102,42 @@ describe('the Balcony Box is loved by everyone, after each species’ own place 
     }
   });
 
+  it('opening the Balcony while a species’ own place is full moves its never-placed pets in, closest friends first, up to its room, for every species', () => {
+    for (const sp of SPECIES) {
+      const g = new Game();
+      g.setWallet({ coins: 5_000 });
+      openPlaces(g, OWN[sp]);
+      const ids = petsOf(sp).slice(0, 5);
+      addPet(g, ids[0]!);
+      addPet(g, ids[1]!);
+      g.run((tx) => shelf.setPetPlace(tx, ids[0]!, OWN[sp]));
+      g.run((tx) => shelf.setPetPlace(tx, ids[1]!, OWN[sp]));
+      // Three came home today, after the day's settling: their own place is full.
+      addPet(g, ids[2]!, 10);
+      addPet(g, ids[3]!, 30);
+      addPet(g, ids[4]!, 20);
+      const r = g.run((tx) => shelf.buyPlace(tx, 'balcony'));
+      expect(r, sp).toEqual({ ok: true, place: 'balcony', movedIn: [ids[3], ids[4]] });
+      expect(g.state.pets[ids[2]!]!.place, sp).toBeUndefined();
+      expect(petsInPlace(g.state, OWN[sp]).map((p) => p.id).sort(), sp).toEqual([ids[0], ids[1]].sort());
+      expect(valid(g.state)).toEqual([]);
+    }
+  });
+
+  it('opening any place moves in no more pets than its room, the closest friends first', () => {
+    for (const place of PLACES.filter((p) => p.id !== 'sill')) {
+      const g = new Game();
+      g.setWallet({ coins: 5_000 });
+      const sp = place.loves[0] ?? 'cat';
+      const [a, b, c] = petsOf(sp);
+      addPet(g, a!, 10);
+      addPet(g, b!, 30);
+      addPet(g, c!, 20);
+      expect(g.run((tx) => shelf.buyPlace(tx, place.id)), place.id).toEqual({ ok: true, place: place.id, movedIn: [b, c] });
+      expect(petsInPlace(g.state, place.id), place.id).toHaveLength(placeRoom(place.id));
+    }
+  });
+
   it('opening the Balcony leaves a pet whose own place has room for its own place', () => {
     const g = new Game();
     g.setWallet({ coins: 5_000 });
@@ -189,6 +225,29 @@ describe('the Balcony Box is loved by everyone, after each species’ own place 
     g.run((tx) => addXp(tx, cat2!, 10));
     expect(g.state.pets[cat2!]!.spot).toEqual({ kind: 'place', place: 'sill' });
     expect(petPlace(g.state, g.state.pets[cat2!]!)).not.toBe('balcony');
+  });
+
+  it('the level-4 claim, for every species: its own open place first, else the Balcony, else the Sill', () => {
+    for (const sp of SPECIES) {
+      const g = new Game();
+      const [a, b] = petsOf(sp);
+      // Both on the Sill by choice, so no settling moves them and the claim reads the species' order.
+      for (const id of [a!, b!]) {
+        addPet(g, id);
+        g.state = { ...g.state, pets: { ...g.state.pets, [id]: { ...g.state.pets[id]!, place: 'sill' } } };
+      }
+      expect(claimSpot(g.state, a!), sp).toEqual({ kind: 'place', place: 'sill' });
+      openPlaces(g, 'balcony');
+      expect(claimSpot(g.state, a!), sp).toEqual({ kind: 'place', place: 'balcony' });
+      // Reaching level 4 claims it.
+      g.run((tx) => addXp(tx, b!, LEVEL_XP[3]!));
+      expect(g.state.pets[b!]!.spot, sp).toEqual({ kind: 'place', place: 'balcony' });
+      openPlaces(g, OWN[sp]);
+      expect(claimSpot(g.state, a!), sp).toEqual({ kind: 'place', place: OWN[sp] });
+      // The claim b made stays.
+      g.run((tx) => addXp(tx, b!, 10));
+      expect(g.state.pets[b!]!.spot, sp).toEqual({ kind: 'place', place: 'balcony' });
+    }
   });
 });
 
