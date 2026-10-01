@@ -348,11 +348,12 @@ describe('domain-d6: Finish on the first day leaves no missed day (WP-B5, DEC-P1
   const D = '2026-09-07';
 
   /** A save with one habit created on D (and a second, done, so a perfect day is possible). */
-  function created(log: 'none' | 'partial' | 'tiny' | 'full'): { g: Game; id: string; other: string } {
+  function created(log: 'none' | 'partial' | 'tiny-count' | 'tiny' | 'full'): { g: Game; id: string; other: string } {
     const g = new Game({ start: D });
     const other = g.addHabit({ name: 'Read' });
-    const id = g.addHabit({ name: 'Water', target: 3, tiny: { label: 'One glass', count: 1 } });
+    const id = g.addHabit({ name: 'Water', target: 3, tiny: { label: 'Two glasses', count: 2 } });
     if (log === 'partial') g.checkIn(id);
+    if (log === 'tiny-count') for (let i = 0; i < 2; i++) g.checkIn(id);
     if (log === 'tiny') g.tiny(id);
     if (log === 'full') for (let i = 0; i < 3; i++) g.checkIn(id);
     return { g, id, other };
@@ -401,6 +402,28 @@ describe('domain-d6: Finish on the first day leaves no missed day (WP-B5, DEC-P1
       expect(tally(g, id)).toEqual({ achieved: 1, expected: 1, tiny: log === 'tiny' ? 1 : 0 });
     });
   }
+
+  it('same-day create and Finish after a count that reached the Tiny count: today is its one day, a tiny day once it closes', () => {
+    // Finish reads today as it will read once closed, so a real showing-up is never dropped.
+    const { g, id } = created('tiny-count');
+    g.run((tx) => retireWithRibbon(tx, id));
+    const h = habitOf(g, id);
+    expect(h).toMatchObject({ startedOn: D, archivedOn: D, ribbon: D });
+    expect(h.unstarted).toBeUndefined();
+    g.goTo(addDays(D, 1));
+    expect(readDay(g, id, D)).toMatchObject({ outcome: 'achieved', tiny: true });
+    expect(tally(g, id)).toEqual({ achieved: 1, expected: 1, tiny: 1 });
+  });
+
+  it('Finish on a later day after a count that reached the Tiny count keeps that day too', () => {
+    const { g, id } = created('none');
+    g.goTo(addDays(D, 3));
+    for (let i = 0; i < 2; i++) g.checkIn(id);
+    g.run((tx) => retireWithRibbon(tx, id));
+    expect(habitOf(g, id).archivedOn).toBe(addDays(D, 3));
+    g.goTo(addDays(D, 4));
+    expect(readDay(g, id, addDays(D, 3))).toMatchObject({ outcome: 'achieved', tiny: true });
+  });
 
   it('the unstarted habit is not due today: the other habit done alone makes the perfect day it would have blocked', () => {
     const { g, id, other } = created('none');

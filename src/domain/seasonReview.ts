@@ -330,7 +330,8 @@ export function resolveSeasonReview(tx: Tx, choices: readonly FreshStartInput[] 
 
 /**
  * "Finish": the habit retires to the balcony shelf with a ribbon, archived as of yesterday (today
- * too when today was already watered), so today is never an open day it could fall short on.
+ * too when today already shows up, as it will read once closed: watered, the tiny version, or a
+ * count at its Tiny count), so today is never an open day it could fall short on.
  * Finished before its first day had anything to show (the day it was created, nothing watered),
  * its lifetime is empty: `unstarted`, kept with `archivedOn = ribbon = startedOn` for older
  * validators, so its first day is never a missed day (WP-B5, domain-d6). Nothing is made up.
@@ -341,7 +342,9 @@ export function retireWithRibbon(tx: Tx, habitId: string, lastDay?: DateKey): bo
   const today = tx.env.today;
   let last = lastDay;
   if (last === undefined) {
-    const doneToday = showedUp(logStatus(tx.s.logs[habitId]?.[today], ruleAt(habit, today), false));
+    // Today is read as it will read once closed (its last day): watered, the tiny version, or a
+    // count that reached the Tiny count all keep it (WP-B5), so a real showing-up is never dropped.
+    const doneToday = showedUp(logStatus(tx.s.logs[habitId]?.[today], ruleAt(habit, today), true));
     last = doneToday ? today : addDays(today, -1);
   }
   const unstarted = last < habit.startedOn;
