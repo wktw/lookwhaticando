@@ -136,10 +136,72 @@ describe('WP-A6: a let-go file read stops reading', () => {
     await expect(files.readImportFile(file)).resolves.toEqual({ ok: true, text: '{"name":"Zoë ☕ 🌿"}' });
   });
 
+  it('a signal already aborted answers aborted before a byte is read (review guard)', async () => {
+    const ctl = new AbortController();
+    ctl.abort();
+    const { file, seen } = streamedFile([new Uint8Array(4).fill(0x61)]);
+    const plain = { name: 'backup.json', size: 4, text: vi.fn(async () => 'aaaa') } as unknown as File;
+    await expect(files.readImportFile(file, { signal: ctl.signal })).resolves.toEqual({ ok: false, error: 'aborted' });
+    await expect(files.readImportFile(plain, { signal: ctl.signal })).resolves.toEqual({ ok: false, error: 'aborted' });
+    expect(seen.pulls).toBe(0);
+    expect(plain.text).not.toHaveBeenCalled();
+  });
+
+  it('a file that can’t be streamed, let go while it is read whole: its text is dropped (review guard)', async () => {
+    let arrive!: (t: string) => void;
+    const plain = { name: 'backup.json', size: 4, text: vi.fn(() => new Promise<string>((r) => (arrive = r))) } as unknown as File;
+    const ctl = new AbortController();
+    const read = files.readImportFile(plain, { signal: ctl.signal });
+    await Promise.resolve();
+    ctl.abort();
+    arrive('{"a":1}');
+    await expect(read).resolves.toEqual({ ok: false, error: 'aborted' });
+    // Not let go, the same file is read.
+    const again = files.readImportFile(plain, { signal: new AbortController().signal });
+    await Promise.resolve();
+    arrive('{"a":1}');
+    await expect(again).resolves.toEqual({ ok: true, text: '{"a":1}' });
+  });
+
   it('a file past the bound is still refused by its size, before it is read (guard)', async () => {
     const { file, seen } = streamedFile([new Uint8Array(4)]);
     Object.defineProperty(file, 'size', { value: handoff.MAX_IMPORT_BYTES + 1 });
     await expect(files.readImportFile(file)).resolves.toEqual({ ok: false, error: 'too-large' });
     expect(seen.pulls).toBe(0);
+  });
+});
+
+describe('WP-A6: the store says when an import commits (review)', () => {
+  it('onCommit is called once, at the commit, before older copies are pruned; a throwing hook changes nothing (failed before; the option is new)', async () => {
+    const b = fakeBrowser();
+    store.hydrate();
+    store.completeOnboarding({ name: 'Ana', templateIds: [] });
+    const A = store.exportData();
+    store.resetAll();
+    store.completeOnboarding({ name: 'Other', templateIds: [] });
+    b.advance(1000);
+    const seen: string[] = [];
+    const list = b.snapshots.list;
+    store.configureStore({ snapshots: { durable: true, get: b.snapshots.get, put: b.snapshots.put, remove: b.snapshots.remove, list: async () => (seen.push('prune'), list()) } });
+    const res = await store.applyImport(A, {
+      onCommit: () => {
+        seen.push(`commit ${store.state.value.profile.name}`);
+        throw new Error('a careless hook');
+      },
+    });
+    expect(said(res)).toBe('ok');
+    expect(seen).toEqual(['commit Ana', 'prune']);
+    expect(store.state.value.profile.name).toBe('Ana');
+  });
+
+  it('onCommit is not called for an import that changes nothing (guard)', async () => {
+    fakeBrowser();
+    store.hydrate();
+    const onCommit = vi.fn();
+    const ctl = new AbortController();
+    ctl.abort();
+    expect(said(await store.applyImport(store.exportData(), { signal: ctl.signal, onCommit }))).toBe('aborted');
+    expect(said(await store.applyImport('not a backup', { onCommit }))).not.toBe('ok');
+    expect(onCommit).not.toHaveBeenCalled();
   });
 });

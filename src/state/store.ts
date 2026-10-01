@@ -1513,6 +1513,11 @@ interface Replacement {
   withoutUndo?: boolean;
   /** Aborted when the person lets it go (the sheet closes) before it commits. */
   signal?: AbortSignal | undefined;
+  /**
+   * Called once, synchronously, the moment it commits (before older copies are pruned), so the
+   * sheet can close before another choice is made over a replacement that already happened (WP-A6).
+   */
+  onCommit?: (() => void) | undefined;
 }
 
 /** What a replacement is bound to: it commits only while all of this still holds (FS5). */
@@ -1675,6 +1680,11 @@ async function runReplacement(r: Replacement): Promise<ReplaceResult> {
   if (loadIssue.value?.kind === 'recovered-from-backup' || loadIssue.value?.kind === 'corrupt-save') loadIssue.value = null;
   if (!demoMode.value) mirrorTheme(store, next.settings);
   saveReplaced();
+  try {
+    r.onCommit?.();
+  } catch {
+    // The commit stands whatever the caller's hook does.
+  }
 
   if (copyId !== null) await pruneCopies(copyId);
   return { ok: true, undo };
@@ -1706,14 +1716,16 @@ async function loadCopy(id: string, source: 'snapshot' | 'undo'): Promise<Loaded
  * Replaces the save with a backup (never a merge), keeping a copy of what's here first so the
  * import can be undone for 24 hours. With no lasting copy (no IndexedDB, or it refused), the answer
  * is 'no-undo' until the person confirms importing anyway (`withoutUndo`), unless there is nothing
- * here yet to lose. `signal` lets the sheet let it go before it commits.
+ * here yet to lose. `signal` lets the sheet let it go before it commits; `onCommit` is called the
+ * moment it commits, before older copies are pruned and the answer comes.
  */
-export function applyImport(text: string, opts: { withoutUndo?: boolean; signal?: AbortSignal } = {}): Promise<ReplaceResult> {
+export function applyImport(text: string, opts: { withoutUndo?: boolean; signal?: AbortSignal; onCommit?: () => void } = {}): Promise<ReplaceResult> {
   return replaceSave({
     kind: 'import',
     protect: true,
     withoutUndo: opts.withoutUndo ?? false,
     signal: opts.signal,
+    onCommit: opts.onCommit,
     load: async () => {
       // Let go (the sheet closed, or another backup chosen): the payload stops expanding (WP-A6).
       const parsed = await parseBackupText(text, { local: rt.local, signal: opts.signal });

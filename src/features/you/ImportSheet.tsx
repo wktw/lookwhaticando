@@ -12,7 +12,8 @@
  * and the sheet says it is reading; a read, clipboard answer or description from an earlier
  * selection is dropped when it comes in, and its reads are let go. The described text itself is the
  * candidate Import and the no-undo question import, and a new choice lets an import of the old one
- * go, as closing does.
+ * go, as closing does. An import closes the sheet the moment it commits, so nothing can be chosen
+ * over it while its older copies are pruned.
  *
  * Shared by You › Data, the install gate and onboarding's first step.
  */
@@ -296,9 +297,19 @@ export function ImportSheet({ open, onClose, onImported, clip, title = DATA.impo
     const ctl = new AbortController();
     importing.current = ctl;
     setBusy(true);
+    // The moment it commits, the sheet closes (in a microtask, so before any tap can land), while
+    // older copies are still pruned: nothing can be chosen over an import that has happened. The
+    // note waits for the answer, so its Undo is never refused as busy.
+    let closed = false;
+    const closeOnce = () => {
+      if (closed) return;
+      closed = true;
+      setAskNoUndo(null);
+      onClose();
+    };
     let res: ReplaceResult;
     try {
-      res = await applyImport(cand.text, { withoutUndo, signal: ctl.signal });
+      res = await applyImport(cand.text, { withoutUndo, signal: ctl.signal, onCommit: () => queueMicrotask(closeOnce) });
     } catch {
       // The store answers with results; a rejection all the same committed nothing (data-d12).
       res = { ok: false, error: 'not-saved' };
@@ -317,9 +328,8 @@ export function ImportSheet({ open, onClose, onImported, clip, title = DATA.impo
       if (text) setError(text);
       return;
     }
-    // Committed: it says so, even if she had begun choosing another backup meanwhile.
-    setAskNoUndo(null);
-    onClose();
+    // Committed: it says so. The sheet closed at the commit (a visit opened since is left alone).
+    closeOnce();
     toastImported(res.undo);
     onImported?.(res);
   };
