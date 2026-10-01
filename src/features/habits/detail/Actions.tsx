@@ -7,6 +7,7 @@
 import { useState } from 'preact/hooks';
 import { CHECKIN_TOASTS, DATA, SEASON_REVIEW, TODAY_LINES, fillLine } from '@/catalog/lines';
 import { addDays, monthDayLabel } from '@/domain/dates';
+import { DAY_MAX, DAY_MIN } from '@/domain/dayRange';
 import type { FreshStartChoice } from '@/domain/seasonReview';
 import { tuneView, type HabitDetailVM } from '@/state/selectors';
 import { archiveHabit, deleteHabit, pauseHabit, restoreHabit, resumeHabit, setStartedOn, today, tuneHabits } from '@/state/store';
@@ -70,7 +71,7 @@ export function Actions({ vm, onGone }: { vm: HabitDetailVM; onGone: () => void 
       pauseHabit(h.id, t);
       toast({ message: fillLine(CHECKIN_TOASTS.pausedOpen, { habit: h.name }) });
     } else {
-      if (!backOn || backOn <= t) return;
+      if (!backOn || backOn <= t || backOn > DAY_MAX) return;
       pauseHabit(h.id, t, addDays(backOn, -1));
       toast({ message: fillLine(CHECKIN_TOASTS.paused, { habit: h.name, date: monthDayLabel(backOn) }) });
     }
@@ -122,7 +123,7 @@ export function Actions({ vm, onGone }: { vm: HabitDetailVM; onGone: () => void 
         >
           <label class={s.field}>
             <span class={s.fieldLabel}>{D.actions.backOnLabel}</span>
-            <input class={s.date} type="date" value={backOn} min={addDays(t, 1)} disabled={open} onInput={(e) => setBackOn((e.target as HTMLInputElement).value)} />
+            <input class={s.date} type="date" value={backOn} min={addDays(t, 1)} max={DAY_MAX} disabled={open} onInput={(e) => setBackOn((e.target as HTMLInputElement).value)} />
           </label>
           <label class={s.check}>
             <input type="checkbox" checked={open} onChange={(e) => setOpen((e.target as HTMLInputElement).checked)} />
@@ -144,7 +145,7 @@ export function Actions({ vm, onGone }: { vm: HabitDetailVM; onGone: () => void 
           class={s.panel}
           onSubmit={(e) => {
             e.preventDefault();
-            if (!startFrom || startFrom >= h.startedOn) return;
+            if (!startFrom || startFrom >= h.startedOn || startFrom < DAY_MIN) return;
             setStartedOn(h.id, startFrom);
             haptic('light');
             announce(fillLine(TODAY_LINES.startFrom, { date: monthDayLabel(startFrom) }));
@@ -153,11 +154,11 @@ export function Actions({ vm, onGone }: { vm: HabitDetailVM; onGone: () => void 
         >
           <label class={s.field}>
             <span class={s.fieldLabel}>{D.actions.startFromLabel}</span>
-            <input class={s.date} type="date" value={startFrom} max={addDays(h.startedOn, -1)} onInput={(e) => setStartFrom((e.target as HTMLInputElement).value)} />
+            <input class={s.date} type="date" value={startFrom} min={DAY_MIN} max={addDays(h.startedOn, -1)} onInput={(e) => setStartFrom((e.target as HTMLInputElement).value)} />
           </label>
           <p class={s.help}>{TODAY_LINES.historyNote}</p>
           <div class={s.offerButtons}>
-            <Button size="sm" type="submit" disabled={!startFrom || startFrom >= h.startedOn}>
+            <Button size="sm" type="submit" disabled={!startFrom || startFrom >= h.startedOn || startFrom < DAY_MIN}>
               {fillLine(TODAY_LINES.startFrom, { date: startFrom ? monthDayLabel(startFrom) : '' })}
             </Button>
             <Button size="sm" variant="quiet" onClick={() => setPanel(null)}>

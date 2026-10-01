@@ -277,7 +277,7 @@ describe('INV-6: an accepted state is a usable state', () => {
     expect(machines).toBeGreaterThan(0);
     for (let i = 0; i < N && failures.length < 5; i++) {
       // Let the worker answer its runner now and then (a long synchronous loop times its RPC out).
-      if (i % 250 === 0) await new Promise((r) => setTimeout(r, 0));
+      if (i % 25 === 0) await new Promise((r) => setTimeout(r, 0));
       const seed = SEEDS[i % SEEDS.length]!;
       const json = structuredClone(seed) as unknown as Json;
       const edits: string[] = [];

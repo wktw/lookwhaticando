@@ -35,6 +35,7 @@ import { graduationOffer, trackingOf, logsFor, evalContext } from './consistency
 import { logStatus, showedUp } from './activity';
 import { owns, ownedTreats } from './collection';
 import { addDays, clampDayStartsAt, isDateKey } from './dates';
+import { inDayRange } from './dayRange';
 import { addPause, archivedStretchPause, isPausedOn, resumePauses } from './pauses';
 import { forgetHabitPairs, freeCompanion } from './company';
 import { anchorIssue, unstackFollowers } from './stacking';
@@ -116,7 +117,7 @@ export function validateHabitInput(s: AppState, input: HabitInput, editingId?: s
     const issue = typeof input.anchorHabitId === 'string' ? anchorIssue(s, editingId, input.anchorHabitId) : 'unknown';
     if (issue) add('anchorHabitId', `anchor-${issue}`);
   }
-  if (input.endsOn !== undefined && (!isDateKey(input.endsOn) || (today !== undefined && input.endsOn < today))) add('endsOn', 'ends-on');
+  if (input.endsOn !== undefined && (!isDateKey(input.endsOn) || !inDayRange(input.endsOn) || (today !== undefined && input.endsOn < today))) add('endsOn', 'ends-on');
   const content = ruleContentOf(input);
   for (const issue of validateRuleContent(content)) add(RULE_FIELD[issue.code] ?? 'schedule', issue.code, issue.code === 'target-range' ? RULE_LIMITS.targetMax : undefined);
   return issues;
@@ -370,7 +371,8 @@ export function pauseHabit(tx: Tx, id: string, start: DateKey, end?: DateKey): b
   const h = tx.s.habits.find((x) => x.id === id);
   if (!h || !isDateKey(start) || (end !== undefined && !isDateKey(end))) return false;
   const from = start < tx.env.today ? tx.env.today : start;
-  if (end !== undefined && end < from) return false;
+  // A day outside the calendar a save names would leave a save that can't be read back (WP-A5).
+  if (!inDayRange(from) || (end !== undefined && (end < from || !inDayRange(end)))) return false;
   tx.habit(id).pauses = addPause(h.pauses, from, end);
   return true;
 }
@@ -394,7 +396,7 @@ export function resumeHabit(tx: Tx, id: string): void {
 /** "Start tracking Walk from Mon, Sep 22?": earlier `startedOn` (stats only). */
 export function setStartedOn(tx: Tx, id: string, date: DateKey): boolean {
   const h = tx.s.habits.find((x) => x.id === id);
-  if (!h || !isDateKey(date) || date > tx.env.today || date >= h.startedOn) return false;
+  if (!h || !isDateKey(date) || !inDayRange(date) || date > tx.env.today || date >= h.startedOn) return false;
   Object.assign(tx.habit(id), withStartedOn(h, date));
   return true;
 }

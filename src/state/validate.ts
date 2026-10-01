@@ -19,13 +19,16 @@
  * `Object.prototype` name (`__proto__`, `constructor`, `toString`…), which a plain-object map
  * would read as inherited or write as its prototype. Unknown catalogue ids and unknown highlight
  * kinds stay tolerated: their consumers skip what they don't know. No catkin build ever wrote a
- * value these rules refuse (the corpus in tests/fixtures/saves, DEC-E1).
+ * value these rules refuse (the corpus in tests/fixtures/saves, DEC-E1), except a day she picked
+ * outside the calendar (tracking from 1899, a pause until 3026), which `repairDays` (./migrate.ts)
+ * brings back before this runs, and which no action writes any more.
  */
 import { PASTELS } from '@/catalog/types';
 import { MACHINES } from '@/catalog/machines';
 import { PLACES } from '@/catalog/places';
 import { PERSONALITIES } from '@/catalog/personalities';
 import { isDateKey } from '@/domain/dates';
+import { DAY_MAX, DAY_MIN } from '@/domain/dayRange';
 import { MAX_COUNT, MAX_STAMPS_PER_DAY } from '@/domain/logging';
 import { validateHabitRules } from '@/domain/rules';
 import { SCHEMA_VERSION, type AppState } from './types';
@@ -36,9 +39,8 @@ const MAX_ERRORS = 40;
 
 /** The latest timestamp a save may hold: 1 January 3000 (fixed, not "now"; a Date holds far more). */
 export const MAX_TIME = Date.UTC(3000, 0, 1);
-/** The calendar a save may name: wide enough for any real day, with a year to spare either way. */
-export const DAY_MIN = '1900-01-01';
-export const DAY_MAX = '2999-12-31';
+/** The calendar a save may name: wide enough for any real day, with a year to spare either way (src/domain/dayRange.ts). */
+export { DAY_MAX, DAY_MIN };
 /** The longest string a save may hold (names are 40 characters, notes 280). */
 export const MAX_TEXT = 10_000;
 /** The most entries any list or map may hold. */

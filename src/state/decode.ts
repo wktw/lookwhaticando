@@ -5,7 +5,8 @@
  * and a daily copy or an Undo from an older build is migrated like a load (P-persistence-04).
  *
  * It migrates (`migrate`: only the omissions a real build wrote are filled, `ADDITIVE_DEFAULTS`,
- * then the schema steps) and validates. Anything else missing is damage (data-d6): `corrupt`, never an empty history. A state
+ * and the out-of-calendar days a real build let her pick are brought back, `repairDays`, then the
+ * schema steps) and validates. Anything else missing is damage (data-d6): `corrupt`, never an empty history. A state
  * from a newer catkin is `newer`, with a presentation of it when it still reads as this schema's
  * (a newer version that only added fields), for showing it read-only, never for writing or
  * exporting it: its bytes are what a backup of it carries (FS2). Both keep what they were given
@@ -27,6 +28,8 @@ export type Decoded =
       migrated: boolean;
       /** The allow-listed omissions that were filled (`settings.quoteNotes`…). */
       filled: string[];
+      /** The out-of-calendar days an earlier build let her pick, brought back (`habits[0].pauses[0].end`…). */
+      repaired: string[];
     }
   | {
       kind: 'newer';
@@ -78,7 +81,7 @@ export function decodeState(input: unknown, source: DecodeSource, opts: DecodeOp
   }
   const valid = validateState(m.state);
   if (!valid.ok) return { kind: 'corrupt', raw: input, reason: 'invalid', errors: valid.errors };
-  return { kind: 'ok', state: valid.state, from: m.from, migrated: m.migrated, filled: m.filled };
+  return { kind: 'ok', state: valid.state, from: m.from, migrated: m.migrated, filled: m.filled, repaired: m.repaired };
 }
 
 /** Whether a state (the live one, before it is copied) reads as a good save of this schema. */

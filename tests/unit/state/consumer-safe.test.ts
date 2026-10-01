@@ -20,8 +20,8 @@ import { decodeState } from '@/state/decode';
 import * as handoff from '@/state/handoff';
 import { SAVE_KEY, backupKeyOf, corruptKeyOf, memoryStorage, parseEnvelope, readSave } from '@/state/persist';
 import * as store from '@/state/store';
-import type { AppState } from '@/state/types';
-import { validateState } from '@/state/validate';
+import { SCHEMA_VERSION, type AppState } from '@/state/types';
+import { MAX_ITEMS, validateState } from '@/state/validate';
 import { memoryShelfVM } from '@/state/views/pets';
 import { importErrorText } from '@/features/you/ImportSheet';
 import * as files from '@/features/you/files';
@@ -96,7 +96,9 @@ const REJECTED: [string, Edit][] = [
   ['birthday 02-30', (s) => void ((s.profile as Obj).birthday = '02-30')],
   ['birthday 13-01', (s) => void ((s.profile as Obj).birthday = '13-01')],
   ['a clock guard on 9999-12-31 (no day after it)', (s) => void ((s.clock as Obj).maxDateKey = '9999-12-31')],
-  ['a habit started on 1000-01-01 (no week before it)', (s) => void ((firstHabit(s).rules as Obj[])[0]!.from = firstHabit(s).startedOn = '1000-01-01')],
+  // (A habit started on 1000-01-01 is not here: "Start tracking from…" let her pick that day, so an
+  // earlier build's save is repaired as it is read, DEC-E1; see reachable-inputs.test.ts.)
+  ['a habit created on 1000-01-01 (no week before it)', (s) => void (firstHabit(s).createdOn = '1000-01-01')],
   // FS8: the Sunday Note's quote and P.S.
   ['quote {text: 7} (FS8)', (s) => void (weekly(s).quote = { habitId: habitIds(s)[0], date: '2026-08-18', text: 7 })],
   ['a quote on no day', (s) => void (weekly(s).quote = { habitId: habitIds(s)[0], date: 'Tuesday', text: 'slow start' })],
@@ -118,6 +120,12 @@ const REJECTED: [string, Edit][] = [
   ['a count past the check-in cap', (s) => void ((Object.values((s.logs as Obj)[habitIds(s)[0]!] as Obj)[0] as Obj).count = 2_000_000)],
   // Resource bounds inside the state.
   ['a habit name of 20,000 characters', (s) => void (firstHabit(s).name = 'a'.repeat(20_000))],
+  [`a habit with ${MAX_ITEMS + 1} pauses (review)`, (s) => void (firstHabit(s).pauses = Array.from({ length: MAX_ITEMS + 1 }, () => ({ start: '2026-08-01', end: '2026-08-02' })))],
+  [`a collection of ${MAX_ITEMS + 1} entries (review)`, (s) => {
+    const collection = s.collection as Obj;
+    const more = MAX_ITEMS + 1 - Object.keys(collection).length;
+    for (let i = 0; i < more; i++) collection[`decor-future-${i}`] = { count: 1, firstAt: 1 };
+  }],
   // FS7: ids and keys that are Object.prototype names.
   ['a habit id __proto__ (FS7, R205)', (s) => renameHabit(s, '__proto__')],
   ['a habit id constructor', (s) => renameHabit(s, 'constructor')],
@@ -284,6 +292,27 @@ describe('FS8: the envelope’s own numbers', () => {
     expect(parseEnvelope(raw.replace(rev, '"rev":"57"')).kind).toBe('corrupt');
   });
 
+  it('a local save whose savedAt is not a timestamp is damaged: it falls back to :backup (review)', () => {
+    const raw = livedInRaw();
+    const bad = raw.replace(`"savedAt":${SAVED_AT}`, '"savedAt":1e20');
+    expect(bad).not.toBe(raw);
+    expect(parseEnvelope(bad)).toMatchObject({ kind: 'corrupt', errors: ['savedAt: not a timestamp'] });
+    const res = readSave(memoryStorage({ [SAVE_KEY]: bad, [backupKeyOf(SAVE_KEY)]: raw }), SAVE_KEY);
+    expect(res.kind === 'ok' && res.fromBackup && res.damaged === bad).toBe(true);
+  });
+
+  it('a newer catkin’s save at rev 1e309 is still newer, with no rev in its head (review)', () => {
+    const raw = livedInRaw();
+    const env = envOf(raw);
+    const newer = JSON.stringify({ ...env, v: SCHEMA_VERSION + 1, state: { ...env.state, version: SCHEMA_VERSION + 1 } }).replace(`"rev":${env.rev}`, '"rev":1e309');
+    const res = parseEnvelope(newer);
+    expect(res.kind).toBe('newer');
+    expect('rev' in res).toBe(false);
+    // Guard: a usable rev stays in the head.
+    const fine = parseEnvelope(JSON.stringify({ ...env, v: SCHEMA_VERSION + 1, state: { ...env.state, version: SCHEMA_VERSION + 1 } }));
+    expect(fine.kind === 'newer' && fine.rev).toBe(env.rev);
+  });
+
   it('guards: the corpus envelopes and a backup file keep their numbers', async () => {
     const env = parseEnvelope(livedInRaw());
     expect(env.kind === 'ok' && [env.rev, env.savedAt]).toEqual([57, SAVED_AT]);
@@ -341,7 +370,63 @@ describe('P-persistence-06: an import is bounded before it is read or expanded',
 
   it('a truncated CK1 payload is a damaged payload, not a throw', async () => {
     const good = await handoff.encodePayload(backupText(livedIn()));
-    expect(said(await handoff.parseBackupText(good.slice(0, Math.floor(good.length / 2))))).not.toBe('ok');
+    for (const part of [0.5, 0.9, 0.99]) {
+      expect(said(await handoff.parseBackupText(good.slice(0, Math.floor(good.length * part))))).toBe('damaged-payload');
+    }
+  });
+
+  it('with no override, a real bomb (200 MB of zeros in a few hundred KB) is too large on the import path (review)', async () => {
+    // Compressed a megabyte at a time, so the test never holds 200 MB itself.
+    const zip = new CompressionStream('gzip');
+    const writer = zip.writable.getWriter();
+    const out = new Response(zip.readable).arrayBuffer();
+    const mb = new Uint8Array(1024 * 1024);
+    for (let i = 0; i < 200; i++) await writer.write(mb);
+    await writer.close();
+    const bomb = 'CK1:' + Buffer.from(await out).toString('base64url');
+    expect(bomb.length).toBeLessThan(handoff.MAX_IMPORT_BYTES);
+    expect(bomb.length).toBeLessThan(1024 * 1024);
+    fakeBrowser();
+    store.hydrate();
+    const before = store.state.value;
+    expect(said(await store.previewImport(bomb))).toBe('too-large');
+    expect(said(await store.applyImport(bomb))).toBe('too-large');
+    expect(store.state.value).toBe(before);
+  });
+
+  it('decompression stops at the first chunk past MAX_EXPANDED_BYTES and cancels the stream (review)', async () => {
+    // A stand-in DecompressionStream that hands out 8 MB chunks on demand (the same buffer each
+    // time, so nothing here holds them): a reader that buffers to the end pulls all 1,000.
+    const CHUNK = 8 * 1024 * 1024;
+    const chunk = new Uint8Array(CHUNK);
+    let pulls = 0;
+    let cancelled = false;
+    class Bomb {
+      writable = new WritableStream<Uint8Array>();
+      readable = new ReadableStream<Uint8Array>(
+        {
+          pull(c) {
+            pulls++;
+            if (pulls > 1000) c.close();
+            else c.enqueue(chunk);
+          },
+          cancel() {
+            cancelled = true;
+          },
+        },
+        { highWaterMark: 0 },
+      );
+    }
+    vi.stubGlobal('DecompressionStream', Bomb);
+    try {
+      expect(said(await handoff.parseBackupText('CK1:H4sIAAAAAAAA'))).toBe('too-large');
+    } finally {
+      vi.unstubAllGlobals();
+    }
+    const first = Math.floor(handoff.MAX_EXPANDED_BYTES / CHUNK) + 1; // the first chunk past the limit
+    expect(cancelled).toBe(true);
+    expect(pulls).toBeGreaterThanOrEqual(first);
+    expect(pulls).toBeLessThanOrEqual(first + 1); // at most one read ahead
   });
 
   it('guards: a real CK1 backup under the limit still imports', async () => {
@@ -389,6 +474,18 @@ describe('DEC-P14: an imported clock guard is capped at when the backup was made
     expect(said(await store.applyImport(backupText(fastClock())))).toBe('ok');
     expect(store.today.value).toBe('2026-09-29');
     expect(store.repairClock()).toEqual({ behind: false, resumesAt: null });
+  });
+
+  it('a raw save envelope is capped at its savedAt the same way (review)', async () => {
+    const env = envOf(livedInRaw());
+    const savedAt = SAVED_AT - 3 * 86_400_000; // three days before the backup file's time, so the cap is its own
+    const parsed = await handoff.parseBackupText(JSON.stringify({ ...env, savedAt, state: fastClock() }), { local: UTC });
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    const cap = savedAt + CLOCK_ROLLBACK_TOLERANCE_MS;
+    expect(parsed.state.clock.maxEpochMs).toBe(cap);
+    expect(parsed.state.clock.lastCheckinAt).toBe(cap);
+    expect(parsed.state.clock.maxDateKey).toBe('2026-09-26');
   });
 
   it('guards: a guard at or before the backup’s date comes in as it was', async () => {
