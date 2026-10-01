@@ -11,6 +11,8 @@ import { act } from 'preact/test-utils';
 import * as store from '@/state/store';
 import { ERRORS } from '@/catalog/lines';
 import { DAY_MAX, DAY_MIN } from '@/domain/dayRange';
+import { addDays } from '@/domain/dates';
+import { earliestStartedOn } from '@/domain/habits';
 import { ImportSheet } from '@/features/you/ImportSheet';
 import { Actions } from '@/features/habits/detail/Actions';
 import { selectHabitDetail } from '@/state/selectors';
@@ -124,16 +126,21 @@ describe('Habit Detail: the date inputs stay inside the calendar a save names', 
     expect(document.querySelector<HTMLInputElement>('input[type="date"]')?.value).toBe('3026-10-05');
   });
 
-  it('“Start tracking from” stops at 1900-01-01, and an earlier day typed in changes nothing (review)', async () => {
+  // WP-B5 (DEC-P12(g)) moved the earliest start to earliestStartedOn (2000-01-01 or ten years back),
+  // inside WP-A5's calendar; the input and the domain both stop there.
+  it('“Start tracking from” stops at the earliest start day, and an earlier day typed in changes nothing (review)', async () => {
     const id = openActions();
     const startedOn = habit(id).startedOn;
+    const earliest = earliestStartedOn(store.today.value);
     await act(() => panelButton(1).click());
     const input = document.querySelector<HTMLInputElement>('input[type="date"]')!;
-    expect(input.min).toBe(DAY_MIN);
-    await type(input, '1899-12-31');
+    expect(input.min).toBe(earliest);
+    expect(earliest >= DAY_MIN).toBe(true);
+    const before = addDays(earliest, -1);
+    await type(input, before);
     expect(document.querySelector<HTMLButtonElement>('button[type="submit"]')!.disabled).toBe(true);
     await act(() => void input.form!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })));
     expect(habit(id).startedOn).toBe(startedOn);
-    expect(document.querySelector<HTMLInputElement>('input[type="date"]')?.value).toBe('1899-12-31');
+    expect(document.querySelector<HTMLInputElement>('input[type="date"]')?.value).toBe(before);
   });
 });

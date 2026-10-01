@@ -13,7 +13,8 @@
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { validateHabitInput } from '@/domain/habits';
+import { addDays } from '@/domain/dates';
+import { earliestStartedOn, validateHabitInput } from '@/domain/habits';
 import type { HabitInput } from '@/state/api';
 import { decodeState, decodesAsSave } from '@/state/decode';
 import * as handoff from '@/state/handoff';
@@ -120,13 +121,17 @@ describe('every action, with the extremes its screens can hand it, leaves a save
 });
 
 describe('the domain refuses a day outside the calendar a save names', () => {
-  it('setStartedOn before 1900 changes nothing (failed before)', () => {
+  // WP-B5 (DEC-P12(g)) moved the earliest start to earliestStartedOn, inside WP-A5's calendar.
+  it('setStartedOn before 1900, or before the earliest start day, changes nothing (failed before)', () => {
     openLivedIn();
+    const earliest = earliestStartedOn(store.today.value);
     store.setStartedOn(HABIT, '1899-12-31');
     store.setStartedOn(HABIT, '1000-01-01');
-    expect(store.state.value.habits.find((h) => h.id === HABIT)!.startedOn).toBe('2026-08-21');
     store.setStartedOn(HABIT, DAY_MIN);
-    expect(store.state.value.habits.find((h) => h.id === HABIT)!.startedOn).toBe(DAY_MIN);
+    store.setStartedOn(HABIT, addDays(earliest, -1));
+    expect(store.state.value.habits.find((h) => h.id === HABIT)!.startedOn).toBe('2026-08-21');
+    store.setStartedOn(HABIT, earliest);
+    expect(store.state.value.habits.find((h) => h.id === HABIT)!.startedOn).toBe(earliest);
   });
 
   it('a pause that ends after 2999 or starts after it is refused (failed before)', () => {
