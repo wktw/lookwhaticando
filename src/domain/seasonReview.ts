@@ -30,7 +30,7 @@ import { addDays, addMonths, formatDateKey, parseDateKey } from './dates';
 import { daysSinceCreation, habitCreatedOn, logsOf, memoByHabit, trackingCtx } from './economy';
 import { plantStage, sunshineFromHistory } from './growth';
 import { acceptGrowOffer, currentOffer, pauseHabit, updateHabit } from './habits';
-import { checkinCounts } from './insights';
+import { checkinCounts } from './checkins';
 import { ruleAt } from './rules';
 import { isBiggerRule, isDayBased, MONTHLY_EVERY, RULE_LIMITS, WEEKLY_EVERY } from './schedule';
 import { trackingOf } from './consistency';

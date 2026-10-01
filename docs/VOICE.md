@@ -769,10 +769,15 @@ lines.ts, in this order:
    - "{habit} came right after {anchor} on {count} days."
    - {stageEvent} is one of "was planted as a cutting", "put down roots", "was potted up", "put out new
      leaves", "showed a first bud", the species' Blooming ("grew thick enough to lie in"), "spilled over
-     the rim", "turned Evergreen".
+     the rim", "turned Evergreen". The species is the plant's when the note was written; a note written before
+     the plant was kept with it says "reached Blooming".
 4. Her own words, only from a note she starred: "On {weekday} you wrote: ‘{quote}’."
 5. The P.S.: with a companion, "P.S. {name} {routine} {times}." ({routine} from `SUNDAY_ROUTINES`, {times}
-   like "four evenings"). Without one, only something that happened: "P.S. On {weekday}, {name} left a
+   like "four evenings"). The companion is the pet that shared the most days with a habit that week, and
+   {times} counts only those days; the routine is the one the habit had when the note was written, so an icon
+   change later never rewrites it. A note written before the routine was kept with it says only what is known:
+   "P.S. {name} kept {plant} company {times}." (`companionPlain`; {plant} as in the highlights). DEC-V: pending
+   owner approval. Without a companion, only something that happened: "P.S. On {weekday}, {name} left a
    {found} on the sill." · "P.S. {name} and {friend} napped in a pile on {weekday}." · "P.S. {name} spent
    the afternoons in the sunbeam." (the last only when the pet's afternoons were on the sill, and never two
    weeks running).

@@ -63,7 +63,8 @@ function titleOf(r: RitualVM, look: RitualLookup): string {
 /** The small card that peeks over the sheet: the note with the week's pencil sketch, or the page. */
 function peekOf(r: RitualVM) {
   if (r.kind === 'sundayNote') {
-    const icon = r.ps?.kind === 'companion' ? state.value.habits.find((h) => h.id === (r.ps as { habitId: string }).habitId)?.icon : undefined;
+    // The routine frozen with the note (WP-B6); an older note kept none, so it has no sketch.
+    const icon = r.ps?.kind === 'companion' ? r.ps.icon : undefined;
     return <NoteCard kind="sundayNote" sketch={icon ? routineOf(icon) : undefined} size={84} />;
   }
   if (r.kind === 'herbarium') return <NoteCard kind="herbarium" size={84} pressings={r.pressings.slice(0, 3).map((p) => ({ species: p.plant, share: Math.max(0.14, p.size / 7), rests: p.rests }))} />;

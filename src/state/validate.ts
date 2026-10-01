@@ -223,7 +223,8 @@ function checkLog(r: Report, log: unknown, path: string): void {
 
 /** A Sunday Note highlight: the known kinds have every field their line reads; an unknown kind is skipped by its reader. */
 function isHighlight(h: unknown): boolean {
-  if (!isObj(h) || !isStr(h.kind)) return false;
+  // WP-B6: a highlight may carry the plant species it had when the letter was written.
+  if (!isObj(h) || !isStr(h.kind) || !optStr(h.plant)) return false;
   switch (h.kind) {
     case 'stageUp':
       return isId(h.habitId) && isInt(h.stage) && h.stage >= 0 && h.stage <= 7 && isDay(h.date) && optional(isId)(h.petId);
@@ -246,7 +247,7 @@ function isHighlight(h: unknown): boolean {
 /** The Sunday Note's P.S.: a companion's routine or a found thing, complete (its reader reads every field). */
 function isPS(p: unknown): boolean {
   if (!isObj(p) || !isId(p.petId)) return false;
-  if (p.kind === 'companion') return isId(p.habitId) && nonNegInt(p.days) && oneOf(TIMES_OF_DAY)(p.timeOfDay);
+  if (p.kind === 'companion') return isId(p.habitId) && nonNegInt(p.days) && oneOf(TIMES_OF_DAY)(p.timeOfDay) && optStr(p.icon);
   if (p.kind === 'found') return isDay(p.date) && isInt(p.seed);
   return false;
 }
@@ -288,9 +289,24 @@ function checkLetter(r: Report, l: unknown, path: string): void {
       `${path}.pressings`,
       'bad pressings',
     );
-    r.check(o.margin === undefined || (isObj(o.margin) && isStr(o.margin.kind) && isDay(o.margin.date) && optional(isId)(o.margin.habitId) && optional(isId)(o.margin.petId)), `${path}.margin`, 'bad margin');
+    r.check(o.margin === undefined || (isObj(o.margin) && isStr(o.margin.kind) && isDay(o.margin.date) && optional(isId)(o.margin.habitId) && optional(isId)(o.margin.petId) && optStr(o.margin.plant)), `${path}.margin`, 'bad margin');
   }
 }
+
+/** WP-B6: a pairing's spans, oldest first, apart, each `to` on or after its `from`; only the last may be open. */
+function validStints(v: unknown): boolean {
+  if (!Array.isArray(v)) return false;
+  let prev: string | null = null;
+  return v.every((st, i) => {
+    if (!isObj(st) || !isDateKey(st.from) || (prev !== null && st.from <= prev)) return false;
+    if (st.to === undefined) return i === v.length - 1;
+    if (!isDateKey(st.to) || st.to < st.from) return false;
+    prev = st.to;
+    return true;
+  });
+}
+
+const optStr = (v: unknown): boolean => v === undefined || isStr(v);
 
 function checkCompany(r: Report, c: unknown, petIds: Set<string>): void {
   if (!r.check(isObj(c), 'company', 'not an object')) return;
@@ -305,7 +321,8 @@ function checkCompany(r: Report, c: unknown, petIds: Set<string>): void {
       nonNeg(v.sunshine) &&
       nonNegInt(v.waterings) &&
       (v.whyAsked === undefined || v.whyAsked === true) &&
-      optional(isDay)(v.knownForSince);
+      optional(isDay)(v.knownForSince) &&
+      (v.stints === undefined || validStints(v.stints));
     if (!r.check(ok, path, 'bad pairing')) return;
     const pair = v as Obj;
     r.check(petIds.has(pair.petId as string), `${path}.petId`, 'unknown pet');
@@ -383,6 +400,9 @@ function checkPet(r: Report, p: unknown, id: string, path: string): void {
   r.check(isBool(o.favoriteKnown) && isBool(o.inMeadow) && isBool(o.favorite), path, 'bad flags');
   r.check(nonNeg(o.xp), `${path}.xp`, 'not a number');
   r.check(isTime(o.obtainedAt), `${path}.obtainedAt`, 'not a timestamp');
+  // WP-B6: the days it came home and its favourite was found, kept at the event.
+  r.check(optional(isDay)(o.arrivedOn), `${path}.arrivedOn`, 'not a date');
+  r.check(optional(isDay)(o.favoriteKnownOn), `${path}.favoriteKnownOn`, 'not a date');
   r.check(isObj(o.outfit) && Object.entries(o.outfit).every(([k, v]) => !RESERVED.has(k) && optional(isId)(v)), `${path}.outfit`, 'bad outfit');
   const d = o.daily;
   r.check(
@@ -445,6 +465,7 @@ export function validateState(x: unknown): ValidationResult {
     r.check(isStr(p.name), 'profile.name', 'not a string');
     r.check(isBool(p.onboarded), 'profile.onboarded', 'not a boolean');
     r.check(isTime(p.createdAt), 'profile.createdAt', 'not a timestamp');
+    r.check(optional(isDay)(p.createdOn), 'profile.createdOn', 'not a date');
     r.check(p.birthday === undefined || isBirthday(p.birthday), 'profile.birthday', 'not a real MM-DD');
   }
 

@@ -43,7 +43,7 @@ import type { PullError, PullResult, WishOutcome } from '@/state/api';
 import type { AppState, DateKey, PendingReveal, PetState, PityCounter } from '@/state/types';
 import { evaluateBadges } from './badges';
 import { eligibleMoonlitIds, isMachineComplete, isMachineSource, isMoonlitAvailable, machineLineup, owns } from './collection';
-import { appDayKey } from './dates';
+import { movedInOn } from './eventDays';
 import { PET_XP, addXp, newPetState } from './friendship';
 import { hasRoomOut } from './shelf';
 import { ensureRecipe } from './pantry';
@@ -423,9 +423,9 @@ export function wishPrice(itemId: string): number | null {
   return WISH_PRICE[def.rarity];
 }
 
-/** The profile's creation day (the Memories rule's reference point). */
+/** The profile's creation day (the Memories rule's reference point): the moving-in day, kept since onboarding (WP-B6). */
 export function profileCreatedOn(s: AppState, local: Tx['env']['local']): DateKey {
-  return appDayKey(s.profile.createdAt, s.settings.dayStartsAt, local);
+  return movedInOn(s, local);
 }
 
 /** Whether an item can be ordered right now (ignores the stamp balance), or why not. */

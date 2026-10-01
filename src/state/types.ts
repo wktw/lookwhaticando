@@ -202,6 +202,8 @@ export interface PetState {
   personality: Personality;
   favoriteTreat: string;
   favoriteKnown: boolean;
+  /** WP-B6: the app day its favourite treat was found (absent on older saves: the day is unknown). */
+  favoriteKnownOn?: DateKey;
   /** Friendship XP; levels 1–10 then cosmetic bond levels 11–15. Never decays. */
   xp: number;
   outfit: Outfit;
@@ -210,6 +212,12 @@ export interface PetState {
   /** Marked as a favourite pet (sorted first; the featured pet when a view needs one). */
   favorite: boolean;
   obtainedAt: number;
+  /**
+   * WP-B6 (domain-d4): the app day it came home, fixed when it came home, so a later `dayStartsAt`
+   * change or a move to another time zone can't move its came-home day. Older saves get it once,
+   * worked out from `obtainedAt` with the settings they have then (DEC-P12f).
+   */
+  arrivedOn?: DateKey;
   /**
    * The place it spends the day in when out on the Shelf (DESIGN §8.4). Absent: the Sill, and it
    * has never been placed, so opening a place it loves can move it there; 'sill' is a choice.
@@ -333,6 +341,12 @@ export interface Profile {
   name: string;
   onboarded: boolean;
   createdAt: number;
+  /**
+   * WP-B6 (domain-d4): the profile's first app day (moving in), fixed at onboarding, so the
+   * moving-in anniversary and the Memories rule don't move with a later `dayStartsAt` change or a
+   * time-zone move. Older saves get it once, from `createdAt` with the settings they have then.
+   */
+  createdOn?: DateKey;
   /** Optional 'MM-DD' for the birthday ritual (DESIGN §13). */
   birthday?: string;
 }
@@ -478,6 +492,19 @@ export interface CompanyPair {
    * or later): from then on the Pet Card's "Known for" line stays, whatever today holds.
    */
   knownForSince?: DateKey;
+  /**
+   * WP-B6 (domain-d3): the spans the pet kept the habit company, oldest first. A day belongs to the
+   * pet that keeps the habit company at its close (or now, today): `from` is the day it was paired,
+   * `to` the last day it still was at the day's close (absent while it still keeps the habit
+   * company; only the last span can be open). Absent on a pairing from before WP-B6: then the
+   * habit's current companion counts from `since`, and any other pet not at all.
+   */
+  stints?: PairStint[];
+}
+
+export interface PairStint {
+  from: DateKey;
+  to?: DateKey;
 }
 
 export interface Company {
@@ -591,17 +618,22 @@ export interface SeasonShelf {
 
 /** A Sunday Note highlight (data; the voice layer words it). */
 export type SundayHighlight =
-  | { kind: 'stageUp'; habitId: string; stage: number; date: DateKey; petId?: string }
-  | { kind: 'newcomer'; petId: string; date: DateKey; habitId?: string }
+  | { kind: 'stageUp'; habitId: string; stage: number; date: DateKey; petId?: string; plant?: PlantSpeciesId }
+  | { kind: 'newcomer'; petId: string; date: DateKey; habitId?: string; plant?: PlantSpeciesId }
   | { kind: 'everyDay'; habitId: string }
   | { kind: 'topHabit'; habitId: string; days: number }
-  | { kind: 'newHabit'; habitId: string; date: DateKey }
+  | { kind: 'newHabit'; habitId: string; date: DateKey; plant?: PlantSpeciesId }
   | { kind: 'tiny'; habitId: string; days: number }
   | { kind: 'kept'; habitId: string; anchorHabitId: string; days: number };
 
-/** The Sunday Note's P.S.: a companion's routine, or a found thing. */
+/**
+ * The Sunday Note's P.S.: a companion's routine, or a found thing. WP-B6 (domain-w2-d3): `icon` is
+ * the habit's icon when the note was written, which chooses the routine; the highlights' and
+ * margins' `plant` is the plant species then. Both are frozen with the letter (names still follow
+ * renames); a letter written before WP-B6 has neither and is worded generically.
+ */
 export type SundayPS =
-  | { kind: 'companion'; petId: string; habitId: string; days: number; timeOfDay: TimeOfDay }
+  | { kind: 'companion'; petId: string; habitId: string; days: number; timeOfDay: TimeOfDay; icon?: string }
   | { kind: 'found'; petId: string; date: DateKey; seed: number };
 
 /** One habit's pressing on a Herbarium page: sized by waterings; rest days press as small flowers. */
@@ -616,9 +648,9 @@ export interface HerbariumPressing {
 
 /** A Herbarium page's margin note (one, if true). */
 export type HerbariumMargin =
-  | { kind: 'bloomed'; habitId: string; date: DateKey }
+  | { kind: 'bloomed'; habitId: string; date: DateKey; plant?: PlantSpeciesId }
   | { kind: 'cameHome'; petId: string; date: DateKey }
-  | { kind: 'planted'; habitId: string; date: DateKey };
+  | { kind: 'planted'; habitId: string; date: DateKey; plant?: PlantSpeciesId };
 
 export type Letter =
   | {

@@ -27,6 +27,8 @@ import type { DateKey } from '@/state/types';
 import { logStatus } from './activity';
 import { addDays, maxDateKey, parseDateKey, recurringDay } from './dates';
 import { bestStreakOccurrences, compactLedger, ledgerKey, reconcilePrecisionMarks } from './economy';
+import { reopenCompanionSpans } from './company';
+import { freezeEventDays } from './eventDays';
 import { ensureEarlyWeeklyNote, ensureLetters } from './letters';
 import { pruneOldStamps, rewardPass } from './logging';
 import { pruneFoundThings } from './friendship';
@@ -103,6 +105,11 @@ export function birthdaySurprise(tx: Tx): boolean {
 export function openDay(tx: Tx): boolean {
   const previous = tx.s.clock.maxDateKey;
   observeClock(tx);
+  // An older save's event days, once, with the settings it has now (WP-B6, DEC-P12f). Not a
+  // reward, so a clock running behind doesn't hold it back.
+  freezeEventDays(tx);
+  // A companion an older build paired again, whose span this build had closed (WP-B6).
+  reopenCompanionSpans(tx);
   if (rewardsPaused(tx.s, tx.env.now)) return false;
   // Before anything can celebrate a stage: marks an older build's rounding held back (WP-B2), quietly.
   reconcilePrecisionMarks(tx);

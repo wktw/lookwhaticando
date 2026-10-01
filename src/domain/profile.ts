@@ -7,6 +7,7 @@ import { fillLine } from '@/catalog/lineKit';
 import { DATA, REMINDERS } from '@/catalog/linesCore';
 import { logStatus } from './activity';
 import { clampDayStartsAt, isDateKey } from './dates';
+import { freezeEventDays } from './eventDays';
 import { ruleAt } from './rules';
 import { effectiveTarget } from './schedule';
 import type { Tx } from './tx';
@@ -58,6 +59,8 @@ export function sanitizeSettings(patch: Partial<Settings>): Partial<Settings> {
 export function updateSettings(tx: Tx, patch: Partial<Settings>): void {
   const clean = sanitizeSettings(patch);
   if (Object.keys(clean).length === 0) return;
+  // A new day start applies from now on: remembered days stay where they fell (WP-B6, DEC-P12f).
+  if (clean.dayStartsAt !== undefined && clean.dayStartsAt !== tx.s.settings.dayStartsAt) freezeEventDays(tx);
   Object.assign(tx.section('settings'), clean);
 }
 

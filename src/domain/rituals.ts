@@ -5,11 +5,14 @@
  * stamps (§6); this module works out their contents, frozen when written.
  *
  * - **Sunday Note**: the week's waterings; up to two highlights, most specific first: a plant
- *   stage-up (with its companion), a newcomer (and the plant it moved into), a habit watered every
- *   day or else the most watered, a new plant, tiny-version days (≥ 2), kept-together days (≥ 3);
- *   a quoted note only if she starred it (and "Quote my notes" is on); a P.S.: the companion whose
- *   habit was watered on the most days that week (its routine), else a found thing. Never a
- *   percentage.
+ *   stage-up (with its companion, when that pet has kept it company since that day), a newcomer
+ *   (and the plant it moved into), a habit watered every day or else the most watered, a new
+ *   plant, tiny-version days (≥ 2), kept-together days (≥ 3); a quoted note only if she starred it
+ *   (and "Quote my notes" is on); a P.S.: the pet and habit that shared the most days that week
+ *   (days the habit showed up, the pet kept it company at the day's close and its routine had
+ *   started at Potted; stints.ts), with its routine, else a found thing. Never a percentage.
+ *   WP-B6: the routine (the habit's icon) and the plant species are frozen into the letter, so an
+ *   icon or plant edit never rewrites what a written note says (names still follow renames).
  * - **Herbarium page**: every habit watered or rested that month is pressed, sized by waterings
  *   (1–7; 0 with only rest days, which press as small flowers); one margin note if true (a plant
  *   reached Blooming, a pet came home, a plant was planted); the very first page is marked.
@@ -18,17 +21,20 @@
  * - **Came-home days**: a pet's arrival day comes round each year (Feb 29 falls on Feb 28).
  * - **Moving-in anniversary**: a yearly note on the anniversary of the profile's first day,
  *   written on the first open within a week of it. It pays nothing.
+ * Arrival and moving-in days are the days stored at the event (eventDays.ts, WP-B6).
  */
-import type { AppState, DateKey, HerbariumMargin, HerbariumPressing, Letter, SundayHighlight, SundayPS } from '@/state/types';
+import type { AppState, DateKey, Habit, HerbariumMargin, HerbariumPressing, Letter, SundayHighlight, SundayPS } from '@/state/types';
 import { inLifetime, logStatus, showedUp } from './activity';
-import { companionOf } from './company';
-import { addDays, appDayKey, eachDay, endOfMonth, parseDateKey, recurringDay, type LocalTimeReader, type MonthKey } from './dates';
+import { companionOf, companyOf, pairOf } from './company';
+import { addDays, eachDay, endOfMonth, parseDateKey, recurringDay, type LocalTimeReader, type MonthKey } from './dates';
+import { arrivalDay, movedInOn } from './eventDays';
 import { habitCreatedOn } from './economy';
 import { BLOOMING, POTTED } from './growth';
-import { checkinCounts } from './insights';
+import { checkinCounts } from './checkins';
 import { trackingOf } from './consistency';
 import { ruleAt } from './rules';
 import { keptTogetherDays } from './stacking';
+import { currentStintFrom, keptCompanyOn } from './stints';
 import type { Tx } from './tx';
 import { hasOnce, rewardsPaused, setOnce } from './wallet';
 
@@ -38,10 +44,7 @@ export const ANNIVERSARY_GRACE_DAYS = 7;
 
 type Weekly = Extract<Letter, { kind: 'weekly' }>;
 
-/** The app day a pet came home. */
-export function arrivalDay(s: Pick<AppState, 'settings'>, obtainedAt: number, local: LocalTimeReader): DateKey {
-  return appDayKey(obtainedAt, s.settings.dayStartsAt, local);
-}
+export { arrivalDay, movedInOn };
 
 /** The newest note she starred in [start, end] (the only kind a Sunday Note quotes). */
 export function starredNote(s: Pick<AppState, 'habits' | 'logs' | 'settings'>, start: DateKey, end: DateKey): Weekly['quote'] {
@@ -67,6 +70,38 @@ function stageUpIn(s: Pick<AppState, 'stageDates'>, habitId: string, start: Date
   return best;
 }
 
+/** Whether the companion's routine had started on `date`: the plant was Potted (routines start there). */
+function routineStarted(s: Pick<AppState, 'stageDates' | 'ledger'>, habitId: string, date: DateKey): boolean {
+  const potted = s.stageDates?.[habitId]?.[POTTED];
+  // Potted before stage days were recorded: the day is unknown, so it counts as started.
+  return potted !== undefined ? date >= potted : (s.ledger.bestStage[habitId] ?? 0) >= POTTED;
+}
+
+/**
+ * The P.S.'s companion (domain-d3): the pet × habit that shared the most days in [start, last],
+ * a day counting when the habit showed up, the pet kept it company at the day's close and the
+ * routine had started. Habits in display order, the current companion before other pets; ties go
+ * to the first.
+ */
+function companionPS(s: AppState, habits: Habit[], start: DateKey, last: DateKey, today: DateKey): SundayPS | undefined {
+  let ps: SundayPS | undefined;
+  let bestDays = 0;
+  const pairs = Object.values(companyOf(s).pairs);
+  for (const h of habits) {
+    const mine = pairs.filter((p) => p.habitId === h.id && s.pets[p.petId]);
+    if (mine.length === 0) continue;
+    const days = start > last ? [] : eachDay(start, last).filter((d) => inLifetime(h, d) && routineStarted(s, h.id, d) && showedUp(logStatus(s.logs[h.id]?.[d], ruleAt(h, d), d < today)));
+    mine.sort((a, b) => Number(b.petId === h.companionId) - Number(a.petId === h.companionId) || (a.petId < b.petId ? -1 : 1));
+    for (const p of mine) {
+      const n = days.filter((d) => keptCompanyOn(p, h, d)).length;
+      if (n <= bestDays) continue;
+      bestDays = n;
+      ps = { kind: 'companion', petId: p.petId, habitId: h.id, days: n, timeOfDay: h.timeOfDay, icon: h.icon };
+    }
+  }
+  return ps;
+}
+
 /** The Sunday Note's contents for the week [weekStart, weekStart+6] (see module doc). */
 export function sundayNoteFacts(s: AppState, weekStart: DateKey, today: DateKey, local: LocalTimeReader): { waterings: number; highlights: SundayHighlight[]; ps?: SundayPS } {
   const end = addDays(weekStart, 6);
@@ -82,19 +117,22 @@ export function sundayNoteFacts(s: AppState, weekStart: DateKey, today: DateKey,
   for (const h of habits) {
     const st = stageUpIn(s, h.id, weekStart, end);
     if (!st || st.stage < 1 || (up?.kind === 'stageUp' && st.stage <= up.stage)) continue;
+    // Its companion only if it has kept the plant company since that day (it napped there "since").
     const petId = companionOf(s, h);
-    up = { kind: 'stageUp', habitId: h.id, stage: st.stage, date: st.date, ...(petId ? { petId } : {}) };
+    const pair = petId ? pairOf(s, petId, h.id) : null;
+    const since = pair ? currentStintFrom(pair, h) : null;
+    up = { kind: 'stageUp', habitId: h.id, stage: st.stage, date: st.date, ...(petId && since !== null && since <= st.date ? { petId } : {}), plant: h.plant };
   }
   if (up) cands.push(up);
 
   // A newcomer (the first pet to come home that week), and the plant it moved into.
   const newcomer = Object.values(s.pets)
-    .map((p) => ({ p, d: arrivalDay(s, p.obtainedAt, local) }))
+    .map((p) => ({ p, d: arrivalDay(s, p, local) }))
     .filter((x) => x.d >= weekStart && x.d <= end)
     .sort((a, b) => a.p.obtainedAt - b.p.obtainedAt)[0];
   if (newcomer) {
     const home = s.habits.find((h) => h.companionId === newcomer.p.id && h.archivedOn === undefined);
-    cands.push({ kind: 'newcomer', petId: newcomer.p.id, date: newcomer.d, ...(home ? { habitId: home.id } : {}) });
+    cands.push({ kind: 'newcomer', petId: newcomer.p.id, date: newcomer.d, ...(home ? { habitId: home.id, plant: home.plant } : {}) });
   }
 
   // A habit watered every day, else the most watered.
@@ -114,7 +152,7 @@ export function sundayNoteFacts(s: AppState, weekStart: DateKey, today: DateKey,
     const d = habitCreatedOn(h, s.settings.dayStartsAt, local);
     return d >= weekStart && d <= end;
   });
-  if (planted) cands.push({ kind: 'newHabit', habitId: planted.id, date: habitCreatedOn(planted, s.settings.dayStartsAt, local) });
+  if (planted) cands.push({ kind: 'newHabit', habitId: planted.id, date: habitCreatedOn(planted, s.settings.dayStartsAt, local), plant: planted.plant });
 
   // The tiny version, and a stack kept together.
   const tiny = habits.map((h) => ({ h, n: counts[h.id]?.tiny ?? 0 })).sort((a, b) => b.n - a.n)[0];
@@ -128,17 +166,8 @@ export function sundayNoteFacts(s: AppState, weekStart: DateKey, today: DateKey,
     }
   }
 
-  // The P.S.: a companion's routine (the pair watered on the most days), else a found thing.
-  let ps: SundayPS | undefined;
-  let bestDays = 0;
-  for (const h of habits) {
-    const petId = companionOf(s, h);
-    const days = counts[h.id]?.checkins ?? 0;
-    if (!petId || days <= bestDays) continue;
-    if ((s.ledger.bestStage[h.id] ?? 0) < POTTED) continue; // routines start at Potted
-    bestDays = days;
-    ps = { kind: 'companion', petId, habitId: h.id, days, timeOfDay: h.timeOfDay };
-  }
+  // The P.S.: a companion's routine (the pair that shared the most days), else a found thing.
+  let ps = companionPS(s, habits, weekStart, end < today ? end : today, today);
   if (!ps) {
     const found = [...(s.found ?? [])].filter((f) => f.date >= weekStart && f.date <= end).sort((a, b) => (a.date < b.date ? 1 : -1))[0];
     if (found) ps = { kind: 'found', petId: found.petId, date: found.date, seed: found.seed };
@@ -166,11 +195,11 @@ export function herbariumFacts(s: AppState, month: MonthKey, today: DateKey, loc
   let margin: HerbariumMargin | undefined;
   for (const h of s.habits) {
     const d = s.stageDates?.[h.id]?.[BLOOMING];
-    if (d && d >= start && d <= end && (!margin || d < margin.date)) margin = { kind: 'bloomed', habitId: h.id, date: d };
+    if (d && d >= start && d <= end && (!margin || d < margin.date)) margin = { kind: 'bloomed', habitId: h.id, date: d, plant: h.plant };
   }
   if (!margin) {
     const pet = Object.values(s.pets)
-      .map((p) => ({ id: p.id, d: arrivalDay(s, p.obtainedAt, local), at: p.obtainedAt }))
+      .map((p) => ({ id: p.id, d: arrivalDay(s, p, local), at: p.obtainedAt }))
       .filter((x) => x.d >= start && x.d <= end)
       .sort((a, b) => a.at - b.at)[0];
     if (pet) margin = { kind: 'cameHome', petId: pet.id, date: pet.d };
@@ -180,7 +209,7 @@ export function herbariumFacts(s: AppState, month: MonthKey, today: DateKey, loc
       const d = habitCreatedOn(x, s.settings.dayStartsAt, local);
       return d >= start && d <= end;
     });
-    if (h) margin = { kind: 'planted', habitId: h.id, date: habitCreatedOn(h, s.settings.dayStartsAt, local) };
+    if (h) margin = { kind: 'planted', habitId: h.id, date: habitCreatedOn(h, s.settings.dayStartsAt, local), plant: h.plant };
   }
   const firstPage = !s.inbox.some((l) => l.kind === 'monthly' && l.month < month);
   return { pressings, ...(margin ? { margin } : {}), firstPage };
@@ -203,7 +232,7 @@ export function anniversaryOf(day: DateKey, today: DateKey): number | null {
 export function cameHomeToday(s: Pick<AppState, 'pets' | 'settings'>, today: DateKey, local: LocalTimeReader): { petId: string; years: number }[] {
   const out: { petId: string; years: number }[] = [];
   for (const p of Object.values(s.pets)) {
-    const years = anniversaryOf(arrivalDay(s, p.obtainedAt, local), today);
+    const years = anniversaryOf(arrivalDay(s, p, local), today);
     if (years !== null) out.push({ petId: p.id, years });
   }
   return out.sort((a, b) => (a.petId < b.petId ? -1 : 1));
@@ -214,11 +243,6 @@ export function birthdayCards(s: Pick<AppState, 'pets'>): string[] {
   return Object.values(s.pets)
     .sort((a, b) => a.obtainedAt - b.obtainedAt || (a.id < b.id ? -1 : 1))
     .map((p) => p.id);
-}
-
-/** The profile's first app day (moving in). */
-export function movedInOn(s: Pick<AppState, 'profile' | 'settings'>, local: LocalTimeReader): DateKey {
-  return appDayKey(s.profile.createdAt, s.settings.dayStartsAt, local);
 }
 
 /**

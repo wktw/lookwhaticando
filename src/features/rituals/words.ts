@@ -3,6 +3,12 @@
  * anniversary note and a filed season, each worded from its frozen data with the templates in
  * src/catalog/lines.ts (`SUNDAY_NOTE`, `HERBARIUM`, `CAME_HOME`, `SEASON_REVIEW`). Never a
  * percentage, never a 0: a sentence that would say one is left out.
+ *
+ * WP-B6 (domain-w2-d3): what happened is read from the letter, never from the habit as it is now.
+ * The P.S.'s routine comes from the icon frozen in it, and a plant's Blooming and its species name
+ * from the plant frozen in it. Names follow renames on purpose, and "Quote my notes" stays live. A
+ * letter written before WP-B6 kept neither, so its P.S. says only that the pet kept the plant
+ * company, and its Blooming is "reached Blooming" (its plant's name, where one is needed, is today's).
  */
 import {
   ARCHETYPE_BY_ICON,
@@ -54,11 +60,12 @@ function byFriday(date: DateKey, weekStart: DateKey): boolean {
 function highlightLine(h: SundayHighlight, weekStart: DateKey, look: RitualLookup): string | null {
   const H = SUNDAY_NOTE.highlights;
   const habit = 'habitId' in h && h.habitId ? look.habit(h.habitId) : null;
-  const plant = habit ? plantPhrase(habit.name, habit.plant) : null;
+  const frozen = 'plant' in h ? h.plant : undefined;
+  const plant = habit ? plantPhrase(habit.name, frozen ?? habit.plant) : null;
   switch (h.kind) {
     case 'stageUp': {
       if (!habit || !plant) return null;
-      const slots = { Plant: capitalise(plant), plant, stageEvent: stageEvent(h.stage, habit.plant), weekday: weekdayOf(h.date) };
+      const slots = { Plant: capitalise(plant), plant, stageEvent: stageEvent(h.stage, frozen), weekday: weekdayOf(h.date) };
       const pet = h.petId ? look.pet(h.petId) : null;
       if (!pet) return fillLine(H.stageUp, slots);
       const napped = h.stage >= 2 && byFriday(h.date, weekStart);
@@ -104,8 +111,10 @@ function psLine(ps: SundayPS, look: RitualLookup): string | null {
   if (ps.kind === 'companion') {
     const habit = look.habit(ps.habitId);
     if (!habit || ps.days < 1) return null;
-    const routine = SUNDAY_ROUTINES_BY_ICON[habit.icon] ?? SUNDAY_ROUTINES[ARCHETYPE_BY_ICON[habit.icon] ?? 'garden'];
-    return fillLine(SUNDAY_NOTE.ps.companion, { name: pet.name, routine, times: psTimes(ps.days, ps.timeOfDay) });
+    const times = psTimes(ps.days, ps.timeOfDay);
+    if (ps.icon === undefined) return fillLine(SUNDAY_NOTE.ps.companionPlain, { name: pet.name, plant: plantPhrase(habit.name, habit.plant), times });
+    const routine = SUNDAY_ROUTINES_BY_ICON[ps.icon] ?? SUNDAY_ROUTINES[ARCHETYPE_BY_ICON[ps.icon] ?? 'garden'];
+    return fillLine(SUNDAY_NOTE.ps.companion, { name: pet.name, routine, times });
   }
   const found = FOUND_THINGS[Math.abs(Math.trunc(ps.seed)) % FOUND_THINGS.length]!;
   return fillLine(SUNDAY_NOTE.ps.sill[0]!, { weekday: weekdayOf(ps.date), name: pet.name, found });
@@ -195,7 +204,7 @@ export function herbariumWords(p: Pick<HerbariumPageVM, 'month' | 'pressings' | 
       if (pet) margin.push(fillLine(HERBARIUM.margin[1]!, { name: pet.name, date: monthDayLabel(m.date) }));
     } else {
       const habit = look.habit(m.habitId);
-      if (habit) margin.push(fillLine(HERBARIUM.margin[m.kind === 'bloomed' ? 0 : 2]!, { Plant: capitalise(plantPhrase(habit.name, habit.plant)) }));
+      if (habit) margin.push(fillLine(HERBARIUM.margin[m.kind === 'bloomed' ? 0 : 2]!, { Plant: capitalise(plantPhrase(habit.name, m.plant ?? habit.plant)) }));
     }
   }
   if (p.firstPage) margin.push(HERBARIUM.firstPage);

@@ -155,11 +155,16 @@ describe('the Pet Card', () => {
 
   it('Memories: the day it came home and each “Look at us” bloom, before best friends', async () => {
     const habit = demo.habits.find((h) => h.archivedOn === undefined)!;
+    // The plant bloomed on 12 Aug while this pet kept it company (WP-B6: the Memory is the bloom's day, with the pet there).
     const withBloom: AppState = {
       ...demo,
+      stageDates: { ...demo.stageDates, [habit.id]: { ...demo.stageDates?.[habit.id], 5: '2026-08-12' } },
       company: {
         offer: demo.company?.offer ?? { declines: 0 },
-        pairs: { ...(demo.company?.pairs ?? {}), [`${petId}|${habit.id}`]: { petId, habitId: habit.id, since: '2026-06-01', sunshine: 0, waterings: 40, stories: { lookAtUs: { on: '2026-08-12' } } } },
+        pairs: {
+          ...(demo.company?.pairs ?? {}),
+          [`${petId}|${habit.id}`]: { petId, habitId: habit.id, since: '2026-06-01', sunshine: 0, waterings: 40, stories: { lookAtUs: { on: '2026-08-12' } }, stints: [{ from: '2026-06-01', to: '2026-08-31' }] },
+        },
       },
     };
     state.value = withBloom;

@@ -19,7 +19,7 @@ describe('the Sunday Note (VOICE §12)', () => {
     waterings: 19,
     highlights: [{ kind: 'stageUp' as const, habitId: 'read', stage: 4, date: '2025-09-25', petId: 'juniper' }],
     quote: null,
-    ps: { kind: 'companion' as const, petId: 'juniper', habitId: 'read', days: 4, timeOfDay: 'evening' as const },
+    ps: { kind: 'companion' as const, petId: 'juniper', habitId: 'read', days: 4, timeOfDay: 'evening' as const, icon: 'book' },
     stamps: 3,
   };
 

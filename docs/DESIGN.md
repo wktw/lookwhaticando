@@ -644,7 +644,17 @@ third-person lines, no line repeated within the last 5 in a context). A lint tes
 
 * **Sunday Note** (weekly): a small card pinned to the sill with a paper clip, in the narrator's voice. It has two real highlights (the top
   habit, a plant stage-up, a newcomer), a quoted note if one exists (only a note she starred), a companion's P.S. line ("Juniper slept on the book four
-  evenings"), and the stamps enclosed. It never shows a percentage. Kept in the memory shelf.
+  evenings"), and the stamps enclosed. It never shows a percentage. Kept in the memory shelf. The P.S. names the pet that
+  shared the most days with a habit that week, and counts only those days: days the habit showed up, the pet kept it company
+  at the day's close (a pet paired on Sunday shares Sunday, not the six days before), and its routine had started at Potted.
+  A stage-up names its companion only if that pet has kept the plant company since that day. A written note keeps the
+  routine (the habit's icon) and the plant species it was written with, so an icon or plant edit never rewrites it; names
+  follow renames, and "Quote my notes" stays live. A note written before these were kept is worded generically.
+* **Remembered days stay where they fell.** A pet's came-home day, the moving-in day and a habit's planting day are stored
+  as app days at the event (`arrivedOn`, `Profile.createdOn`, `Habit.createdOn`), so a new day start or a move to another
+  time zone changes only the days that follow. An older save gets them once, worked out with the settings it has then.
+  A pet's Memories carry the day of their event: the favourite found (`favoriteKnownOn`; an older save's unknown day makes
+  no Memory), and "The day Read bloomed" only for a pet that kept the plant company on the day it bloomed, dated that day.
 * **This month's flowers → Pressing Day**: through the month, a jar on the sill fills with a stem from each habit you showed up
   for (watered, or its Tiny version, on a day of its lifetime, as the Herbarium page counts it; a partial count earns none).
   On the 1st, the stems are pressed into a **Herbarium page**: each habit's pressing is sized by how often it was watered and
@@ -670,7 +680,9 @@ target-user panel (AUDITS.md). **Every pillar is driven by real habit data and m
   band. Habits without one are watered by whoever is nearest. Offered after naming at a reveal ("Find {name} a plant"),
   in the Habit Editor ("Who keeps it company?") and on the Pet Card, at most once per day, and never again after 3 declines
   (the counters are shared by all three; pairing by hand always works). Archiving, retiring or deleting a habit frees its
-  companion.
+  companion. Each pairing keeps the spans the pet kept the plant company (`CompanyPair.stints`): a day belongs to the pet
+  that keeps it company at the day's close, and a habit retired on a day keeps its companion's span through that day.
+  A pet an older build paired again (it leaves the spans closed) keeps the plant company from the first open that sees it.
 * **Friendship grows through the habit**: each completing check-in gives its companion `min(30, round(5 × 7/expectedPerWeek))`
   XP (≤ 30/day from habits), once per occurrence (tiny included, a count habit's day-end tiny too), on the reward path only.
   A flexible rule's occurrence is a place among the period's `times`, not a date: moving a check-in to another day pays
