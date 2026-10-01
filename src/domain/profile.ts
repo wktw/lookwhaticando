@@ -2,7 +2,7 @@
  * Profile and preferences (DESIGN §9.5 "You", v1 §13.2 "Day boundary", v1 §13.8 reminders).
  * Settings are clamped to their valid ranges on the way in, so the rest of the domain can trust them.
  */
-import type { AppState, DateKey, Settings, TimeOfDay } from '@/state/types';
+import type { AppState, DateKey, LateStep, OnboardingStep, Settings, TimeOfDay } from '@/state/types';
 import { fillLine } from '@/catalog/lineKit';
 import { DATA, REMINDERS } from '@/catalog/linesCore';
 import { logStatus } from './activity';
@@ -31,6 +31,25 @@ export function setBirthday(tx: Tx, mmdd: string | undefined): boolean {
   const max = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][month - 1];
   if (!m || max === undefined || day < 1 || day > max) return false;
   profile.birthday = mmdd;
+  return true;
+}
+
+const LATE_STEPS: readonly LateStep[] = ['today', 'first', 'place'];
+
+/**
+ * Onboarding's late step (DESIGN §9.6; WP-C5, DEC-E3): kept in the save while steps 3–5 are under
+ * way, so a reload lands on the same step and every other window sees it. Only an onboarded save
+ * has one (planting comes first); the step is cleaned on the way in (at most 3 distinct habit ids,
+ * a pet id only when it is a string). `null` ends it. False when refused.
+ */
+export function setOnboardingStep(tx: Tx, step: OnboardingStep | null): boolean {
+  if (step === null) {
+    if (tx.s.profile.onboardingStep !== undefined) delete tx.section('profile').onboardingStep;
+    return true;
+  }
+  if (!tx.s.profile.onboarded || !LATE_STEPS.includes(step.step) || !Array.isArray(step.habitIds)) return false;
+  const habitIds = [...new Set(step.habitIds.filter((id): id is string => typeof id === 'string'))].slice(0, 3);
+  tx.section('profile').onboardingStep = { step: step.step, habitIds, ...(typeof step.petId === 'string' ? { petId: step.petId } : {}) };
   return true;
 }
 

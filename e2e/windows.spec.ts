@@ -86,3 +86,55 @@ test('starting over in one window starts the other one fresh, with a calm note',
   await expect(note).toHaveCount(0);
   expect([...errorsA, ...errorsB], [...errorsA, ...errorsB].join('\n')).toEqual([]);
 });
+
+/**
+ * Onboarding in two windows (WP-C5: creative-cr-d1, UI2-07). The window that doesn't own the save
+ * can't plant: its picks stay chosen and it points to "Use here"; after Use here the same picks plant
+ * once. The other window, now read-only, shows the step the owner is on, and leaves onboarding for
+ * Today when the owner does; a reload there stays on Today (no stale progress left anywhere).
+ */
+test('onboarding in two windows: a refused planting keeps its picks, Use here plants them, and the other window follows', async ({ context }) => {
+  const USE_HERE = 'Choose Use here above to carry on in this window.';
+  const a = await context.newPage();
+  const errorsA = watchErrors(a);
+  await a.goto('./#/today');
+  await expect(a.locator('main h1')).toHaveText(ONBOARDING_H1);
+
+  const b = await context.newPage();
+  const errorsB = watchErrors(b);
+  await b.goto('./#/today');
+  const bannerB = b.locator('[data-banner="other-window"]');
+  await expect(bannerB).toBeVisible();
+  await expect(b.locator('main h1')).toHaveText(ONBOARDING_H1);
+
+  // The read-only window picks and plants: nothing is planted, the picks stay, the note points up.
+  await b.getByRole('button', { name: 'Next' }).click();
+  await b.getByRole('button', { name: 'Walk', exact: true }).click();
+  await b.getByRole('button', { name: 'Plant it' }).click();
+  await expect(b.locator('[data-onboarding-note]')).toHaveText(USE_HERE);
+  await expect(b.locator('main h1')).toHaveText('Pick up to 3.');
+  await expect(b.getByRole('button', { name: 'Walk', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  expect(await savedHabits(b)).toEqual([]);
+
+  // Use here, and the same picks plant once.
+  await bannerB.getByRole('button', { name: 'Use here' }).click();
+  await expect(bannerB).toHaveCount(0);
+  await expect(b.locator('[data-onboarding-note]')).toHaveCount(0);
+  await b.getByRole('button', { name: 'Plant it' }).click();
+  await expect(b.locator('main h1')).toHaveText('Anything already done today?');
+  await expect.poll(() => savedHabits(b)).toEqual(['Walk']);
+
+  // The first window, read-only now, shows the step the owner is on.
+  await expect(a.locator('[data-banner="other-window"]')).toBeVisible();
+  await expect(a.locator('main h1')).toHaveText('Anything already done today?');
+
+  // The owner finishes; the other window leaves onboarding too, and stays out after a reload.
+  await b.getByRole('button', { name: 'Skip' }).click();
+  await b.getByRole('button', { name: 'Not yet, I’ll earn it' }).first().click();
+  await expect(b.locator('main')).toHaveAttribute('aria-label', 'Today');
+  await expect(a.locator('main')).toHaveAttribute('aria-label', 'Today');
+  await a.reload();
+  await expect(a.locator('main')).toHaveAttribute('aria-label', 'Today');
+  expect(await a.evaluate(() => localStorage.getItem('catkin:onboarding'))).toBeNull();
+  expect([...errorsA, ...errorsB], [...errorsA, ...errorsB].join('\n')).toEqual([]);
+});

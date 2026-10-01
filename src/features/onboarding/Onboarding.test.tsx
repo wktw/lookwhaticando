@@ -6,7 +6,7 @@ import { ownership, state } from '@/state/store';
 import { holdUpdates } from '@/app/pwa';
 import { currentTab } from '@/app/router';
 import { button, click, installDom, mount, type, until } from '@/features/capsules/testing';
-import { ONBOARDING_KEY, onboardingActive, onboardingProgress, reloadProgress, saveProgress } from './progress';
+import { onboardingActive, onboardingProgress, reloadProgress, saveProgress } from './progress';
 import { Onboarding } from './Onboarding';
 
 let view: ReturnType<typeof mount> | null = null;
@@ -64,7 +64,8 @@ describe('onboarding (DESIGN §9.6)', () => {
     expect(state.value.profile).toMatchObject({ name: 'Maya', onboarded: true });
     expect(state.value.habits.map((h) => h.name)).toEqual(['Walk', 'Read', 'Practise piano']);
     expect(onboardingProgress.value?.step).toBe('today');
-    expect(JSON.parse(localStorage.getItem(ONBOARDING_KEY)!).habitIds).toHaveLength(3);
+    // Step 3 is kept in the save itself, with the habits it waters (WP-C5).
+    expect(state.value.profile.onboardingStep?.habitIds).toEqual(state.value.habits.map((h) => h.id));
     expect(h1()).toBe('Anything already done today?');
 
     await click(button('Walk'), 'water Walk');
@@ -89,7 +90,7 @@ describe('onboarding (DESIGN §9.6)', () => {
     await until(() => h1() === 'Who comes home first?' && byText('Not yet, I’ll earn it'), 'step 4');
     await click(byText('Not yet, I’ll earn it'), 'Not yet');
     expect(onboardingProgress.value).toBeNull();
-    expect(localStorage.getItem(ONBOARDING_KEY)).toBeNull();
+    expect(state.value.profile.onboardingStep).toBeUndefined();
     expect(onboardingActive.value).toBe(false);
     expect(currentTab.value).toBe('today');
   });

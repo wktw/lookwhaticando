@@ -9,9 +9,11 @@
  *    today". "Find {name} a plant" goes on to step 5; "Let {name} choose" lets the pet pick
  *    (`letPetChoose`) and goes to Today; "Not now" goes to Today.
  * 5. "Find {name} a plant": the name once more, with ideas, and her new cuttings to choose from
- *    (`setCompanion`), or "Let {name} choose".
+ *    (`setCompanion`), or "Let {name} choose". A name idea is kept the moment it is tapped, and a
+ *    typed name before Skip leaves the step (P-ui-13).
  */
 import { useEffect, useRef, useState } from 'preact/hooks';
+import type { MutableRef } from 'preact/hooks';
 import type { MachineId } from '@/catalog/types';
 import { getMachine, seriesLabel } from '@/catalog/machines';
 import { getCollectible } from '@/catalog/collectibles';
@@ -129,7 +131,7 @@ export function FirstPickStep({ onFinish, onPlace }: { onFinish: () => void; onP
   );
 }
 
-export function PlaceStep({ petId, habitIds, onDone }: { petId: string; habitIds: string[]; onDone: () => void }) {
+export function PlaceStep({ petId, habitIds, onDone, keepName: keepRef }: { petId: string; habitIds: string[]; onDone: () => void; keepName?: MutableRef<(() => void) | null> }) {
   const app = state.value;
   const def = getCollectible(petId);
   const pet = app.pets[petId];
@@ -143,6 +145,13 @@ export function PlaceStep({ petId, habitIds, onDone }: { petId: string; habitIds
   }, [renaming]);
   const habits = habitIds.map((id) => app.habits.find((h) => h.id === id)).filter((h): h is NonNullable<typeof h> => !!h && h.archivedOn === undefined);
   const light = useArtLight();
+  // Skip (in onboarding's header) leaves through this step's name first; it goes with the step.
+  useEffect(
+    () => () => {
+      if (keepRef) keepRef.current = null;
+    },
+    [],
+  );
 
   if (!def || !pet || def.category !== 'pet') {
     return (
@@ -160,6 +169,13 @@ export function PlaceStep({ petId, habitIds, onDone }: { petId: string; habitIds
   const name = draft.trim().slice(0, NAME_MAX) || pet.name;
   const keepName = () => {
     if (name !== pet.name) renamePet(petId, name);
+  };
+  if (keepRef) keepRef.current = keepName;
+  /** A name idea is hers the moment she taps it: Skip, a reload or another window keep it too. */
+  const takeIdea = (idea: string) => {
+    setDraft(idea);
+    const clean = idea.trim().slice(0, NAME_MAX);
+    if (clean && clean !== pet.name) renamePet(petId, clean);
   };
 
   const home = (habitId: string) => {
@@ -203,7 +219,7 @@ export function PlaceStep({ petId, habitIds, onDone }: { petId: string; habitIds
           />
           <div class={s.ideas} role="group" aria-label={ONBOARDING_COPY.nameIdeas}>
             {nameIdeas(def.species, round, draft).map((n) => (
-              <button key={n} type="button" class={s.idea} onClick={() => setDraft(n)}>
+              <button key={n} type="button" class={s.idea} onClick={() => takeIdea(n)}>
                 {n}
               </button>
             ))}

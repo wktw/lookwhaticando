@@ -13,14 +13,19 @@
  *  Any "Not yet, I’ll earn it" / "Skip" at the end goes to Today, where the first-capsule card waits.
  *
  * The sill stays at the top through steps 1–3, so the plants she picks visibly arrive, and water
- * visibly lands. Steps 3–5 survive a reload (./progress).
+ * visibly lands. Steps 3–5 are the save's own (`profile.onboardingStep`, ./progress): the step shown
+ * is the save's, so it survives a reload and follows another window's changes (WP-C5).
+ *
+ * Nothing moves on unless the save took it (WP-C5, creative-cr-d1): a planting or a step this window
+ * can't write (another window owns the save, or a newer catkin's save is open) stays where it is,
+ * keeps the picks, and says so under the shell's own note, which has "Use here".
  */
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
-import { COMPANION, DATA, INSTALL, ONBOARDING, fillLine } from '@/catalog/lines';
+import { COMPANION, DATA, DATA_COPY, INSTALL, ONBOARDING, fillLine } from '@/catalog/lines';
 import { TEMPLATES } from '@/catalog/templates';
 import { Wordmark } from '@/art/icons/brand';
 import { useArtLight } from '@/art/scene/moment';
-import { enterDemo, state } from '@/state/store';
+import { enterDemo, readOnly, state } from '@/state/store';
 import { navigate } from '@/app/router';
 import { holdUpdates } from '@/app/pwa';
 import { InstallGate, shouldGateInstall } from '@/app/InstallGuide';
@@ -62,12 +67,19 @@ function markGateSeen(): void {
   }
 }
 
+/** Where this visit starts before anything is saved: the install gate once, else the sill. */
 function firstPhase(): Phase {
-  const p = onboardingProgress.value;
-  if (state.value.profile.onboarded && p) return p.step;
-  if (p) saveProgress(null); // left over from a save that has since been reset
   const hasSave = state.value.habits.length > 0;
   return !gateSeen() && shouldGateInstall(currentInstallPlatform(), hasSave) ? 'gate' : 'sill';
+}
+
+const NO_PICKS: Picks = { templateIds: [], custom: [] };
+
+/** What a refused change says, by why this window can't change the save (null when it can). */
+function refusalText(ro: (typeof readOnly)['value']): string | null {
+  if (ro === 'other-window') return ONBOARDING_COPY.useHere;
+  if (ro === 'newer-version') return DATA_COPY.readOnly;
+  return null;
 }
 
 /**
@@ -95,9 +107,15 @@ function useHoldCelebrations(on: boolean): void {
 }
 
 export function Onboarding() {
-  const [phase, setPhase] = useState<Phase>(firstPhase);
+  /** The steps before anything is saved (the gate, the sill, the picks); steps 3–5 are the save's. */
+  const [early, setEarly] = useState<Phase>(firstPhase);
   const [name, setName] = useState(state.value.profile.name);
-  const [picks, setPicks] = useState<Picks>({ templateIds: [], custom: [] });
+  const [picks, setPicks] = useState<Picks>(NO_PICKS);
+  /** A change this window couldn't make: the note shows until it can change the save again. */
+  const [refused, setRefused] = useState(false);
+  const ro = readOnly.value;
+  /** Step 5's name, kept before Skip leaves the step (P-ui-13). */
+  const keepPlaceName = useRef<(() => void) | null>(null);
   const [importing, setImporting] = useState<false | 'file' | 'paste'>(false);
   /** "Paste my plants": the clipboard read starts inside the tap (iPhone Safari allows no other). */
   const [clip, setClip] = useState<Promise<string | null> | null>(null);
@@ -110,7 +128,25 @@ export function Onboarding() {
   const page = useRef<HTMLDivElement>(null);
   const light = useArtLight();
   const progress = onboardingProgress.value;
+  const phase: Phase = progress ? progress.step : early;
   const habitIds = progress?.habitIds ?? [];
+
+  // After "Use here" this window can change the save again: the note has said its piece.
+  useEffect(() => {
+    if (!refusalText(ro)) setRefused(false);
+  }, [ro]);
+
+  // The save left the late steps without finishing them (started over in another window, which
+  // this one followed): back to the sill, with nothing picked, like the fresh save it now shows.
+  const late = progress !== null;
+  const wasLate = useRef(late);
+  useEffect(() => {
+    if (wasLate.current && !late && !state.value.profile.onboarded) {
+      setEarly('sill');
+      setPicks(NO_PICKS);
+    }
+    wasLate.current = late;
+  }, [late]);
 
   // No update reloads in the middle of this (DESIGN §11.1).
   useEffect(() => {
@@ -150,7 +186,15 @@ export function Onboarding() {
     if (!active || active === document.body) focusHeading(page.current?.querySelector('h1'));
   }, [!!capsules]);
 
+  /** The change didn't happen: stay, and say why (under the shell's note with "Use here"). */
+  const refuse = () => {
+    const text = refusalText(readOnly.peek());
+    setRefused(true);
+    if (text) announce(text);
+  };
+
   const finish = () => {
+    if (!saveProgress(null)) return refuse();
     // The step's own watering notes had their say there; Today starts clean (the pins still wait for it).
     for (const id of habitIds) {
       for (const key of [checkInKey(id), uncheckKey(id)]) {
@@ -158,27 +202,39 @@ export function Onboarding() {
         if (note) dismissToast(note.id);
       }
     }
-    saveProgress(null);
     navigate('today');
   };
 
+  /** A backup came in: the shell shows whatever its save is on (Today, or its own onboarding step). */
+  const imported = () => navigate('today');
+
   const go = (next: Phase | 'done', ids: string[] = habitIds, petId?: string) => {
     if (next === 'done') return finish();
-    if (next === 'today' || next === 'first' || next === 'place') saveProgress({ step: next, habitIds: ids, ...(petId ? { petId } : progress?.petId ? { petId: progress.petId } : {}) });
-    setPhase(next);
+    if (next === 'today' || next === 'first' || next === 'place') {
+      // The step shown is the save's: it moves only when the save took it.
+      const pet = petId ?? progress?.petId;
+      if (!saveProgress({ step: next, habitIds: ids, ...(pet ? { petId: pet } : {}) })) refuse();
+      return;
+    }
+    setEarly(next);
   };
 
+  /**
+   * "Plant these" (and Skip on the picks: what she already picked is planted, not dropped). The save
+   * then stands on step 3, or step 4 with nothing planted, and the step shown follows it. Refused,
+   * the picks stay as they are for a retry after "Use here"; a save onboarded meanwhile (in another
+   * window, or by an import) is shown as it is.
+   */
   const plant = () => {
-    const ids = plantPicks(name, picks);
-    go(nextPhase('pick', ids.length), ids);
+    const res = plantPicks(name, picks);
+    if (res.ok) return;
+    if (res.reason === 'read-only') return refuse();
+    navigate('today');
   };
 
   const skip = () => {
-    if (phase === 'pick') {
-      // What she already picked is planted, not dropped.
-      const ids = plantPicks(name, picks);
-      return go(nextPhase('pick', ids.length), ids);
-    }
+    if (phase === 'pick') return plant();
+    if (phase === 'place') keepPlaceName.current?.();
     go(nextPhase(phase, habitIds.length));
   };
 
@@ -196,10 +252,10 @@ export function Onboarding() {
           onPaste={pasteNow}
           onStay={() => {
             markGateSeen();
-            setPhase('sill');
+            setEarly('sill');
           }}
         />
-        <ImportSheet open={!!importing} title={INSTALL.paste} clip={clip} onClose={() => setImporting(false)} onImported={finish} />
+        <ImportSheet open={!!importing} title={INSTALL.paste} clip={clip} onClose={() => setImporting(false)} onImported={imported} />
       </div>
     );
   }
@@ -207,6 +263,7 @@ export function Onboarding() {
   const index = stepIndex(phase);
   const onSill = phase === 'sill' || phase === 'pick' || phase === 'today';
   const standalone = currentInstallPlatform() === 'installed';
+  const note = refused ? refusalText(ro) : null;
 
   return (
     <div ref={page} class={cx(s.page, onSill && s.withSill)} data-step={phase}>
@@ -228,6 +285,11 @@ export function Onboarding() {
       {onSill && <SillStageFor phase={phase} picks={picks} habitIds={habitIds} />}
 
       <div class={s.body}>
+        {note && (
+          <p class={s.refused} data-onboarding-note="">
+            {note}
+          </p>
+        )}
         {phase === 'sill' && (
           <SillStep
             name={name}
@@ -250,7 +312,7 @@ export function Onboarding() {
           />
         )}
         {phase === 'first' && capsules && <capsules.FirstPickStep onFinish={finish} onPlace={(petId) => go('place', habitIds, petId)} />}
-        {phase === 'place' && capsules && <capsules.PlaceStep petId={progress?.petId ?? ''} habitIds={habitIds} onDone={finish} />}
+        {phase === 'place' && capsules && <capsules.PlaceStep petId={progress?.petId ?? ''} habitIds={habitIds} onDone={finish} keepName={keepPlaceName} />}
       </div>
 
       <ImportSheet
@@ -260,7 +322,7 @@ export function Onboarding() {
         onClose={() => setImporting(false)}
         onImported={() => {
           announce(DATA.imported);
-          finish();
+          imported();
         }}
       />
     </div>

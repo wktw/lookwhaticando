@@ -282,6 +282,12 @@ function checkPet(r: Report, p: unknown, id: string, path: string): void {
 }
 
 /** Validates an unknown value as a current-schema AppState. */
+/** Onboarding's late step (WP-C5): what the flow writes, and nothing it couldn't show. */
+function isOnboardingStep(v: unknown): boolean {
+  if (!isObj(v)) return false;
+  return (v.step === 'today' || v.step === 'first' || v.step === 'place') && Array.isArray(v.habitIds) && v.habitIds.length <= 3 && v.habitIds.every(isStr) && (v.petId === undefined || isStr(v.petId));
+}
+
 export function validateState(x: unknown): ValidationResult {
   const r = new Report();
   if (!isObj(x)) return { ok: false, errors: ['state: not an object'] };
@@ -294,6 +300,7 @@ export function validateState(x: unknown): ValidationResult {
     r.check(isBool(p.onboarded), 'profile.onboarded', 'not a boolean');
     r.check(nonNeg(p.createdAt), 'profile.createdAt', 'not a timestamp');
     r.check(p.birthday === undefined || (isStr(p.birthday) && /^\d{2}-\d{2}$/.test(p.birthday)), 'profile.birthday', 'not MM-DD');
+    r.check(p.onboardingStep === undefined || isOnboardingStep(p.onboardingStep), 'profile.onboardingStep', 'not an onboarding step');
   }
 
   if (r.check(isObj(s.settings), 'settings', 'not an object')) {

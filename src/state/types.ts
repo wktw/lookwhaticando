@@ -291,6 +291,23 @@ export interface Profile {
   createdAt: number;
   /** Optional 'MM-DD' for the birthday ritual (DESIGN §13). */
   birthday?: string;
+  /**
+   * Onboarding's late steps while they are under way (DESIGN §9.6; WP-C5, DEC-E3): set by the
+   * flow's own Plant and each step after it, removed when onboarding ends. Absent on a save that
+   * isn't mid-onboarding. Part of the save, so it follows the writer lock, import, reset and demo.
+   */
+  onboardingStep?: OnboardingStep;
+}
+
+/** Where onboarding stands after planting: 3 "Anything already done today?", 4 "Who comes home first?", 5 "Find {name} a plant". */
+export type LateStep = 'today' | 'first' | 'place';
+
+export interface OnboardingStep {
+  step: LateStep;
+  /** The habits planted at the end of step 2 (at most 3), for step 3's water buttons and step 5's plants. */
+  habitIds: string[];
+  /** The pet from the first capsule (step 5). */
+  petId?: string;
 }
 
 /** Commit-before-animate: a decided pull the UI is still revealing (survives reloads). */

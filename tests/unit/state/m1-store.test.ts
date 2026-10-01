@@ -109,10 +109,11 @@ describe('onboarding returns the new habits (VOICE.md §16 "Find {name} a plant"
   it('starter chips and "Make my own" in one step, 3 at most, ids in order', () => {
     fakeBrowser({ start: '2026-09-29' });
     store.hydrate();
-    const ids = store.completeOnboarding({ name: 'Sam', templateIds: ['water', 'walk'], customHabits: [input('Sketch', { icon: 'palette' }), input('Call Mum', { icon: 'phone' })] });
-    expect(ids).toHaveLength(3);
-    expect(ids.map((id) => store.state.value.habits.find((h) => h.id === id)?.name)).toEqual(['Drink water', 'Walk', 'Sketch']);
-    expect(store.completeOnboarding({ name: 'Sam', templateIds: ['read'] })).toEqual([]); // once
+    const res = store.completeOnboarding({ name: 'Sam', templateIds: ['water', 'walk'], customHabits: [input('Sketch', { icon: 'palette' }), input('Call Mum', { icon: 'phone' })] });
+    if (!res.ok) throw new Error(res.reason);
+    expect(res.ids).toHaveLength(3);
+    expect(res.ids.map((id) => store.state.value.habits.find((h) => h.id === id)?.name)).toEqual(['Drink water', 'Walk', 'Sketch']);
+    expect(store.completeOnboarding({ name: 'Sam', templateIds: ['read'] })).toEqual({ ok: false, reason: 'already-onboarded' }); // once
   });
 });
 
