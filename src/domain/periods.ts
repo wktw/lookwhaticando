@@ -30,7 +30,11 @@
  * the day of the cut: its goal is the one it had (target over the whole period from its rule's
  * start), and the days it lost to the next rule count as open. So an edit never turns a shortfall
  * that could still have been made up into a settled one, and a cut period is met only by its full
- * goal (so a mid-period switch can't cheapen a period-goal bonus).
+ * goal (so a mid-period switch can't cheapen a period-goal bonus). Those lost days are read in a
+ * **cut-time view** (WP-B5, HM1): open and active whatever later happens to the habit (Finish,
+ * Archive, Restore, pauses, days off), so no later lifecycle action can move a cut period into, or
+ * out of, a shortfall. (A pause already planned over them when the edit was made is not read
+ * either: nothing records when a pause was made.)
  * Attribution: a period belongs to the month containing its last day (its last *governed* day for
  * a cut period), even while current.
  */
@@ -154,17 +158,21 @@ export function evaluatePeriod(habit: HabitDays, logs: HabitLogs, p: FlexPeriod,
   let remainingActiveDays = 0;
   let openDays = 0;
   for (const d of eachDay(p.from, cut ? p.end : p.to)) {
-    const active = isFlexActiveDay(habit, d, ctx);
-    if (active) activeDays++;
-    if (d < T || (d === T && usedToday) || !inLifetime(habit, d)) {
-      // Days already lived under this rule are settled. Days the period lost to a later rule stay
-      // open whatever today is: the cut period is frozen as it stood on the day of the cut.
-      if (!(cut && d > p.to && inLifetime(habit, d))) continue;
+    if (d > p.to) {
+      // A day the period lost to a later rule (cut periods only), read in the cut-time view: open
+      // whatever today is, and active whatever the habit's lifecycle did to it afterwards (Finish,
+      // Archive, Restore, a pause, a resume, a day off). The cut period is frozen as it stood on the
+      // day of the cut (HM1, WP-B5).
+      activeDays++;
       openDays++;
       continue;
     }
+    const active = isFlexActiveDay(habit, d, ctx);
+    if (active) activeDays++;
+    // Days already lived under this rule are settled.
+    if (d < T || (d === T && usedToday) || !inLifetime(habit, d)) continue;
     openDays++;
-    if (active && d <= p.to) remainingActiveDays++;
+    if (active) remainingActiveDays++;
   }
   const target = Math.round((p.times * activeDays) / totalDays);
   const tinyDays = checkins.filter((c) => c.tiny).length;
@@ -236,7 +244,7 @@ export function periodPace(habit: HabitDays, logs: HabitLogs, ctx: EvalContext):
   const e = evaluatePeriod(habit, logs, p, ctx);
   // The goal shown is max(1, target) ("0 of 1 this week"), so what is needed is measured against it.
   const needed = Math.max(0, Math.max(1, e.target) - e.checkinDays);
-  const elapsed = Math.max(0, e.activeDays - e.remainingActiveDays - (e.cut ? activeAfter(habit, p, ctx) : 0));
+  const elapsed = Math.max(0, e.activeDays - e.remainingActiveDays - (e.cut ? activeAfter(p) : 0));
   const paceSoFar = e.activeDays > 0 ? Math.floor((e.target * elapsed) / e.activeDays) : 0;
   return {
     period: e,
@@ -251,9 +259,7 @@ export function periodPace(habit: HabitDays, logs: HabitLogs, ctx: EvalContext):
   };
 }
 
-/** Active days a cut period lost to the next rule (not "elapsed" for its pace). */
-function activeAfter(habit: HabitDays, p: FlexPeriod, ctx: EvalContext): number {
-  let n = 0;
-  for (const d of eachDay(addDays(p.to, 1), p.end)) if (isFlexActiveDay(habit, d, ctx)) n++;
-  return n;
+/** Active days a cut period lost to the next rule (not "elapsed" for its pace): all of them, in the cut-time view. */
+function activeAfter(p: FlexPeriod): number {
+  return p.to < p.end ? daysInRange(addDays(p.to, 1), p.end) : 0;
 }
