@@ -692,7 +692,8 @@ target-user panel (AUDITS.md). **Every pillar is driven by real habit data and m
   ever added, and she chooses which to show (Classic is always available). **Colour** from when she usually checks in: **Dawn ·
   Sunlit · Twilight · Wildflower** (anytime). The classifier uses live check-ins only, and a day's time is the live check-in that made it
   count (`DayLog.done`: the completing tap or the tiny version, never a later over-target tap, pad entry or undo; it describes completion,
-  not last activity, DEC-P11); an older build's day reads the stamp that completed it only when every tap was live, and is left out
+  not last activity, DEC-P11). A completion taken back by an undo or a decrease is not read: a day that then closes on its tiny count
+  reads the tap that reached it, from the stamps. An older build's day reads the stamp that completed it only when every tap was live, and is left out
   otherwise. It drops catch-up bursts (≥ 3 habits within
   120 s, measured in time, across the day start) and 23:00–03:59, and needs ≥ 10 eligible days (a read waits for them rather than guess). Bands: Dawn before 9:00,
   Sunlit 9:00–17:59, Twilight from 18:00; "usually" is a band holding ≥ 60% of the eligible days of the kept stamps (120 days),

@@ -14,6 +14,8 @@ import { addDays } from '@/domain/dates';
 import { compactSave, openDay } from '@/domain/rollover';
 import { transact } from '@/domain/tx';
 import * as logging from '@/domain/logging';
+import { eligibleTimes } from '@/domain/signature';
+import { keptTogetherDays } from '@/domain/stacking';
 import { Game, at, deepFreeze } from './game';
 
 const D = '2026-03-02';
@@ -197,6 +199,86 @@ describe('compaction: what the stamps prove is written down before they go', () 
       return {};
     }).state;
     expect(replay.logs).toEqual(once.logs);
+  });
+});
+
+describe('the edges of the read-time fallbacks and of the fold', () => {
+  const minute = (h: number, m = 0) => h * 60 + m;
+  const habitOf = (g: Game, id: string) => g.state.habits.find((h) => h.id === id)!;
+  const times = (g: Game, id: string) => eligibleTimes(g.state, habitOf(g, id), g.today, g.local);
+  const kept = (g: Game, id: string) => keptTogetherDays(g.state, habitOf(g, id), g.today);
+  const withLogs = (g: Game, logs: AppState['logs']) => (g.state = deepFreeze({ ...g.state, logs: { ...g.state.logs, ...logs } }));
+
+  it('an older build’s step-10 day, ten counted per live stamp, reads the stamp that reached the target', () => {
+    const g = new Game({ start: D, hour: 7 });
+    const a = g.addHabit({ name: 'Push-ups', target: 30, step: 10 });
+    g.goTo(addDays(D, 1), 12);
+    withLogs(g, { [a]: { [D]: { kind: 'log', count: 50, at: [t(8), t(8, 5), t(8, 10), t(8, 15), t(8, 20)] } } });
+    expect(times(g, a)).toEqual([{ date: D, minute: minute(8, 10) }]);
+  });
+
+  it('an older build’s flexible day with two stamps (the tiny version, then the full one) is unknown; one stamp is read', () => {
+    const g = new Game({ start: D, hour: 7 });
+    const flexible = { schedule: { kind: 'weekly', times: 3, every: 1 }, tiny: { label: 'Shoes on' } } as const;
+    const a = g.addHabit({ name: 'Run', ...flexible });
+    const b = g.addHabit({ name: 'Swim', ...flexible });
+    g.goTo(addDays(D, 1), 12);
+    withLogs(g, {
+      [a]: { [D]: { kind: 'log', count: 1, at: [t(8), t(18)] } },
+      [b]: { [D]: { kind: 'log', count: 1, at: [t(8)] } },
+    });
+    expect(times(g, a)).toEqual([]);
+    expect(times(g, b)).toEqual([{ date: D, minute: minute(8) }]);
+  });
+
+  it('on the day an older build’s save is opened, a follower’s first check-in is still its earliest stamp, before its anchor', () => {
+    const g = new Game({ start: D, hour: 7 });
+    const walk = g.addHabit({ name: 'Walk' });
+    const stretch = g.addHabit({ name: 'Stretch', anchorHabitId: walk, target: 3 });
+    g.goTo(D, 8, 30);
+    // As an older build wrote them, earlier today: Stretch at 07:00, before Walk at 08:00.
+    withLogs(g, {
+      [walk]: { [D]: { kind: 'log', count: 1, at: [t(8)] } },
+      [stretch]: { [D]: { kind: 'log', count: 1, at: [t(7)] } },
+    });
+    for (const m of [0, 5]) {
+      g.goTo(D, 9, m);
+      g.checkIn(stretch); // this build's first taps on that day
+    }
+    expect(logOf(g, stretch)).toMatchObject({ count: 3, first: t(7), done: t(9, 5) });
+    expect(kept(g, stretch)).toBe(0);
+    g.goTo(addDays(D, 121));
+    expect(logOf(g, stretch)).toEqual({ kind: 'log', count: 3, beforeAnchor: walk });
+    expect(kept(g, stretch)).toBe(0);
+  });
+
+  it('a log left with first and done but no stamps (a pad entry, then an undo) loses them after 120 days too', () => {
+    const g = new Game({ start: D, hour: 7 });
+    const a = g.addHabit({ name: 'Water', target: 3 });
+    g.goTo(D, 9);
+    g.setCount(a, D, 5);
+    g.goTo(D, 9, 5);
+    g.undo(a);
+    expect(logOf(g, a)).toEqual({ kind: 'log', count: 4, first: t(9), done: t(9) });
+    g.goTo(addDays(D, 120));
+    expect(logOf(g, a)).toEqual({ kind: 'log', count: 4, first: t(9), done: t(9) });
+    g.goTo(addDays(D, 121));
+    expect(logOf(g, a)).toEqual({ kind: 'log', count: 4 });
+  });
+
+  it('a follower checked in at the same instant as its anchor is kept together, before and after compaction', () => {
+    const g = new Game({ start: D, hour: 7 });
+    const walk = g.addHabit({ name: 'Walk' });
+    const stretch = g.addHabit({ name: 'Stretch', anchorHabitId: walk });
+    g.goTo(D, 8);
+    g.checkIn(walk);
+    g.checkIn(stretch); // the same millisecond
+    expect(logOf(g, stretch)).toMatchObject({ first: t(8) });
+    expect(logOf(g, walk)).toMatchObject({ first: t(8) });
+    expect(kept(g, stretch)).toBe(1);
+    g.goTo(addDays(D, 121));
+    expect(logOf(g, stretch)).toEqual({ kind: 'log', count: 1 });
+    expect(kept(g, stretch)).toBe(1);
   });
 });
 

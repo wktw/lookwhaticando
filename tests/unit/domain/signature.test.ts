@@ -382,6 +382,38 @@ describe('a day’s time is the check-in that made it count, not the last tap (P
     expect(read(g, a)).toEqual([{ date: D, minute: minute(7, 10) }]);
   });
 
+  it('a completion taken back, on a day that then closes on its tiny count, reads the check-in that reached the tiny count', () => {
+    const g = new Game({ start: D, hour: 6 });
+    const a = g.addHabit({ name: 'Water', target: 3, tiny: { label: 'Two glasses', count: 2 } });
+    for (const m of [0, 5]) {
+      g.goTo(D, 7, m);
+      g.checkIn(a);
+    }
+    g.goTo(D, 20);
+    g.checkIn(a); // a mistaken tap completes the day
+    expect(read(g, a)).toEqual([{ date: D, minute: minute(20) }]);
+    g.goTo(D, 20, 1);
+    g.undo(a); // taken back: 2 of 3
+    expect(read(g, a)).toEqual([]);
+    g.goTo(addDays(D, 1), 12);
+    expect(read(g, a)).toEqual([{ date: D, minute: minute(7, 5) }]);
+    // The same with a number-pad decrease, which keeps every stamp: which tap reached 2 is unknown.
+    const p = new Game({ start: D, hour: 6 });
+    const b = p.addHabit({ name: 'Water', target: 3, tiny: { label: 'Two glasses', count: 2 } });
+    for (const [h, m] of [
+      [7, 0],
+      [7, 5],
+      [20, 0],
+    ] as const) {
+      p.goTo(D, h, m);
+      p.checkIn(b);
+    }
+    p.goTo(D, 20, 1);
+    p.setCount(b, D, 2);
+    p.goTo(addDays(D, 1), 12);
+    expect(read(p, b)).toEqual([]);
+  });
+
   it('ten mornings completed at dawn with evening extras read as Dawn, not Twilight', () => {
     const g = new Game({ start: D, hour: 6 });
     const a = g.addHabit({ name: 'Read', target: 2 });
@@ -404,11 +436,12 @@ describe('a day’s time is the check-in that made it count, not the last tap (P
   it('an older build’s day reads its completing stamp when every tap was live, and is left out when that is unknown', () => {
     const g = new Game({ start: D, hour: 7 });
     const a = g.addHabit({ name: 'Water', target: 3 });
-    const b = g.addHabit({ name: 'Pages', target: 3 });
+    const b = g.addHabit({ name: 'Pages', target: 2 });
     g.goTo(addDays(D, 2), 12);
     const t = (h: number, m = 0) => at(D, h, m);
     // As an older build wrote them: stamps only. Water: five live taps (08:00 … 08:20).
-    // Pages: 10 counted, but only two taps were live (a number-pad entry): which one completed it is unknown.
+    // Pages (target 2): 10 counted, but only two taps were live (a number-pad entry): the second stamp
+    // reaches the target, yet which check-in completed the day is unknown, so it is left out.
     const logs: AppState['logs'] = {
       ...g.state.logs,
       [a]: { [D]: { kind: 'log', count: 5, at: [t(8, 0), t(8, 5), t(8, 10), t(8, 15), t(8, 20)] } },

@@ -59,10 +59,17 @@ function derivedCompletion(log: Log, rule: Rule, dayIsOver: boolean): number | n
   return null;
 }
 
-/** The live check-in that made the day count: `done`, else settled from the stamps; null when not counted or unknown. */
+/**
+ * The live check-in that made the day count: `done`, else settled from the stamps; null when not
+ * counted or unknown. `done` is written by a live check-in, judged as today's check-ins are (the
+ * target, or the tiny version), so it holds only while the day still counts that way. An undo or a
+ * decrease that takes the day below it leaves `done` on the log, naming a check-in that no longer
+ * made the day count: it is then not read, and a day that closes on its tiny count is settled from
+ * the stamps, as if the completion had never been.
+ */
 export function completedAt(log: DayLog | undefined, rule: Rule, dayIsOver: boolean): number | null {
   if (log?.kind !== 'log' || !showedUp(logStatus(log, rule, dayIsOver))) return null;
-  if (isTime(log.done)) return log.done;
+  if (isTime(log.done) && showedUp(logStatus(log, rule, false))) return log.done;
   return derivedCompletion(log, rule, dayIsOver);
 }
 

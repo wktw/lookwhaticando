@@ -20,7 +20,8 @@
  * Check-in provenance (WP-B4, provenance.ts): the day's first live tap is kept as `first` and the
  * live tap that made the day count as `done`; the 24-stamp cap never drops them. An undo leaves
  * them while a check-in or a live stamp remains, and a live check-in that makes the day count again
- * (after an undo or a decrease took it below) moves `done` to itself. Backfill, history edits and
+ * (after an undo or a decrease took it below) moves `done` to itself; until then a reader ignores
+ * the `done` that was taken back (provenance.ts `completedAt`). Backfill, history edits and
  * number-pad entries on past days never write them. Compaction keeps what they prove (see
  * `pruneOldStamps`).
  *
