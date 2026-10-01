@@ -28,11 +28,12 @@ import type { AppState, BouquetStem, DateKey, Letter } from '@/state/types';
 import { evaluateBadges } from './badges';
 import { aggregateTally, evalContext, habitTally, isPctReady, logsFor, monthWindow, percent, trackingOf, weekWindow, type StatWindow, type Tally } from './consistency';
 import { inLifetime, logStatus, showedUp } from './activity';
-import { addDays, appDayKey, eachDay, endOfMonth, minDateKey, monthFromIndex, monthIndex, startOfWeek, type MonthKey } from './dates';
+import { addDays, eachDay, endOfMonth, minDateKey, monthFromIndex, monthIndex, startOfWeek, type MonthKey } from './dates';
 import { memoByHabit } from './economy';
 import { plantStage, sunshineFromHistory } from './growth';
 import { checkinCounts } from './insights';
 import { ruleAt } from './rules';
+import { arrivalDay, movedInOn } from './eventDays';
 import { herbariumFacts, starredNote, sundayNoteFacts } from './rituals';
 import type { Tx } from './tx';
 import { grantStars, hasOnce, rewardsPaused, setOnce } from './wallet';
@@ -86,7 +87,7 @@ export function stemsFor(checkins: number): number {
 /* Letter facts (pure)                                                 */
 /* ------------------------------------------------------------------ */
 
-const profileCreatedOn = (s: AppState, tx: Tx): DateKey => appDayKey(s.profile.createdAt, s.settings.dayStartsAt, tx.env.local);
+const profileCreatedOn = (s: AppState, tx: Tx): DateKey => movedInOn(s, tx.env.local);
 
 /** Everything a weekly letter says about the week starting `weekStart`, as of `today`. */
 export function weeklyFacts(s: AppState, weekStart: DateKey, today: DateKey, local: Tx['env']['local']): Omit<Weekly, 'id' | 'kind' | 'stars'> {
@@ -102,7 +103,7 @@ export function weeklyFacts(s: AppState, weekStart: DateKey, today: DateKey, loc
   }
   const newFriends = Object.values(s.pets)
     .filter((p) => {
-      const d = appDayKey(p.obtainedAt, s.settings.dayStartsAt, local);
+      const d = arrivalDay(s, p, local);
       return d >= weekStart && d <= end;
     })
     .map((p) => p.id);

@@ -38,12 +38,12 @@ describe('the Sunday Note', () => {
     expect(note.waterings).toBe(7 + 3);
     // Read reached Leafy on Mar 11 (10 sunshine), and was watered every day.
     expect(note.highlights).toEqual([
-      { kind: 'stageUp', habitId: read, stage: 3, date: '2026-03-11', petId: cat },
+      { kind: 'stageUp', habitId: read, stage: 3, date: '2026-03-11', petId: cat, plant: 'pothos' },
       { kind: 'everyDay', habitId: read },
     ]);
     // The first week's note: the cat came home and moved into Read.
-    expect(weekly(g.state, '2026-03-02').highlights?.[1]).toEqual({ kind: 'newcomer', petId: cat, date: '2026-03-02', habitId: read });
-    expect(note.ps).toEqual({ kind: 'companion', petId: cat, habitId: read, days: 7, timeOfDay: 'evening' });
+    expect(weekly(g.state, '2026-03-02').highlights?.[1]).toEqual({ kind: 'newcomer', petId: cat, date: '2026-03-02', habitId: read, plant: 'pothos' });
+    expect(note.ps).toEqual({ kind: 'companion', petId: cat, habitId: read, days: 7, timeOfDay: 'evening', icon: 'book' });
     expect(valid(g.state)).toEqual([]);
   });
 
@@ -57,7 +57,7 @@ describe('the Sunday Note', () => {
     g.goTo('2026-03-09');
     const note = weekly(g.state, '2026-03-02');
     expect(note.highlights).toEqual([
-      { kind: 'stageUp', habitId: a, stage: 1, date: '2026-03-05' },
+      { kind: 'stageUp', habitId: a, stage: 1, date: '2026-03-05', plant: 'pothos' },
       { kind: 'newcomer', petId: cat, date: '2026-03-05' },
     ]);
     expect(note.ps).toMatchObject({ kind: 'found', petId: cat, date: '2026-03-05' });
@@ -125,7 +125,7 @@ describe('the Herbarium page', () => {
       { habitId: b, plant: 'pilea', waterings: 1, rests: 1, size: 1 },
       { habitId: c, plant: 'pothos', waterings: 0, rests: 1, size: 0 },
     ]);
-    expect(page.margin).toEqual({ kind: 'planted', habitId: a, date: '2026-03-01' });
+    expect(page.margin).toEqual({ kind: 'planted', habitId: a, plant: 'pothos', date: '2026-03-01' });
     expect(page.firstPage).toBe(true);
     expect(pressingSize(0)).toBe(0);
     expect(pressingSize(1)).toBe(1);
@@ -144,7 +144,7 @@ describe('the Herbarium page', () => {
     expect(bloomed.slice(0, 7)).toBe('2026-02');
     const cat = 'pet-cat-tortie';
     const s = { ...g.state, pets: { [cat]: { ...newPetState(cat, g.rng, at('2026-02-03'), '2026-02-03', true) } } };
-    expect(herbariumFacts(s, '2026-02', g.today, UTC).margin).toEqual({ kind: 'bloomed', habitId: a, date: bloomed });
+    expect(herbariumFacts(s, '2026-02', g.today, UTC).margin).toEqual({ kind: 'bloomed', habitId: a, date: bloomed, plant: 'pothos' });
     expect(herbariumFacts({ ...s, stageDates: {} }, '2026-02', g.today, UTC).margin).toEqual({ kind: 'cameHome', petId: cat, date: '2026-02-03' });
     expect(herbariumFacts({ ...s, stageDates: {} }, '2026-02', g.today, UTC).firstPage).toBe(false);
   });

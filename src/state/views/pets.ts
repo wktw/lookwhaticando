@@ -13,7 +13,9 @@ import type { RitualKind } from '../api';
 import { chooseBestFriend, claimSpot, petPlace, suggestPlaceFor } from '@/domain/places';
 import { BEST_FRIEND_LEVEL, SPOT_LEVEL } from '@/domain/friendship';
 import { capsuleCollectiblesOwned, ownedTreats, ownedWearables } from '@/domain/collection';
-import { appDayKey, monthDayLabel } from '@/domain/dates';
+import { monthDayLabel } from '@/domain/dates';
+import { arrivalDay } from '@/domain/eventDays';
+import { bloomedTogetherOn } from '@/domain/stints';
 import { PET_XP, closestPetId, dailyFor, featuredPetId } from '@/domain/friendship';
 import type { CuttingVM } from '@/domain/growth';
 import { cuttingOf } from '@/domain/economy';
@@ -198,7 +200,7 @@ export function petVM(s: AppState, env: ViewEnv, id: string): PetVM | null {
   const favDef = getCollectible(pet.favoriteTreat);
   const outfit = Object.fromEntries(WEARABLE_SLOTS.map((slot) => [slot, pet.outfit[slot] ?? null])) as Record<WearableSlot, string | null>;
   const wardrobe = Object.fromEntries(WEARABLE_SLOTS.map((slot) => [slot, ownedWearables(s.collection, slot).map((w) => ({ id: w.id, name: w.name }))])) as PetVM['wardrobe'];
-  const arrivedOn = appDayKey(pet.obtainedAt, s.settings.dayStartsAt, env.local);
+  const arrivedOn = arrivalDay(s, pet, env.local);
   return {
     ...base,
     personalityBlurb: pers?.blurb ?? '',
@@ -234,7 +236,11 @@ export function petVM(s: AppState, env: ViewEnv, id: string): PetVM | null {
       { kind: 'came-home' as const, date: arrivedOn },
       ...Object.values(s.company?.pairs ?? {})
         .filter((p) => p.petId === id && p.stories?.lookAtUs)
-        .map((p) => ({ kind: 'bloomed' as const, date: p.stories!.lookAtUs!.on, habitId: p.habitId })),
+        .flatMap((p) => {
+          // The day it bloomed with this pet there (WP-B6, P-history-09), as the Memory has it.
+          const date = bloomedTogetherOn(s, p);
+          return date ? [{ kind: 'bloomed' as const, date, habitId: p.habitId }] : [];
+        }),
     ].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0)),
   };
 }

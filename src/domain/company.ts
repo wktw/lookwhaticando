@@ -5,7 +5,8 @@
  *   (`Habit.companionId`). Pairing a pet that keeps another habit company moves it; pairing a
  *   habit that has a companion replaces it. Archiving or deleting a habit frees its pet. Every
  *   pet × habit pairing there has been keeps its record (`company.pairs`), so a pet that comes
- *   back to a plant carries on where it left off.
+ *   back to a plant carries on where it left off. The record keeps the spans the pet kept the
+ *   plant company (`stints`, WP-B6): a day belongs to the companion at its close (stints.ts).
  * - **The offer** ("Find {name} a plant", after naming at a reveal, in the Habit Editor, on the Pet
  *   Card) is shown at most once per app day, and never again after 3 declines. Pairing by hand
  *   is always possible.
@@ -32,7 +33,7 @@ import { getCollectible } from '@/catalog/collectibles';
 import type { GameEvent } from '@/state/api';
 import type { AppState, Company, CompanyPair, DateKey, Habit, HabitRule, Keepsake, LedgerEntry, StoryId } from '@/state/types';
 import { inLifetime, logStatus, showedUp } from './activity';
-import { dayNumber } from './dates';
+import { addDays, dayNumber } from './dates';
 import { dailyFor, addXp } from './friendship';
 import { BLOOMING, POTTED } from './growth';
 import { evaluatePeriod, flexPeriodAt } from './periods';
@@ -40,6 +41,7 @@ import { addToTotal, reaches } from './precision';
 import { ruleAt } from './rules';
 import { KEEPSAKE_STAGES, SPECIES_ROUTINES, keepsakeKind, routineOf, routinePhase, type Routine, type RoutinePhase } from './routines';
 import { expectedPerWeek } from './schedule';
+import { stintsClosed, stintsOpened } from './stints';
 import type { Tx } from './tx';
 import { hasOnce, rewardsPaused, setOnce } from './wallet';
 
@@ -108,23 +110,40 @@ function ensurePair(tx: Tx, petId: string, habitId: string): CompanyPair {
 }
 
 /**
+ * The habit's companion is freed, and its span closes (WP-B6): moved or freed, its last day is
+ * yesterday (today belongs to whoever keeps the habit company at its close); with the habit
+ * retired, today.
+ */
+function endCompany(tx: Tx, habitId: string, retired = false): void {
+  const petId = tx.s.habits.find((h) => h.id === habitId)?.companionId;
+  if (petId === undefined) return;
+  const pair = pairOf(tx.s, petId, habitId);
+  const stints = pair ? stintsClosed(pair, retired ? tx.env.today : addDays(tx.env.today, -1)) : null;
+  if (stints) ensurePair(tx, petId, habitId).stints = stints;
+  delete tx.habit(habitId).companionId;
+}
+
+/**
  * Pairs a pet with a habit, or frees the habit (`petId` null). The pet leaves any other habit it
  * kept company; the habit's previous companion is freed. False (nothing changes) for an unknown or
- * archived habit or an unknown pet. Pairing also counts as the day's offer.
+ * archived habit or an unknown pet. Pairing also counts as the day's offer. Each change closes or
+ * opens the pairing records' spans (WP-B6).
  */
 export function setCompanion(tx: Tx, habitId: string, petId: string | null): boolean {
   const habit = tx.s.habits.find((h) => h.id === habitId);
   if (!habit) return false;
   if (petId === null) {
     if (habit.companionId === undefined) return false;
-    delete tx.habit(habitId).companionId;
+    endCompany(tx, habitId);
     return true;
   }
   if (!liveHabit(habit) || !tx.s.pets[petId]) return false;
   if (habit.companionId === petId) return true;
-  for (const other of tx.s.habits) if (other.id !== habitId && other.companionId === petId) delete tx.habit(other.id).companionId;
+  for (const other of tx.s.habits) if (other.id !== habitId && other.companionId === petId) endCompany(tx, other.id);
+  endCompany(tx, habitId);
   tx.habit(habitId).companionId = petId;
-  ensurePair(tx, petId, habitId);
+  const pair = ensurePair(tx, petId, habitId);
+  pair.stints = stintsOpened(pair, tx.env.today);
   writableCompany(tx).offer = { ...companyOf(tx.s).offer, shownOn: tx.env.today };
   tx.emit({ type: 'companion', petId, habitId });
   return true;
@@ -418,10 +437,9 @@ export function routineOn(s: Pick<AppState, 'pets' | 'logs'>, habit: Habit, date
   return phase ? { petId, routine: routineOf(habit.icon), phase } : null;
 }
 
-/** Frees a habit's companion (archive, delete, retire). */
+/** Frees a retiring habit's companion (archive, delete, retire); its span runs through today. */
 export function freeCompanion(tx: Tx, habitId: string): void {
-  const h = tx.s.habits.find((x) => x.id === habitId);
-  if (h?.companionId !== undefined) delete tx.habit(habitId).companionId;
+  endCompany(tx, habitId, true);
 }
 
 /** Drops every trace of a deleted habit's pairings (the keepsakes stay: they are hers). */

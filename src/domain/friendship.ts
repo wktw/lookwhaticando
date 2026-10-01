@@ -25,11 +25,13 @@ import type { PetInteractionResult } from '@/state/api';
 import type { AppState, DateKey, FoundThing, PetMemory, PetState } from '@/state/types';
 import type { WearableSlot } from '@/catalog/types';
 import { evaluateBadges } from './badges';
-import { addDays, appDayKey } from './dates';
+import { addDays } from './dates';
+import { arrivalDay } from './eventDays';
 import { FOUND_THING_LEVEL, MAX_FRIEND_LEVEL, levelForXp, levelsCrossed, memoriesFor } from './levels';
 import { chooseBestFriend, claimSpot } from './places';
 import { takeServing } from './pantry';
 import { pick, randomInt, type Rng } from './rng';
+import { bloomedTogetherOn } from './stints';
 import type { Tx } from './tx';
 import { grantStardust, hasOnce, setOnce } from './wallet';
 
@@ -66,6 +68,7 @@ export function newPetState(petId: string, rng: Rng, now: number, today: DateKey
     inMeadow: out,
     favorite: false,
     obtainedAt: now,
+    arrivedOn: today,
     daily: { date: today, pets: 0, treats: 0, favorites: 0 },
   };
 }
@@ -129,9 +132,9 @@ export function addXp(tx: Tx, petId: string, amount: number): number[] {
 
 /**
  * The next dated Memory (§8.2), from real events not yet remembered, oldest kind first: the day
- * you became best friends, the day it came home, each plant it keeps company blooming ("The day
- * Read bloomed"), moving into a plant, the day its favourite treat was found; then a quiet day on
- * the sill (today).
+ * you became best friends, the day it came home, each plant it kept company on the day it bloomed
+ * ("The day Read bloomed", once that pair's "Look at us" is told), moving into a plant, the day its
+ * favourite treat was found; then a quiet day on the sill (today).
  */
 function recordMemory(tx: Tx, petId: string): void {
   const pet = tx.s.pets[petId]!;
@@ -140,13 +143,18 @@ function recordMemory(tx: Tx, petId: string): void {
   const pairs = Object.values(tx.s.company?.pairs ?? {})
     .filter((p) => p.petId === petId)
     .sort((a, b) => (a.since < b.since ? -1 : a.since > b.since ? 1 : 0));
-  const cameHome = appDayKey(pet.obtainedAt, tx.s.settings.dayStartsAt, tx.env.local);
+  // WP-B6 (P-history-09): each Memory carries the day of its event, kept when it happened; one
+  // whose day is unknown (an older save's favourite) or that the pet was not there for (a plant
+  // that bloomed before it moved in) is not made up.
   const candidates: PetMemory[] = [
     ...(pet.bestFriendsOn ? [{ kind: 'best-friends' as const, date: pet.bestFriendsOn }] : []),
-    { kind: 'came-home', date: cameHome },
-    ...pairs.filter((p) => p.stories?.lookAtUs).map((p) => ({ kind: 'bloomed' as const, date: p.stories!.lookAtUs!.on, habitId: p.habitId })),
+    { kind: 'came-home', date: arrivalDay(tx.s, pet, tx.env.local) },
+    ...pairs.flatMap((p) => {
+      const date = p.stories?.lookAtUs ? bloomedTogetherOn(tx.s, p) : null;
+      return date ? [{ kind: 'bloomed' as const, date, habitId: p.habitId }] : [];
+    }),
     ...pairs.map((p) => ({ kind: 'moved-in' as const, date: p.since, habitId: p.habitId })),
-    ...(pet.favoriteKnown ? [{ kind: 'favourite' as const, date: tx.env.today, treatId: pet.favoriteTreat }] : []),
+    ...(pet.favoriteKnown && pet.favoriteKnownOn ? [{ kind: 'favourite' as const, date: pet.favoriteKnownOn, treatId: pet.favoriteTreat }] : []),
     { kind: 'day', date: tx.env.today },
   ];
   const next = candidates.find((m) => !known(m)) ?? { kind: 'day' as const, date: tx.env.today };
@@ -230,6 +238,7 @@ export function feedPet(tx: Tx, petId: string, treatId: string): Omit<PetInterac
   const discovered = isFavorite && !pet.favoriteKnown;
   if (discovered) {
     writable.favoriteKnown = true;
+    writable.favoriteKnownOn = tx.env.today;
     tx.emit({ type: 'favoriteFound', petId, treatId });
   }
   const result = interaction(tx, petId, xp, isFavorite ? 'love' : 'happy');

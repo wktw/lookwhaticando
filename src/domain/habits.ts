@@ -34,7 +34,8 @@ import type { AppState, DateKey, Effort, Habit, HabitRule, TimeOfDay } from '@/s
 import { graduationOffer, trackingOf, logsFor, evalContext } from './consistency';
 import { isUnstarted, logStatus, showedUp } from './activity';
 import { owns, ownedTreats } from './collection';
-import { addDays, addMonths, clampDayStartsAt, isDateKey, maxDateKey } from './dates';
+import { addDays, addMonths, appDayKey, clampDayStartsAt, isDateKey, maxDateKey } from './dates';
+import { freezeEventDays } from './eventDays';
 import { addPause, archivedStretchPause, isPausedOn, resumePauses } from './pauses';
 import { addToTotal } from './precision';
 import { forgetHabitPairs, freeCompanion } from './company';
@@ -562,7 +563,10 @@ export function completeOnboarding(tx: Tx, opts: OnboardingInput): string[] {
   profile.name = (opts.name ?? '').trim().slice(0, 40);
   profile.onboarded = true;
   if (opts.birthday && /^\d{2}-\d{2}$/.test(opts.birthday)) profile.birthday = opts.birthday;
+  freezeEventDays(tx); // anything older keeps the day it had (WP-B6)
   if (opts.dayStartsAt !== undefined) tx.section('settings').dayStartsAt = clampDayStartsAt(opts.dayStartsAt);
+  // The moving-in day, fixed now, with the day start she chose (WP-B6, domain-d4).
+  tx.section('profile').createdOn = appDayKey(tx.s.profile.createdAt, tx.s.settings.dayStartsAt, tx.env.local);
   // "Where's your summer?" starts from the device's time zone, and stays put when she travels.
   if (tx.s.settings.hemisphere === undefined && tx.env.timeZone) tx.section('settings').hemisphere = inferHemisphere(tx.env.timeZone);
   for (const t of ownedTreats(tx.s.collection)) ensureRecipe(tx, t.id);

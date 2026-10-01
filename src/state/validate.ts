@@ -173,8 +173,8 @@ function checkLetter(r: Report, l: unknown, path: string): void {
     r.check(isDateKey(o.weekStart), `${path}.weekStart`, 'not a date');
     r.check(Array.isArray(o.newFriends) && Array.isArray(o.plantsGrown), path, 'bad lists');
     r.check(o.waterings === undefined || nonNegInt(o.waterings), `${path}.waterings`, 'not a count');
-    r.check(o.highlights === undefined || (Array.isArray(o.highlights) && o.highlights.every((h) => isObj(h) && isStr(h.kind))), `${path}.highlights`, 'bad highlights');
-    r.check(o.ps === undefined || (isObj(o.ps) && isStr(o.ps.kind) && isStr(o.ps.petId)), `${path}.ps`, 'bad P.S.');
+    r.check(o.highlights === undefined || (Array.isArray(o.highlights) && o.highlights.every((h) => isObj(h) && isStr(h.kind) && optStr(h.plant))), `${path}.highlights`, 'bad highlights');
+    r.check(o.ps === undefined || (isObj(o.ps) && isStr(o.ps.kind) && isStr(o.ps.petId) && optStr(o.ps.icon)), `${path}.ps`, 'bad P.S.');
   } else {
     r.check(o.kind === 'monthly' && isStr(o.month) && /^\d{4}-\d{2}$/.test(o.month), path, 'bad letter');
     r.check(
@@ -183,9 +183,24 @@ function checkLetter(r: Report, l: unknown, path: string): void {
       `${path}.pressings`,
       'bad pressings',
     );
-    r.check(o.margin === undefined || (isObj(o.margin) && isStr(o.margin.kind) && isDateKey(o.margin.date)), `${path}.margin`, 'bad margin');
+    r.check(o.margin === undefined || (isObj(o.margin) && isStr(o.margin.kind) && isDateKey(o.margin.date) && optStr(o.margin.plant)), `${path}.margin`, 'bad margin');
   }
 }
+
+/** WP-B6: a pairing's spans, oldest first, apart, each `to` on or after its `from`; only the last may be open. */
+function validStints(v: unknown): boolean {
+  if (!Array.isArray(v)) return false;
+  let prev: string | null = null;
+  return v.every((st, i) => {
+    if (!isObj(st) || !isDateKey(st.from) || (prev !== null && st.from <= prev)) return false;
+    if (st.to === undefined) return i === v.length - 1;
+    if (!isDateKey(st.to) || st.to < st.from) return false;
+    prev = st.to;
+    return true;
+  });
+}
+
+const optStr = (v: unknown): boolean => v === undefined || isStr(v);
 
 function checkCompany(r: Report, c: unknown, petIds: Set<string>): void {
   if (!r.check(isObj(c), 'company', 'not an object')) return;
@@ -200,7 +215,8 @@ function checkCompany(r: Report, c: unknown, petIds: Set<string>): void {
       nonNeg(v.sunshine) &&
       nonNegInt(v.waterings) &&
       (v.whyAsked === undefined || v.whyAsked === true) &&
-      (v.knownForSince === undefined || isDateKey(v.knownForSince));
+      (v.knownForSince === undefined || isDateKey(v.knownForSince)) &&
+      (v.stints === undefined || validStints(v.stints));
     if (!r.check(ok, path, 'bad pairing')) return;
     const pair = v as Obj;
     r.check(petIds.has(pair.petId as string), `${path}.petId`, 'unknown pet');
@@ -261,6 +277,9 @@ function checkPet(r: Report, p: unknown, id: string, path: string): void {
   r.check(isBool(o.favoriteKnown) && isBool(o.inMeadow) && isBool(o.favorite), path, 'bad flags');
   r.check(nonNeg(o.xp), `${path}.xp`, 'not a number');
   r.check(nonNeg(o.obtainedAt), `${path}.obtainedAt`, 'not a timestamp');
+  // WP-B6: the days it came home and its favourite was found, kept at the event.
+  r.check(o.arrivedOn === undefined || isDateKey(o.arrivedOn), `${path}.arrivedOn`, 'not a date');
+  r.check(o.favoriteKnownOn === undefined || isDateKey(o.favoriteKnownOn), `${path}.favoriteKnownOn`, 'not a date');
   r.check(isObj(o.outfit) && Object.values(o.outfit).every((v) => v === undefined || isStr(v)), `${path}.outfit`, 'bad outfit');
   const d = o.daily;
   r.check(
@@ -305,6 +324,7 @@ export function validateState(x: unknown): ValidationResult {
     r.check(isStr(p.name), 'profile.name', 'not a string');
     r.check(isBool(p.onboarded), 'profile.onboarded', 'not a boolean');
     r.check(nonNeg(p.createdAt), 'profile.createdAt', 'not a timestamp');
+    r.check(p.createdOn === undefined || isDateKey(p.createdOn), 'profile.createdOn', 'not a date');
     r.check(p.birthday === undefined || (isStr(p.birthday) && /^\d{2}-\d{2}$/.test(p.birthday)), 'profile.birthday', 'not MM-DD');
   }
 

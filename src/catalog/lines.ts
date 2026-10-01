@@ -331,12 +331,14 @@ export const SUNDAY_NOTE = {
   quote: 'On {weekday} you wrote: ‘{quote}’.',
   /**
    * The P.S. With a companion: {routine} from SUNDAY_ROUTINES and {times} ("four evenings",
-   * "twice", "every day"). Without one, a sill line, and only if it happened: the found thing and
-   * the nap pile are recorded; the sunbeam line needs the pet's afternoons on the sill, and never
-   * two weeks running.
+   * "twice", "every day"). `companionPlain` words a note written before the routine was kept with
+   * it ({plant} as above): it says only what is known, and never today's routine. Without a
+   * companion, a sill line, and only if it happened: the found thing and the nap pile are
+   * recorded; the sunbeam line needs the pet's afternoons on the sill, and never two weeks running.
    */
   ps: {
     companion: 'P.S. {name} {routine} {times}.',
+    companionPlain: 'P.S. {name} kept {plant} company {times}.',
     sill: [
       'P.S. On {weekday}, {name} left a {found} on the sill.',
       'P.S. {name} and {friend} napped in a pile on {weekday}.',
