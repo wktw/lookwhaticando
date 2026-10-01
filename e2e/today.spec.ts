@@ -280,6 +280,39 @@ test('a sheet slow to load the first time says so after a moment, then opens (WP
   await expect(page.getByRole('alertdialog')).toHaveCount(0);
 });
 
+test('the sheet that didn’t open fits the screen and gives focus back (WP-C4, the shell’s own small sheet)', async ({ page }, info) => {
+  await page.route('**/*HabitEditorHost*', (r) => r.abort('internetdisconnected'));
+  await openRoute(page, 'today');
+  const add = page.getByRole('button', { name: 'Add a habit' }).first();
+  await add.click();
+  const error = page.getByRole('alertdialog', { name: 'This didn’t open' });
+  await expect(error).toBeVisible();
+  await expect(error.getByRole('heading', { level: 2, name: 'This didn’t open' })).toBeVisible();
+  await expect(page.locator('[data-state="open"]', { has: error })).toHaveCount(1);
+  await page.waitForTimeout(500); // past its slide in
+
+  const box = (await error.boundingBox())!;
+  const vp = page.viewportSize()!;
+  if (vp.width < 900) {
+    // A phone: a paper sheet at the foot of the screen, edge to edge.
+    expect(Math.abs(box.y + box.height - vp.height)).toBeLessThanOrEqual(2);
+    expect(box.x).toBeLessThanOrEqual(1);
+    expect(box.width).toBeGreaterThanOrEqual(vp.width - 2);
+  } else {
+    // A wide screen: a small dialog in the middle.
+    expect(Math.abs(box.x + box.width / 2 - vp.width / 2)).toBeLessThanOrEqual(2);
+    expect(Math.abs(box.y + box.height / 2 - vp.height / 2)).toBeLessThanOrEqual(2);
+    expect(box.width).toBeLessThanOrEqual(420);
+  }
+  for (const name of ['Try again', 'Close']) expect((await error.getByRole('button', { name }).boundingBox())!.height).toBeGreaterThanOrEqual(44);
+  expect((await horizontalOverflow(page)).scrollWidth).toBeLessThanOrEqual(vp.width);
+  await expectNoAxeViolations(page, info);
+
+  await error.getByRole('button', { name: 'Close' }).click();
+  await expect(page.getByRole('alertdialog')).toHaveCount(0);
+  await expect(add).toBeFocused();
+});
+
 test.describe('Today · quiet rewards', () => {
   test('hides the wallet and the coins', async ({ page }) => {
     test.skip(PREVIEW, 'seeds through the dev server');
