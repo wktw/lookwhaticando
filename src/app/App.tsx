@@ -2,7 +2,7 @@ import type { ComponentType } from 'preact';
 import { useEffect, useState } from 'preact/hooks';
 import { cx } from '@/ui/cx';
 import { SHELL_LINES } from '@/features/you/shellCopy';
-import { clockBehind, crossWindowNotice, damagedSave, demoMode, dismissCrossWindowNotice, durability, exitDemo, loadIssue, readOnly, retrySaving, useHere } from '@/state/store';
+import { clockBehind, crossWindowNotice, damagedSave, damagedUnkept, demoMode, dismissCrossWindowNotice, durability, exitDemo, loadIssue, readOnly, retrySaving, useHere } from '@/state/store';
 import { toast } from '@/ui/toast';
 import { openHabitEditor } from '@/features/habits/open';
 import { onboardingActive } from '@/features/onboarding/progress';
@@ -88,7 +88,8 @@ type Note = { key: string; text: string; actions?: Action[]; close?: () => void 
 /**
  * The calm notes above every screen (VOICE §18): another window owns the save ("Use here"), a
  * newer catkin's save opened read-only, a save that didn't go through (or can't be kept at all),
- * a save that couldn't be read (the one before it opened, or it was kept aside), the save started
+ * a save that couldn't be read (the one before it opened, or it was kept aside), a damaged save
+ * whose room a full disk took (only in this window now, until it is saved), the save started
  * over in another window (put away with Close), the device clock behind, and, while peeking, the
  * demo pill with "Leave the demo".
  *
@@ -114,15 +115,17 @@ export function ShellBanners() {
   }
   // A save that couldn't be read: the one before it opened, or it was kept aside (audit data-d10).
   const issue = loadIssue.value;
-  if (issue && issue !== loadNoteAway.value && (issue.kind === 'recovered-from-backup' || issue.kind === 'corrupt-save')) {
+  const saveDamaged: Action = { label: SHELL_LINES.saveDamaged, run: withRecovery((m) => m.saveDamagedFile()) };
+  const importBackup: Action = { label: SHELL_LINES.importBackup, run: () => void (recoverySheet.value = 'import') };
+  // A full disk took the room the damaged file was kept in: it is only here now, so this note
+  // takes the damaged note's place (it no longer is "kept"), with no Close, until it is saved.
+  const unkept = damagedUnkept.value !== null;
+  if (issue && issue !== loadNoteAway.value && (issue.kind === 'recovered-from-backup' || (issue.kind === 'corrupt-save' && !unkept))) {
     const close = () => void (loadNoteAway.value = issue);
     if (issue.kind === 'recovered-from-backup') notes.push({ key: 'recovered', text: SHELL_LINES.recovered, actions: [saveBackup, dailyCopies], close });
-    else {
-      const actions: Action[] = [dailyCopies, { label: SHELL_LINES.importBackup, run: () => void (recoverySheet.value = 'import') }];
-      if (damagedSave() !== null) actions.unshift({ label: SHELL_LINES.saveDamaged, run: withRecovery((m) => m.saveDamagedFile()) });
-      notes.push({ key: 'corrupt', text: SHELL_LINES.corrupt, actions, close });
-    }
+    else notes.push({ key: 'corrupt', text: SHELL_LINES.corrupt, actions: damagedSave() !== null ? [saveDamaged, dailyCopies, importBackup] : [dailyCopies, importBackup], close });
   }
+  if (unkept) notes.push({ key: 'damaged', text: SHELL_LINES.damagedUnkept, actions: issue?.kind === 'corrupt-save' ? [saveDamaged, dailyCopies, importBackup] : [saveDamaged] });
   // Another window started over (or erased the save), and this one followed it (audit FS3).
   if (crossWindowNotice.value === 'started-over') notes.push({ key: 'started-over', text: SHELL_LINES.startedOver, close: dismissCrossWindowNotice });
   if (clockBehind.value && !clockAway.value) notes.push({ key: 'clock', text: SHELL_LINES.clock, close: putClockAway });

@@ -19,7 +19,7 @@
 import { signal } from '@preact/signals';
 import { toast } from '@/ui/toast';
 import { anyLayerOpen } from '@/ui/sheetStack';
-import { flushSaves, hasUnsavedWork } from '@/state/store';
+import { damagedUnkept, flushSaves, hasUnsavedWork } from '@/state/store';
 import { SHELL_LINES } from '@/features/you/shellCopy';
 import { UPDATE_COPY } from './copy';
 
@@ -64,10 +64,12 @@ function offerReload(): void {
 
 /**
  * Whether a reload now would interrupt her (a sheet, a reveal, onboarding) or lose a change that
- * isn't written yet (a save that is failing, or no storage at all; audit data-d2).
+ * isn't written yet (a save that is failing, or no storage at all; audit data-d2), or a damaged
+ * save's text that only this window still holds (`damagedUnkept`, the WP-A7 review). The update
+ * that applies itself while catkin is hidden waits for all of these.
  */
-function busy(): boolean {
-  return holdUpdates.value || anyLayerOpen() || hasUnsavedWork();
+export function busy(): boolean {
+  return holdUpdates.value || anyLayerOpen() || hasUnsavedWork() || damagedUnkept.value !== null;
 }
 
 /** How the page reloads (tests replace `run`: jsdom can't reload). */

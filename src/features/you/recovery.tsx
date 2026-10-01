@@ -5,7 +5,7 @@
  * tabs). The shell loads this module only when a note needs it, so it stays off the first paint.
  */
 import { DATA, DATA_COPY, ERRORS, fillLine } from '@/catalog/lines';
-import { backupJson, damagedSave, markBackup, today } from '@/state/store';
+import { backupJson, damagedSave, markBackup, markDamagedSaved, saveEpoch, today } from '@/state/store';
 import { navigate } from '@/app/router';
 import { onboardingActive, saveProgress } from '@/features/onboarding/progress';
 import { toast } from '@/ui/toast';
@@ -21,13 +21,16 @@ export const damagedFileName = (day: string) => fillLine(DATA_COPY.damagedFile, 
 
 /**
  * "Save a backup": the share sheet on a phone, else a download, of the user's own save (a newer
- * catkin's save is its own bytes, WP-A4). Marked as backed up only once it is really saved.
+ * catkin's save is its own bytes, WP-A4). Marked as backed up only once it is really saved, and
+ * only if the save it was made from is still the one shown: a share sheet can stay open while
+ * another save comes in, and that one was never backed up (INV-7, the WP-A7 review).
  */
 export async function saveBackupNow(): Promise<void> {
   const json = backupJson();
+  const epoch = saveEpoch.peek();
   const outcome = await saveFile(backupFileName(today.value), json);
   if (outcome === 'cancelled') return;
-  markBackup();
+  if (saveEpoch.peek() === epoch) markBackup();
   toast({ key: 'backup', message: outcome === 'downloaded-instead' ? ERRORS.share : DATA.saved, tone: 'sage' });
 }
 
@@ -37,6 +40,7 @@ export async function saveDamagedFile(): Promise<void> {
   if (raw === null) return;
   const outcome = await saveFile(damagedFileName(today.value), raw, 'text/plain');
   if (outcome === 'cancelled') return;
+  markDamagedSaved(raw);
   toast({ key: 'damaged-file', message: outcome === 'downloaded-instead' ? ERRORS.share : DATA_COPY.damagedSaved, tone: 'sage' });
 }
 

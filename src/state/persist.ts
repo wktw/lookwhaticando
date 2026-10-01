@@ -11,7 +11,8 @@
  * - Every storage access is in try/catch; nothing here throws. A QuotaExceeded write retries after
  *   dropping the `:corrupt` copy, then after dropping `:backup` and compacting the state's stale
  *   ledger; the backup is put back if even that fails (so a failed save never costs the backup),
- *   and 'storage-full' is reported. A failed write keeps its state pending and is retried, so the
+ *   and 'storage-full' is reported. A write that went through only by dropping `:corrupt` hands
+ *   its text to `onDamagedDropped`, so the store keeps it in memory and says so. A failed write keeps its state pending and is retried, so the
  *   last change is never dropped (audit data-d2); a held or retired queue never reports 'saved'.
  * - A queue can be *held* (a window still waiting for the single-writer lock): writes stay pending
  *   until it is released, and a window that is refused the lock discards them, so it never writes
@@ -370,6 +371,12 @@ export interface SaveQueueOptions {
   gen?: string;
   /** The storage is memory only (no persistent storage): writes report 'volatile', never 'saved'. */
   volatile?: boolean;
+  /**
+   * A write that succeeded only by taking the room of the text kept aside under `:corrupt` (a full
+   * disk) hands that text here: it is no longer on disk, so the caller keeps it and says so (the
+   * WP-A7 review). Called after the write, only when it succeeded.
+   */
+  onDamagedDropped?: (raw: string) => void;
 }
 
 /**
@@ -573,6 +580,8 @@ export class SaveQueue {
     if (!res.ok) return res.reason === 'quota' ? 'storage-full' : 'unavailable';
     this.rev = rev;
     this.lastChars = res.chars;
+    // The write went through without the kept-aside copy: its text is handed on, never just gone.
+    if (damaged !== null) this.o.onDamagedDropped?.(damaged);
     return this.o.volatile ? 'volatile' : 'saved';
   }
 

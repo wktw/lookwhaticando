@@ -7,19 +7,28 @@
  * browser. Cases marked "failed before" failed against the code before WP-A7 (b2061e5) on what the
  * page showed or did; "new line" ones only because a line or an export did not exist yet.
  */
-import { afterEach, beforeAll, describe, expect, it } from 'vitest';
-import { SAVE_KEY, backupKeyOf, corruptKeyOf } from '@/state/persist';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+import { DEMO_KEY, SAVE_KEY, backupKeyOf, corruptKeyOf, encodeEnvelope } from '@/state/persist';
 import { createInitialState } from '@/state/defaults';
 import type { SnapshotStore } from '@/state/snapshots';
 import * as store from '@/state/store';
 import * as pwa from '@/app/pwa';
-import { ShellBanners } from '@/app/App';
+import { App, ShellBanners } from '@/app/App';
+import * as files from '@/features/you/files';
+import { saveBackupNow } from '@/features/you/recovery';
+import { onboardingActive, onboardingProgress, saveProgress } from '@/features/onboarding/progress';
 import { SHELL_LINES } from '@/features/you/shellCopy';
 import { DATA, DATA_COPY, EMPTY, ERRORS, INSTALL, fillLine } from '@/catalog/lines';
 import { DataSection } from '@/features/you/DataSection';
 import { toasts } from '@/ui/toast';
 import { button, click, installDom, mount, pause, until } from '@/features/capsules/testing';
 import { deferredLocks, failWrites, fakeBrowser, type FakeBrowser } from './fixtures';
+
+// saveFile as it is, but a test can hold one open (a share sheet that stays up).
+vi.mock('@/features/you/files', async (importOriginal) => {
+  const m = await importOriginal<typeof import('@/features/you/files')>();
+  return { ...m, saveFile: vi.fn(m.saveFile) };
+});
 
 /** What the page downloaded: the file names and texts of the blob links it clicked. */
 const downloads: { name: string; text: Promise<string> }[] = [];
@@ -166,6 +175,9 @@ describe('the shell: a save that could not be read at all', () => {
     await click(inBanner('corrupt', DATA.import), 'Import a backup');
     await until(() => document.querySelector('textarea'), 'the paste box');
     expect(document.querySelector('[role="dialog"]')?.textContent).toContain(DATA.import);
+    // Put away again, so the shell's sheet isn't left open for the next case.
+    await click(document.querySelector('[role="dialog"] button[aria-label="Close"]'), 'Close');
+    await until(() => document.querySelector('[role="dialog"]') === null, 'the sheet to close');
   });
 
   it('Start over puts the note away with the save it was about (failed before)', async () => {
@@ -447,4 +459,226 @@ describe('You › Data: Daily copies that can’t be read', () => {
     await click(button(new RegExp(`^${DATA_COPY.snapshotsRow}`)), 'Daily copies');
     await until(() => document.querySelector('[role="dialog"]')?.textContent?.includes(EMPTY.snapshots), 'the empty line');
   });
+});
+
+/* ------------------------------------------------------------------ */
+/* The WP-A7 review                                                    */
+/* ------------------------------------------------------------------ */
+
+/** Another window's save, on a lineage of its own (an import, a restore or an Undo over there). */
+function otherWindowsSave(b: FakeBrowser, name: string, key = SAVE_KEY): void {
+  const s = createInitialState(b.clock.now);
+  const other = { ...s, profile: { ...s.profile, name, onboarded: true } };
+  b.storage.setItem(key, encodeEnvelope(other, 1, b.clock.now, 'test', 'f'.repeat(32)));
+  b.fire('storage', { key });
+}
+
+const HABIT = { name: 'Walk', icon: 'walk', color: 'sage', plant: 'pothos', pot: 'terracotta', schedule: { kind: 'daily' }, target: 1, step: 1, effort: 'steady', timeOfDay: 'morning', polarity: 'build' } as const;
+
+/** Fills the save until a write has had to take the room the damaged save was kept aside in. */
+function fillUntilCorruptGoes(b: FakeBrowser): void {
+  for (let i = 0; i < 80 && b.storage.getItem(corruptKeyOf(SAVE_KEY)) !== null; i++) {
+    store.createHabit({ ...HABIT, name: `Walk ${i}` });
+    b.advance(300);
+  }
+  expect(b.storage.getItem(corruptKeyOf(SAVE_KEY))).toBeNull();
+}
+
+describe('review: a damaged save whose room a later write needed', () => {
+  /** A damaged save of 12k characters, no `:backup`, and room for it twice and a little more. */
+  const BIG = DAMAGED.replace('{"version":1}', `{"version":1,"note":"${'x'.repeat(12_000)}"}`);
+  const roomy = () => fakeBrowser({ quotaChars: 2 * BIG.length + 6000 });
+
+  it('says the damaged file is no longer kept, and Save the damaged file still saves its bytes (failed before)', async () => {
+    const b = roomy();
+    b.storage.setItem(SAVE_KEY, BIG);
+    store.hydrate();
+    expect(b.storage.getItem(corruptKeyOf(SAVE_KEY))).toBe(BIG);
+    store.completeOnboarding({ name: 'Fresh', templateIds: [] });
+    b.advance(300);
+    fillUntilCorruptGoes(b);
+    expect(store.durability.value.kind).toBe('ok');
+    view = mount(<ShellBanners />);
+    // Not "The file is kept": it isn't, any more. The one copy is this window's.
+    expect(banner('corrupt')).toBeNull();
+    expect(noteText('damaged')).toBe(SHELL_LINES.damagedUnkept);
+    expect(actions('damaged')).toEqual([SHELL_LINES.saveDamaged, DATA_COPY.snapshotsRow, DATA.import]);
+    expect(inBanner('damaged', SHELL_LINES.close)).toBeNull();
+    await click(inBanner('damaged', SHELL_LINES.saveDamaged), 'Save the damaged file');
+    const file = await until(() => downloads[0], 'the download');
+    expect(await file.text).toBe(BIG);
+    await until(() => banner('damaged') === null, 'the note to go once the file is saved');
+    expect(store.damagedUnkept.value).toBeNull();
+  });
+
+  it('after a reload, a write that takes the room keeps the bytes here and says so (failed before)', async () => {
+    const b = roomy();
+    b.storage.setItem(SAVE_KEY, BIG);
+    store.hydrate();
+    store.completeOnboarding({ name: 'Fresh', templateIds: [] });
+    b.advance(300);
+    store.hydrate(); // a reload: the damaged text is only under :corrupt now
+    expect(store.rescue.value).toBeNull();
+    expect(store.loadIssue.value).toBeNull();
+    fillUntilCorruptGoes(b);
+    expect(store.damagedSave()).toBe(BIG);
+    view = mount(<ShellBanners />);
+    expect(noteText('damaged')).toBe(SHELL_LINES.damagedUnkept);
+    expect(actions('damaged')).toEqual([SHELL_LINES.saveDamaged]);
+    // A waiting update doesn't apply itself on hide while the text is only here.
+    expect(pwa.busy()).toBe(true);
+    await click(inBanner('damaged', SHELL_LINES.saveDamaged), 'Save the damaged file');
+    await until(() => banner('damaged') === null, 'the note to go once the file is saved');
+    expect(pwa.busy()).toBe(false);
+  });
+
+  it('new line: the note is pinned to lines.ts', () => {
+    expect(ERRORS.damagedUnkept).toEqual(expect.any(String));
+    expect(SHELL_LINES.damagedUnkept).toBe(ERRORS.damagedUnkept);
+    expect(SHELL_LINES.corrupt).toBe(ERRORS.corrupt);
+  });
+});
+
+describe('review: a backup started on one save', () => {
+  it('never marks another save as backed up (failed before)', async () => {
+    const b = await bootSam();
+    let finish!: (o: files.SaveOutcome) => void;
+    vi.mocked(files.saveFile).mockImplementationOnce(() => new Promise((r) => (finish = r)));
+    const saving = saveBackupNow();
+    otherWindowsSave(b, 'Other');
+    expect(store.state.value.profile.name).toBe('Other');
+    expect(store.state.value.lastBackupAt).toBeUndefined();
+    finish('downloaded');
+    await saving;
+    b.advance(1000);
+    expect(store.state.value.lastBackupAt).toBeUndefined();
+    expect(JSON.parse(b.storage.getItem(SAVE_KEY)!).state.lastBackupAt).toBeUndefined();
+  });
+
+  it('still marks the save it was started on (a guard)', async () => {
+    await bootSam();
+    let finish!: (o: files.SaveOutcome) => void;
+    vi.mocked(files.saveFile).mockImplementationOnce(() => new Promise((r) => (finish = r)));
+    const saving = saveBackupNow();
+    store.setName('Samira'); // the same save, changed meanwhile
+    finish('downloaded');
+    await saving;
+    expect(store.state.value.lastBackupAt).toBeGreaterThan(0);
+  });
+});
+
+describe('review: the load notes go with the save they were about', () => {
+  it('another window’s import puts the recovered note away (failed before)', async () => {
+    const b = await bootDamaged({ backup: true });
+    view = mount(<ShellBanners />);
+    expect(bannerKeys()).toEqual(['recovered']);
+    otherWindowsSave(b, 'Imported');
+    await pause(0);
+    expect(store.state.value.profile.name).toBe('Imported');
+    expect(banner('recovered')).toBeNull();
+    expect(store.loadIssue.value).toBeNull();
+  });
+
+  it('a read-only window that takes in the owner’s import drops the damaged note (failed before)', async () => {
+    const locks = deferredLocks();
+    const b = fakeBrowser({ locks });
+    b.storage.setItem(SAVE_KEY, DAMAGED);
+    store.hydrate();
+    await locks.refuse();
+    view = mount(<ShellBanners />);
+    expect(bannerKeys()).toEqual(['other-window', 'corrupt']);
+    otherWindowsSave(b, 'Sam');
+    await pause(0);
+    expect(store.state.value.profile.name).toBe('Sam');
+    expect(banner('corrupt')).toBeNull();
+  });
+
+  it('a damaged write to the demo’s save never raises a note about the real one (failed before)', async () => {
+    const b = await bootSam();
+    expect(store.enterDemo()).toBe(true);
+    b.storage.setItem(DEMO_KEY, DAMAGED);
+    b.fire('storage', { key: DEMO_KEY });
+    expect(store.loadIssue.value).toBeNull();
+    store.exitDemo();
+    expect(store.state.value.profile.name).toBe('Sam');
+    view = mount(<ShellBanners />);
+    expect(bannerKeys()).toEqual([]);
+    expect(store.loadIssue.value).toBeNull();
+  }, 30_000); // building the demo is heavy on a busy machine (as in save-epoch.test.ts)
+
+  it('a newer write of the same save keeps the note (a guard)', async () => {
+    const b = await bootDamaged({ backup: true });
+    view = mount(<ShellBanners />);
+    store.setName('Samira');
+    b.advance(300);
+    expect(bannerKeys()).toEqual(['recovered']);
+  });
+});
+
+describe('review: the corrupt note without damaged bytes', () => {
+  it('offers no Save the damaged file when there is nothing to save', async () => {
+    const b = await bootDamaged({ backup: false });
+    store.rescue.value = null;
+    b.storage.removeItem(corruptKeyOf(SAVE_KEY));
+    view = mount(<ShellBanners />);
+    expect(actions('corrupt')).toEqual([DATA_COPY.snapshotsRow, DATA.import]);
+  });
+});
+
+describe('review: Reload with changes that can’t be written yet', () => {
+  const reloads: number[] = [];
+  const hookReload = () => {
+    reloads.length = 0;
+    const hook = (pwa as unknown as { pageReload?: { run: () => void } }).pageReload;
+    if (hook) hook.run = () => void reloads.push(1);
+  };
+
+  it('warns in a browser that keeps nothing', () => {
+    hookReload();
+    fakeBrowser();
+    store.configureStore({ storage: null });
+    store.hydrate();
+    store.completeOnboarding({ name: 'Sam', templateIds: [] });
+    pwa.reloadApp();
+    expect(toast('reload-unsaved')?.message).toBe(SHELL_LINES.reloadUnsaved);
+    expect(reloads).toEqual([]);
+    toast('reload-unsaved')!.action!.onAction();
+    expect(reloads).toEqual([1]);
+  });
+
+  it('warns while the writer lock hasn’t answered, and reloads once it has and the change is written', async () => {
+    hookReload();
+    const locks = deferredLocks();
+    const b = fakeBrowser({ locks });
+    store.hydrate();
+    store.completeOnboarding({ name: 'Sam', templateIds: [] });
+    pwa.reloadApp();
+    expect(toast('reload-unsaved')?.message).toBe(SHELL_LINES.reloadUnsaved);
+    expect(reloads).toEqual([]);
+    await locks.grant();
+    toasts.value = [];
+    pwa.reloadApp();
+    expect(toast('reload-unsaved')).toBeUndefined();
+    expect(JSON.parse(b.storage.getItem(SAVE_KEY)!).state.profile.name).toBe('Sam');
+    expect(reloads).toEqual([1]);
+  });
+});
+
+describe('review: a restore from the shell during onboarding', () => {
+  it('ends onboarding’s late steps and the tabbed shell shows', async () => {
+    await bootDamaged({ backup: false });
+    // Onboarding's late steps, remembered (the flow is past its first two steps).
+    saveProgress({ step: 'today', habitIds: [] });
+    expect(onboardingActive.value).toBe(true);
+    view = mount(<App />);
+    expect(document.querySelector('nav[aria-label="Main"]')).toBeNull();
+    await click(inBanner('corrupt', DATA_COPY.snapshotsRow), 'Daily copies');
+    await click(await until(() => button(DATA.restoreSnapshot), 'a daily copy'), 'Restore this copy');
+    await click(await until(() => document.querySelector('[role="alertdialog"] [data-confirm]'), 'the confirmation'), 'confirm');
+    await until(() => toast('snapshot-restored'), 'the restored note');
+    expect(store.state.value.profile.name).toBe('Sam');
+    expect(onboardingProgress.value).toBeNull();
+    await until(() => document.querySelector('nav[aria-label="Main"]'), 'the tabbed shell');
+    expect(onboardingActive.value).toBe(false);
+  }, 30_000); // the whole shell and its first screen load here
 });
