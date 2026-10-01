@@ -331,6 +331,15 @@ describe('the legacy catkin:onboarding key is folded into the save once, by the 
     expect(b.storage.getItem(LEGACY_KEY)).toBeNull();
     expect(onboardingActive.value).toBe(false);
 
+    // A quiet save that never opened a capsule, with other habits than the key's: not this save's.
+    const quiet = { ...grown, lifetime: { ...grown.lifetime, pulls: 0 } };
+    const q = fakeBrowser();
+    q.storage.setItem(SAVE_KEY, encodeEnvelope(quiet, 9, 0, 'old', GEN));
+    q.storage.setItem(LEGACY_KEY, JSON.stringify({ step: 'today', habitIds: grown.habits.slice(0, 1).map((h) => h.id) }));
+    store.hydrate();
+    expect(q.storage.getItem(LEGACY_KEY)).toBeNull();
+    expect(onboardingActive.value).toBe(false);
+
     const c = fakeBrowser();
     c.storage.setItem(LEGACY_KEY, JSON.stringify({ step: 'today', habitIds: ['h1'] }));
     store.hydrate();

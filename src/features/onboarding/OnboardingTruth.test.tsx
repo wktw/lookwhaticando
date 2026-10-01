@@ -46,10 +46,11 @@ function show() {
 /** This window opens on `s`, written by another window that keeps the writer lock. */
 function readOnlyOn(s: AppState, rev = 1) {
   const held = { byOther: true };
-  const b = fakeBrowser({ locks: fakeLocks(held) });
+  const locks = fakeLocks(held);
+  const b = fakeBrowser({ locks });
   b.storage.setItem(SAVE_KEY, encodeEnvelope(s, rev, 0, 'other', GEN));
   store.hydrate();
-  return { b, held };
+  return { b, held, locks };
 }
 
 /** A save planted by onboarding's own Plant (step 3), made by a real store session. */
@@ -91,7 +92,7 @@ afterEach(() => {
 
 describe('creative-cr-d1: a refused planting stays on the picks', () => {
   it('read-only: the picks stay chosen, the note points to Use here; after Use here, Plant gives one set of habits', async () => {
-    const { b, held } = readOnlyOn(createInitialState(Date.UTC(2026, 8, 29)));
+    const { b, held, locks } = readOnlyOn(createInitialState(Date.UTC(2026, 8, 29)));
     expect(store.readOnly.value).toBe('other-window');
     show();
     await toPicks();
@@ -118,6 +119,13 @@ describe('creative-cr-d1: a refused planting stays on the picks', () => {
     store.flushSaves();
     expect(saved(b).state.habits.map((h) => h.name)).toEqual(['Walk', 'Read']);
     expect(saved(b).state.profile).toMatchObject({ onboarded: true, onboardingStep: { step: 'today' } });
+
+    // The note said its piece: when another window takes the save back, no old note comes back
+    // until something is refused again.
+    await act(() => locks.stolen());
+    await settle();
+    expect(store.readOnly.value).toBe('other-window');
+    expect(note()).toBeNull();
   });
 
   it('Skip on the picks while read-only is refused too: no step 4, the note instead', async () => {
@@ -169,6 +177,24 @@ describe('UI2-07: the late steps follow the save', () => {
     expect(onboardingProgress.value).toMatchObject({ step: 'today' });
   });
 
+  it('“Not yet, I’ll earn it” refused (the lock taken by another window) stays on step 4, with the note', async () => {
+    const held = { byOther: false };
+    const locks = fakeLocks(held);
+    fakeBrowser({ locks });
+    store.hydrate();
+    await settle();
+    show();
+    await toPicks();
+    await click(byText('Skip'), 'Skip');
+    await until(() => byText('Not yet, I’ll earn it'), 'step 4', LOAD);
+    await act(() => locks.stolen());
+    await settle();
+    await click(byText('Not yet, I’ll earn it'), 'Not yet');
+    expect(h1()).toBe('Who comes home first?');
+    expect(note()).toBe(USE_HERE);
+    expect(onboardingProgress.value).toMatchObject({ step: 'first' });
+  });
+
   it('the other window moves on: this window shows the step it moved to', async () => {
     const a = planted();
     const { b } = readOnlyOn(a, 3);
@@ -192,6 +218,31 @@ describe('UI2-07: the late steps follow the save', () => {
     });
     expect(h1()).toBe('New place. Which plants came with you?');
     expect(onboardingActive.value).toBe(true);
+  });
+});
+
+describe('UI2-07: a reset elsewhere after this window planted', () => {
+  it('goes back to the sill with nothing picked, not to the picks it planted from', async () => {
+    const held = { byOther: false };
+    const locks = fakeLocks(held);
+    const b = fakeBrowser({ locks });
+    store.hydrate();
+    await settle();
+    show();
+    await toPicks();
+    await click(button('Walk'), 'Walk');
+    await click(byText('Plant it'), 'Plant it');
+    expect(h1()).toBe('Anything already done today?');
+    store.flushSaves();
+    // Another window takes the save over and starts over.
+    await act(() => locks.stolen());
+    await act(() => {
+      b.storage.removeItem(SAVE_KEY);
+      b.fire('storage', { key: SAVE_KEY, newValue: null });
+    });
+    expect(h1()).toBe('New place. Which plants came with you?');
+    await click(byText('Next'), 'Next');
+    expect(button('Walk')!.getAttribute('aria-pressed')).toBe('false');
   });
 });
 
@@ -219,6 +270,8 @@ describe('P-ui-13: a name chosen on step 5 survives Skip', () => {
     const idea = Array.from(ideas.querySelectorAll('button')).find((b) => b.textContent !== name && b.textContent !== 'Another name')!;
     const chosen = idea.textContent!;
     await click(idea, 'a name idea');
+    // Kept the moment it is tapped, before anything else happens.
+    expect(store.state.value.pets[petId]!.name).toBe(chosen);
     await click(byText('Skip'), 'Skip');
     expect(store.state.value.pets[petId]!.name).toBe(chosen);
     expect(onboardingActive.value).toBe(false);
