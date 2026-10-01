@@ -83,17 +83,22 @@ export function previewLine(p: ImportPreview): string {
   return p.savedAt ? line : line.replace(/ Saved \.$/, '');
 }
 
-/** Takes the last import or restore back, and says what happened (VOICE §21). */
+/**
+ * Takes the last import or restore back, and says what happened (VOICE §21). It never rejects: if
+ * the store's answer is a rejection after all, the copy couldn't be read, and nothing changed (data-d12).
+ */
 export function undoLastReplacement(kind: 'import' | 'restore', onUndone?: () => void): Promise<void> {
-  return undoImport().then((res) => {
-    if (res.ok) {
-      toast({ key: 'import-undone', message: kind === 'restore' ? DATA_COPY.undoneRestore : DATA.undone, tone: 'sage' });
-      onUndone?.();
-      return;
-    }
-    const text = replaceErrorText(res.error);
-    if (text) toast({ key: 'import-undo-no', message: text, tone: 'butter' });
-  });
+  return undoImport()
+    .catch((): ReplaceResult => ({ ok: false, error: 'unavailable' }))
+    .then((res) => {
+      if (res.ok) {
+        toast({ key: 'import-undone', message: kind === 'restore' ? DATA_COPY.undoneRestore : DATA.undone, tone: 'sage' });
+        onUndone?.();
+        return;
+      }
+      const text = replaceErrorText(res.error);
+      if (text) toast({ key: 'import-undo-no', message: text, tone: 'butter' });
+    });
 }
 
 /**
@@ -219,7 +224,13 @@ export function ImportSheet({ open, onClose, onImported, clip, title = DATA.impo
     const ctl = new AbortController();
     importing.current = ctl;
     setBusy(true);
-    const res = await applyImport(source().trim(), { withoutUndo, signal: ctl.signal });
+    let res: ReplaceResult;
+    try {
+      res = await applyImport(source().trim(), { withoutUndo, signal: ctl.signal });
+    } catch {
+      // The store answers with results; a rejection all the same committed nothing (data-d12).
+      res = { ok: false, error: 'not-saved' };
+    }
     if (importing.current === ctl) importing.current = null;
     // Closed meanwhile: whatever it answered, this visit of the sheet is over.
     if (ctl.signal.aborted && !res.ok) return;

@@ -10,7 +10,8 @@
  * The update API (DESIGN §11.1 "Updates", You › About):
  * - `updateReady` is true while a new version waits (a note offers "Reload").
  * - `checkForUpdates()` asks the server now ("Check for updates").
- * - `reloadApp()` applies a waiting version, else simply reloads ("Reload app").
+ * - `reloadApp()` applies a waiting version, else simply reloads ("Reload app"); with a change
+ *   that isn't written yet it says so first, with "Reload anyway".
  * - Coming back after more than 30 minutes away checks on its own, and a waiting version applies
  *   when the app is next hidden (so she never watches it reload), but never during a sheet, a
  *   reveal or onboarding (`holdUpdates`). Unsaved field text is committed on hide by its screen.
@@ -18,7 +19,7 @@
 import { signal } from '@preact/signals';
 import { toast } from '@/ui/toast';
 import { anyLayerOpen } from '@/ui/sheetStack';
-import { hasUnsavedWork } from '@/state/store';
+import { damagedUnkept, flushSaves, hasUnsavedWork } from '@/state/store';
 import { SHELL_LINES } from '@/features/you/shellCopy';
 import { UPDATE_COPY } from './copy';
 
@@ -63,23 +64,48 @@ function offerReload(): void {
 
 /**
  * Whether a reload now would interrupt her (a sheet, a reveal, onboarding) or lose a change that
- * isn't written yet (a save that is failing, or no storage at all; audit data-d2).
+ * isn't written yet (a save that is failing, or no storage at all; audit data-d2), or a damaged
+ * save's text that only this window still holds (`damagedUnkept`, the WP-A7 review). The update
+ * that applies itself while catkin is hidden waits for all of these.
  */
-function busy(): boolean {
-  return holdUpdates.value || anyLayerOpen() || hasUnsavedWork();
+export function busy(): boolean {
+  return holdUpdates.value || anyLayerOpen() || hasUnsavedWork() || damagedUnkept.value !== null;
 }
 
-/** "Reload app": the waiting version takes over and the page reloads (or it simply reloads). */
+/** How the page reloads (tests replace `run`: jsdom can't reload). */
+export const pageReload = { run: (): void => location.reload() };
+
+/**
+ * "Reload app", or the update note's "Reload": the waiting version takes over and the page reloads
+ * (or it simply reloads). A change still waiting for its moment is written first; one that can't
+ * be written (a failing save, the writer lock not answered yet, a browser that keeps nothing) would
+ * go with the reload, so she is told, and "Reload anyway" goes ahead (WP-A7, P-persistence-01).
+ */
 export function reloadApp(): void {
-  const waiting = registration?.waiting;
-  if (wb && waiting) {
-    wb.addEventListener('controlling', () => location.reload());
-    wb.messageSkipWaiting();
-    // If the new version never takes over (a stuck install), reload anyway.
-    setTimeout(() => location.reload(), 3000);
+  flushSaves();
+  if (hasUnsavedWork()) {
+    toast({
+      key: 'reload-unsaved',
+      message: SHELL_LINES.reloadUnsaved,
+      tone: 'butter',
+      duration: 0,
+      action: { label: SHELL_LINES.reloadAnyway, onAction: () => reloadNow() },
+    });
     return;
   }
-  location.reload();
+  reloadNow();
+}
+
+function reloadNow(): void {
+  const waiting = registration?.waiting;
+  if (wb && waiting) {
+    wb.addEventListener('controlling', () => pageReload.run());
+    wb.messageSkipWaiting();
+    // If the new version never takes over (a stuck install), reload anyway.
+    setTimeout(() => pageReload.run(), 3000);
+    return;
+  }
+  pageReload.run();
 }
 
 export type UpdateCheck = 'ready' | 'up-to-date' | 'unavailable';
@@ -125,7 +151,7 @@ function onVisibility(): void {
     if (updateReady.value && !autoApplied && !busy()) {
       autoApplied = true;
       setTimeout(() => {
-        if (document.visibilityState === 'hidden' && !busy()) reloadApp();
+        if (document.visibilityState === 'hidden' && !busy()) reloadNow();
         else autoApplied = false;
       }, 0);
     }

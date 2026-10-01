@@ -62,6 +62,7 @@ import {
   SaveQueue,
   UNDO_IMPORT_KEY,
   browserStorage,
+  corruptKeyOf,
   keepDamaged,
   memoryStorage,
   mintGen,
@@ -270,6 +271,15 @@ export const loadIssue = signal<null | { kind: 'recovered-from-backup' | 'corrup
 export const rescue = signal<null | { kind: 'newer'; raw: string; version: number; readable: boolean; damaged?: string } | { kind: 'damaged'; raw: string }>(null);
 
 /**
+ * A damaged save's text that is only in this window's memory now: a write on a full disk went
+ * through by taking the room it was kept aside in under `:corrupt` (WP-A3's trade-off: her changes
+ * come first). The shell says so, with "Save the damaged file", until that file is saved
+ * (`markDamagedSaved`), Start over (here, or adopted from another window), or the page closes
+ * (the WP-A7 review). Null otherwise.
+ */
+export const damagedUnkept = signal<string | null>(null);
+
+/**
  * The single-writer lock, as far as this window knows: 'acquiring' until Web Locks answers (saves
  * are held), 'granted' while this window owns the save, 'refused'/'stolen' when another window
  * does ('refused' also when this window gave the lock up for a newer catkin's save), 'unsupported'
@@ -425,6 +435,8 @@ function makeQueue(key: string, head: SaveHead): SaveQueue {
       if (status === 'storage-full') readOnly.value = 'storage-full';
       else if (status === 'saved' && readOnly.value === 'storage-full') readOnly.value = false;
     },
+    // The person's own damaged save (not the demo's) is kept here once its room was taken.
+    ...(key === SAVE_KEY ? { onDamagedDropped: (raw: string) => void (damagedUnkept.value = raw) } : {}),
   });
   // Nothing is written before the writer lock answers (FS4, P-persistence-03), from whichever
   // path made the queue meanwhile (leaving the demo, starting over): the grant releases it, a
@@ -700,8 +712,11 @@ function adopt(res: LoadResult, context: AdoptContext): void {
         if (!demoMode.value && r?.kind === 'newer') rescue.value = { ...r, damaged: res.raw };
         return;
       }
-      loadIssue.value = { kind: 'corrupt-save', details: res.errors };
-      if (!demoMode.value) rescue.value = { kind: 'damaged', raw: res.raw };
+      // The demo is not the person's save: a damaged write to its key raises no note (the WP-A7 review).
+      if (!demoMode.value) {
+        loadIssue.value = { kind: 'corrupt-save', details: res.errors };
+        rescue.value = { kind: 'damaged', raw: res.raw };
+      }
       recoveryCopies = { key, damaged: res.raw };
       if (context === 'hydrate') {
         startFresh(ms);
@@ -733,6 +748,8 @@ function adopt(res: LoadResult, context: AdoptContext): void {
       lastSnapshotDay = null;
       recoveryCopies = null;
       if (rescue.value?.kind === 'damaged') rescue.value = null; // started over there: its :corrupt went too
+      damagedUnkept.value = null;
+      if (loadIssue.value?.kind === 'recovered-from-backup' || loadIssue.value?.kind === 'corrupt-save') loadIssue.value = null; // its note was about that save (WP-A7)
       crossWindowNotice.value = 'started-over';
       leaveNewerVersion();
       saveReplaced();
@@ -748,7 +765,14 @@ function adopt(res: LoadResult, context: AdoptContext): void {
         loadIssue.value = { kind: 'recovered-from-backup' };
         recoveryCopies = res.damaged !== undefined ? { key, damaged: res.damaged } : null;
         if (res.damaged !== undefined && !demoMode.value) rescue.value = { kind: 'damaged', raw: res.damaged };
-      } else if (context === 'hydrate') recoveryCopies = { key, backup: res.raw };
+      } else {
+        if (context === 'hydrate') recoveryCopies = { key, backup: res.raw };
+        // Another window's import, restore or Undo (another lineage): the note about the save this
+        // window couldn't read is over, as it is for one committed here (the WP-A7 review). The
+        // damaged text itself stays reachable (`rescue`, `:corrupt`).
+        const about = loadIssue.value?.kind;
+        if (differs && !demoMode.value && (about === 'recovered-from-backup' || about === 'corrupt-save')) loadIssue.value = null;
+      }
       leaveNewerVersion();
       // Another lineage, or a load, is another save; a newer write of this one is the same save.
       if (load || differs || wasNewer || res.fromBackup) saveReplaced();
@@ -848,6 +872,7 @@ export function hydrate(): void {
   readOnly.value = false;
   loadIssue.value = null;
   rescue.value = null;
+  damagedUnkept.value = null;
   crossWindowNotice.value = null;
   lastSnapshotDay = null;
   recoveryCopies = null;
@@ -898,6 +923,42 @@ export function useHere(): void {
 /** Writes any pending save now (pagehide / hidden). Never from a window that doesn't own the save. */
 export function flushSaves(): void {
   if (writable()) queue?.flush();
+}
+
+/**
+ * "Try again" on a save that didn't go through (WP-A7, audit data-d10): a damaged save that
+ * couldn't be kept aside is tried again first, then whatever is waiting is written now, without
+ * waiting for the backoff. Answers what the write did (null: nothing was waiting); `durability`
+ * says whether the save is still failing.
+ */
+export function retrySaving(): FlushOutcome | null {
+  if (heldForDamage) writeRecoveryCopies();
+  if (!writable()) return null;
+  if (heldForDamage) return 'held';
+  return queue?.flush() ?? null;
+}
+
+/**
+ * The text of a damaged save this catkin couldn't read, for "Save the damaged file" (WP-A7): the
+ * one a full disk took the room of (`damagedUnkept`, only in memory now), the one this window found
+ * (`rescue`), else the one kept aside under `:corrupt` by an earlier visit, which stays until Start
+ * over or until a write needs its room. Byte for byte, never decoded. Null when there is none.
+ */
+export function damagedSave(): string | null {
+  const unkept = damagedUnkept.value;
+  if (unkept !== null) return unkept; // the one only in memory now comes first
+  const r = rescue.value;
+  if (r?.kind === 'damaged') return r.raw;
+  if (r?.kind === 'newer' && r.damaged !== undefined) return r.damaged;
+  return safeGet(storage(), corruptKeyOf(SAVE_KEY));
+}
+
+/**
+ * "Save the damaged file" went through with `raw`: if that was the text only this window still
+ * held (`damagedUnkept`), it is safe now, and the note about it goes.
+ */
+export function markDamagedSaved(raw: string): void {
+  if (damagedUnkept.peek() === raw) damagedUnkept.value = null;
 }
 
 /** The Sunday Note is due this evening and not written yet (it arrives at 18:00 on the week's last day). */
@@ -1610,6 +1671,8 @@ async function runReplacement(r: Replacement): Promise<ReplaceResult> {
   if (undo === null) removeKey(store, UNDO_IMPORT_KEY);
   shownHead = { gen: q.gen, rev: q.rev };
   setState(next, ms);
+  // A note about the save that couldn't be read is over: she has chosen what is here now (WP-A7).
+  if (loadIssue.value?.kind === 'recovered-from-backup' || loadIssue.value?.kind === 'corrupt-save') loadIssue.value = null;
   if (!demoMode.value) mirrorTheme(store, next.settings);
   saveReplaced();
 
@@ -1719,6 +1782,8 @@ export function resetAll(): void {
   recoveryCopies = null;
   heldForDamage = false; // Start over erases the damaged save with the rest of catkin:*
   rescue.value = null; // its :corrupt copy went with the rest of catkin:*
+  damagedUnkept.value = null; // and she chose to let the damaged save go with it
+  loadIssue.value = null; // and with it, the note about it (WP-A7)
   crossWindowNotice.value = null;
   // A new lineage: every other window adopts the reset, even after its rev starts again at 1.
   queue = makeQueue(SAVE_KEY, { gen: mintGen(), rev: 0 });

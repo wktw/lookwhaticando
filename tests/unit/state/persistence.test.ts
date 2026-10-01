@@ -103,6 +103,23 @@ describe('save envelope (DESIGN §13.8)', () => {
     expect(JSON.parse(storage.getItem(SAVE_KEY)!).rev).toBe(1); // the last good save is intact
   });
 
+  it('a write that takes the room of the kept-aside damaged text hands that text on; one that fails anyway puts it back (the WP-A7 review)', () => {
+    const s = createInitialState(now);
+    const fits = encodeEnvelope(s, 1, now, 'test').length;
+    const damaged = 'd'.repeat(200);
+    const storage = memoryStorage({}, fits + SAVE_KEY.length + 100);
+    storage.data.set(corruptKeyOf(SAVE_KEY), damaged);
+    const dropped: string[] = [];
+    const q = new SaveQueue({ storage, key: SAVE_KEY, appVersion: 'test', rev: 0, now: () => now, timers: manualTimers(), compact: (x) => x, onDamagedDropped: (raw) => dropped.push(raw) });
+    const huge = { ...s, profile: { ...s.profile, name: 'x'.repeat(5000) } };
+    expect(q.saveNow(huge)).toBe('storage-full');
+    expect(storage.getItem(corruptKeyOf(SAVE_KEY))).toBe(damaged);
+    expect(dropped).toEqual([]);
+    expect(q.saveNow(s)).toBe('saved');
+    expect(storage.getItem(corruptKeyOf(SAVE_KEY))).toBeNull();
+    expect(dropped).toEqual([damaged]);
+  });
+
   it('a save from a newer schema is reported as newer (opened read-only)', () => {
     const storage = memoryStorage({ [SAVE_KEY]: JSON.stringify({ v: 2, appVersion: 'future', rev: 9, savedAt: now, state: { ...createInitialState(now), version: 2 } }) });
     expect(loadSave(storage, SAVE_KEY)).toMatchObject({ kind: 'newer', version: 2 });

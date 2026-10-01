@@ -593,7 +593,7 @@ describe('WP-A4 review: the declared version and the damaged-save rescue lifecyc
     expect(store.rescue.value).toBeNull();
   });
 
-  it('guard: a damaged demo save is not the person’s, so it sets no rescue record', () => {
+  it('guard: a damaged demo save is not the person’s, so it sets no rescue record (and, since the WP-A7 review, no note)', () => {
     const b = fakeBrowser();
     b.storage.setItem(SAVE_KEY, livedInRaw());
     store.hydrate();
@@ -601,7 +601,7 @@ describe('WP-A4 review: the declared version and the damaged-save rescue lifecyc
     b.advance(5000);
     b.storage.setItem(DEMO_KEY, 'not json {');
     b.fire('storage', { key: DEMO_KEY });
-    expect(store.loadIssue.value?.kind).toBe('corrupt-save');
+    expect(store.loadIssue.value).toBeNull();
     expect(store.rescue.value).toBeNull();
     store.exitDemo();
   });
