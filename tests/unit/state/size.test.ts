@@ -36,3 +36,33 @@ describe('save size stays bounded', () => {
     console.info(`5y×12 save: ${before.toLocaleString('en-US')} → ${after.toLocaleString('en-US')} chars`);
   });
 });
+
+describe('check-in provenance fits the budget (WP-B4)', () => {
+  it('with first and done on every live day still kept, the five-year save stays < 1,000,000 characters', () => {
+    const env = { now: at(TODAY, 21), today: TODAY, local: UTC, rng: mulberry32(1) };
+    const compacted = transact(fiveYearSave(), env, (tx) => {
+      compactSave(tx);
+      return {};
+    }).state;
+    // As this build writes them: every day that still has its stamps carries `first` and `done`.
+    let days = 0;
+    const logs = Object.fromEntries(
+      Object.entries(compacted.logs).map(([id, byDay]) => [
+        id,
+        Object.fromEntries(
+          Object.entries(byDay).map(([d, log]) => {
+            if (log.kind !== 'log' || !log.at) return [d, log];
+            days++;
+            return [d, { ...log, first: log.at[0]!, done: log.at[log.at.length - 1]! }];
+          }),
+        ),
+      ]),
+    );
+    const withProvenance = { ...compacted, logs };
+    const size = encodeEnvelope(withProvenance, 2, 0, 'test').length;
+    expect(days).toBeGreaterThan(800); // 12 habits × the 121 days kept
+    expect(validateState(withProvenance)).toMatchObject({ ok: true });
+    expect(size).toBeLessThan(1_000_000);
+    console.info(`5y×12 save with provenance on ${days} days: ${size.toLocaleString('en-US')} chars`);
+  });
+});

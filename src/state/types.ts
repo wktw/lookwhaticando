@@ -111,8 +111,28 @@ export type DayLog =
       count: number;
       /** Logged as the tiny version (counts as showing up; half rewards). */
       level?: 'tiny';
-      /** Epoch ms of each LIVE check-in on the day itself (max 24). Never written by backfill/history edits. */
+      /**
+       * Epoch ms of each LIVE check-in on the day itself (max 24, the latest kept; dropped after 120
+       * days). Never written by backfill/history edits.
+       */
       at?: number[];
+      /**
+       * Epoch ms of the day's first LIVE check-in (WP-B4). Unlike `at`, never capped: habit
+       * stacking compares it. Kept, like `at`, for 120 days. Absent: never live, or an older build's
+       * day (then the earliest stamp stands in). Optional and additive; older builds carry it along.
+       */
+      first?: number;
+      /**
+       * Epoch ms of the LIVE check-in that made the day count as showing up (the completing tap or
+       * the tiny version; later over-target taps don't move it). Blooms Like You reads it as the
+       * day's time. Kept for 120 days. Absent: unknown (see `domain/provenance.ts`).
+       */
+      done?: number;
+      /**
+       * Written when the day's stamps are compacted (WP-B4): this habit followed that anchor (its id)
+       * and was first checked in live before it that day, so the day was not kept together.
+       */
+      beforeAnchor?: string;
       /** A short reflection, max 280 chars. */
       note?: string;
       /** The note is starred: only starred notes are quoted in a Sunday Note (a note is private by default). */

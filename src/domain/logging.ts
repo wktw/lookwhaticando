@@ -12,9 +12,18 @@
  * Taps: a target-1 habit toggles (checkIn when not done, undoCheckIn when done); a count habit adds
  * `step` per tap and may go over target ("10 / 8", no extra coins); flexible habits are one check-in
  * per day. A check-in on a day logged as the tiny version upgrades it to the full version. Live
- * check-ins (on today, clock trusted) record an `at` stamp (max 24 per day); they are what Early
- * bird / Wind-Down and the busiest-time insight read. Future days can't be logged. Taps are
- * monotone for the ledger: a tap that adds never refunds, an un-check never pays.
+ * check-ins (on today, clock trusted) record an `at` stamp (max 24 per day, the latest kept); they
+ * are what Early bird / Wind-Down, the busiest-time insight and Blooms Like You's colour read.
+ * Future days can't be logged. Taps are monotone for the ledger: a tap that adds never refunds, an
+ * un-check never pays.
+ *
+ * Check-in provenance (WP-B4, provenance.ts): the day's first live tap is kept as `first` and the
+ * live tap that made the day count as `done`; the 24-stamp cap never drops them. An undo leaves
+ * them while a check-in or a live stamp remains, and a live check-in that makes the day count again
+ * (after an undo or a decrease took it below) moves `done` to itself; until then a reader ignores
+ * the `done` that was taken back (provenance.ts `completedAt`). Backfill, history edits and
+ * number-pad entries on past days never write them. Compaction keeps what they prove (see
+ * `pruneOldStamps`).
  *
  * The tiny version (v1 §13.2) is a *level* ("stored as level:'tiny'"): logging it never changes the
  * count, so Undo restores the day exactly (a count habit's tiny tap used to add `tiny.count`, which
@@ -47,6 +56,7 @@ import { companionCheckin } from './company';
 import { BLOOMING } from './growth';
 import { topUpLetters } from './letters';
 import { harvest } from './pantry';
+import { firstCheckinAt, withoutStaleProvenance } from './provenance';
 import { ruleAt } from './rules';
 import { effectiveTarget, isDayBased } from './schedule';
 import { flexPeriodAt } from './periods';
@@ -64,14 +74,17 @@ type Log = Extract<DayLog, { kind: 'log' }>;
 /* Writing logs                                                        */
 /* ------------------------------------------------------------------ */
 
-/** Writes (or, for an empty log, deletes) a day's log. */
+/**
+ * Writes (or, for an empty log, deletes) a day's log. A log left with no check-in and no live stamp
+ * loses its provenance (every trace of a live check-in was taken back).
+ */
 function writeLog(tx: Tx, habitId: string, date: DateKey, next: DayLog | undefined): void {
   const logs = tx.logs(habitId);
   if (next === undefined || isEmptyLog(next)) delete logs[date];
-  else logs[date] = next;
+  else logs[date] = next.kind === 'log' ? withoutStaleProvenance(next) : next;
 }
 
-/** A log that carries nothing: no count, level, stamps or note. */
+/** A log that carries nothing: no count, level, stamps or note (provenance alone is nothing). */
 function isEmptyLog(log: DayLog): boolean {
   return log.kind === 'log' && log.count <= 0 && log.level === undefined && (log.at === undefined || log.at.length === 0) && !log.note;
 }
@@ -81,9 +94,14 @@ function asLog(log: DayLog | undefined): Log {
   return { kind: 'log', count: 0, ...(log?.note ? { note: log.note } : {}) };
 }
 
+/**
+ * Adds a live stamp, keeping the latest 24. `first` is written on the day's first live tap (or, on
+ * an older build's day, from the earliest stamp before the cap can drop it) and never moves after.
+ */
 function withStamp(log: Log, now: number): Log {
   const at = [...(log.at ?? []), now];
-  return { ...log, at: at.length > MAX_STAMPS_PER_DAY ? at.slice(at.length - MAX_STAMPS_PER_DAY) : at };
+  const first = log.first ?? Math.min(...at);
+  return { ...log, first, at: at.length > MAX_STAMPS_PER_DAY ? at.slice(at.length - MAX_STAMPS_PER_DAY) : at };
 }
 
 function withoutLastStamp(log: Log): Log {
@@ -190,17 +208,21 @@ function recordCheckinTime(tx: Tx): void {
 
 const NOT_LOGGED: Omit<CheckInResult, 'events'> = { coins: 0, completed: false, partial: false, rewarded: false };
 
-/** Applies a new log for a user check-in action and runs the pass; builds the CheckInResult. */
-function applyCheckin(tx: Tx, habit: Habit, date: DateKey, next: Log, stamped: boolean): Omit<CheckInResult, 'events'> {
+/**
+ * Applies a new log for a user check-in action and runs the pass; builds the CheckInResult. A live
+ * check-in that makes the day count is recorded as its `done`.
+ */
+function applyCheckin(tx: Tx, habit: Habit, date: DateKey, log: Log, stamped: boolean): Omit<CheckInResult, 'events'> {
   const rule = ruleAt(habit, date);
   const target = effectiveTarget(rule);
   const today = tx.env.today;
   const before = logStatus(tx.s.logs[habit.id]?.[date], rule, date < today);
   const bestBefore = bestStreakOccurrences(tx.s, habit.id, today, tx.env.local);
   const prior = tx.s;
-  writeLog(tx, habit.id, date, next);
-  const after = logStatus(next, rule, date < today);
+  const after = logStatus(log, rule, date < today);
   const completed = !showedUp(before) && showedUp(after);
+  const next: Log = stamped && completed ? { ...log, done: tx.env.now } : log;
+  writeLog(tx, habit.id, date, next);
   tx.emit({ type: 'checkin', habitId: habit.id, date, completed, tiny: after === 'tiny', count: next.count, target });
   const pass = rewardPass(tx, habit.id, date, { user: true, bestBefore, before: prior, direction: 'up', ...(stamped ? { trigger: { liveCheckinAt: tx.env.now } } : {}) });
   const settledUp = pass.settlement !== null && levelRank(pass.settlement.next) > levelRank(pass.settlement.prev);
@@ -396,21 +418,51 @@ export function editHistory(tx: Tx, habitId: string, date: DateKey, done: boolea
 /* ------------------------------------------------------------------ */
 
 /**
- * Live `at` stamps are kept for 120 days: they feed the 90-day "busiest time of day" insight and the
- * live Early bird / Wind-Down checks, and nothing else. Older days keep their count, level and note.
- * This keeps a years-old save small (DESIGN v1 §13.8).
+ * Live `at` stamps are kept for 120 days: they feed the 90-day "busiest time of day" insight, the
+ * live Early bird / Wind-Down checks, and Blooms Like You's colour, day times and catch-up bursts
+ * (which read only the last 120 days, signature.ts). Check-in provenance (`first`, `done`) is kept
+ * as long as they are. Older days keep their count, level and note. This keeps a years-old save
+ * small (DESIGN v1 §13.8).
  */
 export const STAMP_DAYS = 120;
 
+/**
+ * Drops live stamps and check-in provenance older than `STAMP_DAYS`, after writing down the one
+ * fact they prove that a reader needs later (WP-B4): a follower's day whose first live check-in
+ * came before its anchor's gets `beforeAnchor` (that anchor's id), so habit stacking reads the day
+ * as not kept together for ever after (stacking.ts). A day kept in order, or with a side never
+ * live, needs nothing: it counts on showing up, as it did. This is the day's reconciler: compaction
+ * runs it once a day, it writes only from stamps and provenance that are still there, so a second
+ * pass changes nothing and a stale writer's replay of an older state is folded the same way.
+ * Keeping `first` and `done` themselves on every older day would not fit the save budget (about
+ * 40 characters a logged day, over half a million on the five-year save, size.test.ts).
+ */
 export function pruneOldStamps(tx: Tx): void {
   const horizon = addDays(tx.env.today, -STAMP_DAYS);
+  const old = (date: DateKey, log: DayLog): log is Log => date < horizon && log.kind === 'log' && (log.at !== undefined || log.first !== undefined || log.done !== undefined);
+  const apart = new Map<string, Map<DateKey, string>>();
+  for (const follower of tx.s.habits) {
+    const anchorId = follower.anchorHabitId;
+    const fLogs = tx.s.logs[follower.id];
+    const aLogs = anchorId === undefined ? undefined : tx.s.logs[anchorId];
+    if (anchorId === undefined || !fLogs || !aLogs) continue;
+    for (const [date, log] of Object.entries(fLogs)) {
+      if (!old(date, log)) continue;
+      const f = firstCheckinAt(log);
+      const a = firstCheckinAt(aLogs[date]);
+      if (f === null || a === null || f >= a) continue;
+      if (!apart.has(follower.id)) apart.set(follower.id, new Map());
+      apart.get(follower.id)!.set(date, anchorId);
+    }
+  }
   for (const [habitId, logs] of Object.entries(tx.s.logs)) {
     let writable: Record<DateKey, DayLog> | null = null;
     for (const [date, log] of Object.entries(logs)) {
-      if (date >= horizon || log.kind !== 'log' || log.at === undefined) continue;
+      if (!old(date, log)) continue;
       writable ??= tx.logs(habitId);
-      const { at: _dropped, ...rest } = log;
-      writable[date] = rest;
+      const { at: _at, first: _first, done: _done, ...rest } = log;
+      const beforeAnchor = apart.get(habitId)?.get(date);
+      writable[date] = beforeAnchor === undefined ? rest : { ...rest, beforeAnchor };
     }
   }
 }

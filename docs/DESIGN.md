@@ -690,12 +690,20 @@ target-user panel (AUDITS.md). **Every pillar is driven by real habit data and m
 
 * When a plant first reaches **Blooming**, its look is computed from *how* she keeps the habit, and re-read at Evergreen. Looks are only
   ever added, and she chooses which to show (Classic is always available). **Colour** from when she usually checks in: **Dawn ·
-  Sunlit · Twilight · Wildflower** (anytime). The classifier uses live `at` stamps only, drops catch-up bursts (≥ 3 habits within
+  Sunlit · Twilight · Wildflower** (anytime). The classifier uses live check-ins only, and a day's time is the live check-in that made it
+  count (`DayLog.done`: the completing tap or the tiny version, never a later over-target tap, pad entry or undo; it describes completion,
+  not last activity, DEC-P11). A completion taken back by an undo or a decrease is not read: a day that then closes on its tiny count
+  reads the tap that reached it, from the stamps. An older build's day reads the stamp that completed it only when every tap was live, and is left out
+  otherwise. It drops catch-up bursts (≥ 3 habits within
   120 s, measured in time, across the day start) and 23:00–03:59, and needs ≥ 10 eligible days (a read waits for them rather than guess). Bands: Dawn before 9:00,
   Sunlit 9:00–17:59, Twilight from 18:00; "usually" is a band holding ≥ 60% of the eligible days of the kept stamps (120 days),
   else Wildflower. **Shape**: **Classic · Petite** (tiny on ≥ 25% of days, ≥ 5 days) **·
   Paired** (stacked on ≥ 14 kept-together days: petals take the partner's card colour, the pots sit side by side, a bee visits;
-  Paired wins over Petite). A kept-together day: both done, the follower at or after its anchor when both were live.
+  Paired wins over Petite). A kept-together day: both done, the follower's first live check-in (`DayLog.first`, which the 24-stamp cap
+  never drops) at or after its anchor's when both were live. It is a historical fact: when a day's stamps go after 120 days, a day the
+  follower was checked in before its anchor keeps that verdict (`DayLog.beforeAnchor`), so compaction never changes the count. Days are
+  read against the current anchor (DEC-P12h); a day compacted under another anchor is unknown against a new one and counts on showing
+  up, as backfill does (WP-B4).
   **No performance-graded looks.** It pays nothing. The **plant tag** explains it in plain words ("Dawn · Paired: you usually
   water it before 9, and 18 days you did it right after Walk"). A mismatch offers "You set Walk for mornings but usually
   water it after 6 pm. Move it to Evening?" (one tap; ≥ 60% of ≥ 10 eligible days in another Today block, by Today's own rule: the hours before the day start are

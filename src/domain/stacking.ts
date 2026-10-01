@@ -8,10 +8,19 @@
  *   deleted, its followers stop following it.
  * - A kept-together day: both habits showed up that day (each inside its lifetime), and, when
  *   both were checked in live, the follower's first check-in came at or after the anchor's. A day
- *   with only history or backfill (no live stamps) counts on showing up alone. Nothing here pays.
+ *   with only history or backfill (no live check-in) counts on showing up alone. Nothing here pays.
+ * - The first live check-in is `DayLog.first` (provenance.ts, WP-B4), which the 24-stamp cap
+ *   never drops; on an older build's day it is the earliest stamp kept. When a day's stamps go
+ *   after 120 days, a follower's day checked in before its anchor keeps that verdict
+ *   (`DayLog.beforeAnchor`, logging.ts `pruneOldStamps`), so compaction never changes the count.
+ * - Days are read against the current anchor (DEC-P12h): changing the anchor re-reads every day
+ *   whose stamps are still kept against the new one. A day compacted under another anchor keeps
+ *   only its verdict against that anchor; read against a new one it is unknown and counts on
+ *   showing up alone, as backfill and days compacted before WP-B4 do.
  */
 import type { AppState, DateKey, Habit } from '@/state/types';
-import { inLifetime, logStatus, showedUp, type HabitLogs } from './activity';
+import { inLifetime, logStatus, showedUp } from './activity';
+import { firstCheckinAt } from './provenance';
 import { ruleAt } from './rules';
 import { seal, type Tx } from './tx';
 
@@ -76,13 +85,6 @@ function memoMap(a: object, b: object, c: object, d: object): Map<string, number
   return m4;
 }
 
-function firstStamp(log: HabitLogs[string] | undefined): number | null {
-  if (log?.kind !== 'log' || !log.at || log.at.length === 0) return null;
-  let min = Infinity;
-  for (const t of log.at) if (t < min) min = t;
-  return Number.isFinite(min) ? min : null;
-}
-
 /** Kept-together days of `follower` with its anchor in [start, end] (both inclusive, end ≤ today counts). */
 export function keptTogetherDays(s: Pick<AppState, 'habits' | 'logs'>, follower: Habit, today: DateKey, start = '0000-00-00', end: DateKey = today): number {
   const anchor = follower.anchorHabitId === undefined ? undefined : s.habits.find((h) => h.id === follower.anchorHabitId);
@@ -101,8 +103,9 @@ export function keptTogetherDays(s: Pick<AppState, 'habits' | 'logs'>, follower:
     const other = aLogs[date];
     if (!showedUp(logStatus(log, ruleAt(follower, date), date < today))) continue;
     if (!showedUp(logStatus(other, ruleAt(anchor, date), date < today))) continue;
-    const f = firstStamp(log);
-    const a = firstStamp(other);
+    if (log.kind === 'log' && log.beforeAnchor === anchor.id) continue;
+    const f = firstCheckinAt(log);
+    const a = firstCheckinAt(other);
     if (f !== null && a !== null && f < a) continue;
     n++;
   }
