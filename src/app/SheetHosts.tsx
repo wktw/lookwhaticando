@@ -3,8 +3,8 @@ import type { Signal } from '@preact/signals';
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { PET_INTENTS, closeHabitDetail, closeHabitEditor, closePetCard, habitDetailRequest, habitEditorRequest, petCardRequest, type PetIntent } from '@/features/habits/open';
 import { closeRitual, ritualRequest } from '@/features/rituals/open';
-import { ConfirmDialog } from '@/ui/ConfirmDialog';
 import { SCREEN_COPY } from './copy';
+import { LoadSheet } from './LoadSheet';
 import { lazyModule, useLazyModule, type LazyModule } from './useLazyModule';
 
 type Host = LazyModule<{ default: ComponentType }>;
@@ -102,7 +102,8 @@ function useHeldFor(active: boolean, ms: number): boolean {
  * (the sheet stays up, busy, while it tries; a retry that fails in the page reloads it when that is
  * safe, and the request is asked for again after); "Close" (and Esc) clears the request, so the
  * next request loads afresh. It is one sheet throughout: loading, the error and a retry change its
- * words, and it goes the moment the sheet asked for opens.
+ * words, and it goes the moment the sheet asked for opens. The small sheet is the shell's own
+ * `LoadSheet` (./LoadSheet.tsx), so the paper Sheet stays off the first paint.
  */
 function LazySheet({ name }: { name: SheetName }) {
   const sheet: SheetSpec = SHEETS[name];
@@ -117,15 +118,15 @@ function LazySheet({ name }: { name: SheetName }) {
     return <Loaded />;
   }
   return (
-    <ConfirmDialog
+    <LoadSheet
       open={open}
       title={face.current.slow ? SCREEN_COPY.sheetSlow : SCREEN_COPY.sheetTitle}
       message={face.current.slow ? undefined : SCREEN_COPY.sheetText}
-      confirmLabel={SCREEN_COPY.sheetRetry}
-      cancelLabel={SCREEN_COPY.sheetClose}
+      retryLabel={SCREEN_COPY.sheetRetry}
+      closeLabel={SCREEN_COPY.sheetClose}
       busy={face.current.busy}
-      onConfirm={retry}
-      onCancel={sheet.close}
+      onRetry={retry}
+      onClose={sheet.close}
     />
   );
 }

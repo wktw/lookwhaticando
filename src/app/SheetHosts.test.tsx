@@ -92,7 +92,7 @@ async function fresh(save?: AppState) {
 const errorSheet = () => Array.from(document.querySelectorAll<HTMLElement>('[role="alertdialog"]')).find((el) => el.textContent?.includes(SCREEN_COPY.sheetTitle)) ?? null;
 /** The sheet that says a first load is taking a moment (P-ui-23). */
 const loadingSheet = () => Array.from(document.querySelectorAll<HTMLElement>('[role="alertdialog"]')).find((el) => el.textContent?.includes(SCREEN_COPY.sheetSlow)) ?? null;
-/** The error sheet's phase (src/ui/Sheet.tsx): 'enter' or 'open' while it is up, 'exit' as it goes. */
+/** The error sheet's phase (its layer's `data-state`, ./LoadSheet.tsx): 'enter' or 'open' while it is up, 'exit' as it goes. */
 const errorSheetPhase = () => errorSheet()?.closest('[data-state]')?.getAttribute('data-state') ?? null;
 const dialogs = () => document.querySelectorAll('[role="dialog"], [role="alertdialog"]');
 
@@ -388,6 +388,205 @@ describe('a shared sheet whose first load takes a moment (WP-C4 follow-up, P-ui-
     expect(dialogs()).toHaveLength(1);
     expect(open.habitDetailRequest.value).toBe(walk);
     expect(reloads).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * The small sheet is the shell's own (`LoadSheet`, so the paper Sheet stays off the first paint);
+ * these pin what it has to do as a modal alertdialog, whichever component draws it.
+ */
+describe('the small sheet, as a dialog (WP-C4, first-paint headroom)', () => {
+  /** The layer the small sheet sits in (its dimmed backdrop is the layer's own first child). */
+  const layerOf = (el: Element | null) => el?.closest<HTMLElement>('[data-state]') ?? null;
+
+  it('takes focus to Try again as it opens, and gives it back to what had it on Close and on Esc', async () => {
+    ctl.offline.add('detail');
+    const { open, walk } = await fresh();
+    const opener = document.createElement('button');
+    opener.textContent = 'Walk';
+    document.body.append(opener);
+    opener.focus();
+
+    await act(() => open.openHabitDetail(walk));
+    await until(errorSheet, 'the error sheet', LOAD);
+    expect(document.activeElement).toBe(button('Try again'));
+    await click(button('Close'), 'Close');
+    expect(document.activeElement).toBe(opener);
+    await until(() => !errorSheet(), 'the error sheet to go');
+
+    opener.focus();
+    await act(() => open.openHabitDetail(walk));
+    await until(() => errorSheet() && layerOf(errorSheet())?.getAttribute('data-state') !== 'exit' && document.activeElement === button('Try again'), 'the error sheet again, focused', LOAD);
+    await key(document.activeElement!, 'Escape');
+    expect(open.habitDetailRequest.value).toBeNull();
+    expect(document.activeElement).toBe(opener);
+  });
+
+  it('is a modal alertdialog named by its h2 title and described by its line (the slow sheet by its title alone)', async () => {
+    ctl.offline.add('detail');
+    const { open, walk } = await fresh();
+    await act(() => open.openHabitDetail(walk));
+    const sheet = await until(errorSheet, 'the error sheet', LOAD);
+    expect(sheet.getAttribute('aria-modal')).toBe('true');
+    const title = document.getElementById(sheet.getAttribute('aria-labelledby') ?? '');
+    expect(title?.tagName).toBe('H2');
+    expect(title?.textContent).toBe(SCREEN_COPY.sheetTitle);
+    expect(document.getElementById(sheet.getAttribute('aria-describedby') ?? '')?.textContent).toBe(SCREEN_COPY.sheetText);
+    await click(button('Close'), 'Close');
+    await until(() => !errorSheet(), 'the error sheet to go');
+
+    ctl.offline.delete('detail');
+    const letThrough = hold('detail');
+    await act(() => open.openHabitDetail(walk));
+    const slow = await until(loadingSheet, 'the loading sheet', SLOW_SHEET_MS * 4);
+    expect(document.getElementById(slow.getAttribute('aria-labelledby') ?? '')?.textContent).toBe(SCREEN_COPY.sheetSlow);
+    expect(slow.getAttribute('aria-describedby')).toBeNull();
+    await act(() => letThrough());
+  });
+
+  it('shows its title once, as that h2 (no second, hidden copy)', async () => {
+    ctl.offline.add('detail');
+    const { open, walk } = await fresh();
+    await act(() => open.openHabitDetail(walk));
+    const sheet = await until(errorSheet, 'the error sheet', LOAD);
+    const withTitle = Array.from(sheet.querySelectorAll('*')).filter((el) => el.children.length === 0 && el.textContent === SCREEN_COPY.sheetTitle);
+    expect(withTitle.map((el) => el.tagName)).toEqual(['H2']);
+    expect(withTitle[0]!.closest('.sr-only, [aria-hidden="true"]')).toBeNull();
+  });
+
+  it('gives the page back when the sheet asked for takes its place: Esc then closes that sheet, and nothing is left inert', async () => {
+    const app = document.createElement('div');
+    app.id = 'app';
+    document.body.append(app);
+    ctl.offline.add('detail');
+    const { open, walk } = await fresh();
+    await act(() => open.openHabitDetail(walk));
+    await until(errorSheet, 'the error sheet', LOAD);
+    expect(app.inert).toBe(true);
+
+    ctl.offline.delete('detail');
+    await click(button('Try again'), 'Try again');
+    const detail = await until(() => document.querySelector<HTMLElement>(`[data-habit-detail="${walk}"]`), 'Walk’s detail', LOAD);
+    expect(layerOf(detail)!.inert).toBe(false);
+    await key(document, 'Escape');
+    expect(open.habitDetailRequest.value).toBeNull();
+    await until(() => dialogs().length === 0, 'the detail to go');
+    expect(app.inert).toBe(false);
+  });
+
+  it('keeps Tab and Shift+Tab inside it', async () => {
+    ctl.offline.add('detail');
+    const { open, walk } = await fresh();
+    await act(() => open.openHabitDetail(walk));
+    await until(errorSheet, 'the error sheet', LOAD);
+    button('Close')!.focus();
+    await key(button('Close')!, 'Tab');
+    expect(document.activeElement).toBe(button('Try again'));
+    await act(() => void button('Try again')!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', shiftKey: true, bubbles: true, cancelable: true })));
+    expect(document.activeElement).toBe(button('Close'));
+  });
+
+  it('a tap on the dimmed page around it is Close', async () => {
+    ctl.offline.add('editor');
+    const { open } = await fresh();
+    await act(() => open.openHabitEditor());
+    const sheet = await until(errorSheet, 'the error sheet', LOAD);
+    const backdrop = layerOf(sheet)!.firstElementChild as HTMLElement;
+    expect(backdrop.contains(sheet)).toBe(false);
+    await click(backdrop, 'the dimmed page');
+    expect(open.habitEditorRequest.value).toBeNull();
+    await until(() => !errorSheet(), 'the error sheet to go');
+  });
+
+  it('over a sheet already open: it is on top, the sheet under it is inert, and Esc closes only it, focus back in the sheet under it', async () => {
+    const { open, walk } = await fresh();
+    await act(() => open.openHabitDetail(walk));
+    const detail = await until(() => document.querySelector<HTMLElement>(`[data-habit-detail="${walk}"]`), 'Walk’s detail', LOAD);
+    const detailLayer = layerOf(detail)!;
+    await until(() => detailLayer.getAttribute('data-state') === 'open', 'the detail to settle');
+    const inside = detail.closest('[role="dialog"]')!.querySelector<HTMLElement>('button')!;
+    inside.focus();
+
+    ctl.offline.add('pet');
+    await act(() => open.openPetCard('pet-cat-calico'));
+    const sheet = await until(errorSheet, 'the error sheet over the detail', LOAD);
+    expect(document.activeElement).toBe(button('Try again'));
+    expect(detailLayer.inert).toBe(true);
+    expect(Number(layerOf(sheet)!.style.zIndex)).toBeGreaterThan(Number(detailLayer.style.zIndex));
+
+    await key(document.activeElement!, 'Escape');
+    expect(open.petCardRequest.value).toBeNull();
+    expect(open.habitDetailRequest.value).toBe(walk);
+    await until(() => !errorSheet(), 'the error sheet to go');
+    expect(detailLayer.inert).toBe(false);
+    expect(document.activeElement).toBe(inside);
+    expect(dialogs()).toHaveLength(1);
+  });
+
+  it('dims the page fully when alone, and more lightly (data-over) over a sheet already open', async () => {
+    ctl.offline.add('editor');
+    const { open, walk } = await fresh();
+    await act(() => open.openHabitEditor());
+    const alone = await until(errorSheet, 'the error sheet on its own', LOAD);
+    expect(layerOf(alone)!.hasAttribute('data-over')).toBe(false);
+    await click(button('Close'), 'Close');
+    await until(() => !errorSheet(), 'the error sheet to go');
+
+    await act(() => open.openHabitDetail(walk));
+    const detail = await until(() => document.querySelector<HTMLElement>(`[data-habit-detail="${walk}"]`), 'Walk’s detail', LOAD);
+    await until(() => layerOf(detail)!.getAttribute('data-state') === 'open', 'the detail to settle');
+    ctl.offline.add('pet');
+    await act(() => open.openPetCard('pet-cat-calico'));
+    const over = await until(errorSheet, 'the error sheet over the detail', LOAD);
+    expect(layerOf(over)!.hasAttribute('data-over')).toBe(true);
+  });
+
+  it('slides away as the paper Sheet does: still there, exiting, just after Close, and gone only after its 320 ms', async () => {
+    ctl.offline.add('detail');
+    const { open, walk } = await fresh();
+    await act(() => open.openHabitDetail(walk));
+    const sheet = await until(errorSheet, 'the error sheet', LOAD);
+    await until(() => errorSheetPhase() === 'open', 'the error sheet to settle');
+    const layer = layerOf(sheet)!;
+    const t0 = Date.now();
+    await click(button('Close'), 'Close');
+    expect(layer.isConnected).toBe(true);
+    expect(layer.getAttribute('data-state')).toBe('exit');
+    await until(() => !layer.isConnected, 'the error sheet to go', LOAD);
+    // A busy machine only makes it later; a timer never fires early (a few ms allowed for rounding).
+    expect(Date.now() - t0).toBeGreaterThanOrEqual(310);
+  });
+
+  it('opens with the paper Sheet’s whoosh, once', async () => {
+    ctl.offline.add('detail');
+    const { open, walk } = await fresh();
+    const { sfx } = await import('@/fx/sound');
+    const play = vi.spyOn(sfx, 'play');
+    await act(() => open.openHabitDetail(walk));
+    await until(errorSheet, 'the error sheet', LOAD);
+    await until(() => errorSheetPhase() === 'open', 'the error sheet to settle');
+    expect(play.mock.calls.filter(([name]) => name === 'whoosh')).toHaveLength(1);
+  });
+
+  it('under a layer opened over it: inert, and Esc is not its own until that layer goes', async () => {
+    ctl.offline.add('detail');
+    const { open, walk } = await fresh();
+    const stack = await import('@/ui/sheetStack');
+    await act(() => open.openHabitDetail(walk));
+    const sheet = await until(errorSheet, 'the error sheet', LOAD);
+    const layer = layerOf(sheet)!;
+    expect(layer.inert).toBe(false);
+
+    await act(() => stack.pushLayer('test-over'));
+    expect(layer.inert).toBe(true);
+    await key(document, 'Escape');
+    expect(open.habitDetailRequest.value).toBe(walk);
+    expect(errorSheetPhase()).not.toBe('exit');
+
+    await act(() => stack.removeLayer('test-over'));
+    expect(layer.inert).toBe(false);
+    await key(document, 'Escape');
+    expect(open.habitDetailRequest.value).toBeNull();
   });
 });
 

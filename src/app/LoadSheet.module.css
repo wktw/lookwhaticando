@@ -1,0 +1,114 @@
+/* The shell's small load sheet (LoadSheet.tsx): the paper Sheet's look, without its drag. */
+.layer {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+.layer[data-state='exit'] {
+  pointer-events: none;
+}
+
+.scrim {
+  position: absolute;
+  inset: 0;
+  background: var(--scrim);
+  opacity: 0;
+  transition: opacity 320ms var(--ease-pop);
+  -webkit-tap-highlight-color: transparent;
+}
+.layer[data-state='open'] .scrim {
+  opacity: 1;
+}
+/* Over another sheet it only adds a whisper more dimming. */
+.layer[data-over] .scrim {
+  background: rgba(59, 50, 54, 0.12);
+}
+
+.panel {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-2);
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 640px;
+  max-height: calc(100dvh - var(--safe-top) - 12px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 30px 22px calc(24px + var(--safe-bottom));
+  border: 1px solid var(--line);
+  border-bottom: 0;
+  border-radius: var(--r-xl) var(--r-xl) 0 0;
+  background: var(--card);
+  box-shadow: 0 -14px 36px -22px rgba(59, 50, 54, 0.38);
+  outline: none;
+  text-align: center;
+  transform: translateY(0);
+  transition: transform 420ms var(--ease-pop);
+}
+:global([data-theme='night']) .panel {
+  box-shadow: 0 -14px 36px -18px rgba(0, 0, 0, 0.7);
+}
+.layer[data-state='enter'] .panel,
+.layer[data-state='exit'] .panel {
+  transform: translateY(calc(100% + 40px));
+}
+.layer[data-state='exit'] .panel {
+  transition-duration: 280ms;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.9, 0.6);
+}
+
+.title {
+  font-family: var(--font-display);
+  font-size: var(--fs-headline);
+  line-height: 1.2;
+  color: var(--ink);
+  text-wrap: balance;
+}
+
+.text {
+  max-width: 34ch;
+  color: var(--ink-2);
+  text-wrap: pretty;
+}
+
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  max-width: 420px;
+  margin-top: var(--s-4);
+}
+
+/* Wide screens: a small centred paper dialog. */
+@media (min-width: 900px) {
+  .layer {
+    align-items: center;
+    padding: 32px;
+  }
+  .panel {
+    width: min(420px, 100%);
+    max-height: min(86vh, 860px);
+    padding: 30px 26px 26px;
+    border-bottom: 1px solid var(--line);
+    border-radius: var(--r-xl);
+    box-shadow: var(--shadow-lg);
+    transition:
+      transform 320ms var(--ease-pop),
+      opacity 220ms var(--ease-pop);
+  }
+  .layer[data-state='enter'] .panel,
+  .layer[data-state='exit'] .panel {
+    transform: translateY(14px);
+    opacity: 0;
+  }
+  .layer[data-state='exit'] .panel {
+    transition-duration: 180ms;
+    transition-timing-function: ease;
+  }
+}
