@@ -1,0 +1,382 @@
+// @vitest-environment jsdom
+/**
+ * WP-A6 (FS6, FS5's interface half, P-persistence-15): the Import sheet imports exactly the backup
+ * it described. Every new choice (a file, Paste my plants, typing, opening or closing the sheet)
+ * starts a new selection: what was described before goes at once, the sheet says it is reading, and
+ * a read, a clipboard answer or a description that belonged to an earlier choice is dropped when it
+ * comes in. Import is bound to the described text itself, so the no-undo question imports that
+ * text, and choosing another backup while an import is under way lets that import go, as closing
+ * the sheet does.
+ *
+ * File reads, clipboard answers and previews are controllable promises. Cases marked "failed
+ * before" failed against the code before WP-A6 (f6d620d); "(guard)" cases passed there too.
+ */
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+import { render } from 'preact';
+import { act } from 'preact/test-utils';
+import { SAVE_KEY } from '@/state/persist';
+import type { SnapshotStore } from '@/state/snapshots';
+import * as store from '@/state/store';
+import { DATA, DATA_COPY, INSTALL } from '@/catalog/lines';
+import { ImportSheet, previewLine } from '@/features/you/ImportSheet';
+import { toasts } from '@/ui/toast';
+import { button, click, installDom, mount, type, until } from '@/features/capsules/testing';
+import { fakeBrowser, type FakeBrowser } from './fixtures';
+
+// The store's previewImport and applyImport are wrapped so a test can hold one back or see its text.
+vi.mock('@/state/store', async (importOriginal) => {
+  const real = await importOriginal<typeof import('@/state/store')>();
+  return { ...real, previewImport: vi.fn(real.previewImport), applyImport: vi.fn(real.applyImport) };
+});
+
+beforeAll(() => {
+  installDom();
+  window.matchMedia ??= ((query: string) => ({ matches: false, media: query, addEventListener() {}, removeEventListener() {}, addListener() {}, removeListener() {}, onchange: null, dispatchEvent: () => false })) as unknown as typeof window.matchMedia;
+});
+
+let view: ReturnType<typeof mount> | null = null;
+afterEach(() => {
+  view?.unmount();
+  view = null;
+  toasts.value = [];
+  vi.mocked(store.previewImport).mockClear();
+  vi.mocked(store.applyImport).mockClear();
+  Reflect.deleteProperty(navigator, 'clipboard');
+  store.configureStore({ locks: null });
+  localStorage.clear();
+});
+
+function deferred<T>() {
+  let resolve!: (v: T) => void;
+  const promise = new Promise<T>((r) => (resolve = r));
+  return { promise, resolve };
+}
+
+const walk = {
+  name: 'Walk',
+  icon: 'water',
+  color: 'sky',
+  plant: 'pothos',
+  pot: 'terracotta',
+  schedule: { kind: 'daily' },
+  target: 1,
+  step: 1,
+  effort: 'light',
+  timeOfDay: 'anytime',
+  polarity: 'build',
+} as const;
+
+/**
+ * Boots a window and keeps two backups, "Ana" with one habit and "Bea" with two (so their
+ * previews differ), then starts over as "Other", the save shown.
+ */
+function threeSaves(): { b: FakeBrowser; A: string; B: string } {
+  const b = fakeBrowser();
+  store.hydrate();
+  const backupOf = (name: string, habits: number) => {
+    store.resetAll();
+    store.completeOnboarding({ name, templateIds: [] });
+    for (let i = 0; i < habits; i++) store.createHabit({ ...walk, name: `Walk ${i + 1}` });
+    return store.exportData();
+  };
+  const A = backupOf('Ana', 1);
+  const B = backupOf('Bea', 2);
+  store.resetAll();
+  store.completeOnboarding({ name: 'Other', templateIds: [] });
+  b.advance(1000);
+  return { b, A, B };
+}
+
+async function lineFor(text: string): Promise<string> {
+  const real = (await vi.importActual<typeof import('@/state/store')>('@/state/store')).previewImport;
+  const p = await real(text);
+  if (!p.ok) throw new Error('not a backup');
+  return previewLine(p);
+}
+
+/** A chosen file whose text arrives when the test says (a slow disk, a cloud file). */
+function slowFile(name: string) {
+  const d = deferred<string>();
+  const text = vi.fn(() => d.promise);
+  return { file: { name, size: 1000, type: 'application/json', text }, text, arrive: async (t: string) => act(async () => { d.resolve(t); await new Promise((r) => setTimeout(r, 10)); }) };
+}
+
+/** Chooses `file` in the sheet's hidden file input. */
+async function choose(file: unknown): Promise<void> {
+  const input = document.querySelector<HTMLInputElement>('input[type="file"]')!;
+  Object.defineProperty(input, 'files', { value: [file], configurable: true });
+  await act(async () => {
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+    await new Promise((r) => setTimeout(r, 0));
+  });
+}
+
+/** A clipboard whose readText answers when the test says. */
+function slowClipboard() {
+  const answers: Array<(t: string) => void> = [];
+  Object.defineProperty(navigator, 'clipboard', {
+    configurable: true,
+    value: { readText: () => new Promise<string>((r) => answers.push(r)) },
+  });
+  return {
+    get asked() {
+      return answers.length;
+    },
+    answer: async (i: number, t: string) => act(async () => { answers[i]!(t); await new Promise((r) => setTimeout(r, 10)); }),
+  };
+}
+
+const settle = () => act(() => new Promise<void>((r) => setTimeout(r, 20)));
+const preview = () => document.querySelector('[role="status"] strong')?.textContent ?? null;
+const importButton = () => button(DATA.importButton);
+const reading = () => Array.from(document.querySelectorAll('p')).some((p) => p.textContent === DATA_COPY.reading);
+const area = () => document.querySelector<HTMLTextAreaElement>('textarea')!;
+const toast = (key: string) => toasts.value.find((t) => t.key === key);
+const closeAndReopen = async (props: Partial<Parameters<typeof ImportSheet>[0]> = {}) => {
+  act(() => render(<ImportSheet open={false} onClose={() => undefined} />, view!.root));
+  act(() => render(<ImportSheet open onClose={() => undefined} {...props} />, view!.root));
+  await settle();
+};
+
+describe('WP-A6: a new choice clears what was described, at once', () => {
+  it('a file chosen while another backup is described: the preview and Import go at once, and the sheet says it is reading (failed before)', async () => {
+    const { A, B } = threeSaves();
+    view = mount(<ImportSheet open onClose={() => undefined} />);
+    await type(area() as unknown as HTMLInputElement, A);
+    await until(() => preview(), 'the preview of A');
+    const slow = slowFile('bea.json');
+    await choose(slow.file);
+    // While B is being read, nothing is on offer: Import is bound to no bytes at all.
+    expect(importButton()).toBeNull();
+    expect(preview()).toBeNull();
+    expect(reading()).toBe(true);
+    await slow.arrive(B);
+    expect(preview()).toBe(await lineFor(B));
+    expect(reading()).toBe(false);
+    await click(importButton(), 'Import');
+    await until(() => toast('imported'), 'the Imported note');
+    expect(store.state.value.profile.name).toBe('Bea');
+  });
+
+  it('slow file A, then fast file B: B is described and imported, and A’s late text is dropped (failed before)', async () => {
+    const { A, B } = threeSaves();
+    view = mount(<ImportSheet open onClose={() => undefined} />);
+    const slowA = slowFile('ana.json');
+    await choose(slowA.file);
+    await choose({ name: 'bea.json', size: 1000, type: 'application/json', text: async () => B });
+    await until(() => preview(), 'the preview of B');
+    await slowA.arrive(A);
+    expect(preview()).toBe(await lineFor(B));
+    expect(document.querySelector('[role="alert"]')).toBeNull();
+    await click(importButton(), 'Import');
+    await until(() => toast('imported'), 'the Imported note');
+    expect(vi.mocked(store.applyImport).mock.calls.map((c) => c[0])).toEqual([B.trim()]);
+    expect(store.state.value.profile.name).toBe('Bea');
+  });
+
+  it('Paste my plants, slow to answer, then a backup pasted into the box: the box wins (failed before)', async () => {
+    const { A, B } = threeSaves();
+    const clip = slowClipboard();
+    view = mount(<ImportSheet open onClose={() => undefined} />);
+    await click(button(INSTALL.paste), 'Paste my plants');
+    expect(clip.asked).toBe(1);
+    await type(area() as unknown as HTMLInputElement, B);
+    await until(() => preview(), 'the preview of B');
+    await clip.answer(0, A);
+    expect(preview()).toBe(await lineFor(B));
+    expect(area().value).toBe(B);
+  });
+});
+
+describe('WP-A6: closing the sheet lets every read go', () => {
+  it('closed and reopened while a file is still being read: the sheet stays empty, and nothing can be imported (failed before)', async () => {
+    const { A } = threeSaves();
+    view = mount(<ImportSheet open onClose={() => undefined} />);
+    const slow = slowFile('ana.json');
+    await choose(slow.file);
+    await closeAndReopen();
+    await slow.arrive(A);
+    expect(preview()).toBeNull();
+    expect(importButton()).toBeNull();
+    expect(reading()).toBe(false);
+    expect(document.querySelector('[role="alert"]')).toBeNull();
+  });
+
+  it('closed and reopened while a pasted backup is still being described: the sheet stays empty (failed before)', async () => {
+    const { A } = threeSaves();
+    const real = (await vi.importActual<typeof import('@/state/store')>('@/state/store')).previewImport;
+    const hold = deferred<void>();
+    vi.mocked(store.previewImport).mockImplementationOnce(async (text: string) => {
+      await hold.promise;
+      return real(text);
+    });
+    view = mount(<ImportSheet open onClose={() => undefined} />);
+    await type(area() as unknown as HTMLInputElement, A);
+    await closeAndReopen();
+    await act(async () => {
+      hold.resolve();
+      await new Promise((r) => setTimeout(r, 20));
+    });
+    expect(preview()).toBeNull();
+    expect(importButton()).toBeNull();
+  });
+
+  it('a clipboard read started when the sheet opened, answered after it was closed and opened again: ignored (failed before)', async () => {
+    const { A } = threeSaves();
+    const first = deferred<string | null>();
+    view = mount(<ImportSheet open onClose={() => undefined} clip={first.promise} />);
+    await closeAndReopen();
+    await act(async () => {
+      first.resolve(A);
+      await new Promise((r) => setTimeout(r, 20));
+    });
+    expect(area().value).toBe('');
+    expect(preview()).toBeNull();
+    expect(importButton()).toBeNull();
+  });
+
+  it('opened again with a new clipboard read: its answer is described, never the earlier one that came in late (failed before)', async () => {
+    const { A, B } = threeSaves();
+    const first = deferred<string | null>();
+    const second = deferred<string | null>();
+    view = mount(<ImportSheet open onClose={() => undefined} clip={first.promise} />);
+    await closeAndReopen({ clip: second.promise });
+    await act(async () => {
+      second.resolve(B);
+      await new Promise((r) => setTimeout(r, 20));
+    });
+    await until(() => preview(), 'the preview of B');
+    await act(async () => {
+      first.resolve(A);
+      await new Promise((r) => setTimeout(r, 20));
+    });
+    expect(preview()).toBe(await lineFor(B));
+    expect(area().value).toBe(B.trim());
+  });
+
+  it('a clipboard read: the sheet says it is reading, and the line goes when the clipboard has nothing to give (shape: the line is new)', async () => {
+    threeSaves();
+    const first = deferred<string | null>();
+    view = mount(<ImportSheet open onClose={() => undefined} clip={first.promise} />);
+    expect(reading()).toBe(true);
+    await act(async () => {
+      first.resolve(null);
+      await new Promise((r) => setTimeout(r, 20));
+    });
+    expect(reading()).toBe(false);
+    expect(importButton()).toBeNull();
+  });
+});
+
+describe('WP-A6: Import is bound to the bytes it described', () => {
+  it('the no-undo question imports the backup it asked about, not a clipboard answer that came in meanwhile (failed before)', async () => {
+    const { b, A, B } = threeSaves();
+    const noCopies: SnapshotStore = { durable: true, list: b.snapshots.list, get: b.snapshots.get, remove: b.snapshots.remove, put: () => Promise.reject(new Error('quota')) };
+    store.configureStore({ snapshots: noCopies });
+    const clip = slowClipboard();
+    view = mount(<ImportSheet open onClose={() => undefined} />);
+    await click(button(INSTALL.paste), 'Paste my plants');
+    await type(area() as unknown as HTMLInputElement, B);
+    await until(() => preview(), 'the preview of B');
+    await click(importButton(), 'Import');
+    const anyway = await until(() => button(DATA_COPY.importAnyway), 'Import anyway');
+    await clip.answer(0, A);
+    if (button(DATA_COPY.importAnyway)) await click(anyway, 'Import anyway');
+    await settle();
+    // Whatever was imported is what was described: Bea, never the unseen Ana.
+    expect(store.state.value.profile.name).not.toBe('Ana');
+    for (const [text] of vi.mocked(store.applyImport).mock.calls) expect(text).toBe(B.trim());
+  });
+
+  it('choosing another backup while an import is under way lets that import go, and describes the new one (failed before)', async () => {
+    const { b, A, B } = threeSaves();
+    await new Promise((r) => setTimeout(r, 0));
+    let reached!: () => void;
+    let open!: () => void;
+    const hit = new Promise<void>((r) => (reached = r));
+    const wait = new Promise<void>((r) => (open = r));
+    store.configureStore({
+      snapshots: {
+        durable: true,
+        list: b.snapshots.list,
+        get: b.snapshots.get,
+        remove: b.snapshots.remove,
+        put: async (r) => {
+          await b.snapshots.put(r);
+          reached();
+          await wait;
+        },
+      },
+    });
+    const disk = b.storage.getItem(SAVE_KEY);
+    view = mount(<ImportSheet open onClose={() => undefined} />);
+    await type(area() as unknown as HTMLInputElement, A);
+    await until(() => preview(), 'the preview of A');
+    await click(importButton(), 'Import');
+    await hit;
+    await choose({ name: 'bea.json', size: 1000, type: 'application/json', text: async () => B });
+    open();
+    await until(() => !store.replacing.value, 'the import to end');
+    await settle();
+    expect(store.state.value.profile.name).toBe('Other');
+    expect(b.storage.getItem(SAVE_KEY)).toBe(disk);
+    expect(toast('imported')).toBeUndefined();
+    expect(preview()).toBe(await lineFor(B));
+  });
+
+  it('unmounted while a file is read and a preview is worked out: the late answers change nothing and throw nothing (guard)', async () => {
+    const { A } = threeSaves();
+    const slow = slowFile('ana.json');
+    view = mount(<ImportSheet open onClose={() => undefined} />);
+    await choose(slow.file);
+    view.unmount();
+    view = null;
+    await slow.arrive(A);
+    expect(vi.mocked(store.applyImport)).not.toHaveBeenCalled();
+    expect(store.state.value.profile.name).toBe('Other');
+  });
+
+  it('new line: the sheet says it is reading (VOICE §21, DEC-V pending; shape)', () => {
+    expect(DATA_COPY.reading).toBe('Reading the backup…');
+  });
+});
+
+// Closing during the protective copy is save-replace-ui's guard; closing while a CK1 payload is
+// still expanding is import-candidate.test.ts's (jsdom's Blob can't stream, so it runs in node).
+describe('WP-A6: closing the sheet at each await of an import', () => {
+  it('after the commit, while older copies are pruned: it is imported, and the Imported note says so (guard)', async () => {
+    const { b, A } = threeSaves();
+    await new Promise((r) => setTimeout(r, 0));
+    let listed = 0;
+    let reached!: () => void;
+    let open!: () => void;
+    const hit = new Promise<void>((r) => (reached = r));
+    const wait = new Promise<void>((r) => (open = r));
+    store.configureStore({
+      snapshots: {
+        durable: true,
+        get: b.snapshots.get,
+        put: b.snapshots.put,
+        remove: b.snapshots.remove,
+        list: async () => {
+          const l = await b.snapshots.list();
+          if (++listed === 1) {
+            reached();
+            await wait;
+          }
+          return l;
+        },
+      },
+    });
+    view = mount(<ImportSheet open onClose={() => undefined} />);
+    await type(area() as unknown as HTMLInputElement, A);
+    await until(() => preview(), 'the preview');
+    await click(importButton(), 'Import');
+    await hit;
+    act(() => render(<ImportSheet open={false} onClose={() => undefined} />, view!.root));
+    open();
+    const note = await until(() => toast('imported'), 'the Imported note');
+    expect(note.action?.label).toBe(DATA.undoImport);
+    expect(store.state.value.profile.name).toBe('Ana');
+  });
+});

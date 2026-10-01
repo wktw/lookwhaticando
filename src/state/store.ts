@@ -1443,9 +1443,13 @@ export function backupPayload(): Promise<string> {
 export function markBackup(): void {
   if (!demoMode.value) actVoid((tx) => profileDomain.markBackup(tx));
 }
-/** Validate a backup (file text or CK1 payload) and describe it without applying. */
-export async function previewImport(text: string): Promise<ImportPreview | { ok: false; error: string }> {
-  const parsed = await parseBackupText(text);
+/**
+ * Validate a backup (file text or CK1 payload) and describe it without applying. `signal` lets the
+ * sheet let it go (another backup chosen, or the sheet closed): a payload stops expanding and
+ * nothing is parsed, 'aborted' (WP-A6).
+ */
+export async function previewImport(text: string, opts: { signal?: AbortSignal } = {}): Promise<ImportPreview | { ok: false; error: string }> {
+  const parsed = await parseBackupText(text, { signal: opts.signal });
   return parsed.ok ? describeBackup(parsed) : { ok: false, error: parsed.error };
 }
 
@@ -1711,7 +1715,8 @@ export function applyImport(text: string, opts: { withoutUndo?: boolean; signal?
     withoutUndo: opts.withoutUndo ?? false,
     signal: opts.signal,
     load: async () => {
-      const parsed = await parseBackupText(text, { local: rt.local });
+      // Let go (the sheet closed, or another backup chosen): the payload stops expanding (WP-A6).
+      const parsed = await parseBackupText(text, { local: rt.local, signal: opts.signal });
       return parsed.ok ? { ok: true, state: parsed.state } : (refuse(parsed.error as BackupError) as Loaded);
     },
   });

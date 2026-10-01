@@ -16,6 +16,8 @@
  *   as a stream that stops at `MAX_EXPANDED_BYTES`: 'too-large', never a phone out of memory. The
  *   wrapper's own numbers are checked too (`exportedAt`, a raw envelope's `savedAt` and `rev`, FS8),
  *   and the clock guard it brings is capped at when it was made (DEC-P14, `capImportedClock`).
+ * - Letting go (WP-A6): an import or preview carries the sheet's `signal`; when it aborts, a CK1
+ *   payload stops expanding at the next chunk and nothing is parsed: 'aborted'.
  */
 import type { ImportPreview } from './api';
 import type { AppState } from './types';
@@ -112,22 +114,33 @@ function streamCtor(name: 'CompressionStream' | 'DecompressionStream'): StreamCt
   return typeof ctor === 'function' ? (ctor as StreamCtor) : null;
 }
 
+/** Why a stream was let go: past its bound, or its import let go (WP-A6). */
+class Stopped {
+  constructor(readonly why: 'too-large' | 'aborted') {}
+}
+
 /**
  * Runs bytes through a (de)compression stream, reading it chunk by chunk with a running count: past
- * `maxBytes` it cancels the stream and answers null, so a small payload can never expand to fill the
- * phone's memory before anything is checked.
+ * `maxBytes` it cancels the stream and answers 'too-large', so a small payload can never expand to
+ * fill the phone's memory before anything is checked. When `signal` aborts (the import was let go:
+ * the sheet closed, or another backup was chosen) it cancels the stream at the next chunk and
+ * answers 'aborted' (WP-A6).
  */
-async function through(bytes: Uint8Array, ctor: StreamCtor, maxBytes = Infinity): Promise<Uint8Array | null> {
+async function through(bytes: Uint8Array, ctor: StreamCtor, maxBytes = Infinity, signal?: AbortSignal): Promise<Uint8Array | Stopped> {
   const reader = new Blob([bytes as BlobPart]).stream().pipeThrough(new ctor('gzip')).getReader();
   const chunks: Uint8Array[] = [];
   let total = 0;
   for (;;) {
+    if (signal?.aborted) {
+      await reader.cancel().catch(() => undefined);
+      return new Stopped('aborted');
+    }
     const { done, value } = await reader.read();
     if (done) break;
     total += value.byteLength;
     if (total > maxBytes) {
       await reader.cancel().catch(() => undefined);
-      return null;
+      return new Stopped('too-large');
     }
     chunks.push(value);
   }
@@ -146,7 +159,8 @@ export async function encodePayload(json: string, opts: { compress?: boolean } =
   const ctor = opts.compress === false ? null : streamCtor('CompressionStream');
   if (ctor) {
     try {
-      return PAYLOAD_GZIP + base64UrlEncode((await through(bytes, ctor))!);
+      const out = await through(bytes, ctor);
+      if (out instanceof Uint8Array) return PAYLOAD_GZIP + base64UrlEncode(out);
     } catch {
       /* fall through to the plain payload */
     }
@@ -157,6 +171,8 @@ export async function encodePayload(json: string, opts: { compress?: boolean } =
 export interface ImportBounds {
   /** The most the payload may expand to (default `MAX_EXPANDED_BYTES`; tests use less). */
   maxBytes?: number;
+  /** Aborted when the import is let go: reading stops at the next chunk, and the answer is 'aborted' (WP-A6). */
+  signal?: AbortSignal | undefined;
 }
 
 /** The JSON inside a CK1/CK0 payload ('too-large' past the bounds, without expanding the rest). */
@@ -175,13 +191,13 @@ export async function decodePayload(text: string, opts: ImportBounds = {}): Prom
   if (prefix === PAYLOAD_GZIP) {
     const ctor = streamCtor('DecompressionStream');
     if (!ctor) return { ok: false, error: 'cannot-decompress-here' };
-    let out: Uint8Array | null;
+    let out: Uint8Array | Stopped;
     try {
-      out = await through(bytes, ctor, maxBytes);
+      out = await through(bytes, ctor, maxBytes, opts.signal);
     } catch {
-      return { ok: false, error: 'damaged-payload' };
+      return { ok: false, error: opts.signal?.aborted ? 'aborted' : 'damaged-payload' };
     }
-    if (!out) return { ok: false, error: 'too-large' };
+    if (out instanceof Stopped) return { ok: false, error: out.why };
     bytes = out;
   } else if (bytes.byteLength > maxBytes) {
     return { ok: false, error: 'too-large' };
@@ -242,6 +258,9 @@ export async function parseBackupText(text: string, opts: ParseOptions = {}): Pr
     if (!d.ok) return d;
     json = d.json;
   }
+  // Let go before the parse: a large backup's JSON.parse and validation can't be interrupted once
+  // they start, so they don't start (WP-A6).
+  if (opts.signal?.aborted) return { ok: false, error: 'aborted' };
   let obj: unknown;
   try {
     obj = JSON.parse(json);

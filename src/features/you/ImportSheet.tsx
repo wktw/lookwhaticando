@@ -7,13 +7,20 @@
  * (`{ ok: true, undo }`, WP-A3): no Undo is offered when none was kept, and closing the sheet lets
  * an import that hasn't committed yet go.
  *
+ * Import is bound to what was described (WP-A6, FS6): every new choice (a file, a paste, the
+ * clipboard, typing, opening or closing) is a new selection. What was described before goes at once
+ * and the sheet says it is reading; a read, clipboard answer or description from an earlier
+ * selection is dropped when it comes in, and its reads are let go. The described text itself is the
+ * candidate Import and the no-undo question import, and a new choice lets an import of the old one
+ * go, as closing does.
+ *
  * Shared by You › Data, the install gate and onboarding's first step.
  */
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { CHECKIN_TOASTS, DATA, ERRORS, INSTALL, fillLine } from '@/catalog/lines';
 import { num } from '@/catalog/format';
 import { dayOf } from './when';
-import { applyImport, demoMode, previewImport, undoImport } from '@/state/store';
+import { applyImport, demoMode, previewImport, replacing, undoImport } from '@/state/store';
 import type { ImportPreview, ReplaceError, ReplaceResult } from '@/state/api';
 import { Button } from '@/ui/Button';
 import { ConfirmDialog } from '@/ui/ConfirmDialog';
@@ -147,111 +154,171 @@ export interface ImportSheetProps {
   title?: string;
 }
 
+/**
+ * What the sheet described, and so the one thing Import can import (WP-A6, FS6): the exact text that
+ * was described, and the selection it came from. It never changes; a new choice makes a new one.
+ */
+interface Candidate {
+  readonly gen: number;
+  readonly text: string;
+  readonly preview: ImportPreview;
+}
+
 export function ImportSheet({ open, onClose, onImported, clip, title = DATA.import }: ImportSheetProps) {
   const [text, setText] = useState('');
-  const [preview, setPreview] = useState<ImportPreview | null>(null);
+  const [candidate, setCandidate] = useState<Candidate | null>(null);
+  const [reading, setReading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [askNoUndo, setAskNoUndo] = useState(false);
+  /** The no-undo question, and the backup it is about. */
+  const [askNoUndo, setAskNoUndo] = useState<Candidate | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
-  const run = useRef(0);
-  /** The import under way, let go when the sheet closes or goes (FS5). */
+  /**
+   * The selection generation (WP-A6): bumped by every file, paste, clipboard read, typed change,
+   * open and close. A read, clipboard answer or description from an earlier one is dropped.
+   */
+  const sel = useRef(0);
+  /** Lets the current selection's reads go (a file read, a payload expanding). */
+  const reads = useRef<AbortController | null>(null);
+  /** The import under way, let go when the sheet closes or goes, or another backup is chosen (FS5). */
   const importing = useRef<AbortController | null>(null);
 
-  useEffect(() => {
-    if (!open) {
-      importing.current?.abort();
+  /**
+   * A new choice: everything about the one before goes at once (what was described, its error, the
+   * no-undo question, its reads, and an import of it that hasn't committed yet).
+   */
+  const select = (): { gen: number; signal: AbortSignal } => {
+    const gen = ++sel.current;
+    reads.current?.abort();
+    const ctl = new AbortController();
+    reads.current = ctl;
+    if (importing.current) {
+      importing.current.abort();
       importing.current = null;
-      return;
+      setBusy(false);
     }
-    setText('');
-    setPreview(null);
+    setCandidate(null);
+    setAskNoUndo(null);
     setError(null);
-    setBusy(false);
-    if (clip) void clip.then(take);
+    setReading(false);
+    return { gen, signal: ctl.signal };
+  };
+  const current = (gen: number) => gen === sel.current;
+
+  useEffect(() => {
+    const { gen, signal } = select();
+    setText('');
+    if (open && clip) {
+      setReading(true);
+      void clip.then(
+        (t) => takeClip(gen, signal, t),
+        () => takeClip(gen, signal, null),
+      );
+    }
   }, [open]);
 
-  useEffect(() => () => importing.current?.abort(), []);
+  useEffect(
+    () => () => {
+      sel.current++;
+      reads.current?.abort();
+      importing.current?.abort();
+    },
+    [],
+  );
 
-  const describe = async (value: string) => {
-    const mine = ++run.current;
-    setError(null);
-    setPreview(null);
+  /** Describes `value` for the selection `gen`, which it becomes the candidate of if still current. */
+  const describe = async (gen: number, signal: AbortSignal, value: string) => {
     const trimmed = value.trim();
-    if (!trimmed) return;
-    const res = await previewImport(trimmed);
-    if (mine !== run.current) return;
+    if (!trimmed) {
+      setReading(false);
+      return;
+    }
+    setReading(true);
+    let res: Awaited<ReturnType<typeof previewImport>>;
+    try {
+      res = await previewImport(trimmed, { signal });
+    } catch {
+      res = { ok: false, error: 'not-a-backup' };
+    }
+    if (!current(gen)) return;
+    setReading(false);
     if (res.ok) {
-      setPreview(res);
+      setCandidate({ gen, text: trimmed, preview: res });
       announce(previewLine(res));
     } else {
       setError(importErrorText(res.error));
     }
   };
 
-  function take(text: string | null) {
-    if (text && text.trim()) {
-      pending.current = null;
-      setText(text.trim());
-      void describe(text);
+  /** A clipboard answer for the selection `gen`: described if it is still current and has text. */
+  function takeClip(gen: number, signal: AbortSignal, value: string | null) {
+    if (!current(gen)) return;
+    if (value && value.trim()) {
+      setText(value.trim());
+      void describe(gen, signal, value);
+    } else {
+      setReading(false);
     }
   }
 
   /** Starts the read inside her tap. */
-  const paste = () => void readClipboard().then(take);
-
-  /** A chosen file's text (kept out of the text box: a backup file is long). */
-  const pending = useRef<string | null>(null);
+  const paste = () => {
+    const { gen, signal } = select();
+    setText('');
+    setReading(true);
+    void readClipboard().then((t) => takeClip(gen, signal, t));
+  };
 
   const onFile = async (e: Event) => {
     const input = e.currentTarget as HTMLInputElement;
     const file = input.files?.[0];
     input.value = '';
     if (!file) return;
-    // A file past the import bound is refused by its size, before it is read (P-persistence-06).
-    const read = await readImportFile(file);
-    const body = read.ok ? read.text : '';
-    pending.current = body;
+    const { gen, signal } = select();
+    // A chosen file's text is kept out of the text box: a backup file is long.
     setText('');
-    if (!body.trim()) {
-      run.current++;
-      setPreview(null);
+    setReading(true);
+    // A file past the import bound is refused by its size, before it is read (P-persistence-06).
+    const read = await readImportFile(file, { signal });
+    if (!current(gen)) return;
+    if (!read.ok || !read.text.trim()) {
+      setReading(false);
       setError(!read.ok && read.error === 'too-large' ? ERRORS.tooLarge : ERRORS.notBackup);
       return;
     }
-    void describe(body);
+    await describe(gen, signal, read.text);
   };
 
-  const source = () => pending.current ?? text;
-
-  const doImport = async (withoutUndo = false) => {
+  /** Imports exactly what `cand` described, and nothing else (WP-A6). */
+  const doImport = async (cand: Candidate, withoutUndo = false) => {
+    if (!current(cand.gen)) return;
     importing.current?.abort();
     const ctl = new AbortController();
     importing.current = ctl;
     setBusy(true);
     let res: ReplaceResult;
     try {
-      res = await applyImport(source().trim(), { withoutUndo, signal: ctl.signal });
+      res = await applyImport(cand.text, { withoutUndo, signal: ctl.signal });
     } catch {
       // The store answers with results; a rejection all the same committed nothing (data-d12).
       res = { ok: false, error: 'not-saved' };
     }
     if (importing.current === ctl) importing.current = null;
-    // Closed meanwhile: whatever it answered, this visit of the sheet is over.
-    if (ctl.signal.aborted && !res.ok) return;
+    // Let go meanwhile (closed, or another backup chosen): whatever it answered, it is over.
+    if (!res.ok && (ctl.signal.aborted || !current(cand.gen))) return;
     setBusy(false);
     if (!res.ok) {
       if (res.error === 'no-undo') {
-        setAskNoUndo(true);
+        setAskNoUndo(cand);
         return;
       }
-      setAskNoUndo(false);
+      setAskNoUndo(null);
       const text = replaceErrorText(res.error);
       if (text) setError(text);
       return;
     }
-    setAskNoUndo(false);
-    pending.current = null;
+    // Committed: it says so, even if she had begun choosing another backup meanwhile.
+    setAskNoUndo(null);
     onClose();
     toastImported(res.undo);
     onImported?.(res);
@@ -267,9 +334,9 @@ export function ImportSheet({ open, onClose, onImported, clip, title = DATA.impo
         title={title}
         size="md"
         footer={
-          preview ? (
+          candidate ? (
             <div class={s.actions}>
-              <Button size="lg" block loading={busy} onClick={() => void doImport()} data-autofocus>
+              <Button size="lg" block loading={busy || replacing.value} onClick={() => void doImport(candidate)} data-autofocus>
                 {DATA.importButton}
               </Button>
               <Button variant="secondary" size="lg" block onClick={onClose}>
@@ -301,33 +368,34 @@ export function ImportSheet({ open, onClose, onImported, clip, title = DATA.impo
             autoCapitalize="off"
             autoComplete="off"
             onValue={(v) => {
-              pending.current = null;
+              const { gen, signal } = select();
               setText(v);
-              void describe(v);
+              void describe(gen, signal, v);
             }}
           />
+          {reading && <p class={s.helper}>{DATA_COPY.reading}</p>}
           {error && (
             <p class={s.error} role="alert">
               {error}
             </p>
           )}
-          {preview && (
+          {candidate && (
             <div class={s.previewCard} role="status">
-              <strong>{previewLine(preview)}</strong>
+              <strong>{previewLine(candidate.preview)}</strong>
             </div>
           )}
         </div>
       </Sheet>
       <ConfirmDialog
-        open={askNoUndo}
+        open={askNoUndo !== null}
         title={DATA_COPY.noUndoTitle}
         message={DATA_COPY.noUndo}
         confirmLabel={DATA_COPY.importAnyway}
         cancelLabel={DATA.keep}
         tone="danger"
         busy={busy}
-        onConfirm={() => void doImport(true)}
-        onCancel={() => setAskNoUndo(false)}
+        onConfirm={() => askNoUndo && void doImport(askNoUndo, true)}
+        onCancel={() => setAskNoUndo(null)}
       />
     </>
   );
