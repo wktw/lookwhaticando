@@ -19,6 +19,13 @@ export function selectDay(date: DateKey | null, today: DateKey): void {
   selectedDay.value = date === null || date >= today ? null : date;
 }
 
+/**
+ * A habit on a day that Today should put focus on once it shows that day (a hand-off such as the
+ * calendar's "Open Today", src/app/handoff.ts): its ring, so the next Enter waters it. Today clears
+ * it once it has placed focus, or when it shows another day.
+ */
+export const todayFocus = signal<{ habitId: string; date: DateKey } | null>(null);
+
 /* ------------------------------------------------------------------ */
 /* The group snapshot                                                  */
 /* ------------------------------------------------------------------ */

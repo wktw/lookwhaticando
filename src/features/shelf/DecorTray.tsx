@@ -20,6 +20,8 @@ export interface DecorTrayProps {
   placedAnywhere: number;
   /** The placed thing she last touched. */
   selected: ShelfVM['decor'][number] | null;
+  /** A thing she came here to place (a reveal's "Find it a place"): focus goes to it, not the heading. */
+  focusItem?: string | null;
   onAdd: (itemId: string, label: string) => void;
   onFlip: (placementId: string) => void;
   onRemove: (placementId: string) => void;
@@ -31,13 +33,21 @@ export interface DecorTrayProps {
  * F flips it, Delete puts it away); this tray adds owned decor and keepsakes to the place in view, and
  * flips or puts away the one she last touched, for touch and for anyone who prefers a button.
  */
-export function DecorTray({ place, inventory, count, placedAnywhere, selected, onAdd, onFlip, onRemove, onDone }: DecorTrayProps) {
+export function DecorTray({ place, inventory, count, placedAnywhere, selected, focusItem = null, onAdd, onFlip, onRemove, onDone }: DecorTrayProps) {
   const full = count >= MAX_DECOR_PER_PLACE;
   const where = placeName(place);
   const label = decorLabel;
-  // Decorate gave way to this tray: focus comes here, to its heading.
+  // Decorate gave way to this tray: focus comes here, to its heading; or, when she came to place a
+  // thing, to that thing's tile (one press puts it in the place in view).
   const title = useRef<HTMLHeadingElement>(null);
-  useEffect(() => title.current?.focus({ preventScroll: true }), []);
+  const list = useRef<HTMLUListElement>(null);
+  useEffect(() => {
+    const tile = focusItem ? list.current?.querySelector<HTMLButtonElement>(`button[data-item="${focusItem}"]:not([disabled])`) : null;
+    if (tile) tile.focus();
+    else title.current?.focus({ preventScroll: true });
+    // Once, as the tray opens.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   return (
     <section class={s.tray} aria-labelledby="shelf-decorate">
       <div class={s.trayHead}>
@@ -71,10 +81,10 @@ export function DecorTray({ place, inventory, count, placedAnywhere, selected, o
       {inventory.length === 0 ? (
         <p class={s.trayNote}>{placedAnywhere > 0 ? SHELF_COPY.decor.allOut : EMPTY.decor}</p>
       ) : (
-        <ul class={s.inventory} aria-label={fillLine(SHELF_COPY.decor.add, { place: where })}>
+        <ul class={s.inventory} ref={list} aria-label={fillLine(SHELF_COPY.decor.add, { place: where })}>
           {inventory.map((i) => (
             <li key={i.itemId}>
-              <button type="button" class={s.invTile} disabled={full} onClick={() => onAdd(i.itemId, label(i))} aria-label={`${label(i)}${i.unplaced > 1 ? `, ${i.unplaced}` : ''}`}>
+              <button type="button" class={s.invTile} data-item={i.itemId} disabled={full} onClick={() => onAdd(i.itemId, label(i))} aria-label={`${label(i)}${i.unplaced > 1 ? `, ${i.unplaced}` : ''}`}>
                 <span class={s.invArt} aria-hidden="true">
                   {i.keepsake ? <FitObject keepsake={i.keepsake.kind} size={52} /> : <CollectibleArt id={i.itemId} size={52} px={52} animated={false} />}
                 </span>

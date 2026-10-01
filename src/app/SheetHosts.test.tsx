@@ -59,6 +59,9 @@ let view: ReturnType<typeof mount> | null = null;
 /** A first import is transformed on the spot: room for a busy machine. */
 const LOAD = 20_000;
 
+/** How long a first load may take before its sheet says so (SheetHosts' own, set by `fresh`). */
+let SLOW_SHEET_MS = NaN;
+
 /** The page reloads a failed retry asked for (jsdom cannot navigate; `pageReload` is the seam). */
 const reloads = vi.fn();
 
@@ -74,7 +77,8 @@ async function fresh(save?: AppState) {
   const rituals = await import('@/features/rituals/open');
   const lazy = await import('./useLazyModule');
   lazy.pageReload.run = reloads;
-  const { SheetHosts } = await import('./SheetHosts');
+  const { SheetHosts, SLOW_SHEET_MS: slow } = await import('./SheetHosts');
+  SLOW_SHEET_MS = slow ?? 1000; // (a build without one: the old code, for the failing-first run)
   await act(() => {
     store.state.value = save ?? createInitialState(Date.now());
   });
@@ -84,7 +88,10 @@ async function fresh(save?: AppState) {
   return { store, open, rituals, walk };
 }
 
-const errorSheet = () => document.querySelector<HTMLElement>('[role="alertdialog"]');
+/** The sheet that says a chunk didn't load (not the one that says it is still loading). */
+const errorSheet = () => Array.from(document.querySelectorAll<HTMLElement>('[role="alertdialog"]')).find((el) => el.textContent?.includes(SCREEN_COPY.sheetTitle)) ?? null;
+/** The sheet that says a first load is taking a moment (P-ui-23). */
+const loadingSheet = () => Array.from(document.querySelectorAll<HTMLElement>('[role="alertdialog"]')).find((el) => el.textContent?.includes(SCREEN_COPY.sheetSlow)) ?? null;
 /** The error sheet's phase (src/ui/Sheet.tsx): 'enter' or 'open' while it is up, 'exit' as it goes. */
 const errorSheetPhase = () => errorSheet()?.closest('[data-state]')?.getAttribute('data-state') ?? null;
 const dialogs = () => document.querySelectorAll('[role="dialog"], [role="alertdialog"]');
@@ -271,6 +278,21 @@ describe('a shared sheet whose chunk can’t load (WP-C4, integration-i4)', () =
     expect(sessionStorage.getItem('catkin-sheet-retry')).toBeNull();
   });
 
+  it.each([
+    ['one opened to find a plant keeps its intent', { id: 'pet-cat-calico', intent: 'findPlant' }, { id: 'pet-cat-calico', intent: 'findPlant' }],
+    ['one opened as usual', { id: 'pet-cat-calico' }, { id: 'pet-cat-calico' }],
+    ['an unknown intent is dropped', { id: 'pet-cat-calico', intent: 'dance' }, null],
+    ['one kept by the build before, as a bare id, opens that pet’s card', 'pet-cat-calico', { id: 'pet-cat-calico' }],
+  ])('a kept Pet Card request after a reload (WP-C7): %s', async (_, request, expected) => {
+    // Its chunk still can't load, so the request stays as it was asked for again.
+    ctl.offline.add('pet');
+    sessionStorage.setItem('catkin-sheet-retry', JSON.stringify({ name: 'pet', request }));
+    const { open } = await fresh();
+    await act(() => Promise.resolve());
+    expect(open.petCardRequest.value).toEqual(expected);
+    expect(sessionStorage.getItem('catkin-sheet-retry')).toBeNull();
+  });
+
   it('Close clears the request, and the next request loads', async () => {
     ctl.offline.add('editor');
     const { open, walk } = await fresh();
@@ -309,11 +331,72 @@ describe('a shared sheet whose chunk can’t load (WP-C4, integration-i4)', () =
   });
 });
 
+describe('a shared sheet whose first load takes a moment (WP-C4 follow-up, P-ui-23)', () => {
+  it('shows nothing at first, then a small sheet that says so with Close; the sheet asked for opens in its place', async () => {
+    const { open, walk } = await fresh();
+    const letThrough = hold('detail');
+    await act(() => open.openHabitDetail(walk));
+    // A quick load answers by itself: nothing flashes up before the delay.
+    await pause(SLOW_SHEET_MS / 2);
+    expect(dialogs()).toHaveLength(0);
+    const sheet = await until(loadingSheet, 'the loading sheet', SLOW_SHEET_MS * 4);
+    expect(button('Close')).not.toBeNull();
+    expect(errorSheet()).toBeNull();
+    expect(dialogs()).toHaveLength(1);
+    expect(sheet.querySelector('[aria-busy="true"]')).not.toBeNull();
+
+    await act(() => letThrough());
+    await until(() => document.querySelector(`[data-habit-detail="${walk}"]`), 'Walk’s detail', LOAD);
+    expect(loadingSheet()).toBeNull();
+    expect(dialogs()).toHaveLength(1);
+    expect(ctl.attempts.detail).toBe(1);
+  });
+
+  it('Close lets the request go; the chunk arriving after opens nothing, and the next request opens at once', async () => {
+    const { open, walk } = await fresh();
+    const letThrough = hold('detail');
+    await act(() => open.openHabitDetail(walk));
+    await until(loadingSheet, 'the loading sheet', SLOW_SHEET_MS * 4);
+    await click(button('Close'), 'Close');
+    expect(open.habitDetailRequest.value).toBeNull();
+    // As it slides away it keeps its own words: it never says the load failed.
+    let saidFailed = false;
+    await until(() => ((saidFailed ||= errorSheet() !== null), !loadingSheet()), 'the loading sheet to go');
+    expect(saidFailed).toBe(false);
+
+    await act(() => letThrough());
+    await until(() => ctl.attempts.detail === 1, 'the load');
+    await pause(SLOW_SHEET_MS + 100);
+    expect(dialogs()).toHaveLength(0);
+    expect(reloads).not.toHaveBeenCalled();
+
+    await act(() => open.openHabitDetail(walk));
+    await until(() => document.querySelector(`[data-habit-detail="${walk}"]`), 'Walk’s detail', LOAD);
+    expect(dialogs()).toHaveLength(1);
+  });
+
+  it('a slow first load that then fails: the same sheet says it didn’t open, with Try again', async () => {
+    ctl.offline.add('detail');
+    const { open, walk } = await fresh();
+    const letThrough = hold('detail');
+    await act(() => open.openHabitDetail(walk));
+    await until(loadingSheet, 'the loading sheet', SLOW_SHEET_MS * 4);
+    await act(() => letThrough());
+    const sheet = await until(errorSheet, 'the error sheet', LOAD);
+    expect(sheet.textContent).toContain(SCREEN_COPY.sheetText);
+    expect(loadingSheet()).toBeNull();
+    expect(dialogs()).toHaveLength(1);
+    expect(open.habitDetailRequest.value).toBe(walk);
+    expect(reloads).not.toHaveBeenCalled();
+  });
+});
+
 describe('its words', () => {
   it('are the VOICE §18 lines (ERRORS.sheet…), copied for the first paint', () => {
     expect(SCREEN_COPY.sheetTitle).toBe(ERRORS.sheet);
     expect(SCREEN_COPY.sheetText).toBe(ERRORS.sheetText);
     expect(SCREEN_COPY.sheetRetry).toBe(ERRORS.sheetRetry);
     expect(SCREEN_COPY.sheetClose).toBe(ERRORS.sheetClose);
+    expect(SCREEN_COPY.sheetSlow).toBe(ERRORS.sheetSlow);
   });
 });

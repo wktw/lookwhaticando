@@ -1,7 +1,7 @@
 import type { ComponentType } from 'preact';
 import type { Signal } from '@preact/signals';
-import { useEffect } from 'preact/hooks';
-import { closeHabitDetail, closeHabitEditor, closePetCard, habitDetailRequest, habitEditorRequest, petCardRequest } from '@/features/habits/open';
+import { useEffect, useRef, useState } from 'preact/hooks';
+import { PET_INTENTS, closeHabitDetail, closeHabitEditor, closePetCard, habitDetailRequest, habitEditorRequest, petCardRequest, type PetIntent } from '@/features/habits/open';
 import { closeRitual, ritualRequest } from '@/features/rituals/open';
 import { ConfirmDialog } from '@/ui/ConfirmDialog';
 import { SCREEN_COPY } from './copy';
@@ -15,6 +15,8 @@ interface SheetSpec {
   request: Signal<unknown>;
   close: () => void;
   valid: (r: unknown) => boolean;
+  /** A kept request in an older shape (a reload can land on a newer build), as this build asks for it. */
+  upgrade?: (r: unknown) => unknown;
 }
 
 const isId = (r: unknown) => typeof r === 'string' && r.length > 0;
@@ -28,7 +30,14 @@ const SHEETS = {
     valid: (r) => isObject(r) && Object.entries(r).every(([k, v]) => (k === 'id' || k === 'templateId') && isId(v)),
   },
   detail: { host: lazyModule(() => import('@/features/habits/detail/HabitDetailHost')), request: habitDetailRequest, close: closeHabitDetail, valid: isId },
-  pet: { host: lazyModule(() => import('@/features/pets/PetCardHost')), request: petCardRequest, close: closePetCard, valid: isId },
+  pet: {
+    host: lazyModule(() => import('@/features/pets/PetCardHost')),
+    request: petCardRequest,
+    close: closePetCard,
+    valid: (r) => isObject(r) && isId(r.id) && Object.entries(r).every(([k, v]) => k === 'id' || (k === 'intent' && PET_INTENTS.includes(v as PetIntent))),
+    // Before WP-C7 a Pet Card request was the pet's id.
+    upgrade: (r) => (isId(r) ? { id: r } : r),
+  },
   ritual: {
     host: lazyModule(() => import('@/features/rituals/RitualReaderHost')),
     request: ritualRequest,
@@ -62,32 +71,59 @@ function askAgainAfterReload(): void {
   }
   if (!isObject(kept) || typeof kept.name !== 'string' || !Object.prototype.hasOwnProperty.call(SHEETS, kept.name)) return;
   const sheet: SheetSpec = SHEETS[kept.name as SheetName];
-  if (sheet.valid(kept.request) && sheet.request.peek() === null) sheet.request.value = kept.request;
+  const request = sheet.upgrade ? sheet.upgrade(kept.request) : kept.request;
+  if (sheet.valid(request) && sheet.request.peek() === null) sheet.request.value = request;
 }
 
 /**
- * A sheet host, loaded the first time its sheet is asked for and then kept mounted (WP-C4). If its
- * chunk can't load (offline before it was ever kept, or an update took the old chunk away), a
+ * How long a sheet's first load may take before a small sheet says so (P-ui-23). The service worker
+ * keeps every chunk once it is installed, so this is only ever seen before that: a quick load
+ * opens its sheet with nothing in between.
+ */
+export const SLOW_SHEET_MS = 700;
+
+/** True once `active` has held for `ms` (false again as soon as it stops). */
+function useHeldFor(active: boolean, ms: number): boolean {
+  const [held, setHeld] = useState(false);
+  useEffect(() => {
+    setHeld(false);
+    if (!active) return;
+    const t = setTimeout(() => setHeld(true), ms);
+    return () => clearTimeout(t);
+  }, [active, ms]);
+  return active && held;
+}
+
+/**
+ * A sheet host, loaded the first time its sheet is asked for and then kept mounted (WP-C4). A first
+ * load that takes a moment gets a small sheet, "One moment", with Close (P-ui-23). If its
+ * chunk can't load (offline before it was ever kept, or an update took the old chunk away), the
  * small sheet says so: "Try again" keeps the request and opens what was asked for once it loads
  * (the sheet stays up, busy, while it tries; a retry that fails in the page reloads it when that is
  * safe, and the request is asked for again after); "Close" (and Esc) clears the request, so the
- * next request loads afresh.
+ * next request loads afresh. It is one sheet throughout: loading, the error and a retry change its
+ * words, and it goes the moment the sheet asked for opens.
  */
 function LazySheet({ name }: { name: SheetName }) {
   const sheet: SheetSpec = SHEETS[name];
   const { status, module, retrying, retry } = useLazyModule(sheet.host, sheet.request.value !== null, { beforeReload: () => keepForReload(name) });
+  const slow = useHeldFor(status === 'loading' && !retrying, SLOW_SHEET_MS);
+  const open = status === 'error' || retrying || slow;
+  // What it says while it is up, and still as it slides away (Close clears what it was showing).
+  const face = useRef({ slow: false, busy: false });
+  if (open) face.current = { slow, busy: retrying || slow };
   if (module) {
     const Loaded = module.default;
     return <Loaded />;
   }
   return (
     <ConfirmDialog
-      open={status === 'error' || retrying}
-      title={SCREEN_COPY.sheetTitle}
-      message={SCREEN_COPY.sheetText}
+      open={open}
+      title={face.current.slow ? SCREEN_COPY.sheetSlow : SCREEN_COPY.sheetTitle}
+      message={face.current.slow ? undefined : SCREEN_COPY.sheetText}
       confirmLabel={SCREEN_COPY.sheetRetry}
       cancelLabel={SCREEN_COPY.sheetClose}
-      busy={retrying}
+      busy={face.current.busy}
       onConfirm={retry}
       onCancel={sheet.close}
     />

@@ -9,8 +9,14 @@ import { formatHash, parseHash, TAB_IDS, type TabId } from './routes';
 const initial = typeof location === 'undefined' ? parseHash('') : parseHash(location.hash);
 
 export const currentTab = signal<TabId>(initial.tab);
-/** Extra hash segments after the tab ('#/shelf/pet-x' → ['pet-x']) for screens that deep-link. */
+/**
+ * Extra hash segments after the tab for screens that deep-link: '#/you/diagnostics', and the Shelf's
+ * "put this thing somewhere" ('#/shelf/place/decor-yarn-ball', from a reveal's "Find it a place";
+ * src/app/handoff.ts), which the Shelf takes in once and then clears with `replaceRest`.
+ */
 export const routeRest = signal<string[]>(initial.rest);
+/** The Shelf's first segment for a thing to place: ['place', itemId]. */
+export const PLACE_SEGMENT = 'place';
 /** +1 when the last switch moved right in the tab order, −1 when left (drives the slide). */
 export const tabDirection = signal<1 | -1>(1);
 
@@ -40,6 +46,12 @@ export function navigate(tab: TabId, rest: string[] = []): void {
     return;
   }
   location.hash = formatHash(tab, rest);
+}
+
+/** Changes `tab`'s extra segments without a history entry (a deep link taken in, say), while it is the tab in the URL. */
+export function replaceRest(tab: TabId, rest: string[]): void {
+  if (typeof location !== 'undefined' && parseHash(location.hash).tab === tab) history.replaceState(history.state, '', formatHash(tab, rest));
+  routeRest.value = rest;
 }
 
 /**

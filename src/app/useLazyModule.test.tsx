@@ -64,6 +64,26 @@ describe('lazyModule', () => {
 });
 
 describe('useLazyModule', () => {
+  it('a load that finishes after the first render but before its effect still shows the module (a preload in flight)', async () => {
+    // The idle preload (or the sill's) started the import; the component mounts while it is in
+    // flight, and the import lands before the component's effect runs (effects wait for a paint).
+    const imp = importer();
+    const mod = lazyModule(imp.load);
+    const preload = mod.load();
+    const root = document.body.appendChild(document.createElement('div'));
+    render(<Probe mod={mod} wanted />, root); // no act: the effect has not run yet
+    expect(seen!.status).toBe('loading');
+    imp.calls[0]!.resolve({ name: 'screen' });
+    await preload;
+    expect(mod.current()).toEqual({ name: 'screen' });
+    await pause(150); // now the effect runs, and anything it starts settles
+    expect(seen!.status).toBe('ready');
+    expect(root.textContent).toBe('screen');
+    expect(imp.calls).toHaveLength(1);
+    act(() => render(null, root));
+    root.remove();
+  });
+
   it('idle until wanted; loading; error; retrying; ready', async () => {
     const imp = importer();
     const mod = lazyModule(imp.load);

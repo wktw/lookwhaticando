@@ -408,6 +408,48 @@ describe('Sheet gestures: a cancelled drag is not a release (UI2-05, P-ui-01)', 
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
+  it('a new mouse pull on a sheet whose last pull never ended (its pointerup was lost): the old pull is aborted, back at rest, and none of its listeners stay', async () => {
+    const onClose = vi.fn();
+    const { panel, header } = await openDraft(onClose);
+    // What window and document listen for, recorded and not attached (a drag's end and its abort
+    // share functions, so this is a multiset: each removal takes one matching entry away).
+    const live: [string, unknown][] = [];
+    const spies = [window, document].flatMap((target) => [
+      vi.spyOn(target, 'addEventListener').mockImplementation(function (type: string, fn: unknown) {
+        live.push([type, fn]);
+      } as never),
+      vi.spyOn(target, 'removeEventListener').mockImplementation(function (type: string, fn: unknown) {
+        const i = live.findIndex(([t, f]) => t === type && f === fn);
+        if (i >= 0) live.splice(i, 1);
+      } as never),
+    ]);
+    const send = (type: string, y: number) => {
+      const e = pointer(type, { clientY: y });
+      for (const [t, fn] of live.slice()) if (t === type) (fn as (e: Event) => void)(e);
+    };
+    try {
+      act(() => {
+        header.dispatchEvent(pointer('pointerdown', { clientY: 100 }));
+        send('pointermove', 110);
+        send('pointermove', 400);
+      });
+      expect(panel.style.transform).toBe('translateY(300px)');
+      expect(live.map(([t]) => t).sort()).toEqual(['blur', 'pointercancel', 'pointermove', 'pointerup', 'visibilitychange']);
+      act(() => void header.dispatchEvent(pointer('pointerdown', { clientY: 100 })));
+      // The old pull is aborted: back at rest, and only the new pull's five listeners are live.
+      expect(panel.style.transform).toBe('');
+      expect(panel.style.transition).toBe('');
+      expect(live.length).toBe(5);
+      act(() => void send('pointerup', 102));
+      expect(live).toEqual([]);
+    } finally {
+      for (const spy of spies) spy.mockRestore();
+    }
+    await act(() => sleep(20));
+    expect(onClose).not.toHaveBeenCalled();
+    expect(document.querySelector('[role="dialog"]')).toBe(panel);
+  });
+
   it('unmounting mid mouse-drag leaves no window listeners behind', async () => {
     const onClose = vi.fn();
     const { header } = await openDraft(onClose);
@@ -587,6 +629,66 @@ describe('Toaster: a cancelled flick never puts a note away (P-ui-02)', () => {
     expect(card.style.transform).toBe('');
     act(() => void card.dispatchEvent(pointer('pointerup', { clientY: 160 })));
     expect(leaving()).toBe(false);
+  });
+
+  /** Records what window and document listen for while `run` runs (the listeners are not attached). */
+  function listeners(run: () => void) {
+    const added: [string, unknown][] = [];
+    const removed: [string, unknown][] = [];
+    const spies = [window, document].flatMap((target) => [
+      vi.spyOn(target, 'addEventListener').mockImplementation(function (type: string, fn: unknown) {
+        added.push([type, fn]);
+      } as never),
+      vi.spyOn(target, 'removeEventListener').mockImplementation(function (type: string, fn: unknown) {
+        removed.push([type, fn]);
+      } as never),
+    ]);
+    try {
+      run();
+    } finally {
+      for (const spy of spies) spy.mockRestore();
+    }
+    const watched = added.filter(([t]) => t === 'blur' || t === 'visibilitychange');
+    return { watched, left: watched.filter(([t, fn]) => !removed.some(([rt, rf]) => rt === t && rf === fn)) };
+  }
+
+  it('a note put away mid-flick (it unmounts) stops watching the window for blur and hiding', () => {
+    const { id, card } = showNote(true);
+    const { watched, left } = listeners(() => {
+      act(() => {
+        card.dispatchEvent(pointer('pointerdown', { clientY: 100 }));
+        card.dispatchEvent(pointer('pointermove', { clientY: 160 }));
+      });
+      act(() => void (toasts.value = toasts.value.filter((t) => t.id !== id)));
+      expect(document.querySelector(`[data-toast-id="${id}"]`)).toBeNull();
+    });
+    expect(watched.length).toBe(2);
+    expect(left).toEqual([]);
+  });
+
+  it('a second press on a note whose first never ended (no pointerup, no cancel) leaves one watch, and the release removes it', () => {
+    const { card } = showNote(true);
+    const { watched, left } = listeners(() => {
+      act(() => {
+        card.dispatchEvent(pointer('pointerdown', { clientY: 100 }));
+        card.dispatchEvent(pointer('pointerdown', { clientY: 100 }));
+        card.dispatchEvent(pointer('pointerup', { clientY: 102 }));
+      });
+    });
+    expect(watched.length).toBe(4);
+    expect(left).toEqual([]);
+  });
+
+  it('another finger’s pointercancel does not cancel the flick under way: its pointerup still puts the note away', () => {
+    const { card, leaving } = showNote(true);
+    act(() => {
+      card.dispatchEvent(pointer('pointerdown', { clientY: 100, pointerId: 1, pointerType: 'touch' }));
+      card.dispatchEvent(pointer('pointermove', { clientY: 160, pointerId: 1, pointerType: 'touch' }));
+      card.dispatchEvent(pointer('pointercancel', { clientY: 0, pointerId: 2, pointerType: 'touch' }));
+    });
+    expect(card.style.transform).toBe('translateY(60px)');
+    act(() => void card.dispatchEvent(pointer('pointerup', { clientY: 160, pointerId: 1, pointerType: 'touch' })));
+    expect(leaving()).toBe(true);
   });
 
   it('control: a flick then pointerup still puts the note away, and so does a tap on a plain note', () => {

@@ -583,6 +583,8 @@ a button, a leaf, a bead, a blue thread, a seed, a bottle top, a feather.
 - Full for today (the fourth treat): "{name} has had enough for today." No friendship number, ever.
 - Pantry restock, each morning: "The pantry restocked: 2 servings of each treat."
 - Bake a tray: button "Bake a tray · 10 coins", then "Baked: 5 servings of {treat}, in the pantry."
+- More than 6 treats: the Feed row shows the first 6, then "All treats ({count})", which opens the rest
+  in the card (WP-C7). DEC-V: pending owner approval.
 - A treat run out for today: "That’s the last of the {treat} for today. 2 more servings in the morning."
 - Something new to wear: the `newWear` captions, which name it ("{name} looks well in the {wear}.").
   Buttons "Put it on" · "Take it off".
@@ -843,7 +845,11 @@ again after 3 declines.
 
 - At a reveal: "Find {name} a plant" · "Let {name} choose" · "Not now"
 - Habit Editor: "Who keeps it company?" · the pets as chips · "No one, for now"
-- Pet Card: "Keeps {habit} company" or "Find {name} a plant"
+- Pet Card: "Keeps {habit} company" or "Find {name} a plant". Opened from a reveal's "Find {name} a
+  plant", the card opens on the plants to choose from. With no habit on the sill yet: "{name} would
+  like a plant to keep company. Plants grow from habits, starting as a cutting in a glass of water." ·
+  "Add a habit" (WP-C7; not "{name} keeps a plant company", which reads as untrue of a pet with no
+  plant). DEC-V: pending owner approval.
 - Moved in: "{name} moved into {plant}."
 - A decline says nothing back. It just closes.
 - Moving out: "Move {name} out" → "{name} moved back to the sill."
@@ -1011,6 +1017,7 @@ Say what happened and what to do. Never `failed`, never `Oops`, never a code in 
 |---|---|
 | A screen doesn't load | "This screen didn’t load. Your plants and coins are saved." · "Reload" |
 | A sheet doesn't open: its part of catkin hasn’t downloaded (offline before it was ever kept, or an update took the old part away). A small sheet; "Try again" keeps what was asked for, "Close" lets it go (WP-C4). DEC-V: pending owner approval | "This didn’t open" · "It needs a connection the first time it opens. Your plants and coins are saved." · "Try again" · "Close" |
+| A sheet is slow to open the first time: its part of catkin is still downloading (only before catkin has been kept for offline). After a moment, the same small sheet, its "Try again" busy; "Close" lets it go. If the part can't come, the sheet says the line above (WP-C4 follow-up, P-ui-23). DEC-V: pending owner approval | "One moment" · "Try again" · "Close" |
 | A save doesn't go through | "That change didn’t save yet. catkin is trying again, and your last backup is safe." |
 | Nothing can be kept in this browser | "This browser isn’t keeping catkin’s save right now. Save a backup before you close it." |
 | The demo waits for a save | "The demo opens once your last change is saved." |
@@ -1305,7 +1312,8 @@ under the constant named. Same rules as everywhere (section 1).
 | favourite | "Favourite" |
 | markFavourite | "Favourite" |
 | keepsakes | "Left by the pot" |
-| pantry | "Basket and pantry" |
+| allTreats | "All treats ({count})". Under the Feed row's first 6 when there are more: it opens the rest in the card, fed and baked the same way (WP-C7; it replaces the "Basket and pantry" link, which fed nothing). DEC-V: pending owner approval |
+| noPlants | "{name} would like a plant to keep company. Plants grow from habits, starting as a cutting in a glass of water." Above "Add a habit" (`EMPTY.addHabit`), when the card is opened to find a plant and there is no live habit (WP-C7). DEC-V: pending owner approval |
 | indoors | "Indoors" |
 | keptBy | "{name} keeps it company" |
 | moveOutAsk | "Move {name} out of {plant}?" |

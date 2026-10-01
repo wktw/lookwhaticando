@@ -110,6 +110,16 @@ describe('the Pet Card’s order and memories', () => {
     expect(feedOrder([t('Apple', 3), t('Kale', 0, true), t('Oat', 5), t('Bean', 3)]).map((x) => x.name)).toEqual(['Kale', 'Oat', 'Apple', 'Bean']);
   });
 
+  it('keeps the order it opened with while the card is open: a fed treat stays put, a new one joins at the end (WP-C7)', async () => {
+    const { keepOrder } = await import('./petCopy');
+    const t = (name: string, servings: number, favorite = false) => ({ id: name, name, servings, favorite });
+    const first = keepOrder(null, [t('Apple', 3), t('Kale', 0, true), t('Oat', 5), t('Bean', 3)]).map((x) => x.id);
+    expect(first).toEqual(['Kale', 'Oat', 'Apple', 'Bean']);
+    // Oat fed down to 1, Kale baked to 5, Apple gone, Plum and Fig new.
+    const next = keepOrder(first, [t('Oat', 1), t('Kale', 5, true), t('Bean', 3), t('Plum', 2), t('Fig', 2)]).map((x) => x.id);
+    expect(next).toEqual(['Kale', 'Oat', 'Bean', 'Fig', 'Plum']);
+  });
+
   it('merges the dated moments with the friendship Memories, each once, oldest first', async () => {
     const { memoryEntries } = await import('./petCopy');
     const m = memoryEntries({

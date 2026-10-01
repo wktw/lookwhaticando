@@ -17,6 +17,7 @@ import { WEEKDAY_NAMES, addDays, monthDayLabel, shortDateLabel, weekdayOrder } f
 import { dayCompletion, trackingOf } from '@/domain/consistency';
 import { selectCalendarMonth, type CalendarCell } from '@/state/selectors';
 import { editHistory, setStartedOn, state, today } from '@/state/store';
+import { handOff } from '@/app/handoff';
 import type { DateKey } from '@/state/types';
 import { announce } from '@/ui/announce';
 import { toast } from '@/ui/toast';
@@ -249,7 +250,16 @@ function DayEdit({ cell, habitId, habitName }: { cell: CalendarCell; habitId: st
     return (
       <div class={s.edit}>
         <p class={s.quiet}>{C.windowNote}</p>
-        <a class={s.link} href="#/today">
+        {/* A link, so it reads and opens as one; the hand-off closes Habit Detail, selects the day on
+            Today and puts focus on this habit's ring there (WP-C7). */}
+        <a
+          class={s.link}
+          href="#/today"
+          onClick={(e) => {
+            e.preventDefault();
+            handOff({ target: 'today', entityId: habitId, date });
+          }}
+        >
           {C.openToday}
         </a>
       </div>

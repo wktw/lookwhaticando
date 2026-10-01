@@ -264,6 +264,22 @@ test('a sheet whose chunk can’t load says so; back online, Try again opens wha
   await expect(page.getByRole('alertdialog')).toHaveCount(0);
 });
 
+test('a sheet slow to load the first time says so after a moment, then opens (WP-C4 follow-up, P-ui-23)', async ({ page }) => {
+  // The Habit Editor's chunk takes a few seconds, as a first fetch on a slow connection can.
+  const chunk = '**/*HabitEditorHost*';
+  await page.route(chunk, async (r) => {
+    await new Promise((done) => setTimeout(done, 2500));
+    await r.continue().catch(() => undefined);
+  });
+  await openRoute(page, 'today');
+  await page.getByRole('button', { name: 'Add a habit' }).first().click();
+  const slow = page.getByRole('alertdialog');
+  await expect(slow).toContainText('One moment');
+  await expect(slow.getByRole('button', { name: 'Close' })).toBeVisible();
+  await expect(page.getByRole('dialog', { name: 'A new habit' })).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole('alertdialog')).toHaveCount(0);
+});
+
 test.describe('Today · quiet rewards', () => {
   test('hides the wallet and the coins', async ({ page }) => {
     test.skip(PREVIEW, 'seeds through the dev server');

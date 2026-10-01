@@ -11,9 +11,19 @@ export interface HabitEditorRequest {
   templateId?: string;
 }
 
+/** What a Pet Card is opened to do (WP-C7): the chooser for a plant to keep company, or the Feed row. */
+export type PetIntent = 'findPlant' | 'feed';
+export const PET_INTENTS: readonly PetIntent[] = ['findPlant', 'feed'];
+
+export interface PetCardRequest {
+  id: string;
+  /** Land on this part of the card, with focus in it; omit for the card as it opens from the Shelf. */
+  intent?: PetIntent;
+}
+
 export const habitEditorRequest = signal<HabitEditorRequest | null>(null);
 export const habitDetailRequest = signal<string | null>(null);
-export const petCardRequest = signal<string | null>(null);
+export const petCardRequest = signal<PetCardRequest | null>(null);
 
 export function openHabitEditor(req: HabitEditorRequest = {}): void {
   habitEditorRequest.value = { ...req };
@@ -27,8 +37,8 @@ export function openHabitDetail(habitId: string): void {
 export function closeHabitDetail(): void {
   habitDetailRequest.value = null;
 }
-export function openPetCard(petId: string): void {
-  petCardRequest.value = petId;
+export function openPetCard(petId: string, opts: { intent?: PetIntent } = {}): void {
+  petCardRequest.value = opts.intent ? { id: petId, intent: opts.intent } : { id: petId };
 }
 export function closePetCard(): void {
   petCardRequest.value = null;

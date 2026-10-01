@@ -17,12 +17,24 @@ import { PET_CARD_UI } from '@/catalog/lines';
 /** The chrome words live in lines.ts (VOICE.md §24); re-exported for this feature's modules. */
 export { PET_CARD_UI };
 
-/** How many treats the Pet Card shows before "Basket and pantry". */
+/** How many treats the Pet Card's Feed row shows before "All treats ({count})" opens the rest. */
 export const FEED_ROW = 6;
 
 /** The Pet Card's feeding order: the favourite first, then what there is most of, then by name. */
 export function feedOrder<T extends { name: string; servings: number; favorite: boolean }>(treats: readonly T[]): T[] {
   return [...treats].sort((a, b) => Number(b.favorite) - Number(a.favorite) || b.servings - a.servings || a.name.localeCompare(b.name));
+}
+
+/**
+ * The feeding order kept while the card is open: the treats in `previous`'s order (none gone),
+ * then any new ones in `feedOrder`. With no `previous` (the card just opened), `feedOrder`.
+ */
+export function keepOrder<T extends { id: string; name: string; servings: number; favorite: boolean }>(previous: readonly string[] | null, treats: readonly T[]): T[] {
+  if (!previous) return feedOrder(treats);
+  const byId = new Map(treats.map((t) => [t.id, t]));
+  const kept = previous.map((id) => byId.get(id)).filter((t): t is T => t !== undefined);
+  const known = new Set(previous);
+  return [...kept, ...feedOrder(treats.filter((t) => !known.has(t.id)))];
 }
 
 /**

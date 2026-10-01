@@ -357,6 +357,19 @@ describe('twist to open', () => {
     expect(capsule().getAttribute('aria-label')).toMatch(/2 more times/);
   });
 
+  it('WP-C2 (P-ui-04): a twist released off the capsule (a pointerup, no click after it): the next keyboard activation is a tap', async () => {
+    view = mount(<RevealOverlay data={secret} onClose={() => {}} />);
+    const el = capsule();
+    const at = (deg: number) => ({ clientX: Math.cos((deg * Math.PI) / 180) * 80, clientY: Math.sin((deg * Math.PI) / 180) * 80, pointerType: 'mouse' });
+    el.dispatchEvent(pointer('pointerdown', at(0)));
+    for (let a = 15; a <= 45; a += 15) await pause(0).then(() => el.dispatchEvent(pointer('pointermove', at(a))));
+    el.dispatchEvent(pointer('pointerup', at(45)));
+    await pause(0);
+    expect(capsule().getAttribute('aria-label')).toMatch(/3 more times/);
+    await keyboardClick(capsule(), 'the capsule');
+    expect(capsule().getAttribute('aria-label')).toMatch(/2 more times/);
+  });
+
   it('control: the click that ends a twist is still not a second tap, and a keyboard activation after a finished twist is', async () => {
     view = mount(<RevealOverlay data={secret} onClose={() => {}} />);
     await twist(capsule(), 45);

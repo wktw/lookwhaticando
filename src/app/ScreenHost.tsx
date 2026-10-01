@@ -6,12 +6,24 @@ import { announce } from '@/ui/announce';
 import { themeLight } from '@/ui/art/objects';
 import { savedScroll, tabDirection } from './router';
 import { loadedScreen, loadScreen } from './screens';
+import { useLazyModule, type LazyModule } from './useLazyModule';
 import { ErrorBoundary } from './ErrorBoundary';
 import { SCREEN_COPY } from './copy';
 import { routeFor, type TabId } from './routes';
 import { lastInputWasKeyboard, trackInputModality } from './inputModality';
 import { watchScene } from '@/fx/frameMonitor';
 import s from './ScreenHost.module.css';
+
+/** Each tab's screen as a lazy module (./screens.ts keeps the one cache, shared with preloads). */
+const screenModules = new Map<TabId, LazyModule<ComponentType>>();
+function screenModule(tab: TabId): LazyModule<ComponentType> {
+  let mod = screenModules.get(tab);
+  if (!mod) {
+    mod = { current: () => loadedScreen(tab) ?? null, load: () => loadScreen(tab) };
+    screenModules.set(tab, mod);
+  }
+  return mod;
+}
 
 /**
  * Renders the current tab's screen: its lazy chunk, a quiet loading state, per-tab scroll, and a
@@ -23,9 +35,10 @@ import s from './ScreenHost.module.css';
  * The first screen after launch is not announced (the page title already is).
  */
 export function ScreenHost({ tab }: { tab: TabId }) {
-  const [, setVersion] = useState(0);
-  const [error, setError] = useState<{ tab: TabId } | null>(null);
-  const Screen: ComponentType | undefined = loadedScreen(tab);
+  // If its chunk can't load, an error with Try again; a retry that fails in the page reloads it
+  // when that is safe (the tab is in the URL), since some engines never fetch a failed chunk
+  // again in the same page (./useLazyModule.ts, P-ui-22).
+  const { status, module: Screen, retry } = useLazyModule(screenModule(tab));
   const hostRef = useRef<HTMLDivElement>(null);
   /** The tab whose arrival was last announced (the launch tab counts as announced). */
   const announced = useRef<TabId>(tab);
@@ -38,23 +51,14 @@ export function ScreenHost({ tab }: { tab: TabId }) {
     announced.current = tab;
     announce(routeFor(tab).label);
     if (!lastInputWasKeyboard()) return;
+    // A screen that placed focus itself as it arrived (a hand-off's target, WP-C7) keeps it.
+    const now = document.activeElement;
+    if (now && now !== hostRef.current && hostRef.current?.contains(now)) return;
     const heading = hostRef.current?.querySelector<HTMLElement>('h1');
     if (!heading) return;
     if (!heading.hasAttribute('tabindex')) heading.tabIndex = -1;
     heading.focus({ preventScroll: true });
   }, [tab, !!Screen]);
-
-  useEffect(() => {
-    if (Screen) return;
-    let live = true;
-    setError(null);
-    loadScreen(tab)
-      .then(() => live && setVersion((v) => v + 1))
-      .catch(() => live && setError({ tab }));
-    return () => {
-      live = false;
-    };
-  }, [tab, Screen]);
 
   // The Shelf keeps many small loops going: sample the frame rate once (auto-lite, DESIGN §11.1),
   // hold off-screen pets still, and let only the nearest few flick.
@@ -69,20 +73,13 @@ export function ScreenHost({ tab }: { tab: TabId }) {
     if (Screen) window.scrollTo(0, savedScroll(tab));
   }, [tab, !!Screen]);
 
-  const retry = () => {
-    setError(null);
-    loadScreen(tab)
-      .then(() => setVersion((v) => v + 1))
-      .catch(() => setError({ tab }));
-  };
-
   return (
     <div key={tab} ref={hostRef} class={`${s.screen} ck-motion-safe`} data-dir={tabDirection.value}>
       {Screen ? (
         <ErrorBoundary key={tab}>
           <Screen />
         </ErrorBoundary>
-      ) : error?.tab === tab ? (
+      ) : status === 'error' ? (
         <ScreenError onRetry={retry} />
       ) : (
         <ScreenLoading />
