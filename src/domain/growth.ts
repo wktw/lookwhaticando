@@ -257,7 +257,7 @@ export function theCutting(lifetime: number, bestStage = 0): CuttingVM {
  * check-in days of each flexible period (in date order). Used for the completed-occurrence count,
  * demo seeding and ledger verification; the live sunshine total comes from the reward ledger.
  */
-export function sunshineFromHistory(habit: Pick<Habit, 'rules' | 'startedOn' | 'archivedOn' | 'pauses'>, logs: HabitLogs, ctx: EvalContext): {
+export function sunshineFromHistory(habit: Pick<Habit, 'rules' | 'startedOn' | 'archivedOn' | 'unstarted' | 'pauses'>, logs: HabitLogs, ctx: EvalContext): {
   sunshine: number;
   completedOccurrences: number;
 } {

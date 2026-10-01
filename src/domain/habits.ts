@@ -249,12 +249,21 @@ function todayRewarded(tx: Tx, id: string): boolean {
   return e !== undefined && (e.lvl !== undefined || e.coins > 0);
 }
 
+/**
+ * Archive: the habit's last day is today. Archived before its first day (a clock that went back),
+ * the lifetime is empty: `unstarted`, kept with `archivedOn = startedOn` for older validators
+ * (WP-B5, domain-d6).
+ */
 export function archiveHabit(tx: Tx, id: string): void {
   const h = tx.s.habits.find((x) => x.id === id);
   if (!h || h.archivedOn !== undefined) return;
   freeCompanion(tx, id);
   unstackFollowers(tx, id);
-  tx.habit(id).archivedOn = tx.env.today < h.startedOn ? h.startedOn : tx.env.today;
+  const w = tx.habit(id);
+  if (tx.env.today < h.startedOn) {
+    w.archivedOn = h.startedOn;
+    w.unstarted = true;
+  } else w.archivedOn = tx.env.today;
 }
 
 /**
@@ -272,10 +281,14 @@ export function restoreHabit(tx: Tx, id: string): void {
   const today = tx.env.today;
   const log = tx.s.logs[id]?.[today];
   const doneToday = log?.kind === 'log' && showedUp(logStatus(log, ruleAt(h, today), false));
-  const keepToday = h.archivedOn < today && hasOnce(tx.s, `perfect|${today}`) && !doneToday;
-  const stretch = archivedStretchPause(h.archivedOn, keepToday ? addDays(today, 1) : today);
+  // An unstarted habit (WP-B5) had no day at all: its first day was excused too, so the stretch
+  // starts there, and today counts as excused when it is that first day.
+  const lastLived = h.unstarted === true ? addDays(h.startedOn, -1) : h.archivedOn;
+  const keepToday = lastLived < today && hasOnce(tx.s, `perfect|${today}`) && !doneToday;
+  const stretch = archivedStretchPause(lastLived, keepToday ? addDays(today, 1) : today);
   if (stretch) w.pauses = addPause(h.pauses, stretch.start, stretch.end);
   delete w.archivedOn;
+  delete w.unstarted;
   // Back from the balcony shelf: the ribbon comes off, and a finished "just this season" runs on.
   delete w.ribbon;
   if (w.endsOn !== undefined && w.endsOn < tx.env.today) delete w.endsOn;
@@ -396,10 +409,18 @@ export function resumeHabit(tx: Tx, id: string): void {
   tx.habit(id).pauses = resumePauses(h.pauses, keepToday ? addDays(today, 1) : today);
 }
 
-/** "Start tracking Walk from Mon, Sep 22?": earlier `startedOn` (stats only). */
+/** Whether "Start tracking from `date`" would be accepted (the calendar offers it only then). */
+export function canStartFrom(habit: Pick<Habit, 'startedOn' | 'unstarted'>, date: DateKey, today: DateKey): boolean {
+  return isDateKey(date) && habit.unstarted !== true && date < habit.startedOn && date <= today;
+}
+
+/**
+ * "Start tracking Walk from Mon, Sep 22?": earlier `startedOn` (stats only). Refused for an
+ * unstarted habit (its lifetime is empty; restore it first).
+ */
 export function setStartedOn(tx: Tx, id: string, date: DateKey): boolean {
   const h = tx.s.habits.find((x) => x.id === id);
-  if (!h || !isDateKey(date) || date > tx.env.today || date >= h.startedOn) return false;
+  if (!h || !canStartFrom(h, date, tx.env.today)) return false;
   Object.assign(tx.habit(id), withStartedOn(h, date));
   return true;
 }

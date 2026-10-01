@@ -93,6 +93,8 @@ function checkHabit(r: Report, h: unknown, path: string): void {
   r.check(o.createdOn === undefined || isDateKey(o.createdOn), `${path}.createdOn`, 'not a date');
   r.check(isDateKey(o.startedOn), `${path}.startedOn`, 'not a date');
   r.check(o.archivedOn === undefined || (isDateKey(o.archivedOn) && o.archivedOn >= String(o.startedOn)), `${path}.archivedOn`, 'not a date on/after startedOn');
+  // WP-B5: an empty lifetime is always kept as archivedOn === startedOn (what older builds accept).
+  r.check(o.unstarted === undefined || (o.unstarted === true && o.archivedOn !== undefined && o.archivedOn === o.startedOn), `${path}.unstarted`, 'an unstarted habit is archived on startedOn');
   r.check(isNum(o.order), `${path}.order`, 'not a number');
   for (const k of ['unit', 'anchor', 'notes'] as const) r.check(o[k] === undefined || isStr(o[k]), `${path}.${k}`, 'not a string');
   r.check(o.dueDay === undefined || o.dueDay === 'last' || (isInt(o.dueDay) && o.dueDay >= 1 && o.dueDay <= 31), `${path}.dueDay`, 'bad due day');

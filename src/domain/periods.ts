@@ -44,7 +44,7 @@ import { inLifetime, isFlexActiveDay, logStatus, type EvalContext, type HabitLog
 import { ruleSegments } from './rules';
 import { isFlexible, periodGrid, periodSlot, periodSlotAt, type FlexibleSchedule, type PeriodUnit } from './schedule';
 
-type HabitDays = Pick<Habit, 'rules' | 'startedOn' | 'archivedOn' | 'pauses'>;
+type HabitDays = Pick<Habit, 'rules' | 'startedOn' | 'archivedOn' | 'unstarted' | 'pauses'>;
 
 /** A flexible period of one rule. */
 export interface FlexPeriod {

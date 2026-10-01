@@ -58,7 +58,7 @@ export function firstTrackedDay(t: Pick<Tracking, 'habits'>): DateKey | null {
 }
 
 /** Still in play today: started and not archived before today. */
-const liveOn = (h: Habit, today: DateKey): boolean => h.startedOn <= today && (h.archivedOn === undefined || h.archivedOn >= today);
+const liveOn = (h: Habit, today: DateKey): boolean => inLifetime(h, today);
 
 /* ------------------------------------------------------------------ */
 /* Showing up                                                          */
@@ -258,7 +258,7 @@ export function mostConsistentHabit(t: Tracking, today: DateKey, opts: { days?: 
   const ctx = evalContext(t, today);
   const w = opts.window ?? trailingWindow(today, days);
   const eligible = (h: Habit): boolean =>
-    opts.window ? h.startedOn <= w.end && (h.archivedOn === undefined || h.archivedOn >= w.start) : liveOn(h, today);
+    opts.window ? h.unstarted !== true && h.startedOn <= w.end && (h.archivedOn === undefined || h.archivedOn >= w.start) : liveOn(h, today);
   let best: HabitInsight | null = null;
   for (const h of [...t.habits].sort((a, b) => a.order - b.order)) {
     if (!eligible(h)) continue;

@@ -3,7 +3,8 @@
  * "Quilt"). One habit or all habits.
  */
 import type { AppState, DateKey, Habit } from '../types';
-import { isInBackfillWindow, logStatus } from '@/domain/activity';
+import { inLifetime, isInBackfillWindow, logStatus } from '@/domain/activity';
+import { canStartFrom } from '@/domain/habits';
 import { dayCompletion, habitTally, isPctReady, monthWindow, percent, trackingOf, aggregateTally, type Tally } from '@/domain/consistency';
 import {
   MONTH_SHORT,
@@ -88,7 +89,7 @@ export function habitDayState(s: AppState, habit: Habit, date: DateKey, today: D
   const frac = target > 1 ? Math.min(1, count / target) : null;
   if (date > today) return { state: 'future', count, target, fraction: null };
   if (date < habit.startedOn) return { state: 'before-start', count, target, fraction: null };
-  if (habit.archivedOn !== undefined && date > habit.archivedOn) return { state: 'archived', count, target, fraction: null };
+  if (!inLifetime(habit, date)) return { state: 'archived', count, target, fraction: null };
   const status = logStatus(log, rule, date < today);
   if (status === 'done' || status === 'tiny') return { state: status, count, target, fraction: frac };
   if (status === 'rest') return { state: 'rest', count, target, fraction: null };
@@ -124,7 +125,7 @@ export function calendarMonthVM(s: AppState, env: ViewEnv, habitId: string | nul
     if (habit) {
       const st = habitDayState(s, habit, d, today);
       const log = s.logs[habit.id]?.[d];
-      const edit: CalendarCell['edit'] = d > today ? null : d < habit.startedOn ? 'start-earlier' : isInBackfillWindow(d, today) ? 'window' : 'history';
+      const edit: CalendarCell['edit'] = d > today ? null : d < habit.startedOn ? (canStartFrom(habit, d, today) ? 'start-earlier' : null) : isInBackfillWindow(d, today) ? 'window' : 'history';
       cells.set(d, { ...base, state: st.state, fraction: st.fraction, count: st.count, target: st.target, ...(log?.note ? { note: log.note } : {}), edit });
     } else {
       const st = aggregateDayState(s, d, today, firstTracked);

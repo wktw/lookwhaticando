@@ -80,6 +80,14 @@ export interface Habit {
   /** First day that counts for stats (editable earlier via "Start tracking from…", without rewards). */
   startedOn: DateKey;
   archivedOn?: DateKey;
+  /**
+   * WP-B5 (domain-d6): retired before its first day was over with nothing to show for it (Finish
+   * with nothing watered on the day it was created, or an archive before `startedOn`). Its lifetime
+   * is empty: no day is in it, so its first day is never a missed day. Always set with
+   * `archivedOn === startedOn`, which older builds accept (they read that one day as its lifetime).
+   * Restoring clears it. Optional and additive.
+   */
+  unstarted?: true;
   pauses: Pause[];
   order: number;
   notes?: string;

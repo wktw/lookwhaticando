@@ -444,7 +444,7 @@ export function todayVM(s: AppState, env: ViewEnv, date: DateKey = env.today): T
       perMonth: OFF_DAYS_PER_MONTH,
       canToggle: day === today,
     },
-    empty: s.habits.every((h) => h.archivedOn !== undefined && h.archivedOn < today),
+    empty: s.habits.every((h) => h.archivedOn !== undefined && (h.unstarted === true || h.archivedOn < today)),
     firstCapsule: s.profile.onboarded && s.lifetime.pulls === 0,
     firstCapsuleWaiting: s.profile.onboarded && FIRST_CAPSULE_MACHINES.some((m) => canPullFree(s, m)),
     clockBehind: rewardsPaused(s, env.now),

@@ -320,8 +320,7 @@ export function setCount(tx: Tx, habitId: string, date: DateKey, count: number):
  */
 export function toggleRest(tx: Tx, habitId: string, date: DateKey): boolean {
   const habit = findHabit(tx.s, habitId);
-  if (!habit || !isDateKey(date) || !canSetRest(date, tx.env.today) || date < habit.startedOn) return false;
-  if (habit.archivedOn !== undefined && date > habit.archivedOn) return false;
+  if (!habit || !isDateKey(date) || !canSetRest(date, tx.env.today) || !inLifetime(habit, date)) return false;
   if (!isDayBased(ruleAt(habit, date))) return false;
   const cur = tx.s.logs[habitId]?.[date];
   const bestBefore = bestStreakOccurrences(tx.s, habitId, tx.env.today, tx.env.local);
