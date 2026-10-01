@@ -20,8 +20,9 @@ import { reached, staticGraph } from './staticGraph';
 /**
  * Code the entry chunk pulls in: the domain, the store and its top-level modules, the event bus,
  * the Shelf tab's closest pet and the celebration host's loader. The pets view and the fx layer's
- * host, plan and copy left the first paint on 1 October 2026 (`src/app/entryGraph.test.ts` keeps
- * them out); they stay listed, so coming back would not bring the deck with them.
+ * host, plan and copy left the first paint on 1 October 2026 (the moved-out case on the entry's
+ * static graph, below, keeps them out); they stay listed, so coming back would not bring the deck
+ * with them.
  */
 const FIRST_PAINT: readonly string[] = [
   'src/domain',

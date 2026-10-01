@@ -12,6 +12,14 @@
  * engines that fetch a failed chunk again; Chromium keeps a failed module fetch for the life of
  * the page (WP-C4), so there each retry fails at once (cheap: no request) and celebrations stay
  * off until the page reloads. No reload is forced for them: they are not worth losing a page.
+ *
+ * This chunk is not the host's alone. Today (features/today/checkin.ts) and Onboarding (through
+ * ./checkin) import markCelebratedLocally from it, the built capsule steps' chunk imports it too,
+ * and they and others import ./copy, a chunk of its own. So if either chunk can't load, those
+ * screens fail like any lazy screen, through the shell's load sheet (WP-C4: "Try again" reloads
+ * in Chromium when that is safe), and Today is the first screen. The retry above then serves
+ * only events from screens that load without these chunks. The service worker precaches every
+ * chunk, so this needs a first visit or a cache miss.
  */
 import { useEffect, useState } from 'preact/hooks';
 import { dropHeldGameEvents, holdGameEvents } from '@/state/events';
