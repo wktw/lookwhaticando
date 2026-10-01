@@ -101,7 +101,10 @@ export function useLazyModule<T>(mod: LazyModule<T>, wanted = true, options: Laz
       setFailed({ mod, n: 0 });
       return;
     }
-    if (mod.current()) return;
+    // Whether this render had the module, not whether it has it now: an import that landed after
+    // the render and before this effect (a preload in flight) still has to bring a render here,
+    // and `load()` of a loaded module settles at once.
+    if (module) return;
     let live = true;
     setLoading(true);
     mod.load().then(
