@@ -1,7 +1,7 @@
 import { computed } from '@preact/signals';
 import type { Species } from '@/catalog/types';
 import { state } from '@/state/store';
-import { closestPet } from '@/state/views/pets';
+import { closestPet } from '@/state/views/closestPet';
 import type { TabId } from './routes';
 
 /**

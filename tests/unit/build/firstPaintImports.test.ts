@@ -9,7 +9,12 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
-/** Code the entry chunk pulls in: the domain, the store and its top-level modules, the fx layer's copy and plan. */
+/**
+ * Code the entry chunk pulls in: the domain, the store and its top-level modules, the event bus,
+ * the Shelf tab's closest pet and the celebration host's loader. The pets view and the fx layer's
+ * host, plan and copy left the first paint on 1 October 2026 (`src/app/entryGraph.test.ts` keeps
+ * them out); they stay listed, so coming back would not bring the deck with them.
+ */
 const FIRST_PAINT: readonly string[] = [
   'src/domain',
   'src/state/store.ts',
@@ -19,12 +24,15 @@ const FIRST_PAINT: readonly string[] = [
   'src/state/validate.ts',
   'src/state/handoff.ts',
   'src/state/demo.ts',
+  'src/state/events.ts',
+  'src/state/views/closestPet.ts',
   'src/state/views/common.ts',
   'src/state/views/pets.ts',
   'src/state/views/company.ts',
   'src/fx/copy.ts',
   'src/fx/celebrationPlan.ts',
   'src/fx/celebrations.tsx',
+  'src/fx/celebrationHostLoader.tsx',
   'src/catalog/lineKit.ts',
   'src/catalog/linesCore.ts',
   'src/catalog/formatCore.ts',

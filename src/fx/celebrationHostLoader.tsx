@@ -1,0 +1,55 @@
+/**
+ * Mounts <CelebrationHost/> (./celebrations, with the planner, its copy, the notes, banners, the
+ * epic moment and the coin flight) from its own chunk, so none of it is on the first paint.
+ *
+ * The host starts listening in its first effect; it used to mount with the shell, so it listened
+ * from just after first paint, and events from before then (hydrate's, at boot) were never
+ * celebrated. This loader holds the event bus at that same moment (`holdGameEvents`), so what
+ * happens before the chunk arrives (a tap on a screen that loaded first) is kept and handed to the
+ * host when it listens. A chunk that can't load lets what was kept go, so nothing piles up, and
+ * the next game event asks for it again.
+ */
+import { useEffect, useState } from 'preact/hooks';
+import { dropHeldGameEvents, holdGameEvents } from '@/state/events';
+
+type HostModule = typeof import('./celebrations');
+
+let loaded: HostModule | null = null;
+let pending: Promise<HostModule> | null = null;
+
+/** The host's module, once (a failed load is tried again on the next call). */
+export function loadCelebrationHost(): Promise<HostModule> {
+  if (loaded) return Promise.resolve(loaded);
+  pending ??= import('./celebrations').then(
+    (m) => (loaded = m),
+    (err: unknown) => {
+      pending = null;
+      throw err;
+    },
+  );
+  return pending;
+}
+
+export function LazyCelebrationHost() {
+  const [mod, setMod] = useState<HostModule | null>(loaded);
+  useEffect(() => {
+    if (mod) return;
+    let live = true;
+    const load = () =>
+      void loadCelebrationHost().then(
+        (m) => live && setMod(m),
+        () => {
+          if (!live) return;
+          dropHeldGameEvents();
+          holdGameEvents(load);
+        },
+      );
+    holdGameEvents();
+    load();
+    return () => {
+      live = false;
+      dropHeldGameEvents();
+    };
+  }, []);
+  return mod ? <mod.CelebrationHost /> : null;
+}

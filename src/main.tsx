@@ -8,7 +8,7 @@ import { installShortcuts } from '@/app/shortcuts';
 import { registerServiceWorker } from '@/app/pwa';
 import { captureInstallPrompt } from '@/app/installPrompt';
 import { installAudioUnlock } from '@/fx/sound';
-import { CelebrationHost } from '@/fx/celebrations';
+import { LazyCelebrationHost } from '@/fx/celebrationHostLoader';
 import { Toaster } from '@/ui/Toaster';
 import { overlayRoot } from '@/ui/overlay';
 
@@ -67,7 +67,7 @@ render(
     {TEST_COPY && <TestCopyRibbon />}
     <App />
     <Toaster />
-    <CelebrationHost />
+    <LazyCelebrationHost />
   </>,
   document.getElementById('app')!,
 );
