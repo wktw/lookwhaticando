@@ -37,6 +37,19 @@ type ObjectKey = { [K in keyof AppState]-?: AppState[K] extends object ? K : nev
 type Ledger = AppState['ledger'];
 
 /**
+ * Maps keyed by ids (logs by habit, pets by id) are plain objects, so a key such as `__proto__` or
+ * `toString` would read an inherited value and, assigned with brackets, set the map's prototype
+ * instead of an own entry that JSON keeps (audit FS7). The validator refuses such ids at the trust
+ * boundary (WP-A5); these keep the accessors right whatever id they are given.
+ */
+function ownValue<T>(map: Record<string, T>, key: string): T | undefined {
+  return Object.prototype.hasOwnProperty.call(map, key) ? map[key] : undefined;
+}
+function defineOwn<T>(map: Record<string, T>, key: string, value: T): void {
+  Object.defineProperty(map, key, { value, writable: true, enumerable: true, configurable: true });
+}
+
+/**
  * Objects used as memo keys (see economy.ts) are *sealed*: a transaction never writes into them in
  * place, even if it created them, so a memoised result keyed on an object can never go stale.
  */
@@ -98,8 +111,9 @@ export class Tx {
   /** A writable log map for one habit (created when missing). */
   logs(habitId: string): Record<DateKey, DayLog> {
     const all = this.section('logs');
-    all[habitId] = this.own(all[habitId] ?? {});
-    return all[habitId]!;
+    const map = this.own(ownValue(all, habitId) ?? {});
+    defineOwn(all, habitId, map);
+    return map;
   }
 
   /** A writable copy of one habit (throws when it does not exist). */
@@ -115,10 +129,10 @@ export class Tx {
   /** A writable copy of one pet (throws when it does not exist). */
   pet(id: string): PetState {
     const pets = this.section('pets');
-    const p = pets[id];
+    const p = ownValue(pets, id);
     if (!p) throw new Error(`Unknown pet ${id}`);
     const copy = this.own(p);
-    pets[id] = copy;
+    defineOwn(pets, id, copy);
     return copy;
   }
 

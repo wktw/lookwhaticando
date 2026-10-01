@@ -11,15 +11,27 @@
  *   and describes the result for the preview ("12 habits, 1,284 check-ins, 23 friends, saved
  *   Sep 27"). Applying (snapshot first, replace
  *   never merge, undo for 24 h) is the store's job.
+ * - Bounds (WP-A5, P-persistence-06): an import is at most `MAX_IMPORT_BYTES` of text (a file is
+ *   checked by its size before it is read, `features/you/files.ts`), and a CK1 payload is expanded
+ *   as a stream that stops at `MAX_EXPANDED_BYTES`: 'too-large', never a phone out of memory. The
+ *   wrapper's own numbers are checked too (`exportedAt`, a raw envelope's `savedAt` and `rev`, FS8),
+ *   and the clock guard it brings is capped at when it was made (DEC-P14, `capImportedClock`).
  */
 import type { ImportPreview } from './api';
 import type { AppState } from './types';
+import { appDayKey, CLOCK_ROLLBACK_TOLERANCE_MS, runtimeLocalTime, type LocalTimeReader } from '@/domain/dates';
 import { decodeState } from './decode';
 import { countCheckins } from './snapshots';
+import { isTimestamp } from './validate';
 
 export const BACKUP_FORMAT = 'catkin-backup';
 export const PAYLOAD_GZIP = 'CK1:';
 export const PAYLOAD_PLAIN = 'CK0:';
+
+/** The most an import may be: 64 MB of file, or of pasted text (a lived-in backup is well under 1 MB). */
+export const MAX_IMPORT_BYTES = 64 * 1024 * 1024;
+/** The most a CK1 payload may expand to (128 MB): past it, decompression stops. */
+export const MAX_EXPANDED_BYTES = 128 * 1024 * 1024;
 
 export interface BackupEnvelope {
   format: typeof BACKUP_FORMAT;
@@ -100,9 +112,32 @@ function streamCtor(name: 'CompressionStream' | 'DecompressionStream'): StreamCt
   return typeof ctor === 'function' ? (ctor as StreamCtor) : null;
 }
 
-async function through(bytes: Uint8Array, ctor: StreamCtor): Promise<Uint8Array> {
-  const stream = new Blob([bytes as BlobPart]).stream().pipeThrough(new ctor('gzip'));
-  return new Uint8Array(await new Response(stream).arrayBuffer());
+/**
+ * Runs bytes through a (de)compression stream, reading it chunk by chunk with a running count: past
+ * `maxBytes` it cancels the stream and answers null, so a small payload can never expand to fill the
+ * phone's memory before anything is checked.
+ */
+async function through(bytes: Uint8Array, ctor: StreamCtor, maxBytes = Infinity): Promise<Uint8Array | null> {
+  const reader = new Blob([bytes as BlobPart]).stream().pipeThrough(new ctor('gzip')).getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > maxBytes) {
+      await reader.cancel().catch(() => undefined);
+      return null;
+    }
+    chunks.push(value);
+  }
+  const out = new Uint8Array(total);
+  let at = 0;
+  for (const c of chunks) {
+    out.set(c, at);
+    at += c.byteLength;
+  }
+  return out;
 }
 
 /** 'CK1:' + base64url(gzip(json)), or 'CK0:' + base64url(json) without CompressionStream. */
@@ -111,7 +146,7 @@ export async function encodePayload(json: string, opts: { compress?: boolean } =
   const ctor = opts.compress === false ? null : streamCtor('CompressionStream');
   if (ctor) {
     try {
-      return PAYLOAD_GZIP + base64UrlEncode(await through(bytes, ctor));
+      return PAYLOAD_GZIP + base64UrlEncode((await through(bytes, ctor))!);
     } catch {
       /* fall through to the plain payload */
     }
@@ -119,8 +154,15 @@ export async function encodePayload(json: string, opts: { compress?: boolean } =
   return PAYLOAD_PLAIN + base64UrlEncode(bytes);
 }
 
-/** The JSON inside a CK1/CK0 payload. */
-export async function decodePayload(text: string): Promise<{ ok: true; json: string } | { ok: false; error: string }> {
+export interface ImportBounds {
+  /** The most the payload may expand to (default `MAX_EXPANDED_BYTES`; tests use less). */
+  maxBytes?: number;
+}
+
+/** The JSON inside a CK1/CK0 payload ('too-large' past the bounds, without expanding the rest). */
+export async function decodePayload(text: string, opts: ImportBounds = {}): Promise<{ ok: true; json: string } | { ok: false; error: string }> {
+  if (text.length > MAX_IMPORT_BYTES) return { ok: false, error: 'too-large' };
+  const maxBytes = opts.maxBytes ?? MAX_EXPANDED_BYTES;
   const t = text.trim();
   const prefix = t.slice(0, 4);
   if (prefix !== PAYLOAD_GZIP && prefix !== PAYLOAD_PLAIN) return { ok: false, error: 'not-a-payload' };
@@ -133,11 +175,16 @@ export async function decodePayload(text: string): Promise<{ ok: true; json: str
   if (prefix === PAYLOAD_GZIP) {
     const ctor = streamCtor('DecompressionStream');
     if (!ctor) return { ok: false, error: 'cannot-decompress-here' };
+    let out: Uint8Array | null;
     try {
-      bytes = await through(bytes, ctor);
+      out = await through(bytes, ctor, maxBytes);
     } catch {
       return { ok: false, error: 'damaged-payload' };
     }
+    if (!out) return { ok: false, error: 'too-large' };
+    bytes = out;
+  } else if (bytes.byteLength > maxBytes) {
+    return { ok: false, error: 'too-large' };
   }
   try {
     return { ok: true, json: new TextDecoder('utf-8', { fatal: true }).decode(bytes) };
@@ -155,14 +202,43 @@ export type ParsedBackup =
   | { ok: false; error: string; details?: string[] };
 
 /**
+ * DEC-P14 (P-persistence-21): the clock guard an import brings is capped at when the backup was
+ * made (`madeAt`, its `exportedAt` or a raw envelope's `savedAt`), plus the 36 hours the guard
+ * already allows: the latest time seen at most `madeAt` + 36 h, and the latest day at most the
+ * backup's own day here (so today never jumps ahead of it). A backup from a device whose clock had
+ * run ahead would otherwise pause rewards here until that date, or fix today on it. A guard within
+ * the cap comes in as it was; with no `madeAt` (a bare state) there is nothing to cap it by.
+ */
+export function capImportedClock(state: AppState, madeAt: number, local: LocalTimeReader = runtimeLocalTime): AppState {
+  if (!(madeAt > 0)) return state;
+  const latest = madeAt + CLOCK_ROLLBACK_TOLERANCE_MS;
+  const day = appDayKey(madeAt, state.settings.dayStartsAt, local);
+  const c = state.clock;
+  const maxDateKey = c.maxDateKey !== '' && c.maxDateKey > day ? day : c.maxDateKey;
+  if (maxDateKey === c.maxDateKey && c.maxEpochMs <= latest && c.lastCheckinAt <= latest) return state;
+  return { ...state, clock: { maxDateKey, maxEpochMs: Math.min(c.maxEpochMs, latest), lastCheckinAt: Math.min(c.lastCheckinAt, latest) } };
+}
+
+export interface ParseOptions extends ImportBounds {
+  /** The local clock reader the backup's day is read with (the store's; default the device's). */
+  local?: LocalTimeReader;
+}
+
+/** A wrapper number that is absent, or a timestamp catkin could have written (FS8: `exportedAt` 1e20). */
+const okTime = (v: unknown): boolean => v === undefined || isTimestamp(v);
+
+/**
  * Accepts a backup file, a CK1/CK0 payload or a raw save envelope, and decodes its state. A newer
  * catkin's (by the state's version or the wrapper's `v`) is 'made-by-newer-version'; one missing
- * anything a real build wrote is 'damaged-backup' (data-d6).
+ * anything a real build wrote is 'damaged-backup' (data-d6); one past the bounds is 'too-large'
+ * (read no further); a wrapper whose own numbers are not real ones (a time past the ceiling, a
+ * revision that is not a whole number) is 'not-a-backup'.
  */
-export async function parseBackupText(text: string): Promise<ParsedBackup> {
+export async function parseBackupText(text: string, opts: ParseOptions = {}): Promise<ParsedBackup> {
+  if (text.length > MAX_IMPORT_BYTES) return { ok: false, error: 'too-large' };
   let json = text.trim();
   if (json.startsWith(PAYLOAD_GZIP) || json.startsWith(PAYLOAD_PLAIN)) {
-    const d = await decodePayload(json);
+    const d = await decodePayload(json, opts);
     if (!d.ok) return d;
     json = d.json;
   }
@@ -180,12 +256,14 @@ export async function parseBackupText(text: string): Promise<ParsedBackup> {
   let device: string | undefined;
   let appVersion: string | undefined;
   if (o.format === BACKUP_FORMAT) {
+    if (!okTime(o.exportedAt)) return { ok: false, error: 'not-a-backup' };
     raw = o.state;
     declared = o.v;
     savedAt = typeof o.exportedAt === 'number' ? o.exportedAt : 0;
     device = typeof o.device === 'string' ? o.device : undefined;
     appVersion = typeof o.appVersion === 'string' ? o.appVersion : undefined;
   } else if (typeof o.v === 'number' && 'state' in o) {
+    if (!okTime(o.savedAt) || !(o.rev === undefined || (Number.isSafeInteger(o.rev) && (o.rev as number) >= 0))) return { ok: false, error: 'not-a-backup' };
     raw = o.state;
     declared = o.v;
     savedAt = typeof o.savedAt === 'number' ? o.savedAt : 0;
@@ -195,7 +273,7 @@ export async function parseBackupText(text: string): Promise<ParsedBackup> {
   const d = decodeState(raw, 'import', { declaredVersion: declared });
   if (d.kind === 'newer') return { ok: false, error: 'made-by-newer-version' };
   if (d.kind === 'corrupt') return d.reason === 'invalid' ? { ok: false, error: 'damaged-backup', details: d.errors } : { ok: false, error: 'not-a-backup' };
-  return { ok: true, state: d.state, savedAt, ...(device ? { device } : {}), ...(appVersion ? { appVersion } : {}) };
+  return { ok: true, state: capImportedClock(d.state, savedAt, opts.local), savedAt, ...(device ? { device } : {}), ...(appVersion ? { appVersion } : {}) };
 }
 
 /** The import preview line's numbers. */

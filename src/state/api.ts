@@ -211,8 +211,8 @@ export interface ImportPreview {
 /** `movedIn`: the pets who went straight to the new place (the ones who love it most, up to its room). */
 export type PlacePurchase = { ok: true; place: PlaceId; movedIn: string[] } | { ok: false; error: 'not-enough-coins' | 'owned' };
 
-/** Why a backup can't be imported at all (handoff.ts `parseBackupText`). */
-export type BackupError = 'not-a-backup' | 'made-by-newer-version' | 'damaged-backup' | 'not-a-payload' | 'damaged-payload' | 'cannot-decompress-here';
+/** Why a backup can't be imported at all (handoff.ts `parseBackupText`; 'too-large': past the import bounds, WP-A5). */
+export type BackupError = 'not-a-backup' | 'made-by-newer-version' | 'damaged-backup' | 'not-a-payload' | 'damaged-payload' | 'cannot-decompress-here' | 'too-large';
 
 /**
  * Why a replacement of the whole save (an import, an Undo, a restore: WP-A3) changed nothing.
