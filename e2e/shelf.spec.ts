@@ -21,8 +21,15 @@ const now = Date.now();
 const today = dayKey(now);
 const demo = buildDemo({ today, now });
 
-/** Loads a save before the app boots, then opens the Shelf. */
+/**
+ * Loads a save before the app boots, then opens the Shelf. The page's clock starts at `now` and runs
+ * on from there, so the app boots on the save's day even when the 03:00 day start passes between this
+ * file loading and the test running (it did once, in a gate at 03:00 UTC: the basket's empty treat was
+ * restocked on boot and its Bake row never came).
+ */
 async function openShelf(page: Page, state: AppState = demo): Promise<void> {
+  await page.clock.install({ time: now });
+  await page.clock.resume();
   const save = encodeEnvelope(state, 1, now, 'e2e');
   await page.addInitScript(([k, v]) => localStorage.setItem(k!, v!), [SAVE_KEY, save]);
   await openRoute(page, 'shelf');

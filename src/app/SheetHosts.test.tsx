@@ -522,6 +522,72 @@ describe('the small sheet, as a dialog (WP-C4, first-paint headroom)', () => {
     expect(document.activeElement).toBe(inside);
     expect(dialogs()).toHaveLength(1);
   });
+
+  it('dims the page fully when alone, and more lightly (data-over) over a sheet already open', async () => {
+    ctl.offline.add('editor');
+    const { open, walk } = await fresh();
+    await act(() => open.openHabitEditor());
+    const alone = await until(errorSheet, 'the error sheet on its own', LOAD);
+    expect(layerOf(alone)!.hasAttribute('data-over')).toBe(false);
+    await click(button('Close'), 'Close');
+    await until(() => !errorSheet(), 'the error sheet to go');
+
+    await act(() => open.openHabitDetail(walk));
+    const detail = await until(() => document.querySelector<HTMLElement>(`[data-habit-detail="${walk}"]`), 'Walk’s detail', LOAD);
+    await until(() => layerOf(detail)!.getAttribute('data-state') === 'open', 'the detail to settle');
+    ctl.offline.add('pet');
+    await act(() => open.openPetCard('pet-cat-calico'));
+    const over = await until(errorSheet, 'the error sheet over the detail', LOAD);
+    expect(layerOf(over)!.hasAttribute('data-over')).toBe(true);
+  });
+
+  it('slides away as the paper Sheet does: still there, exiting, just after Close, and gone only after its 320 ms', async () => {
+    ctl.offline.add('detail');
+    const { open, walk } = await fresh();
+    await act(() => open.openHabitDetail(walk));
+    const sheet = await until(errorSheet, 'the error sheet', LOAD);
+    await until(() => errorSheetPhase() === 'open', 'the error sheet to settle');
+    const layer = layerOf(sheet)!;
+    const t0 = Date.now();
+    await click(button('Close'), 'Close');
+    expect(layer.isConnected).toBe(true);
+    expect(layer.getAttribute('data-state')).toBe('exit');
+    await until(() => !layer.isConnected, 'the error sheet to go', LOAD);
+    // A busy machine only makes it later; a timer never fires early (a few ms allowed for rounding).
+    expect(Date.now() - t0).toBeGreaterThanOrEqual(310);
+  });
+
+  it('opens with the paper Sheet’s whoosh, once', async () => {
+    ctl.offline.add('detail');
+    const { open, walk } = await fresh();
+    const { sfx } = await import('@/fx/sound');
+    const play = vi.spyOn(sfx, 'play');
+    await act(() => open.openHabitDetail(walk));
+    await until(errorSheet, 'the error sheet', LOAD);
+    await until(() => errorSheetPhase() === 'open', 'the error sheet to settle');
+    expect(play.mock.calls.filter(([name]) => name === 'whoosh')).toHaveLength(1);
+  });
+
+  it('under a layer opened over it: inert, and Esc is not its own until that layer goes', async () => {
+    ctl.offline.add('detail');
+    const { open, walk } = await fresh();
+    const stack = await import('@/ui/sheetStack');
+    await act(() => open.openHabitDetail(walk));
+    const sheet = await until(errorSheet, 'the error sheet', LOAD);
+    const layer = layerOf(sheet)!;
+    expect(layer.inert).toBe(false);
+
+    await act(() => stack.pushLayer('test-over'));
+    expect(layer.inert).toBe(true);
+    await key(document, 'Escape');
+    expect(open.habitDetailRequest.value).toBe(walk);
+    expect(errorSheetPhase()).not.toBe('exit');
+
+    await act(() => stack.removeLayer('test-over'));
+    expect(layer.inert).toBe(false);
+    await key(document, 'Escape');
+    expect(open.habitDetailRequest.value).toBeNull();
+  });
 });
 
 describe('its words', () => {
