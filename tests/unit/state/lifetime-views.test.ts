@@ -1,6 +1,7 @@
 /**
  * WP-B5 on the screens' view models: a habit finished on its first day with nothing watered
- * (domain-d6, `unstarted`) leaves no card, no missed day and no "Start tracking from…" offer.
+ * (domain-d6, `unstarted`) leaves no card, no missed day and no "Start tracking from…" offer, and
+ * the calendar offers "Start tracking from…" only back to the backdating bound (DEC-P12g).
  */
 import { describe, expect, it } from 'vitest';
 import type { DateKey } from '@/state/types';
@@ -54,5 +55,14 @@ describe('a habit finished on its first day with nothing watered, on the screens
     g.run((tx) => habits.restoreHabit(tx, id));
     expect(cardIds(g)).toContain(id);
     expect(cell(g, id, addDays(D, -1)).edit).toBe('start-earlier');
+  });
+});
+
+describe('the calendar offers "Start tracking from…" back to the bound only (WP-B5, DEC-P12g)', () => {
+  it('ten years back is offered, the day before is not', () => {
+    const g = new Game({ start: D });
+    const id = g.addHabit({ name: 'Walk' });
+    expect(cell(g, id, '2016-09-07').edit).toBe('start-earlier');
+    expect(cell(g, id, '2016-09-06').edit).toBeNull();
   });
 });

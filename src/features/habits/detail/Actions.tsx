@@ -8,6 +8,7 @@ import { useState } from 'preact/hooks';
 import { CHECKIN_TOASTS, DATA, SEASON_REVIEW, TODAY_LINES, fillLine } from '@/catalog/lines';
 import { addDays, monthDayLabel } from '@/domain/dates';
 import type { FreshStartChoice } from '@/domain/seasonReview';
+import { earliestStartedOn } from '@/domain/habits';
 import { tuneView, type HabitDetailVM } from '@/state/selectors';
 import { archiveHabit, deleteHabit, pauseHabit, restoreHabit, resumeHabit, setStartedOn, today, tuneHabits } from '@/state/store';
 import { openHabitEditor } from '@/features/habits/open';
@@ -144,7 +145,7 @@ export function Actions({ vm, onGone }: { vm: HabitDetailVM; onGone: () => void 
           class={s.panel}
           onSubmit={(e) => {
             e.preventDefault();
-            if (!startFrom || startFrom >= h.startedOn) return;
+            if (!startFrom || startFrom >= h.startedOn || startFrom < earliestStartedOn(t)) return;
             setStartedOn(h.id, startFrom);
             haptic('light');
             announce(fillLine(TODAY_LINES.startFrom, { date: monthDayLabel(startFrom) }));
@@ -153,11 +154,11 @@ export function Actions({ vm, onGone }: { vm: HabitDetailVM; onGone: () => void 
         >
           <label class={s.field}>
             <span class={s.fieldLabel}>{D.actions.startFromLabel}</span>
-            <input class={s.date} type="date" value={startFrom} max={addDays(h.startedOn, -1)} onInput={(e) => setStartFrom((e.target as HTMLInputElement).value)} />
+            <input class={s.date} type="date" value={startFrom} min={earliestStartedOn(t)} max={addDays(h.startedOn, -1)} onInput={(e) => setStartFrom((e.target as HTMLInputElement).value)} />
           </label>
           <p class={s.help}>{TODAY_LINES.historyNote}</p>
           <div class={s.offerButtons}>
-            <Button size="sm" type="submit" disabled={!startFrom || startFrom >= h.startedOn}>
+            <Button size="sm" type="submit" disabled={!startFrom || startFrom >= h.startedOn || startFrom < earliestStartedOn(t)}>
               {fillLine(TODAY_LINES.startFrom, { date: startFrom ? monthDayLabel(startFrom) : '' })}
             </Button>
             <Button size="sm" variant="quiet" onClick={() => setPanel(null)}>

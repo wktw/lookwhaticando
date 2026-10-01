@@ -34,7 +34,7 @@ import type { AppState, DateKey, Effort, Habit, HabitRule, TimeOfDay } from '@/s
 import { graduationOffer, trackingOf, logsFor, evalContext } from './consistency';
 import { logStatus, showedUp } from './activity';
 import { owns, ownedTreats } from './collection';
-import { addDays, clampDayStartsAt, isDateKey } from './dates';
+import { addDays, addMonths, clampDayStartsAt, isDateKey, maxDateKey } from './dates';
 import { addPause, archivedStretchPause, isPausedOn, resumePauses } from './pauses';
 import { addToTotal } from './precision';
 import { forgetHabitPairs, freeCompanion } from './company';
@@ -409,13 +409,24 @@ export function resumeHabit(tx: Tx, id: string): void {
   tx.habit(id).pauses = resumePauses(h.pauses, keepToday ? addDays(today, 1) : today);
 }
 
+/** The earliest day "Start tracking from…" may reach: never before 2000. */
+export const EARLIEST_START: DateKey = '2000-01-01';
+/** …and never more than ten years before today (DEC-P12g). */
+export const BACKDATE_YEARS = 10;
+
+/** The earliest day "Start tracking from…" accepts on `today` (WP-B5, DEC-P12g). */
+export function earliestStartedOn(today: DateKey): DateKey {
+  return maxDateKey(EARLIEST_START, addMonths(today, -12 * BACKDATE_YEARS));
+}
+
 /** Whether "Start tracking from `date`" would be accepted (the calendar offers it only then). */
 export function canStartFrom(habit: Pick<Habit, 'startedOn' | 'unstarted'>, date: DateKey, today: DateKey): boolean {
-  return isDateKey(date) && habit.unstarted !== true && date < habit.startedOn && date <= today;
+  return isDateKey(date) && habit.unstarted !== true && date < habit.startedOn && date <= today && date >= earliestStartedOn(today);
 }
 
 /**
- * "Start tracking Walk from Mon, Sep 22?": earlier `startedOn` (stats only). Refused for an
+ * "Start tracking Walk from Mon, Sep 22?": earlier `startedOn` (stats only), back to
+ * `earliestStartedOn`. A flexible habit keeps its period grid (`withStartedOn`). Refused for an
  * unstarted habit (its lifetime is empty; restore it first).
  */
 export function setStartedOn(tx: Tx, id: string, date: DateKey): boolean {

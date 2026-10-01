@@ -42,6 +42,13 @@ export interface HabitRule {
   step: number;
   /** The "tiny version" that still counts as showing up (e.g. "Shoes on, step outside"). */
   tiny?: { label: string; count?: number };
+  /**
+   * WP-B5 (P-history-01): the day a backdated flexible first rule's period grid is anchored on, when
+   * that is not its `from`. "Start tracking from…" moves `from` (with `startedOn`) to the exact
+   * day and keeps the grid the rule had, so no existing period regroups. Set only on the first rule
+   * of an `every > 1` schedule. Optional and additive: older builds anchor on `from` instead.
+   */
+  gridFrom?: DateKey;
 }
 
 export interface Pause {

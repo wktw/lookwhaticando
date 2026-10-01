@@ -123,6 +123,8 @@ function checkHabit(r: Report, h: unknown, path: string): void {
     checkSchedule(r, ro.schedule, `${rp}.schedule`);
     if (r.errors.length > before) shapesOk = false;
     if (ro.tiny !== undefined) shapesOk = r.check(isObj(ro.tiny) && isStr(ro.tiny.label), `${rp}.tiny`, 'bad tiny version') && shapesOk;
+    // WP-B5: a backdated first rule's kept period grid.
+    if (ro.gridFrom !== undefined) shapesOk = r.check(isDateKey(ro.gridFrom), `${rp}.gridFrom`, 'not a date') && shapesOk;
     return undefined;
   });
   if (shapesOk && isDateKey(o.startedOn)) {

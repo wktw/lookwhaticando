@@ -16,9 +16,11 @@ import {
   isDayBased,
   isScheduledDate,
   normalizeRuleContent,
-  periodGrid,
+  everyOf,
+  isFlexible,
   periodSlotAt,
   rhythmOf,
+  ruleGrid,
   sameRuleContent,
   samePeriodGeometry,
   validateRuleContent,
@@ -198,7 +200,7 @@ export function editEffectiveFrom(
   } else if (isDayBased(current)) {
     from = today;
   } else {
-    const slot = periodSlotAt(periodGrid(current, current.from, weekStart), today);
+    const slot = periodSlotAt(ruleGrid(current, weekStart), today);
     if (timing === 'next-period') from = addDays(slot.end, 1);
     else if (next && !samePeriodGeometry(current, next.schedule)) from = today;
     else from = maxDateKey(slot.start, current.from);
@@ -240,10 +242,16 @@ export function withRuleEdit<H extends WithRulesAndStart>(
 
 /**
  * "Start tracking Walk from Mon, Sep 22?" (DESIGN v1 §13.2): moves `startedOn` (and the first rule's
- * `from`) earlier. Later dates are ignored: history is never trimmed this way.
+ * `from`, so `rules[0].from === startedOn` still holds) earlier, to the exact day. Later dates are
+ * ignored: history is never trimmed this way. A flexible first rule of `every > 1` keeps the period
+ * grid it had (`gridFrom`, its first `from`), so the periods already lived through keep their
+ * place, their goals and their grants: the new days join the earlier periods of the same grid
+ * (WP-B5, P-history-01, DEC-P12d). With `every` 1 every week or month start is a boundary anyway.
  */
 export function withStartedOn<H extends WithRulesAndStart>(habit: H, date: DateKey): H {
   if (!(date < habit.startedOn)) return habit;
   const [first, ...rest] = habit.rules;
-  return { ...habit, startedOn: date, rules: first ? [{ ...first, from: date }, ...rest] : habit.rules };
+  if (!first) return { ...habit, startedOn: date };
+  const keepGrid = first.gridFrom === undefined && isFlexible(first) && everyOf(first) > 1;
+  return { ...habit, startedOn: date, rules: [{ ...first, from: date, ...(keepGrid ? { gridFrom: first.from } : {}) }, ...rest] };
 }

@@ -10,6 +10,11 @@
  *   leaves an empty lifetime: `unstarted: true`, with `archivedOn === startedOn` so older
  *   validators still accept the save. No day of an unstarted habit is in its lifetime, so the
  *   creation day is never a missed day.
+ * - P-history-01 (DEC-P12d): "Start tracking from…" moves `startedOn` (and the first rule's `from`)
+ *   to the exact date, while a flexible first rule keeps the period grid it had (`gridFrom`), so
+ *   no existing period regroups and no grant moves.
+ * - P-history-03 (DEC-P12g): backdating is bounded to ten years before today, and never before
+ *   2000-01-01.
  */
 import { describe, expect, it } from 'vitest';
 import type { AppState, DateKey, Habit } from '@/state/types';
@@ -19,13 +24,15 @@ import { validateState } from '@/state/validate';
 import { addDays } from '@/domain/dates';
 import { evaluateDay, inLifetime, lifetimeEnd } from '@/domain/activity';
 import { habitTally, trackingOf, dayCompletion } from '@/domain/consistency';
-import { logsOf, streakOf, trackingCtx } from '@/domain/economy';
+import { deservedLevel, logsOf, streakOf, trackingCtx } from '@/domain/economy';
 import * as habits from '@/domain/habits';
 import * as logging from '@/domain/logging';
-import { flexPeriodAt, periodEvaluations, type PeriodEvaluation } from '@/domain/periods';
+import { flexPeriodAt, flexPeriodsOverlapping, periodEvaluations, type PeriodEvaluation } from '@/domain/periods';
+import { chance, mulberry32, pick, randomInt, type Rng } from '@/domain/rng';
 import { retireWithRibbon } from '@/domain/seasonReview';
-import { transact, type Env } from '@/domain/tx';
+import { transact, type Env, type Tx } from '@/domain/tx';
 import { Game, UTC, at } from './game';
+import { randomContent } from './random';
 
 /* ------------------------------------------------------------------ */
 /* Helpers                                                             */
@@ -216,6 +223,124 @@ describe('HM1: a later lifecycle action never changes a period cut by an earlier
 });
 
 /* ------------------------------------------------------------------ */
+/* Property: random sequences never change a closed period's verdict   */
+/* ------------------------------------------------------------------ */
+
+type ActionName = 'edit' | 'finish' | 'archive' | 'restore' | 'pause' | 'resume' | 'off' | 'backdate' | 'checkin' | 'none';
+
+/** Runs one reducer on a plain state (no openDay: only the action itself changes the save). */
+function act<R>(s: AppState, today: DateKey, rng: Rng, body: (tx: Tx) => R): AppState {
+  const env: Env = { now: at(today, 12), today, local: UTC, rng };
+  return transact(s, env, (tx) => ({ r: body(tx) })).state;
+}
+
+/** Every closed flexible period of the habit as of `today`, by identity. */
+function closedVerdicts(s: AppState, id: string, today: DateKey): Map<string, ReturnType<typeof verdict> & { start: DateKey }> {
+  const h = s.habits.find((x) => x.id === id)!;
+  const out = new Map<string, ReturnType<typeof verdict> & { start: DateKey }>();
+  for (const e of periodEvaluations(h, logsOf(s, id), h.startedOn, today, trackingCtx(s, today))) {
+    if (e.state !== 'closed') continue;
+    out.set(`${e.key}|${e.from}|${e.unit}${e.every}x${e.times}`, { ...verdict(e), start: e.start });
+  }
+  return out;
+}
+
+describe('property: random edit, Finish, Archive, Restore, pause, resume, day-off and backdate sequences never change a closed period (WP-B5)', () => {
+  it('holds over 40 seeded histories of 150 days', { timeout: 120_000 }, () => {
+    for (let seed = 1; seed <= 40; seed++) {
+      const rng = mulberry32(seed * 7919);
+      const g = new Game({ start: '2026-03-02', seed });
+      const flexible = chance(rng, 0.8);
+      const schedule = flexible ? (chance(rng, 0.5) ? weekly(randomInt(rng, 1, 5), pick(rng, [1, 2, 3, 4] as const)) : monthly(randomInt(rng, 1, 3), pick(rng, [1, 2, 3, 6, 12] as const))) : { kind: 'daily' as const };
+      const id = g.addHabit({ name: 'Walk', schedule });
+      let s = g.state;
+      const seen = new Map<string, ReturnType<typeof verdict> & { start: DateKey }>();
+      let today = '2026-03-02';
+      for (let day = 0; day < 150; day++) {
+        today = addDays('2026-03-02', day);
+        const h = () => s.habits.find((x) => x.id === id)!;
+        const live = h().archivedOn === undefined;
+        const r = rng();
+        const action: ActionName =
+          r < 0.45 ? (live ? 'checkin' : 'none')
+          : r < 0.55 ? (live ? 'edit' : 'restore')
+          : r < 0.6 ? 'finish'
+          : r < 0.64 ? 'archive'
+          : r < 0.7 ? 'restore'
+          : r < 0.76 ? 'pause'
+          : r < 0.81 ? 'resume'
+          : r < 0.86 ? 'off'
+          : r < 0.9 ? 'backdate'
+          : 'none';
+        const before = closedVerdicts(s, id, today);
+        const startedBefore = h().startedOn;
+        const where = `seed ${seed}, ${today}, ${action}`;
+        switch (action) {
+          case 'checkin':
+            s = act(s, today, rng, (tx) => logging.checkIn(tx, id));
+            break;
+          case 'edit': {
+            const c = randomContent(rng);
+            const timing = pick(rng, ['today', 'today', 'next-period', 'tomorrow'] as const);
+            s = act(s, today, rng, (tx) => habits.updateHabit(tx, id, { schedule: c.schedule, target: c.target, step: c.step, tiny: c.tiny }, timing));
+            break;
+          }
+          case 'finish':
+            s = act(s, today, rng, (tx) => retireWithRibbon(tx, id));
+            break;
+          case 'archive':
+            s = act(s, today, rng, (tx) => habits.archiveHabit(tx, id));
+            break;
+          case 'restore':
+            s = act(s, today, rng, (tx) => habits.restoreHabit(tx, id));
+            break;
+          case 'pause': {
+            const start = addDays(today, randomInt(rng, 0, 4));
+            const end = chance(rng, 0.7) ? addDays(start, randomInt(rng, 0, 9)) : undefined;
+            s = act(s, today, rng, (tx) => habits.pauseHabit(tx, id, start, end));
+            break;
+          }
+          case 'resume':
+            s = act(s, today, rng, (tx) => habits.resumeHabit(tx, id));
+            break;
+          case 'off':
+            s = act(s, today, rng, (tx) => logging.toggleOffDay(tx, today));
+            break;
+          case 'backdate':
+            s = act(s, today, rng, (tx) => habits.setStartedOn(tx, id, addDays(startedBefore, -randomInt(rng, 1, 40))));
+            break;
+          case 'none':
+            break;
+        }
+        expect(validateState(s).ok, where).toBe(true);
+        const after = closedVerdicts(s, id, today);
+        const backdated = h().startedOn < startedBefore;
+        for (const [k, v] of before) {
+          // Backdating adds tracked days to the period holding the old first day: that period may
+          // change (its documented effect). Every later period keeps its place and its verdict.
+          if (backdated && v.start < startedBefore) {
+            seen.delete(k);
+            continue;
+          }
+          // Undoing an edit on the day it was made removes its cut: the period is current again.
+          if (!after.has(k) && action === 'edit' && v.to === addDays(today, -1)) {
+            seen.delete(k);
+            continue;
+          }
+          expect(after.get(k), `${where}: ${k}`).toEqual(v);
+        }
+        // Closed periods stay as they were first seen, whatever happened since.
+        for (const [k, v] of after) {
+          const first = seen.get(k);
+          if (first) expect(v, `${where}: ${k} since first seen`).toEqual(first);
+          else seen.set(k, v);
+        }
+      }
+    }
+  });
+});
+
+/* ------------------------------------------------------------------ */
 /* domain-d6: an empty lifetime                                        */
 /* ------------------------------------------------------------------ */
 
@@ -352,5 +477,127 @@ describe('domain-d6: Finish on the first day leaves no missed day (WP-B5, DEC-P1
     expect(validateState(withHabit({ unstarted: 'yes' })).ok).toBe(false);
     expect(validateState(withHabit({ archivedOn: undefined, ribbon: undefined })).ok).toBe(false);
     expect(validateState(withHabit({ archivedOn: addDays(D, 1), ribbon: addDays(D, 1) })).ok).toBe(false);
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/* P-history-01: backdating keeps the period grid                      */
+/* ------------------------------------------------------------------ */
+
+describe('P-history-01: "Start tracking from…" keeps every existing period and grant (WP-B5, DEC-P12d)', () => {
+  it("the audit's case: Sep 13 (in target) and Sep 14 (over) stay in one biweekly period after backdating to Aug 31", () => {
+    const g = new Game({ start: '2026-09-07' }); // Monday
+    const id = g.addHabit({ name: 'Run', schedule: weekly(1, 2) });
+    g.goTo('2026-09-13').checkIn(id);
+    g.goTo('2026-09-14').checkIn(id);
+    const levelBefore = deservedLevel(g.state, habitOf(g, id), '2026-09-14', g.today);
+    expect(levelBefore).toBe('over');
+    expect(g.run((tx) => habits.setStartedOn(tx, id, '2026-08-31'))).toBe(true);
+    const h = habitOf(g, id);
+    expect(h.startedOn).toBe('2026-08-31');
+    expect(h.rules[0]!.from).toBe('2026-08-31');
+    expect(validateState(g.state).ok).toBe(true);
+    expect(flexPeriodAt(h, '2026-09-13', 1)).toMatchObject({ key: '2026-09-07', start: '2026-09-07', end: '2026-09-20' });
+    expect(flexPeriodAt(h, '2026-09-14', 1)!.key).toBe('2026-09-07');
+    // The new days get the period before, on the same grid.
+    expect(flexPeriodAt(h, '2026-08-31', 1)).toMatchObject({ key: '2026-08-24', start: '2026-08-24', end: '2026-09-06', from: '2026-08-24' });
+    expect(deservedLevel(g.state, h, '2026-09-14', g.today)).toBe(levelBefore);
+  });
+
+  const cases = [
+    ...([2, 3, 4] as const).map((every) => ({ name: `weekly every ${every}`, schedule: weekly(1, every), back: [1, 6, 7, 13, 20, 27] })),
+    ...([2, 3, 6, 12] as const).map((every) => ({ name: `monthly every ${every}`, schedule: monthly(1, every), back: [1, 15, 31, 45, 75, 200] })),
+  ];
+
+  for (const c of cases) {
+    it(`${c.name}: periods from the old first day on keep their keys and bounds, and the grants stand`, () => {
+      const start = '2026-05-13'; // a Wednesday, mid-month
+      for (const back of c.back) {
+        const g = new Game({ start });
+        const id = g.addHabit({ name: 'Run', schedule: c.schedule });
+        // Check in once every 10 days for 400 days (later days are in the future and ignored).
+        for (let d = 0; d < 120; d += 10) g.goTo(addDays(start, d)).checkIn(id);
+        const today = g.today;
+        const h0 = habitOf(g, id);
+        const before = flexPeriodsOverlapping(h0, start, addDays(today, 400), 1).map(({ key, start, end, from, to }) => ({ key, start, end, from, to }));
+        const once = Object.keys(g.state.ledger.once).filter((k) => k.startsWith(`period|${id}|`));
+        const coins = g.coins;
+        const levels = Object.keys(logsOf(g.state, id)).map((d) => deservedLevel(g.state, h0, d, today));
+        const date = addDays(start, -back);
+        expect(g.run((tx) => habits.setStartedOn(tx, id, date)), `${c.name} −${back}`).toBe(true);
+        const h = habitOf(g, id);
+        expect(h.startedOn).toBe(date);
+        expect(h.rules[0]!.from).toBe(date);
+        expect(validateState(g.state).ok).toBe(true);
+        const after = flexPeriodsOverlapping(h, start, addDays(today, 400), 1).map(({ key, start, end, from, to }) => ({ key, start, end, from, to }));
+        // The first old period now starts at its nominal start (the habit's days begin earlier).
+        expect(after.slice(1), `${c.name} −${back}`).toEqual(before.slice(1));
+        expect(after[0]!.key).toBe(before[0]!.key);
+        expect(Object.keys(g.state.ledger.once).filter((k) => k.startsWith(`period|${id}|`))).toEqual(once);
+        expect(g.coins).toBe(coins);
+        expect(Object.keys(logsOf(g.state, id)).map((d) => deservedLevel(g.state, h, d, today))).toEqual(levels);
+      }
+    });
+  }
+
+  it('a "this period" edit on a backdated habit takes over the period of the kept grid', () => {
+    const g = new Game({ start: '2026-09-07' });
+    const id = g.addHabit({ name: 'Run', schedule: weekly(1, 2) });
+    g.run((tx) => habits.setStartedOn(tx, id, '2026-08-31'));
+    g.goTo('2026-09-15').run((tx) => habits.updateHabit(tx, id, { schedule: weekly(2, 2) }, 'today'));
+    const h = habitOf(g, id);
+    expect(h.rules.map((r) => r.from)).toEqual(['2026-08-31', '2026-09-07']);
+    expect(flexPeriodAt(h, '2026-09-15', 1)).toMatchObject({ key: '2026-09-07', from: '2026-09-07', to: '2026-09-20', times: 2 });
+    expect(flexPeriodAt(h, '2026-09-01', 1)).toMatchObject({ key: '2026-08-24', from: '2026-08-24', to: '2026-09-06', times: 1 });
+  });
+
+  it('an edit replacing the whole first rule with the same geometry keeps the grid', () => {
+    const g = new Game({ start: '2026-09-09' }); // Wednesday
+    const id = g.addHabit({ name: 'Run', schedule: weekly(1, 2) });
+    g.run((tx) => habits.setStartedOn(tx, id, '2026-09-07'));
+    // Backdated by two days only: the first period [Sep 7, Sep 20] is still current, so a
+    // "this period" edit replaces the first rule.
+    g.run((tx) => habits.updateHabit(tx, id, { schedule: weekly(2, 2) }, 'today'));
+    const h = habitOf(g, id);
+    expect(h.rules).toHaveLength(1);
+    expect(h.rules[0]!.from).toBe('2026-09-07');
+    expect(flexPeriodAt(h, '2026-09-20', 1)).toMatchObject({ key: '2026-09-07', end: '2026-09-20', times: 2 });
+  });
+
+  it('the kept grid passes the decoder and survives a save round trip; a bad one is rejected', () => {
+    const g = new Game({ start: '2026-09-09' });
+    const id = g.addHabit({ name: 'Run', schedule: weekly(1, 3) });
+    g.run((tx) => habits.setStartedOn(tx, id, '2026-08-20'));
+    const loaded = parseEnvelope(encodeEnvelope(g.state, 3, g.now, 'test'));
+    expect(loaded.kind).toBe('ok');
+    expect((loaded as { state: AppState }).state).toEqual(g.state);
+    const withFirst = (patch: Record<string, unknown>) => ({
+      ...g.state,
+      habits: g.state.habits.map((h) => (h.id === id ? { ...h, rules: [{ ...h.rules[0]!, ...patch }, ...h.rules.slice(1)] } : h)),
+    });
+    expect(validateState(withFirst({})).ok).toBe(true);
+    expect(validateState(withFirst({ gridFrom: 'soon' })).ok).toBe(false);
+    expect(validateState(withFirst({ gridFrom: 20260909 })).ok).toBe(false);
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/* P-history-03 / DEC-P12g: a lower bound on backdating                */
+/* ------------------------------------------------------------------ */
+
+describe('backdating is bounded: ten years back at most, and never before 2000 (WP-B5, DEC-P12g)', () => {
+  it('ten years before today is the earliest start; a day earlier is refused', () => {
+    const g = new Game({ start: '2026-09-07' });
+    const id = g.addHabit({ name: 'Walk' });
+    expect(habits.earliestStartedOn('2026-09-07')).toBe('2016-09-07');
+    expect(g.run((tx) => habits.setStartedOn(tx, id, '2016-09-06'))).toBe(false);
+    expect(habitOf(g, id).startedOn).toBe('2026-09-07');
+    expect(g.run((tx) => habits.setStartedOn(tx, id, '2016-09-07'))).toBe(true);
+    expect(habitOf(g, id).startedOn).toBe('2016-09-07');
+  });
+
+  it('never before 2000-01-01, and a leap day maps to the last day of February', () => {
+    expect(habits.earliestStartedOn('2008-06-01')).toBe('2000-01-01');
+    expect(habits.earliestStartedOn('2028-02-29')).toBe('2018-02-28');
   });
 });

@@ -35,6 +35,8 @@
  * Archive, Restore, pauses, days off), so no later lifecycle action can move a cut period into, or
  * out of, a shortfall. (A pause already planned over them when the edit was made is not read
  * either: nothing records when a pause was made.)
+ * Grid: a rule's periods are cut from its `from` period, or from `gridFrom` when a backdated first
+ * rule keeps the grid it had (WP-B5, P-history-01), so "Start tracking from…" regroups nothing.
  * Attribution: a period belongs to the month containing its last day (its last *governed* day for
  * a cut period), even while current.
  */
@@ -42,7 +44,7 @@ import type { DateKey, Habit, HabitRule } from '@/state/types';
 import { addDays, daysInRange, eachDay, maxDateKey, minDateKey, monthKey, type MonthKey, type WeekStart } from './dates';
 import { inLifetime, isFlexActiveDay, logStatus, type EvalContext, type HabitLogs } from './activity';
 import { ruleSegments } from './rules';
-import { isFlexible, periodGrid, periodSlot, periodSlotAt, type FlexibleSchedule, type PeriodUnit } from './schedule';
+import { isFlexible, periodSlot, periodSlotAt, ruleGrid, type FlexibleSchedule, type PeriodUnit } from './schedule';
 
 type HabitDays = Pick<Habit, 'rules' | 'startedOn' | 'archivedOn' | 'unstarted' | 'pauses'>;
 
@@ -75,7 +77,7 @@ export function flexPeriodsOverlapping(habit: Pick<Habit, 'rules'>, start: DateK
     const lo = seg.start === null ? start : maxDateKey(start, seg.start);
     const hi = seg.end === null ? end : minDateKey(end, seg.end);
     if (lo > hi) continue;
-    const grid = periodGrid(seg.rule, seg.rule.from, weekStart);
+    const grid = ruleGrid(seg.rule, weekStart);
     const times = (seg.rule.schedule as FlexibleSchedule).times;
     for (let k = periodSlotAt(grid, lo).index, last = periodSlotAt(grid, hi).index; k <= last; k++) {
       const slot = periodSlot(grid, k);
