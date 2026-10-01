@@ -3,7 +3,9 @@
  * dark (the four screens projects):
  * - on the routed Capsules screen, a new pet's "Find {name} a plant" opens its Pet Card on the plant
  *   chooser with focus there, and Enter on a plant moves the pet in, once (integration-i6); with no
- *   habit yet, the card says how a plant comes and "Add a habit" opens the Habit Editor;
+ *   habit yet, the card says how a plant comes and "Add a habit" opens the Habit Editor, and once she
+ *   plants one, focus comes back to the card on the new plant; a repeat pet's "Visit {name}" opens
+ *   its card with nothing forced open;
  * - new decor's "Find it a place" lands in the Shelf's edit mode with the thing focused in the tray;
  * - "Open Today" on a calendar day, from Habit Detail over Today and from Progress, leaves no dialog,
  *   selects the day and puts focus on the habit's ring, and Enter waters that day (domain-w2-d2);
@@ -19,6 +21,8 @@ import { transact } from '../src/domain/tx';
 import { mulberry32 } from '../src/domain/rng';
 import { addDays, appDayKey, runtimeLocalTime } from '../src/domain/dates';
 import * as gacha from '../src/domain/gacha';
+import { machineLineup } from '../src/domain/collection';
+import { newPetState } from '../src/domain/friendship';
 import { encodeEnvelope } from '../src/state/persist';
 import type { AppState } from '../src/state/types';
 import { expectNoAxeViolations, openRoute, watchErrors } from './support';
@@ -38,6 +42,23 @@ function ordered(category: 'pet' | 'decor', base: AppState = demo): { state: App
   expect(out.o.ok, `ordering ${def.id}`).toBe(true);
   expect(out.state.pendingReveal?.itemId).toBe(def.id);
   return { state: out.state, id: def.id };
+}
+
+/** The demo with everything in the first cabinet (Cats) home already (and coins for a pull): its next capsule is a repeat pet. */
+function everyCatOwned(): { state: AppState } {
+  const lineup = machineLineup('cats');
+  const pets = { ...demo.pets };
+  const collection = { ...demo.collection };
+  for (const c of lineup) {
+    collection[c.id] = { count: Math.max(1, collection[c.id]?.count ?? 0), firstAt: collection[c.id]?.firstAt ?? 0 };
+    if (c.category === 'pet' && !pets[c.id]) pets[c.id] = newPetState(c.id, mulberry32(3), now, today, false);
+  }
+  // No reveal waiting (the demo's own Special Order would play first). A save whose pull count is 0
+  // (its free gift already taken, so the cabinet asks for coins) gets the first capsule's guarantee, a
+  // Classic or Special pet (gacha.decidePull): with all of them home, the capsule is a repeat pet.
+  const { pendingReveal: _order, ...rest } = demo;
+  expect(rest.ledger.once[gacha.FIRST_CAPSULE_KEY]).toBeTruthy();
+  return { state: { ...rest, pets, collection, lifetime: { ...demo.lifetime, pulls: 0 }, wallet: { ...demo.wallet, coins: demo.wallet.coins + 200 } } };
 }
 
 async function seed(page: Page, state: AppState): Promise<void> {
@@ -109,7 +130,61 @@ test.describe('the routed Capsules screen hands a reveal on (WP-C7)', () => {
     const add = card.getByRole('button', { name: 'Add a habit' });
     await expect(add).toBeFocused();
     await page.keyboard.press('Enter');
-    await expect(page.getByRole('dialog', { name: 'A new habit' })).toBeVisible();
+    const editor = page.getByRole('dialog', { name: 'A new habit' });
+    await expect(editor).toBeVisible();
+    // She plants one: the editor closes and focus comes back to the card, on the new plant in its chooser.
+    await editor.getByRole('textbox').first().fill('Read a chapter');
+    await editor.getByRole('button', { name: 'Plant it' }).focus();
+    await page.keyboard.press('Enter');
+    await expect(editor).toHaveCount(0);
+    const plant = card.getByRole('list', { name: `Find ${name} a plant` }).getByRole('button', { name: 'Read a chapter' });
+    await expect(plant).toBeFocused();
+    await page.keyboard.press('Enter');
+    await expect(card.getByRole('heading', { name: 'Keeps Read a chapter company' })).toBeVisible();
+    await expect.poll(async () => (await saved(page)).habits.filter((h) => h.companionId === id).map((h) => h.name)).toEqual(['Read a chapter']);
+    expect(errors, errors.join('\n')).toEqual([]);
+  });
+
+  test('a repeat pet\u2019s "Visit {name}" opens its card with nothing forced open, over the Capsules screen', async ({ page }) => {
+    const errors = watchErrors(page);
+    const { state } = everyCatOwned();
+    await seed(page, state);
+    await openRoute(page, 'capsules');
+    // A real pull, by keyboard, on the first cabinet: every pet in it is home already, so it is a repeat.
+    // The labelled button under the cabinet (the slot's own hit area is a pointer target, out of the Tab order).
+    const insert = page.getByRole('button', { name: /^Put a coin in/ }).filter({ hasText: 'Put a coin in' });
+    await insert.focus();
+    await page.keyboard.press('Enter');
+    const handle = page.getByRole('slider', { name: 'Turn the handle' });
+    await expect(handle).toBeFocused();
+    await expect(handle).toHaveAttribute('aria-disabled', 'false');
+    await page.keyboard.press('Enter');
+    const capsule = page.getByRole('button', { name: /^Open the capsule/ });
+    await expect(capsule).toBeVisible();
+    await capsule.focus();
+    await page.keyboard.press('Enter');
+    const visit = page.getByRole('button', { name: /^Visit / });
+    await expect(visit).toBeVisible();
+    const name = (await visit.innerText()).trim().slice('Visit '.length);
+    // A pet that was home already (a repeat), from the cabinet's lineup.
+    const pet = Object.values(state.pets).find((p) => p.name === name);
+    expect(pet, name).toBeTruthy();
+    expect(machineLineup('cats').map((c) => c.id)).toContain(pet!.id);
+    await expect(page.getByRole('button', { name: `Find ${name} a plant` })).toHaveCount(0);
+    // Tab along the card to it.
+    for (let i = 0; i < 12 && !(await visit.evaluate((b) => b === document.activeElement)); i++) await page.keyboard.press('Tab');
+    await expect(visit).toBeFocused();
+    await page.keyboard.press('Enter');
+    await expect(page.getByRole('dialog', { name: 'Capsule reveal' })).toHaveCount(0);
+    const card = page.getByRole('dialog', { name });
+    await expect(card).toBeVisible();
+    await expect(page).toHaveURL(/#\/capsules$/);
+    // Opened with no intent: no chooser forced open, nothing in the card pulled into focus.
+    await expect(card.getByRole('list', { name: `Find ${name} a plant` })).toHaveCount(0);
+    await page.keyboard.press('Escape');
+    await expect(card).toHaveCount(0);
+    // Back on the machine, ready for another capsule.
+    await expect(insert).toBeFocused();
     expect(errors, errors.join('\n')).toEqual([]);
   });
 

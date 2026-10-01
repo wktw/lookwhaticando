@@ -20,7 +20,7 @@ import { toasts } from '@/ui/toast';
 import { CapsulesScreen } from './CapsulesScreen';
 import { RevealCard } from './RevealCard';
 import { capsuleShell, revealFromPending } from './reveal';
-import { button, click, installDom, keyboardClick, mount, revealDialog, until } from './testing';
+import { button, click, installDom, keyboardClick, mount, revealDialog, type, until } from './testing';
 
 vi.setConfig({ testTimeout: 60_000, hookTimeout: 120_000 });
 
@@ -99,6 +99,29 @@ describe('the routed Capsules screen hands a reveal on (WP-C7)', () => {
     await until(() => document.activeElement === add, 'focus on Add a habit');
     await keyboardClick(add, 'Add a habit');
     expect(habitEditorRequest.value).toEqual({});
+  });
+
+  it('planting a habit from the no-habit note brings focus back to the card, on the new plant in the chooser', async () => {
+    routedReveal(PET, { ...demo, habits: demo.habits.map((h) => ({ ...h, companionId: undefined, archivedOn: h.archivedOn ?? '2026-09-01' })) });
+    const name = state.value.pets[PET]!.name;
+    await keyboardClick(await until(() => button(`Find ${name} a plant`), 'Find a plant'), 'Find a plant');
+    const card = await until(petCard, 'the Pet Card');
+    const add = await until(() => Array.from(card.querySelectorAll<HTMLButtonElement>('button')).find((b) => b.textContent?.trim() === 'Add a habit'), 'Add a habit');
+    await until(() => document.activeElement === add, 'focus on Add a habit');
+    await keyboardClick(add, 'Add a habit');
+    const editor = await until(() => Array.from(document.querySelectorAll<HTMLElement>('[role="dialog"]')).find((d) => d.querySelector('form')), 'the Habit Editor');
+    await type(editor.querySelector<HTMLInputElement>('input[type="text"]')!, 'Read a chapter');
+    await keyboardClick(Array.from(editor.querySelectorAll('button')).find((b) => b.textContent === 'Plant it') ?? null, 'Plant it');
+    await until(() => state.value.habits.some((h) => h.name === 'Read a chapter' && !h.archivedOn), 'the new habit');
+    await until(() => !editor.isConnected, 'the Habit Editor to close');
+    // The card is still open on the chooser, and focus is on the new plant, not lost to the page.
+    const chooser = await until(() => card.querySelector<HTMLElement>(`ul[aria-label="Find ${name} a plant"]`), 'the chooser');
+    const first = chooser.querySelector<HTMLButtonElement>('button')!;
+    expect(first.textContent?.trim()).toBe('Read a chapter');
+    await until(() => document.activeElement === first, 'focus on the new plant');
+    // Give the editor's own focus return its time; focus stays on the plant.
+    await new Promise((r) => setTimeout(r, 600));
+    expect(document.activeElement).toBe(first);
   });
 
   it('"Find it a place" takes new decor to the Shelf, carrying the item', async () => {

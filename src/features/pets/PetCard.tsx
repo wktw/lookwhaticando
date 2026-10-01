@@ -248,6 +248,8 @@ const About = memo(function About({ about, habits }: { about: AboutVM; habits: H
   );
 });
 
+/** How many frames to wait for the card to be on top again before giving focus to a plant. */
+const FOCUS_FRAMES = 60;
 /** Focus the first button in `box` that can be pressed (of those `only` matches), bringing it into view. */
 const focusFirst = (box: HTMLElement | null | undefined, only = 'button') => box?.querySelector<HTMLElement>(`${only}:not([disabled])`)?.focus();
 
@@ -262,6 +264,28 @@ const Company = memo(function Company({ petId, name, habitId, habits, intent }: 
     // Once, as the card opens.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+  // From the no-habit note, "Add a habit" opens the Habit Editor over the card. When she plants one,
+  // the button the editor would give focus back to is gone (the chooser is here now), so focus goes to
+  // the chooser's first plant once the card is on top again (no longer inert under the editor).
+  const hadHabits = useRef(habits.length > 0);
+  useEffect(() => {
+    const had = hadHabits.current;
+    hadHabits.current = habits.length > 0;
+    if (!finding || had || habits.length === 0) return;
+    let frames = 0;
+    let raf = 0;
+    const land = () => {
+      const covered = (el: Element | null): boolean => !!el && ((el as HTMLElement).inert || covered(el.parentElement));
+      if ((!box.current || covered(box.current)) && ++frames < FOCUS_FRAMES) {
+        raf = requestAnimationFrame(land);
+        return;
+      }
+      focusFirst(box.current);
+    };
+    raf = requestAnimationFrame(land);
+    return () => cancelAnimationFrame(raf);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [habits.length]);
   const habit = habitId ? habits.find((h) => h.id === habitId) : undefined;
   if (habits.length === 0) {
     // No plant to keep company yet: on the way here from "Find {name} a plant", say how one comes.

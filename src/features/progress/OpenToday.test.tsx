@@ -13,6 +13,7 @@ import type { AppState } from '@/state/types';
 import { toasts } from '@/ui/toast';
 import { SheetHosts } from '@/app/SheetHosts';
 import { currentTab } from '@/app/router';
+import { handOff } from '@/app/handoff';
 import { TodayScreen } from '@/features/today/TodayScreen';
 import { selectedDay, todayFocus } from '@/features/today/state';
 import { ProgressScreen } from './ProgressScreen';
@@ -149,5 +150,38 @@ describe('Open Today (WP-C7)', () => {
     for (let i = 0; i < 5; i++) await new Promise((r) => requestAnimationFrame(() => r(null)));
     expect(document.activeElement).not.toBe(ring);
     expect(selectedDay.value).toBeNull();
+  });
+  it('a habit with no card that day: focus lands on the page’s heading and the request is cleared', async () => {
+    location.hash = '#/today';
+    currentTab.value = 'today';
+    views.push(mount(<TodayScreen />));
+    // Nothing focused inside the page before the hand-off.
+    (document.activeElement as HTMLElement | null)?.blur();
+    handOff({ target: 'today', entityId: 'no-such-habit', date: YESTERDAY });
+    expect(selectedDay.value).toBe(YESTERDAY);
+    const heading = await until(() => document.querySelector<HTMLElement>('#today-title'), 'Today’s heading');
+    await until(() => document.activeElement === heading, 'focus on the heading');
+    expect(todayFocus.value).toBeNull();
+  });
+
+  it('a request that has landed is cleared: Today mounted again on that day does not pull focus back to the ring', async () => {
+    location.hash = '#/today';
+    currentTab.value = 'today';
+    // "Open Today" on today's own date: leaving Today puts the page back on today (its unmount
+    // clears the selected day), so this is the day a request left set would land on again.
+    habitId = state.value.habits.find((h) => h.name === 'Drink water')!.id;
+    views.push(mount(<TodayScreen />));
+    handOff({ target: 'today', entityId: habitId, date: TODAY });
+    const ring = await until(() => ringFor(habitId), 'the habit’s card on today');
+    await until(() => document.activeElement === ring, 'focus on the ring');
+    expect(todayFocus.value).toBeNull();
+    // She moves on; Today goes and comes back (another tab and back).
+    ring.blur();
+    views.pop()!.unmount();
+    views.push(mount(<TodayScreen />));
+    const again = await until(() => ringFor(habitId), 'the habit’s card on today, again');
+    // Give a landing left set its frames to act.
+    for (let i = 0; i < 25; i++) await new Promise((r) => requestAnimationFrame(() => r(null)));
+    expect(document.activeElement).not.toBe(again);
   });
 });
