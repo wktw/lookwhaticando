@@ -1,4 +1,4 @@
-import { useEffect } from 'preact/hooks';
+import { useEffect, useState } from 'preact/hooks';
 import { cx } from '@/ui/cx';
 import { SHELL_LINES } from '@/features/you/shellCopy';
 import { clockBehind, crossWindowNotice, damagedSave, damagedUnkept, demoMode, dismissCrossWindowNotice, durability, exitDemo, loadIssue, readOnly, retrySaving, useHere } from '@/state/store';
