@@ -32,7 +32,7 @@ import { PASTELS } from '@/catalog/types';
 import type { HabitInput } from '@/state/api';
 import type { AppState, DateKey, Effort, Habit, HabitRule, TimeOfDay } from '@/state/types';
 import { graduationOffer, trackingOf, logsFor, evalContext } from './consistency';
-import { logStatus, showedUp } from './activity';
+import { isUnstarted, logStatus, showedUp } from './activity';
 import { owns, ownedTreats } from './collection';
 import { addDays, addMonths, clampDayStartsAt, isDateKey, maxDateKey } from './dates';
 import { addPause, archivedStretchPause, isPausedOn, resumePauses } from './pauses';
@@ -42,6 +42,7 @@ import { anchorIssue, unstackFollowers } from './stacking';
 import { inferHemisphere } from './hemisphere';
 import { ensureRecipe } from './pantry';
 import { ruleAt, withRuleEdit, withStartedOn, type RuleEditTiming } from './rules';
+import { withCutStamp } from './periods';
 import { RULE_LIMITS, isBiggerRule, isDayBased, normalizeRuleContent, sameRuleContent, validateRuleContent, type RuleContent } from './schedule';
 import { GROW_COOLDOWN_DAYS, forfeitLoweredGoal, isSettleableDay, ledgerKey, ledgerKeyDate, resettleHabit } from './economy';
 import type { Tx } from './tx';
@@ -233,6 +234,8 @@ export function updateHabit(tx: Tx, id: string, patch: Partial<HabitInput>, timi
     const content = ruleContentOf(merged);
     const pinned = timing !== 'tomorrow' && isDayBased(ruleAt(current, today)) && !sameRuleContent(ruleAt(current, today), content) && todayRewarded(tx, id);
     next = withRuleEdit(next, content, today, pinned ? 'tomorrow' : timing, tx.s.settings.weekStart);
+    // A period the edit cuts keeps the pauses and days off it already had over the days it loses (WP-B5).
+    next = withCutStamp(next, current, trackingOf(tx.s));
   }
   const h = tx.habit(id);
   Object.assign(h, next);
@@ -263,7 +266,10 @@ export function archiveHabit(tx: Tx, id: string): void {
   if (tx.env.today < h.startedOn) {
     w.archivedOn = h.startedOn;
     w.unstarted = true;
-  } else w.archivedOn = tx.env.today;
+  } else {
+    w.archivedOn = tx.env.today;
+    delete w.unstarted; // a stale flag an older build kept (isUnstarted)
+  }
 }
 
 /**
@@ -283,7 +289,7 @@ export function restoreHabit(tx: Tx, id: string): void {
   const doneToday = log?.kind === 'log' && showedUp(logStatus(log, ruleAt(h, today), false));
   // An unstarted habit (WP-B5) had no day at all: its first day was excused too, so the stretch
   // starts there, and today counts as excused when it is that first day.
-  const lastLived = h.unstarted === true ? addDays(h.startedOn, -1) : h.archivedOn;
+  const lastLived = isUnstarted(h) ? addDays(h.startedOn, -1) : h.archivedOn;
   const keepToday = lastLived < today && hasOnce(tx.s, `perfect|${today}`) && !doneToday;
   const stretch = archivedStretchPause(lastLived, keepToday ? addDays(today, 1) : today);
   if (stretch) w.pauses = addPause(h.pauses, stretch.start, stretch.end);
@@ -420,8 +426,8 @@ export function earliestStartedOn(today: DateKey): DateKey {
 }
 
 /** Whether "Start tracking from `date`" would be accepted (the calendar offers it only then). */
-export function canStartFrom(habit: Pick<Habit, 'startedOn' | 'unstarted'>, date: DateKey, today: DateKey): boolean {
-  return isDateKey(date) && habit.unstarted !== true && date < habit.startedOn && date <= today && date >= earliestStartedOn(today);
+export function canStartFrom(habit: Pick<Habit, 'startedOn' | 'archivedOn' | 'unstarted'>, date: DateKey, today: DateKey): boolean {
+  return isDateKey(date) && !isUnstarted(habit) && date < habit.startedOn && date <= today && date >= earliestStartedOn(today);
 }
 
 /**
@@ -432,7 +438,9 @@ export function canStartFrom(habit: Pick<Habit, 'startedOn' | 'unstarted'>, date
 export function setStartedOn(tx: Tx, id: string, date: DateKey): boolean {
   const h = tx.s.habits.find((x) => x.id === id);
   if (!h || !canStartFrom(h, date, tx.env.today)) return false;
-  Object.assign(tx.habit(id), withStartedOn(h, date));
+  const w = tx.habit(id);
+  Object.assign(w, withStartedOn(h, date));
+  delete w.unstarted; // only ever a stale flag here (canStartFrom refuses an unstarted habit)
   return true;
 }
 

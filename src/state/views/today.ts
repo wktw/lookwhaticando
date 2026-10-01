@@ -21,7 +21,7 @@ import { petPlace } from '@/domain/places';
 import { settledNotice } from '@/domain/shelf';
 import { ritualDate, ritualKind, type RitualKind } from './pets';
 import { seasonReviewVM, type SeasonReviewVM } from './season';
-import { OFF_DAYS_PER_MONTH, canLogOn, inLifetime, isInBackfillWindow, logStatus, offDaysRemaining, showedUp } from '@/domain/activity';
+import { OFF_DAYS_PER_MONTH, canLogOn, inLifetime, isInBackfillWindow, isUnstarted, logStatus, offDaysRemaining, showedUp } from '@/domain/activity';
 import { dayCompletion, trackingOf } from '@/domain/consistency';
 import { WEEKDAY_LETTERS, addDays, parseDateKey, startOfWeek, weekday } from '@/domain/dates';
 import { isFlexible } from '@/domain/schedule';
@@ -444,7 +444,7 @@ export function todayVM(s: AppState, env: ViewEnv, date: DateKey = env.today): T
       perMonth: OFF_DAYS_PER_MONTH,
       canToggle: day === today,
     },
-    empty: s.habits.every((h) => h.archivedOn !== undefined && (h.unstarted === true || h.archivedOn < today)),
+    empty: s.habits.every((h) => h.archivedOn !== undefined && (isUnstarted(h) || h.archivedOn < today)),
     firstCapsule: s.profile.onboarded && s.lifetime.pulls === 0,
     firstCapsuleWaiting: s.profile.onboarded && FIRST_CAPSULE_MACHINES.some((m) => canPullFree(s, m)),
     clockBehind: rewardsPaused(s, env.now),

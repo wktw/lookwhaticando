@@ -49,6 +49,14 @@ export interface HabitRule {
    * of an `every > 1` schedule. Optional and additive: older builds anchor on `from` instead.
    */
   gridFrom?: DateKey;
+  /**
+   * WP-B5 (HM1, review): when this rule cut the previous rule's period short (it starts inside that
+   * period), how many of the days it took from it were already paused or taken off when the edit
+   * was made. The cut period reads those days as it stood then (inactive) and the rest as active,
+   * whatever happens to the habit later. Absent means none (and on saves from before it existed).
+   * Optional and additive: older builds read the pauses as they are now instead.
+   */
+  cutInactive?: number;
 }
 
 export interface Pause {
@@ -92,7 +100,8 @@ export interface Habit {
    * with nothing watered on the day it was created, or an archive before `startedOn`). Its lifetime
    * is empty: no day is in it, so its first day is never a missed day. Always set with
    * `archivedOn === startedOn`, which older builds accept (they read that one day as its lifetime).
-   * Restoring clears it. Optional and additive.
+   * Restoring clears it. Honoured only while that holds (`isUnstarted`): an older build's Restore or
+   * backdate keeps the field, and the habit then reads by its dates. Optional and additive.
    */
   unstarted?: true;
   pauses: Pause[];

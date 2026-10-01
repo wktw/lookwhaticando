@@ -93,8 +93,10 @@ function checkHabit(r: Report, h: unknown, path: string): void {
   r.check(o.createdOn === undefined || isDateKey(o.createdOn), `${path}.createdOn`, 'not a date');
   r.check(isDateKey(o.startedOn), `${path}.startedOn`, 'not a date');
   r.check(o.archivedOn === undefined || (isDateKey(o.archivedOn) && o.archivedOn >= String(o.startedOn)), `${path}.archivedOn`, 'not a date on/after startedOn');
-  // WP-B5: an empty lifetime is always kept as archivedOn === startedOn (what older builds accept).
-  r.check(o.unstarted === undefined || (o.unstarted === true && o.archivedOn !== undefined && o.archivedOn === o.startedOn), `${path}.unstarted`, 'an unstarted habit is archived on startedOn');
+  // WP-B5: an empty lifetime, written as archivedOn === startedOn (what older builds accept). Not
+  // checked against the dates: an older build's Restore or backdate keeps the flag, and the domain
+  // honours it only while it is consistent (isUnstarted), so such a save is not corrupt.
+  r.check(o.unstarted === undefined || o.unstarted === true, `${path}.unstarted`, 'not true');
   r.check(isNum(o.order), `${path}.order`, 'not a number');
   for (const k of ['unit', 'anchor', 'notes'] as const) r.check(o[k] === undefined || isStr(o[k]), `${path}.${k}`, 'not a string');
   r.check(o.dueDay === undefined || o.dueDay === 'last' || (isInt(o.dueDay) && o.dueDay >= 1 && o.dueDay <= 31), `${path}.dueDay`, 'bad due day');
@@ -125,6 +127,8 @@ function checkHabit(r: Report, h: unknown, path: string): void {
     if (ro.tiny !== undefined) shapesOk = r.check(isObj(ro.tiny) && isStr(ro.tiny.label), `${rp}.tiny`, 'bad tiny version') && shapesOk;
     // WP-B5: a backdated first rule's kept period grid.
     if (ro.gridFrom !== undefined) shapesOk = r.check(isDateKey(ro.gridFrom), `${rp}.gridFrom`, 'not a date') && shapesOk;
+    // WP-B5: the days of the period it cut that were already paused or off at the edit.
+    if (ro.cutInactive !== undefined) shapesOk = r.check(isInt(ro.cutInactive) && ro.cutInactive >= 1, `${rp}.cutInactive`, 'not a positive whole number') && shapesOk;
     return undefined;
   });
   if (shapesOk && isDateKey(o.startedOn)) {

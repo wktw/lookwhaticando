@@ -107,9 +107,10 @@ period. `expectedPerWeek` = 7, |days|, times/every, or times×12/52/every.
 **Edits "this period"**: when a flexible edit keeps the period geometry (same unit and `every`; only `times` changes),
 the new rule takes over the whole current period. When the geometry changes (weekly ↔ monthly, another `every`,
 flexible → day-based), the new rule starts today and the old period is *cut*: it is judged as it stood that day, with
-its full goal, and the days it lost count as still open. Those lost days are read as they stood at the cut, whatever
-later happens to the habit: Finish, Archive, Restore, a pause, a resume or a day off never move a cut period into or
-out of a shortfall (WP-B5). A day-based edit made after today's check-in was rewarded applies from tomorrow (the detail
+its full goal, and the days it lost count as still open. Those lost days are read as they stood at the cut: the ones
+already paused or taken off when the edit was made stay inactive (their count is kept on the new rule, `cutInactive`),
+and the rest stay active whatever later happens to the habit. So the edit keeps the goal the period had, and Finish,
+Archive, Restore, a pause, a resume or a day off never move a cut period into or out of a shortfall (WP-B5). A day-based edit made after today's check-in was rewarded applies from tomorrow (the detail
 view shows the pending rule). No edit, and no later lifecycle action, can turn a past day or a closed period into a
 new shortfall.
 
@@ -735,7 +736,8 @@ its last day, so no later day is ever expected of it (today is kept when it alre
 the tiny version, or a count at its Tiny count). Finished on the day it was created with nothing watered (or archived
 before its first day), a habit has no day at all: it is kept `unstarted`, with `archivedOn = startedOn` so older builds
 still read the save, and its first day is never a missed day. Restoring it brings it back from that day, with the days in
-between paused (WP-B5).
+between paused (WP-B5). The flag counts only while it matches (archived on `startedOn`): an older build that restores or
+backdates the habit keeps the field without knowing it, and the habit then reads by its dates; the save is not corrupt.
 
 ## 15. Milestones & adversarial audits
 

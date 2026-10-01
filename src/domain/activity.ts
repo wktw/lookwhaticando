@@ -47,16 +47,26 @@ export const EMPTY_LOGS: HabitLogs = Object.freeze({});
 /* ------------------------------------------------------------------ */
 
 /**
- * startedOn ≤ date ≤ archivedOn (the archive day itself still counts, DESIGN §5.3). An `unstarted`
- * habit (retired before its first day was over, with nothing watered: WP-B5) has an empty lifetime.
+ * Retired before its first day was over, with nothing watered (WP-B5): an empty lifetime. The flag
+ * is honoured only while it is consistent, archived on `startedOn`: an older build's Restore or
+ * "Start tracking from…" keeps an unknown field it does not understand, and such a habit is live
+ * (or archived) as its dates say.
+ */
+export function isUnstarted(habit: Lifetime): boolean {
+  return habit.unstarted === true && habit.archivedOn !== undefined && habit.archivedOn === habit.startedOn;
+}
+
+/**
+ * startedOn ≤ date ≤ archivedOn (the archive day itself still counts, DESIGN §5.3). An unstarted
+ * habit (`isUnstarted`) has an empty lifetime.
  */
 export function inLifetime(habit: Lifetime, date: DateKey): boolean {
-  return habit.unstarted !== true && date >= habit.startedOn && (habit.archivedOn === undefined || date <= habit.archivedOn);
+  return !isUnstarted(habit) && date >= habit.startedOn && (habit.archivedOn === undefined || date <= habit.archivedOn);
 }
 
 /** Last day of the lifetime that is ≤ `until`, or null when the habit has not started by then. */
 export function lifetimeEnd(habit: Lifetime, until: DateKey): DateKey | null {
-  if (habit.unstarted === true) return null;
+  if (isUnstarted(habit)) return null;
   const end = habit.archivedOn === undefined ? until : minDateKey(habit.archivedOn, until);
   return end >= habit.startedOn ? end : null;
 }
@@ -97,7 +107,7 @@ export function restStanding(habit: HabitDays, logs: HabitLogs, date: DateKey, c
 /** Why `date` is transparent for the habit, or null when it is an active day. */
 export function inactiveReason(habit: HabitDays, logs: HabitLogs, date: DateKey, ctx: TrackingContext): InactiveReason | null {
   if (date < habit.startedOn) return 'before-start';
-  if (habit.unstarted === true || (habit.archivedOn !== undefined && date > habit.archivedOn)) return 'archived';
+  if (isUnstarted(habit) || (habit.archivedOn !== undefined && date > habit.archivedOn)) return 'archived';
   if (isPausedOn(habit.pauses, date)) return 'paused';
   if (ctx.offDays[date] === true) return 'off';
   if (restStanding(habit, logs, date, ctx) === 'allowed') return 'rest';

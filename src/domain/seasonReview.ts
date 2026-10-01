@@ -355,6 +355,7 @@ export function retireWithRibbon(tx: Tx, habitId: string, lastDay?: DateKey): bo
   w.archivedOn = last;
   w.ribbon = last;
   if (unstarted) w.unstarted = true;
+  else delete w.unstarted; // a stale flag an older build kept (isUnstarted)
   tx.emit({ type: 'retired', habitId, ribbon: true });
   return true;
 }

@@ -56,6 +56,24 @@ describe('a habit finished on its first day with nothing watered, on the screens
     expect(cardIds(g)).toContain(id);
     expect(cell(g, id, addDays(D, -1)).edit).toBe('start-earlier');
   });
+
+  it("restored by an older build that kept the flag: the card is back, the sill is not empty, the offer is back", () => {
+    const g = new Game({ start: D });
+    const id = g.addHabit({ name: 'Water' });
+    g.run((tx) => retireWithRibbon(tx, id));
+    g.goTo(addDays(D, 1));
+    // An older build's Restore deletes the dates it knows and keeps `unstarted`.
+    g.run((tx) => {
+      const w = tx.habit(id);
+      delete w.archivedOn;
+      delete w.ribbon;
+    });
+    expect(g.state.habits[0]).toMatchObject({ unstarted: true });
+    expect(cardIds(g)).toContain(id);
+    expect(todayVM(g.state, envOf(g)).empty).toBe(false);
+    expect(cell(g, id, g.today).state).not.toBe('archived');
+    expect(cell(g, id, addDays(D, -1)).edit).toBe('start-earlier');
+  });
 });
 
 describe('the calendar offers "Start tracking from…" back to the bound only (WP-B5, DEC-P12g)', () => {

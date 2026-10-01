@@ -23,14 +23,15 @@ import { encodeEnvelope, parseEnvelope } from '@/state/persist';
 import { validateState } from '@/state/validate';
 import { addDays } from '@/domain/dates';
 import { evaluateDay, inLifetime, lifetimeEnd } from '@/domain/activity';
-import { habitTally, trackingOf, dayCompletion } from '@/domain/consistency';
+import { habitPhrase, habitTally, trackingOf, dayCompletion } from '@/domain/consistency';
 import { deservedLevel, logsOf, streakOf, trackingCtx } from '@/domain/economy';
 import * as habits from '@/domain/habits';
 import * as logging from '@/domain/logging';
-import { flexPeriodAt, flexPeriodsOverlapping, periodEvaluations, type PeriodEvaluation } from '@/domain/periods';
+import { flexPeriodAt, flexPeriodsOverlapping, periodEvaluations, periodPace, type PeriodEvaluation } from '@/domain/periods';
 import { chance, mulberry32, pick, randomInt, type Rng } from '@/domain/rng';
 import { retireWithRibbon } from '@/domain/seasonReview';
 import { transact, type Env, type Tx } from '@/domain/tx';
+import { addPause, archivedStretchPause, isPausedOn } from '@/domain/pauses';
 import { Game, UTC, at } from './game';
 import { randomContent } from './random';
 
@@ -212,13 +213,135 @@ describe('HM1: a later lifecycle action never changes a period cut by an earlier
     expect(read()).toEqual(before);
   });
 
-  it('a period cut tonight by graduation reads its lost days as open and active, whatever is planned for them', () => {
+  it('a period cut tonight by graduation reads its lost days as open and active, whatever is planned for them later', () => {
     const { g, id } = establishedWeekly(['2026-09-07']);
     g.goTo('2026-09-09').run((tx) => habits.updateHabit(tx, id, { schedule: weekly(4) }, 'tomorrow'));
     const before = verdict(periodOn(g, id, '2026-09-08'));
     expect(before).toMatchObject({ to: '2026-09-09', cut: true, target: 3, achieved: 1 });
     g.run((tx) => habits.pauseHabit(tx, id, '2026-09-10', '2026-09-13'));
     expect(verdict(periodOn(g, id, '2026-09-08'))).toEqual(before);
+  });
+
+  it('…and its pace: a pause planned after the cut over the lost days leaves "on track" as it was', () => {
+    const { g, id } = establishedWeekly(['2026-09-07']);
+    g.goTo('2026-09-09').run((tx) => habits.updateHabit(tx, id, { schedule: weekly(4) }, 'tomorrow'));
+    const pace = () => {
+      const p = periodPace(habitOf(g, id), logsOf(g.state, id), trackingCtx(g.state, g.today))!;
+      return { cut: p.period.cut, target: p.target, onTrack: p.onTrack, remainingActiveDays: p.remainingActiveDays, possible: p.possible };
+    };
+    const before = pace();
+    expect(before).toEqual({ cut: true, target: 3, onTrack: true, remainingActiveDays: 1, possible: false });
+    g.run((tx) => habits.pauseHabit(tx, id, '2026-09-10', '2026-09-13'));
+    // Read with the pause, the lost days would no longer be "not elapsed": elapsed 6, pace 2, behind.
+    expect(pace()).toEqual(before);
+  });
+
+  /*
+   * A pause or day off already in place over the days an edit cuts away is part of the period as it
+   * stood at the cut: the edit itself never turns a period that was not short into a settled
+   * shortfall (rules.ts contract), and a week paused in full stays skipped. Later actions still
+   * change nothing.
+   */
+  const streakNow = (g: Game, id: string) => streakOf(habitOf(g, id), logsOf(g.state, id), trackingCtx(g.state, g.today)).current?.length ?? null;
+
+  for (const [editName, patch] of [
+    ['every 1 → 2', { schedule: weekly(4, 2) }],
+    ['weekly → daily', { schedule: { kind: 'daily' } }],
+  ] as const satisfies readonly (readonly [string, Partial<HabitInput>])[]) {
+    it(`a pause planned before the edit (${editName}) keeps the goal the week had: not short, the run goes on`, () => {
+      const { g, id } = establishedWeekly(['2026-09-07'], 4);
+      g.run((tx) => habits.pauseHabit(tx, id, '2026-09-12', '2026-09-13'));
+      g.goTo('2026-09-12'); // Saturday, the pause has begun
+      const pre = periodOn(g, id, '2026-09-08');
+      expect(pre).toMatchObject({ target: 3, achieved: 1, openDays: 2, expected: 1, short: false });
+      expect(streakNow(g, id)).toBe(5);
+      g.run((tx) => habits.updateHabit(tx, id, patch, 'today'));
+      const cut = verdict(periodOn(g, id, '2026-09-08'));
+      // Before the fix: target 4, expected 2, short (and, in the same rhythm, the five-week run ends).
+      expect(cut).toMatchObject({ to: '2026-09-11', cut: true, target: 3, achieved: 1, openDays: 2, expected: 1, short: false });
+      // Daily is a new rhythm, with a streak of its own; every 2 weeks keeps the weekly run.
+      if (editName === 'every 1 → 2') expect(streakNow(g, id)).toBe(5);
+      g.goTo('2026-09-14');
+      expect(verdict(periodOn(g, id, '2026-09-08'))).toEqual(cut);
+      if (editName === 'every 1 → 2') expect(streakNow(g, id)).toBe(5);
+      // Later lifecycle actions still leave it as the edit left it.
+      g.run((tx) => retireWithRibbon(tx, id));
+      g.goTo('2026-09-16').run((tx) => habits.restoreHabit(tx, id));
+      expect(verdict(periodOn(g, id, '2026-09-08'))).toEqual(cut);
+    });
+  }
+
+  it('a week paused in full and cut by an edit made during the pause stays skipped', () => {
+    const { g, id } = establishedWeekly();
+    g.goTo('2026-09-07').run((tx) => habits.pauseHabit(tx, id, '2026-09-07', '2026-09-20'));
+    g.goTo('2026-09-09').run((tx) => habits.updateHabit(tx, id, { schedule: weekly(3, 2) }, 'today'));
+    g.goTo('2026-09-15');
+    const e = periodOn(g, id, '2026-09-08');
+    // Before the fix: target 2, not skipped, unmet, and the phrase read 3 of 4.
+    expect(e).toMatchObject({ to: '2026-09-08', cut: true, target: 0, skipped: true, short: false });
+    expect(habitPhrase(habitOf(g, id), logsOf(g.state, id), trackingCtx(g.state, g.today))).toMatchObject({ kind: 'weeks', met: 4, of: 4 });
+    expect(streakNow(g, id)).toBe(5);
+  });
+
+  it('a pause planned before graduation counts in the cut week\'s pace as it did before', () => {
+    const { g, id } = establishedWeekly([], 4);
+    g.goTo('2026-09-09').run((tx) => habits.pauseHabit(tx, id, '2026-09-11', '2026-09-13'));
+    const pace = () => {
+      const p = periodPace(habitOf(g, id), logsOf(g.state, id), trackingCtx(g.state, g.today))!;
+      return { target: p.target, needed: p.needed, onTrack: p.onTrack };
+    };
+    const before = pace();
+    expect(before).toEqual({ target: 2, needed: 2, onTrack: false });
+    g.run((tx) => habits.updateHabit(tx, id, { schedule: weekly(5) }, 'tomorrow'));
+    expect(habitOf(g, id).rules.at(-1)).toMatchObject({ from: '2026-09-10', cutInactive: 3 });
+    expect(pace()).toEqual(before);
+  });
+
+  it('a second edit the same day keeps the first one\'s reading of the cut; one replacing a cut planned for tonight adds its own days', () => {
+    // Same day: the pause planned between the two edits is not read.
+    {
+      const { g, id } = establishedWeekly(['2026-09-07'], 4);
+      g.goTo('2026-09-10').run((tx) => habits.updateHabit(tx, id, { schedule: { kind: 'daily' } }, 'today'));
+      const cut = verdict(periodOn(g, id, '2026-09-08'));
+      g.run((tx) => habits.pauseHabit(tx, id, '2026-09-11', '2026-09-13'));
+      g.run((tx) => habits.updateHabit(tx, id, { schedule: weekly(4, 2) }, 'today'));
+      expect(habitOf(g, id).rules).toHaveLength(2);
+      expect(habitOf(g, id).rules[1]!.cutInactive).toBeUndefined();
+      expect(verdict(periodOn(g, id, '2026-09-08'))).toEqual(cut);
+    }
+    // "Ready to grow?" accepted for tomorrow with Sat–Sun paused, a pause added on Fri, then a
+    // "this period" edit today: Thu (today, active) and Sat–Sun (paused at the first cut) count, Fri not.
+    {
+      const { g, id } = establishedWeekly(['2026-09-07'], 4);
+      g.goTo('2026-09-09').run((tx) => habits.pauseHabit(tx, id, '2026-09-12', '2026-09-13'));
+      g.goTo('2026-09-10');
+      g.run((tx) => habits.updateHabit(tx, id, { schedule: weekly(5) }, 'tomorrow'));
+      expect(habitOf(g, id).rules.at(-1)).toMatchObject({ from: '2026-09-11', cutInactive: 2 });
+      const pre = periodOn(g, id, '2026-09-08');
+      g.run((tx) => habits.pauseHabit(tx, id, '2026-09-11', '2026-09-11'));
+      expect(periodOn(g, id, '2026-09-08').target).toBe(pre.target);
+      g.run((tx) => habits.updateHabit(tx, id, { schedule: { kind: 'daily' } }, 'today'));
+      expect(habitOf(g, id).rules.at(-1)).toMatchObject({ from: '2026-09-10', cutInactive: 2 });
+      expect(periodOn(g, id, '2026-09-08')).toMatchObject({ to: '2026-09-09', cut: true, target: pre.target });
+    }
+  });
+
+  it('the stamp passes the decoder and survives a save round trip; a bad one is rejected', () => {
+    const { g, id } = establishedWeekly(['2026-09-07'], 4);
+    g.run((tx) => habits.pauseHabit(tx, id, '2026-09-12', '2026-09-13'));
+    g.goTo('2026-09-12').run((tx) => habits.updateHabit(tx, id, { schedule: weekly(4, 2) }, 'today'));
+    expect(habitOf(g, id).rules[1]).toMatchObject({ from: '2026-09-12', cutInactive: 2 });
+    const loaded = parseEnvelope(encodeEnvelope(g.state, 3, g.now, 'test'));
+    expect(loaded.kind).toBe('ok');
+    expect((loaded as { state: AppState }).state).toEqual(g.state);
+    const withCut = (patch: Record<string, unknown>) => ({
+      ...g.state,
+      habits: g.state.habits.map((h) => (h.id === id ? { ...h, rules: [h.rules[0]!, { ...h.rules[1]!, ...patch }] } : h)),
+    });
+    expect(validateState(withCut({})).ok).toBe(true);
+    expect(validateState(withCut({ cutInactive: 0 })).ok).toBe(false);
+    expect(validateState(withCut({ cutInactive: 1.5 })).ok).toBe(false);
+    expect(validateState(withCut({ cutInactive: '2' })).ok).toBe(false);
   });
 });
 
@@ -243,6 +366,12 @@ function closedVerdicts(s: AppState, id: string, today: DateKey): Map<string, Re
     out.set(`${e.key}|${e.from}|${e.unit}${e.every}x${e.times}`, { ...verdict(e), start: e.start });
   }
   return out;
+}
+
+/** The flexible periods overlapping yesterday and today, as of `today`. */
+function periodsAround(s: AppState, id: string, today: DateKey): PeriodEvaluation[] {
+  const h = s.habits.find((x) => x.id === id)!;
+  return periodEvaluations(h, logsOf(s, id), addDays(today, -1), today, trackingCtx(s, today));
 }
 
 describe('property: random edit, Finish, Archive, Restore, pause, resume, day-off and backdate sequences never change a closed period (WP-B5)', () => {
@@ -282,7 +411,17 @@ describe('property: random edit, Finish, Archive, Restore, pause, resume, day-of
           case 'edit': {
             const c = randomContent(rng);
             const timing = pick(rng, ['today', 'today', 'next-period', 'tomorrow'] as const);
+            const pre = periodsAround(s, id, today).find((e) => e.from <= today && today <= e.to);
             s = act(s, today, rng, (tx) => habits.updateHabit(tx, id, { schedule: c.schedule, target: c.target, step: c.step, tiny: c.tiny }, timing));
+            // The edit itself keeps the goal of the period it cuts, so it can never settle a shortfall
+            // that could still have been made up (rules.ts contract), whatever pauses or days off
+            // were already planned over the days it loses.
+            const post = pre && periodsAround(s, id, today).find((e) => e.cut && e.key === pre.key && e.from === pre.from && e.rule.from === pre.rule.from);
+            if (pre && post) {
+              expect(post.target, `${where}: the cut period's goal`).toBe(pre.target);
+              expect(post.expected - post.achieved, `${where}: the cut period's gap`).toBeLessThanOrEqual(pre.expected - pre.achieved);
+              if (pre.expected === pre.achieved) expect(post.short, `${where}: a shortfall made by the edit`).toBe(false);
+            }
             break;
           }
           case 'finish':
@@ -498,8 +637,64 @@ describe('domain-d6: Finish on the first day leaves no missed day (WP-B5, DEC-P1
     expect(validateState(withHabit({})).ok).toBe(true);
     expect(validateState(withHabit({ unstarted: false })).ok).toBe(false);
     expect(validateState(withHabit({ unstarted: 'yes' })).ok).toBe(false);
-    expect(validateState(withHabit({ archivedOn: undefined, ribbon: undefined })).ok).toBe(false);
-    expect(validateState(withHabit({ archivedOn: addDays(D, 1), ribbon: addDays(D, 1) })).ok).toBe(false);
+    // A flag that no longer matches the dates (an older build kept it) is not corruption: it is ignored.
+    expect(validateState(withHabit({ archivedOn: undefined, ribbon: undefined })).ok).toBe(true);
+    expect(validateState(withHabit({ archivedOn: addDays(D, 1), ribbon: addDays(D, 1) })).ok).toBe(true);
+  });
+
+  /** Older builds' reducers (as at d5ff204): they keep the fields they do not know, `unstarted` included. */
+  const olderBuild = {
+    restore: (tx: Tx, id: string) => {
+      const h = tx.s.habits.find((x) => x.id === id)!;
+      const w = tx.habit(id);
+      const stretch = archivedStretchPause(h.archivedOn!, tx.env.today);
+      if (stretch) w.pauses = addPause(h.pauses, stretch.start, stretch.end);
+      delete w.archivedOn;
+      delete w.ribbon;
+    },
+    setStartedOn: (tx: Tx, id: string, date: DateKey) => {
+      const h = tx.s.habits.find((x) => x.id === id)!;
+      Object.assign(tx.habit(id), { ...h, startedOn: date, rules: [{ ...h.rules[0]!, from: date }, ...h.rules.slice(1)] });
+    },
+  };
+  /** The save as the new build loads it. */
+  const reload = (g: Game) => {
+    const loaded = parseEnvelope(encodeEnvelope(g.state, 3, g.now, 'test'));
+    expect(loaded.kind, JSON.stringify(loaded)).toBe('ok');
+    g.state = (loaded as { state: AppState }).state;
+  };
+
+  it("an older build's Restore keeps the flag: the save still loads, and the habit is live again", () => {
+    const { g, id } = created('none');
+    g.run((tx) => retireWithRibbon(tx, id));
+    g.goTo(addDays(D, 1)).run((tx) => olderBuild.restore(tx, id));
+    expect(habitOf(g, id)).toMatchObject({ unstarted: true });
+    expect(habitOf(g, id).archivedOn).toBeUndefined();
+    // Before: the validator rejected the whole save as corrupt, and the lifetime was empty.
+    reload(g);
+    const h = habitOf(g, id);
+    expect(inLifetime(h, g.today)).toBe(true);
+    expect(lifetimeEnd(h, g.today)).toBe(g.today);
+    expect(g.checkIn(id)).toMatchObject({ partial: true });
+    // Finished again on a later day, the stale flag goes: the days it lived stay in its lifetime.
+    g.goTo(addDays(D, 3)).run((tx) => retireWithRibbon(tx, id));
+    expect(habitOf(g, id)).toMatchObject({ archivedOn: addDays(D, 2) });
+    expect(habitOf(g, id).unstarted).toBeUndefined();
+  });
+
+  it("an older build's backdate keeps the flag: the save still loads, and the habit's days are its lifetime", () => {
+    const { g, id } = created('none');
+    g.run((tx) => retireWithRibbon(tx, id));
+    g.goTo(addDays(D, 1)).run((tx) => olderBuild.setStartedOn(tx, id, addDays(D, -6)));
+    expect(habitOf(g, id)).toMatchObject({ startedOn: addDays(D, -6), archivedOn: D, unstarted: true });
+    reload(g);
+    const h = habitOf(g, id);
+    expect(inLifetime(h, addDays(D, -6))).toBe(true);
+    expect(lifetimeEnd(h, g.today)).toBe(D);
+    // Restore reads it by its dates too: the stretch starts after its last day.
+    g.run((tx) => habits.restoreHabit(tx, id));
+    expect(habitOf(g, id).unstarted).toBeUndefined();
+    expect(isPausedOn(habitOf(g, id).pauses, D)).toBe(false);
   });
 });
 
