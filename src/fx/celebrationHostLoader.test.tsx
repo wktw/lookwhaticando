@@ -16,7 +16,7 @@
  * loaded; the real `./celebrations` sits behind a switch that holds its import, or rejects it the
  * way a missing chunk does.
  */
-import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act } from 'preact/test-utils';
 import type { GameEvent } from '@/state/api';
 import { installDom, mount, pause, until } from '@/features/capsules/testing';
@@ -29,14 +29,20 @@ const ctl = vi.hoisted(() => ({
   hold: null as Promise<void> | null,
   /** While true, the chunk's import rejects. */
   offline: false,
+  /** The latest import, settled either way: a test does not end with one still running. */
+  loading: null as Promise<unknown> | null,
 }));
 
 function gateChunk() {
-  vi.doMock('./celebrations', async (orig) => {
+  vi.doMock('./celebrations', (orig) => {
     ctl.attempts++;
-    if (ctl.hold) await ctl.hold;
-    if (ctl.offline) throw new TypeError('Failed to fetch dynamically imported module: celebrations');
-    return orig();
+    const load = (async () => {
+      if (ctl.hold) await ctl.hold;
+      if (ctl.offline) throw new TypeError('Failed to fetch dynamically imported module: celebrations');
+      return orig();
+    })();
+    ctl.loading = load.catch(() => undefined);
+    return load;
   });
 }
 
@@ -81,15 +87,21 @@ beforeEach(() => {
   ctl.attempts = 0;
   ctl.hold = null;
   ctl.offline = false;
+  ctl.loading = null;
 });
 afterEach(async () => {
   release();
   view?.unmount();
   view = null;
+  await ctl.loading;
+  ctl.loading = null;
   await pause(0);
   document.body.innerHTML = '';
   vi.doUnmock('./celebrations');
 });
+// A note's coin hops out of it after the test has its answer (TOAST_HOP_MS, then the flight) and
+// draws on the page: let the last flights land before the page is torn down.
+afterAll(() => pause(2_000));
 
 describe('the lazy celebration host', () => {
   it('keeps an event that comes before its chunk, and the host celebrates it once it listens', async () => {
