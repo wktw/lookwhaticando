@@ -1263,4 +1263,6 @@ export const ONBOARDING_COPY = {
   anotherName: 'Another name',
   plantsLead: 'Tap a plant, and {name} moves in.',
   stepOf: 'Step {n} of {count}',
+  /** A planting or a step this window couldn't make: another window owns the save (WP-C5). DEC-V: pending owner approval. */
+  useHere: 'Choose Use here above to carry on in this window.',
 } as const;

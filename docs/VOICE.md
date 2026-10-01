@@ -1546,4 +1546,5 @@ under the constant named. Same rules as everywhere (section 1).
 | anotherName | "Another name" |
 | plantsLead | "Tap a plant, and {name} moves in." |
 | stepOf | "Step {n} of {count}" |
+| useHere | "Choose Use here above to carry on in this window." Under the shell's "catkin is open in another window · Use here" note, at the top of an onboarding step, when this window couldn't plant the picks (they stay picked) or move to the next step (WP-C5). A newer catkin's save says the Data line instead: "This window can’t change the save right now." DEC-V: pending owner approval |
 
