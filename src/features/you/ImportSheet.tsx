@@ -4,16 +4,17 @@
  * changes ("This backup has 5 habits, 312 waterings and 7 pets. Saved Sep 20."), then "Import"
  * replaces what's here (never a merge) and "Undo import" stands for 24 hours. When no undo copy
  * could be kept, she is asked once more ('no-undo'). Every note says only what the import answered
- * (`{ ok: true, undo }`, WP-A3): no Undo is offered when none was kept, and closing the sheet lets
- * an import that hasn't committed yet go.
+ * (`{ ok: true, undo }`, WP-A3): no Undo is offered when none was kept, and closing the sheet, or
+ * "Keep what's here" on either the sheet or the no-undo question, lets an import that hasn't
+ * committed yet go.
  *
  * Import is bound to what was described (WP-A6, FS6): every new choice (a file, a paste, the
  * clipboard, typing, opening or closing) is a new selection. What was described before goes at once
- * and the sheet says it is reading; a read, clipboard answer or description from an earlier
- * selection is dropped when it comes in, and its reads are let go. The described text itself is the
- * candidate Import and the no-undo question import, and a new choice lets an import of the old one
- * go, as closing does. An import closes the sheet the moment it commits, so nothing can be chosen
- * over it while its older copies are pruned.
+ * and the sheet says it is reading (aloud too, for a file or the clipboard); a read, clipboard
+ * answer or description from an earlier selection is dropped when it comes in, and its reads are
+ * let go. The described text itself is the candidate Import and the no-undo question import, and a
+ * new choice lets an import of the old one go, as closing does. An import closes the sheet the
+ * moment it commits, so nothing can be chosen over it while its older copies are pruned.
  *
  * Shared by You › Data, the install gate and onboarding's first step.
  */
@@ -184,6 +185,14 @@ export function ImportSheet({ open, onClose, onImported, clip, title = DATA.impo
   /** The import under way, let go when the sheet closes or goes, or another backup is chosen (FS5). */
   const importing = useRef<AbortController | null>(null);
 
+  /** Lets an import that hasn't committed yet go (FS5): it answers 'aborted' and changes nothing. */
+  const letImportGo = () => {
+    if (!importing.current) return;
+    importing.current.abort();
+    importing.current = null;
+    setBusy(false);
+  };
+
   /**
    * A new choice: everything about the one before goes at once (what was described, its error, the
    * no-undo question, its reads, and an import of it that hasn't committed yet).
@@ -193,11 +202,7 @@ export function ImportSheet({ open, onClose, onImported, clip, title = DATA.impo
     reads.current?.abort();
     const ctl = new AbortController();
     reads.current = ctl;
-    if (importing.current) {
-      importing.current.abort();
-      importing.current = null;
-      setBusy(false);
-    }
+    letImportGo();
     setCandidate(null);
     setAskNoUndo(null);
     setError(null);
@@ -205,12 +210,22 @@ export function ImportSheet({ open, onClose, onImported, clip, title = DATA.impo
     return { gen, signal: ctl.signal };
   };
   const current = (gen: number) => gen === sel.current;
+  /**
+   * A file or clipboard read has started: the line says so, and so does a screen reader, since what
+   * was described before (and its Import) has just gone and the read may be slow (a cloud file, a
+   * paste prompt). A typed change only shows the line: it is described at once, and its preview is
+   * announced.
+   */
+  const readingAloud = () => {
+    setReading(true);
+    announce(DATA_COPY.reading);
+  };
 
   useEffect(() => {
     const { gen, signal } = select();
     setText('');
     if (open && clip) {
-      setReading(true);
+      readingAloud();
       void clip.then(
         (t) => takeClip(gen, signal, t),
         () => takeClip(gen, signal, null),
@@ -266,7 +281,7 @@ export function ImportSheet({ open, onClose, onImported, clip, title = DATA.impo
   const paste = () => {
     const { gen, signal } = select();
     setText('');
-    setReading(true);
+    readingAloud();
     void readClipboard().then((t) => takeClip(gen, signal, t));
   };
 
@@ -278,7 +293,7 @@ export function ImportSheet({ open, onClose, onImported, clip, title = DATA.impo
     const { gen, signal } = select();
     // A chosen file's text is kept out of the text box: a backup file is long.
     setText('');
-    setReading(true);
+    readingAloud();
     // A file past the import bound is refused by its size, before it is read (P-persistence-06).
     const read = await readImportFile(file, { signal });
     if (!current(gen)) return;
@@ -405,7 +420,13 @@ export function ImportSheet({ open, onClose, onImported, clip, title = DATA.impo
         tone="danger"
         busy={busy}
         onConfirm={() => askNoUndo && void doImport(askNoUndo, true)}
-        onCancel={() => setAskNoUndo(null)}
+        onCancel={() => {
+          // "Keep what's here" (or Esc, or the scrim) while Import anyway is under way: she kept it,
+          // so that import goes, as the sheet's own Keep and Close let one go (FS5). The backup
+          // stays described.
+          letImportGo();
+          setAskNoUndo(null);
+        }}
       />
     </>
   );

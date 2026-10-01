@@ -51,7 +51,7 @@ const toast = (key: string) => toasts.value.find((t) => t.key === key);
 async function pasteAndImport(backup: string) {
   const area = await until(() => document.querySelector<HTMLTextAreaElement>('textarea'), 'the paste box');
   await type(area as unknown as HTMLInputElement, backup);
-  await until(() => document.querySelector('[role="status"]'), 'the preview');
+  await until(() => document.querySelector('[role="status"]:not([aria-live])'), 'the preview');
   await click(button(DATA.importButton), 'Import');
 }
 

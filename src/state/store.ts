@@ -85,7 +85,14 @@ import {
   type Timers,
 } from './persist';
 import { indexedDbSnapshotStore, memorySnapshotStore, retentionPlan, safely, snapshotMeta, takeDailySnapshot, type SnapshotStore } from './snapshots';
-import { deviceLabel, describeBackup, encodePayload, makeBackup, parseBackupText } from './handoff';
+import { deviceLabel, encodePayload, makeBackup } from './handoffCore';
+/**
+ * Reading a backup in (`handoff.ts`: decoding a payload, parsing, describing) is loaded only when a
+ * backup is previewed or imported, so it is not part of first paint (WP-A6 review). It is the same
+ * build's chunk as the Import sheet that asks for it; if it can't be loaded, a preview rejects (the
+ * sheet says it isn't a backup) and an import changes nothing ('not-saved').
+ */
+const backupReader = () => import('./handoff');
 import { decodeState, decodesAsSave } from './decode';
 import { fillLine } from '@/catalog/lineKit';
 import { DATA } from '@/catalog/linesCore';
@@ -1449,6 +1456,7 @@ export function markBackup(): void {
  * nothing is parsed, 'aborted' (WP-A6).
  */
 export async function previewImport(text: string, opts: { signal?: AbortSignal } = {}): Promise<ImportPreview | { ok: false; error: string }> {
+  const { describeBackup, parseBackupText } = await backupReader();
   const parsed = await parseBackupText(text, { signal: opts.signal });
   return parsed.ok ? describeBackup(parsed) : { ok: false, error: parsed.error };
 }
@@ -1728,6 +1736,7 @@ export function applyImport(text: string, opts: { withoutUndo?: boolean; signal?
     onCommit: opts.onCommit,
     load: async () => {
       // Let go (the sheet closed, or another backup chosen): the payload stops expanding (WP-A6).
+      const { parseBackupText } = await backupReader();
       const parsed = await parseBackupText(text, { local: rt.local, signal: opts.signal });
       return parsed.ok ? { ok: true, state: parsed.state } : (refuse(parsed.error as BackupError) as Loaded);
     },

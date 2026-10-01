@@ -80,7 +80,7 @@ describe('Import a backup: a too-big file chosen while a paste is still being re
       await new Promise((r) => setTimeout(r, 10));
     });
     expect(document.querySelector('[role="alert"]')?.textContent).toBe(ERRORS.tooLarge);
-    expect(document.querySelector('[role="status"]')).toBeNull();
+    expect(document.querySelector('[role="status"]:not([aria-live])')).toBeNull();
   });
 });
 

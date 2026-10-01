@@ -323,6 +323,40 @@ describe('WP-A6: Import is bound to the bytes it described', () => {
     expect(toast('imported')).toBeUndefined();
   });
 
+  it('the no-undo question’s Keep what’s here, tapped while Import anyway is under way, lets that import go (failed before)', async () => {
+    const { b, B } = threeSaves();
+    const noCopies: SnapshotStore = { durable: true, list: b.snapshots.list, get: b.snapshots.get, remove: b.snapshots.remove, put: () => Promise.reject(new Error('quota')) };
+    store.configureStore({ snapshots: noCopies });
+    // Import anyway is held in its load (a CK1 payload still expanding), the question still open.
+    const real = (await vi.importActual<typeof import('@/state/store')>('@/state/store')).applyImport;
+    const held = deferred<void>();
+    let anywaySignal: AbortSignal | undefined;
+    vi.mocked(store.applyImport).mockImplementation(async (text, opts) => {
+      if (opts?.withoutUndo) {
+        anywaySignal = opts.signal;
+        await held.promise;
+      }
+      return real(text, opts);
+    });
+    view = mount(<ImportSheet open onClose={() => undefined} />);
+    await type(area() as unknown as HTMLInputElement, B);
+    await until(() => preview(), 'the preview of B');
+    await click(importButton(), 'Import');
+    await click(await until(() => button(DATA_COPY.importAnyway), 'Import anyway'), 'Import anyway');
+    expect(anywaySignal?.aborted).toBe(false);
+    await click(document.querySelector('[role="alertdialog"] [data-cancel]'), 'the question’s Keep what’s here');
+    expect(anywaySignal!.aborted).toBe(true);
+    held.resolve();
+    await until(() => !store.replacing.value, 'the let-go import to end');
+    await settle();
+    expect(store.state.value.profile.name).toBe('Other');
+    expect(toast('imported')).toBeUndefined();
+    await until(() => !button(DATA_COPY.importAnyway), 'the question to close', 3000);
+    // What was described stays, and Import is ready again.
+    expect(preview()).toBe(await lineFor(B));
+    expect(importButton()!.getAttribute('aria-busy')).not.toBe('true');
+  });
+
   it('choosing another backup while an import is under way lets that import go, and describes the new one (failed before)', async () => {
     const { b, A, B } = threeSaves();
     await new Promise((r) => setTimeout(r, 0));
@@ -412,6 +446,77 @@ describe('WP-A6: Import is bound to the bytes it described', () => {
     await slow.arrive(A);
     expect(vi.mocked(store.applyImport)).not.toHaveBeenCalled();
     expect(store.state.value.profile.name).toBe('Other');
+  });
+
+  it('unmounted while the opener’s clipboard read is out: its late answer is never described (review guard)', async () => {
+    const { A } = threeSaves();
+    const clip = deferred<string | null>();
+    view = mount(<ImportSheet open onClose={() => undefined} clip={clip.promise} />);
+    await settle();
+    view.unmount();
+    view = null;
+    await act(async () => {
+      clip.resolve(A);
+      await new Promise((r) => setTimeout(r, 10));
+    });
+    expect(vi.mocked(store.previewImport)).not.toHaveBeenCalled();
+  });
+
+  it('unmounted while an import is under way, before it commits: the import is let go (review guard)', async () => {
+    const { b, A } = threeSaves();
+    await new Promise((r) => setTimeout(r, 0));
+    let reached!: () => void;
+    let open!: () => void;
+    const hit = new Promise<void>((r) => (reached = r));
+    const wait = new Promise<void>((r) => (open = r));
+    store.configureStore({
+      snapshots: {
+        durable: true,
+        list: b.snapshots.list,
+        get: b.snapshots.get,
+        remove: b.snapshots.remove,
+        put: async (r) => {
+          await b.snapshots.put(r);
+          reached();
+          await wait;
+        },
+      },
+    });
+    const disk = b.storage.getItem(SAVE_KEY);
+    const onImported = vi.fn();
+    view = mount(<ImportSheet open onClose={() => undefined} onImported={onImported} />);
+    await type(area() as unknown as HTMLInputElement, A);
+    await until(() => preview(), 'the preview of A');
+    await click(importButton(), 'Import');
+    await hit;
+    const signal = (vi.mocked(store.applyImport).mock.calls[0]?.[1] as { signal?: AbortSignal }).signal!;
+    view.unmount();
+    view = null;
+    expect(signal.aborted).toBe(true);
+    open();
+    await until(() => !store.replacing.value, 'the import to end');
+    await settle();
+    expect(store.state.value.profile.name).toBe('Other');
+    expect(b.storage.getItem(SAVE_KEY)).toBe(disk);
+    expect(toast('imported')).toBeUndefined();
+    expect(onImported).not.toHaveBeenCalled();
+  });
+
+  it('a file or clipboard read is announced as reading, not only shown (review: the line was silent for screen readers)', async () => {
+    const { A } = threeSaves();
+    const spoken = () => document.querySelector('[aria-live="polite"]')?.textContent ?? '';
+    const hush = () => document.querySelectorAll('[aria-live="polite"]').forEach((el) => (el.textContent = ''));
+    const clip = slowClipboard();
+    view = mount(<ImportSheet open onClose={() => undefined} />);
+    await type(area() as unknown as HTMLInputElement, A);
+    await until(() => preview(), 'the preview of A');
+    hush();
+    await choose(slowFile('bea.json').file);
+    await until(() => spoken() === DATA_COPY.reading || null, 'the file read to be announced');
+    hush();
+    await click(button(INSTALL.paste), 'Paste my plants');
+    await until(() => spoken() === DATA_COPY.reading || null, 'the clipboard read to be announced');
+    expect(clip.asked).toBe(1);
   });
 
   it('new line: the sheet says it is reading (VOICE §21, DEC-V pending; shape)', () => {

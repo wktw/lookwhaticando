@@ -5,7 +5,7 @@
  * word the note (VOICE §21, §18).
  */
 
-import { MAX_IMPORT_BYTES } from '@/state/handoff';
+import { MAX_IMPORT_BYTES } from '@/state/handoffCore';
 
 export type SaveOutcome = 'shared' | 'downloaded' | 'downloaded-instead' | 'cancelled';
 
