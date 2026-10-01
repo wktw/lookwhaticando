@@ -129,6 +129,33 @@ describe('the lazy celebration host', () => {
     expect(ctl.attempts).toBe(1);
   });
 
+  it('a check-in while held: coins a screen claimed and flies itself are not reserved again when the host is handed them', async () => {
+    const { events, ledger, show, labels } = await fresh();
+    // Today imports ./celebrations itself, so the module is there before the host listens.
+    const host = await import('./celebrations');
+    let peak = 0;
+    const off = ledger.onPendingChange(() => (peak = Math.max(peak, ledger.pendingFor('coins'))));
+    // The gap: held (as the loader holds at mount), the host not yet listening. A tap on Today:
+    // the check-in's events, then what play() / celebrateCheckIn do in the same tick.
+    act(() => {
+      events.holdGameEvents();
+      events.emitGameEvents([
+        { type: 'coins', amount: 5, reason: 'checkin', habitId: 'h1' },
+        { type: 'coins', amount: 10, reason: 'perfect' },
+      ]);
+      host.markCelebratedLocally('h1');
+      ledger.reserve('coins', 5);
+    });
+    expect(ledger.pendingFor('coins')).toBe(5);
+    show();
+    await until(() => labels().length > 0, 'the note for the kept events', LOAD);
+    off();
+    // As when the host already listens: its 10, and the 5 the flourish reserved and flies. Not
+    // 20: the claimed check-in coins are not reserved (and flown) a second time.
+    expect(peak).toBe(15);
+    expect(labels()).toEqual(['+10 coins']);
+  });
+
   it('lets what it kept go when its chunk can’t load, and the next event asks for it again', async () => {
     holdChunk();
     ctl.offline = true;
@@ -187,7 +214,8 @@ describe('the event bus’s hold', () => {
     const events = await import('@/state/events');
     const first = vi.fn();
     events.holdGameEvents(first);
-    events.emitGameEvents([COINS, COINS]);
+    events.emitGameEvents([COINS]);
+    events.emitGameEvents([COINS]);
     expect(first).toHaveBeenCalledTimes(1);
     events.dropHeldGameEvents();
     const heard: GameEvent[] = [];

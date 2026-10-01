@@ -6,8 +6,12 @@
  * from just after first paint, and events from before then (hydrate's, at boot) were never
  * celebrated. This loader holds the event bus at that same moment (`holdGameEvents`), so what
  * happens before the chunk arrives (a tap on a screen that loaded first) is kept and handed to the
- * host when it listens. A chunk that can't load lets what was kept go, so nothing piles up, and
- * the next game event asks for it again.
+ * host when it listens (a screen that claimed a check-in in that gap keeps its coins: the host
+ * does not reserve them again, see markCelebratedLocally). A chunk that can't load lets what was
+ * kept go, so nothing piles up, and the next game event asks for it again. That recovers in
+ * engines that fetch a failed chunk again; Chromium keeps a failed module fetch for the life of
+ * the page (WP-C4), so there each retry fails at once (cheap: no request) and celebrations stay
+ * off until the page reloads. No reload is forced for them: they are not worth losing a page.
  */
 import { useEffect, useState } from 'preact/hooks';
 import { dropHeldGameEvents, holdGameEvents } from '@/state/events';
