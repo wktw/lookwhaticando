@@ -15,7 +15,7 @@ import { SAVE_KEY, encodeEnvelope } from '@/state/persist';
 import * as store from '@/state/store';
 import type { AppState } from '@/state/types';
 import { onboardingActive, onboardingProgress, reloadProgress, saveProgress } from '@/features/onboarding/progress';
-import { failWrites, fakeBrowser, fakeLocks } from './fixtures';
+import { deferredLocks, failWrites, fakeBrowser, fakeLocks } from './fixtures';
 
 vi.setConfig({ testTimeout: 30_000 });
 
@@ -25,6 +25,11 @@ const OTHER_GEN = 'd'.repeat(32);
 type Saved = { v: number; rev: number; gen?: string; state: AppState };
 const saved = (b: ReturnType<typeof fakeBrowser>) => JSON.parse(b.storage.getItem(SAVE_KEY)!) as Saved;
 const settle = () => new Promise<void>((r) => setTimeout(r, 0));
+/** The legacy fold loads its parser on demand (off the first paint): wait for it to have run. */
+const folded = async () => {
+  await vi.dynamicImportSettled();
+  await settle();
+};
 
 const input = (name: string) => ({
   name,
@@ -289,45 +294,49 @@ describe('the legacy catkin:onboarding key is folded into the save once, by the 
     return { s, sidecar: JSON.stringify({ step, habitIds: s.habits.map((h) => h.id) }) };
   }
 
-  it('the owner folds it in, writes it, and removes the key', () => {
+  it('the owner folds it in, writes it, and removes the key', async () => {
     const { s, sidecar } = legacy('first');
     const b = fakeBrowser();
     b.storage.setItem(SAVE_KEY, encodeEnvelope(s, 2, 0, 'old', GEN));
     b.storage.setItem(LEGACY_KEY, sidecar);
     store.hydrate();
+    await folded();
     expect(onboardingProgress.value).toEqual({ step: 'first', habitIds: s.habits.map((h) => h.id) });
     expect(saved(b).state.profile).toMatchObject({ onboardingStep: { step: 'first' } });
     expect(b.storage.getItem(LEGACY_KEY)).toBeNull();
   });
 
-  it('a window that doesn’t own the save leaves the key alone and changes nothing', () => {
+  it('a window that doesn’t own the save leaves the key alone and changes nothing', async () => {
     const { s, sidecar } = legacy('today');
     const b = fakeBrowser({ locks: fakeLocks({ byOther: true }) });
     b.storage.setItem(SAVE_KEY, encodeEnvelope(s, 2, 0, 'old', GEN));
     b.storage.setItem(LEGACY_KEY, sidecar);
     store.hydrate();
+    await folded();
     expect(store.readOnly.value).toBe('other-window');
     expect(b.storage.getItem(LEGACY_KEY)).toBe(sidecar);
     expect(onboardingProgress.value).toBeNull();
     expect(saved(b).rev).toBe(2);
   });
 
-  it('when the fold can’t be written, the key stays for the next time', () => {
+  it('when the fold can’t be written, the key stays for the next time', async () => {
     const { s, sidecar } = legacy('first');
     const b = fakeBrowser();
     b.storage.setItem(SAVE_KEY, encodeEnvelope(s, 2, 0, 'old', GEN));
     b.storage.setItem(LEGACY_KEY, sidecar);
     failWrites(b.storage, 'quota', [SAVE_KEY]);
     store.hydrate();
+    await folded();
     expect(b.storage.getItem(LEGACY_KEY)).toBe(sidecar);
   });
 
-  it('a sidecar that belongs to another save (a mature one, or one not onboarded) is dropped, not folded', () => {
+  it('a sidecar that belongs to another save (a mature one, or one not onboarded) is dropped, not folded', async () => {
     const grown = mature();
     const b = fakeBrowser();
     b.storage.setItem(SAVE_KEY, encodeEnvelope(grown, 9, 0, 'old', GEN));
     b.storage.setItem(LEGACY_KEY, JSON.stringify({ step: 'first', habitIds: grown.habits.map((h) => h.id) }));
     store.hydrate();
+    await folded();
     expect(b.storage.getItem(LEGACY_KEY)).toBeNull();
     expect(onboardingActive.value).toBe(false);
 
@@ -337,13 +346,94 @@ describe('the legacy catkin:onboarding key is folded into the save once, by the 
     q.storage.setItem(SAVE_KEY, encodeEnvelope(quiet, 9, 0, 'old', GEN));
     q.storage.setItem(LEGACY_KEY, JSON.stringify({ step: 'today', habitIds: grown.habits.slice(0, 1).map((h) => h.id) }));
     store.hydrate();
+    await folded();
     expect(q.storage.getItem(LEGACY_KEY)).toBeNull();
     expect(onboardingActive.value).toBe(false);
 
     const c = fakeBrowser();
     c.storage.setItem(LEGACY_KEY, JSON.stringify({ step: 'today', habitIds: ['h1'] }));
     store.hydrate();
+    await folded();
     expect(c.storage.getItem(LEGACY_KEY)).toBeNull();
     expect(onboardingProgress.value).toBeNull();
+  });
+  it('under a granted Web Lock (the browser path), the fold runs after the held changes are released, and lands', async () => {
+    const { s, sidecar } = legacy('first');
+    const b = fakeBrowser({ locks: fakeLocks({ byOther: false }) });
+    b.storage.setItem(SAVE_KEY, encodeEnvelope(s, 2, 0, 'old', GEN));
+    b.storage.setItem(LEGACY_KEY, sidecar);
+    store.hydrate();
+    await folded();
+    expect(store.ownership.value).toBe('granted');
+    expect(onboardingProgress.value).toEqual({ step: 'first', habitIds: s.habits.map((h) => h.id) });
+    expect(saved(b).state.profile).toMatchObject({ onboardingStep: { step: 'first' } });
+    expect(b.storage.getItem(LEGACY_KEY)).toBeNull();
+  });
+
+  it('a step-5 key whose pet isn’t in the save is dropped, not folded', async () => {
+    const { s } = legacy();
+    const b = fakeBrowser();
+    b.storage.setItem(SAVE_KEY, encodeEnvelope(s, 2, 0, 'old', GEN));
+    b.storage.setItem(LEGACY_KEY, JSON.stringify({ step: 'place', habitIds: s.habits.map((h) => h.id), petId: 'pet-nobody' }));
+    store.hydrate();
+    await folded();
+    expect(b.storage.getItem(LEGACY_KEY)).toBeNull();
+    expect(onboardingProgress.value).toBeNull();
+    expect(onboardingActive.value).toBe(false);
+    expect((saved(b).state.profile as { onboardingStep?: unknown }).onboardingStep).toBeUndefined();
+  });
+
+  it('a save that has its own step keeps it: a matching key never overrides it', async () => {
+    const s = midOnboarding(['walk', 'read']);
+    expect(s.profile.onboardingStep).toMatchObject({ step: 'today' });
+    const b = fakeBrowser();
+    b.storage.setItem(SAVE_KEY, encodeEnvelope(s, 2, 0, 'old', GEN));
+    b.storage.setItem(LEGACY_KEY, JSON.stringify({ step: 'first', habitIds: s.habits.map((h) => h.id) }));
+    store.hydrate();
+    await folded();
+    expect(onboardingProgress.value).toMatchObject({ step: 'today' });
+    expect(b.storage.getItem(LEGACY_KEY)).toBeNull();
+    store.flushSaves();
+    expect(saved(b).state.profile).toMatchObject({ onboardingStep: { step: 'today' } });
+  });
+
+  it('never in the demo: a key there when the lock is granted survives, and the real save takes it in on the next boot', async () => {
+    const { s, sidecar } = legacy('first');
+    const locks = deferredLocks();
+    const b = fakeBrowser({ locks });
+    b.storage.setItem(SAVE_KEY, encodeEnvelope(s, 2, 0, 'old', GEN));
+    b.storage.setItem(LEGACY_KEY, sidecar);
+    store.hydrate();
+    expect(store.enterDemo()).toBe(true);
+    await locks.grant();
+    await folded();
+    expect(store.demoMode.value).toBe(true);
+    expect(b.storage.getItem(LEGACY_KEY)).toBe(sidecar);
+    store.exitDemo();
+    expect(b.storage.getItem(LEGACY_KEY)).toBe(sidecar);
+    expect(saved(b).rev).toBe(2);
+
+    // The next boot owns the real save, outside the demo: the key is folded into it then.
+    store.configureStore({ locks: null });
+    store.hydrate();
+    await folded();
+    expect(onboardingProgress.value).toEqual({ step: 'first', habitIds: s.habits.map((h) => h.id) });
+    expect(saved(b).state.profile).toMatchObject({ onboardingStep: { step: 'first' } });
+    expect(b.storage.getItem(LEGACY_KEY)).toBeNull();
+  });
+  it('checked again once the fold has loaded: the demo opened meanwhile leaves the key for the real save', async () => {
+    const { s, sidecar } = legacy('first');
+    const b = fakeBrowser();
+    b.storage.setItem(SAVE_KEY, encodeEnvelope(s, 2, 0, 'old', GEN));
+    b.storage.setItem(LEGACY_KEY, sidecar);
+    store.hydrate();
+    expect(store.enterDemo()).toBe(true);
+    await folded();
+    expect(b.storage.getItem(LEGACY_KEY)).toBe(sidecar);
+    store.exitDemo();
+    store.hydrate();
+    await folded();
+    expect(saved(b).state.profile).toMatchObject({ onboardingStep: { step: 'first' } });
+    expect(b.storage.getItem(LEGACY_KEY)).toBeNull();
   });
 });

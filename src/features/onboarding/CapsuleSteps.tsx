@@ -131,7 +131,20 @@ export function FirstPickStep({ onFinish, onPlace }: { onFinish: () => void; onP
   );
 }
 
-export function PlaceStep({ petId, habitIds, onDone, keepName: keepRef }: { petId: string; habitIds: string[]; onDone: () => void; keepName?: MutableRef<(() => void) | null> }) {
+export function PlaceStep({
+  petId,
+  habitIds,
+  onDone,
+  keepName: keepRef,
+  canChange,
+}: {
+  petId: string;
+  habitIds: string[];
+  onDone: () => void;
+  keepName?: MutableRef<(() => void) | null>;
+  /** Onboarding's check that this window can change the save (false, with its note, when it can't). */
+  canChange?: () => boolean;
+}) {
   const app = state.value;
   const def = getCollectible(petId);
   const pet = app.pets[petId];
@@ -173,6 +186,8 @@ export function PlaceStep({ petId, habitIds, onDone, keepName: keepRef }: { petI
   if (keepRef) keepRef.current = keepName;
   /** A name idea is hers the moment she taps it: Skip, a reload or another window keep it too. */
   const takeIdea = (idea: string) => {
+    // A name this window can't keep doesn't go in the field either (WP-C5): the note says why.
+    if (canChange && !canChange()) return;
     setDraft(idea);
     const clean = idea.trim().slice(0, NAME_MAX);
     if (clean && clean !== pet.name) renamePet(petId, clean);

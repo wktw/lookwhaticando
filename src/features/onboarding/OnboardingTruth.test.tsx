@@ -17,6 +17,7 @@ import { button, click, installDom, mount, type, until } from '@/features/capsul
 import { fakeBrowser, fakeLocks } from '../../../tests/unit/state/fixtures';
 import { onboardingActive, onboardingProgress, reloadProgress, saveProgress } from './progress';
 import { Onboarding } from './Onboarding';
+import { stageBand } from './SillStage';
 
 vi.setConfig({ testTimeout: 30_000 });
 
@@ -31,7 +32,7 @@ const h1 = () => document.querySelector('h1')?.textContent;
 const byText = (text: string) => Array.from(document.querySelectorAll('button')).find((b) => b.textContent?.trim() === text) ?? null;
 const note = () => document.querySelector('[data-onboarding-note]')?.textContent ?? null;
 const settle = () => act(() => new Promise<void>((r) => setTimeout(r, 0)));
-type Saved = { rev: number; state: AppState };
+type Saved = { rev: number; gen?: string; state: AppState };
 const saved = (b: ReturnType<typeof fakeBrowser>) => JSON.parse(b.storage.getItem(SAVE_KEY)!) as Saved;
 
 function show() {
@@ -195,6 +196,38 @@ describe('UI2-07: the late steps follow the save', () => {
     expect(onboardingProgress.value).toMatchObject({ step: 'first' });
   });
 
+  it('a note from a refusal on one step doesn’t follow this window to the next step another window takes it to', async () => {
+    const held = { byOther: false };
+    const locks = fakeLocks(held);
+    const b = fakeBrowser({ locks });
+    store.hydrate();
+    await settle();
+    show();
+    await toPicks();
+    await click(button('Walk'), 'Walk');
+    await click(byText('Plant it'), 'Plant it');
+    expect(h1()).toBe('Anything already done today?');
+    store.flushSaves();
+    const a = store.state.value;
+
+    await act(() => locks.stolen());
+    await settle();
+    await click(byText('Next'), 'Next');
+    expect(note()).toBe(USE_HERE);
+
+    // The window that took the save moves it on to step 4: nothing was tried there yet.
+    const onFirst = { ...a, profile: { ...a.profile, onboardingStep: { step: 'first', habitIds: a.habits.map((h) => h.id) } } } as AppState;
+    await act(() => {
+      b.storage.setItem(SAVE_KEY, encodeEnvelope(onFirst, saved(b).rev + 1, 0, 'other', saved(b).gen));
+      b.fire('storage', { key: SAVE_KEY });
+    });
+    await until(() => h1() === 'Who comes home first?', 'step 4, as the other window has it', LOAD);
+    expect(note()).toBeNull();
+    // Refused there too, it says so again.
+    await click(await until(() => byText('Not yet, I’ll earn it'), 'step 4', LOAD), 'Not yet');
+    expect(note()).toBe(USE_HERE);
+  });
+
   it('the other window moves on: this window shows the step it moved to', async () => {
     const a = planted();
     const { b } = readOnlyOn(a, 3);
@@ -243,6 +276,89 @@ describe('UI2-07: a reset elsewhere after this window planted', () => {
     expect(h1()).toBe('New place. Which plants came with you?');
     await click(byText('Next'), 'Next');
     expect(button('Walk')!.getAttribute('aria-pressed')).toBe('false');
+  });
+});
+
+describe('WP-C5: a read-only window following the owner says so on every control, and shows nothing it didn’t do', () => {
+  it('step 3: a water ring tapped while read-only pours nothing, changes nothing and shows the note', async () => {
+    const { b } = readOnlyOn(planted(['walk']), 3);
+    const before = b.storage.getItem(SAVE_KEY);
+    show();
+    expect(h1()).toBe('Anything already done today?');
+    const band = await until(() => stageBand.current, 'the sill');
+    const pour = vi.spyOn(band, 'pour');
+    await click(button('Walk'), 'the Walk ring');
+    expect(note()).toBe(USE_HERE);
+    expect(pour).not.toHaveBeenCalled();
+    expect(button('Walk')!.getAttribute('aria-pressed')).toBe('false');
+    expect(store.state.value.lifetime.checkins).toBe(0);
+    expect(b.storage.getItem(SAVE_KEY)).toBe(before);
+  });
+
+  it('step 3: a watering that lands pours on the sill', async () => {
+    fakeBrowser();
+    store.hydrate();
+    store.completeOnboarding({ name: 'Sam', templateIds: ['walk'], inFlow: true });
+    show();
+    expect(h1()).toBe('Anything already done today?');
+    const band = await until(() => stageBand.current, 'the sill');
+    const pour = vi.spyOn(band, 'pour');
+    await click(button('Walk'), 'the Walk ring');
+    expect(pour).toHaveBeenCalledTimes(1);
+    expect(store.state.value.lifetime.checkins).toBe(1);
+    expect(note()).toBeNull();
+  });
+
+  it('step 5: a name idea tapped while read-only stays out of the field, and the note says why', async () => {
+    fakeBrowser();
+    store.hydrate();
+    store.completeOnboarding({ name: 'Sam', templateIds: ['walk'], inFlow: true });
+    const got = store.pull('cats', { free: true });
+    if (!got.ok || !got.pet) throw new Error('no first pet');
+    store.finishReveal();
+    const petId = got.pet.id;
+    saveProgress({ step: 'place', habitIds: store.state.value.habits.map((h) => h.id), petId });
+    store.flushSaves();
+    const { b } = readOnlyOn(store.state.value, 7);
+    const before = b.storage.getItem(SAVE_KEY);
+    show();
+    const name = store.state.value.pets[petId]!.name;
+    await until(() => h1() === `Find ${name} a plant`, 'step 5', LOAD);
+    await click(await until(() => byText('Rename'), 'Rename', LOAD), 'Rename');
+    const field = document.querySelector<HTMLInputElement>('#onb-pet-name')!;
+    const ideas = document.querySelector('[role="group"][aria-label="Name ideas"]')!;
+    const idea = Array.from(ideas.querySelectorAll('button')).find((x) => x.textContent !== name && x.textContent !== 'Another name')!;
+    await click(idea, 'a name idea');
+    expect(note()).toBe(USE_HERE);
+    expect(field.value).toBe(name);
+    expect(h1()).toBe(`Find ${name} a plant`);
+    expect(store.state.value.pets[petId]!.name).toBe(name);
+    expect(b.storage.getItem(SAVE_KEY)).toBe(before);
+  });
+});
+
+describe('creative-cr-d1: a save onboarded under the picks', () => {
+  it('Plant on a save that was onboarded meanwhile goes to Today, which shows that save', async () => {
+    fakeBrowser();
+    store.hydrate();
+    show();
+    await toPicks();
+    await click(button('Walk'), 'Walk');
+    location.hash = '#/shelf';
+    currentTab.value = 'shelf';
+    try {
+      // The save is onboarded (an import's own finish) before this screen has been drawn again,
+      // and the Plant button still on screen is tapped.
+      await act(() => {
+        store.completeOnboarding({ name: 'Maya', templateIds: ['read'] });
+        byText('Plant it')!.click();
+      });
+      expect(location.hash).toBe('#/today');
+      expect(store.state.value.habits.map((h) => h.name)).toEqual(['Read']);
+      expect(note()).toBeNull();
+    } finally {
+      currentTab.value = 'today';
+    }
   });
 });
 

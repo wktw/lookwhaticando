@@ -81,7 +81,6 @@ import {
 import { indexedDbSnapshotStore, memorySnapshotStore, snapshotMeta, takeDailySnapshot, type SnapshotStore } from './snapshots';
 import { deviceLabel, describeBackup, encodePayload, makeBackup, parseBackupText } from './handoff';
 import { validateState } from './validate';
-import { ONBOARDING_KEY, legacyStepFor, parseLegacyProgress } from './onboarding';
 import { buildDemo } from './demo';
 import { CLOCK_ROLLBACK_TOLERANCE_MS, appDayKey, monotonicDayKey, runtimeLocalTime, type LocalTimeReader } from '@/domain/dates';
 import type { Rng } from '@/domain/rng';
@@ -681,24 +680,31 @@ function whenOwned(): void {
   snapshotToday();
 }
 
+/** Where builds before WP-C5 kept onboarding's late step, beside the save (./onboarding). */
+export const ONBOARDING_KEY = 'catkin:onboarding';
+
 /**
  * The old `catkin:onboarding` key (builds before WP-C5 kept onboarding's late step beside the save,
  * outside the writer lock: UI2-07, P-persistence-23). The window that owns the save folds it in once,
  * when it can only be this save's (`legacyStepFor`), and removes it once the fold is on disk; a key
  * that belongs to another save is removed without folding. A fold that can't be written leaves the
- * key for the next time. Never in the demo, whose save is not the one the key was about.
+ * key for the next time. Never in the demo, whose save is not the one the key was about. Only the
+ * check for the key is on the first paint: the parser and its rules load when there is one, and
+ * everything is checked again once they are here (the lock, the demo or the save may have moved on).
  */
 function foldLegacyOnboarding(): void {
-  if (demoMode.value || !ownsSave()) return;
-  const store = storage();
-  const raw = safeGet(store, ONBOARDING_KEY);
-  if (raw === null) return;
-  const step = legacyStepFor(state.value, parseLegacyProgress(raw));
-  if (step) {
-    actVoid((tx) => profileDomain.setOnboardingStep(tx, step));
-    if (queue?.flush() !== 'saved') return;
-  }
-  removeKey(store, ONBOARDING_KEY);
+  const can = (): boolean => !demoMode.value && ownsSave() && safeGet(storage(), ONBOARDING_KEY) !== null;
+  if (!can()) return;
+  void import('./onboarding').then((legacy) => {
+    if (!can()) return;
+    const store = storage();
+    const step = legacy.legacyStepFor(state.value, legacy.parseLegacyProgress(safeGet(store, ONBOARDING_KEY)));
+    if (step) {
+      actVoid((tx) => profileDomain.setOnboardingStep(tx, step));
+      if (queue?.flush() !== 'saved') return;
+    }
+    removeKey(store, ONBOARDING_KEY);
+  }, () => undefined); // couldn't load (offline after an update): the key waits for the next time
 }
 
 /**

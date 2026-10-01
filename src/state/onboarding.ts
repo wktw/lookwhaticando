@@ -3,11 +3,10 @@
  * `catkin:onboarding` key beside the save, outside the writer lock (audit UI2-07,
  * P-persistence-23). The step now lives in the save (`profile.onboardingStep`, DEC-E3); the window
  * that owns the save folds an old key in once, when it plausibly belongs to that save, and removes
- * it (store.ts `foldLegacyOnboarding`).
+ * it (store.ts `foldLegacyOnboarding`, which loads this module only when there is a key, so it stays
+ * off the first paint; the key's name, `ONBOARDING_KEY`, is the store's).
  */
 import type { AppState, LateStep, OnboardingStep } from './types';
-
-export const ONBOARDING_KEY = 'catkin:onboarding';
 
 const STEPS: readonly LateStep[] = ['today', 'first', 'place'];
 

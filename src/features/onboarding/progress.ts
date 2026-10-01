@@ -14,7 +14,7 @@ import { computed } from '@preact/signals';
 import { demoMode, setOnboardingStep, state } from '@/state/store';
 import type { LateStep, OnboardingStep } from '@/state/types';
 
-export { ONBOARDING_KEY } from '@/state/onboarding';
+export { ONBOARDING_KEY } from '@/state/store';
 export type { LateStep };
 export type OnboardingProgress = OnboardingStep;
 

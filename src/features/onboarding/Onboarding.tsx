@@ -131,10 +131,12 @@ export function Onboarding() {
   const phase: Phase = progress ? progress.step : early;
   const habitIds = progress?.habitIds ?? [];
 
-  // After "Use here" this window can change the save again: the note has said its piece.
+  // After "Use here" this window can change the save again: the note has said its piece. And it
+  // was about the step it was refused on: a step another window moves this one to starts without it.
   useEffect(() => {
     if (!refusalText(ro)) setRefused(false);
   }, [ro]);
+  useEffect(() => setRefused(false), [phase]);
 
   // The save left the late steps without finishing them (started over in another window, which
   // this one followed): back to the sill, with nothing picked, like the fresh save it now shows.
@@ -191,6 +193,12 @@ export function Onboarding() {
     const text = refusalText(readOnly.peek());
     setRefused(true);
     if (text) announce(text);
+  };
+  /** For a step's own taps (a watering, a name idea): false, with the note, when this window can't change the save. */
+  const canChange = (): boolean => {
+    if (!refusalText(readOnly.peek())) return true;
+    refuse();
+    return false;
   };
 
   const finish = () => {
@@ -303,7 +311,7 @@ export function Onboarding() {
           />
         )}
         {phase === 'pick' && <PickStep picks={picks} onPicks={setPicks} onPlant={plant} />}
-        {phase === 'today' && <DoneTodayStep habitIds={habitIds} onNext={() => go('first')} />}
+        {phase === 'today' && <DoneTodayStep habitIds={habitIds} onNext={() => go('first')} canChange={canChange} />}
         {later && !capsules && (
           <CapsuleStepsPending
             heading={phase === 'place' && progress?.petId && state.value.pets[progress.petId] ? fillLine(COMPANION.reveal.find, { name: state.value.pets[progress.petId]!.name }) : ONBOARDING.firstPick}
@@ -312,7 +320,7 @@ export function Onboarding() {
           />
         )}
         {phase === 'first' && capsules && <capsules.FirstPickStep onFinish={finish} onPlace={(petId) => go('place', habitIds, petId)} />}
-        {phase === 'place' && capsules && <capsules.PlaceStep petId={progress?.petId ?? ''} habitIds={habitIds} onDone={finish} keepName={keepPlaceName} />}
+        {phase === 'place' && capsules && <capsules.PlaceStep petId={progress?.petId ?? ''} habitIds={habitIds} onDone={finish} keepName={keepPlaceName} canChange={canChange} />}
       </div>
 
       <ImportSheet

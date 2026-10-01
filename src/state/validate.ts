@@ -281,13 +281,13 @@ function checkPet(r: Report, p: unknown, id: string, path: string): void {
   }
 }
 
-/** Validates an unknown value as a current-schema AppState. */
 /** Onboarding's late step (WP-C5): what the flow writes, and nothing it couldn't show. */
 function isOnboardingStep(v: unknown): boolean {
   if (!isObj(v)) return false;
   return (v.step === 'today' || v.step === 'first' || v.step === 'place') && Array.isArray(v.habitIds) && v.habitIds.length <= 3 && v.habitIds.every(isStr) && (v.petId === undefined || isStr(v.petId));
 }
 
+/** Validates an unknown value as a current-schema AppState. */
 export function validateState(x: unknown): ValidationResult {
   const r = new Report();
   if (!isObj(x)) return { ok: false, errors: ['state: not an object'] };

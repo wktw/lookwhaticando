@@ -37,12 +37,17 @@ function cardsFor(ids: readonly string[]): HabitCardVM[] {
 export const toppedUp = (events: readonly { type: string; reason?: string; amount?: number }[]): boolean =>
   events.some((e) => e.type === 'coins' && e.reason === 'gift' && (e.amount ?? 0) > 0);
 
-export function DoneTodayStep({ habitIds, onNext }: { habitIds: string[]; onNext: () => void }) {
+/**
+ * `canChange` is onboarding's check that this window can change the save (false, with its note,
+ * when it can't): a watering it can't make shows nothing of one (WP-C5).
+ */
+export function DoneTodayStep({ habitIds, onNext, canChange }: { habitIds: string[]; onNext: () => void; canChange?: () => boolean }) {
   const cards = cardsFor(habitIds);
   const [topUp, setTopUp] = useState(() => state.value.wallet.coins >= 25 && state.value.lifetime.checkins > 0);
   const anyDone = cards.some((c) => c.done);
 
   const water = (card: HabitCardVM, el: HTMLElement) => {
+    if (canChange && !canChange()) return;
     const counting = card.target > 1;
     if (card.done && !counting) {
       const res = undoCheckIn(card.id);
@@ -51,6 +56,8 @@ export function DoneTodayStep({ habitIds, onNext }: { habitIds: string[]; onNext
       return;
     }
     const res = checkIn(card.id);
+    // Water lands on the sill only when the watering did.
+    if (!res.completed && !res.partial) return;
     celebrateCheckIn(res, card.id, el);
     stageBand.current?.pour(card.id);
     if (res.completed) {
