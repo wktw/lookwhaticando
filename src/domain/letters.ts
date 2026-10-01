@@ -31,7 +31,7 @@ import { inLifetime, logStatus, showedUp } from './activity';
 import { addDays, eachDay, endOfMonth, minDateKey, monthFromIndex, monthIndex, startOfWeek, type MonthKey } from './dates';
 import { memoByHabit } from './economy';
 import { plantStage, sunshineFromHistory } from './growth';
-import { checkinCounts } from './insights';
+import { checkinCounts } from './checkins';
 import { ruleAt } from './rules';
 import { arrivalDay, movedInOn } from './eventDays';
 import { herbariumFacts, starredNote, sundayNoteFacts } from './rituals';

@@ -30,7 +30,7 @@ import { addDays, eachDay, endOfMonth, parseDateKey, recurringDay, type LocalTim
 import { arrivalDay, movedInOn } from './eventDays';
 import { habitCreatedOn } from './economy';
 import { BLOOMING, POTTED } from './growth';
-import { checkinCounts } from './insights';
+import { checkinCounts } from './checkins';
 import { trackingOf } from './consistency';
 import { ruleAt } from './rules';
 import { keptTogetherDays } from './stacking';

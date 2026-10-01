@@ -437,6 +437,21 @@ export function routineOn(s: Pick<AppState, 'pets' | 'logs'>, habit: Habit, date
   return phase ? { petId, routine: routineOf(habit.icon), phase } : null;
 }
 
+/**
+ * A pet an older build paired with a habit again keeps it company from today (WP-B6): that build
+ * sets `companionId` and leaves the spans as they were, all closed, so the habit's companion would
+ * count on no day from then on. When it came back is not known, so its span opens on the first
+ * open that sees it (continuing one that ran through yesterday), and nothing earlier is made up.
+ * Run by `openDay`; it writes nothing when every companion's span is open.
+ */
+export function reopenCompanionSpans(tx: Tx): void {
+  for (const h of tx.s.habits) {
+    const pair = h.companionId !== undefined && liveHabit(h) ? pairOf(tx.s, h.companionId, h.id) : null;
+    const last = pair?.stints?.[pair.stints.length - 1];
+    if (pair?.stints && !(last && last.to === undefined)) ensurePair(tx, pair.petId, h.id).stints = stintsOpened(pair, tx.env.today);
+  }
+}
+
 /** Frees a retiring habit's companion (archive, delete, retire); its span runs through today. */
 export function freeCompanion(tx: Tx, habitId: string): void {
   endCompany(tx, habitId, true);

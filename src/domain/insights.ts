@@ -46,6 +46,7 @@ import {
   type Tally,
   type Tracking,
 } from './consistency';
+import { checkinCounts } from './checkins';
 import { periodPace, type PeriodPace } from './periods';
 import { ruleAt } from './rules';
 import { streakInfo, type StreakRun } from './streaks';
@@ -119,31 +120,9 @@ export function showedUpDaysIn(t: Tracking, start: DateKey, end: DateKey, today:
 /* Check-in counts                                                     */
 /* ------------------------------------------------------------------ */
 
-export interface CheckinCount {
-  /** Days showing up (done or tiny). */
-  checkins: number;
-  tiny: number;
-}
-
-/**
- * Check-in days per habit in [start, min(end, today)], inside each habit's lifetime (archived
- * habits included). Habits without check-ins are listed with zeros.
- */
-export function checkinCounts(t: Tracking, start: DateKey, end: DateKey, today: DateKey): Record<string, CheckinCount> {
-  const last = end < today ? end : today;
-  const out: Record<string, CheckinCount> = {};
-  for (const h of t.habits) {
-    const c: CheckinCount = { checkins: 0, tiny: 0 };
-    for (const [date, log] of Object.entries(logsFor(t, h.id))) {
-      if (date < start || date > last || !inLifetime(h, date) || !isDateKey(date)) continue;
-      const s = logStatus(log, ruleAt(h, date), date < today);
-      if (showedUp(s)) c.checkins++;
-      if (s === 'tiny') c.tiny++;
-    }
-    out[h.id] = c;
-  }
-  return out;
-}
+// Kept in checkins.ts: the letters read them on every open, and this module is the Progress
+// screen's (it stays off the first paint).
+export { checkinCounts, type CheckinCount } from './checkins';
 
 /** The habit with the most check-ins ever (ties → listed first); null before any check-in. */
 export function mostCheckedHabit(t: Tracking, today: DateKey): { habitId: string; checkins: number } | null {

@@ -12,6 +12,9 @@
  * `since` (its first day with the habit: a lower bound, the only evidence there is), and a pet
  * that no longer keeps it company counts on no day. The first time such a record is paired or
  * freed, that reading is written down as its spans, so what it said about earlier days stays.
+ * Spans an older build left behind: an open span whose pet it freed counts on no day, and a pet it
+ * paired again (its spans all closed) gets a span from the first open that sees it
+ * (`company.reopenCompanionSpans`); when either happened is not known, so nothing is made up.
  */
 import type { AppState, CompanyPair, DateKey, Habit, PairStint } from '@/state/types';
 import { addDays } from './dates';

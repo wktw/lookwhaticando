@@ -299,6 +299,62 @@ describe('the Sunday Note credits a companion only with the days it kept the pla
     expect(psOf(g)?.kind).not.toBe('companion');
   });
 
+  it('a pet an older build paired again with a plant whose span this build closed keeps it company from the next open', () => {
+    // As an older build pairs: the habit's companion set, the pet's other habit freed, the spans left as they were.
+    const olderBuildPairs = (g: Game, habitId: string, petId: string) => {
+      g.state = {
+        ...g.state,
+        habits: g.state.habits.map((h) =>
+          h.id === habitId ? { ...h, companionId: petId } : h.companionId === petId ? (({ companionId: _c, ...rest }) => rest)(h) : h,
+        ),
+      };
+    };
+    // Back the morning after this build moved it away: one unbroken span, as a same-day return keeps.
+    const { g, read, walk } = garden();
+    addPet(g, CAT);
+    waterDays(g, [read, walk], W, SUN, (d) => {
+      if (d === W) pair(g, read, CAT);
+      if (d === '2026-03-03') {
+        pair(g, walk, CAT); // Tue 08:00: to Walk (Read's span closes on Monday)
+        olderBuildPairs(g, read, CAT); // Tue, in an older build: back to Read
+        expect(valid(g.state)).toEqual([]);
+      }
+    });
+    // Before: Read's span stayed closed on Monday, so the cat, Read's companion all week, had one day.
+    expect(g.state.company!.pairs[`${CAT}|${read}`]!.stints).toEqual([{ from: W }]);
+    expect(psOf(g)).toMatchObject({ kind: 'companion', petId: CAT, habitId: read, days: 7 });
+    expect(valid(g.state)).toEqual([]);
+
+    // Back days later: from the first open that sees it (when it came back is not known, so nothing earlier is made up).
+    const g2 = garden();
+    addPet(g2.g, CAT);
+    waterDays(g2.g, [g2.read, g2.walk], W, SUN, (d) => {
+      if (d === W) pair(g2.g, g2.read, CAT);
+      if (d === '2026-03-03') pair(g2.g, g2.walk, CAT);
+      if (d === '2026-03-05') olderBuildPairs(g2.g, g2.read, CAT); // Thu, in an older build
+    });
+    const spans = g2.g.state.company!.pairs[`${CAT}|${g2.read}`]!.stints;
+    expect(spans).toEqual([{ from: W, to: W }, { from: '2026-03-05' }]);
+    // Mon, Thu–Sun. (Walk's span, left open by the older build's move, counts on no day.)
+    expect(psOf(g2.g)).toMatchObject({ kind: 'companion', petId: CAT, habitId: g2.read, days: 5 });
+    // Once is enough: the next open writes nothing.
+    const before = g2.g.state.company;
+    g2.g.goTo('2026-03-09', 9);
+    expect(g2.g.state.company).toBe(before);
+    expect(valid(g2.g.state)).toEqual([]);
+
+    // Paired and freed the same day (no span left), then paired by an older build the next day.
+    const g3 = garden();
+    addPet(g3.g, CAT);
+    pair(g3.g, g3.read, CAT);
+    pair(g3.g, g3.read, null);
+    expect(g3.g.state.company!.pairs[`${CAT}|${g3.read}`]!.stints).toEqual([]);
+    g3.g.goTo('2026-03-03', 8);
+    olderBuildPairs(g3.g, g3.read, CAT);
+    g3.g.goTo('2026-03-03', 9);
+    expect(g3.g.state.company!.pairs[`${CAT}|${g3.read}`]!.stints).toEqual([{ from: '2026-03-03' }]);
+  });
+
   it('a plant Potted before stage days were recorded counts as started; one not yet Potted does not', () => {
     const { g, read } = garden();
     addPet(g, CAT);

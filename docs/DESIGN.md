@@ -682,6 +682,7 @@ target-user panel (AUDITS.md). **Every pillar is driven by real habit data and m
   (the counters are shared by all three; pairing by hand always works). Archiving, retiring or deleting a habit frees its
   companion. Each pairing keeps the spans the pet kept the plant company (`CompanyPair.stints`): a day belongs to the pet
   that keeps it company at the day's close, and a habit retired on a day keeps its companion's span through that day.
+  A pet an older build paired again (it leaves the spans closed) keeps the plant company from the first open that sees it.
 * **Friendship grows through the habit**: each completing check-in gives its companion `min(30, round(5 × 7/expectedPerWeek))`
   XP (≤ 30/day from habits), once per occurrence (tiny included, a count habit's day-end tiny too), on the reward path only.
   A flexible rule's occurrence is a place among the period's `times`, not a date: moving a check-in to another day pays
