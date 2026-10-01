@@ -783,6 +783,8 @@ export const ERRORS = {
   share: 'Saved to Downloads instead.',
   notBackup: 'That file isn’t a catkin backup.',
   newerBackup: 'This backup is from a newer catkin. Update, then import it.',
+  /** An import past the bounds (a file over 64 MB, or a payload that expands past 128 MB; WP-A5). DEC-V: pending owner approval. */
+  tooLarge: 'That’s too big to be a catkin backup.',
   fileBuild: 'Test copy · saved only in this browser, for this file',
   diagnostics: 'Copy report',
 } as const;

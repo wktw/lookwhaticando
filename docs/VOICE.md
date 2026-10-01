@@ -1036,6 +1036,7 @@ Say what happened and what to do. Never `failed`, never `Oops`, never a code in 
 | Share sheet unavailable | "Saved to Downloads instead." |
 | Import, not a backup | "That file isn’t a catkin backup." |
 | Import, from a newer catkin | "This backup is from a newer catkin. Update, then import it." |
+| Import, too big to be a backup: a file over 64 MB (refused before it is read), or pasted text or a CK1 payload that is, or expands, past the bounds (a lived-in backup is well under 1 MB). Nothing changes. DEC-V: pending owner approval | "That’s too big to be a catkin backup." |
 | The file:// build | "Test copy · saved only in this browser, for this file" |
 | Diagnostics | "Copy report" |
 

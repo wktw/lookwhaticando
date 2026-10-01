@@ -22,7 +22,7 @@ import { TextArea } from '@/ui/TextField';
 import { toast } from '@/ui/toast';
 import { announce } from '@/ui/announce';
 import { DATA_COPY } from './copy';
-import { readClipboard, readFileText } from './files';
+import { readClipboard, readImportFile } from './files';
 import s from './You.module.css';
 
 /**
@@ -65,6 +65,8 @@ export function importErrorText(error: string): string {
       return DATA_COPY.superseded;
     case 'made-by-newer-version':
       return ERRORS.newerBackup;
+    case 'too-large':
+      return ERRORS.tooLarge;
     case 'cannot-decompress-here':
       return DATA_COPY.cannotOpen;
     case 'demo-mode':
@@ -206,12 +208,15 @@ export function ImportSheet({ open, onClose, onImported, clip, title = DATA.impo
     const file = input.files?.[0];
     input.value = '';
     if (!file) return;
-    const body = await readFileText(file).catch(() => '');
+    // A file past the import bound is refused by its size, before it is read (P-persistence-06).
+    const read = await readImportFile(file);
+    const body = read.ok ? read.text : '';
     pending.current = body;
     setText('');
     if (!body.trim()) {
+      run.current++;
       setPreview(null);
-      setError(ERRORS.notBackup);
+      setError(!read.ok && read.error === 'too-large' ? ERRORS.tooLarge : ERRORS.notBackup);
       return;
     }
     void describe(body);

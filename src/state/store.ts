@@ -1715,7 +1715,7 @@ export function applyImport(text: string, opts: { withoutUndo?: boolean; signal?
     withoutUndo: opts.withoutUndo ?? false,
     signal: opts.signal,
     load: async () => {
-      const parsed = await parseBackupText(text);
+      const parsed = await parseBackupText(text, { local: rt.local });
       return parsed.ok ? { ok: true, state: parsed.state } : (refuse(parsed.error as BackupError) as Loaded);
     },
   });

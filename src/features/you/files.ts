@@ -5,6 +5,8 @@
  * word the note (VOICE §21, §18).
  */
 
+import { MAX_IMPORT_BYTES } from '@/state/handoff';
+
 export type SaveOutcome = 'shared' | 'downloaded' | 'downloaded-instead' | 'cancelled';
 
 /** Downloads text as a file (a blob link, clicked). */
@@ -116,6 +118,19 @@ export async function readClipboard(): Promise<string | null> {
     return typeof text === 'string' ? text : null;
   } catch {
     return null;
+  }
+}
+
+/**
+ * Reads a chosen backup file, refusing one past the import bound by its size alone, before a byte
+ * of it is read (WP-A5, P-persistence-06): 'too-large'. 'unreadable' when the browser can't read it.
+ */
+export async function readImportFile(file: File, maxBytes = MAX_IMPORT_BYTES): Promise<{ ok: true; text: string } | { ok: false; error: 'too-large' | 'unreadable' }> {
+  if (!(file.size <= maxBytes)) return { ok: false, error: 'too-large' };
+  try {
+    return { ok: true, text: await readFileText(file) };
+  } catch {
+    return { ok: false, error: 'unreadable' };
   }
 }
 

@@ -31,6 +31,7 @@
  */
 import { SCHEMA_VERSION, type AppState, type Settings } from './types';
 import { decodeState } from './decode';
+import { isTimestamp } from './validate';
 
 export interface KeyValueStorage {
   getItem(key: string): string | null;
@@ -200,12 +201,18 @@ export function parseEnvelope(raw: string, source: 'main' | 'backup-copy' = 'mai
     return { kind: 'corrupt', errors: ['not a save envelope'], raw };
   }
   const gen = genOf(env.gen);
+  const revOk = Number.isSafeInteger(env.rev) && (env.rev as number) >= 0;
   const d = decodeState(env.state, source, { declaredVersion: env.v });
   if (d.kind === 'newer') {
-    const head = { ...(typeof env.rev === 'number' ? { rev: env.rev } : {}), ...(gen ? { gen } : {}) };
+    // A newer catkin's save is never damage (WP-A4): a head it wrote that this one can't use is left out.
+    const head = { ...(revOk ? { rev: env.rev } : {}), ...(gen ? { gen } : {}) };
     return { kind: 'newer', version: d.version, raw, ...(d.state ? { state: d.state } : {}), ...head };
   }
   if (d.kind === 'corrupt') return { kind: 'corrupt', errors: d.errors, raw };
+  // FS8: the envelope's own numbers. `rev` 1e309 parses as Infinity (and writes back as null); no
+  // catkin wrote a rev that isn't a whole number ≥ 0, or a save time past the ceiling.
+  if (env.rev !== undefined && !revOk) return { kind: 'corrupt', errors: ['rev: not a whole number ≥ 0'], raw };
+  if (env.savedAt !== undefined && !isTimestamp(env.savedAt)) return { kind: 'corrupt', errors: ['savedAt: not a timestamp'], raw };
   return {
     kind: 'ok',
     state: d.state,
