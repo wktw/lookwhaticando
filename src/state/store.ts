@@ -33,7 +33,7 @@
  * reached through `StoreRuntime`, which tests replace with `configureStore`.
  */
 import { batch, computed, signal } from '@preact/signals';
-import type { AppState, DateKey, PlacedDecor, Settings, StoryId } from './types';
+import type { AppState, DateKey, OnboardingStep, PlacedDecor, Settings, StoryId } from './types';
 import type {
   ActionResult,
   BackupError,
@@ -808,7 +808,35 @@ function whenOwned(): void {
   writeRecoveryCopies();
   if (heldForDamage) return; // the damaged save couldn't be kept aside: nothing is written over it
   if (queue?.isHeld) queue.release();
+  foldLegacyOnboarding();
   snapshotToday();
+}
+
+/** Where builds before WP-C5 kept onboarding's late step, beside the save (./onboarding). */
+export const ONBOARDING_KEY = 'catkin:onboarding';
+
+/**
+ * The old `catkin:onboarding` key (builds before WP-C5 kept onboarding's late step beside the save,
+ * outside the writer lock: UI2-07, P-persistence-23). The window that owns the save folds it in once,
+ * when it can only be this save's (`legacyStepFor`), and removes it once the fold is on disk; a key
+ * that belongs to another save is removed without folding. A fold that can't be written leaves the
+ * key for the next time. Never in the demo, whose save is not the one the key was about. Only the
+ * check for the key is on the first paint: the parser and its rules load when there is one, and
+ * everything is checked again once they are here (the lock, the demo or the save may have moved on).
+ */
+function foldLegacyOnboarding(): void {
+  const can = (): boolean => !demoMode.value && ownsSave() && safeGet(storage(), ONBOARDING_KEY) !== null;
+  if (!can()) return;
+  void import('./onboarding').then((legacy) => {
+    if (!can()) return;
+    const store = storage();
+    const step = legacy.legacyStepFor(state.value, legacy.parseLegacyProgress(safeGet(store, ONBOARDING_KEY)));
+    if (step) {
+      actVoid((tx) => profileDomain.setOnboardingStep(tx, step));
+      if (queue?.flush() !== 'saved') return;
+    }
+    removeKey(store, ONBOARDING_KEY);
+  }, () => undefined); // couldn't load (offline after an update): the key waits for the next time
 }
 
 /**
@@ -1354,15 +1382,41 @@ export function updateSettings(patch: Partial<AppState['settings']>): void {
   actVoid((tx) => profileDomain.updateSettings(tx, patch as Partial<Settings>));
 }
 /**
- * Finishes onboarding (§9.6): up to 3 habits from the starter chips and "Make my own", in one
- * transaction. Returns the new habit ids (for "Find {name} a plant"); [] once already onboarded.
+ * What planting at the end of onboarding's step 2 came to (WP-C5, audit creative-cr-d1): the new
+ * habit ids (none is a success too: "Skip" with nothing picked), or why nothing was planted:
+ * 'read-only' while another window or a newer catkin owns the save (the picks wait for "Use here"),
+ * 'already-onboarded' when this save was onboarded meanwhile (in another window, or by an import).
  */
-export function completeOnboarding(opts: { name: string; templateIds: string[]; customHabits?: HabitInput[]; dayStartsAt?: number; birthday?: string }): string[] {
-  const ids = actValue((tx) => habitsDomain.completeOnboarding(tx, opts), [] as string[]);
+export type OnboardingResult = { ok: true; ids: string[] } | { ok: false; reason: 'read-only' | 'already-onboarded' };
+
+/**
+ * Finishes onboarding (§9.6): up to 3 habits from the starter chips and "Make my own", in one
+ * transaction. The new habit ids are for "Find {name} a plant". `inFlow` is onboarding's own Plant:
+ * the flow goes on to step 3 (step 4 when nothing was planted, flow.ts `nextPhase`), and that step is
+ * kept in the save in the same change (`profile.onboardingStep`, DEC-E3), so there is never a save
+ * that is onboarded mid-flow without its step.
+ */
+export function completeOnboarding(opts: { name: string; templateIds: string[]; customHabits?: HabitInput[]; dayStartsAt?: number; birthday?: string; inFlow?: boolean }): OnboardingResult {
+  if (!writable()) return { ok: false, reason: 'read-only' };
+  if (state.value.profile.onboarded) return { ok: false, reason: 'already-onboarded' };
+  const ids = actValue((tx) => {
+    const made = habitsDomain.completeOnboarding(tx, opts);
+    if (opts.inFlow) profileDomain.setOnboardingStep(tx, { step: made.length > 0 ? 'today' : 'first', habitIds: made });
+    return made;
+  }, [] as string[]);
   // §11.1: ask the browser to keep storage only once onboarded, and only in the installed app.
   if (!demoMode.value && rt.standalone()) rt.persistStorage();
   snapshotToday();
-  return ids;
+  return { ok: true, ids };
+}
+
+/**
+ * Onboarding's late step (steps 3–5), or null when onboarding ends (WP-C5). Written through `act`
+ * like any change, so it follows the writer lock, the revision, adoption, import, reset and the demo
+ * (UI2-07). False when refused: this window can't change the save, or nothing is planted yet.
+ */
+export function setOnboardingStep(step: OnboardingStep | null): boolean {
+  return actValue((tx) => profileDomain.setOnboardingStep(tx, step), false);
 }
 
 /* ---------------- Data ---------------- */

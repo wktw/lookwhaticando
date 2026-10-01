@@ -5,6 +5,12 @@
  * the demo with its pill. axe (WCAG 2.2 AA) on each step it passes through.
  */
 import { expect, test, type Page } from '@playwright/test';
+import { createInitialState } from '../src/state/defaults';
+import { encodeEnvelope } from '../src/state/persist';
+import { transact } from '../src/domain/tx';
+import { mulberry32 } from '../src/domain/rng';
+import { appDayKey, runtimeLocalTime } from '../src/domain/dates';
+import * as habits from '../src/domain/habits';
 import { expectNoAxeViolations, watchErrors } from './support';
 
 const IPHONE_SAFARI = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.5 Mobile/15E148 Safari/604.1';
@@ -200,6 +206,32 @@ test('offline, onboarding’s own chunk can’t load: Try again, and back online
   await expect(stay.or(sill)).toBeVisible();
   if (await stay.isVisible()) await stay.click();
   await expect(sill).toBeVisible();
+});
+
+test('an upgrade in the middle of onboarding: the old catkin:onboarding key is folded into the save, and its step shows (WP-C5)', async ({ page }) => {
+  const errors = watchErrors(page);
+  // A save as a build before WP-C5 left it on step 4: onboarded, its habit, the step beside it.
+  const now = Date.now();
+  const env = { now, today: appDayKey(now, 180, runtimeLocalTime), local: runtimeLocalTime, rng: mulberry32(7) };
+  const out = transact(createInitialState(now), env, (tx) => ({ ids: habits.completeOnboarding(tx, { name: 'Sam', templateIds: ['walk'] }) }));
+  const seeded = [encodeEnvelope(out.state, 1, now, 'old'), JSON.stringify({ step: 'first', habitIds: out.ids })];
+  await page.addInitScript(([save, legacy]) => {
+    if (sessionStorage.getItem('ck-e2e-seeded')) return;
+    localStorage.setItem('catkin:v1', save!);
+    localStorage.setItem('catkin:onboarding', legacy!);
+    sessionStorage.setItem('ck-e2e-seeded', '1');
+  }, seeded);
+  // The fold's own chunk loads only because there is a key.
+  const fold = page.waitForResponse((r) => /\/(state\/onboarding\.ts|onboarding-[^/]*\.js)(\?|$)/.test(r.url()));
+  await page.goto('./#/today');
+  expect((await fold).ok()).toBe(true);
+  await expect(h1(page)).toHaveText('Who comes home first?');
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('catkin:onboarding'))).toBeNull();
+  const step = await page.evaluate(() => JSON.parse(localStorage.getItem('catkin:v1')!).state.profile.onboardingStep);
+  expect(step).toEqual({ step: 'first', habitIds: out.ids });
+  await page.reload();
+  await expect(h1(page)).toHaveText('Who comes home first?');
+  expect(errors, errors.join('\n')).toEqual([]);
 });
 
 test.describe('in an iPhone Safari tab', () => {

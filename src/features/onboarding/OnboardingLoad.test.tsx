@@ -155,10 +155,10 @@ describe('onboarding’s capsule steps load, fail and retry (WP-C4, creative-cr-
     view = null;
     document.body.innerHTML = '';
     ctl.offline = false;
-    const { progress } = await fresh(({ store, progress }) => {
-      store.state.value = { ...store.state.value, profile: { ...store.state.value.profile, onboarded: true } };
-      // What the reload finds on disk: the step saved before it (nothing here saves it again).
-      progress.reloadProgress();
+    const { progress } = await fresh(({ store }) => {
+      // What the reload finds on disk: the save, with the step it was on (the reload wrote it
+      // first; nothing here saves it again). The step is part of the save (WP-C5).
+      store.hydrate();
     });
     await until(() => button(/^No\. 01 · Cats/), 'the four cabinets after the reload', LOAD);
     expect(progress.onboardingProgress.value?.step).toBe('first');

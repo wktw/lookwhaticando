@@ -2,7 +2,7 @@
 /**
  * Save-queue integrity in the interface (package P1-A in CATKIN_AUDIT_IMPLEMENTATION_PLAN_ALTERNATE.md):
  * the shell says when a change is being retried or can't be kept at all, and a window waiting for
- * the writer lock leaves the onboarding sidecar alone.
+ * the writer lock writes no onboarding progress.
  */
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { SAVE_KEY } from '@/state/persist';
@@ -52,24 +52,34 @@ describe('the shell says what is true about the save', () => {
   });
 });
 
-describe('RISK-01: the onboarding sidecar is written only by the window that owns the save', () => {
+describe('RISK-01: onboarding’s progress is written only by the window that owns the save', () => {
+  // Since WP-C5 the late step is part of the save (profile.onboardingStep): it waits for the writer
+  // lock with every other change, and nothing writes the old catkin:onboarding key.
   it('waits for the writer lock', async () => {
     const locks = deferredLocks();
-    fakeBrowser({ locks });
+    const b = fakeBrowser({ locks });
     store.hydrate();
-    saveProgress({ step: 'today', habitIds: [] });
-    expect(localStorage.getItem(ONBOARDING_KEY)).toBeNull();
+    store.completeOnboarding({ name: 'Sam', templateIds: [] });
+    expect(saveProgress({ step: 'today', habitIds: [] })).toBe(true);
+    store.flushSaves();
+    expect(b.storage.getItem(SAVE_KEY)).toBeNull();
+    expect(b.storage.getItem(ONBOARDING_KEY)).toBeNull();
     await locks.grant();
     saveProgress({ step: 'first', habitIds: [] });
-    expect(JSON.parse(localStorage.getItem(ONBOARDING_KEY)!)).toMatchObject({ step: 'first' });
+    store.flushSaves();
+    expect(JSON.parse(b.storage.getItem(SAVE_KEY)!).state.profile.onboardingStep).toMatchObject({ step: 'first' });
+    expect(b.storage.getItem(ONBOARDING_KEY)).toBeNull();
   });
 
   it('a refused window never writes it', async () => {
     const locks = deferredLocks();
-    fakeBrowser({ locks });
+    const b = fakeBrowser({ locks });
     store.hydrate();
+    store.completeOnboarding({ name: 'Sam', templateIds: [] });
     await locks.refuse();
-    saveProgress({ step: 'place', habitIds: [] });
-    expect(localStorage.getItem(ONBOARDING_KEY)).toBeNull();
+    expect(saveProgress({ step: 'place', habitIds: [] })).toBe(false);
+    store.flushSaves();
+    expect(b.storage.getItem(SAVE_KEY)).toBeNull();
+    expect(b.storage.getItem(ONBOARDING_KEY)).toBeNull();
   });
 });

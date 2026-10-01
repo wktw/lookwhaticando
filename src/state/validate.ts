@@ -452,6 +452,12 @@ function anchorCycle(habits: unknown[]): number {
   return -1;
 }
 
+/** Onboarding's late step (WP-C5): what the flow writes, and nothing it couldn't show. */
+function isOnboardingStep(v: unknown): boolean {
+  if (!isObj(v)) return false;
+  return (v.step === 'today' || v.step === 'first' || v.step === 'place') && Array.isArray(v.habitIds) && v.habitIds.length <= 3 && v.habitIds.every(isId) && optional(isId)(v.petId);
+}
+
 /** Validates an unknown value as a current-schema AppState. */
 export function validateState(x: unknown): ValidationResult {
   const r = new Report();
@@ -467,6 +473,7 @@ export function validateState(x: unknown): ValidationResult {
     r.check(isTime(p.createdAt), 'profile.createdAt', 'not a timestamp');
     r.check(optional(isDay)(p.createdOn), 'profile.createdOn', 'not a date');
     r.check(p.birthday === undefined || isBirthday(p.birthday), 'profile.birthday', 'not a real MM-DD');
+    r.check(p.onboardingStep === undefined || isOnboardingStep(p.onboardingStep), 'profile.onboardingStep', 'not an onboarding step');
   }
 
   if (r.check(isObj(s.settings), 'settings', 'not an object')) {

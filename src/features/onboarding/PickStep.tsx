@@ -8,7 +8,7 @@ import { ONBOARDING, SETTINGS, fillLine } from '@/catalog/lines';
 import type { HabitTemplate } from '@/catalog/types';
 import { HabitIcon } from '@/art/habit-icons';
 import { Icon } from '@/art/icons';
-import { completeOnboarding } from '@/state/store';
+import { completeOnboarding, type OnboardingResult } from '@/state/store';
 import { announce } from '@/ui/announce';
 import { Button } from '@/ui/Button';
 import { cx } from '@/ui/cx';
@@ -19,9 +19,12 @@ import { ONBOARDING_COPY } from '@/features/you/copy';
 import { MORE_TEMPLATES, STARTER_TEMPLATES, addCustom, isFull, pickCount, removeCustom, togglePick, type Picks } from './flow';
 import s from './Onboarding.module.css';
 
-/** Plants the picks and finishes the save's onboarding; returns the new habit ids. */
-export function plantPicks(name: string, picks: Picks): string[] {
-  return completeOnboarding({ name, templateIds: picks.templateIds, customHabits: picks.custom });
+/**
+ * Plants the picks and finishes the save's onboarding, keeping the next step (3, or 4 with nothing
+ * planted) in the save; says whether that happened, and why not (WP-C5).
+ */
+export function plantPicks(name: string, picks: Picks): OnboardingResult {
+  return completeOnboarding({ name, templateIds: picks.templateIds, customHabits: picks.custom, inFlow: true });
 }
 
 function Chip({ t, on, full, onToggle }: { t: HabitTemplate; on: boolean; full: boolean; onToggle: () => void }) {

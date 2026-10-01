@@ -132,6 +132,18 @@
   font-size: var(--fs-caption);
 }
 
+/* A change this window couldn't make (WP-C5): why, at the top of the step, under the shell's note
+   with "Use here". */
+.refused {
+  margin: 0 0 var(--s-4);
+  padding: var(--s-2) var(--s-3);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--card);
+  color: var(--ink);
+  font-size: var(--fs-caption);
+}
+
 /* The main button sits at the bottom of the step, with its thumb-reach. */
 .foot {
   display: flex;

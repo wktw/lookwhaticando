@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { HABIT_ICON_IDS } from '@/catalog/habitIcons';
 import { MAX_PICKS, MORE_TEMPLATES, STARTER_TEMPLATES, addCustom, customHabit, isFull, nextPhase, pickCount, removeCustom, stepIndex, togglePick, unitFor, type Picks } from './flow';
-import { parseProgress } from './progress';
+import { parseLegacyProgress as parseProgress } from '@/state/onboarding';
 
 const none: Picks = { templateIds: [], custom: [] };
 
