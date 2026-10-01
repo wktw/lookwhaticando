@@ -1074,6 +1074,7 @@ Under You › Data.
 | Copy backup | "Copy backup" → "Copied. Paste it somewhere safe, like a note to yourself." |
 | Import | "Import a backup" |
 | Import preview | "This backup has 5 habits, 312 waterings and 7 pets. Saved Sep 20." · "Import" · "Keep what’s here" |
+| Import, while a chosen file, the clipboard or a pasted backup is still being read and described (whatever was described before has gone, so there is nothing to import yet). DEC-V: pending owner approval | "Reading the backup…" |
 | Imported | "Imported. You can undo this for 24 hours." |
 | Undo import | "Undo import" → "Back to how things were before the import." |
 | Imported with no Undo (she confirmed importing anyway, or there was no lasting copy and nothing yet to lose). DEC-V: pending owner approval | "Imported. There is no Undo import this time." |
@@ -1492,6 +1493,7 @@ under the constant named. Same rules as everywhere (section 1).
 | chooseFile | "Choose a file" |
 | pasteLabel | "Or paste a backup here" |
 | pasteHelper | "A backup starts with CK1, or it is a catkin backup file." |
+| reading | "Reading the backup…" (DEC-V: pending owner approval) |
 | noUndoTitle | "Import without an undo?" |
 | noUndo | "catkin couldn’t keep a copy of what’s here, so there is no Undo import this time." |
 | importAnyway | "Import anyway" |

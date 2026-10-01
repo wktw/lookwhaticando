@@ -16,68 +16,24 @@
  *   as a stream that stops at `MAX_EXPANDED_BYTES`: 'too-large', never a phone out of memory. The
  *   wrapper's own numbers are checked too (`exportedAt`, a raw envelope's `savedAt` and `rev`, FS8),
  *   and the clock guard it brings is capped at when it was made (DEC-P14, `capImportedClock`).
+ * - Letting go (WP-A6): an import or preview carries the sheet's `signal`; when it aborts, a CK1
+ *   payload stops expanding at the next chunk and nothing is parsed: 'aborted'.
+ * - Loading: the export side (format, bounds, `makeBackup`, `encodePayload`, the bounded stream) is
+ *   `handoffCore.ts`, loaded with the app and re-exported here; this module, the reading side, is
+ *   loaded by the store with `import()` when a backup is previewed or imported (WP-A6 review).
  */
 import type { ImportPreview } from './api';
 import type { AppState } from './types';
+import { ALPHABET, BACKUP_FORMAT, MAX_EXPANDED_BYTES, MAX_IMPORT_BYTES, PAYLOAD_GZIP, PAYLOAD_PLAIN, Stopped, streamCtor, through } from './handoffCore';
 import { appDayKey, CLOCK_ROLLBACK_TOLERANCE_MS, runtimeLocalTime, type LocalTimeReader } from '@/domain/dates';
 import { decodeState } from './decode';
 import { countCheckins } from './snapshots';
 import { isTimestamp } from './validate';
 
-export const BACKUP_FORMAT = 'catkin-backup';
-export const PAYLOAD_GZIP = 'CK1:';
-export const PAYLOAD_PLAIN = 'CK0:';
+export { BACKUP_FORMAT, PAYLOAD_GZIP, PAYLOAD_PLAIN, MAX_IMPORT_BYTES, MAX_EXPANDED_BYTES, makeBackup, deviceLabel, base64UrlEncode, encodePayload } from './handoffCore';
+export type { BackupEnvelope } from './handoffCore';
 
-/** The most an import may be: 64 MB of file, or of pasted text (a lived-in backup is well under 1 MB). */
-export const MAX_IMPORT_BYTES = 64 * 1024 * 1024;
-/** The most a CK1 payload may expand to (128 MB): past it, decompression stops. */
-export const MAX_EXPANDED_BYTES = 128 * 1024 * 1024;
-
-export interface BackupEnvelope {
-  format: typeof BACKUP_FORMAT;
-  v: number;
-  appVersion: string;
-  exportedAt: number;
-  device: string;
-  state: AppState;
-}
-
-export function makeBackup(state: AppState, opts: { now: number; appVersion: string; device: string }): BackupEnvelope {
-  return { format: BACKUP_FORMAT, v: state.version, appVersion: opts.appVersion, exportedAt: opts.now, device: opts.device, state };
-}
-
-/** A short device description for backups ("iPhone · Safari"), from the user agent when available. */
-export function deviceLabel(ua: string | undefined = (globalThis as { navigator?: { userAgent?: string } }).navigator?.userAgent): string {
-  if (!ua) return 'Unknown device';
-  const device = /iPhone/.test(ua) ? 'iPhone' : /iPad/.test(ua) ? 'iPad' : /Macintosh/.test(ua) ? 'Mac' : /Android/.test(ua) ? 'Android' : /Windows/.test(ua) ? 'Windows PC' : /Linux/.test(ua) ? 'Linux' : 'Device';
-  const browser = /Edg\//.test(ua) ? 'Edge' : /Chrome\//.test(ua) ? 'Chrome' : /Firefox\//.test(ua) ? 'Firefox' : /Safari\//.test(ua) ? 'Safari' : /Node/.test(ua) ? 'Node' : 'Browser';
-  return `${device} · ${browser}`;
-}
-
-/* ------------------------------------------------------------------ */
-/* base64url (RFC 4648 §5, no padding) without Buffer/btoa             */
-/* ------------------------------------------------------------------ */
-
-const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
 const LOOKUP = new Map([...ALPHABET].map((c, i) => [c, i]));
-
-export function base64UrlEncode(bytes: Uint8Array): string {
-  let out = '';
-  let i = 0;
-  for (; i + 2 < bytes.length; i += 3) {
-    const n = (bytes[i]! << 16) | (bytes[i + 1]! << 8) | bytes[i + 2]!;
-    out += ALPHABET[(n >> 18) & 63]! + ALPHABET[(n >> 12) & 63]! + ALPHABET[(n >> 6) & 63]! + ALPHABET[n & 63]!;
-  }
-  const rest = bytes.length - i;
-  if (rest === 1) {
-    const n = bytes[i]! << 16;
-    out += ALPHABET[(n >> 18) & 63]! + ALPHABET[(n >> 12) & 63]!;
-  } else if (rest === 2) {
-    const n = (bytes[i]! << 16) | (bytes[i + 1]! << 8);
-    out += ALPHABET[(n >> 18) & 63]! + ALPHABET[(n >> 12) & 63]! + ALPHABET[(n >> 6) & 63]!;
-  }
-  return out;
-}
 
 /** Decodes base64url (also accepts '+', '/', '=' padding and whitespace). Throws on bad input. */
 export function base64UrlDecode(text: string): Uint8Array {
@@ -101,62 +57,11 @@ export function base64UrlDecode(text: string): Uint8Array {
   return out.subarray(0, o);
 }
 
-/* ------------------------------------------------------------------ */
-/* gzip via (De)CompressionStream                                      */
-/* ------------------------------------------------------------------ */
-
-type StreamCtor = new (format: 'gzip') => { readable: ReadableStream<Uint8Array>; writable: WritableStream<Uint8Array> };
-
-function streamCtor(name: 'CompressionStream' | 'DecompressionStream'): StreamCtor | null {
-  const ctor = (globalThis as Record<string, unknown>)[name];
-  return typeof ctor === 'function' ? (ctor as StreamCtor) : null;
-}
-
-/**
- * Runs bytes through a (de)compression stream, reading it chunk by chunk with a running count: past
- * `maxBytes` it cancels the stream and answers null, so a small payload can never expand to fill the
- * phone's memory before anything is checked.
- */
-async function through(bytes: Uint8Array, ctor: StreamCtor, maxBytes = Infinity): Promise<Uint8Array | null> {
-  const reader = new Blob([bytes as BlobPart]).stream().pipeThrough(new ctor('gzip')).getReader();
-  const chunks: Uint8Array[] = [];
-  let total = 0;
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    total += value.byteLength;
-    if (total > maxBytes) {
-      await reader.cancel().catch(() => undefined);
-      return null;
-    }
-    chunks.push(value);
-  }
-  const out = new Uint8Array(total);
-  let at = 0;
-  for (const c of chunks) {
-    out.set(c, at);
-    at += c.byteLength;
-  }
-  return out;
-}
-
-/** 'CK1:' + base64url(gzip(json)), or 'CK0:' + base64url(json) without CompressionStream. */
-export async function encodePayload(json: string, opts: { compress?: boolean } = {}): Promise<string> {
-  const bytes = new TextEncoder().encode(json);
-  const ctor = opts.compress === false ? null : streamCtor('CompressionStream');
-  if (ctor) {
-    try {
-      return PAYLOAD_GZIP + base64UrlEncode((await through(bytes, ctor))!);
-    } catch {
-      /* fall through to the plain payload */
-    }
-  }
-  return PAYLOAD_PLAIN + base64UrlEncode(bytes);
-}
-
 export interface ImportBounds {
   /** The most the payload may expand to (default `MAX_EXPANDED_BYTES`; tests use less). */
   maxBytes?: number;
+  /** Aborted when the import is let go: reading stops at the next chunk, and the answer is 'aborted' (WP-A6). */
+  signal?: AbortSignal | undefined;
 }
 
 /** The JSON inside a CK1/CK0 payload ('too-large' past the bounds, without expanding the rest). */
@@ -175,13 +80,13 @@ export async function decodePayload(text: string, opts: ImportBounds = {}): Prom
   if (prefix === PAYLOAD_GZIP) {
     const ctor = streamCtor('DecompressionStream');
     if (!ctor) return { ok: false, error: 'cannot-decompress-here' };
-    let out: Uint8Array | null;
+    let out: Uint8Array | Stopped;
     try {
-      out = await through(bytes, ctor, maxBytes);
+      out = await through(bytes, ctor, maxBytes, opts.signal);
     } catch {
-      return { ok: false, error: 'damaged-payload' };
+      return { ok: false, error: opts.signal?.aborted ? 'aborted' : 'damaged-payload' };
     }
-    if (!out) return { ok: false, error: 'too-large' };
+    if (out instanceof Stopped) return { ok: false, error: out.why };
     bytes = out;
   } else if (bytes.byteLength > maxBytes) {
     return { ok: false, error: 'too-large' };
@@ -242,6 +147,9 @@ export async function parseBackupText(text: string, opts: ParseOptions = {}): Pr
     if (!d.ok) return d;
     json = d.json;
   }
+  // Let go before the parse: a large backup's JSON.parse and validation can't be interrupted once
+  // they start, so they don't start (WP-A6).
+  if (opts.signal?.aborted) return { ok: false, error: 'aborted' };
   let obj: unknown;
   try {
     obj = JSON.parse(json);

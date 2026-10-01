@@ -5,7 +5,7 @@
  * word the note (VOICE §21, §18).
  */
 
-import { MAX_IMPORT_BYTES } from '@/state/handoff';
+import { MAX_IMPORT_BYTES } from '@/state/handoffCore';
 
 export type SaveOutcome = 'shared' | 'downloaded' | 'downloaded-instead' | 'cancelled';
 
@@ -124,23 +124,51 @@ export async function readClipboard(): Promise<string | null> {
 /**
  * Reads a chosen backup file, refusing one past the import bound by its size alone, before a byte
  * of it is read (WP-A5, P-persistence-06): 'too-large'. 'unreadable' when the browser can't read it.
+ * When `signal` aborts (another backup was chosen, or the sheet closed) the read stops at the next
+ * chunk and answers 'aborted' (WP-A6).
  */
-export async function readImportFile(file: File, maxBytes = MAX_IMPORT_BYTES): Promise<{ ok: true; text: string } | { ok: false; error: 'too-large' | 'unreadable' }> {
-  if (!(file.size <= maxBytes)) return { ok: false, error: 'too-large' };
+export async function readImportFile(
+  file: File,
+  opts: { maxBytes?: number; signal?: AbortSignal } = {},
+): Promise<{ ok: true; text: string } | { ok: false; error: 'too-large' | 'unreadable' | 'aborted' }> {
+  if (!(file.size <= (opts.maxBytes ?? MAX_IMPORT_BYTES))) return { ok: false, error: 'too-large' };
+  if (opts.signal?.aborted) return { ok: false, error: 'aborted' };
   try {
-    return { ok: true, text: await readFileText(file) };
+    const text = await readFileText(file, opts.signal);
+    return text === null ? { ok: false, error: 'aborted' } : { ok: true, text };
   } catch {
-    return { ok: false, error: 'unreadable' };
+    return { ok: false, error: opts.signal?.aborted ? 'aborted' : 'unreadable' };
   }
 }
 
-/** Reads a chosen file as text. */
-export function readFileText(file: File): Promise<string> {
-  if (typeof file.text === 'function') return file.text();
-  return new Promise((resolve, reject) => {
-    const r = new FileReader();
-    r.onload = () => resolve(String(r.result ?? ''));
-    r.onerror = () => reject(r.error);
-    r.readAsText(file);
-  });
+/**
+ * Reads a chosen file as UTF-8 text, as `Blob.text()` does. Where the file can be streamed it is
+ * read chunk by chunk, so a read that `signal` lets go stops (null) instead of filling memory with
+ * a file nobody wants any more; otherwise it is read whole and dropped if let go meanwhile.
+ */
+export async function readFileText(file: File, signal?: AbortSignal): Promise<string | null> {
+  if (typeof file.stream === 'function') {
+    const reader = file.stream().getReader();
+    const decoder = new TextDecoder();
+    let text = '';
+    for (;;) {
+      if (signal?.aborted) {
+        await reader.cancel().catch(() => undefined);
+        return null;
+      }
+      const { done, value } = await reader.read();
+      if (done) return text + decoder.decode();
+      text += decoder.decode(value, { stream: true });
+    }
+  }
+  const text =
+    typeof file.text === 'function'
+      ? await file.text()
+      : await new Promise<string>((resolve, reject) => {
+          const r = new FileReader();
+          r.onload = () => resolve(String(r.result ?? ''));
+          r.onerror = () => reject(r.error);
+          r.readAsText(file);
+        });
+  return signal?.aborted ? null : text;
 }

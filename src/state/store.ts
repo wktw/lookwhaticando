@@ -85,7 +85,14 @@ import {
   type Timers,
 } from './persist';
 import { indexedDbSnapshotStore, memorySnapshotStore, retentionPlan, safely, snapshotMeta, takeDailySnapshot, type SnapshotStore } from './snapshots';
-import { deviceLabel, describeBackup, encodePayload, makeBackup, parseBackupText } from './handoff';
+import { deviceLabel, encodePayload, makeBackup } from './handoffCore';
+/**
+ * Reading a backup in (`handoff.ts`: decoding a payload, parsing, describing) is loaded only when a
+ * backup is previewed or imported, so it is not part of first paint (WP-A6 review). It is the same
+ * build's chunk as the Import sheet that asks for it; if it can't be loaded, a preview rejects (the
+ * sheet says it isn't a backup) and an import changes nothing ('not-saved').
+ */
+const backupReader = () => import('./handoff');
 import { decodeState, decodesAsSave } from './decode';
 import { fillLine } from '@/catalog/lineKit';
 import { DATA } from '@/catalog/linesCore';
@@ -1447,9 +1454,14 @@ export function backupPayload(): Promise<string> {
 export function markBackup(): void {
   if (!demoMode.value) actVoid((tx) => profileDomain.markBackup(tx));
 }
-/** Validate a backup (file text or CK1 payload) and describe it without applying. */
-export async function previewImport(text: string): Promise<ImportPreview | { ok: false; error: string }> {
-  const parsed = await parseBackupText(text);
+/**
+ * Validate a backup (file text or CK1 payload) and describe it without applying. `signal` lets the
+ * sheet let it go (another backup chosen, or the sheet closed): a payload stops expanding and
+ * nothing is parsed, 'aborted' (WP-A6).
+ */
+export async function previewImport(text: string, opts: { signal?: AbortSignal } = {}): Promise<ImportPreview | { ok: false; error: string }> {
+  const { describeBackup, parseBackupText } = await backupReader();
+  const parsed = await parseBackupText(text, { signal: opts.signal });
   return parsed.ok ? describeBackup(parsed) : { ok: false, error: parsed.error };
 }
 
@@ -1513,6 +1525,11 @@ interface Replacement {
   withoutUndo?: boolean;
   /** Aborted when the person lets it go (the sheet closes) before it commits. */
   signal?: AbortSignal | undefined;
+  /**
+   * Called once, synchronously, the moment it commits (before older copies are pruned), so the
+   * sheet can close before another choice is made over a replacement that already happened (WP-A6).
+   */
+  onCommit?: (() => void) | undefined;
 }
 
 /** What a replacement is bound to: it commits only while all of this still holds (FS5). */
@@ -1675,6 +1692,11 @@ async function runReplacement(r: Replacement): Promise<ReplaceResult> {
   if (loadIssue.value?.kind === 'recovered-from-backup' || loadIssue.value?.kind === 'corrupt-save') loadIssue.value = null;
   if (!demoMode.value) mirrorTheme(store, next.settings);
   saveReplaced();
+  try {
+    r.onCommit?.();
+  } catch {
+    // The commit stands whatever the caller's hook does.
+  }
 
   if (copyId !== null) await pruneCopies(copyId);
   return { ok: true, undo };
@@ -1706,16 +1728,20 @@ async function loadCopy(id: string, source: 'snapshot' | 'undo'): Promise<Loaded
  * Replaces the save with a backup (never a merge), keeping a copy of what's here first so the
  * import can be undone for 24 hours. With no lasting copy (no IndexedDB, or it refused), the answer
  * is 'no-undo' until the person confirms importing anyway (`withoutUndo`), unless there is nothing
- * here yet to lose. `signal` lets the sheet let it go before it commits.
+ * here yet to lose. `signal` lets the sheet let it go before it commits; `onCommit` is called the
+ * moment it commits, before older copies are pruned and the answer comes.
  */
-export function applyImport(text: string, opts: { withoutUndo?: boolean; signal?: AbortSignal } = {}): Promise<ReplaceResult> {
+export function applyImport(text: string, opts: { withoutUndo?: boolean; signal?: AbortSignal; onCommit?: () => void } = {}): Promise<ReplaceResult> {
   return replaceSave({
     kind: 'import',
     protect: true,
     withoutUndo: opts.withoutUndo ?? false,
     signal: opts.signal,
+    onCommit: opts.onCommit,
     load: async () => {
-      const parsed = await parseBackupText(text, { local: rt.local });
+      // Let go (the sheet closed, or another backup chosen): the payload stops expanding (WP-A6).
+      const { parseBackupText } = await backupReader();
+      const parsed = await parseBackupText(text, { local: rt.local, signal: opts.signal });
       return parsed.ok ? { ok: true, state: parsed.state } : (refuse(parsed.error as BackupError) as Loaded);
     },
   });
