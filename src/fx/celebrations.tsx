@@ -82,6 +82,17 @@ export function markCelebratedLocally(habitId: string): void {
   batch.payout.coins?.release(amount);
 }
 
+/**
+ * Whether a screen has already claimed this habit's check-in. The claim usually comes just after
+ * the host has the event (and releases its coins, above); but the host can be handed events kept
+ * while it loaded (fx/celebrationHostLoader), after a tap in that gap already claimed them, and
+ * then it must not reserve those coins at all.
+ */
+function claimed(habitId: string): boolean {
+  const t = claims.get(habitId);
+  return t !== undefined && performance.now() - t <= CLAIM_MS;
+}
+
 function context(): CelebrationContext {
   const s = state.value;
   const now = performance.now();
@@ -225,9 +236,10 @@ export function CelebrationHost() {
       const b = (batch ??= newBatch());
       b.events.push(e);
       const delta = walletDelta(e);
-      if (delta) {
+      const checkin = e.type === 'coins' && e.reason === 'checkin' ? e.habitId : undefined;
+      if (delta && !(checkin && claimed(checkin))) {
         reserveInto(b.payout, delta.kind, delta.amount);
-        if (e.type === 'coins' && e.reason === 'checkin' && e.habitId) b.checkins.set(e.habitId, (b.checkins.get(e.habitId) ?? 0) + e.amount);
+        if (checkin) b.checkins.set(checkin, (b.checkins.get(checkin) ?? 0) + delta.amount);
       }
       const weight = eventWeight(e);
       if (weight === 'big' && b.felt !== 'big') {

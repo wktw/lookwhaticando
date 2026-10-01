@@ -6,45 +6,16 @@
  * job instead. This walks the static imports from `src/main.tsx` (what Rollup puts in the entry
  * chunk: `import type` and `import()` are not followed) and checks the Sheet is not among them;
  * `npm run size` measures the result.
+ *
+ * The walk is `tests/unit/build/staticGraph.ts`. What the first-paint diet (1 October 2026,
+ * 149.9 → 134.2 KB gzip) moved behind `import()`, and the copy deck, are kept out by
+ * `tests/unit/build/firstPaintImports.test.ts`, on the same walk.
  */
 import { describe, expect, it } from 'vitest';
-import { existsSync, readFileSync } from 'node:fs';
-import { dirname, join, relative } from 'node:path';
-
-const ROOT = join(__dirname, '..', '..');
-
-function resolve(from: string, spec: string): string | null {
-  let base: string;
-  if (spec.startsWith('@/')) base = join(ROOT, 'src', spec.slice(2));
-  else if (spec.startsWith('.')) base = join(dirname(from), spec);
-  else return null; // a package
-  for (const c of [base, `${base}.ts`, `${base}.tsx`, join(base, 'index.ts'), join(base, 'index.tsx')]) {
-    if (/\.tsx?$/.test(c) && existsSync(c)) return c;
-  }
-  return null; // CSS, JSON, assets
-}
-
-/** Every source module the entry imports statically, as paths from the repository root, with the chain that reached each. */
-function staticGraph(entry: string): Map<string, string[]> {
-  const seen = new Map<string, string[]>([[entry, [entry]]]);
-  const queue = [entry];
-  while (queue.length) {
-    const file = queue.shift()!;
-    const src = readFileSync(file, 'utf8');
-    // Whole statements, so a multi-line import is read as one.
-    for (const m of src.matchAll(/^(?:import|export)\s(?:[^;'"]*?\sfrom\s)?\s*['"]([^'"]+)['"]/gms)) {
-      if (/^(?:import|export)\s+type\s/.test(m[0])) continue;
-      const dep = resolve(file, m[1]!);
-      if (!dep || seen.has(dep)) continue;
-      seen.set(dep, [...seen.get(file)!, dep]);
-      queue.push(dep);
-    }
-  }
-  return new Map([...seen].map(([f, chain]) => [relative(ROOT, f), chain.map((c) => relative(ROOT, c))]));
-}
+import { reached, staticGraph } from '../../tests/unit/build/staticGraph';
 
 describe('the first paint', () => {
-  const graph = staticGraph(join(ROOT, 'src', 'main.tsx'));
+  const graph = staticGraph();
 
   it('reaches the shell and its sheet loader (the walk follows real imports)', () => {
     expect(graph.has('src/app/App.tsx')).toBe(true);
@@ -53,7 +24,6 @@ describe('the first paint', () => {
   });
 
   it('does not import the Sheet primitive or ConfirmDialog statically (WP-C4: the shell owns its small load sheet)', () => {
-    const offenders = ['src/ui/Sheet.tsx', 'src/ui/ConfirmDialog.tsx', 'src/ui/sheetMotion.ts'].filter((f) => graph.has(f)).map((f) => graph.get(f)!.join(' → '));
-    expect(offenders).toEqual([]);
+    expect(reached(graph, ['src/ui/Sheet.tsx', 'src/ui/ConfirmDialog.tsx', 'src/ui/sheetMotion.ts'])).toEqual([]);
   });
 });

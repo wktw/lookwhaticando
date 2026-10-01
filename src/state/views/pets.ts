@@ -14,7 +14,8 @@ import { chooseBestFriend, claimSpot, petPlace, suggestPlaceFor } from '@/domain
 import { BEST_FRIEND_LEVEL, SPOT_LEVEL } from '@/domain/friendship';
 import { capsuleCollectiblesOwned, ownedTreats, ownedWearables } from '@/domain/collection';
 import { appDayKey, monthDayLabel } from '@/domain/dates';
-import { PET_XP, closestPetId, dailyFor, featuredPetId } from '@/domain/friendship';
+import { PET_XP, dailyFor, featuredPetId } from '@/domain/friendship';
+import { closestPet } from './closestPet';
 import type { CuttingVM } from '@/domain/growth';
 import { cuttingOf } from '@/domain/economy';
 import { LEVEL_PERKS, MAX_FRIEND_LEVEL, levelProgress, memoriesFor, type LevelPerk, type LevelProgress } from '@/domain/levels';
@@ -103,17 +104,7 @@ export function petsVM(s: AppState): PetsVM {
   return { pets, out: petsOutCount(s), capacity: petsOutCapacity(s), featured, closest: closestPet(s) };
 }
 
-/**
- * Your closest pet (most friendship, then the oldest friend) and its species: the Shelf tab's
- * silhouette (DESIGN §1 Many animals). Cheap on its own, so the app shell reads it without the
- * whole pets view.
- */
-export function closestPet(s: Pick<AppState, 'pets'>): PetsVM['closest'] {
-  const id = closestPetId(s);
-  if (!id) return null;
-  const def = getCollectible(id);
-  return { id, species: def?.category === 'pet' ? def.species : null };
-}
+export { closestPet } from './closestPet';
 
 /** The favourite-treat hint before it is found: by the treat's first tag, or the plant it is harvested from. */
 export type FavoriteHint = { kind: 'tag'; tag: TreatTag } | { kind: 'plant'; plant: PlantSpeciesId } | { kind: 'unknown' };
