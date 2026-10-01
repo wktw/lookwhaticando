@@ -751,7 +751,9 @@ export const ERRORS = {
    * that didn't go through, and what a Try again that still didn't save says. DEC-V: pending owner approval.
    */
   recovered: 'catkin couldn’t read the latest save on this device, so it opened the one before it.',
-  corrupt: 'catkin couldn’t read the save on this device. The file is kept aside, just as it was.',
+  corrupt: 'catkin couldn’t read the save on this device. The file is kept just as it was.',
+  /** A full disk took the room the damaged file was kept in: it is only in this window now (the WP-A7 review). DEC-V: pending owner approval. */
+  damagedUnkept: 'catkin needed the room to save your changes, so the damaged file isn’t kept on this device any more. Save it now to keep it.',
   saveDamaged: 'Save the damaged file',
   tryAgain: 'Try again',
   stillNotSaved: 'Still not saved. catkin keeps trying.',

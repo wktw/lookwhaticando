@@ -15,7 +15,9 @@ export const SHELL_LINES = {
   clock: 'The clock on this device reads earlier than catkin last saw. Coins and stamps wait until it’s right again.',
   /** ERRORS.recovered / corrupt: a save that couldn't be read (WP-A7). DEC-V: pending owner approval. */
   recovered: 'catkin couldn’t read the latest save on this device, so it opened the one before it.',
-  corrupt: 'catkin couldn’t read the save on this device. The file is kept aside, just as it was.',
+  corrupt: 'catkin couldn’t read the save on this device. The file is kept just as it was.',
+  /** A full disk took the room the damaged file was kept in: it is only in this window now (the WP-A7 review). DEC-V: pending owner approval. */
+  damagedUnkept: 'catkin needed the room to save your changes, so the damaged file isn’t kept on this device any more. Save it now to keep it.',
   /** The notes' buttons: ERRORS.saveDamaged, ERRORS.tryAgain, DATA.save, DATA_COPY.snapshotsRow, DATA.import. */
   saveDamaged: 'Save the damaged file',
   tryAgain: 'Try again',
