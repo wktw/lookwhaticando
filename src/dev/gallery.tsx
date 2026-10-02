@@ -24,7 +24,7 @@ function Gallery() {
   return (
     <main class="gal">
       <h1>
-        catkin <span>gallery</span>
+        Little by Little <span>gallery</span>
       </h1>
       {!only && (
         <nav class="gal-nav" aria-label="Sections">

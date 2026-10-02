@@ -30,7 +30,7 @@
   border-radius: var(--r-sm);
 }
 
-/* The wordmark: lowercase Castoro with the catkin sprig (<Wordmark/>, DESIGN §1). */
+/* The wordmark: two lines of Castoro with the willow sprig (<Wordmark/>, DESIGN §1). */
 .wordmark {
   display: flex;
   line-height: 1;

@@ -1,8 +1,8 @@
 {
-  "name": "catkin",
+  "name": "little-by-little",
   "private": true,
   "version": "1.0.0",
-  "description": "catkin: a habit tracker where your habits grow houseplants, and the plants become a home for small real animals.",
+  "description": "Little by Little: a habit tracker where your habits grow houseplants, and the plants become a home for small real animals.",
   "type": "module",
   "scripts": {
     "dev": "vite --host",

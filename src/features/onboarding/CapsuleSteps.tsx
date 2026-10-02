@@ -12,6 +12,7 @@
  *    (`setCompanion`), or "Let {name} choose". A name idea is kept the moment it is tapped, and a
  *    typed name before Skip leaves the step (P-ui-13).
  */
+import { plantPresentation } from '@/state/views/plantPresentation';
 import { useEffect, useRef, useState } from 'preact/hooks';
 import type { MutableRef } from 'preact/hooks';
 import type { MachineId } from '@/catalog/types';
@@ -24,7 +25,7 @@ import { CabinetArt } from '@/art/machines/CabinetArt';
 import { CollectibleArt } from '@/art/CollectibleArt';
 import { PlantArt } from '@/art/plants';
 import { useArtLight } from '@/art/scene/moment';
-import { letPetChoose, renamePet, setCompanion, state } from '@/state/store';
+import { letPetChoose, renamePet, setCompanion, state, today, now, storeLocal } from '@/state/store';
 import { CapsuleMachine } from '@/features/capsules/CapsuleMachine';
 import { cameHomeLabel } from '@/features/capsules/copy';
 import { nameIdeas } from '@/features/capsules/names';
@@ -270,7 +271,7 @@ export function PlaceStep({
             <li key={h.id}>
               <button type="button" class={s.plant} onClick={() => home(h.id)}>
                 <span class={s.plantArt} aria-hidden="true">
-                  <PlantArt species={h.plant} stage={0} pot={h.pot} fit="icon" size={64} light={light} />
+                  <PlantArt {...plantPresentation(state.value, h.id, { today: today.value, now: now.value, local: storeLocal() })!} fit="icon" size={64} light={light} />
                 </span>
                 <span class={s.plantName}>{h.name}</span>
               </button>

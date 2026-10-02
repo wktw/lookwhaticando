@@ -155,7 +155,7 @@ describe('the pull', () => {
     view = mount(<CapsuleMachine machine={cats} active />);
     await click(insertButton(), 'Insert');
     const note = await until(() => document.querySelector('[role="note"]'), 'a notice');
-    expect(note.textContent).toMatch(/^One moment: catkin is still getting ready in this window\. Nothing was spent\./);
+    expect(note.textContent).toMatch(/^One moment: Little by Little is still getting ready in this window\. Nothing was spent\./);
     expect(handle().getAttribute('aria-disabled')).toBe('true');
     expect(pull).not.toHaveBeenCalled();
     expect(state.value.wallet.coins).toBe(100);

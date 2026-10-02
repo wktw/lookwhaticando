@@ -237,7 +237,7 @@ try {
       const copy = el.cloneNode(true);
       for (const a of ['width', 'height', 'class', 'aria-hidden', 'focusable', 'role', 'aria-label']) copy.removeAttribute(a);
       const title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
-      title.textContent = 'catkin';
+      title.textContent = 'Little by Little';
       copy.insertBefore(title, copy.firstChild);
       return new XMLSerializer().serializeToString(copy);
     });

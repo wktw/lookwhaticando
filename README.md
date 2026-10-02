@@ -1,8 +1,8 @@
-# catkin
+# Little by Little
 
 **Look after the little things.**
 
-catkin is a habit tracker for iPhone and Mac. Every habit is a houseplant, grown from a cutting in a glass of water.
+Little by Little is a habit tracker for iPhone and Mac. Every habit is a houseplant, grown from a cutting in a glass of water.
 Keeping the habit waters it, and over weeks it roots, gets potted up, leafs out and blooms. The plants turn your windowsill
 into a home, and small, real animals come to live there: cats, cows, dogs, rabbits, frogs, ducklings, bear cubs and
 hamsters. They arrive in capsules bought with the coins your habits earn.
@@ -16,7 +16,7 @@ complete habit tracker. The game is there so that opening the tracker is somethi
 ### On a Windows PC (no install)
 
 1. Open the latest **CI & Deploy** run under the repository’s **Actions** tab.
-2. Download the artifact **catkin-single-file** and unzip it.
+2. Download the artifact **little-by-little-single-file** and unzip it.
 3. Double-click **catkin.html**. It opens in your browser and runs completely offline. Everything is saved in that
    browser on that PC.
 
@@ -30,9 +30,9 @@ npm run dev          # open the printed URL; --host also serves it to phones on 
 ### On iPhone
 
 1. Open the hosted app in **Safari** (see *Hosting* below).
-2. Tap **Share**, then **Add to Home Screen**. catkin then opens full-screen, works offline and keeps its own data.
+2. Tap **Share**, then **Add to Home Screen**. Little by Little then opens full-screen, works offline and keeps its own data.
 3. Open it from the Home Screen, not from the Safari tab. iOS keeps a Safari tab’s data separate from the installed
-   app, so catkin asks you to install first.
+   app, so Little by Little asks you to install first.
 
 ### On a Mac
 
@@ -45,10 +45,14 @@ CI builds and deploys the app to GitHub Pages from the default branch. Turn Page
 Source: GitHub Actions**, and the app is then served at `https://<owner>.github.io/<repo>/`. You can also run the
 **CI & Deploy** workflow by hand from any branch to deploy it.
 
+The downloadable file keeps its original name, `catkin.html`, so an existing copy can be replaced at the same
+location without changing its browser storage. If you move or rename your file, save a backup first and import
+it into the new copy. Older backups and copy codes still work.
+
 ## Your data
 
 Everything stays on your device. There are no accounts, servers or analytics. **You › Data** exports a backup file
-(`catkin-backup`) and imports one, with an undo. To move from a Safari tab into the installed app, use the copy code
+(`little-by-little-backup-….json`) and imports one, with an undo. To move from a Safari tab into the installed app, use the copy code
 shown there (it starts with `CK1:`).
 
 ## Development
