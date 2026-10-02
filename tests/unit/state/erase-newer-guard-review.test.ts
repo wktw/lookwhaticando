@@ -5,7 +5,7 @@ import { fakeBrowser } from './fixtures';
 
 afterEach(() => store.configureStore({ locks: null }));
 
-it.each([true, false])('does not overwrite a newer schema at the same revision (legacy: %s)', (legacy) => {
+it.each([[true, 2], [false, 2], [true, 1], [false, 1]] as const)('does not overwrite a newer schema at the same revision (legacy: %s, envelope: %s)', (legacy, envelopeVersion) => {
   const b = fakeBrowser();
   store.hydrate();
   store.completeOnboarding({ name: 'Old journal', templateIds: [] });
@@ -13,7 +13,7 @@ it.each([true, false])('does not overwrite a newer schema at the same revision (
   const saved = JSON.parse(b.storage.getItem(SAVE_KEY)!);
   store.setName('Pending old edit');
   if (legacy) delete saved.gen;
-  saved.v = 2;
+  saved.v = envelopeVersion;
   saved.state.version = 2;
   saved.state.profile.name = 'Newer journal';
   const newer = JSON.stringify(saved);

@@ -104,6 +104,7 @@ test('erasing in one window removes every copy, the other follows, and neither r
   await owner.getByRole('button', { name: 'Erase everything on this device', exact: true }).click();
   const confirm = owner.getByRole('alertdialog').filter({ hasText: 'There is no undo.' });
   await expect(confirm).toBeVisible();
+  await owner.waitForTimeout(800); // a tap carried over from the erase choice cannot confirm it
   await confirm.getByRole('button', { name: 'Erase everything', exact: true }).click();
   await expect(owner.locator('main h1')).toHaveText(ONBOARDING_H1);
   await expect(follower.locator('main h1')).toHaveText(ONBOARDING_H1);

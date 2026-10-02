@@ -4,7 +4,8 @@ import { DataSection } from '@/features/you/DataSection';
 import { DATA, DATA_COPY } from '@/catalog/lines';
 import { SHELL_LINES } from '@/features/you/shellCopy';
 import * as store from '@/state/store';
-import { button, click, installDom, mount, until } from '@/features/capsules/testing';
+import { button, click, installDom, mount, pointer, until } from '@/features/capsules/testing';
+import { act } from 'preact/test-utils';
 import { fakeBrowser } from './fixtures';
 import { toasts } from '@/ui/toast';
 import { SAVE_KEY } from '@/state/persist';
@@ -14,6 +15,21 @@ let view: ReturnType<typeof mount> | undefined;
 afterEach(() => { view?.unmount(); toasts.value = []; });
 
 describe('the erase choice', () => {
+  it('refuses a pointer double tap that reaches the irreversible button as its dialog appears', async () => {
+    const b = fakeBrowser(); store.hydrate(); store.completeOnboarding({ name: 'Sam', templateIds: [] }); store.flushSaves();
+    view = mount(<DataSection />);
+    await click(button(DATA.startOver), 'Start over');
+    await click(await until(() => button(DATA_COPY.erase), 'erase choice'), 'erase choice');
+    const confirm = await until(() => button(DATA_COPY.eraseButton), 'erase confirmation');
+    await act(async () => {
+      confirm.dispatchEvent(pointer('pointerdown'));
+      confirm.dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 1 }));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(store.state.value.profile.name).toBe('Sam');
+    expect(b.storage.getItem(SAVE_KEY)).not.toBeNull();
+    expect(toasts.value.some((t) => t.key === 'erased')).toBe(false);
+  });
   it('lets the owner erase a damaged save held for lack of space, and retry a blocked copy deletion', async () => {
     const damaged = JSON.stringify({ v: 1, appVersion: 'test', rev: 99, savedAt: 1, state: { version: 1, note: 'x'.repeat(20_000) } });
     const b = fakeBrowser({ quotaChars: Math.ceil(damaged.length * 2.2) });

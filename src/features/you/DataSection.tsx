@@ -10,6 +10,7 @@
  * save yet, a browser that keeps nothing, or a window still getting ready to save. While a damaged
  * save is kept aside, "Save the damaged file" gives its bytes.
  */
+import type { ComponentChildren } from 'preact';
 import { useId, useRef, useState } from 'preact/hooks';
 import { DATA, ERRORS, fillLine } from '@/catalog/lines';
 import { dayOf } from './when';
@@ -121,6 +122,14 @@ export const FINAL_ARM_MS = 700;
  * after it had been on screen for a moment. Two quick taps on the first dialog keep everything.
  */
 export function FinalStartOver({ open, onConfirm, onCancel, minHeight = 0 }: { open: boolean; onConfirm: () => void; onCancel: () => void; minHeight?: number }) {
+  return <ArmedConfirmation open={open} onConfirm={onConfirm} onCancel={onCancel} minHeight={minHeight} title={DATA_COPY.startOverAgainTitle} message={DATA_COPY.startOverAgain} confirmLabel={DATA.startOver} cancelLabel={DATA.keepEverything} />;
+}
+
+/** Both irreversible device erasure and ordinary reset reject taps carried over from the choice. */
+function ArmedConfirmation({ open, onConfirm, onCancel, minHeight = 0, title, message, confirmLabel, cancelLabel, busy = false }: {
+  open: boolean; onConfirm: () => void; onCancel: () => void; minHeight?: number;
+  title: string; message: ComponentChildren; confirmLabel: string; cancelLabel: string; busy?: boolean;
+}) {
   const messageId = useId();
   const openedAt = useRef(0);
   const armedPress = useRef(false);
@@ -128,22 +137,23 @@ export function FinalStartOver({ open, onConfirm, onCancel, minHeight = 0 }: { o
   if (!open) openedAt.current = 0;
   const armed = () => openedAt.current > 0 && performance.now() - openedAt.current >= FINAL_ARM_MS;
   return (
-    <Sheet open={open} onClose={onCancel} title={DATA_COPY.startOverAgainTitle} hideTitle describedBy={messageId} size="sm" role="alertdialog" showClose={false} initialFocus="[data-cancel]">
+    <Sheet open={open} onClose={onCancel} title={title} hideTitle describedBy={messageId} size="sm" role="alertdialog" showClose={false} initialFocus="[data-cancel]" dismissible={!busy}>
       <div class={cs.content} style={minHeight ? { minHeight } : undefined}>
         <p class={cs.title} aria-hidden="true">
-          {DATA_COPY.startOverAgainTitle}
+          {title}
         </p>
         <p class={cs.message} id={messageId}>
-          {DATA_COPY.startOverAgain}
+          {message}
         </p>
         <div class={cs.actions} style={minHeight ? { marginTop: 'auto' } : undefined}>
-          <Button variant="primary" size="lg" block onClick={onCancel} data-cancel>
-            {DATA.keepEverything}
+          <Button variant="primary" size="lg" block onClick={onCancel} disabled={busy} data-cancel>
+            {cancelLabel}
           </Button>
           <Button
             variant="danger"
             size="lg"
             block
+            loading={busy}
             data-confirm
             onPointerDown={() => (armedPress.current = armed())}
             onClick={(e: MouseEvent) => {
@@ -153,7 +163,7 @@ export function FinalStartOver({ open, onConfirm, onCancel, minHeight = 0 }: { o
               if (ok) onConfirm();
             }}
           >
-            {DATA.startOver}
+            {confirmLabel}
           </Button>
         </div>
       </div>
@@ -313,13 +323,12 @@ export function DataSection() {
         onCancel={() => setResetStep(0)}
       />
       <FinalStartOver open={resetStep === 2} minHeight={resetHeight} onConfirm={startOver} onCancel={() => setResetStep(0)} />
-      <ConfirmDialog
+      <ArmedConfirmation
         open={resetStep === 3}
         title={DATA_COPY.eraseTitle}
         message={<>{DATA_COPY.eraseConfirm}{eraseFailure && <span role="alert" style={{ display: 'block', marginTop: 'var(--s-3)' }}>{eraseFailure}</span>}</>}
         confirmLabel={erasePending.value ? DATA_COPY.eraseRetry : DATA_COPY.eraseButton}
         cancelLabel={erasePending.value ? ERRORS.sheetClose : DATA.keepEverything}
-        tone="danger"
         busy={busyErasing}
         onConfirm={() => void erase()}
         onCancel={() => { if (!busyErasing) setResetStep(0); }}

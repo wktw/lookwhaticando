@@ -33,7 +33,7 @@
  * reached through `StoreRuntime`, which tests replace with `configureStore`.
  */
 import { batch, computed, signal } from '@preact/signals';
-import { SCHEMA_VERSION, type AppState, type DateKey, type OnboardingStep, type PlacedDecor, type Settings, type StoryId } from './types';
+import type { AppState, DateKey, OnboardingStep, PlacedDecor, Settings, StoryId } from './types';
 import type {
   ActionResult,
   BackupError,
@@ -69,7 +69,6 @@ import {
   mirrorTheme,
   parseEnvelope,
   peekHead,
-  peekSchema,
   readJson,
   readSave,
   removeKey,
@@ -457,8 +456,10 @@ function makeQueue(key: string, head: SaveHead): SaveQueue {
       let raw: string | null;
       try { raw = storage().getItem(key); disk = peekHead(storage(), key, true); }
       catch { return 'unavailable'; }
-      const schema = raw === null ? SCHEMA_VERSION : peekSchema(raw);
-      if (schema !== null && schema <= SCHEMA_VERSION
+      // The shared decoder owns version authority: the inner state can be newer than its
+      // wrapper, and JSON numbers/layouts need not match our writer's compact header format.
+      const incoming = raw === null ? null : parseEnvelope(raw);
+      if ((incoming === null || incoming.kind === 'ok')
         && (sameHead(disk, { gen: q.gen, rev: q.rev }) || (disk?.gen === undefined && disk?.rev === q.rev))) return true;
       const kept = rescue.peek();
       const knownDamage = kept?.kind === 'damaged' ? kept.raw : kept?.damaged;
