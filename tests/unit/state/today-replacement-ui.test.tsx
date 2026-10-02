@@ -24,7 +24,7 @@ it('an open number pad belongs to the old save even when an imported habit has t
   const oldPlus = button('+1');
   expect(oldPlus).not.toBeNull();
   const imported = { ...store.state.value, profile: { ...store.state.value.profile, name: 'After' }, logs: { [id]: { [store.today.value]: { kind: 'log' as const, count: 5 } } } };
-  await act(async () => { expect(await store.applyImport(encodeEnvelope(imported, 1, b.clock.now, 'test'))).toMatchObject({ ok: true }); });
+  await act(async () => { expect(await store.applyImport(encodeEnvelope(imported, 1, b.clock.now, 'test'), { onCommit: () => oldPlus!.click() })).toMatchObject({ ok: true }); });
   // A stale DOM callback also must not change the new journal while the old sheet exits.
   await act(() => oldPlus!.click());
   expect(store.state.value.logs[id]?.[store.today.value]).toMatchObject({ count: 5 });

@@ -49,8 +49,8 @@ jobs:
       - name: First-paint size budget
         run: npm run size
       - run: npm run build:single
-      - name: Install Chromium for Playwright
-        run: npx playwright install --with-deps chromium
+      - name: Install Chromium and WebKit for Playwright
+        run: npx playwright install --with-deps chromium webkit
       - name: End-to-end (vite preview of dist/, and the single file over file://)
         run: npm run e2e:preview
       - name: Upload Playwright report

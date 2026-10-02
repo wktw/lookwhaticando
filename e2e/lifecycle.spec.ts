@@ -90,9 +90,13 @@ test('keyboard-only import confirmation, reload and durable Undo', async ({ page
   await expect(page.getByLabel('Your name')).toHaveValue('Before');
 });
 
-test('a reload offer cannot discard a write that storage refused', async ({ page }) => {
+test('a real waiting update stays held while storage refuses a change', async ({ page }) => {
   test.skip(process.env.E2E_TARGET !== 'preview', 'the update controls belong to the built PWA');
   await seed(page, household(), 'you');
+  await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
+  await page.reload();
+  await expect.poll(() => page.evaluate(() => !!navigator.serviceWorker.controller)).toBe(true);
+  const active = await page.evaluate(() => navigator.serviceWorker.controller!.scriptURL);
   await page.evaluate(() => {
     const original = Storage.prototype.setItem;
     Storage.prototype.setItem = function (key, value) {
@@ -103,6 +107,17 @@ test('a reload offer cannot discard a write that storage refused', async ({ page
   });
   await page.getByLabel('Your name').fill('Unsaved name');
   await page.getByLabel('Your name').press('Enter');
+  // A different URL of the actual production worker installs a genuine waiting version,
+  // without replacing the worker API or changing the release build's files.
+  await page.evaluate(() => navigator.serviceWorker.register('./sw.js?matrix=update', { scope: './' }).then(() => undefined));
+  await expect.poll(() => page.evaluate(async () => !!(await navigator.serviceWorker.getRegistration())?.waiting)).toBe(true);
+  await page.getByRole('button', { name: 'Check for updates', exact: true }).click();
+  await expect(page.getByText('A new version of catkin is ready.', { exact: true }).first()).toBeVisible();
+  await visibility(page, true);
+  await page.waitForTimeout(100);
+  expect(await page.evaluate(() => navigator.serviceWorker.controller!.scriptURL)).toBe(active);
+  expect(await page.evaluate(async () => !!(await navigator.serviceWorker.getRegistration())?.waiting)).toBe(true);
+  await visibility(page, false);
   await page.getByRole('button', { name: 'Reload app', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Reload anyway', exact: true })).toBeVisible();
   expect(await page.evaluate(() => (window as unknown as { matrixPage: string }).matrixPage)).toBe('same document');
@@ -207,14 +222,15 @@ test('a delayed first onboarding chunk keeps a main heading until it arrives', a
   await expect(page.locator('main h1')).toHaveText('New place. Which plants came with you?');
 });
 
-test('@layout desktop main stays 720px with a forced scrollbar column', async ({ page }) => {
+test('@layout desktop content stays 720px with a forced scrollbar column', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
   await seed(page);
-  await expect.poll(() => page.locator('main').evaluate((el) => el.getBoundingClientRect().width)).toBeGreaterThanOrEqual(719);
-  expect(await page.locator('main').evaluate((el) => el.getBoundingClientRect().width)).toBeLessThanOrEqual(721);
-  await page.addStyleTag({ content: 'html { overflow-y: scroll !important; scrollbar-gutter: stable !important; } body { min-height: 200vh !important; }' });
-  expect(await page.locator('main').evaluate((el) => el.getBoundingClientRect().width)).toBeGreaterThanOrEqual(719);
-  expect(await page.locator('main').evaluate((el) => el.getBoundingClientRect().width)).toBeLessThanOrEqual(721);
+  const width = () => page.locator('main').evaluate((el) => { const style = getComputedStyle(el); return el.getBoundingClientRect().width - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight); });
+  await expect.poll(width).toBeGreaterThanOrEqual(719);
+  expect(await width()).toBeLessThanOrEqual(721);
+  await page.addStyleTag({ content: 'html { overflow-y: scroll !important; scrollbar-gutter: stable !important; } ::-webkit-scrollbar { width: 17px; } body { min-height: 200vh !important; }' });
+  expect(await width()).toBeGreaterThanOrEqual(719);
+  expect(await width()).toBeLessThanOrEqual(721);
 });
 
 for (const viewport of [{ width: 320, height: 640 }, { width: 844, height: 390 }]) {

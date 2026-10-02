@@ -27,7 +27,7 @@ it('a shell recovery chunk failure keeps its request visible and Try again opens
   const { ShellBanners } = await import('./App');
   view = mount(<ShellBanners />);
   await click(button('Daily copies'), 'Daily copies');
-  await until(() => document.querySelector('[role="alertdialog"]'), 'the recovery load error', 2000);
+  await until(() => document.querySelector('[role="alertdialog"]')?.textContent?.includes('This didn’t open'), 'the recovery load error', 2000);
   expect(document.querySelector('[role="alertdialog"]')?.textContent).toContain('This didn’t open');
   control.fail = false;
   await click(button('Try again'), 'Try again');
