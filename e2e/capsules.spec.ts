@@ -347,7 +347,7 @@ test.describe('the Pet Card feeds every treat (WP-C7)', () => {
     await page.keyboard.press('Enter');
     await expect.poll(async () => (await saved(page)).pantry[eight[7]!.id]?.servings).toBe(1);
     await expect(feeds.nth(7)).toBeFocused();
-    await page.keyboard.press('Enter');
+    await page.keyboard.press('Space');
     await expect.poll(async () => (await saved(page)).pantry[eight[7]!.id]?.servings).toBe(0);
     await expect(feeds.nth(7)).toBeDisabled();
     await expect(card.getByRole('button', { name: `Bake a tray · 10 coins, ${eight[7]!.name}`, exact: true })).toBeFocused();
