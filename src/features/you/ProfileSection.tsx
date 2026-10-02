@@ -1,4 +1,5 @@
 /** You › Profile (DESIGN §9.5): the card at the top, her name and her birthday. */
+import { getPlatform } from '@/platform/capabilities';
 import { useEffect, useId, useRef, useState } from 'preact/hooks';
 import { BIRTHDAY, COUNTS, SETTINGS } from '@/catalog/lines';
 import { counted } from '@/catalog/format';
@@ -61,10 +62,9 @@ function NameRow() {
   const latest = useRef(commit);
   latest.current = commit;
   useEffect(() => {
-    const onHide = () => document.visibilityState === 'hidden' && latest.current();
-    document.addEventListener('visibilitychange', onHide);
+    const stopLifecycle = getPlatform().lifecycle.subscribe((event) => { if (event === 'pause') latest.current(); });
     return () => {
-      document.removeEventListener('visibilitychange', onHide);
+      stopLifecycle();
       latest.current();
     };
   }, []);

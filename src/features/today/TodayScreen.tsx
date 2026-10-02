@@ -6,6 +6,7 @@
  * Nothing opens modally at launch: letters, stories, offers and the Season Review wait as cards
  * below the list and as a note on the sill.
  */
+import { getPlatform } from '@/platform/capabilities';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { CardPlant } from '@/art/plants/CardPlant';
 import { CHECKIN_TOASTS, EMPTY, TODAY_LINES, fillLine } from '@/catalog/lines';
@@ -160,17 +161,16 @@ export function TodayScreen() {
   }, [t]);
   useEffect(() => {
     let hiddenAt = 0;
-    const onVis = () => {
-      if (document.visibilityState === 'hidden') hiddenAt = Date.now();
+    const stopLifecycle = getPlatform().lifecycle.subscribe((event) => {
+      if (event === 'pause') hiddenAt = Date.now();
       else if (hiddenAt && Date.now() - hiddenAt >= HIDDEN_RESET_MS) {
         selectDay(null, today.value);
         wentBack.current();
         setWake((w) => w + 1);
       }
-    };
-    document.addEventListener('visibilitychange', onVis);
+    });
     return () => {
-      document.removeEventListener('visibilitychange', onVis);
+      stopLifecycle();
       selectDay(null, today.value);
       cancelChoreography();
     };

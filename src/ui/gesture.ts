@@ -7,18 +7,18 @@
  * listens for. Each primitive keeps its own release; only the abort is shared.
  */
 
+import { getPlatform } from '@/platform/capabilities';
 /**
  * While a gesture is under way: call `abort` if the window loses focus or the page is hidden.
  * Returns the detach, which the gesture calls when it ends and its owner calls on unmount.
  */
 export function onInterrupt(abort: () => void): () => void {
   const blur = () => abort();
-  const hidden = () => document.visibilityState === 'hidden' && abort();
+  const stopLifecycle = getPlatform().lifecycle.subscribe((event) => { if (event === 'pause') abort(); });
   window.addEventListener('blur', blur);
-  document.addEventListener('visibilitychange', hidden);
   return () => {
     window.removeEventListener('blur', blur);
-    document.removeEventListener('visibilitychange', hidden);
+    stopLifecycle();
   };
 }
 

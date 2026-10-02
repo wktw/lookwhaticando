@@ -74,6 +74,10 @@ describe('first-paint code imports only the first-paint copy', () => {
 describe('the entry chunk’s static graph', () => {
   const graph = staticGraph();
 
+  it('keeps native bridges and entitlements out of the web entry', () => {
+    expect([...graph.keys()].filter((file) => /(^|\/)(native|entitlement)(\/|\.)/.test(file))).toEqual([]);
+  });
+
   it('reaches the small first-paint halves of what moved out (a control: the walk sees them)', () => {
     expect(graph.has('src/fx/celebrationHostLoader.tsx')).toBe(true);
     expect(graph.has('src/state/views/closestPet.ts')).toBe(true);

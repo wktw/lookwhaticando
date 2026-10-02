@@ -4,6 +4,7 @@
  * older, other iOS browsers, the Mac's Add to Dock, Chrome/Edge Install, Android).
  */
 import type { JSX } from 'preact';
+import { getPlatform } from '@/platform/capabilities';
 import { useState } from 'preact/hooks';
 import { Card } from '@/ui/Card';
 import { Button } from '@/ui/Button';
@@ -11,7 +12,7 @@ import { Pill } from '@/ui/Pill';
 import { Sheet } from '@/ui/Sheet';
 import { toast } from '@/ui/toast';
 import { AppIconArt } from './AppIconArt';
-import { currentInstallPlatform, installPrompt, promptInstall, safariMajor, type InstallPlatform } from './installPrompt';
+import { currentInstallPlatform, promptInstall, safariMajor, type InstallPlatform } from './installPrompt';
 import { AddToHomeArt, AndroidMenuArt, ChromeInstallArt, CompactShareArt, DockArt, HomeScreenArt, MacDockArt, ShareStepArt, ViewMoreArt } from './installArt';
 import { INSTALL } from '@/catalog/lines';
 import { INSTALL_COPY as SHELL_INSTALL_COPY } from './copy';
@@ -96,7 +97,7 @@ export function guideFor(platform: Exclude<InstallPlatform, 'installed'>, ua: st
  * iPad and Mac) with nothing saved yet: there, a tab's storage can be cleared after 7 days.
  */
 export function shouldGateInstall(platform: InstallPlatform, hasSave: boolean): boolean {
-  return !hasSave && (platform === 'ios-safari' || platform === 'mac-safari');
+  return getPlatform().install === 'web' && !hasSave && (platform === 'ios-safari' || platform === 'mac-safari');
 }
 
 async function install() {
@@ -134,6 +135,7 @@ export interface InstallSheetProps {
 }
 
 export function InstallSheet({ open, onClose, platform }: InstallSheetProps) {
+  if (getPlatform().install === 'native') return null;
   const p = platform ?? currentInstallPlatform();
   if (p === 'installed') {
     return (
@@ -145,7 +147,7 @@ export function InstallSheet({ open, onClose, platform }: InstallSheetProps) {
       </Sheet>
     );
   }
-  const guide = GUIDES[p === 'ios-safari-classic' ? p : guideFor(p, navigator.userAgent)];
+  const guide = GUIDES[p === 'ios-safari-classic' ? p : guideFor(p, getPlatform().installation.userAgent)];
   return (
     <Sheet
       open={open}
@@ -178,8 +180,9 @@ export function InstallSheet({ open, onClose, platform }: InstallSheetProps) {
  * You screen then says what a Safari tab can do to a save).
  */
 export function InstallGate({ onPeek, onPaste, onStay, platform }: { onPeek: () => void; onPaste?: () => void; onStay?: () => void; platform?: InstallPlatform | InstallGuideKey }) {
+  if (getPlatform().install === 'native') return null;
   const p = platform ?? currentInstallPlatform();
-  const key: InstallGuideKey = p === 'installed' ? 'other' : p === 'ios-safari-classic' ? p : guideFor(p, navigator.userAgent);
+  const key: InstallGuideKey = p === 'installed' ? 'other' : p === 'ios-safari-classic' ? p : guideFor(p, getPlatform().installation.userAgent);
   const guide = GUIDES[key];
   return (
     <section class={s.gate} aria-labelledby="install-gate-title">
@@ -210,7 +213,8 @@ export function InstallGate({ onPeek, onPaste, onStay, platform }: { onPeek: () 
 export function InstallGuide({ class: cls }: { class?: string }) {
   const [open, setOpen] = useState(false);
   const p = currentInstallPlatform();
-  const canPrompt = !!installPrompt.value;
+  const canPrompt = !!getPlatform().installation.installPrompt.value;
+  if (getPlatform().install === 'native') return null;
   return (
     <Card class={[s.card, cls].filter(Boolean).join(' ')}>
       <AppIconArt size={56} shape="squircle" class={s.icon} />
