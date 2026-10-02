@@ -30,7 +30,7 @@ export function announce(message: string | (() => string), politeness: 'polite' 
     const text = typeof message === 'function' ? message() : message;
     if (!text) return;
     // Modal screen readers must hear the same note whose actions are inside their focus scope.
-    (topNotesSlot() ?? document.body).appendChild(el);
+    (topNotesSlot() ?? el.ownerDocument.body).appendChild(el);
     el.textContent = text;
   }, 60);
 }

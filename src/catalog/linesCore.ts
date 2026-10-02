@@ -73,7 +73,7 @@ export const BLOOM_LINES: Readonly<Record<PlantSpeciesId, string>> = {
   snakeplant: '{Plant} has sent up a spike of small cream flowers, which snake plants hardly ever do.',
   catgrass: '{Plant} is thick and tall enough to lie in.',
   monstera: '{Plant} has opened a first split leaf.',
-  strawberry: '{Plant} has white flowers and the first small berries.',
+  strawberry: '{Plant} has white flowers.',
   lavender: '{Plant} has purple spikes, and the sill smells of lavender.',
   catnip: '{Plant} has small white flowers at the tips.',
   hoya: '{Plant} has a cluster of star-shaped flowers.',
@@ -156,10 +156,10 @@ export const FRIENDSHIP_LEVELS: readonly { level: number; name: string; lines: r
   },
   { level: 9, name: 'Waits for you', lines: ['{name} is usually waiting at the front of the sill now.'] },
   { level: 10, name: 'Best friends', lines: ['{name} is your best friend now. There’s a small brass tag to show it.'] },
-  { level: 11, name: 'Settled in', lines: ['{name} has settled in for good, and falls asleep mid-stroke now.'] },
-  { level: 12, name: 'Part of the furniture', lines: ['{name} is part of the furniture now, with a cushion that has a dent in it.'] },
-  { level: 13, name: 'Has a routine', lines: ['{name} has a routine now: the sunbeam after lunch, the lamp after dark.'] },
-  { level: 14, name: 'Knows every pot', lines: ['{name} knows every pot on the sill now, and which ones are warm.'] },
+  { level: 11, name: 'Settled in', lines: ['{name} has settled in for good.'] },
+  { level: 12, name: 'A familiar face', lines: ['{name} is a familiar face on the sill.'] },
+  { level: 13, name: 'Good company', lines: ['{name} is good company.'] },
+  { level: 14, name: 'Part of the place', lines: ['{name} is part of the place now.'] },
   { level: 15, name: 'Old friends', lines: ['{name} is an old friend now, and here for good.'] },
 ];
 
@@ -407,19 +407,19 @@ export const REMINDERS = {
   title: 'Watering time',
   rows: { morning: 'Morning', midday: 'Midday', evening: 'Evening' },
   add: 'Add to calendar',
-  helper: 'catkin can’t send notifications, so it makes a calendar event that repeats every day. Your calendar does the reminding.',
+  helper: 'Little by Little can’t send notifications, so it makes a calendar event that repeats every day. Your calendar does the reminding.',
   summary: 'Watering time',
   description: '{Block} plants: {habits}.',
   descriptionEmpty: '{Block} plants.',
   alarm: 'Watering time',
-  file: 'catkin-watering-time-{block}.ics',
+  file: 'little-by-little-watering-time-{block}.ics',
 } as const;
 
 /** Data (§21). Slots: {count}, {habits}, {waterings}, {pets}, {date}, {habit}. */
 export const DATA = {
   save: 'Save a backup',
   saved: 'Backup saved.',
-  file: 'catkin-backup-{date}.json',
+  file: 'little-by-little-backup-{date}.json',
   copy: 'Copy backup',
   copied: 'Copied. Paste it somewhere safe, like a note to yourself.',
   import: 'Import a backup',
@@ -432,9 +432,9 @@ export const DATA = {
   snapshots: 'Daily copies, kept on this device: 7 daily and 4 weekly.',
   restoreSnapshot: 'Restore this copy',
   csv: 'Export waterings as CSV',
-  csvFile: 'catkin-waterings-{date}.csv',
-  /** The CSV of a newer catkin's save: only what this catkin can read (WP-A4). DEC-V: pending owner approval. */
-  csvPartialFile: 'catkin-waterings-{date}-partial.csv',
+  csvFile: 'little-by-little-waterings-{date}.csv',
+  /** The CSV of a newer version of Little by Little's save: only what this version of Little by Little can read (WP-A4). DEC-V: pending owner approval. */
+  csvPartialFile: 'little-by-little-waterings-{date}-partial.csv',
   /** The CSV's header row and state words (`exportCsv`). */
   csvColumns: ['date', 'habit', 'count', 'target', 'state'],
   csvStates: { watered: 'watered', tiny: 'tiny', partial: 'partial', rest: 'rest' },
@@ -443,7 +443,7 @@ export const DATA = {
   noBackup: 'No backup yet',
   nudge: 'Worth saving a backup: the last one is from {date}.',
   startOver: 'Start over',
-  startOverConfirm: 'Start over? Every habit, plant and pet on this device goes. Save a backup first, just in case.',
+  startOverConfirm: 'The habits, plants and pets here go. The daily copies stay on this device. Save a backup first, just in case.',
   keepEverything: 'Keep everything',
   demo: 'Try the demo',
   leaveDemo: 'Leave the demo',

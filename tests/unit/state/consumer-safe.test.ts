@@ -435,7 +435,7 @@ describe('P-persistence-06: an import is bounded before it is read or expanded',
   });
 
   it('new API: too-large has its own line (VOICE §18)', async () => {
-    expect(ERRORS.tooLarge).toBe('That’s too big to be a catkin backup.');
+    expect(ERRORS.tooLarge).toBe('That’s too big to be a Little by Little backup.');
     expect(importErrorText('too-large')).toBe(ERRORS.tooLarge);
     fakeBrowser();
     store.hydrate();

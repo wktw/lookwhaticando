@@ -10,6 +10,7 @@
  * (./stable.ts) and is a `memo` component, so an XP change re-renders only what shows XP (the Pet
  * Card), never the scene, the pots or the paper below.
  */
+import { plantPresentation } from '@/state/views/plantPresentation';
 import { computed, useSignal } from '@preact/signals';
 import { memo } from 'preact/compat';
 import type { RefObject } from 'preact';
@@ -18,7 +19,7 @@ import type { PlaceId } from '@/catalog/types';
 import { EMPTY, FOUND_THINGS, TODAY_LINES, capitalise, fillLine, withArticle } from '@/catalog/lines';
 import { ShelfScene, type EditDecor, type PetGesture, type ShelfSceneHandle } from '@/art/scene';
 import { CoinIcon } from '@/art/icons';
-import { memoryShelfView, petsView, plantVM, shelfView, todayView, walletView } from '@/state/selectors';
+import { memoryShelfView, petsView, shelfView, todayView, walletView } from '@/state/selectors';
 import { buyPlace, moveDecor, now, petPet, placeDecor, removeDecor, state, storeLocal, today } from '@/state/store';
 import { openHabitDetail, openPetCard } from '@/features/habits/open';
 import { PLACE_SEGMENT, replaceRest, routeRest } from '@/app/router';
@@ -56,8 +57,8 @@ const restingPots = computed<RestingPot[]>(() => {
   return st.habits
     .filter((h) => ids.has(h.id))
     .map((h) => {
-      const p = plantVM(st, h, today.value, storeLocal());
-      return { habitId: h.id, name: h.name, species: h.plant, pot: h.pot, stage: p.displayStage, progress: p.progress, blooms: p.blooms };
+      const { resident: _resident, ...plant } = plantPresentation(st, h.id, { today: today.value, now: now.value, local: storeLocal() })!;
+      return { habitId: h.id, name: h.name, ...plant };
     });
 });
 
@@ -66,7 +67,7 @@ export const scenePots = stable(() => shelfPots(state.value.habits, todayView.va
 export const scenePets = stable(() => shelfPets(shelfView.value.out, state.value.pets));
 const sceneDecor = stable(() => shelfDecor(shelfView.value.decor));
 const scenePlaces = stable(() => shelfView.value.places.filter((p) => p.owned && p.id !== 'sill').map((p) => p.id));
-const sceneRetired = stable(() => retiredPots(memoryShelfView.value.retired, state.value.ledger.bestStage));
+export const sceneRetired = stable(() => retiredPots(memoryShelfView.value.retired, state.value, { today: today.value, now: now.value, local: storeLocal() }));
 const sceneCoins = computed(() => walletView.value.coins);
 const extrasInput = stable(() => {
   const vm = todayView.value;

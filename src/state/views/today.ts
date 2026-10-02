@@ -10,7 +10,8 @@
  *
  * `bandPots(vm)` and `bandPets(vm, state)` turn the VM into the WindowsillBand's `pots` and `pets`.
  */
-import type { AppState, BloomColour, BloomShape, DateKey, Habit, Hemisphere, Outfit, SeasonName, StoryId, TimeOfDay } from '../types';
+import { plantPresentation, type PlantPresentation } from './plantPresentation';
+import type { AppState, DateKey, Habit, Hemisphere, Outfit, SeasonName, StoryId, TimeOfDay } from '../types';
 import type { Personality, PlaceId, PlantSpeciesId, PotId } from '@/catalog/types';
 import { greetingPeriod, type GreetingPeriod } from '@/catalog/lines';
 import { weekdayName } from '@/catalog/format';
@@ -109,6 +110,7 @@ export interface SillPotVM {
   progress: number;
   /** The art's bloom count: undefined below Evergreen (the art follows the stage), see PlantVM.blooms. */
   blooms: number | undefined;
+  flourishes?: number;
   /** Rises with every watering tap: the art's `pulse`. */
   pulse: number;
   /** Watered on the selected day: the pot shows damp soil (§9.1; there is no dry state). */
@@ -127,7 +129,7 @@ export interface SillPotVM {
   /** The resident's came-home day: a small bow on the pot (§13). */
   bow: boolean;
   /** The plant's shown look (§14.2); null = Classic. */
-  look: { colour: BloomColour; shape: BloomShape } | null;
+  look: PlantPresentation['look'] | null;
 }
 
 /** The greeting chip's data (§9.1 "Afternoon, Sam."): GREETINGS[birthday ? 'birthday' : period] in lines.ts. */
@@ -396,23 +398,25 @@ export function todayVM(s: AppState, env: ViewEnv, date: DateKey = env.today): T
   const sill: SillPotVM[] = ordered.map((card) => {
     const own = residentCompanion(card);
     const petId = own?.petId ?? nearest[next++];
+    const plant = plantPresentation(s, card.id, env)!;
     return {
       habitId: card.id,
       icon: card.icon,
       name: card.name,
       note: card.after ? null : card.anchor,
-      species: card.plant.species,
-      pot: card.plant.pot,
-      stage: card.plant.displayStage,
-      progress: card.plant.progress,
-      blooms: card.plant.blooms,
+      species: plant.species,
+      pot: plant.pot,
+      stage: plant.stage,
+      progress: plant.progress,
+      blooms: plant.blooms,
+      flourishes: plant.flourishes,
       pulse: card.waterings,
       done: card.done,
       damp: card.damp,
       resident: petId ? { petId, companion: own !== null } : null,
       routine: own?.routine ?? null,
       bow: petId !== undefined && bows.has(petId),
-      look: card.look,
+      look: plant.look ?? null,
     };
   });
   const found = s.found?.find((f) => f.date === day);
@@ -493,6 +497,8 @@ export interface BandPot {
   stage: number;
   progress?: number;
   blooms?: number;
+  flourishes?: number;
+  look?: PlantPresentation['look'];
   pot: PotId;
   damp?: boolean;
   pulse?: number;
@@ -525,6 +531,8 @@ export function bandPots(vm: Pick<TodayVM, 'sill'>): BandPot[] {
     stage: p.stage,
     progress: p.progress,
     ...(p.blooms !== undefined ? { blooms: p.blooms } : {}),
+    ...(p.flourishes ? { flourishes: p.flourishes } : {}),
+    ...(p.look ? { look: p.look } : {}),
     pot: p.pot,
     damp: p.damp,
     pulse: p.pulse,
