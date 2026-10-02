@@ -36,6 +36,35 @@ function clock() {
 const backup = (state = compacted) => JSON.stringify(makeBackup(state, { now: env.now, appVersion: 'measurement-test', device: 'test' }));
 
 describe('G2 maintenance samples', () => {
+  it('keeps clone setup and input/output validation outside the maintenance interval', () => {
+    const timing = clock();
+    const phases: Array<{ stage: string; active: boolean }> = [];
+    const clone = structuredClone;
+    vi.spyOn(globalThis, 'structuredClone').mockImplementation(<T>(value: T): T => {
+      phases.push({ stage: 'clone', active: timing.active() });
+      return clone(value);
+    });
+    const validate = validator.validateState;
+    vi.spyOn(validator, 'validateState').mockImplementation((...args) => {
+      phases.push({ stage: 'validate', active: timing.active() });
+      return validate(...args);
+    });
+    const prune = logging.pruneOldStamps;
+    vi.spyOn(logging, 'pruneOldStamps').mockImplementation((tx) => {
+      phases.push({ stage: 'reconcile', active: timing.active() });
+      prune(tx);
+    });
+    const sample = measureMaintenance(compacted, env, 'rollover', timing.now);
+    expect(sample.ms).toBe(10);
+    expect(phases).toEqual([
+      { stage: 'clone', active: false },
+      { stage: 'validate', active: false },
+      { stage: 'reconcile', active: true },
+      { stage: 'validate', active: false },
+    ]);
+    expect(timing.calls()).toBe(2);
+  });
+
   it('times a real next-day open, including the provenance reconciler, with setup and guards outside the clock', () => {
     const timing = clock();
     const calls: Array<{ active: boolean; today: string }> = [];
