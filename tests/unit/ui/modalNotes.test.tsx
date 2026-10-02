@@ -17,7 +17,7 @@ const live = () => [...document.querySelectorAll('[role="status"]')].map((el) =>
 const fire = (el: Element, name: string, props = {}) => act(() => { el.dispatchEvent(Object.assign(new Event(name, { bubbles: true }), props)); });
 const shown = () => expect(toasts.value[0]?.leaving).not.toBe(true);
 const expired = () => expect(toasts.value[0]?.leaving).toBe(true);
-const hidden = (value: boolean) => act(() => { Object.defineProperty(document, 'hidden', { configurable: true, value }); document.dispatchEvent(new Event('visibilitychange')); });
+const hidden = (value: boolean) => act(() => { Object.defineProperty(document, 'hidden', { configurable: true, value }); Object.defineProperty(document, 'visibilityState', { configurable: true, value: value ? 'hidden' : 'visible' }); document.dispatchEvent(new Event('visibilitychange')); });
 const note = (message = 'Water kept.', duration = 4000) => act(() => void toast({ message, duration, action: { label: 'Undo', onAction: vi.fn() } }));
 function Nested() {
   const [nested, setNested] = useState(false);
@@ -32,6 +32,7 @@ beforeEach(() => {
   document.body.innerHTML = '<div id="app"></div>';
   host = document.getElementById('app')!;
   Object.defineProperty(document, 'hidden', { configurable: true, value: false });
+  Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'visible' });
   toasts.value = [];
 });
 afterEach(() => {

@@ -1,3 +1,4 @@
+import { getPlatform } from '@/platform/capabilities';
 import type { JSX, Ref } from 'preact';
 import { createPortal } from 'preact/compat';
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
@@ -22,7 +23,7 @@ export function Toaster() {
   const [lifted, setLifted] = useState(anyLayerOpen);
   const [waiting, setWaiting] = useState(() => momentOpen());
   const [slot, setSlot] = useState(topNotesSlot);
-  const [hidden, setHidden] = useState(() => document.hidden);
+  const [hidden, setHidden] = useState(() => getPlatform().lifecycle.hidden);
   const stackRef = useRef<HTMLElement>(null);
 
   useLayoutEffect(() => {
@@ -36,9 +37,7 @@ export function Toaster() {
   }, []);
 
   useEffect(() => {
-    const sync = () => setHidden(document.hidden);
-    document.addEventListener('visibilitychange', sync);
-    return () => document.removeEventListener('visibilitychange', sync);
+    return getPlatform().lifecycle.subscribe(() => setHidden(getPlatform().lifecycle.hidden));
   }, []);
 
   // At the top, keep clear of a banner and of the open sheet's header (transform only). The sheet

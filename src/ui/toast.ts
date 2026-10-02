@@ -4,6 +4,7 @@
  * Toasts with the same `key` coalesce: the visible one updates in place and its timer restarts,
  * which is how rapid events ("+5", "+5", "+8") become one calm "+18".
  */
+import { getPlatform } from '@/platform/capabilities';
 import type { ComponentChildren } from 'preact';
 import { signal } from '@preact/signals';
 import type { Tone } from './tone';
@@ -136,7 +137,7 @@ export function runToastClock(item: ToastItem): () => void {
 }
 
 export function toastIsReachable(id: string): boolean {
-  if (typeof document === 'undefined' || document.hidden || momentOpen() || toastsHeld.peek() > 0) return false;
+  if (typeof document === 'undefined' || getPlatform().lifecycle.hidden || momentOpen() || toastsHeld.peek() > 0) return false;
   const item = toasts.peek().find((t) => t.id === id && !t.leaving);
   const card = document.querySelector(`[data-toast-id="${id}"]`);
   return !!item && !!card && (!anyLayerOpen() || !!topNotesSlot()?.contains(card));
