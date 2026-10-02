@@ -8,7 +8,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { createInitialState } from '../src/state/defaults';
 import { encodeEnvelope } from '../src/state/persist';
 import { transact } from '../src/domain/tx';
-import { completeOnboarding } from '../src/domain/habits';
+import { archiveHabit, completeOnboarding } from '../src/domain/habits';
 import { mulberry32 } from '../src/domain/rng';
 import { runtimeLocalTime } from '../src/domain/dates';
 import type { AppState } from '../src/state/types';
@@ -176,6 +176,46 @@ test.describe('a shell recovery chunk that cannot load', () => {
       await page.keyboard.press('Escape');
       await expect(recovered).toBeHidden();
     } finally { await origin.close(); }
+  });
+});
+
+test.describe('plain modal notes', () => {
+  test.use({ serviceWorkers: 'block' });
+  test('@colors a plain modal note has keyboard access to its scrolling text', async ({ page }, info) => {
+    await page.setViewportSize({ width: 320, height: 640 });
+    const current = household();
+    const id = current.habits.find((h) => h.name === 'Walk')!.id;
+    const archived = transact(current, { now: NOW, today: DAY, local: runtimeLocalTime, rng: mulberry32(71) }, (tx) => {
+      archiveHabit(tx, id);
+      return {};
+    }).state;
+    await seed(page, archived, 'progress');
+    await keyActivate(page, page.getByRole('button', { name: 'Walk, on the balcony shelf', exact: true }));
+    const detail = page.getByRole('dialog', { name: 'Walk', exact: true });
+    await keyActivate(page, detail.getByRole('button', { name: 'Bring it back to the sill', exact: true }));
+    const plain = detail.locator('[data-toast-id]').filter({ hasText: 'Walk is back on the sill.' });
+    await expect(plain).toBeVisible();
+    await expect(plain.getByRole('button')).toHaveCount(0);
+    const lane = detail.locator('[data-notes-slot]');
+    const geometry = await lane.evaluate((el) => ({ height: el.clientHeight, content: el.scrollHeight }));
+    expect(geometry.height).toBeGreaterThan(0);
+    expect(geometry.content).toBeGreaterThan(geometry.height + 1);
+    await detail.getByRole('button', { name: 'Close', exact: true }).focus();
+    await page.keyboard.press('Tab');
+    await expect(plain).toBeFocused({ timeout: 2000 });
+    // Real browser keys scroll the owning lane; the modal body keeps its position.
+    const body = detail.locator('[data-notes-slot] + div');
+    const before = await body.evaluate((el) => el.scrollTop);
+    for (let i = 0; i < 8; i++) await page.keyboard.press('ArrowUp');
+    await expect.poll(() => lane.evaluate((el) => el.scrollTop)).toBe(0);
+    await page.keyboard.press('ArrowDown');
+    await expect.poll(() => lane.evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
+    expect(await body.evaluate((el) => el.scrollTop)).toBe(before);
+    await expectNoAxeViolations(page, info);
+    await page.waitForTimeout(4200); // focusing the text pauses its ordinary four-second lifetime
+    await expect(plain).toBeFocused({ timeout: 2000 });
+    await expect(plain).toBeVisible();
+    expect((await saved(page)).habits.find((h) => h.id === id)?.archivedOn).toBeUndefined();
   });
 });
 
