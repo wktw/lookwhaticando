@@ -232,3 +232,30 @@ test.describe('an overlapping scene name tag', () => {
     await expect(page.getByRole('dialog', { name: pet.name, exact: true })).toBeVisible();
   });
 });
+
+
+test.describe('low-bed neighbours keep their own touch targets', () => {
+  test.use({ viewport: { width: 390, height: 844 } });
+  const failureClock = 1790961632123; // Actual failing Shelf trace, 2 October 2026 at 17:20:32 UTC.
+  for (const name of ['Waffles', 'Soot']) test(`${name} is reachable beside the occupied low bed`, async ({ page }, info) => {
+    const household = buildDemo({ today: '2026-10-02', now: failureClock });
+    await openShelf(page, household, failureClock);
+    const actor = page.getByRole('button', { name, exact: true });
+    await actor.scrollIntoViewIfNeeded();
+    // Real hit testing catches art and another pet's invisible button over the intended target.
+    expect(await actor.evaluate(el => {
+      const r = el.getBoundingClientRect();
+      return document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2) === el;
+    })).toBe(true);
+    await expectNoAxeViolations(page, info);
+    await actor.click();
+    const tag = page.getByRole('button', { name: `${name}’s card`, exact: true });
+    await expect(tag).toBeVisible();
+    await tag.click();
+    await expect(page.getByRole('dialog', { name, exact: true })).toBeVisible();
+    await page.keyboard.press('Escape');
+    await actor.focus();
+    await page.keyboard.press('Enter');
+    await expect(tag).toBeVisible();
+  });
+});
