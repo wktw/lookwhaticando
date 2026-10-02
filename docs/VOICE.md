@@ -1066,7 +1066,7 @@ Say what happened and what to do. Never `failed`, never `Oops`, never a code in 
 | The demo waits for a save | "The demo opens once your last change is saved." |
 | Open in another window | "catkin is open in another window · Use here" |
 | A save from a newer catkin | "This save is from a newer catkin, so it opens read-only here. Update to make changes." |
-| Started over in another window (this window follows, and the note has a Close button). DEC-V: pending owner approval | "catkin was started over in another window, so it starts fresh here too. The daily copies stay on this device." |
+| Started over in another window (this window follows, and the note has a Close button). DEC-V: pending owner approval | "catkin was started over in another window, so it starts fresh here too." |
 | The device clock went back | "The clock on this device reads earlier than catkin last saw. Coins and stamps wait until it’s right again." |
 | The save couldn't be read, so catkin opened the one before it (its `:backup`); the note has these buttons and Close. DEC-V: pending owner approval | "catkin couldn’t read the latest save on this device, so it opened the one before it." · "Save a backup" · "Daily copies" |
 | The save couldn't be read at all, so its file is kept as it was: aside (its `:corrupt`), or, while there is no room to put it aside yet, where it was, with every change waiting and the note for a save that doesn't go through beside it. The note has these buttons and Close. DEC-V: pending owner approval (the wording is chosen to be true in both states) | "catkin couldn’t read the save on this device. The file is kept just as it was." · "Save the damaged file" · "Daily copies" · "Import a backup" |
@@ -1141,7 +1141,11 @@ Under You › Data.
 | A damaged save kept aside (a row until Start over, and the §18 note's button). DEC-V: pending owner approval | "Save the damaged file" → "The damaged file is saved." (file "catkin-damaged-save-2025-09-29.txt", its bytes exactly as they were) |
 | Last backup | "Last backup: Sep 20" / "No backup yet" |
 | The nudge | "Worth saving a backup: the last one is from Aug 2." |
-| Start over | "Start over" → "Start over? Every habit, plant and pet on this device goes. Save a backup first, just in case." · "Start over" · "Keep everything" |
+| Start over (WP-A9, DEC-V: pending owner approval) | "Start over" → "The habits, plants and pets here go. The daily copies stay on this device. Save a backup first, just in case." · "Start over" · "Keep everything" |
+| Erase, behind Start over (WP-A9, DEC-V: pending owner approval) | "Save a backup first" · "Erase everything on this device" → "Erase everything on this device?" · "The save, settings, demo and daily copies in this browser go. There is no undo. Backup files you saved elsewhere stay there." · "Erase everything" · "Keep everything" |
+| Erase result and retry (WP-A9, DEC-V: pending owner approval) | "The save, settings and daily copies on this device have been erased." · "Some data is still on this device." · "The save or settings couldn’t be erased." · "The daily copies couldn’t be erased. Close other catkin windows, then try again." · "The daily copies couldn’t be erased. Try again." · "Try erasing again" |
+| A partial erase keeps changes paused until retried (WP-A9, DEC-V: pending owner approval) | "Some data is still on this device. Changes are paused here. Open You to try again." |
+| Ownership changes while erasing (WP-A9, DEC-V: pending owner approval) | "The save changed while erasing. Some data may still be on this device." |
 | The demo | "Try the demo" · "Leave the demo" |
 
 Habits: "Archive {habit}? The plant moves to the balcony shelf, and you can bring it back anytime." ·

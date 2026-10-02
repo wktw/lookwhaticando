@@ -442,7 +442,7 @@ export const DATA = {
   noBackup: 'No backup yet',
   nudge: 'Worth saving a backup: the last one is from {date}.',
   startOver: 'Start over',
-  startOverConfirm: 'Start over? Every habit, plant and pet on this device goes. Save a backup first, just in case.',
+  startOverConfirm: 'The habits, plants and pets here go. The daily copies stay on this device. Save a backup first, just in case.',
   keepEverything: 'Keep everything',
   demo: 'Try the demo',
   leaveDemo: 'Leave the demo',

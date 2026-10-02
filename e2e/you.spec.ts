@@ -240,8 +240,8 @@ test('the demo opens with its pill, and leaving it brings her own plants back', 
 test('Start over asks twice, then onboarding starts again', async ({ page }) => {
   await openYou(page);
   await section(page, 'Your data').getByRole('button', { name: 'Start over' }).click();
-  await page.getByRole('alertdialog').filter({ hasText: 'Every habit, plant and pet' }).getByRole('button', { name: 'Start over' }).click();
-  const again = page.getByRole('alertdialog').filter({ hasText: 'The daily copies stay on this device.' });
+  await page.getByRole('alertdialog').filter({ hasText: 'The habits, plants and pets here go.' }).getByRole('button', { name: 'Start over' }).click();
+  const again = page.getByRole('alertdialog').filter({ hasText: 'Start over now?' });
   await expect(again).toBeVisible();
   // The last "Start over" arms itself a moment after it appears.
   await page.waitForTimeout(800);
@@ -252,7 +252,7 @@ test('Start over asks twice, then onboarding starts again', async ({ page }) => 
 test('a quick double tap on Start over keeps everything', async ({ page }) => {
   await openYou(page);
   await section(page, 'Your data').getByRole('button', { name: 'Start over' }).click();
-  const first = page.getByRole('alertdialog').filter({ hasText: 'Every habit, plant and pet' }).getByRole('button', { name: 'Start over' });
+  const first = page.getByRole('alertdialog').filter({ hasText: 'The habits, plants and pets here go.' }).getByRole('button', { name: 'Start over' });
   await expect(first).toBeVisible();
   await page.waitForTimeout(400);
   const box = (await first.boundingBox())!;
