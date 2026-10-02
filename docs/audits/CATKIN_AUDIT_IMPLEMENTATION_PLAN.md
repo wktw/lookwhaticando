@@ -1941,9 +1941,10 @@ Every package in this section fills every field (a mechanical check of the ten l
 >   - No deep link for a Pet Card (the design's alternative for widgets, RM-5).
 > - **Not done:**
 >   - The device check (WP-G3): VoiceOver focus landing on the chooser, the tray tile and Today's ring on an iPhone; the WebKit run of `e2e/capsules.spec.ts` (WP-G1).
->   - Focus when a treat's last serving goes: its button is disabled under focus, so focus drops to the page. This was already so in the six-treat row and is the same in the rest; moving focus to its "Bake a tray" (or the next treat) is a small follow-up.
 >   - Where focus goes when a Pet Card opened from a reveal closes is not checked: the Sheet gives it back to what had focus as the card opened, if that is still on the page.
 >   - DEC-V: the owner's approval of the two new rows.
+> **Last-serving focus follow-up (2 October 2026): implemented and approved by both independent reviewers.** Real-store tests failed first for the quick row and expanded list, with exact quantities preserved but focus left on a disabled feed button. The existing keyboard journey also failed in actual Chromium and WebKit after the final serving. The card now hands focus to the same treat’s affordable Bake action, another available feed/control, or the card itself, without activating anything. It preserves deliberately moved focus, a newer modal’s ownership and a changed save epoch; refused feeds cannot leave a request that later steals focus. A reviewer’s additional 320 px probe exposed an offscreen fallback in Chromium, so the focused control is revealed at the nearest scroll edges without moving the outer page. The final four browser controls pass across both engines; 11 focused unit controls, typecheck and build pass. Each reviewer independently passed all 30 Pet Card unit cases; the browser reviewer also passed all four production-browser cases, including Space on the last serving without spending coins. A mutation check pins refused-feed cleanup. No new wording; ordered package/integration gates and physical VoiceOver checks remain.
+
 - **Covers:** integration-i6, creative-cr-01, domain-w2-d2, and the in-app subset of P-ui-19 (alias P-creative-24).
 - **Files:**
   - `features/habits/open.ts:16,30-32` (`openPetCard(petId, {intent: 'findPlant' | 'feed'})`);
