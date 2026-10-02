@@ -1,0 +1,46 @@
+{
+  "phase": "before",
+  "utc": "2026-10-02T18:03:57.301605+00:00",
+  "sha": "ee7a33fbc7244a5d3c2d4fc0bba7c73c942b6336",
+  "gitPorcelain": "",
+  "worktree": "/workspace/wt/windows-forward-1640",
+  "kernel": "6.18.44",
+  "machine": "x86_64",
+  "node": "v24.19.0",
+  "logicalCpuCount": 5,
+  "cpuQuota": "400000 100000",
+  "cpuStat": "usage_usec 127831861220\nuser_usec 107621269668\nsystem_usec 20210591551\nnice_usec 42343\nnr_periods 434691\nnr_throttled 191342\nthrottled_usec 10009384826\nnr_bursts 0\nburst_usec 0",
+  "memoryLimitBytes": "17179869184",
+  "memoryCurrentBytes": "10414149632",
+  "memoryEvents": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0",
+  "hostMeminfo": "MemTotal:       18440136 kB\nMemFree:         7755304 kB\nMemAvailable:   17051500 kB\nBuffers:          313544 kB\nCached:          8269724 kB\nSwapCached:            0 kB\nActive:          3724016 kB\nInactive:        4886540 kB\nActive(anon):     289564 kB\nInactive(anon):   175404 kB\nActive(file):    3434452 kB\nInactive(file):  4711136 kB\nUnevictable:       29920 kB\nMlocked:               0 kB\nSwapTotal:             0 kB\nSwapFree:              0 kB\nDirty:                68 kB\nWriteback:             0 kB\nAnonPages:         57804 kB\nMapped:            78908 kB\nShmem:            407788 kB\nKReclaimable:    1502620 kB\nSlab:            1742488 kB\nSReclaimable:    1502620 kB\nSUnreclaim:       239868 kB\nKernelStack:        2196 kB\nPageTables:         2860 kB\nSecPageTables:         0 kB\nNFS_Unstable:          0 kB\nBounce:                0 kB\nWritebackTmp:          0 kB\nCommitLimit:     9220068 kB\nCommitted_AS:     753060 kB\nVmallocTotal:   34359738367 kB\nVmallocUsed:        4480 kB\nVmallocChunk:          0 kB\nPercpu:             1512 kB\nAnonHugePages:         0 kB\nShmemHugePages:        0 kB\nShmemPmdMapped:        0 kB\nFileHugePages:     55296 kB\nFilePmdMapped:         0 kB\nBalloon:               0 kB\nHugePages_Total:       0\nHugePages_Free:        0\nHugePages_Rsvd:        0\nHugePages_Surp:        0\nHugepagesize:       2048 kB\nHugetlb:               0 kB\nDirectMap4k:      575488 kB\nDirectMap2M:    17498112 kB\nDirectMap1G:    17825792 kB",
+  "loadavg": "0.00 0.08 0.84 1/6863 1053116",
+  "liveRelevantProcessNames": [],
+  "zombieCount": 1276,
+  "quietConfirmation": "Root explicit QUIET RELEASE for ee7a33f on 2026-10-02 following coordinator 17:54:15 UTC clean/process/port proof; no other local heavy job authorized. Coordinator holds source/test/build work; C3 says commands paused.",
+  "oldArchivesSha256": {
+    "ad27da15242987be62f8d7696cfdba98f74f36b0": {
+      "journal-scale.json": "a760256bb19ff08a436ecbb5c766d76954e68754d6e59c69b21b62b0feca3b9b",
+      "run.log": "6af7ec4ca3f5d2f63bb017e9c5fa72cfab8085d5f2daac146752f69c22ca15fd",
+      "before.json": "3b6f09658c42570c54298859ff53fbfd9fb27d631734deae514daaf23d64f91e",
+      "after.json": "39edc133ea66a51d56d8fef200c1340687c8d807d1e2aec57ddc6392bc9bc212",
+      "start-utc.txt": "23c37730647f8d3f2ee768d90e566b63128e788aba23b4cd598fbfead0466d25",
+      "end-utc.txt": "4a2f3bada4030515bdaa4bf6ac2b7b7524820f82ff45f29fba395c83efebd18d",
+      "exit-status.txt": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "derived-summary.json": "688a7d37d4007c8dcfe4654d491094448eb39f41855c3b8a120ba1fc6ce127ad",
+      "decision-draft.md": "c815b64a3b4c3458add7ab092458f3f8c229c1fbd5dd9be0c4a3455a15465e24"
+    },
+    "6d11f4671026f619a1157e593d483d62180b04e1": {
+      "journal-scale.json": "9ca239bfdb555e79d39b38c5550ef56e2aae8b732fd29b16e93c911c12fc6a58",
+      "run.log": "1bb7464c1104e593ea4e9f042dfc9828fd146f1ad752c051dd3b288f047bfa35",
+      "before.json": "71e2871e4b8cbeb1db7a8027a769aaf909d800f17213f17c9cecf7b8eec9dac3",
+      "after.json": "bd61d315b24f28d2f7f870aa0fd2dff98f9725e07f632be37c8c01420e460602",
+      "start-utc.txt": "93d9ca6575b3619d83a4783c379f108b47125ba41ccc476ffe79fdd29fd81f4c",
+      "end-utc.txt": "fbfd8ea9b03e44c889857cd4fbe33ac38e87822f07d19051c9e173d3269395de",
+      "exit-status.txt": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "derived-summary.json": "2747f32e53900e24a047961468aef0196117ed6ccd9649a554de9c9fe02316b0",
+      "decision-draft.md": "a04a1f8db4708d9072432f910c08471b492dafed7036af320b604074e5504dcf"
+    }
+  },
+  "method": "Unchanged approved schema-2 production-compiled harness; years5,10/samples5/ui=true/snapshots=true. Fresh source-keyed external output; no source/dependency changes or additional tests."
+}

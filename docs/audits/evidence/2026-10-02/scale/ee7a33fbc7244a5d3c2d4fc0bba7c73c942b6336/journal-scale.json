@@ -1,0 +1,729 @@
+{
+  "schema": 2,
+  "sha": "ee7a33fbc7244a5d3c2d4fc0bba7c73c942b6336",
+  "dirty": false,
+  "measuredAt": "2026-10-02T18:04:31.308Z",
+  "environment": {
+    "os": "linux 6.18.44",
+    "node": "v24.19.0",
+    "cpu": "AMD EPYC 9V74 80-Core Processor",
+    "logicalCpus": 5,
+    "memoryBytes": 18882699264,
+    "chromium": "143.0.7499.4",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "deviceScaleFactor": 1,
+    "reducedMotion": true,
+    "timezone": "UTC",
+    "cpuThrottling": "none",
+    "build": "production-compiled isolated component/function harness"
+  },
+  "budget": {
+    "desktop": "observational; no new threshold agreed",
+    "phone": "physical-device budgets and validation remain parked with WP-E4; a narrow desktop viewport is not a phone measurement"
+  },
+  "scenarios": [
+    {
+      "fixture": {
+        "years": 5,
+        "habits": 12,
+        "count": 21900,
+        "characters": 6132000,
+        "fingerprint": 3148841511,
+        "encodedCharacters": 7568844,
+        "encodedUtf8Bytes": 7568844,
+        "utf16PayloadBytes": 15137688,
+        "checkins": 21900,
+        "letters": 320
+      },
+      "samples": 5,
+      "state": {
+        "progressCold": [
+          79.39999999850988,
+          59.70000000298023,
+          54.100000001490116,
+          49.5,
+          53.399999998509884
+        ],
+        "progressWarm": [
+          0,
+          0.10000000149011612,
+          0,
+          0.10000000149011612,
+          0
+        ],
+        "todayCold": [
+          14.899999998509884,
+          25.600000001490116,
+          14.399999998509884,
+          14.200000002980232,
+          12.899999998509884
+        ],
+        "todayWarm": [
+          0.6000000014901161,
+          0.8999999985098839,
+          0.29999999701976776,
+          0.29999999701976776,
+          0.5
+        ],
+        "detailCold": [
+          9.299999997019768,
+          7.5,
+          5.100000001490116,
+          10.599999994039536,
+          28.399999998509884
+        ],
+        "detailWarm": [
+          2.600000001490116,
+          5.399999998509884,
+          2,
+          2.3000000044703484,
+          2.100000001490116
+        ],
+        "lifetimeWalk": [
+          4.5,
+          5.100000001490116,
+          6.300000004470348,
+          4.799999997019768,
+          5.199999995529652
+        ],
+        "rejectedBackdate": [
+          0.10000000149011612,
+          0.10000000149011612,
+          0.10000000149011612,
+          0.10000000149011612,
+          0.10000000149011612
+        ],
+        "tap": [
+          {
+            "actionMs": 4.600000001490116,
+            "serializeMs": 19.5,
+            "commitMs": 2.1999999955296516,
+            "totalMs": 26.5,
+            "outcome": "QuotaExceededError",
+            "previousKept": true
+          },
+          {
+            "actionMs": 2.5,
+            "serializeMs": 19.5,
+            "commitMs": 1.8000000044703484,
+            "totalMs": 23.80000000447035,
+            "outcome": "QuotaExceededError",
+            "previousKept": true
+          },
+          {
+            "actionMs": 2.100000001490116,
+            "serializeMs": 17.899999998509884,
+            "commitMs": 1.8999999985098839,
+            "totalMs": 21.899999998509884,
+            "outcome": "QuotaExceededError",
+            "previousKept": true
+          },
+          {
+            "actionMs": 10.399999998509884,
+            "serializeMs": 18.80000000447035,
+            "commitMs": 2,
+            "totalMs": 31.200000002980232,
+            "outcome": "QuotaExceededError",
+            "previousKept": true
+          },
+          {
+            "actionMs": 2,
+            "serializeMs": 18.899999998509884,
+            "commitMs": 2.100000001490116,
+            "totalMs": 23,
+            "outcome": "QuotaExceededError",
+            "previousKept": true
+          }
+        ]
+      },
+      "maintenanceAndImport": {
+        "rollover": [
+          {
+            "ms": 61.20000000298023,
+            "mode": "rollover",
+            "advancedTo": "2026-09-30",
+            "witnessDay": "2026-06-01",
+            "foldedWitnesses": 6,
+            "oldLiveDaysBefore": 12,
+            "oldLiveDaysAfter": 0,
+            "oldLedgerEntriesBefore": 13,
+            "oldLedgerEntriesAfter": 0,
+            "restockedPantryEntries": 35,
+            "journalPreserved": true,
+            "stackingPreserved": true
+          },
+          {
+            "ms": 73.19999999552965,
+            "mode": "rollover",
+            "advancedTo": "2026-09-30",
+            "witnessDay": "2026-06-01",
+            "foldedWitnesses": 6,
+            "oldLiveDaysBefore": 12,
+            "oldLiveDaysAfter": 0,
+            "oldLedgerEntriesBefore": 13,
+            "oldLedgerEntriesAfter": 0,
+            "restockedPantryEntries": 35,
+            "journalPreserved": true,
+            "stackingPreserved": true
+          },
+          {
+            "ms": 46,
+            "mode": "rollover",
+            "advancedTo": "2026-09-30",
+            "witnessDay": "2026-06-01",
+            "foldedWitnesses": 6,
+            "oldLiveDaysBefore": 12,
+            "oldLiveDaysAfter": 0,
+            "oldLedgerEntriesBefore": 13,
+            "oldLedgerEntriesAfter": 0,
+            "restockedPantryEntries": 35,
+            "journalPreserved": true,
+            "stackingPreserved": true
+          },
+          {
+            "ms": 40,
+            "mode": "rollover",
+            "advancedTo": "2026-09-30",
+            "witnessDay": "2026-06-01",
+            "foldedWitnesses": 6,
+            "oldLiveDaysBefore": 12,
+            "oldLiveDaysAfter": 0,
+            "oldLedgerEntriesBefore": 13,
+            "oldLedgerEntriesAfter": 0,
+            "restockedPantryEntries": 35,
+            "journalPreserved": true,
+            "stackingPreserved": true
+          },
+          {
+            "ms": 48.099999994039536,
+            "mode": "rollover",
+            "advancedTo": "2026-09-30",
+            "witnessDay": "2026-06-01",
+            "foldedWitnesses": 6,
+            "oldLiveDaysBefore": 12,
+            "oldLiveDaysAfter": 0,
+            "oldLedgerEntriesBefore": 13,
+            "oldLedgerEntriesAfter": 0,
+            "restockedPantryEntries": 35,
+            "journalPreserved": true,
+            "stackingPreserved": true
+          }
+        ],
+        "compact": [
+          {
+            "ms": 39.899999998509884,
+            "mode": "compact",
+            "advancedTo": "2026-09-29",
+            "witnessDay": "2026-05-31",
+            "foldedWitnesses": 6,
+            "oldLiveDaysBefore": 20448,
+            "oldLiveDaysAfter": 0,
+            "oldLedgerEntriesBefore": 23621,
+            "oldLedgerEntriesAfter": 0,
+            "restockedPantryEntries": 0,
+            "journalPreserved": true,
+            "stackingPreserved": true
+          },
+          {
+            "ms": 35.29999999701977,
+            "mode": "compact",
+            "advancedTo": "2026-09-29",
+            "witnessDay": "2026-05-31",
+            "foldedWitnesses": 6,
+            "oldLiveDaysBefore": 20448,
+            "oldLiveDaysAfter": 0,
+            "oldLedgerEntriesBefore": 23621,
+            "oldLedgerEntriesAfter": 0,
+            "restockedPantryEntries": 0,
+            "journalPreserved": true,
+            "stackingPreserved": true
+          },
+          {
+            "ms": 30.30000000447035,
+            "mode": "compact",
+            "advancedTo": "2026-09-29",
+            "witnessDay": "2026-05-31",
+            "foldedWitnesses": 6,
+            "oldLiveDaysBefore": 20448,
+            "oldLiveDaysAfter": 0,
+            "oldLedgerEntriesBefore": 23621,
+            "oldLedgerEntriesAfter": 0,
+            "restockedPantryEntries": 0,
+            "journalPreserved": true,
+            "stackingPreserved": true
+          },
+          {
+            "ms": 24.69999999552965,
+            "mode": "compact",
+            "advancedTo": "2026-09-29",
+            "witnessDay": "2026-05-31",
+            "foldedWitnesses": 6,
+            "oldLiveDaysBefore": 20448,
+            "oldLiveDaysAfter": 0,
+            "oldLedgerEntriesBefore": 23621,
+            "oldLedgerEntriesAfter": 0,
+            "restockedPantryEntries": 0,
+            "journalPreserved": true,
+            "stackingPreserved": true
+          },
+          {
+            "ms": 33.20000000298023,
+            "mode": "compact",
+            "advancedTo": "2026-09-29",
+            "witnessDay": "2026-05-31",
+            "foldedWitnesses": 6,
+            "oldLiveDaysBefore": 20448,
+            "oldLiveDaysAfter": 0,
+            "oldLedgerEntriesBefore": 23621,
+            "oldLedgerEntriesAfter": 0,
+            "restockedPantryEntries": 0,
+            "journalPreserved": true,
+            "stackingPreserved": true
+          }
+        ],
+        "pastedImport": [
+          {
+            "ms": 21.799999997019768,
+            "inputCharacters": 7568895,
+            "limitCharacters": 67108864,
+            "outcome": "accepted",
+            "journalPreserved": true
+          },
+          {
+            "ms": 19.600000001490116,
+            "inputCharacters": 7568895,
+            "limitCharacters": 67108864,
+            "outcome": "accepted",
+            "journalPreserved": true
+          },
+          {
+            "ms": 25.100000001490116,
+            "inputCharacters": 7568895,
+            "limitCharacters": 67108864,
+            "outcome": "accepted",
+            "journalPreserved": true
+          },
+          {
+            "ms": 18.600000001490116,
+            "inputCharacters": 7568895,
+            "limitCharacters": 67108864,
+            "outcome": "accepted",
+            "journalPreserved": true
+          },
+          {
+            "ms": 20.799999997019768,
+            "inputCharacters": 7568895,
+            "limitCharacters": 67108864,
+            "outcome": "accepted",
+            "journalPreserved": true
+          }
+        ],
+        "importUtf8Bytes": 7568895
+      },
+      "ui": {
+        "moments": {
+          "openMs": 638.3999999985099,
+          "scrollMs": 30.399999998509884,
+          "starMs": 54.599999994039536,
+          "starChanged": true,
+          "notes": 1825,
+          "domNodes": 16429,
+          "scrollPreserved": true,
+          "reading": "inline",
+          "filter": "not available"
+        },
+        "memory": {
+          "openMs": 82.29999999701977,
+          "readerMs": 88.5,
+          "returnMs": 50.100000001490116,
+          "letters": 320,
+          "domNodes": 5060,
+          "scrollPreserved": true,
+          "focusReturned": true,
+          "filter": "not available"
+        }
+      },
+      "snapshots": {
+        "records": 14,
+        "putMs": [
+          34.5,
+          27.099999994039536,
+          27.5,
+          26.700000002980232,
+          27.69999999552965,
+          29.69999999552965,
+          27.19999999552965,
+          27.299999997019768,
+          27.100000001490116,
+          26.899999998509884,
+          32.5,
+          27,
+          26.80000000447035,
+          26.5
+        ],
+        "listMs": [
+          227.80000000447035,
+          322.69999999552965,
+          252.10000000149012,
+          245.89999999850988,
+          245.39999999850988
+        ],
+        "readMs": 22.900000005960464,
+        "journalPreserved": true
+      }
+    },
+    {
+      "fixture": {
+        "years": 10,
+        "habits": 12,
+        "count": 43800,
+        "characters": 12264000,
+        "fingerprint": 1681579141,
+        "encodedCharacters": 14959052,
+        "encodedUtf8Bytes": 14959052,
+        "utf16PayloadBytes": 29918104,
+        "checkins": 43800,
+        "letters": 640
+      },
+      "samples": 5,
+      "state": {
+        "progressCold": [
+          164.60000000149012,
+          152.59999999403954,
+          153.19999999552965,
+          133.89999999850988,
+          126.10000000149012
+        ],
+        "progressWarm": [
+          0.09999999403953552,
+          0,
+          0,
+          0,
+          0
+        ],
+        "todayCold": [
+          35.79999999701977,
+          45.69999999552965,
+          34.600000001490116,
+          33.5,
+          34.100000001490116
+        ],
+        "todayWarm": [
+          0.7000000029802322,
+          0.5,
+          0.29999999701976776,
+          0.30000000447034836,
+          0.30000000447034836
+        ],
+        "detailCold": [
+          15.599999994039536,
+          13.699999995529652,
+          10.300000004470348,
+          9.199999995529652,
+          17.799999997019768
+        ],
+        "detailWarm": [
+          5.200000002980232,
+          7.300000004470348,
+          5.399999998509884,
+          10.100000001490116,
+          4.600000001490116
+        ],
+        "lifetimeWalk": [
+          12.100000001490116,
+          22,
+          18.899999998509884,
+          15.5,
+          14.200000002980232
+        ],
+        "rejectedBackdate": [
+          0.10000000149011612,
+          0.10000000149011612,
+          0.10000000149011612,
+          0.10000000149011612,
+          0.10000000149011612
+        ],
+        "tap": [
+          {
+            "actionMs": 7.299999997019768,
+            "serializeMs": 36.399999998509884,
+            "commitMs": 5.300000004470348,
+            "totalMs": 49,
+            "outcome": "QuotaExceededError",
+            "previousKept": true
+          },
+          {
+            "actionMs": 4.899999998509884,
+            "serializeMs": 36.79999999701977,
+            "commitMs": 4.600000001490116,
+            "totalMs": 46.29999999701977,
+            "outcome": "QuotaExceededError",
+            "previousKept": true
+          },
+          {
+            "actionMs": 4.300000004470348,
+            "serializeMs": 37.19999999552965,
+            "commitMs": 6.800000004470348,
+            "totalMs": 48.30000000447035,
+            "outcome": "QuotaExceededError",
+            "previousKept": true
+          },
+          {
+            "actionMs": 3.899999998509884,
+            "serializeMs": 36.20000000298023,
+            "commitMs": 4.799999997019768,
+            "totalMs": 44.899999998509884,
+            "outcome": "QuotaExceededError",
+            "previousKept": true
+          },
+          {
+            "actionMs": 4.100000001490116,
+            "serializeMs": 36.100000001490116,
+            "commitMs": 4.700000002980232,
+            "totalMs": 44.900000005960464,
+            "outcome": "QuotaExceededError",
+            "previousKept": true
+          }
+        ]
+      },
+      "maintenanceAndImport": {
+        "rollover": [
+          {
+            "ms": 141.89999999850988,
+            "mode": "rollover",
+            "advancedTo": "2026-09-30",
+            "witnessDay": "2026-06-01",
+            "foldedWitnesses": 6,
+            "oldLiveDaysBefore": 12,
+            "oldLiveDaysAfter": 0,
+            "oldLedgerEntriesBefore": 13,
+            "oldLedgerEntriesAfter": 0,
+            "restockedPantryEntries": 35,
+            "journalPreserved": true,
+            "stackingPreserved": true
+          },
+          {
+            "ms": 133.19999999552965,
+            "mode": "rollover",
+            "advancedTo": "2026-09-30",
+            "witnessDay": "2026-06-01",
+            "foldedWitnesses": 6,
+            "oldLiveDaysBefore": 12,
+            "oldLiveDaysAfter": 0,
+            "oldLedgerEntriesBefore": 13,
+            "oldLedgerEntriesAfter": 0,
+            "restockedPantryEntries": 35,
+            "journalPreserved": true,
+            "stackingPreserved": true
+          },
+          {
+            "ms": 115.10000000149012,
+            "mode": "rollover",
+            "advancedTo": "2026-09-30",
+            "witnessDay": "2026-06-01",
+            "foldedWitnesses": 6,
+            "oldLiveDaysBefore": 12,
+            "oldLiveDaysAfter": 0,
+            "oldLedgerEntriesBefore": 13,
+            "oldLedgerEntriesAfter": 0,
+            "restockedPantryEntries": 35,
+            "journalPreserved": true,
+            "stackingPreserved": true
+          },
+          {
+            "ms": 113.70000000298023,
+            "mode": "rollover",
+            "advancedTo": "2026-09-30",
+            "witnessDay": "2026-06-01",
+            "foldedWitnesses": 6,
+            "oldLiveDaysBefore": 12,
+            "oldLiveDaysAfter": 0,
+            "oldLedgerEntriesBefore": 13,
+            "oldLedgerEntriesAfter": 0,
+            "restockedPantryEntries": 35,
+            "journalPreserved": true,
+            "stackingPreserved": true
+          },
+          {
+            "ms": 95.30000000447035,
+            "mode": "rollover",
+            "advancedTo": "2026-09-30",
+            "witnessDay": "2026-06-01",
+            "foldedWitnesses": 6,
+            "oldLiveDaysBefore": 12,
+            "oldLiveDaysAfter": 0,
+            "oldLedgerEntriesBefore": 13,
+            "oldLedgerEntriesAfter": 0,
+            "restockedPantryEntries": 35,
+            "journalPreserved": true,
+            "stackingPreserved": true
+          }
+        ],
+        "compact": [
+          {
+            "ms": 67.89999999850988,
+            "mode": "compact",
+            "advancedTo": "2026-09-29",
+            "witnessDay": "2026-05-31",
+            "foldedWitnesses": 6,
+            "oldLiveDaysBefore": 42348,
+            "oldLiveDaysAfter": 0,
+            "oldLedgerEntriesBefore": 47346,
+            "oldLedgerEntriesAfter": 0,
+            "restockedPantryEntries": 0,
+            "journalPreserved": true,
+            "stackingPreserved": true
+          },
+          {
+            "ms": 91.70000000298023,
+            "mode": "compact",
+            "advancedTo": "2026-09-29",
+            "witnessDay": "2026-05-31",
+            "foldedWitnesses": 6,
+            "oldLiveDaysBefore": 42348,
+            "oldLiveDaysAfter": 0,
+            "oldLedgerEntriesBefore": 47346,
+            "oldLedgerEntriesAfter": 0,
+            "restockedPantryEntries": 0,
+            "journalPreserved": true,
+            "stackingPreserved": true
+          },
+          {
+            "ms": 57.69999999552965,
+            "mode": "compact",
+            "advancedTo": "2026-09-29",
+            "witnessDay": "2026-05-31",
+            "foldedWitnesses": 6,
+            "oldLiveDaysBefore": 42348,
+            "oldLiveDaysAfter": 0,
+            "oldLedgerEntriesBefore": 47346,
+            "oldLedgerEntriesAfter": 0,
+            "restockedPantryEntries": 0,
+            "journalPreserved": true,
+            "stackingPreserved": true
+          },
+          {
+            "ms": 74.39999999850988,
+            "mode": "compact",
+            "advancedTo": "2026-09-29",
+            "witnessDay": "2026-05-31",
+            "foldedWitnesses": 6,
+            "oldLiveDaysBefore": 42348,
+            "oldLiveDaysAfter": 0,
+            "oldLedgerEntriesBefore": 47346,
+            "oldLedgerEntriesAfter": 0,
+            "restockedPantryEntries": 0,
+            "journalPreserved": true,
+            "stackingPreserved": true
+          },
+          {
+            "ms": 72.39999999850988,
+            "mode": "compact",
+            "advancedTo": "2026-09-29",
+            "witnessDay": "2026-05-31",
+            "foldedWitnesses": 6,
+            "oldLiveDaysBefore": 42348,
+            "oldLiveDaysAfter": 0,
+            "oldLedgerEntriesBefore": 47346,
+            "oldLedgerEntriesAfter": 0,
+            "restockedPantryEntries": 0,
+            "journalPreserved": true,
+            "stackingPreserved": true
+          }
+        ],
+        "pastedImport": [
+          {
+            "ms": 45.100000001490116,
+            "inputCharacters": 14959103,
+            "limitCharacters": 67108864,
+            "outcome": "accepted",
+            "journalPreserved": true
+          },
+          {
+            "ms": 42,
+            "inputCharacters": 14959103,
+            "limitCharacters": 67108864,
+            "outcome": "accepted",
+            "journalPreserved": true
+          },
+          {
+            "ms": 37.70000000298023,
+            "inputCharacters": 14959103,
+            "limitCharacters": 67108864,
+            "outcome": "accepted",
+            "journalPreserved": true
+          },
+          {
+            "ms": 44.400000005960464,
+            "inputCharacters": 14959103,
+            "limitCharacters": 67108864,
+            "outcome": "accepted",
+            "journalPreserved": true
+          },
+          {
+            "ms": 37.399999998509884,
+            "inputCharacters": 14959103,
+            "limitCharacters": 67108864,
+            "outcome": "accepted",
+            "journalPreserved": true
+          }
+        ],
+        "importUtf8Bytes": 14959103
+      },
+      "ui": {
+        "moments": {
+          "openMs": 1558.6000000014901,
+          "scrollMs": 29.799999997019768,
+          "starMs": 86.70000000298023,
+          "starChanged": true,
+          "notes": 3650,
+          "domNodes": 32854,
+          "scrollPreserved": true,
+          "reading": "inline",
+          "filter": "not available"
+        },
+        "memory": {
+          "openMs": 214.19999999552965,
+          "readerMs": 82.79999999701977,
+          "returnMs": 50.100000001490116,
+          "letters": 640,
+          "domNodes": 10120,
+          "scrollPreserved": true,
+          "focusReturned": true,
+          "filter": "not available"
+        }
+      },
+      "snapshots": {
+        "records": 14,
+        "putMs": [
+          57.69999999552965,
+          54,
+          57.600000001490116,
+          56.600000001490116,
+          56.600000001490116,
+          60,
+          56.899999998509884,
+          56.20000000298023,
+          57.19999999552965,
+          55.80000000447035,
+          55.900000005960464,
+          55.899999998509884,
+          59.5,
+          57.20000000298023
+        ],
+        "listMs": [
+          562.1999999955297,
+          572.8000000044703,
+          545.0999999940395,
+          545.2000000029802,
+          587.2000000029802
+        ],
+        "readMs": 41,
+        "journalPreserved": true
+      }
+    }
+  ]
+}

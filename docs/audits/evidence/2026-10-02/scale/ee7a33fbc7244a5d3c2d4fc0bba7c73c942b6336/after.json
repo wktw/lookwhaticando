@@ -1,0 +1,19 @@
+{
+  "phase": "after",
+  "utc": "2026-10-02T18:05:32.100656+00:00",
+  "sha": "ee7a33fbc7244a5d3c2d4fc0bba7c73c942b6336",
+  "gitPorcelain": "",
+  "worktree": "/workspace/wt/windows-forward-1640",
+  "cpuQuota": "400000 100000",
+  "cpuStat": "usage_usec 127867737000\nuser_usec 107652583251\nsystem_usec 20215153749\nnice_usec 42343\nnr_periods 435048\nnr_throttled 191342\nthrottled_usec 10009384826\nnr_bursts 0\nburst_usec 0",
+  "memoryLimitBytes": "17179869184",
+  "memoryCurrentBytes": "10413817856",
+  "memoryEvents": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0",
+  "loadavg": "0.50 0.25 0.83 1/6869 1053293",
+  "liveRelevantProcessNames": [],
+  "zombieCount": 1280,
+  "oldArchivesAllNineHashesUnchanged": {
+    "ad27da15242987be62f8d7696cfdba98f74f36b0": true,
+    "6d11f4671026f619a1157e593d483d62180b04e1": true
+  }
+}
