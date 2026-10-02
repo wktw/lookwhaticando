@@ -26,7 +26,7 @@
  * {Count}) is the same value with a capital, because it opens a sentence. A slot filled with ''
  * also drops the ", " before it.
  */
-import type { PlantSpeciesId, Rarity, Species, WearableSlot } from './types';
+import type { Flourish, PlantSpeciesId, Rarity, Species, WearableSlot } from './types';
 import { atLevel, only, type Line } from './lineKit';
 import { LETTER_WAITING, PET_CARD_CORE, STORIES } from './linesCore';
 
@@ -116,7 +116,7 @@ export const BLOOM_EVENTS: Readonly<Record<PlantSpeciesId, string>> = {
   snakeplant: 'sent up a spike of flowers',
   catgrass: 'grew thick enough to lie in',
   monstera: 'opened a first split leaf',
-  strawberry: 'flowered and set the first berries',
+  strawberry: 'flowered',
   lavender: 'opened purple spikes',
   catnip: 'flowered at the tips',
   hoya: 'opened a cluster of flowers',
@@ -129,16 +129,20 @@ export const BLOOM_EVENTS: Readonly<Record<PlantSpeciesId, string>> = {
 };
 
 /** After Evergreen, every +60 sunshine brings a permanent visitor, in this order (DESIGN §5.5). Slots: {plant}, {Plant}. */
-export const FLOURISH_LINES: readonly string[] = [
-  'A ladybird has moved into {plant}.',
-  'A bee visits {plant} now.',
-  'A robin looks in at {plant} from the ledge most mornings.',
-  'A butterfly stops at {plant} most afternoons.',
-  'There’s a new shoot at the base of {plant}.',
-  'Moss has grown round the foot of {plant}.',
-  '{Plant} has grown taller than the window latch.',
-  '{Plant} has a ribbon tied round the pot.',
-];
+export const FLOURISH_LINES: Readonly<Record<Flourish, string>> = {
+  ladybird: 'A ladybird has moved into {plant}.',
+  bee: 'A bee visits {plant} now.',
+  snail: 'A snail has settled beside {plant}.',
+  butterfly: 'A butterfly stops at {plant} most afternoons.',
+  trail: '{Plant} has a new hanging trail.',
+  moss: 'Moss has grown round the foot of {plant}.',
+  shoot: 'A second shoot has come up beside {plant}.',
+  ribbon: '{Plant} has a ribbon tied round the pot.',
+};
+
+export const ODDS_COPY = {
+  ownership: 'Each is the printed item’s chance before new-first weighting. Something you already own can be less likely than an unowned item in a rarer tier. Guarantees can change the next capsule’s chances.',
+} as const;
 
 /**
  * The line on the paper insert. Slots: {series} ("No. 02 · Cows"), {A} (the item with its
@@ -1281,9 +1285,10 @@ export const ABOUT_COPY = {
   ],
   credits: [
     { title: 'Drawn in code', text: 'Every plant, pot, pet and cabinet is drawn by hand as code, lit by one window.' },
-    { title: 'Type', text: 'Castoro by Tiffany Wardle and Nunito by Vernon Adams, both under the SIL Open Font License.' },
+    { title: 'Type', text: 'Castoro by John Hudson and Paul Hanslow (Tiro Typeworks), assisted by Kaja Słojewska. Nunito by Vernon Adams, extended by Jacques Le Bailly. Both under the SIL Open Font License.' },
     { title: 'Made with', text: 'Preact, Vite and Workbox.' },
   ],
+  licences: { title: 'Licences', error: 'The licences didn’t load. Try again when you have a connection.' },
   build: { pwa: 'Home Screen app', tab: 'In the browser', single: 'Single file', dev: 'Development' },
   updatesSingle: 'This copy updates when you download a new catkin.html.',
   updatesOther: 'Updates arrive with the hosted app.',

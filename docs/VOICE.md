@@ -387,7 +387,7 @@ A multi-stage jump plays as a time-lapse and announces only the last stage.
 - Snake Plant: "{Plant} has sent up a spike of small cream flowers, which snake plants hardly ever do."
 - Cat Grass: "{Plant} is thick and tall enough to lie in."
 - Monstera: "{Plant} has opened a first split leaf."
-- Strawberry: "{Plant} has white flowers and the first small berries."
+- Strawberry: "{Plant} has white flowers."
 - Lavender: "{Plant} has purple spikes, and the sill smells of lavender."
 - Catnip: "{Plant} has small white flowers at the tips."
 - Hoya: "{Plant} has a cluster of star-shaped flowers."
@@ -402,15 +402,20 @@ In a note, the same moment in the past tense (`BLOOM_EVENTS`): "The Walk plant g
 in on Thursday." · "The Read plant trailed past the edge of the sill on Monday." Where the species
 doesn't matter: "reached Blooming".
 
+**DEC-V: pending owner approval (WP-D4):** Strawberry at Blooming says "{Plant} has white flowers."
+and its past-tense event says "flowered". Berries appear at the following art stage.
+
 **Forecast** on Habit Detail, in waterings, never sunshine numbers and never a date (a date slides later
 whenever she rests): "4 more waterings to Blooming." · "1 more watering to Blooming." · at Evergreen,
 "Evergreen. Small visitors arrive from here on." (`STAGE_FORECAST`, worded by `forecastLine()`).
 
 **Flourishes** after Evergreen (`FLOURISH_LINES`): "A ladybird has moved into {plant}." · "A bee visits
-{plant} now." · "A robin looks in at {plant} from the ledge most mornings." · "A butterfly stops at
-{plant} most afternoons." · "There’s a new shoot at the base of {plant}." · "Moss has grown round the
-foot of {plant}." · "{Plant} has grown taller than the window latch." · "{Plant} has a ribbon tied round
-the pot."
+{plant} now." · "A snail has settled beside {plant}." · "A butterfly stops at
+{plant} most afternoons." · "{Plant} has a new hanging trail." · "Moss has grown round the
+foot of {plant}." · "A second shoot has come up beside {plant}." · "{Plant} has a ribbon tied round
+the pot." Copy is keyed by the drawn flourish id, never its position in this list.
+
+**DEC-V: pending owner approval (WP-D4):** the corrected snail, trail and second-shoot lines above.
 
 **Graduation**, offered and never automatic:
 
@@ -541,11 +546,15 @@ Bond levels, after best friends. Each says what the pet does now, and none of th
 
 | Level | Name | Line |
 |---|---|---|
-| 11 | "Settled in" | "{name} has settled in for good, and falls asleep mid-stroke now." |
-| 12 | "Part of the furniture" | "{name} is part of the furniture now, with a cushion that has a dent in it." |
-| 13 | "Has a routine" | "{name} has a routine now: the sunbeam after lunch, the lamp after dark." |
-| 14 | "Knows every pot" | "{name} knows every pot on the sill now, and which ones are warm." |
+| 11 | "Settled in" | "{name} has settled in for good." |
+| 12 | "A familiar face" | "{name} is a familiar face on the sill." |
+| 13 | "Good company" | "{name} is good company." |
+| 14 | "Part of the place" | "{name} is part of the place now." |
 | 15 | "Old friends" | "{name} is an old friend now, and here for good." |
+
+**DEC-V: pending owner approval (WP-D4):** the level 11–14 observations and level 12–14 names above.
+They describe the friendship already earned, without promising furniture, petting or timed routines.
+The level 5/7/8/9 scene promises are covered by WP-D5.
 
 The best-friends banner: eyebrow "Best friends", title "You and {name}", text "There’s a small brass tag
 to show it." Memories arrive along the way after that, from real days, and read like dates in a diary:
@@ -672,6 +681,10 @@ then each item's own odds. The explanations:
 - "After 4 repeats in a row, the next one is always new."
 - "Ones you already had go on the swap shelf: 2, 4, 8 or 15 swaps, by tier. Every 10 swaps make a stamp."
 - "Each series has one Secret, shown as a ? until it turns up."
+
+Below the odds table (`ODDS_COPY.ownership`): "Each is the printed item’s chance before new-first
+weighting. Something you already own can be less likely than an unowned item in a rarer tier.
+Guarantees can change the next capsule’s chances." **DEC-V: pending owner approval (WP-D4).**
 
 ### The lineup
 
@@ -1541,9 +1554,11 @@ under the constant named. Same rules as everywhere (section 1).
 | credits[0].title | "Drawn in code" |
 | credits[0].text | "Every plant, pot, pet and cabinet is drawn by hand as code, lit by one window." |
 | credits[1].title | "Type" |
-| credits[1].text | "Castoro by Tiffany Wardle and Nunito by Vernon Adams, both under the SIL Open Font License." |
+| credits[1].text | "Castoro by John Hudson and Paul Hanslow (Tiro Typeworks), assisted by Kaja Słojewska. Nunito by Vernon Adams, extended by Jacques Le Bailly. Both under the SIL Open Font License." |
 | credits[2].title | "Made with" |
 | credits[2].text | "Preact, Vite and Workbox." |
+| licences.title | "Licences" |
+| licences.error | "The licences didn’t load. Try again when you have a connection." |
 | build.pwa | "Home Screen app" |
 | build.tab | "In the browser" |
 | build.single | "Single file" |
@@ -1552,6 +1567,11 @@ under the constant named. Same rules as everywhere (section 1).
 | updatesOther | "Updates arrive with the hosted app." |
 | checking | "Checking" |
 | diagnosticsIn | "Diagnostics in {n} taps" |
+
+**DEC-V: pending owner approval (WP-D4):** corrected Type credit, Licences title and failed-load
+message. Loading and retry reuse the existing "One moment" and "Try again". Credits verified on
+2 October 2026 against [Castoro’s upstream README](https://github.com/TiroTypeworks/Castoro/blob/master/README.md)
+and [Nunito’s Google Fonts description](https://github.com/google/fonts/blob/main/ofl/nunito/DESCRIPTION.en_us.html).
 
 ### You › Diagnostics (`DIAG_COPY`)
 
@@ -1585,4 +1605,3 @@ under the constant named. Same rules as everywhere (section 1).
 | plantsLead | "Tap a plant, and {name} moves in." |
 | stepOf | "Step {n} of {count}" |
 | useHere | "Choose Use here above to carry on in this window." Under the shell's "catkin is open in another window · Use here" note, at the top of an onboarding step, when this window couldn't plant the picks (they stay picked) or move to the next step (WP-C5). A newer catkin's save says the Data line instead: "This window can’t change the save right now." DEC-V: pending owner approval |
-
