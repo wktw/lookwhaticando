@@ -14,6 +14,7 @@ import { TextArea } from '@/ui/TextField';
 import { Button } from '@/ui/Button';
 import { ConfirmDialog } from '@/ui/ConfirmDialog';
 import { toast } from '@/ui/toast';
+import { anyLayerOpen, topNotesSlot } from '@/ui/sheetStack';
 import s from './TodaySheets.module.css';
 
 export interface NoteTarget {
@@ -27,7 +28,7 @@ export interface NoteTarget {
 export const NOTE_MAX = MAX_NOTE_LENGTH;
 export const noteDateLabel = (date: DateKey): string => `${longDateLabel(date)}, ${date.slice(0, 4)}`;
 
-export function NoteSheet({ target, onClose, onFocusLost }: { target: NoteTarget | null; onClose: () => void; /** Return to the note's context if removal also removed the opener. */ onFocusLost?: () => void }) {
+export function NoteSheet({ target, onClose, focusFallback }: { target: NoteTarget | null; onClose: () => void; /** The note's surviving context when removal also removes its opener. */ focusFallback?: () => HTMLElement | null | undefined }) {
   const [text, setText] = useState('');
   const [leaving, setLeaving] = useState(false);
   const [removing, setRemoving] = useState(false);
@@ -76,9 +77,16 @@ export function NoteSheet({ target, onClose, onFocusLost }: { target: NoteTarget
   const title = target ? fillLine(N.title, { habit: target.habitName, date }) : '';
   const quoted = target && state.value.inbox.some((l) => l.kind === 'weekly' && l.quote?.habitId === target.habitId && l.quote.date === target.date);
   const returnFocus = () => {
-    // A removal closes two layers. Either can finish first: the last one returns the context
-    // only if its normal focus return had no surviving opener. Never move a user's new focus.
-    if (!target && document.activeElement === document.body) onFocusLost?.();
+    if (target) return;
+    const context = focusFallback?.();
+    if (!context?.isConnected) return;
+    const selector = '[role="dialog"], [role="alertdialog"]';
+    const panel = topNotesSlot()?.closest<HTMLElement>(selector);
+    const owner = context.closest(selector);
+    // Either closing child can finish first. Only restore the surviving context in the current
+    // scope; a newer modal, an exiting owner or a control the user chose keeps its focus.
+    if (anyLayerOpen() ? !panel || owner !== panel : owner !== null) return;
+    if (document.activeElement === document.body || document.activeElement === panel) context.focus({ preventScroll: true });
   };
 
   // The question is a sibling of the sheet, not inside it (as in the Habit Editor's host).
