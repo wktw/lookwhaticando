@@ -165,7 +165,7 @@ export function Sheet(props: SheetProps) {
   }, [phase]);
 
   /* ---------- Esc ---------- */
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (phase === 'closed' || phase === 'exit') return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape' || !isTopLayer(id)) return;

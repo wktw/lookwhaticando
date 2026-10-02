@@ -44,11 +44,11 @@ describe('Escape is ready when a modal owns focus', () => {
     expect(close).toHaveBeenCalledTimes(1);
   });
 
-  it('the upper modal alone handles immediate Escape', () => {
+  it.each(['sheet', 'load'] as const)('the upper %s alone handles immediate Escape', (kind) => {
     const lower = vi.fn();
     const upper = vi.fn();
-    act(() => render(<><Sheet open title="Parent" onClose={lower} /><LoadSheet open title="Loading child" retryLabel="Try again" closeLabel="Close" onRetry={() => undefined} onClose={upper} /><EscapeAtLayout check={() => {
-      expect(document.activeElement?.closest('[role="alertdialog"]')).not.toBeNull();
+    act(() => render(<><Sheet open title="Parent" onClose={lower} />{kind === 'sheet' ? <Sheet open title="Child" onClose={upper} /> : <LoadSheet open title="Loading child" retryLabel="Try again" closeLabel="Close" onRetry={() => undefined} onClose={upper} />}<EscapeAtLayout check={() => {
+      expect(document.activeElement?.closest('[role="dialog"], [role="alertdialog"]')?.textContent).toContain(kind === 'sheet' ? 'Child' : 'Loading child');
       expect(escape().defaultPrevented).toBe(true);
       expect(upper).toHaveBeenCalledTimes(1);
       expect(lower).not.toHaveBeenCalled();
@@ -64,4 +64,22 @@ describe('Escape is ready when a modal owns focus', () => {
       expect(lower).not.toHaveBeenCalled();
     }} /></>, host));
   });
+
+  it.each(['sheet', 'load'] as const)('%s keeps its current callback through enter/open, then releases Escape at exit', (kind) => {
+    const first = vi.fn();
+    const current = vi.fn();
+    const view = (open: boolean, close: () => void) => kind === 'sheet'
+      ? <Sheet open={open} title="A note" onClose={close} />
+      : <LoadSheet open={open} title="One moment" retryLabel="Try again" closeLabel="Close" onRetry={() => undefined} onClose={close} />;
+    act(() => render(view(true, first), host));
+    act(() => { vi.advanceTimersByTime(40); });
+    act(() => render(view(true, current), host));
+    expect(escape().defaultPrevented).toBe(true);
+    expect(first).not.toHaveBeenCalled();
+    expect(current).toHaveBeenCalledTimes(1);
+    act(() => render(view(false, current), host));
+    expect(escape().defaultPrevented).toBe(false);
+    expect(current).toHaveBeenCalledTimes(1);
+  });
+
 });

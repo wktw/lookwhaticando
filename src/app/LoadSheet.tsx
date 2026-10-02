@@ -107,7 +107,7 @@ export function LoadSheet({ open, title, message, retryLabel, closeLabel, busy, 
     return onLayersChange(sync);
   }, [phase]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (phase !== 'enter' && phase !== 'open') return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape' || !isTopLayer(id)) return;
