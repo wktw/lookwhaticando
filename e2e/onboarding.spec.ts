@@ -72,6 +72,8 @@ test('the full app name fits beside onboarding navigation', async ({ page }) => 
 
 /** A watering's decorative +5 has a finite fade even with reduced motion. */
 async function afterWateringFlourish(page: Page, audit: () => Promise<void>) {
+  // Observe natural completion; do not finish animations, hide nodes, or weaken the page audit.
+  await expect(page.locator('.ck-fx-layer .ck-fx-float')).toHaveCount(0);
   await audit();
 }
 
