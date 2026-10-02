@@ -56,6 +56,7 @@ function hold(what: string): () => void {
 }
 
 let view: ReturnType<typeof mount> | null = null;
+let liveStore: typeof import('@/state/store') | null = null;
 /** A first import is transformed on the spot: room for a busy machine. */
 const LOAD = 20_000;
 
@@ -70,9 +71,13 @@ const reloads = vi.fn();
  * `save`: the state to load (as a reload finds it); else a new one with Walk and Drink water.
  */
 async function fresh(save?: AppState) {
+  // A replaced module graph is a page leaving: finish its writes before the next page boots.
+  // Otherwise real debounce/frame callbacks from the old graph can write into this page's save.
+  liveStore?.flushSaves();
   vi.resetModules();
   gateChunks();
   const store = await import('@/state/store');
+  liveStore = store;
   const open = await import('@/features/habits/open');
   const rituals = await import('@/features/rituals/open');
   const lazy = await import('./useLazyModule');
@@ -119,6 +124,8 @@ afterEach(() => {
   delete (navigator as { onLine?: boolean }).onLine;
   view?.unmount();
   view = null;
+  liveStore?.flushSaves();
+  liveStore = null;
   document.body.innerHTML = '';
 });
 

@@ -161,3 +161,12 @@
     opacity: 0.55;
   }
 }
+
+/* A transformed sheet is its own containing block: owned notes stay in normal flow. */
+.stack[data-owned] {
+  position: static;
+  width: auto;
+  margin: 0 16px 12px;
+  transform: none;
+  transition: none;
+}

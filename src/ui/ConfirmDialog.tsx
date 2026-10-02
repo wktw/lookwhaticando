@@ -18,15 +18,18 @@ export interface ConfirmDialogProps {
   busy?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
+  /** After the dialog has left the DOM and returned focus. */
+  onClosed?: () => void;
 }
 
 /** "Are you sure?" as a compact paper sheet (phones) or small dialog (wide). Uses alertdialog semantics. */
-export function ConfirmDialog({ open, title, message, art, confirmLabel = 'Yes', cancelLabel = 'Never mind', tone = 'primary', busy, onConfirm, onCancel }: ConfirmDialogProps) {
+export function ConfirmDialog({ open, title, message, art, confirmLabel = 'Yes', cancelLabel = 'Never mind', tone = 'primary', busy, onConfirm, onCancel, onClosed }: ConfirmDialogProps) {
   const messageId = useId();
   return (
     <Sheet
       open={open}
       onClose={onCancel}
+      onClosed={onClosed}
       title={title}
       hideTitle
       describedBy={message ? messageId : undefined}
