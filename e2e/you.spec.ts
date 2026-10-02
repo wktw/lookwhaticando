@@ -155,7 +155,11 @@ test('a backup is copied, and imported again with Undo import', async ({ page, c
   await data.getByRole('button', { name: 'Import a backup' }).click();
   const sheet = page.getByRole('dialog', { name: 'Import a backup' });
   await sheet.getByLabel('Or paste a backup here').fill(payload);
-  await expect(sheet.getByText('This backup has 3 habits, 0 waterings and 0 pets.')).toBeVisible();
+  // Wait for the real modal-owned announcement as well as the visible preview.
+  await expect(sheet.locator('[aria-live="polite"]')).toContainText('This backup has 3 habits, 0 waterings and 0 pets.');
+  const preview = sheet.getByRole('strong');
+  await expect(preview).toContainText('This backup has 3 habits, 0 waterings and 0 pets.');
+  await expect(preview).toBeVisible();
   await expectNoAxeViolations(page, info);
   await sheet.getByRole('button', { name: 'Import', exact: true }).click();
   await expect(page.getByLabel('Your name')).toHaveValue('Sam');
