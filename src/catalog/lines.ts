@@ -1227,7 +1227,7 @@ export const DATA_COPY = {
   snapshotsRow: 'Daily copies',
   /** DATA.snapshots without repeating the sheet's title. */
   snapshotsKept: 'Kept on this device: 7 daily and 4 weekly.',
-  snapshotKinds: { daily: 'Daily copy', weekly: 'Weekly copy', 'pre-import': 'Before an import' },
+  snapshotKinds: { daily: 'Daily copy', weekly: 'Weekly copy', 'pre-import': 'Safety copy' },
   snapshotLine: '{habits} habits · {waterings} waterings',
   restoredSnapshot: 'Back to the copy from {date}.',
   chooseFile: 'Choose a file',
