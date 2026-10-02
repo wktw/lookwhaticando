@@ -166,7 +166,9 @@ function ToastCard({ item, hidden, owned }: { item: ToastItem; hidden: boolean; 
       item={item}
       // Plain modal notes still need a keyboard target when their lane scrolls. Focusing the
       // card uses the same reading-time pause as an action; root notes keep their current order.
-      tabIndex={owned && !toastActions(item).length && !item.leaving ? 0 : undefined}
+      // Removing tabindex would blur Chromium before the guarded layout handoff can run.
+      // Keep the leaving card focusable programmatically, but out of the Tab sequence.
+      tabIndex={owned && !toastActions(item).length ? (item.leaving ? -1 : 0) : undefined}
       noteRef={cardRef}
       onAction={(a) => {
         // An action can open another sheet. Its focus return must point at a durable control.
