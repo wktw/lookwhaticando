@@ -1,3 +1,6 @@
+import { createInitialState } from '@/state/defaults';
+import { habit } from '../../../tests/unit/domain/helpers';
+import { UTC, at } from '../../../tests/unit/domain/game';
 import { describe, expect, it } from 'vitest';
 import type { PetSummaryVM, ShelfVM, SillPotVM } from '@/state/selectors';
 import { MAX_DECOR_PER_PLACE, favouriteSpotOf, newDecorSpot, pantryRows, petsByPlace, placeInView, retiredPots, roomIn, scrollToSegment, shelfDecor, shelfPets, shelfPots, sillExtras, speciesOfId } from './model';
@@ -41,6 +44,7 @@ const pet = (id: string, extra: Partial<PetSummaryVM> = {}): PetSummaryVM => ({
   moonlit: false,
   obtainedAt: 0,
   habitId: null,
+  bestFriend: null,
   ...extra,
 });
 
@@ -53,7 +57,7 @@ describe('the Sill’s pots', () => {
 
   it('leave out archived habits and keep a paused one’s pot, as it stands', () => {
     const habits = [{ id: 'walk' }, { id: 'old', archivedOn: '2026-01-01' }, { id: 'paused' }];
-    const out = shelfPots(habits, [pot('walk'), pot('old')], [{ habitId: 'paused', name: 'Paused', species: 'pilea', pot: 'cream', stage: 5, progress: 0.1, blooms: undefined }]);
+    const out = shelfPots(habits, [pot('walk'), pot('old')], [{ habitId: 'paused', name: 'Paused', species: 'pilea', pot: 'cream', stage: 5, progress: 0.1, blooms: undefined, look: undefined, flourishes: 0 }]);
     expect(out.map((p) => p.habitId)).toEqual(['walk', 'paused']);
     expect(out[1]).toMatchObject({ species: 'pilea', stage: 5, pot: 'cream' });
     expect(out[1]!.damp).toBeUndefined();
@@ -68,8 +72,11 @@ describe('the Sill’s pots', () => {
   });
 
   it('retired plants stand on the balcony as they last grew', () => {
-    const out = retiredPots([{ habitId: 'r', name: 'Run', plant: 'monstera', pot: 'cream', archivedOn: '2026-01-01', ribbon: null }], { r: 6 });
-    expect(out).toEqual([{ habitId: 'r', name: 'Run', species: 'monstera', stage: 6, pot: 'cream' }]);
+    const state = createInitialState(at('2026-01-02'));
+    state.habits = [{ ...habit({ id: 'r', startedOn: '2025-01-01' }), plant: 'monstera', pot: 'cream', archivedOn: '2026-01-01' }];
+    state.ledger.bestStage.r = 6;
+    const out = retiredPots([{ habitId: 'r', name: 'Run', plant: 'monstera', pot: 'cream', archivedOn: '2026-01-01', ribbon: null }], state, { today: '2026-01-02', now: at('2026-01-02'), local: UTC });
+    expect(out).toMatchObject([{ habitId: 'r', name: 'Run', species: 'monstera', stage: 6, pot: 'cream' }]);
   });
 });
 

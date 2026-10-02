@@ -3,19 +3,21 @@
  * "How it works", "Credits", the version and build, "Check for updates" and "Reload app". Seven
  * taps on the version open Diagnostics (#/you/diagnostics).
  */
+import { getPlatform } from '@/platform/capabilities';
 import { useRef, useState } from 'preact/hooks';
 import { INSTALL, SETTINGS, fillLine } from '@/catalog/lines';
 import { Wordmark } from '@/art/icons/brand';
 import { useArtLight } from '@/art/scene/moment';
 import { navigate } from '@/app/router';
 import { currentInstallPlatform } from '@/app/installPrompt';
-import { checkForUpdates, reloadApp, updateReady, updatesSupported } from '@/app/pwa';
+import { browserReloadSupported, checkForUpdates, reloadApp, updateReady, updatesSupported } from '@/app/pwa';
 import { ListRow } from '@/ui/ListRow';
 import { SectionHeader } from '@/ui/SectionHeader';
 import { Sheet } from '@/ui/Sheet';
 import { toast } from '@/ui/toast';
 import { announce } from '@/ui/announce';
 import { ABOUT_COPY, YOU } from './copy';
+import { LicencesSheet } from './LicencesSheet';
 import { cx } from '@/ui/cx';
 import { toneClass } from '@/ui/tone';
 import lr from '@/ui/ListRow.module.css';
@@ -38,7 +40,8 @@ export const DIAGNOSTICS_TAPS = 7;
 const TAP_RESET_MS = 1500;
 
 export function buildLabel(): string {
-  if (__SINGLE_FILE__ || location.protocol === 'file:') return ABOUT_COPY.build.single;
+  if (!browserReloadSupported()) return '';
+  if (getPlatform().updates === 'single-file') return ABOUT_COPY.build.single;
   if (import.meta.env.DEV) return ABOUT_COPY.build.dev;
   return currentInstallPlatform() === 'installed' ? ABOUT_COPY.build.pwa : ABOUT_COPY.build.tab;
 }
@@ -59,10 +62,12 @@ function Prose({ items }: { items: readonly { title: string; text: string }[] })
 export function AboutSection() {
   const light = useArtLight();
   const [sheet, setSheet] = useState<'how' | 'credits' | null>(null);
+  const [licences, setLicences] = useState(false);
   const [checking, setChecking] = useState(false);
   const taps = useRef({ n: 0, at: 0 });
   const version = fillLine(SETTINGS.about.version, { version: __APP_VERSION__ });
   const canUpdate = updatesSupported();
+  const browserUpdates = browserReloadSupported();
 
   const tapVersion = () => {
     const now = Date.now();
@@ -115,7 +120,7 @@ export function AboutSection() {
             onClick={() => (updateReady.value ? reloadApp() : void check())}
           />
         ) : null}
-        <ListRow leading={<ReloadTile />} leadingTone="lavender" title={INSTALL.reloadApp} chevron={false} onClick={reloadApp} />
+        {browserUpdates && <ListRow leading={<ReloadTile />} leadingTone="lavender" title={INSTALL.reloadApp} chevron={false} onClick={reloadApp} />}
         <button type="button" class={`${s.row} ${s.inline} ${s.versionRow}`} onClick={tapVersion}>
           <span class={s.rowText}>
             <span class={`${s.label} ${s.version}`}>{version}</span>
@@ -123,14 +128,16 @@ export function AboutSection() {
           </span>
         </button>
       </div>
-      {!canUpdate && <p class={s.footer}>{__SINGLE_FILE__ || location.protocol === 'file:' ? ABOUT_COPY.updatesSingle : ABOUT_COPY.updatesOther}</p>}
+      {browserUpdates && !canUpdate && <p class={s.footer}>{getPlatform().updates === 'single-file' ? ABOUT_COPY.updatesSingle : ABOUT_COPY.updatesOther}</p>}
 
       <Sheet open={sheet === 'how'} onClose={() => setSheet(null)} title={SETTINGS.about.how} size="md">
         <Prose items={ABOUT_COPY.how} />
       </Sheet>
       <Sheet open={sheet === 'credits'} onClose={() => setSheet(null)} title={SETTINGS.about.credits} size="md">
         <Prose items={ABOUT_COPY.credits} />
+        <ListRow leading="info" title={ABOUT_COPY.licences.title} onClick={() => setLicences(true)} />
       </Sheet>
+      <LicencesSheet open={licences} onClose={() => setLicences(false)} />
     </section>
   );
 }

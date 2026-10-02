@@ -1,4 +1,5 @@
 /** Small DOM hooks for scenes: their width in room units, pausing when nobody can see them, and the clock. */
+import { getPlatform } from '@/platform/capabilities';
 import type { RefObject } from 'preact';
 import { useEffect, useMemo, useState } from 'preact/hooks';
 import { retainWindowClock, windowClock, windowHemisphere, windowMoment } from './moment';
@@ -37,7 +38,7 @@ export function useVisible(ref: RefObject<HTMLElement>, onChange?: (visible: boo
     if (!el) return;
     let onScreen = true;
     const apply = () => {
-      const v = onScreen && (typeof document === 'undefined' || document.visibilityState !== 'hidden');
+      const v = onScreen && !getPlatform().lifecycle.hidden;
       if (v) el.removeAttribute('data-paused');
       else el.setAttribute('data-paused', '');
       setVisible(v);
@@ -51,10 +52,11 @@ export function useVisible(ref: RefObject<HTMLElement>, onChange?: (visible: boo
             apply();
           });
     io?.observe(el);
-    document.addEventListener('visibilitychange', apply);
+    const stopLifecycle = getPlatform().lifecycle.subscribe(apply);
+    apply();
     return () => {
       io?.disconnect();
-      document.removeEventListener('visibilitychange', apply);
+      stopLifecycle();
     };
   }, [ref, onChange]);
   return visible;

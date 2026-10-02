@@ -9,6 +9,7 @@ import { liveHabits } from '@/state/views/common';
 import { addDays } from '@/domain/dates';
 import { readShape } from '@/domain/signature';
 import { Game, at } from './game';
+import { preserveFacts } from './metamorphic';
 
 const habitOf = (s: AppState, id: string) => s.habits.find((h) => h.id === id)!;
 
@@ -126,7 +127,7 @@ describe('kept-together days survive the 120-day stamp compaction (domain-d2, WP
   it('fourteen reversed live days stay 0 after their stamps are pruned (the audit’s 0 → 14)', () => {
     const { g, stretch, last, kept } = stackedDays('reversed', 14);
     expect(kept()).toBe(0);
-    g.goTo(addDays(last, 121));
+    preserveFacts('120-day compaction', kept, () => g.goTo(addDays(last, 121)));
     expect(Object.values(g.state.logs[stretch]!).every((l) => l.kind === 'log' && l.at === undefined)).toBe(true); // compacted
     expect(kept()).toBe(0);
     expect(readShape(g.state, habitOf(g.state, stretch), g.today).shape).toBe('classic');
@@ -136,7 +137,7 @@ describe('kept-together days survive the 120-day stamp compaction (domain-d2, WP
     const { g, stretch, last, kept } = stackedDays('kept', 14);
     expect(kept()).toBe(14);
     expect(readShape(g.state, habitOf(g.state, stretch), g.today).shape).toBe('paired');
-    g.goTo(addDays(last, 121));
+    preserveFacts('120-day compaction', () => ({ kept: kept(), shape: readShape(g.state, habitOf(g.state, stretch), g.today).shape }), () => g.goTo(addDays(last, 121)));
     expect(kept()).toBe(14);
     expect(readShape(g.state, habitOf(g.state, stretch), g.today).shape).toBe('paired');
   });
@@ -229,6 +230,15 @@ function cappedDay(capped: 'anchor' | 'follower', taps: number, order: 'kept' | 
 }
 
 describe('kept-together days are not changed by the 24-stamp cap (HM3, WP-B4)', () => {
+  it.each(['kept', 'reversed'] as const)('the %s verdict survives over-target taps across the 24/25/26 stamp boundary', (order) => {
+    const { g, many, kept, tap } = cappedDay('anchor', 24, order);
+    expect(kept()).toBe(order === 'kept' ? 1 : 0);
+    for (const count of [25, 26]) {
+      preserveFacts(`stamp ${count}`, kept, () => tap(many));
+      expect(g.state.logs[many]!['2026-03-02']).toMatchObject({ count });
+    }
+  });
+
   for (const taps of [24, 25, 26]) {
     it(`${taps} live taps on the anchor, in order: kept together, then and after the compaction`, () => {
       const { g, kept, many } = cappedDay('anchor', taps, 'kept');

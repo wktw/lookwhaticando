@@ -10,7 +10,7 @@
 import { signal } from '@preact/signals';
 import { forwardRef } from 'preact/compat';
 import type { Ref } from 'preact';
-import { useEffect, useImperativeHandle, useMemo, useRef, useState } from 'preact/hooks';
+import { useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { WindowsillBand, type WindowsillBandHandle } from '@/art/scene';
 import type { SillPot, ShelfPet } from '@/art/scene';
 import { BAND_CLOSED_PX, BAND_MAX_POTS, BAND_OPEN_PX } from '@/art/scene';
@@ -62,19 +62,15 @@ export function greetingLine(g: TodayVM['greeting'], dayOfMonth: number): string
 }
 
 /** The band's pots: the view model's sill (card order, the current block first), with looks, bows and routines. */
-export function bandPots(vm: Pick<TodayVM, 'sill' | 'blocks' | 'doneForPeriod' | 'thisMonth' | 'notToday'>, habits: AppState['habits']): SillPot[] {
-  const colour = new Map(habits.map((h) => [h.id, h]));
-  const cards = new Map([...vm.blocks.flatMap((b) => b.cards), ...vm.doneForPeriod, ...vm.thisMonth, ...vm.notToday].map((c) => [c.id, c]));
+export function bandPots(vm: Pick<TodayVM, 'sill'>, _habits?: AppState['habits']): SillPot[] {
   return vm.sill.map((p) => {
-    const card = cards.get(p.habitId);
-    const partner = card?.after ? colour.get(card.after.habitId)?.color : undefined;
     const pot: SillPot = { habitId: p.habitId, name: p.name, species: p.species, stage: p.stage, progress: p.progress, pot: p.pot, damp: p.damp, pulse: p.pulse };
     if (p.note) pot.note = p.note;
     if (p.blooms !== undefined) pot.blooms = p.blooms;
-    if (p.look) pot.look = { colour: p.look.colour, shape: p.look.shape, ...(p.look.shape === 'paired' && partner ? { partnerColour: partner } : {}) };
+    if (p.look) pot.look = p.look;
     if (p.bow) pot.bow = true;
     if (p.routine) pot.routine = p.routine.routine;
-    if (card && card.plant.flourishes > 0) pot.flourishes = card.plant.flourishes;
+    if (p.flourishes) pot.flourishes = p.flourishes;
     return pot;
   });
 }
@@ -166,11 +162,38 @@ export const Band = forwardRef(function Band({ vm, state, coins, onOpenNote, onW
   const pets = useSettled(petsNow, petsKey);
   const onBand = useMemo(() => new Set(pots.slice(0, BAND_MAX_POTS).map((p) => p.habitId)), [pots]);
   const residentOf = useMemo(() => new Map(vm.sill.map((p) => [p.habitId, p.resident?.petId ?? null])), [vm.sill]);
-  /** A pour waiting for its guest pot to be drawn. */
-  const pendingPour = useRef<string | null>(null);
+  type PourTarget = { habitId: string; date: string; version: number };
+  const versions = useRef(new Map<string, number>());
+  const latestWatering = useRef({ date: vm.date, pots: potsNow });
+  const previousWatering = useRef(latestWatering.current);
+  latestWatering.current = { date: vm.date, pots: potsNow };
+  const pourTimers = useRef(new Map<ReturnType<typeof setTimeout>, PourTarget>());
+  /** A pour waiting for its guest pot to be drawn, bound to the same watering and day. */
+  const pendingPour = useRef<PourTarget | null>(null);
+  const validPour = (target: PourTarget) => target.date === latestWatering.current.date
+    && target.version === (versions.current.get(target.habitId) ?? 0)
+    && latestWatering.current.pots.some((p) => p.habitId === target.habitId && p.damp);
+
+  useLayoutEffect(() => {
+    const previous = previousWatering.current;
+    for (const p of previous.pots) {
+      const next = potsNow.find((n) => n.habitId === p.habitId);
+      if (previous.date !== vm.date || !next || (p.damp && !next.damp) || (next.pulse ?? 0) < (p.pulse ?? 0)) {
+        versions.current.set(p.habitId, (versions.current.get(p.habitId) ?? 0) + 1);
+      }
+    }
+    previousWatering.current = latestWatering.current;
+    for (const [timer, target] of pourTimers.current) {
+      if (validPour(target)) continue;
+      clearTimeout(timer);
+      pourTimers.current.delete(timer);
+    }
+    if (pendingPour.current && !validPour(pendingPour.current)) pendingPour.current = null;
+  }, [potsKey, vm.date]);
 
   // The pour onto a pot that is on the band (scrolled into view first, so it is seen).
-  const pourOnBand = (habitId: string) => {
+  const pourOnBand = (target: PourTarget) => {
+    const { habitId } = target;
     const go = () => {
       band.current?.pour(habitId);
       setTagFor(habitId);
@@ -178,7 +201,13 @@ export const Band = forwardRef(function Band({ vm, state, coins, onOpenNote, onW
       tagTimer.current = setTimeout(() => setTagFor(undefined), 2600);
     };
     const wait = wrap.current ? revealPot(wrap.current, habitId) : 0;
-    if (wait > 0) setTimeout(go, wait);
+    if (wait > 0) {
+      const timer = setTimeout(() => {
+        pourTimers.current.delete(timer);
+        if (validPour(target)) go();
+      }, wait);
+      pourTimers.current.set(timer, target);
+    }
     else go();
   };
 
@@ -186,9 +215,10 @@ export const Band = forwardRef(function Band({ vm, state, coins, onOpenNote, onW
     ref,
     () => ({
       pour(habitId) {
-        if (onBand.has(habitId)) return pourOnBand(habitId);
+        const target = { habitId, date: latestWatering.current.date, version: versions.current.get(habitId) ?? 0 };
+        if (onBand.has(habitId)) return pourOnBand(target);
         if (!settled.some((p) => p.habitId === habitId)) return;
-        pendingPour.current = habitId;
+        pendingPour.current = target;
         setGuest(habitId);
       },
       react(habitId) {
@@ -198,15 +228,22 @@ export const Band = forwardRef(function Band({ vm, state, coins, onOpenNote, onW
     }),
     [onBand, residentOf, pets, settled],
   );
-  useEffect(() => () => clearTimeout(tagTimer.current), []);
+  useEffect(() => () => {
+    clearTimeout(tagTimer.current);
+    for (const timer of pourTimers.current.keys()) clearTimeout(timer);
+    pourTimers.current.clear();
+    pendingPour.current = null;
+  }, []);
 
   // The guest pot is drawn: pour onto it once that frame is on screen.
   useEffect(() => {
-    const id = pendingPour.current;
-    if (!id || !onBand.has(id)) return;
+    const target = pendingPour.current;
+    if (!target || !onBand.has(target.habitId)) return;
     pendingPour.current = null;
     let t: ReturnType<typeof setTimeout> | undefined;
-    const raf = requestAnimationFrame(() => (t = setTimeout(() => pourOnBand(id), 0)));
+    const raf = requestAnimationFrame(() => (t = setTimeout(() => {
+      if (validPour(target)) pourOnBand(target);
+    }, 0)));
     return () => {
       cancelAnimationFrame(raf);
       clearTimeout(t);

@@ -5,7 +5,7 @@
  */
 import type { Species } from '@/catalog/types';
 import type { Moment } from './time';
-import type { PetSpot, ShelfPet } from './model';
+import type { FriendshipProfile, PetSpot, ShelfPet } from './model';
 import { petKey, speciesOf } from './model';
 import type { PetPose } from './actors/adapters';
 import { PERSONALITY_BY_ID } from '@/catalog/personalities';
@@ -142,6 +142,23 @@ export function nearestFree(g: Ground, want: number, taken: readonly number[]): 
     }
   }
   return clamp(want, g.x0 + reach(g), g.x1 - reach(g));
+}
+
+/** A repeatable resting spot: a friend on the floor, the front edge, then the sunlight. */
+export function friendshipSpot(g: Ground, bond: FriendshipProfile, key: string, taken: readonly number[], friend?: PetSpot, solo = false): PetSpot {
+  const depth = g.d0 + (bond.frontBias || 0.65) * (g.d1 - g.d0);
+  // A narrow pot rim cannot safely seat two pets. A friend there can be visited on the next act.
+  if (friend && !friend.perch) {
+    const gap = g.petSize * 0.7;
+    for (const side of [1, -1]) {
+      const x = friend.x + side * gap;
+      if (free(g, x, taken)) return groundSpot(g, x, friend.depth, 'sleep', true, side > 0 ? 'left' : 'right');
+    }
+  }
+  const r = seeded(hash(key));
+  const want = g.beam && bond.sunBias && !solo ? (g.beam.x0 + g.beam.x1) / 2 + g.beam.slant * depth : g.x0 + (0.25 + r() * 0.5) * (g.x1 - g.x0);
+  const x = nearestFree(g, want, taken);
+  return groundSpot(g, x, depth, 'sleep', true, x < (g.x0 + g.x1) / 2 ? 'right' : 'left');
 }
 
 /**
@@ -296,6 +313,32 @@ export function arrangePets(g: Ground, pets: readonly ShelfPet[], m: Moment): Ma
     const spot = groundSpot(g, x, depth, pose, asleep, facing);
     out.set(key, { ...spot });
   });
+  // Earned daytime choices also seed a still/reduced-motion scene. Night routines keep their beds.
+  if (!m.light.night) {
+    const floorTaken = (...except: string[]) => [...out].filter(([key, s]) => !except.includes(key) && !s.perch).map(([, s]) => s.x);
+    for (const p of pets) {
+      if (!p.bond) continue;
+      const key = petKey(p);
+      const prev = out.get(key)!;
+      const nap = p.bond.napWith !== undefined && m.hour >= 13 && m.hour < 17;
+      const spot = friendshipSpot(g, p.bond, key, floorTaken(key), undefined, nap);
+      out.set(key, { ...spot, pose: nap || prev.asleep ? 'sleep' : REST_POSE[speciesOf(p.petId)], asleep: nap || prev.asleep });
+    }
+    // A mutual pair is placed once, in key order; chains cannot pull an already-settled pair apart.
+    const paired = new Set<string>();
+    if (m.hour >= 13 && m.hour < 17) for (const p of [...pets].sort((a, b) => petKey(a).localeCompare(petKey(b)))) {
+      const key = petKey(p), friend = p.bond?.napWith;
+      if (!friend || friend === key || paired.has(key) || paired.has(friend) || !out.has(friend)) continue;
+      const other = out.get(friend)!;
+      const anchor = other.perch ? friendshipSpot(g, p.bond!, friend, floorTaken(key, friend)) : groundSpot(g, other.x, Math.max(other.depth, out.get(key)!.depth), 'sleep', true, other.facing);
+      const beside = friendshipSpot(g, p.bond!, key, [...floorTaken(key, friend), anchor.x], anchor);
+      if (Math.abs(beside.x - anchor.x) > g.petSize || beside.depth !== anchor.depth) continue;
+      out.set(friend, { ...anchor, pose: 'sleep', asleep: true });
+      out.set(key, beside);
+      paired.add(key);
+      paired.add(friend);
+    }
+  }
   return out;
 }
 

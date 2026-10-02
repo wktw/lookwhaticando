@@ -4,13 +4,14 @@
  * glasses with their paper tags; once they are planted, they are the real habits, and step 3's
  * waterings pour onto them and drop coins into the jar (`stageBand`).
  */
+import { plantPresentation } from '@/state/views/plantPresentation';
 import { createRef } from 'preact';
 import { useMemo } from 'preact/hooks';
 import { WindowsillBand, momentAt, type WindowsillBandHandle } from '@/art/scene';
 import type { SillPot } from '@/art/scene';
 import type { PlantSpeciesId } from '@/catalog/types';
 import { hemisphereOf } from '@/domain/hemisphere';
-import { state, today } from '@/state/store';
+import { state, today, now, storeLocal } from '@/state/store';
 import s from './Onboarding.module.css';
 
 export interface StagePot {
@@ -50,7 +51,8 @@ export function SillStage({ pots, habitIds }: { pots: StagePot[] | null; habitId
         .map((h) => {
           const log = app.logs[h.id]?.[day];
           const damp = !!log && log.kind === 'log' && log.count > 0;
-          return { habitId: h.id, name: h.name, species: h.plant, stage: 0, pot: h.pot, damp };
+          const { resident: _resident, ...plant } = plantPresentation(app, h.id, { today: day, now: now.value, local: storeLocal() })!;
+          return { habitId: h.id, name: h.name, ...plant, damp };
         });
   return (
     <div class={s.sill}>

@@ -109,7 +109,7 @@ describe('onboarding (DESIGN §9.6)', () => {
     const before = state.value;
     await click(await until(() => byText('Put a coin in'), 'the coin slot'), 'Put a coin in');
     const note = await until(() => document.querySelector('[role="note"]'), 'a notice');
-    expect(note.textContent).toMatch(/^One moment: catkin is still getting ready in this window\. Nothing was spent\./);
+    expect(note.textContent).toMatch(/^One moment: Little by Little is still getting ready in this window\. Nothing was spent\./);
     // Still on the capsule step, the gift unspent, and the way back still open.
     expect(h1()).toBe('No. 01 · Cats');
     expect(state.value).toBe(before);

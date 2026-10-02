@@ -3,7 +3,7 @@ export { Button, type ButtonProps, type ButtonVariant, type ButtonSize } from '.
 export { CandyButton, type CandyButtonProps, type CandyVariant, type CandySize } from './CandyButton';
 export { IconButton, type IconButtonProps } from './IconButton';
 export { CheckRing, CheckRingArt, type CheckRingProps, type CheckRingArtProps, type CheckRingMark } from './CheckRing';
-export { CHECK_RING_MS, CHECKIN_CHOREOGRAPHY, ringState, waterLevel, type CheckRingState } from './checkRing';
+export { CHECK_RING_MS, CHECKIN_CHOREOGRAPHY, ringState, waterLevel, type CheckRingState } from './checkRingModel';
 export { Card, type CardProps } from './Card';
 export { Sheet, type SheetProps, type SheetDetent } from './Sheet';
 export { ConfirmDialog, type ConfirmDialogProps } from './ConfirmDialog';

@@ -8,6 +8,8 @@
  * Plants for the retired plants (drawn once, there).
  */
 import { useRef, useState } from 'preact/hooks';
+import { FitObject } from '@/features/shelf/FitObject';
+import { keepsakeCaption } from '@/features/pets/petCopy';
 import { BadgeMedal } from '@/art/badges';
 import { NoteCard } from '@/art/progress';
 import { insightLines, recordLines, plural, num } from '@/catalog/format';
@@ -179,7 +181,8 @@ function ritualLabel(r: RitualVM): string {
 export const BALCONY_ID = 'progress-balcony';
 
 export function MemoryShelf({ shelf, retired }: { shelf: MemoryShelfVM; retired: number }) {
-  const empty = shelf.items.length === 0 && retired === 0 && shelf.seasons.length === 0;
+  const keepsakes = state.value.keepsakes ?? [];
+  const empty = shelf.items.length === 0 && retired === 0 && shelf.seasons.length === 0 && keepsakes.length === 0;
   if (empty) return <p class={s.quiet}>{EMPTY.memoryShelf}</p>;
   const M = PROGRESS_LINES.memoryItems;
   return (
@@ -216,6 +219,18 @@ export function MemoryShelf({ shelf, retired }: { shelf: MemoryShelfVM; retired:
                 <NoteCard kind="story" size={76} />
                 <span class={s.memoryLabel}>{fillLine(M.season, { Season: SEASON_LABEL[r.name] })}</span>
               </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      {keepsakes.length > 0 && (
+        <ul class={s.memoryRow} data-memory="keepsakes" tabIndex={0} aria-label={PROGRESS_UI.sections.memory}>
+          {keepsakes.map((k) => (
+            <li key={k.id}>
+              <div class={cx(s.memoryItem, s.keepsake)}>
+                <FitObject keepsake={k.kind} size={52} />
+                <span class={s.memoryLabel}>{keepsakeCaption(k)}</span>
+              </div>
             </li>
           ))}
         </ul>

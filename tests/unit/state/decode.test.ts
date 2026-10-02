@@ -237,7 +237,7 @@ describe('FS2 / R202: a backup of a newer catkin’s save is that save, byte for
   it('new API: the CSV of a newer save is labelled partial, and a newer save this catkin can’t read gives none', () => {
     bootNewer(true);
     const partial = store.exportCsv();
-    expect(partial).toMatchObject({ partial: true, name: expect.stringMatching(/^catkin-waterings-\d{4}-\d{2}-\d{2}-partial\.csv$/) });
+    expect(partial).toMatchObject({ partial: true, name: expect.stringMatching(/^little-by-little-waterings-\d{4}-\d{2}-\d{2}-partial\.csv$/) });
     bootNewer(false);
     expect(store.exportCsv()).toBeNull();
     expect(store.rescue.value).toMatchObject({ kind: 'newer', version: 2, readable: false });

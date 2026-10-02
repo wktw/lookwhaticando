@@ -25,15 +25,15 @@
     width: calc(100% - var(--sidebar-w));
     margin: 0 0 0 var(--sidebar-w);
     /*
-     * The column beside the sidebar: --content-max wide, centred. A padding percentage resolves
-     * against the shell (the whole window), not this box, so the side is measured from the viewport.
+     * The column beside the sidebar: --content-max wide, centred. Percentages measure the
+     * shell’s available width, excluding a scrollbar; 100vw would make the column narrower.
      */
-    padding: var(--safe-top) max(32px, calc((100vw - var(--sidebar-w) - var(--content-max)) / 2)) 48px;
+    padding: var(--safe-top) max(32px, calc((100% - var(--sidebar-w) - var(--content-max)) / 2)) 48px;
     max-width: none;
   }
   .wide {
-    padding-left: max(32px, calc((100vw - var(--sidebar-w) - 1080px) / 2));
-    padding-right: max(32px, calc((100vw - var(--sidebar-w) - 1080px) / 2));
+    padding-left: max(32px, calc((100% - var(--sidebar-w) - 1080px) / 2));
+    padding-right: max(32px, calc((100% - var(--sidebar-w) - 1080px) / 2));
   }
 }
 

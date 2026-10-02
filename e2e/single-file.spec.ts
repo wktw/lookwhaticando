@@ -7,7 +7,7 @@ import { expect, test } from '@playwright/test';
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { openRoute, ROUTES, watchErrors } from './support';
+import { expectNoAxeViolations, openRoute, ROUTES, watchErrors } from './support';
 
 const FILE = resolve('dist-single/catkin.html');
 const URL_ = pathToFileURL(FILE).href;
@@ -28,6 +28,19 @@ test('carries nothing it would lose when moved on its own', () => {
   expect(html).toMatch(/<link rel="apple-touch-icon" href="data:image\/png;base64,/);
   expect(existsSync(resolve('dist-single/icons'))).toBe(false);
   expect(existsSync(resolve('dist-single/splash'))).toBe(false);
+});
+
+test('carries full licences inside the file and opens them without fetching a sibling', async ({ page }, info) => {
+  const requests: string[] = [];
+  page.on('request', (r) => { if (r.url() !== URL_ && !r.url().startsWith('data:')) requests.push(r.url()); });
+  await openRoute(page, 'you', URL_);
+  await page.getByRole('button', { name: 'Credits', exact: true }).click();
+  await page.getByRole('button', { name: 'Licences', exact: true }).click();
+  const licences = page.getByRole('dialog', { name: 'Licences', exact: true });
+  const text = await licences.locator('pre').textContent();
+  for (const name of ['@fontsource/castoro', '@fontsource-variable/nunito', 'preact', '@preact/signals', 'workbox-window']) expect(text).toContain(readFileSync(`node_modules/${name}/LICENSE`, 'utf8').trim());
+  expect(requests).toEqual([]);
+  await expectNoAxeViolations(page, info);
 });
 
 test('opens from file://, says it is a test copy, and renders every route', async ({ page }) => {

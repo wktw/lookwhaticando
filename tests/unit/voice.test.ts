@@ -830,3 +830,24 @@ describe('docs/VOICE.md', () => {
     for (const s of sections) expect(md, s).toMatch(new RegExp(`^#{2,4} .*${s}`, 'mi'));
   });
 });
+
+/** Imported Calendar events belong to Calendar; switching this app's time cannot remove them. */
+function claimsCalendarRemoval(text: string): boolean {
+  return text.split(/(?<=[.!?])\s+/).some((sentence) => {
+    if (/can[’']t|cannot|does(?:n[’']t| not)|won[’']t|will not|you(?:[’']ll| will)? need to|yourself/i.test(sentence)) return false;
+    return /calendar|imported events?/i.test(sentence)
+      && /\b(remov(?:e[sd]?|ing)|delet(?:e[sd]?|ing)|cancel(?:s|led|ing)?|eras(?:e[sd]?|ing)|clear(?:s|ed|ing)?)\b/i.test(sentence)
+      && /catkin|the app|\bwe\b|turn(?:ing)? (?:it |reminders? )?off|automatically/i.test(sentence);
+  });
+}
+
+describe('Calendar ownership copy (WP-E1, P-release-19)', () => {
+  it('rejects promises that the app can remove already-imported events', () => {
+    for (const text of ['catkin removes imported events.', 'The app will delete events from Calendar.', 'Turn reminders off to cancel Calendar events.', 'Calendar events are automatically erased.']) expect(claimsCalendarRemoval(text), text).toBe(true);
+    for (const text of ['catkin can’t remove events from Calendar.', 'Remove the event in Calendar yourself.', 'Your calendar does the reminding.']) expect(claimsCalendarRemoval(text), text).toBe(false);
+  });
+  it('makes no removal promise in application wording', () => {
+    const offenders = VOICE_SCAN_DIRS.flatMap(sourceFiles).flatMap(stringsIn).filter((line) => claimsCalendarRemoval(line.text));
+    expect(offenders).toEqual([]);
+  });
+});

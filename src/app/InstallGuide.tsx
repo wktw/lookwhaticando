@@ -1,9 +1,10 @@
 /**
- * "Keep catkin on your Home Screen" (DESIGN §11.1): the install-first gate for Safari tabs, a
+ * "Keep Little by Little on your Home Screen" (DESIGN §11.1): the install-first gate for Safari tabs, a
  * card for the You screen, and an illustrated, platform-aware steps sheet (iOS Safari 26 and
  * older, other iOS browsers, the Mac's Add to Dock, Chrome/Edge Install, Android).
  */
 import type { JSX } from 'preact';
+import { getPlatform } from '@/platform/capabilities';
 import { useState } from 'preact/hooks';
 import { Card } from '@/ui/Card';
 import { Button } from '@/ui/Button';
@@ -11,7 +12,7 @@ import { Pill } from '@/ui/Pill';
 import { Sheet } from '@/ui/Sheet';
 import { toast } from '@/ui/toast';
 import { AppIconArt } from './AppIconArt';
-import { currentInstallPlatform, installPrompt, promptInstall, safariMajor, type InstallPlatform } from './installPrompt';
+import { currentInstallPlatform, promptInstall, safariMajor, type InstallPlatform } from './installPrompt';
 import { AddToHomeArt, AndroidMenuArt, ChromeInstallArt, CompactShareArt, DockArt, HomeScreenArt, MacDockArt, ShareStepArt, ViewMoreArt } from './installArt';
 import { INSTALL } from '@/catalog/lines';
 import { INSTALL_COPY as SHELL_INSTALL_COPY } from './copy';
@@ -26,7 +27,7 @@ export interface InstallStep {
   art: () => JSX.Element;
 }
 
-const HOME: InstallStep = { title: 'Tap Add', text: 'catkin opens full-screen, works offline and gets its own icon.', art: HomeScreenArt };
+const HOME: InstallStep = { title: 'Tap Add', text: 'Little by Little opens full-screen, works offline and gets its own icon.', art: HomeScreenArt };
 
 /** Guides by platform; iOS Safari has two, for the iOS 26 compact bar and the classic toolbar. */
 export type InstallGuideKey = Exclude<InstallPlatform, 'installed'> | 'ios-safari-classic';
@@ -37,7 +38,7 @@ export const GUIDES: Record<InstallGuideKey, { title: string; steps: InstallStep
     steps: [
       { title: 'Tap ⋯, then Share', text: 'It’s at the end of Safari’s address bar. With the Top or Bottom layout, tap Share, the square with an arrow, instead.', art: CompactShareArt },
       { title: 'Tap View More, then Add to Home Screen', text: 'Scroll the share options a little to find View More.', art: ViewMoreArt },
-      { ...HOME, text: 'Leave Open as Web App on. catkin opens full-screen, works offline and gets its own icon.' },
+      { ...HOME, text: 'Leave Open as Web App on. Little by Little opens full-screen, works offline and gets its own icon.' },
     ],
   },
   'ios-safari-classic': {
@@ -57,21 +58,21 @@ export const GUIDES: Record<InstallGuideKey, { title: string; steps: InstallStep
     ],
   },
   'mac-safari': {
-    title: 'Keep catkin in your Dock',
+    title: 'Keep Little by Little in your Dock',
     steps: [
       { title: 'File, then Add to Dock', text: 'In Safari’s menu bar, open File and choose Add to Dock.', art: MacDockArt },
-      { title: 'Click Add', text: 'catkin gets its own window and a place in your Dock.', art: DockArt },
+      { title: 'Click Add', text: 'Little by Little gets its own window and a place in your Dock.', art: DockArt },
     ],
   },
   prompt: {
-    title: 'Install catkin',
+    title: 'Install Little by Little',
     steps: [{ title: 'One click', text: 'Press Install and your browser does the rest.', art: ChromeInstallArt }],
   },
   chromium: {
-    title: 'Install catkin',
+    title: 'Install Little by Little',
     steps: [
-      { title: 'Find the install icon', text: 'It’s at the end of the address bar: a small screen with an arrow. Or open ⋮ and choose Install catkin.', art: ChromeInstallArt },
-      { title: 'Click Install', text: 'catkin opens in its own window, even offline.', art: DockArt },
+      { title: 'Find the install icon', text: 'It’s at the end of the address bar: a small screen with an arrow. Or open ⋮ and choose Install Little by Little.', art: ChromeInstallArt },
+      { title: 'Click Install', text: 'Little by Little opens in its own window, even offline.', art: DockArt },
     ],
   },
   android: {
@@ -79,7 +80,7 @@ export const GUIDES: Record<InstallGuideKey, { title: string; steps: InstallStep
     steps: [{ title: 'Open the ⋮ menu', text: 'Choose Install app or Add to Home screen.', art: AndroidMenuArt }, HOME],
   },
   other: {
-    title: 'Install catkin',
+    title: 'Install Little by Little',
     steps: [{ title: 'Try Safari, Chrome or Edge', text: 'Open this page in one of them to install it. It works right here too.', art: HomeScreenArt }],
   },
 };
@@ -96,7 +97,7 @@ export function guideFor(platform: Exclude<InstallPlatform, 'installed'>, ua: st
  * iPad and Mac) with nothing saved yet: there, a tab's storage can be cleared after 7 days.
  */
 export function shouldGateInstall(platform: InstallPlatform, hasSave: boolean): boolean {
-  return !hasSave && (platform === 'ios-safari' || platform === 'mac-safari');
+  return getPlatform().install === 'web' && !hasSave && (platform === 'ios-safari' || platform === 'mac-safari');
 }
 
 async function install() {
@@ -134,6 +135,7 @@ export interface InstallSheetProps {
 }
 
 export function InstallSheet({ open, onClose, platform }: InstallSheetProps) {
+  if (getPlatform().install === 'native') return null;
   const p = platform ?? currentInstallPlatform();
   if (p === 'installed') {
     return (
@@ -145,7 +147,7 @@ export function InstallSheet({ open, onClose, platform }: InstallSheetProps) {
       </Sheet>
     );
   }
-  const guide = GUIDES[p === 'ios-safari-classic' ? p : guideFor(p, navigator.userAgent)];
+  const guide = GUIDES[p === 'ios-safari-classic' ? p : guideFor(p, getPlatform().installation.userAgent)];
   return (
     <Sheet
       open={open}
@@ -178,8 +180,9 @@ export function InstallSheet({ open, onClose, platform }: InstallSheetProps) {
  * You screen then says what a Safari tab can do to a save).
  */
 export function InstallGate({ onPeek, onPaste, onStay, platform }: { onPeek: () => void; onPaste?: () => void; onStay?: () => void; platform?: InstallPlatform | InstallGuideKey }) {
+  if (getPlatform().install === 'native') return null;
   const p = platform ?? currentInstallPlatform();
-  const key: InstallGuideKey = p === 'installed' ? 'other' : p === 'ios-safari-classic' ? p : guideFor(p, navigator.userAgent);
+  const key: InstallGuideKey = p === 'installed' ? 'other' : p === 'ios-safari-classic' ? p : guideFor(p, getPlatform().installation.userAgent);
   const guide = GUIDES[key];
   return (
     <section class={s.gate} aria-labelledby="install-gate-title">
@@ -210,7 +213,8 @@ export function InstallGate({ onPeek, onPaste, onStay, platform }: { onPeek: () 
 export function InstallGuide({ class: cls }: { class?: string }) {
   const [open, setOpen] = useState(false);
   const p = currentInstallPlatform();
-  const canPrompt = !!installPrompt.value;
+  const canPrompt = !!getPlatform().installation.installPrompt.value;
+  if (getPlatform().install === 'native') return null;
   return (
     <Card class={[s.card, cls].filter(Boolean).join(' ')}>
       <AppIconArt size={56} shape="squircle" class={s.icon} />

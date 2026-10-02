@@ -6,6 +6,7 @@
  * Nothing opens modally at launch: letters, stories, offers and the Season Review wait as cards
  * below the list and as a note on the sill.
  */
+import { getPlatform } from '@/platform/capabilities';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { CardPlant } from '@/art/plants/CardPlant';
 import { CHECKIN_TOASTS, EMPTY, TODAY_LINES, fillLine } from '@/catalog/lines';
@@ -14,7 +15,7 @@ import { isInBackfillWindow } from '@/domain/activity';
 import { shortDateLabel } from '@/domain/dates';
 import { NEW_HABIT_EVENT } from '@/app/shortcuts';
 import { selectToday, type HabitCardVM } from '@/state/selectors';
-import { state, today, toggleOffDay } from '@/state/store';
+import { saveEpoch, state, today, toggleOffDay } from '@/state/store';
 import type { DateKey } from '@/state/types';
 import { Button } from '@/ui/Button';
 import { ConfirmDialog } from '@/ui/ConfirmDialog';
@@ -92,6 +93,13 @@ function useAfterFirstFrame(): boolean {
 }
 
 export function TodayScreen() {
+  // An editor belongs to a journal, even when a replacement reuses its habit id and day.
+  // Remounting drops every local editor; callback guards also fence the old exiting DOM.
+  return <TodaySession key={saveEpoch.value} epoch={saveEpoch.value} />;
+}
+
+function TodaySession({ epoch }: { epoch: number }) {
+  const current = () => saveEpoch.peek() === epoch;
   const st = state.value;
   const t = today.value;
   const ready = useAfterFirstFrame();
@@ -160,17 +168,16 @@ export function TodayScreen() {
   }, [t]);
   useEffect(() => {
     let hiddenAt = 0;
-    const onVis = () => {
-      if (document.visibilityState === 'hidden') hiddenAt = Date.now();
+    const stopLifecycle = getPlatform().lifecycle.subscribe((event) => {
+      if (event === 'pause') hiddenAt = Date.now();
       else if (hiddenAt && Date.now() - hiddenAt >= HIDDEN_RESET_MS) {
         selectDay(null, today.value);
         wentBack.current();
         setWake((w) => w + 1);
       }
-    };
-    document.addEventListener('visibilitychange', onVis);
+    });
     return () => {
-      document.removeEventListener('visibilitychange', onVis);
+      stopLifecycle();
       selectDay(null, today.value);
       cancelChoreography();
     };
@@ -255,6 +262,7 @@ export function TodayScreen() {
 
   // Every card action carries the day that card shows.
   const onRing = useCallback((card: HabitCardVM, ring: HTMLElement, d: DateKey) => {
+    if (!current()) return;
     switch (tapAction(card)) {
       case 'water':
         water(card, d, ring, stageRef.current);
@@ -271,16 +279,17 @@ export function TodayScreen() {
     }
   }, []);
   const onHold = useCallback((card: HabitCardVM, ring: HTMLElement, d: DateKey) => {
+    if (!current()) return;
     const action = holdAction(card);
     if (action === 'pad') setPad({ habitId: card.id, date: d });
     else if (action === 'tiny') water(card, d, ring, stageRef.current, { tiny: true });
   }, []);
   const onMore = useCallback(
-    (card: HabitCardVM, anchor: HTMLElement, d: DateKey) => setMenu((m) => (m?.habitId === card.id && m.date === d ? null : { habitId: card.id, date: d, anchor })),
+    (card: HabitCardVM, anchor: HTMLElement, d: DateKey) => current() && setMenu((m) => (m?.habitId === card.id && m.date === d ? null : { habitId: card.id, date: d, anchor })),
     [],
   );
-  const onOpen = useCallback((card: HabitCardVM) => openHabitDetail(card.id), []);
-  const onCount = useCallback((card: HabitCardVM, n: number, d: DateKey) => countTo(card, d, n, ringOf(card.id), stageRef.current), []);
+  const onOpen = useCallback((card: HabitCardVM) => { if (current()) openHabitDetail(card.id); }, []);
+  const onCount = useCallback((card: HabitCardVM, n: number, d: DateKey) => current() && countTo(card, d, n, ringOf(card.id), stageRef.current), []);
   const onAdjusted = useCallback(() => setAdjusting(null), []);
 
   // The menu belongs to the day it was opened on: it shows only while that day is the page's.
@@ -296,7 +305,7 @@ export function TodayScreen() {
     items.push({ id: 'note', label: c.note ? TODAY_COPY.menu.editNote : TODAY_COPY.menu.note, icon: 'note', onSelect: () => stage.addNote(c.id, d) });
     items.push({ id: 'details', label: TODAY_COPY.menu.details, icon: 'info', onSelect: () => openHabitDetail(c.id) });
     items.push({ id: 'edit', label: TODAY_COPY.menu.edit, icon: 'edit', onSelect: () => openHabitEditor({ id: c.id }) });
-    return items;
+    return items.map((item) => ({ ...item, onSelect: () => { if (current()) item.onSelect(); } }));
   };
 
   const residentOf = new Map(vm.sill.map((p) => [p.habitId, p.resident?.petId ?? null]));
@@ -418,9 +427,10 @@ export function TodayScreen() {
         card={padCard}
         date={pad?.date ?? t}
         past={pad !== null && pad.date < t}
-        onCount={(c, n) => pad && countTo(c, pad.date, n, padRing(c.id), padStage)}
+        onAddNote={(c) => current() && pad && stage.addNote(c.id, pad.date)}
+        onCount={(c, n) => current() && pad && countTo(c, pad.date, n, padRing(c.id), padStage)}
         onTiny={(c) => {
-          if (!pad) return;
+          if (!current() || !pad) return;
           setPad(null);
           water(c, pad.date, padRing(c.id), padStage, { tiny: true });
         }}
@@ -436,6 +446,7 @@ export function TodayScreen() {
         cancelLabel={TODAY_LINES.notNow}
         onCancel={() => setOffAsk(null)}
         onConfirm={() => {
+          if (!current()) return;
           const d = offAsk;
           setOffAsk(null);
           if (d !== null && toggleOffDay(d).ok) toast({ key: 'offday', message: CHECKIN_TOASTS.offDay, tone: 'lavender' });

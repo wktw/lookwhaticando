@@ -127,7 +127,7 @@ describe('the CSV and the watering-time file (DESIGN §9.5)', () => {
     store.checkIn(walk);
     store.checkIn(water);
     const csv = store.exportCsv()!;
-    expect(csv.name).toBe('catkin-waterings-2026-09-29.csv');
+    expect(csv.name).toBe('little-by-little-waterings-2026-09-29.csv');
     expect(csv.text.split('\r\n')).toEqual(['date,habit,count,target,state', '2026-09-29,"Walk, then tea",1,1,watered', "2026-09-29,'=Water,1,8,partial", '']);
   });
 
@@ -140,7 +140,7 @@ describe('the CSV and the watering-time file (DESIGN §9.5)', () => {
     expect(store.wateringTimeFile('morning')).toBeNull();
     store.updateSettings({ reminders: { morning: '07:30' } });
     const f = store.wateringTimeFile('morning')!;
-    expect(f.name).toBe('catkin-watering-time-morning.ics');
+    expect(f.name).toBe('little-by-little-watering-time-morning.ics');
     expect(f.text).toContain('DTSTART:20260929T073000\r\n');
     expect(f.text).toContain('DESCRIPTION:Morning plants: Stretch.\r\n');
     expect(f.text).not.toContain('Read');

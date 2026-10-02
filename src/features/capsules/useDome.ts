@@ -1,3 +1,4 @@
+import { getPlatform } from '@/platform/capabilities';
 import { useEffect, useRef, useState } from 'preact/hooks';
 import type { MachineDef, MachineId } from '@/catalog/types';
 import type { CapsuleSim, DomeBody } from '@/fx/physics';
@@ -64,7 +65,7 @@ export function useDome(machine: MachineDef, active: boolean): DomeController {
   };
 
   const kick = () => {
-    if (!mounted.current || loop.raf || !active || document.hidden || !sim.awake) return;
+    if (!mounted.current || loop.raf || !active || getPlatform().lifecycle.hidden || !sim.awake) return;
     // Reduced motion: jump straight to the resting pile instead of animating there.
     if (prefersReducedMotion()) {
       sim.settle();
@@ -82,11 +83,10 @@ export function useDome(machine: MachineDef, active: boolean): DomeController {
 
   useEffect(() => {
     if (!active) return;
-    const onVisibility = () => (document.hidden ? stop() : kick());
-    document.addEventListener('visibilitychange', onVisibility);
+    const stopLifecycle = getPlatform().lifecycle.subscribe((event) => event === 'pause' ? stop() : kick());
     kick();
     return () => {
-      document.removeEventListener('visibilitychange', onVisibility);
+      stopLifecycle();
       stop();
     };
   }, [active]);

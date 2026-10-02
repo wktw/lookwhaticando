@@ -4,23 +4,28 @@
  * "Use here" and starts over; the first follows the deletion instead of keeping the old save on
  * screen, says so calmly, and never writes the old habits back.
  *
- * Chromium only for now: WebKit is not installed in this container, so the WebKit half of this
- * journey is left to WP-G1's real-browser matrix.
+ * Runs in Chromium and actual WebKit. Safari's install choice is followed through its real
+ * Keep it in this tab control, including when a reset returns a window to onboarding.
  */
 import { expect, test, type Page } from '@playwright/test';
 import { watchErrors } from './support';
 
-const STARTED_OVER = 'catkin was started over in another window, so it starts fresh here too. The daily copies stay on this device.';
+const STARTED_OVER = 'Little by Little was started over in another window, so it starts fresh here too.';
 const ONBOARDING_H1 = 'New place. Which plants came with you?';
+
+/** A fresh Safari tab asks about installation before presenting the onboarding form. */
+async function onboardingReady(page: Page) {
+  const stay = page.getByRole('button', { name: 'Keep it in this tab' });
+  await expect(stay.or(page.getByLabel('Your name'))).toBeVisible();
+  if (await stay.isVisible()) await stay.click();
+  await expect(page.locator('main h1')).toHaveText(ONBOARDING_H1);
+}
 
 /** Onboarding the way a person does it, planting three habits and skipping the rest. */
 async function onboard(page: Page) {
   await page.goto('./#/today');
-  const stay = page.getByRole('button', { name: 'Keep it in this tab' });
-  const name = page.getByLabel('Your name');
-  await expect(stay.or(name)).toBeVisible();
-  if (await stay.isVisible()) await stay.click();
-  await name.fill('Sam');
+  await onboardingReady(page);
+  await page.getByLabel('Your name').fill('Sam');
   await page.getByRole('button', { name: 'Next' }).click();
   for (const habit of ['Drink water', 'Walk', 'Read']) await page.getByRole('button', { name: habit, exact: true }).click();
   await page.getByRole('button', { name: 'Plant these' }).click();
@@ -39,7 +44,7 @@ test('starting over in one window starts the other one fresh, with a calm note',
   const a = await context.newPage();
   const errorsA = watchErrors(a);
   await onboard(a);
-  expect(await savedHabits(a)).toContain('Walk');
+  await expect.poll(() => savedHabits(a)).toContain('Walk');
 
   // The second window opens read-only on the same save.
   const b = await context.newPage();
@@ -59,18 +64,18 @@ test('starting over in one window starts the other one fresh, with a calm note',
   await expect(b.locator('main h1')).toHaveText('You');
   const data = b.locator('section').filter({ has: b.getByRole('heading', { level: 2, name: 'Your data', exact: true }) }).first();
   await data.getByRole('button', { name: 'Start over' }).click();
-  await b.getByRole('alertdialog').filter({ hasText: 'Every habit, plant and pet' }).getByRole('button', { name: 'Start over' }).click();
-  const again = b.getByRole('alertdialog').filter({ hasText: 'The daily copies stay on this device.' });
+  await b.getByRole('alertdialog').filter({ hasText: 'The habits, plants and pets here go.' }).getByRole('button', { name: 'Start over' }).click();
+  const again = b.getByRole('alertdialog').filter({ hasText: 'Start over now?' });
   await expect(again).toBeVisible();
   await b.waitForTimeout(800); // the last "Start over" arms itself a moment after it appears
   await again.getByRole('button', { name: 'Start over' }).click();
-  await expect(b.locator('main h1')).toHaveText(ONBOARDING_H1);
+  await onboardingReady(b);
 
   // The first window follows: a fresh start, and the note says why.
   const note = a.locator('[data-banner="started-over"]');
   await expect(note).toBeVisible();
   await expect(note).toContainText(STARTED_OVER);
-  await expect(a.locator('main h1')).toHaveText(ONBOARDING_H1);
+  await onboardingReady(a);
 
   // It takes the save back and nothing old returns to disk.
   await a.locator('[data-banner="other-window"]').getByRole('button', { name: 'Use here' }).click();
@@ -87,6 +92,38 @@ test('starting over in one window starts the other one fresh, with a calm note',
   expect([...errorsA, ...errorsB], [...errorsA, ...errorsB].join('\n')).toEqual([]);
 });
 
+test('erasing in one window removes every copy, the other follows, and neither revives the old save', async ({ context }) => {
+  const owner = await context.newPage();
+  const errors = watchErrors(owner);
+  await onboard(owner);
+  const follower = await context.newPage();
+  const followerErrors = watchErrors(follower);
+  await follower.goto('./#/today');
+  await expect(follower.locator('[data-banner="other-window"]')).toBeVisible();
+  await owner.evaluate(() => {
+    localStorage.setItem('catkin:unknown-private-data', 'private');
+    localStorage.setItem('unrelated-app', 'keep');
+    location.hash = '#/you';
+  });
+  await owner.getByRole('button', { name: 'Start over', exact: true }).click();
+  await owner.getByRole('button', { name: 'Erase everything on this device', exact: true }).click();
+  const confirm = owner.getByRole('alertdialog').filter({ hasText: 'There is no undo.' });
+  await expect(confirm).toBeVisible();
+  await owner.waitForTimeout(800); // a tap carried over from the erase choice cannot confirm it
+  await confirm.getByRole('button', { name: 'Erase everything', exact: true }).click();
+  await onboardingReady(owner);
+  await onboardingReady(follower);
+  await expect(follower.locator('[data-banner="started-over"]')).toHaveText(STARTED_OVER);
+  await expect.poll(() => owner.evaluate(() => Object.keys(localStorage).filter((key) => key.startsWith('catkin:')))).toEqual([]);
+  expect(await owner.evaluate(() => localStorage.getItem('unrelated-app'))).toBe('keep');
+  expect(await owner.evaluate(async () => (await indexedDB.databases()).filter((db) => db.name === 'catkin'))).toEqual([]);
+  await follower.close();
+  await owner.reload();
+  await onboardingReady(owner);
+  expect(await savedHabits(owner)).toEqual([]);
+  expect([...errors, ...followerErrors]).toEqual([]);
+});
+
 /**
  * Onboarding in two windows (WP-C5: creative-cr-d1, UI2-07). The window that doesn't own the save
  * can't plant: its picks stay chosen and it points to "Use here"; after Use here the same picks plant
@@ -98,14 +135,14 @@ test('onboarding in two windows: a refused planting keeps its picks, Use here pl
   const a = await context.newPage();
   const errorsA = watchErrors(a);
   await a.goto('./#/today');
-  await expect(a.locator('main h1')).toHaveText(ONBOARDING_H1);
+  await onboardingReady(a);
 
   const b = await context.newPage();
   const errorsB = watchErrors(b);
   await b.goto('./#/today');
   const bannerB = b.locator('[data-banner="other-window"]');
   await expect(bannerB).toBeVisible();
-  await expect(b.locator('main h1')).toHaveText(ONBOARDING_H1);
+  await onboardingReady(b);
 
   // The read-only window picks and plants: nothing is planted, the picks stay, the note points up.
   await b.getByRole('button', { name: 'Next' }).click();

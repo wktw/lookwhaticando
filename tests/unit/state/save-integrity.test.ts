@@ -12,6 +12,7 @@ import { RETRY_MS, SAVE_KEY, SaveQueue, browserStorage, encodeEnvelope, memorySt
 import * as store from '@/state/store';
 import type { AppState } from '@/state/types';
 import { deferredLocks, failWrites, fakeBrowser, fakeLocks } from './fixtures';
+import { capturedFrames } from './controlled';
 
 vi.setConfig({ testTimeout: 30_000 });
 
@@ -51,12 +52,12 @@ describe('FS1: a writer that lost the save never writes over the new owner', () 
   function ownedWithWalk() {
     const locks = fakeLocks({ byOther: false });
     const b = fakeBrowser({ locks });
-    const frames: (() => void)[] = [];
-    store.configureStore({ afterFrame: (fn) => void frames.push(fn) });
+    const frames = capturedFrames();
+    store.configureStore({ afterFrame: frames.afterFrame });
     store.hydrate();
     store.completeOnboarding({ name: 'Sam', templateIds: [] });
     const id = store.createHabit(input());
-    for (const f of frames.splice(0)) f();
+    frames.flush();
     store.flushSaves();
     return { b, locks, frames, id };
   }
@@ -64,13 +65,13 @@ describe('FS1: a writer that lost the save never writes over the new owner', () 
   it('the lock is stolen while a check-in waits for its frame (R201)', async () => {
     const { b, locks, frames, id } = ownedWithWalk();
     store.checkIn(id);
-    expect(frames).toHaveLength(1);
+    expect(frames.pending).toBe(1);
     locks.stolen();
     await settle();
     expect(store.readOnly.value).toBe('other-window');
     // The new owner saves before its storage event reaches this window.
     b.storage.setItem(SAVE_KEY, encodeEnvelope(onboarded(b.clock.now, 'Owner'), 99, b.clock.now, 'test'));
-    for (const f of frames.splice(0)) f();
+    frames.flush();
     expect(saved(b).rev).toBe(99);
     expect(saved(b).state.profile.name).toBe('Owner');
   });
@@ -80,7 +81,7 @@ describe('FS1: a writer that lost the save never writes over the new owner', () 
     const before = saved(b).state;
     store.checkIn(id);
     store.hydrate();
-    for (const f of frames.splice(0)) f();
+    frames.flush();
     store.flushSaves();
     expect(saved(b).state.logs[id]).toEqual(before.logs[id]);
   });
@@ -103,10 +104,10 @@ describe('FS1 at the queue: a retired queue ignores every late callback', () => 
 
   it('after the frame', () => {
     const { q, storage } = queue();
-    const frames: (() => void)[] = [];
-    q.saveSoon(s0, (fn) => void frames.push(fn));
+    const frames = capturedFrames();
+    q.saveSoon(s0, frames.afterFrame);
     q.dispose();
-    for (const f of frames) f();
+    frames.flush();
     expect(storage.getItem(SAVE_KEY)).toBeNull();
   });
 

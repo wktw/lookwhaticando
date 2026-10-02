@@ -48,6 +48,8 @@
 }
 
 .loadingText {
+  font-size: inherit;
+  font-weight: inherit;
   font-family: var(--font-display);
   font-style: italic;
   color: var(--ink-2);

@@ -70,6 +70,8 @@ function addServings(tx: Tx, treatId: string, n: number): void {
 export function bakeTray(tx: Tx, treatId: string): { ok: boolean } {
   const def = getCollectible(treatId);
   if (def?.category !== 'treat' || !owns(tx.s.collection, treatId)) return { ok: false };
+  // A tray is a whole purchase: never charge for servings that the cap would discard.
+  if ((tx.s.pantry[treatId]?.servings ?? RESTOCK_PER_MORNING) + BAKE.servings > PANTRY_MAX) return { ok: false };
   if (!spendCoins(tx, BAKE.coins)) return { ok: false };
   ensureRecipe(tx, treatId);
   addServings(tx, treatId, BAKE.servings);

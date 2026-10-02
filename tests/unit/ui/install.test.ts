@@ -19,6 +19,12 @@ const UA = {
 const env = (ua: string, over: Partial<InstallEnv> = {}): InstallEnv => ({ ua, platform: /Mac/.test(ua) ? 'MacIntel' : 'Win32', maxTouchPoints: 0, standalone: false, canPrompt: false, ...over });
 
 describe('install platform detection', () => {
+  it('does not mistake the default WKWebView user agent for Safari', () => {
+    const ua = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148';
+    const platform = detectInstallPlatform(env(ua, { platform: 'iPhone', maxTouchPoints: 5 }));
+    expect(platform).toBe('other');
+    expect(shouldGateInstall(platform, false)).toBe(false);
+  });
   it('already installed wins', () => {
     expect(detectInstallPlatform(env(UA.iphoneSafari, { standalone: true }))).toBe('installed');
   });

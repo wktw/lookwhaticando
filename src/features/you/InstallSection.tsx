@@ -3,11 +3,12 @@
  * handoff between a Safari tab and the installed app ("Move my plants into the app" copies the
  * save as CK1 text; the installed app offers "Paste my plants").
  */
+import { getPlatform } from '@/platform/capabilities';
 import { useState } from 'preact/hooks';
 import { INSTALL } from '@/catalog/lines';
 import { InstallGuide } from '@/app/InstallGuide';
 import { currentInstallPlatform } from '@/app/installPrompt';
-import { backupPayload, markBackup, replacing, state } from '@/state/store';
+import { backupPayload, markBackup, replacing, saveEpoch, state } from '@/state/store';
 import { ListRow } from '@/ui/ListRow';
 import { SectionHeader } from '@/ui/SectionHeader';
 import { toast } from '@/ui/toast';
@@ -23,15 +24,19 @@ export function InstallSection() {
   const [byHand, setByHand] = useState<string | null>(null);
   const installed = currentInstallPlatform() === 'installed';
   const hasPlants = state.value.habits.length > 0;
-  const single = location.protocol === 'file:';
+  const single = getPlatform().installation.localFile;
 
   // Straight from the tap (iPhone Safari copies and pastes only inside one).
   const handoff = () => {
+    const epoch = saveEpoch.peek();
     const payload = backupPayload();
     void copyLater(payload).then(async (ok) => {
-      if (ok) markBackup();
+      if (ok && saveEpoch.peek() === epoch) markBackup();
       if (ok) toast({ key: 'handoff', message: INSTALL.handoffCopied, tone: 'sage', duration: 8000 });
-      else setByHand(await payload);
+      else {
+        const text = await payload;
+        if (saveEpoch.peek() === epoch) setByHand(text);
+      }
     });
   };
 

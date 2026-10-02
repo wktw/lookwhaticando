@@ -1,8 +1,9 @@
 /**
  * Diagnostics (DESIGN §11.1, #/you/diagnostics, seven taps on the version): what this device says
- * about catkin, for a bug report. Display mode, storage, the save envelope, the service worker,
+ * about Little by Little, for a bug report. Display mode, storage, the save envelope, the service worker,
  * audio, share, haptics, the viewport, frame timing and the clock, with "Copy report".
  */
+import { capabilityDiagnostics } from '@/platform/capabilities';
 import { Fragment } from 'preact';
 import { useEffect, useState } from 'preact/hooks';
 import { ERRORS } from '@/catalog/lines';
@@ -32,6 +33,7 @@ function kb(chars: number): string {
 /** Everything that can be read at once. */
 export function readDiagnostics(): Rows {
   const app = state.value;
+  const capabilities = capabilityDiagnostics();
   const nav = navigator as Navigator & { standalone?: boolean; audioSession?: { type?: string }; deviceMemory?: number };
   let raw = '';
   try {
@@ -62,10 +64,10 @@ export function readDiagnostics(): Rows {
     ['Habits', `${app.habits.length} · ${Object.keys(app.pets).length} pets · ${app.lifetime.checkins} waterings`],
     ['Today', `${today.value} · day starts ${Math.floor(app.settings.dayStartsAt / 60)}:${String(app.settings.dayStartsAt % 60).padStart(2, '0')}`],
     ['Clock', clockBehind.value ? ERRORS.clock : `ok · latest ${new Date(app.clock.maxEpochMs || Date.now()).toISOString()}`],
-    ['Service worker', 'serviceWorker' in navigator ? `${navigator.serviceWorker.controller ? 'controlling' : 'not controlling'}${updateReady.value ? ' · update waiting' : ''}` : 'not supported'],
+    ['Service worker', `${capabilities.serviceWorker}${capabilities.serviceWorker !== 'not supported' && updateReady.value ? ' · update waiting' : ''}`],
     ['Audio', `${'AudioContext' in window || 'webkitAudioContext' in window ? 'Web Audio' : 'none'}${nav.audioSession ? ` · session ${nav.audioSession.type ?? '?'}` : ''} · sounds ${app.settings.sound ? 'on' : 'off'}`],
-    ['Share', `${'share' in navigator ? 'share sheet' : 'no share sheet'} · files ${yes(canShareFiles())}`],
-    ['Haptics', `${hapticsSupported() ? 'supported' : 'not here'} · ${typeof navigator.vibrate === 'function' ? 'vibrate' : 'no vibrate'} · ${app.settings.haptics ? 'on' : 'off'}`],
+    ['Share', `${capabilities.shareSheet ? 'share sheet' : 'no share sheet'} · files ${yes(canShareFiles())}`],
+    ['Haptics', `${hapticsSupported() ? 'supported' : 'not here'} · ${capabilities.vibration ? 'vibrate' : 'no vibrate'} · ${app.settings.haptics ? 'on' : 'off'}`],
     ['Viewport', `${innerWidth}×${innerHeight} @${devicePixelRatio}x${vv ? ` · visual ${Math.round(vv.width)}×${Math.round(vv.height)}` : ''}`],
     ['Motion', `${matchMedia('(prefers-reduced-motion: reduce)').matches ? 'reduce' : 'full'} · setting ${app.settings.reduceMotion} · lite ${yes(isLite())}`],
     ['Theme', `${document.documentElement.dataset.theme ?? '?'} · setting ${app.settings.theme}`],
@@ -85,7 +87,7 @@ async function storageRows(): Promise<Rows> {
 }
 
 export function reportText(rows: Rows): string {
-  return ['catkin diagnostics', new Date().toISOString(), ...rows.map(([k, v]) => `${k}: ${v}`)].join('\n');
+  return ['Little by Little diagnostics', new Date().toISOString(), ...rows.map(([k, v]) => `${k}: ${v}`)].join('\n');
 }
 
 export function Diagnostics() {

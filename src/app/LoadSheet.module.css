@@ -112,3 +112,12 @@
     transition-timing-function: ease;
   }
 }
+
+/* A modal owns its transient actions; notes scroll independently on short screens. */
+.notes {
+  flex: 0 1 auto;
+  min-height: 0;
+  width: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
