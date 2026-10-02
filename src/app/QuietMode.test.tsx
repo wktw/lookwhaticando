@@ -12,7 +12,7 @@ import { ShelfScreen } from '@/features/shelf/ShelfScreen';
 import { TodayPrefsSection } from '@/features/you/PreferencesSection';
 import { DoneTodayStep } from '@/features/onboarding/DoneTodayStep';
 import { Calendar } from '@/features/progress/Calendar';
-import { toasts } from '@/ui/toast';
+import { toast, toasts } from '@/ui/toast';
 import { Toaster } from '@/ui/Toaster';
 import * as live from '@/ui/announce';
 
@@ -209,6 +209,41 @@ describe('complete quiet mode (WP-D3)', () => {
     await act(async () => { await vi.advanceTimersByTimeAsync(70); });
     expect(Array.from(document.querySelectorAll('[aria-live]')).map((el) => el.textContent).join(' ')).not.toMatch(/coins?|capsule/i);
     expect(document.querySelector('[data-toast-id]:not([data-toast-leaving])')?.textContent).not.toMatch(/coins?|capsule/i);
+  });
+
+  it('never overwrites a newer unrelated note sharing a check-in key', async () => {
+    vi.useFakeTimers();
+    const id = store.state.value.habits[0]!.id;
+    view = mount(<><DoneTodayStep habitIds={[id]} onNext={() => undefined} /><Toaster /></>);
+    await click(button('Walk'));
+    const old = toasts.value.find((t) => t.key === `checkin-${id}`)!;
+    await act(() => { toast({ key: `checkin-${id}`, message: 'New status', label: 'New status', silent: true }); });
+    await act(() => store.updateSettings({ quietRewards: true }));
+    const newer = toasts.value.find((t) => t.id === old.id)!;
+    expect(newer.version).toBe(old.version + 1);
+    expect(newer.message).toBe('New status');
+    expect(newer.label).toBe('New status');
+  });
+
+  it('keeps a focused clock paused across repeated presentation changes', async () => {
+    vi.useFakeTimers();
+    const id = store.state.value.habits[0]!.id;
+    view = mount(<><DoneTodayStep habitIds={[id]} onNext={() => undefined} /><Toaster /></>);
+    await click(button('Walk'));
+    const item = toasts.value.find((t) => t.key === `checkin-${id}`)!;
+    await act(async () => { await vi.advanceTimersByTimeAsync(2000); });
+    const undo = button('Undo')!;
+    await act(() => undo.focus());
+    await act(() => store.updateSettings({ quietRewards: true }));
+    await act(async () => { await vi.advanceTimersByTimeAsync(5000); });
+    await act(() => store.updateSettings({ quietRewards: false }));
+    expect(document.activeElement).toBe(undo);
+    expect(toasts.value.find((t) => t.id === item.id)?.leaving).not.toBe(true);
+    await act(() => button('Walk')!.focus());
+    await act(async () => { await vi.advanceTimersByTimeAsync(1999); });
+    expect(toasts.value.find((t) => t.id === item.id)?.leaving).not.toBe(true);
+    await act(async () => { await vi.advanceTimersByTimeAsync(1); });
+    expect(toasts.value.find((t) => t.id === item.id)?.leaving).toBe(true);
   });
 
   it('keeps history correction helper and success toast quiet', async () => {
