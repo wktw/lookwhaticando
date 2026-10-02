@@ -1349,7 +1349,9 @@ under the constant named. Same rules as everywhere (section 1).
 | calendar.unwater | "Not watered after all" |
 | calendar.windowNote | "The last 6 days are watered from the week strip on Today." |
 | calendar.openToday | "Open Today" |
-| calendar.refused | "That day is watered from the week strip on Today." |
+| calendar.refused | "That day can’t be changed here right now." (WP-B8: also covers ownership changing after an action is offered). DEC-V: pending owner approval |
+| calendar.periodLocked | "This watering can be removed once its period is outside the week strip on Today." (WP-B8). DEC-V: pending owner approval |
+| calendar.outsideDates | "That day is outside this habit’s tracking dates." (WP-B8). DEC-V: pending owner approval |
 | calendar.watered | "watered" |
 | calendar.tiny | "the tiny version" |
 | calendar.rest | "resting" |

@@ -8,7 +8,7 @@ import { habit, monthly, rule, weekly, DAILY, range, on } from '../../../tests/u
 import { Calendar } from './Calendar';
 import { ProgressScreen } from './ProgressScreen';
 import { Stats } from '@/features/habits/detail/Parts';
-import { NOW, TODAY, UTC, button, click, installDom, mount, pause, useState_ } from './testing';
+import { NOW, TODAY, UTC, button, click, installDom, mount, until, useState_ } from './testing';
 
 let view: ReturnType<typeof mount> | null = null;
 beforeAll(installDom);
@@ -66,11 +66,11 @@ describe('Progress without habits', () => {
     s.seasons = { filed: [{ key: '2026-06-01', name: 'summer', start: '2026-06-01', end: '2026-08-31', hemisphere: 'north', plants: [], waterings: 12 }] };
     useState_(s);
     view = mount(<ProgressScreen />);
-    await pause(250);
+    await until(() => document.querySelector('[data-section="memory"]'), 'retained memory');
     expect(document.querySelector('[data-pin="first-checkin"][data-earned="true"]')).not.toBeNull();
     expect(document.querySelector('[data-ritual="anniversary"]')).not.toBeNull();
     expect(document.querySelector('[data-memory="seasons"]')).not.toBeNull();
-    expect(document.querySelector('[data-section="records"]')?.textContent).toContain('12 days');
+    expect(document.querySelector('[data-section="records"]')?.textContent).toContain('Days showing up12');
     expect(document.querySelector('[data-section="calendar"]')).toBeNull();
     await click(button('Add a habit'));
     expect(habitEditorRequest.value).toEqual({});
@@ -80,7 +80,7 @@ describe('Progress without habits', () => {
     s.keepsakes = [{ id: 'k-old-2', habitId: 'old', petId: 'old-pet', stage: 2, kind: 'brass-seed', date: '2026-08-01' }];
     useState_(s);
     view = mount(<ProgressScreen />);
-    await pause(250);
+    await until(() => document.querySelector('[data-section="memory"]'), 'retained memory');
     expect(document.querySelector('[data-memory="keepsakes"]')?.textContent).toContain('Aug 1');
     expect(button('Add a habit')).not.toBeNull();
   });
@@ -95,4 +95,17 @@ it('shows both a 3-week best run and a 7-day current run after a rhythm change',
   view = mount(<Stats vm={vm} />);
   expect(view.root.textContent).toContain('3 weeks in a row');
   expect(view.root.textContent).toContain('7 days in a row');
+});
+
+
+it('shows a daily best alongside a longer-labelled biweekly current run', () => {
+  const h = habit({ startedOn: '2026-06-01', rules: [rule('2026-06-01', DAILY), rule('2026-06-08', weekly(1, 2))] });
+  const s = { ...base(), habits: [h], logs: { h1: { ...range('2026-06-01', '2026-06-07'), ...on(['2026-06-08', '2026-06-22', '2026-07-06', '2026-07-20']) } } };
+  useState_(s);
+  const vm = habitDetailVM(s, { today: '2026-08-02', now: Date.UTC(2026, 7, 2, 12), local: UTC }, 'h1')!;
+  expect(vm.stats.best?.unit).toBe('days');
+  expect(vm.stats.current?.unit).toBe('weeks');
+  view = mount(<Stats vm={vm} />);
+  expect(view.root.textContent).toContain('7 days in a row');
+  expect(view.root.textContent).toContain('8 weeks in a row');
 });
