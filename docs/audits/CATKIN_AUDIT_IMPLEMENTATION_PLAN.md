@@ -636,6 +636,9 @@ Every package in this section fills every field (a mechanical check of the ten l
 - **Rollback:** revert the renames. No data is involved.
 
 #### WP-02 Test-tool advisory and dev-server exposure (S, medium)
+
+> **Status — implemented; independent reviews and full gate pending (2 October 2026).** Upgraded only the test runner to the first patched Vitest 4 release, `4.1.11`, preserving the existing Vite 7 build tool and both supported Node 22/24 lines. Before the change, `npm audit` reproduced GHSA-82fw-gwwq-j7x9 in Vitest and its mocker; afterward the complete audit reports zero vulnerabilities. The unchanged full unit suite reports exactly **3,552 passed, 1 skipped, 0 failed** both before and after (3,553 collected); typecheck passes without config or test changes. Default `dev` and `preview` no longer bind all interfaces; `dev:lan` explicitly opts in, and README explains it. An actual HTTP probe confirmed the former `--host` command answers the machine's non-loopback address, default `dev` answers localhost but refuses that address, and `dev:lan` answers both. CI now runs the dependency audit. No runtime, saved-data or in-app wording change. Kept on its own branch rather than opening a PR, per the owner's no-PR instruction. Evidence logs are `/workspace/tooling-{before,after}-{tests,audit}.json`, `/workspace/tooling-types.log`, and `/workspace/tooling-*-server.log`; final cross-platform CI and full-gate evidence will follow integration.
+
 - **Covers:** P-release-03.
 - **Files:** `package.json`, `package-lock.json`, `vitest.config.ts`, and any config changes the major upgrade needs.
 - **Failure mechanism:** the lockfile pins vitest 3.2.7 and `@vitest/mocker`, which GHSA-82fw-gwwq-j7x9 affects (`>=2.1.0 <4.1.11`), and `dev`/`preview` bind every interface with `--host`, so a dev server on an untrusted network is reachable.

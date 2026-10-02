@@ -24,7 +24,8 @@ Or run it from source (Node 22+):
 
 ```bash
 npm install
-npm run dev          # open the printed URL; --host also serves it to phones on the same Wi-Fi
+npm run dev          # open the printed URL on this computer
+npm run dev:lan      # explicitly allow phones on the same trusted Wi-Fi
 ```
 
 ### On iPhone
@@ -55,7 +56,8 @@ shown there (it starts with `CK1:`).
 
 | Command | What it does |
 |---|---|
-| `npm run dev` | Dev server, including `gallery.html` (every piece of art and UI in every state) |
+| `npm run dev` | Local dev server, including `gallery.html` (every piece of art and UI in every state) |
+| `npm run dev:lan` | Dev server reachable by other devices on the network |
 | `npm run typecheck` | TypeScript, strict |
 | `npm test` | Unit and component tests (Vitest) |
 | `npm run e2e` | End-to-end tests (Playwright) |
