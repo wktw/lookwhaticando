@@ -37,6 +37,7 @@ export function LookChoiceSheet({ vm, open, epoch, onClose, onConfirm, onClosed 
       else onClose();
     }}>{LOOKS.confirm}</Button><Button variant="quiet" onClick={onClose}>{COMPANION.reveal.notNow}</Button></>}>
     {!PETAL_INKS[vm.plant.species] && <p class={s.help}>{LOOKS.foliage}</p>}
+    {PETAL_INKS[vm.plant.species] && shape?.shape === 'paired' && partner && <p class={s.help}>{LOOKS.pairedChoice}</p>}
     <div class={s.colourChoices} role="radiogroup" aria-label={LOOKS.choose} onKeyDown={key}>
       {COLOURS.map((c, i) => <button type="button" role="radio" aria-checked={colour === c} tabIndex={colour === c || (!colour && i === 0) ? 0 : -1}
         class={cx(s.look, colour === c && s.lookOn)} onClick={() => setColour(c)} key={c}>

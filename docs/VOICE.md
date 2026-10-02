@@ -973,6 +973,7 @@ the plant tag offers a deliberate colour choice. The ordinary names above descri
 - Chosen tag: "{look}: a colour you chose."
 - Chosen option label: "{look} · chosen".
 - Foliage disclosure: "This plant has no petals to colour. Your choice stays on its tag; the leaves stay the same."
+- Paired flowers with a partner still present: "Paired flowers keep the other habit’s colour. Your choice stays on the tag, and the bee stays."
 - Confirmation announcement: "Colour kept."
 - Garden Journal while the time is uncertain: "Your usual time is still uncertain."
 - Garden Journal before a look is known: "Your plant tag will explain its look when one is ready."

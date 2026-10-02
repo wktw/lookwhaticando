@@ -372,6 +372,7 @@ export const LOOKS = {
   chosenTag: '{look}: a colour you chose.',
   chosenOption: '{look} · chosen',
   foliage: 'This plant has no petals to colour. Your choice stays on its tag; the leaves stay the same.',
+  pairedChoice: 'Paired flowers keep the other habit’s colour. Your choice stays on the tag, and the bee stays.',
   confirmed: 'Colour kept.',
   newLook: 'A new look for {plant}: {look}.',
   stacking: { after: 'After {anchor}', kept: { one: 'Right after {anchor} on 1 day', other: 'Right after {anchor} on {count} days' } },

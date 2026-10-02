@@ -117,6 +117,7 @@ The legal notices themselves are verbatim upstream licence documents, generated 
 | Explicit-choice tag | “{look}: a colour you chose.” |
 | Explicit-choice option | “{look} · chosen” |
 | Foliage disclosure | “This plant has no petals to colour. Your choice stays on its tag; the leaves stay the same.” |
+| Paired flower disclosure while the partner is present | “Paired flowers keep the other habit’s colour. Your choice stays on the tag, and the bee stays.” |
 | Confirmation announcement | “Colour kept.” |
 | Uncertain Garden Journal time | “Your usual time is still uncertain.” |
 | Garden Journal awaiting a look | “Your plant tag will explain its look when one is ready.” |

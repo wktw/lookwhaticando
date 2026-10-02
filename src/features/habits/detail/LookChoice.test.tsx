@@ -2,7 +2,8 @@
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { act } from 'preact/test-utils';
 import { Game } from '../../../../tests/unit/domain/game';
-import { state, saveEpoch } from '@/state/store';
+import { addDays } from '@/domain/dates';
+import { state, saveEpoch, deleteHabit } from '@/state/store';
 import { habitDetailVM } from '@/state/views/habit';
 import { PlantTagCard } from './Parts';
 import { button, click, installDom, key, mount, until, useState_, TODAY, NOW, UTC } from '@/features/progress/testing';
@@ -68,5 +69,29 @@ describe('the waiting plant tag and deliberate colour choice', () => {
     act(() => { saveEpoch.value++; state.value = structuredClone(state.value); });
     if (button('Keep this colour')) await click(button('Keep this colour'), 'stale confirmation');
     expect(state.value.plantLooks?.[id]?.confirmed).toBeUndefined();
+  });
+
+  it('explains Paired’s retained partner colour before confirmation and on the chosen tag', async () => {
+    const g = new Game({ start: '2026-01-01' });
+    const a = g.addHabit({ name: 'Walk', color: 'blush' });
+    const id = g.addHabit({ name: 'Read', plant: 'begonia', anchorHabitId: a });
+    const c = g.addHabit({ name: 'Stretch' });
+    for (let i = 0; i < 50; i++) {
+      g.goTo(addDays('2026-01-01', i), 7);
+      g.checkIn(a); g.now += 30_000; g.checkIn(id); g.now += 30_000; g.checkIn(c);
+    }
+    useState_(g.state);
+    function Harness() { return <PlantTagCard vm={habitDetailVM(state.value, { today: TODAY, now: NOW, local: UTC }, id)!} />; }
+    view = mount(<Harness />);
+    await click(button('Choose a colour'), 'open Paired chooser');
+    const sheet = await until(() => document.querySelector('[role="dialog"]'), 'dialog');
+    expect(sheet.textContent).toContain('Paired flowers keep the other habit’s colour');
+    expect(sheet.querySelector('[data-flourish="bee"]')).not.toBeNull();
+    await click(button('Twilight', sheet), 'Twilight');
+    await click(button('Keep this colour'), 'confirm colour');
+    expect(view!.root.textContent).toContain('Your choice stays on the tag, and the bee stays.');
+    act(() => deleteHabit(a));
+    expect(view!.root.textContent).not.toContain('Paired flowers keep the other habit’s colour');
+    expect(view!.root.querySelector('[data-flourish="bee"]')).not.toBeNull();
   });
 });

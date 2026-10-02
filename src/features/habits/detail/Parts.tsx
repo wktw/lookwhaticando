@@ -78,6 +78,8 @@ export function PlantTagCard({ vm }: { vm: HabitDetailVM }) {
           {!looks.choice && <p class={s.help}>{LOOKS.choiceLater}</p>}
         </>}
         {!PETAL_INKS[vm.plant.species] && <p class={s.help}>{LOOKS.foliage}</p>}
+        {PETAL_INKS[vm.plant.species] && looks.confirmed?.shown && looks.confirmed.shape === 'paired'
+          && state.value.habits.some((h) => h.id === looks.confirmed!.partnerId) && <p class={s.help}>{LOOKS.pairedChoice}</p>}
         {(looks.looks.length > 0 || looks.confirmed) && <div class={s.looks} role="radiogroup" aria-label={D.looks.label} onKeyDown={onKey}>
           {options.map((o) => {
             const on = o.index === shown;
