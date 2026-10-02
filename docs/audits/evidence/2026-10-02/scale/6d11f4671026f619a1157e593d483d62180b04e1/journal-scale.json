@@ -1,0 +1,729 @@
+{
+  "schema": 2,
+  "sha": "6d11f4671026f619a1157e593d483d62180b04e1",
+  "dirty": false,
+  "measuredAt": "2026-10-02T17:02:41.173Z",
+  "environment": {
+    "os": "linux 6.18.44",
+    "node": "v24.19.0",
+    "cpu": "AMD EPYC 9V74 80-Core Processor",
+    "logicalCpus": 5,
+    "memoryBytes": 18882699264,
+    "chromium": "143.0.7499.4",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "deviceScaleFactor": 1,
+    "reducedMotion": true,
+    "timezone": "UTC",
+    "cpuThrottling": "none",
+    "build": "production-compiled isolated component/function harness"
+  },
+  "budget": {
+    "desktop": "observational; no new threshold agreed",
+    "phone": "physical-device budgets and validation remain parked with WP-E4; a narrow desktop viewport is not a phone measurement"
+  },
+  "scenarios": [
+    {
+      "fixture": {
+        "years": 5,
+        "habits": 12,
+        "count": 21900,
+        "characters": 6132000,
+        "fingerprint": 3148841511,
+        "encodedCharacters": 7568844,
+        "encodedUtf8Bytes": 7568844,
+        "utf16PayloadBytes": 15137688,
+        "checkins": 21900,
+        "letters": 320
+      },
+      "samples": 5,
+      "state": {
+        "progressCold": [
+          75.20000000298023,
+          56.600000001490116,
+          58.400000005960464,
+          49.399999998509884,
+          51.80000000447035
+        ],
+        "progressWarm": [
+          0,
+          0,
+          0,
+          0,
+          0.10000000149011612
+        ],
+        "todayCold": [
+          14.300000004470348,
+          14.100000001490116,
+          14.699999995529652,
+          13.700000002980232,
+          13.399999998509884
+        ],
+        "todayWarm": [
+          0.5999999940395355,
+          0.5,
+          0.30000000447034836,
+          0.29999999701976776,
+          0.5
+        ],
+        "detailCold": [
+          9.400000005960464,
+          6,
+          5.299999997019768,
+          9.199999995529652,
+          4.899999998509884
+        ],
+        "detailWarm": [
+          2.5999999940395355,
+          2.600000001490116,
+          2,
+          2.2000000029802322,
+          2.1999999955296516
+        ],
+        "lifetimeWalk": [
+          3.899999998509884,
+          5.5,
+          5.600000001490116,
+          5.200000002980232,
+          6.100000001490116
+        ],
+        "rejectedBackdate": [
+          0.20000000298023224,
+          0,
+          0,
+          0.09999999403953552,
+          0
+        ],
+        "tap": [
+          {
+            "actionMs": 4.799999997019768,
+            "serializeMs": 21.399999998509884,
+            "commitMs": 2.600000001490116,
+            "totalMs": 28.799999997019768,
+            "outcome": "QuotaExceededError",
+            "previousKept": true
+          },
+          {
+            "actionMs": 2.1999999955296516,
+            "serializeMs": 17.80000000447035,
+            "commitMs": 1.8999999985098839,
+            "totalMs": 21.899999998509884,
+            "outcome": "QuotaExceededError",
+            "previousKept": true
+          },
+          {
+            "actionMs": 2.2000000029802322,
+            "serializeMs": 17.899999998509884,
+            "commitMs": 2,
+            "totalMs": 22.100000001490116,
+            "outcome": "QuotaExceededError",
+            "previousKept": true
+          },
+          {
+            "actionMs": 9.200000002980232,
+            "serializeMs": 18.69999999552965,
+            "commitMs": 2.2000000029802322,
+            "totalMs": 30.100000001490116,
+            "outcome": "QuotaExceededError",
+            "previousKept": true
+          },
+          {
+            "actionMs": 2.2000000029802322,
+            "serializeMs": 18.799999997019768,
+            "commitMs": 2,
+            "totalMs": 23,
+            "outcome": "QuotaExceededError",
+            "previousKept": true
+          }
+        ]
+      },
+      "maintenanceAndImport": {
+        "rollover": [
+          {
+            "ms": 69.80000000447035,
+            "mode": "rollover",
+            "advancedTo": "2026-09-30",
+            "witnessDay": "2026-06-01",
+            "foldedWitnesses": 6,
+            "oldLiveDaysBefore": 12,
+            "oldLiveDaysAfter": 0,
+            "oldLedgerEntriesBefore": 13,
+            "oldLedgerEntriesAfter": 0,
+            "restockedPantryEntries": 35,
+            "journalPreserved": true,
+            "stackingPreserved": true
+          },
+          {
+            "ms": 44.899999998509884,
+            "mode": "rollover",
+            "advancedTo": "2026-09-30",
+            "witnessDay": "2026-06-01",
+            "foldedWitnesses": 6,
+            "oldLiveDaysBefore": 12,
+            "oldLiveDaysAfter": 0,
+            "oldLedgerEntriesBefore": 13,
+            "oldLedgerEntriesAfter": 0,
+            "restockedPantryEntries": 35,
+            "journalPreserved": true,
+            "stackingPreserved": true
+          },
+          {
+            "ms": 42.100000001490116,
+            "mode": "rollover",
+            "advancedTo": "2026-09-30",
+            "witnessDay": "2026-06-01",
+            "foldedWitnesses": 6,
+            "oldLiveDaysBefore": 12,
+            "oldLiveDaysAfter": 0,
+            "oldLedgerEntriesBefore": 13,
+            "oldLedgerEntriesAfter": 0,
+            "restockedPantryEntries": 35,
+            "journalPreserved": true,
+            "stackingPreserved": true
+          },
+          {
+            "ms": 42.899999998509884,
+            "mode": "rollover",
+            "advancedTo": "2026-09-30",
+            "witnessDay": "2026-06-01",
+            "foldedWitnesses": 6,
+            "oldLiveDaysBefore": 12,
+            "oldLiveDaysAfter": 0,
+            "oldLedgerEntriesBefore": 13,
+            "oldLedgerEntriesAfter": 0,
+            "restockedPantryEntries": 35,
+            "journalPreserved": true,
+            "stackingPreserved": true
+          },
+          {
+            "ms": 51.899999998509884,
+            "mode": "rollover",
+            "advancedTo": "2026-09-30",
+            "witnessDay": "2026-06-01",
+            "foldedWitnesses": 6,
+            "oldLiveDaysBefore": 12,
+            "oldLiveDaysAfter": 0,
+            "oldLedgerEntriesBefore": 13,
+            "oldLedgerEntriesAfter": 0,
+            "restockedPantryEntries": 35,
+            "journalPreserved": true,
+            "stackingPreserved": true
+          }
+        ],
+        "compact": [
+          {
+            "ms": 45.80000000447035,
+            "mode": "compact",
+            "advancedTo": "2026-09-29",
+            "witnessDay": "2026-05-31",
+            "foldedWitnesses": 6,
+            "oldLiveDaysBefore": 20448,
+            "oldLiveDaysAfter": 0,
+            "oldLedgerEntriesBefore": 23621,
+            "oldLedgerEntriesAfter": 0,
+            "restockedPantryEntries": 0,
+            "journalPreserved": true,
+            "stackingPreserved": true
+          },
+          {
+            "ms": 32.399999998509884,
+            "mode": "compact",
+            "advancedTo": "2026-09-29",
+            "witnessDay": "2026-05-31",
+            "foldedWitnesses": 6,
+            "oldLiveDaysBefore": 20448,
+            "oldLiveDaysAfter": 0,
+            "oldLedgerEntriesBefore": 23621,
+            "oldLedgerEntriesAfter": 0,
+            "restockedPantryEntries": 0,
+            "journalPreserved": true,
+            "stackingPreserved": true
+          },
+          {
+            "ms": 38.600000001490116,
+            "mode": "compact",
+            "advancedTo": "2026-09-29",
+            "witnessDay": "2026-05-31",
+            "foldedWitnesses": 6,
+            "oldLiveDaysBefore": 20448,
+            "oldLiveDaysAfter": 0,
+            "oldLedgerEntriesBefore": 23621,
+            "oldLedgerEntriesAfter": 0,
+            "restockedPantryEntries": 0,
+            "journalPreserved": true,
+            "stackingPreserved": true
+          },
+          {
+            "ms": 29.69999999552965,
+            "mode": "compact",
+            "advancedTo": "2026-09-29",
+            "witnessDay": "2026-05-31",
+            "foldedWitnesses": 6,
+            "oldLiveDaysBefore": 20448,
+            "oldLiveDaysAfter": 0,
+            "oldLedgerEntriesBefore": 23621,
+            "oldLedgerEntriesAfter": 0,
+            "restockedPantryEntries": 0,
+            "journalPreserved": true,
+            "stackingPreserved": true
+          },
+          {
+            "ms": 32.100000001490116,
+            "mode": "compact",
+            "advancedTo": "2026-09-29",
+            "witnessDay": "2026-05-31",
+            "foldedWitnesses": 6,
+            "oldLiveDaysBefore": 20448,
+            "oldLiveDaysAfter": 0,
+            "oldLedgerEntriesBefore": 23621,
+            "oldLedgerEntriesAfter": 0,
+            "restockedPantryEntries": 0,
+            "journalPreserved": true,
+            "stackingPreserved": true
+          }
+        ],
+        "pastedImport": [
+          {
+            "ms": 18.700000002980232,
+            "inputCharacters": 7568895,
+            "limitCharacters": 67108864,
+            "outcome": "accepted",
+            "journalPreserved": true
+          },
+          {
+            "ms": 18.600000001490116,
+            "inputCharacters": 7568895,
+            "limitCharacters": 67108864,
+            "outcome": "accepted",
+            "journalPreserved": true
+          },
+          {
+            "ms": 21.200000002980232,
+            "inputCharacters": 7568895,
+            "limitCharacters": 67108864,
+            "outcome": "accepted",
+            "journalPreserved": true
+          },
+          {
+            "ms": 23.100000001490116,
+            "inputCharacters": 7568895,
+            "limitCharacters": 67108864,
+            "outcome": "accepted",
+            "journalPreserved": true
+          },
+          {
+            "ms": 19.899999998509884,
+            "inputCharacters": 7568895,
+            "limitCharacters": 67108864,
+            "outcome": "accepted",
+            "journalPreserved": true
+          }
+        ],
+        "importUtf8Bytes": 7568895
+      },
+      "ui": {
+        "moments": {
+          "openMs": 583.6000000014901,
+          "scrollMs": 21.399999998509884,
+          "starMs": 50.399999998509884,
+          "starChanged": true,
+          "notes": 1825,
+          "domNodes": 16429,
+          "scrollPreserved": true,
+          "reading": "inline",
+          "filter": "not available"
+        },
+        "memory": {
+          "openMs": 82.60000000149012,
+          "readerMs": 116.20000000298023,
+          "returnMs": 50,
+          "letters": 320,
+          "domNodes": 5060,
+          "scrollPreserved": true,
+          "focusReturned": true,
+          "filter": "not available"
+        }
+      },
+      "snapshots": {
+        "records": 14,
+        "putMs": [
+          32.100000001490116,
+          33.20000000298023,
+          28.900000005960464,
+          29.19999999552965,
+          28.900000005960464,
+          30.700000002980232,
+          32.100000001490116,
+          33.5,
+          32.899999998509884,
+          30.399999998509884,
+          30.600000001490116,
+          33.20000000298023,
+          28.900000005960464,
+          28
+        ],
+        "listMs": [
+          225.59999999403954,
+          272.70000000298023,
+          280.6000000014901,
+          220.69999999552965,
+          256
+        ],
+        "readMs": 21.799999997019768,
+        "journalPreserved": true
+      }
+    },
+    {
+      "fixture": {
+        "years": 10,
+        "habits": 12,
+        "count": 43800,
+        "characters": 12264000,
+        "fingerprint": 1681579141,
+        "encodedCharacters": 14959052,
+        "encodedUtf8Bytes": 14959052,
+        "utf16PayloadBytes": 29918104,
+        "checkins": 43800,
+        "letters": 640
+      },
+      "samples": 5,
+      "state": {
+        "progressCold": [
+          151.09999999403954,
+          161.69999999552965,
+          152.79999999701977,
+          136.90000000596046,
+          126.39999999850988
+        ],
+        "progressWarm": [
+          0.10000000149011612,
+          0,
+          0,
+          0,
+          0
+        ],
+        "todayCold": [
+          35,
+          44.5,
+          33.5,
+          32.600000001490116,
+          34.100000001490116
+        ],
+        "todayWarm": [
+          0.6000000014901161,
+          0.6000000014901161,
+          0.30000000447034836,
+          0.3999999985098839,
+          0.3999999985098839
+        ],
+        "detailCold": [
+          15.099999994039536,
+          18,
+          9.700000002980232,
+          8.399999998509884,
+          16.200000002980232
+        ],
+        "detailWarm": [
+          5.5,
+          9.5,
+          4.5,
+          10.100000001490116,
+          6.5999999940395355
+        ],
+        "lifetimeWalk": [
+          12.5,
+          21,
+          18.899999998509884,
+          15.899999998509884,
+          15.399999998509884
+        ],
+        "rejectedBackdate": [
+          0.09999999403953552,
+          0,
+          0,
+          0,
+          0
+        ],
+        "tap": [
+          {
+            "actionMs": 9.600000001490116,
+            "serializeMs": 36.69999999552965,
+            "commitMs": 5.600000001490116,
+            "totalMs": 51.899999998509884,
+            "outcome": "QuotaExceededError",
+            "previousKept": true
+          },
+          {
+            "actionMs": 5,
+            "serializeMs": 35.899999998509884,
+            "commitMs": 4.5,
+            "totalMs": 45.399999998509884,
+            "outcome": "QuotaExceededError",
+            "previousKept": true
+          },
+          {
+            "actionMs": 4.200000002980232,
+            "serializeMs": 35.399999998509884,
+            "commitMs": 6.600000001490116,
+            "totalMs": 46.20000000298023,
+            "outcome": "QuotaExceededError",
+            "previousKept": true
+          },
+          {
+            "actionMs": 4,
+            "serializeMs": 35.399999998509884,
+            "commitMs": 4.699999995529652,
+            "totalMs": 44.19999999552965,
+            "outcome": "QuotaExceededError",
+            "previousKept": true
+          },
+          {
+            "actionMs": 5,
+            "serializeMs": 39.5,
+            "commitMs": 4.699999995529652,
+            "totalMs": 49.19999999552965,
+            "outcome": "QuotaExceededError",
+            "previousKept": true
+          }
+        ]
+      },
+      "maintenanceAndImport": {
+        "rollover": [
+          {
+            "ms": 169.5,
+            "mode": "rollover",
+            "advancedTo": "2026-09-30",
+            "witnessDay": "2026-06-01",
+            "foldedWitnesses": 6,
+            "oldLiveDaysBefore": 12,
+            "oldLiveDaysAfter": 0,
+            "oldLedgerEntriesBefore": 13,
+            "oldLedgerEntriesAfter": 0,
+            "restockedPantryEntries": 35,
+            "journalPreserved": true,
+            "stackingPreserved": true
+          },
+          {
+            "ms": 153.10000000149012,
+            "mode": "rollover",
+            "advancedTo": "2026-09-30",
+            "witnessDay": "2026-06-01",
+            "foldedWitnesses": 6,
+            "oldLiveDaysBefore": 12,
+            "oldLiveDaysAfter": 0,
+            "oldLedgerEntriesBefore": 13,
+            "oldLedgerEntriesAfter": 0,
+            "restockedPantryEntries": 35,
+            "journalPreserved": true,
+            "stackingPreserved": true
+          },
+          {
+            "ms": 113.10000000149012,
+            "mode": "rollover",
+            "advancedTo": "2026-09-30",
+            "witnessDay": "2026-06-01",
+            "foldedWitnesses": 6,
+            "oldLiveDaysBefore": 12,
+            "oldLiveDaysAfter": 0,
+            "oldLedgerEntriesBefore": 13,
+            "oldLedgerEntriesAfter": 0,
+            "restockedPantryEntries": 35,
+            "journalPreserved": true,
+            "stackingPreserved": true
+          },
+          {
+            "ms": 119.30000000447035,
+            "mode": "rollover",
+            "advancedTo": "2026-09-30",
+            "witnessDay": "2026-06-01",
+            "foldedWitnesses": 6,
+            "oldLiveDaysBefore": 12,
+            "oldLiveDaysAfter": 0,
+            "oldLedgerEntriesBefore": 13,
+            "oldLedgerEntriesAfter": 0,
+            "restockedPantryEntries": 35,
+            "journalPreserved": true,
+            "stackingPreserved": true
+          },
+          {
+            "ms": 157.19999999552965,
+            "mode": "rollover",
+            "advancedTo": "2026-09-30",
+            "witnessDay": "2026-06-01",
+            "foldedWitnesses": 6,
+            "oldLiveDaysBefore": 12,
+            "oldLiveDaysAfter": 0,
+            "oldLedgerEntriesBefore": 13,
+            "oldLedgerEntriesAfter": 0,
+            "restockedPantryEntries": 35,
+            "journalPreserved": true,
+            "stackingPreserved": true
+          }
+        ],
+        "compact": [
+          {
+            "ms": 73.89999999850988,
+            "mode": "compact",
+            "advancedTo": "2026-09-29",
+            "witnessDay": "2026-05-31",
+            "foldedWitnesses": 6,
+            "oldLiveDaysBefore": 42348,
+            "oldLiveDaysAfter": 0,
+            "oldLedgerEntriesBefore": 47346,
+            "oldLedgerEntriesAfter": 0,
+            "restockedPantryEntries": 0,
+            "journalPreserved": true,
+            "stackingPreserved": true
+          },
+          {
+            "ms": 84.70000000298023,
+            "mode": "compact",
+            "advancedTo": "2026-09-29",
+            "witnessDay": "2026-05-31",
+            "foldedWitnesses": 6,
+            "oldLiveDaysBefore": 42348,
+            "oldLiveDaysAfter": 0,
+            "oldLedgerEntriesBefore": 47346,
+            "oldLedgerEntriesAfter": 0,
+            "restockedPantryEntries": 0,
+            "journalPreserved": true,
+            "stackingPreserved": true
+          },
+          {
+            "ms": 64.5,
+            "mode": "compact",
+            "advancedTo": "2026-09-29",
+            "witnessDay": "2026-05-31",
+            "foldedWitnesses": 6,
+            "oldLiveDaysBefore": 42348,
+            "oldLiveDaysAfter": 0,
+            "oldLedgerEntriesBefore": 47346,
+            "oldLedgerEntriesAfter": 0,
+            "restockedPantryEntries": 0,
+            "journalPreserved": true,
+            "stackingPreserved": true
+          },
+          {
+            "ms": 86.5,
+            "mode": "compact",
+            "advancedTo": "2026-09-29",
+            "witnessDay": "2026-05-31",
+            "foldedWitnesses": 6,
+            "oldLiveDaysBefore": 42348,
+            "oldLiveDaysAfter": 0,
+            "oldLedgerEntriesBefore": 47346,
+            "oldLedgerEntriesAfter": 0,
+            "restockedPantryEntries": 0,
+            "journalPreserved": true,
+            "stackingPreserved": true
+          },
+          {
+            "ms": 79.90000000596046,
+            "mode": "compact",
+            "advancedTo": "2026-09-29",
+            "witnessDay": "2026-05-31",
+            "foldedWitnesses": 6,
+            "oldLiveDaysBefore": 42348,
+            "oldLiveDaysAfter": 0,
+            "oldLedgerEntriesBefore": 47346,
+            "oldLedgerEntriesAfter": 0,
+            "restockedPantryEntries": 0,
+            "journalPreserved": true,
+            "stackingPreserved": true
+          }
+        ],
+        "pastedImport": [
+          {
+            "ms": 54.399999998509884,
+            "inputCharacters": 14959103,
+            "limitCharacters": 67108864,
+            "outcome": "accepted",
+            "journalPreserved": true
+          },
+          {
+            "ms": 49.69999999552965,
+            "inputCharacters": 14959103,
+            "limitCharacters": 67108864,
+            "outcome": "accepted",
+            "journalPreserved": true
+          },
+          {
+            "ms": 44.100000001490116,
+            "inputCharacters": 14959103,
+            "limitCharacters": 67108864,
+            "outcome": "accepted",
+            "journalPreserved": true
+          },
+          {
+            "ms": 42.29999999701977,
+            "inputCharacters": 14959103,
+            "limitCharacters": 67108864,
+            "outcome": "accepted",
+            "journalPreserved": true
+          },
+          {
+            "ms": 36.100000001490116,
+            "inputCharacters": 14959103,
+            "limitCharacters": 67108864,
+            "outcome": "accepted",
+            "journalPreserved": true
+          }
+        ],
+        "importUtf8Bytes": 14959103
+      },
+      "ui": {
+        "moments": {
+          "openMs": 1675.6000000014901,
+          "scrollMs": 28.799999997019768,
+          "starMs": 96.10000000149012,
+          "starChanged": true,
+          "notes": 3650,
+          "domNodes": 32854,
+          "scrollPreserved": true,
+          "reading": "inline",
+          "filter": "not available"
+        },
+        "memory": {
+          "openMs": 154.5,
+          "readerMs": 82.79999999701977,
+          "returnMs": 50.100000001490116,
+          "letters": 640,
+          "domNodes": 10120,
+          "scrollPreserved": true,
+          "focusReturned": true,
+          "filter": "not available"
+        }
+      },
+      "snapshots": {
+        "records": 14,
+        "putMs": [
+          67.5,
+          74.80000000447035,
+          64.40000000596046,
+          65.59999999403954,
+          64.89999999850988,
+          68.60000000149012,
+          62.100000001490116,
+          63.399999998509884,
+          66.70000000298023,
+          61.899999998509884,
+          58.100000001490116,
+          57.600000001490116,
+          58.399999998509884,
+          57.29999999701977
+        ],
+        "listMs": [
+          632.3999999985099,
+          537.2000000029802,
+          511.6000000014901,
+          513.8999999985099,
+          507.8999999985099
+        ],
+        "readMs": 46.69999999552965,
+        "journalPreserved": true
+      }
+    }
+  ]
+}
