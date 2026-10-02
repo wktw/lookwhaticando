@@ -1550,21 +1550,17 @@ export function wateringTimeFile(slot: profileDomain.WateringSlot): { name: stri
   return text ? { name: profileDomain.wateringTimeFileName(slot), text } : null;
 }
 
-/** Backup file contents (`catkin-backup` JSON) of the user's own save (the real one inside the demo). Marks lastBackupAt. */
+/** Legacy name for backup contents. Only the delivery boundary may call `markBackup`. */
 export function exportData(): string {
-  const json = backupJson();
-  markBackup();
-  return json;
+  return backupJson();
 }
 /**
  * Compact clipboard payload 'CK1:' + base64url(gzip(json)) for Safari→app handoff and device moves.
  * Always the user's own save ("Move my plants into the app" from the demo moves the real one).
+ * Producing text is not delivery: the caller marks a backup only once it was copied or saved.
  */
-export async function exportPayload(): Promise<string> {
-  const epoch = saveEpoch.peek();
-  const payload = await backupPayload();
-  if (saveEpoch.peek() === epoch) markBackup();
-  return payload;
+export function exportPayload(): Promise<string> {
+  return backupPayload();
 }
 /** The same compact payload, without marking a backup (mark it with `markBackup` once it was copied). */
 export function backupPayload(): Promise<string> {

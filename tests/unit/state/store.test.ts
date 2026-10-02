@@ -200,15 +200,34 @@ describe('the demo (DESIGN §9.5, §11.1)', () => {
 });
 
 describe('data', () => {
+  it.each(['json', 'payload'] as const)('making %s backup contents does not claim delivery or change an earlier receipt', async (format) => {
+    const { b } = boot();
+    store.completeOnboarding({ name: 'Sam', templateIds: [] });
+    store.flushSaves();
+    const generate = () => format === 'json' ? store.exportData() : store.exportPayload();
+    await generate();
+    expect(store.state.value.lastBackupAt).toBeUndefined();
+    store.markBackup(); // The delivery boundary records a real receipt explicitly.
+    const receipt = b.clock.now;
+    expect(store.state.value.lastBackupAt).toBe(receipt);
+    b.advance(1000);
+    const before = b.storage.getItem(SAVE_KEY);
+    await generate();
+    b.advance(1000);
+    expect(store.state.value.lastBackupAt).toBe(receipt);
+    expect(b.storage.getItem(SAVE_KEY)).toBe(before);
+  });
+
   it('export → preview → import (replace) → undo within 24 h', async () => {
     const { b } = boot();
     store.completeOnboarding({ name: 'Sam', templateIds: ['water', 'walk'] });
     expect(store.pull('cats', { free: true })).toMatchObject({ ok: true, paidWith: 'free' }); // "Cats or Cows?"
     store.finishReveal();
     const backup = store.exportData();
-    expect(store.state.value.lastBackupAt).toBe(b.clock.now);
+    expect(store.state.value.lastBackupAt).toBeUndefined();
     const payload = await store.exportPayload();
     expect(payload.startsWith('CK1:')).toBe(true);
+    expect(store.state.value.lastBackupAt).toBeUndefined();
     store.resetAll();
     store.completeOnboarding({ name: 'Other', templateIds: ['read'] });
     const preview = await store.previewImport(payload);
