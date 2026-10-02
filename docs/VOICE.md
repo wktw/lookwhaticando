@@ -1167,12 +1167,22 @@ pause."
 | Haptics | "Haptics" | "Where your device supports it." |
 | Reduce motion | "Reduce motion" | "Automatic" · "On" · "Off" |
 | Quick open | "Quick open" | "Skip the wait when opening capsules." |
-| Quiet rewards | "Quiet rewards" | "Hide coins, capsules and the wallet. Just the tracker." |
+| Quiet rewards | "Quiet rewards" | "Hide coin totals, the wallet and the Capsules tab. Turn this off to return to collecting. Everything earned stays kept." |
 | Compact Today | "Compact Today" | "Smaller cards, more habits on screen." |
 | Companions | "Show companions" | "Show who keeps each habit company, on its card." |
 | Quoted notes | "Quote my notes in the Sunday Note" | "Only notes you’ve starred." |
 | Hemisphere | "Where’s your summer?" | "June to August" · "December to February" |
 | Reminders | "Watering time" | see section 20 |
+
+**WP-D3 · DEC-V: pending owner approval (2 October 2026).** The Quiet rewards helper above describes the hidden navigation and the lossless way back. Directly opening Capsules still works. Functional purchase prices stay visible; wallet totals do not. Quiet mode adds these variants:
+
+| Moment | Line |
+|---|---|
+| Old-history correction helper | "Fixes history." |
+| An old-history correction saved | "{habit}, watered for {date}. History only." |
+| A place price after the available balance changes | "{Place} is {price} coins." |
+
+The empty Shelf keeps only "The sill is ready for someone." while quiet. Onboarding keeps its watering and Undo notes, without coin amounts or the first-capsule top-up line. Every earned item and the pending reveal remain saved.
 
 The Habit Editor: "Name" · "Icon" · "Colour" · "Plant" · "Pot" · "How often" ("Every day" · "On certain
 days" · "A few times a week" · "A few times a month") · "How much" · "Tiny version" (placeholder "Shoes
@@ -1391,7 +1401,9 @@ under the constant named. Same rules as everywhere (section 1).
 | calendar.unwater | "Not watered after all" |
 | calendar.windowNote | "The last 6 days are watered from the week strip on Today." |
 | calendar.openToday | "Open Today" |
-| calendar.refused | "That day is watered from the week strip on Today." |
+| calendar.refused | "That day can’t be changed here right now." (WP-B8: also covers ownership changing after an action is offered). DEC-V: pending owner approval |
+| calendar.periodLocked | "This watering can be removed once its period is outside the week strip on Today." (WP-B8). DEC-V: pending owner approval |
+| calendar.outsideDates | "That day is outside this habit’s tracking dates." (WP-B8). DEC-V: pending owner approval |
 | calendar.watered | "watered" |
 | calendar.tiny | "the tiny version" |
 | calendar.rest | "resting" |

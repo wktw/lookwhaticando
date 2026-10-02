@@ -23,6 +23,7 @@ export const CHECKIN_TOASTS = {
   wateredNoCoins: '{habit}, watered.',
   /** History edits outside the 6-day window (never rewarded). */
   history: '{habit}, watered for {date}. History only, no coins.',
+  historyQuiet: '{habit}, watered for {date}. History only.',
   unchecked: '{habit}, not watered after all. The {coins} coins went back in the jar.',
   uncheckedOne: '{habit}, not watered after all. The coin went back in the jar.',
   uncheckedSpent: '{habit}, not watered after all. The coins were spent already, and stay spent.',

@@ -28,7 +28,7 @@ const BASE_URL = `http://127.0.0.1:${PORT}/`;
 const phone = { ...devices['iPhone 13'], browserName: 'chromium' as const, viewport: { width: 390, height: 844 }, deviceScaleFactor: 2 };
 const desktop = { ...devices['Desktop Chrome'], viewport: { width: 1280, height: 800 } };
 const routes = /routes\.spec\.ts$/;
-const screens = /(you|onboarding|today|progress|shelf|capsules)\.spec\.ts$/;
+const screens = /(you|onboarding|today|progress|shelf|capsules|quiet)\.spec\.ts$/;
 // The focused matrix exercises browser differences without repeating the four colour/size suites.
 const matrixFiles = /(lifecycle|windows|quiet)\.spec\.ts$/;
 

@@ -5,11 +5,11 @@
  * +5". The first watering tops the jar up to 25 coins (First Sprout, in the domain), and the line
  * "There are 25 coins in the jar. That’s a capsule." appears.
  */
-import { useState } from 'preact/hooks';
+import { useEffect, useRef, useState } from 'preact/hooks';
 import { ONBOARDING, TODAY_LINES, fillLine } from '@/catalog/lines';
 import { cardAriaLabel } from '@/catalog/format';
 import { HabitIcon } from '@/art/habit-icons';
-import { checkIn, now, state, storeLocal, storeTimeZone, today, undoCheckIn } from '@/state/store';
+import { checkIn, now, saveEpoch, state, storeLocal, storeTimeZone, today, undoCheckIn } from '@/state/store';
 import { habitCard, type HabitCardVM } from '@/state/views/common';
 import { CheckRing } from '@/ui/CheckRing';
 import { Button } from '@/ui/Button';
@@ -44,41 +44,56 @@ export const toppedUp = (events: readonly { type: string; reason?: string; amoun
 export function DoneTodayStep({ habitIds, onNext, canChange }: { habitIds: string[]; onNext: () => void; canChange?: () => boolean }) {
   const cards = cardsFor(habitIds);
   const [topUp, setTopUp] = useState(() => state.value.wallet.coins >= 25 && state.value.lifetime.checkins > 0);
+  const topUpTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const mounted = useRef(true);
+  const quiet = state.value.settings.quietRewards;
+  useEffect(() => () => {
+    mounted.current = false;
+    if (topUpTimer.current !== null) clearTimeout(topUpTimer.current);
+  }, []);
   const anyDone = cards.some((c) => c.done);
 
   const water = (card: HabitCardVM, el: HTMLElement) => {
     if (canChange && !canChange()) return;
+    const isQuiet = state.peek().settings.quietRewards;
     const counting = card.target > 1;
     if (card.done && !counting) {
       const res = undoCheckIn(card.id);
       const refunded = res.events.reduce((sum, e) => (e.type === 'uncheck' ? sum + e.refunded : sum), 0);
-      showUncheckNote({ habitId: card.id, habitName: card.name, refunded });
+      showUncheckNote({ habitId: card.id, habitName: card.name, refunded: isQuiet ? 0 : refunded });
       return;
     }
     const res = checkIn(card.id);
     // Water lands on the sill only when the watering did.
     if (!res.completed && !res.partial) return;
-    celebrateCheckIn(res, card.id, el);
+    celebrateCheckIn(isQuiet ? { ...res, events: res.events.filter((e) => e.type !== 'coins') } : res, card.id, el);
     stageBand.current?.pour(card.id);
     if (res.completed) {
       showCheckInNote({
         habitId: card.id,
         habitName: card.name,
         // The watering's own coins ("Walk, watered. +5"); the top-up has its own line below.
-        coins: res.events.reduce((sum, e) => (e.type === 'coins' && e.reason === 'checkin' && e.habitId === card.id ? sum + e.amount : sum), 0),
+        coins: isQuiet ? 0 : res.events.reduce((sum, e) => (e.type === 'coins' && e.reason === 'checkin' && e.habitId === card.id ? sum + e.amount : sum), 0),
         ...(counting ? { count: card.target, unit: card.unit ?? undefined } : {}),
-        events: res.events,
+        events: isQuiet ? res.events.filter((e) => e.type !== 'harvest') : res.events,
         onUndo: () => {
           const back = undoCheckIn(card.id);
           const refunded = back.events.reduce((sum, e) => (e.type === 'uncheck' ? sum + e.refunded : sum), 0);
-          showUncheckNote({ habitId: card.id, habitName: card.name, refunded });
+          showUncheckNote({ habitId: card.id, habitName: card.name, refunded: state.peek().settings.quietRewards ? 0 : refunded });
         },
       });
     }
     if (toppedUp(res.events)) {
       setTopUp(true);
       // After the check-in's own note has been heard.
-      setTimeout(() => announce(ONBOARDING.topUp), 1600);
+      if (!isQuiet) {
+        const epoch = saveEpoch.peek();
+        if (topUpTimer.current !== null) clearTimeout(topUpTimer.current);
+        topUpTimer.current = setTimeout(() => {
+          topUpTimer.current = null;
+          announce(() => mounted.current && !state.peek().settings.quietRewards && saveEpoch.peek() === epoch ? ONBOARDING.topUp : '');
+        }, 1600);
+      }
     }
   };
 
@@ -105,8 +120,8 @@ export function DoneTodayStep({ habitIds, onNext, canChange }: { habitIds: strin
           </li>
         ))}
       </ul>
-      <p class={cx(s.topUp, topUp && s.topUpOn)} aria-hidden={!topUp}>
-        {topUp ? ONBOARDING.topUp : ''}
+      <p class={cx(s.topUp, topUp && !quiet && s.topUpOn)} aria-hidden={!topUp || quiet}>
+        {topUp && !quiet ? ONBOARDING.topUp : ''}
       </p>
       <div class={s.foot}>
         <Button size="lg" block variant={anyDone ? 'primary' : 'secondary'} onClick={onNext}>
