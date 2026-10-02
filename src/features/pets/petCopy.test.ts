@@ -22,7 +22,7 @@ describe('the Pet Card’s words', () => {
     expect(voiced(levelLine('Pudding', 3, 'cat', null))).toBe('Pudding slow-blinks back at you now.');
     expect(voiced(levelLine('Pudding', 8, 'cat', null))).toBe('Pudding naps in the same spot every afternoon now.');
     expect(voiced(levelLine('Pudding', 8, 'cat', 'Juniper'))).toBe('Pudding naps next to Juniper now, most afternoons.');
-    expect(levelName(13)).toBe('Has a routine');
+    expect(levelName(13)).toBe('Good company');
   });
 
   it('"Likes" is the hint until the favourite is found', () => {

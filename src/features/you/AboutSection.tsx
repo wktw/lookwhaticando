@@ -17,6 +17,7 @@ import { Sheet } from '@/ui/Sheet';
 import { toast } from '@/ui/toast';
 import { announce } from '@/ui/announce';
 import { ABOUT_COPY, YOU } from './copy';
+import { LicencesSheet } from './LicencesSheet';
 import { cx } from '@/ui/cx';
 import { toneClass } from '@/ui/tone';
 import lr from '@/ui/ListRow.module.css';
@@ -61,6 +62,7 @@ function Prose({ items }: { items: readonly { title: string; text: string }[] })
 export function AboutSection() {
   const light = useArtLight();
   const [sheet, setSheet] = useState<'how' | 'credits' | null>(null);
+  const [licences, setLicences] = useState(false);
   const [checking, setChecking] = useState(false);
   const taps = useRef({ n: 0, at: 0 });
   const version = fillLine(SETTINGS.about.version, { version: __APP_VERSION__ });
@@ -133,7 +135,9 @@ export function AboutSection() {
       </Sheet>
       <Sheet open={sheet === 'credits'} onClose={() => setSheet(null)} title={SETTINGS.about.credits} size="md">
         <Prose items={ABOUT_COPY.credits} />
+        <ListRow leading="info" title={ABOUT_COPY.licences.title} onClick={() => setLicences(true)} />
       </Sheet>
+      <LicencesSheet open={licences} onClose={() => setLicences(false)} />
     </section>
   );
 }

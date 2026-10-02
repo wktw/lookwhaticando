@@ -9,6 +9,7 @@
  * and words, so this file loads on that code and each case fails or passes on its own.
  */
 import { describe, expect, it, vi } from 'vitest';
+import { preserveFacts } from './metamorphic';
 import type { AppState, CompanyPair, DateKey, Letter, PetState, SundayHighlight, SundayPS } from '@/state/types';
 import { SCHEMA_VERSION } from '@/state/types';
 import { validateState } from '@/state/validate';
@@ -525,9 +526,9 @@ describe('arrival and moving-in days stay where they fell (domain-d4, DEC-P12f)'
       return [petVM(g.state, env, CAT)!.arrivedOn, petVM(g.state, env, DOG)!.arrivedOn];
     };
     expect(arrivals()).toEqual(['2026-09-28', '2026-09-29']);
-    withSettings(g, { dayStartsAt: 0 });
+    preserveFacts('earlier day start', arrivals, () => withSettings(g, { dayStartsAt: 0 }));
     expect(arrivals()).toEqual(['2026-09-28', '2026-09-29']); // before: 29, 29
-    withSettings(g, { dayStartsAt: 360 });
+    preserveFacts('later day start', arrivals, () => withSettings(g, { dayStartsAt: 360 }));
     expect(arrivals()).toEqual(['2026-09-28', '2026-09-29']); // before: 28, 28
   });
 
@@ -535,8 +536,13 @@ describe('arrival and moving-in days stay where they fell (domain-d4, DEC-P12f)'
     const g = new Game({ start: '2026-09-29', hour: 22 });
     g.now = at('2026-09-29', 22, 30);
     addPet(g, CAT);
-    g.local = plusHours(10); // to Sydney: 08:30 the next morning
-    g.goTo('2026-09-30', 2); // 12:00 in Sydney
+    preserveFacts('travel to Sydney', () => ({
+      arrived: petVM(g.state, { today: g.today, now: g.now, local: g.local }, CAT)!.arrivedOn,
+      movedIn: movedInOn(g.state, g.local),
+    }), () => {
+      g.local = plusHours(10); // to Sydney: 08:30 the next morning
+      g.goTo('2026-09-30', 2); // 12:00 in Sydney
+    });
     const env = { today: g.today, now: g.now, local: g.local };
     // Before: 30 Sep.
     expect(petVM(g.state, env, CAT)!.arrivedOn).toBe('2026-09-29');
@@ -695,9 +701,16 @@ describe('a written Sunday Note reads the same after an icon or plant edit (doma
     const { g, read, note } = weekWithCat();
     const before = noteText(g.state, note);
     expect(before).toContain('slept on the book every day');
-    g.run((tx) => habits.updateHabit(tx, read, { icon: 'walk' }));
+    preserveFacts('icon edit', () => noteText(g.state, note), () => g.run((tx) => habits.updateHabit(tx, read, { icon: 'walk' })));
     // Before: "… waited by the door every day."
     expect(noteText(g.state, note)).toBe(before);
+  });
+
+  it('deleting an unrelated habit does not rewrite a remembered companion week', () => {
+    const { g, note } = weekWithCat();
+    const unrelated = g.addHabit({ name: 'Unrelated' });
+    preserveFacts('unrelated delete', () => noteText(g.state, note), () => g.run((tx) => habits.deleteHabit(tx, unrelated)));
+    expect(g.state.habits.some((h) => h.id === unrelated)).toBe(false);
   });
 
   it('a plant edit does not change what the plant did at Blooming', () => {
@@ -713,7 +726,7 @@ describe('a written Sunday Note reads the same after an icon or plant edit (doma
     const before = noteText(g.state, note!);
     expect(before).toContain('trailed past the edge of the sill');
     own(g, 'plant-tulip');
-    g.run((tx) => habits.updateHabit(tx, read, { plant: 'tulip' }));
+    preserveFacts('plant edit', () => noteText(g.state, note!), () => g.run((tx) => habits.updateHabit(tx, read, { plant: 'tulip' })));
     // Before: "… opened a single cup …".
     expect(noteText(g.state, note!)).toBe(before);
   });

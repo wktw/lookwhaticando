@@ -270,7 +270,7 @@ export function habitCard(s: AppState, habit: Habit, date: DateKey, env: ViewEnv
   const petId = s.settings.showCompanions === false ? null : companionOf(s, habit);
   const anchor = habit.anchorHabitId === undefined ? undefined : s.habits.find((h) => h.id === habit.anchorHabitId);
   const looks = s.plantLooks?.[habit.id];
-  const shownLook = looks && looks.shown !== null ? looks.looks[looks.shown] : undefined;
+  const shownLook = looks?.confirmed?.shown ? looks.confirmed : looks && looks.shown !== null ? looks.looks[looks.shown] : undefined;
   const subtitle = cardSubtitle({ habit, rule, count, target, status, flexible, pace, streak, s, env, plant, rested });
   return {
     id: habit.id,
@@ -406,4 +406,3 @@ export function habitName(s: AppState, id: string | undefined): string | null {
 export function returnDay(habit: Habit, today: DateKey): DateKey | null {
   return pauseReturnDay(habit.pauses, today) ?? null;
 }
-

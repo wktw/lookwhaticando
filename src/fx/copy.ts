@@ -117,8 +117,8 @@ const CHECKIN_TEMPLATE: Record<CheckInKind, string> = {
  * "Walk, watered: the tiny version." · "Walk, watered for Sat, Sep 27. History only, no coins."
  * The "+5" follows as a currency token; with no coins (past the budget) it is simply not there.
  */
-export function checkInLine(kind: CheckInKind, slots: CheckInSlots): string {
-  const template = CHECKIN_TEMPLATE[kind].replace(/ \+\{coins\}$/, '');
+export function checkInLine(kind: CheckInKind, slots: CheckInSlots, quiet = false): string {
+  const template = (quiet && kind === 'history' ? CHECKIN_TOASTS.historyQuiet : CHECKIN_TEMPLATE[kind]).replace(/ \+\{coins\}$/, '');
   return fillLine(template, { habit: slots.habit, count: slots.count ?? '', unit: slots.unit ?? '', date: slots.date ?? '' }).replace(/ {2,}/g, ' ');
 }
 

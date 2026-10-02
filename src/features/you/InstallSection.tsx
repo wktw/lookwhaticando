@@ -8,7 +8,7 @@ import { useState } from 'preact/hooks';
 import { INSTALL } from '@/catalog/lines';
 import { InstallGuide } from '@/app/InstallGuide';
 import { currentInstallPlatform } from '@/app/installPrompt';
-import { backupPayload, markBackup, replacing, state } from '@/state/store';
+import { backupPayload, markBackup, replacing, saveEpoch, state } from '@/state/store';
 import { ListRow } from '@/ui/ListRow';
 import { SectionHeader } from '@/ui/SectionHeader';
 import { toast } from '@/ui/toast';
@@ -28,11 +28,15 @@ export function InstallSection() {
 
   // Straight from the tap (iPhone Safari copies and pastes only inside one).
   const handoff = () => {
+    const epoch = saveEpoch.peek();
     const payload = backupPayload();
     void copyLater(payload).then(async (ok) => {
-      if (ok) markBackup();
+      if (ok && saveEpoch.peek() === epoch) markBackup();
       if (ok) toast({ key: 'handoff', message: INSTALL.handoffCopied, tone: 'sage', duration: 8000 });
-      else setByHand(await payload);
+      else {
+        const text = await payload;
+        if (saveEpoch.peek() === epoch) setByHand(text);
+      }
     });
   };
 

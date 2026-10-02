@@ -1,5 +1,5 @@
 /**
- * "Keep catkin on your Home Screen" (DESIGN §11.1): the install-first gate for Safari tabs, a
+ * "Keep Little by Little on your Home Screen" (DESIGN §11.1): the install-first gate for Safari tabs, a
  * card for the You screen, and an illustrated, platform-aware steps sheet (iOS Safari 26 and
  * older, other iOS browsers, the Mac's Add to Dock, Chrome/Edge Install, Android).
  */
@@ -27,7 +27,7 @@ export interface InstallStep {
   art: () => JSX.Element;
 }
 
-const HOME: InstallStep = { title: 'Tap Add', text: 'catkin opens full-screen, works offline and gets its own icon.', art: HomeScreenArt };
+const HOME: InstallStep = { title: 'Tap Add', text: 'Little by Little opens full-screen, works offline and gets its own icon.', art: HomeScreenArt };
 
 /** Guides by platform; iOS Safari has two, for the iOS 26 compact bar and the classic toolbar. */
 export type InstallGuideKey = Exclude<InstallPlatform, 'installed'> | 'ios-safari-classic';
@@ -38,7 +38,7 @@ export const GUIDES: Record<InstallGuideKey, { title: string; steps: InstallStep
     steps: [
       { title: 'Tap ⋯, then Share', text: 'It’s at the end of Safari’s address bar. With the Top or Bottom layout, tap Share, the square with an arrow, instead.', art: CompactShareArt },
       { title: 'Tap View More, then Add to Home Screen', text: 'Scroll the share options a little to find View More.', art: ViewMoreArt },
-      { ...HOME, text: 'Leave Open as Web App on. catkin opens full-screen, works offline and gets its own icon.' },
+      { ...HOME, text: 'Leave Open as Web App on. Little by Little opens full-screen, works offline and gets its own icon.' },
     ],
   },
   'ios-safari-classic': {
@@ -58,21 +58,21 @@ export const GUIDES: Record<InstallGuideKey, { title: string; steps: InstallStep
     ],
   },
   'mac-safari': {
-    title: 'Keep catkin in your Dock',
+    title: 'Keep Little by Little in your Dock',
     steps: [
       { title: 'File, then Add to Dock', text: 'In Safari’s menu bar, open File and choose Add to Dock.', art: MacDockArt },
-      { title: 'Click Add', text: 'catkin gets its own window and a place in your Dock.', art: DockArt },
+      { title: 'Click Add', text: 'Little by Little gets its own window and a place in your Dock.', art: DockArt },
     ],
   },
   prompt: {
-    title: 'Install catkin',
+    title: 'Install Little by Little',
     steps: [{ title: 'One click', text: 'Press Install and your browser does the rest.', art: ChromeInstallArt }],
   },
   chromium: {
-    title: 'Install catkin',
+    title: 'Install Little by Little',
     steps: [
-      { title: 'Find the install icon', text: 'It’s at the end of the address bar: a small screen with an arrow. Or open ⋮ and choose Install catkin.', art: ChromeInstallArt },
-      { title: 'Click Install', text: 'catkin opens in its own window, even offline.', art: DockArt },
+      { title: 'Find the install icon', text: 'It’s at the end of the address bar: a small screen with an arrow. Or open ⋮ and choose Install Little by Little.', art: ChromeInstallArt },
+      { title: 'Click Install', text: 'Little by Little opens in its own window, even offline.', art: DockArt },
     ],
   },
   android: {
@@ -80,7 +80,7 @@ export const GUIDES: Record<InstallGuideKey, { title: string; steps: InstallStep
     steps: [{ title: 'Open the ⋮ menu', text: 'Choose Install app or Add to Home screen.', art: AndroidMenuArt }, HOME],
   },
   other: {
-    title: 'Install catkin',
+    title: 'Install Little by Little',
     steps: [{ title: 'Try Safari, Chrome or Edge', text: 'Open this page in one of them to install it. It works right here too.', art: HomeScreenArt }],
   },
 };

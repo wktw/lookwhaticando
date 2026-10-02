@@ -56,10 +56,10 @@ describe('the Garden Journal (VOICE §15)', () => {
     expect(journalLine({ kind: 'keptTogether', inked: true, anchorHabitId: 'w', days: 18 }, anchor)).toBe('Watered right after Walk on 18 days.');
     expect(journalLine({ kind: 'whyItLooks', inked: true, colour: 'dawn', shape: 'classic', band: 'dawn', usualMinute: 450 }, anchor)).toBe('It blooms Dawn because you water it before 9 am, usually.');
   });
-  it('pencils what will fill in, in waterings, never a date', () => {
-    expect(journalLine({ kind: 'usualTime', inked: false, remaining: 1 }, anchor)).toBe('Your usual time fills in after 1 more watering.');
-    expect(journalLine({ kind: 'usualTime', inked: false, remaining: 6 }, anchor)).toBe('Your usual time fills in after 6 more waterings.');
-    expect(journalLine({ kind: 'whyItLooks', inked: false, remaining: 12 }, anchor)).toBe('Why it looks the way it does fills in at Blooming.');
+  it('pencils uncertainty without promising that another watering or Blooming supplies a time', () => {
+    expect(journalLine({ kind: 'usualTime', inked: false, remaining: 1 }, anchor)).toBe('Your usual time is still uncertain.');
+    expect(journalLine({ kind: 'usualTime', inked: false, remaining: 6 }, anchor)).toBe('Your usual time is still uncertain.');
+    expect(journalLine({ kind: 'whyItLooks', inked: false, remaining: 12 }, anchor)).toBe('Your plant tag will explain its look when one is ready.');
   });
 });
 

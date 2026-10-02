@@ -29,7 +29,7 @@ type ShareNavigator = Navigator & { canShare?: (data: ShareData) => boolean };
 export function canShareFiles(nav: ShareNavigator | undefined = typeof navigator === 'undefined' ? undefined : navigator): boolean {
   if (!nav?.share || !nav.canShare || typeof File === 'undefined') return false;
   try {
-    return nav.canShare({ files: [new File(['{}'], 'catkin.json', { type: 'application/json' })] });
+    return nav.canShare({ files: [new File(['{}'], 'little-by-little.json', { type: 'application/json' })] });
   } catch {
     return false;
   }

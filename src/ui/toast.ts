@@ -108,9 +108,12 @@ export function toast(opts: ToastOptions): string {
   const { list, id } = upsertToast(toasts.value, opts, `t${++seq}`);
   // Plain status lines have no expiring action to make reachable first.
   if (!opts.silent && !toastActions(opts).length) {
-    const text = opts.label ?? [opts.message, opts.note].filter((x): x is string => typeof x === 'string').join(' ');
-    lifetime(list.find((item) => item.id === id)!).announced = true;
-    if (text) announce(text);
+    const item = list.find((item) => item.id === id)!;
+    lifetime(item).announced = true;
+    announce(() => {
+      const current = toasts.peek().find((t) => t.id === id && t.version === item.version && !t.leaving);
+      return current ? current.label ?? [current.message, current.note].filter((x): x is string => typeof x === 'string').join(' ') : '';
+    });
   }
   toasts.value = list;
   return id;
@@ -122,6 +125,18 @@ function lifetime(item: ToastItem) {
   let value = lifetimes.get(item);
   if (!value) lifetimes.set(item, value = { remaining: toastDuration(item) });
   return value;
+}
+
+export type ToastContent = Pick<ToastOptions, 'message' | 'note' | 'label'>;
+
+/** Change presentation without replaying the note, replacing its actions, or resetting its clock. */
+export function updateToastContent(id: string, content: ToastContent): void {
+  const current = toasts.peek().find((item) => item.id === id && !item.leaving);
+  if (!current || (current.message === content.message && current.note === content.note && current.label === content.label)) return;
+  const next = { ...current, ...content };
+  // The old card's layout cleanup still charges elapsed time to this same clock object.
+  lifetimes.set(next, lifetime(current));
+  toasts.value = toasts.peek().map((item) => item === current ? next : item);
 }
 
 /** Run only while the card is visible and unpaused; cleanup preserves elapsed time. */

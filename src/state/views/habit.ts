@@ -2,7 +2,7 @@
  * Habit Detail sheet (DESIGN §9.2 "Habit Detail", v1 §13.2 tiny/graduation/notes, v1 §13.5 rungs,
  * v1 §13.11 "Legible economy").
  */
-import type { AppState, DateKey, Habit, HabitRule, PlantLook } from '../types';
+import type { AppState, ConfirmedPlantLook, DateKey, Habit, HabitRule, PlantLook } from '../types';
 import { logStatus, showedUp } from '@/domain/activity';
 import { habitTally, monthWindow, weekWindow, habitPhrase, type HabitPhrase, type Tally } from '@/domain/consistency';
 import { monthDayLabel, monthFromIndex, monthIndex, monthLabel, shortDateLabel, type MonthKey, type WeekStart } from '@/domain/dates';
@@ -20,7 +20,7 @@ import { checkinsToStage, plantVM, scheduleLabel, streakVM, type PlantVM, type S
 import { companionVM, keepsakeVM, type CompanionVM, type KeepsakeVM } from './company';
 import { BLOOMING } from '@/domain/growth';
 import { gardenJournal, type JournalEntry } from '@/domain/journal';
-import { dueRead, looksOf, timeNudge, type TimeNudge } from '@/domain/signature';
+import { dueRead, looksOf, lookChoiceOffer, timeNudge, type TimeNudge } from '@/domain/signature';
 import { keptTogetherDays } from '@/domain/stacking';
 import { freshStartOptions, hemisphereOf, justThisSeasonEnd, type FreshStartOptions } from '@/domain/seasonReview';
 
@@ -115,6 +115,8 @@ export interface LooksVM {
   tag: PlantLook | null;
   /** A read is due (Blooming / Evergreen) and waits for 10 eligible live check-in days. */
   waiting: 'bloom' | 'evergreen' | null;
+  choice: boolean;
+  confirmed: ConfirmedPlantLook | null;
 }
 
 /** A rule as a history row's data (RuleChange, src/catalog/format.ts). */
@@ -206,6 +208,8 @@ export function habitDetailVM(s: AppState, env: ViewEnv, id: string): HabitDetai
       shown: pl.shown,
       tag: pl.shown !== null ? (pl.looks[pl.shown] ?? null) : (pl.looks[pl.looks.length - 1] ?? null),
       waiting: due,
+      choice: lookChoiceOffer(s, habit, today),
+      confirmed: pl.confirmed ?? null,
     },
     journal: gardenJournal(s, habit, { today, local: env.local, timeZone: env.timeZone, weekStart: s.settings.weekStart, checkinsToBlooming }),
     timeNudge: timeNudge(s, habit, today, env.local, env.timeZone),

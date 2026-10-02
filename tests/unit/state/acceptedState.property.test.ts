@@ -2,8 +2,9 @@
  * INV-6, "accepted means usable" (WP-A5, plan §5.6): any state the validator accepts can be shown,
  * exported, round-tripped through JSON and opened, without a throw and without losing data.
  *
- * The corpus (every save a catkin build wrote, tests/fixtures/saves, DEC-E1) plus a demo sill and
- * a freshly onboarded one are the seeds. A seeded generator (no fast-check, DEC-E2) makes 10,000
+ * The corpus (every save a catkin build wrote, tests/fixtures/saves, DEC-E1), a demo, a fresh state
+ * and explicit modern history/onboarding fields are shared with the actual DOM renderer sample.
+ * A seeded generator (no fast-check, DEC-E2) makes 10,000
  * states from them, each with one to three edits: a value swapped for an adversarial one (a
  * reserved name, a date that is not a date or sits at the edge of the calendar, a number past what
  * a count, a timestamp or a JSON number can be, a long string, the wrong type) or for another
@@ -19,19 +20,16 @@
  * another sequence; the default seed is fixed, so a failure names the case that reproduces it.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { readFileSync, readdirSync } from 'node:fs';
 import { MACHINES } from '@/catalog/machines';
 import { appDayKey, monotonicDayKey } from '@/domain/dates';
 import { setNote } from '@/domain/logging';
 import { wateringTimeIcs, wateringsCsv } from '@/domain/profile';
-import { mulberry32, type Rng } from '@/domain/rng';
+import { mulberry32 } from '@/domain/rng';
 import { openDay } from '@/domain/rollover';
 import { transact } from '@/domain/tx';
 import { ritualLookup } from '@/features/rituals/lookup';
 import { anniversaryWords, herbariumWords, seasonWords, sundayNoteWords } from '@/features/rituals/words';
 import { decodeState } from '@/state/decode';
-import { createInitialState } from '@/state/defaults';
-import { buildDemo } from '@/state/demo';
 import { SAVE_KEY, encodeEnvelope } from '@/state/persist';
 import * as store from '@/state/store';
 import type { AppState } from '@/state/types';
@@ -47,156 +45,16 @@ import { todayVM } from '@/state/views/today';
 import { machineStatusOf } from '@/state/store';
 import { UTC, at } from '../domain/game';
 import { fakeBrowser } from './fixtures';
+import { acceptedSeeds, adversarialCase } from './acceptedSeeds';
 
 vi.setConfig({ testTimeout: 600_000 });
-
-type Json = null | boolean | number | string | Json[] | { [k: string]: Json };
-type Obj = { [k: string]: Json };
 
 const N = Number(process.env.CATKIN_PROPERTY_N ?? 10_000);
 const SEED = Number(process.env.CATKIN_PROPERTY_SEED ?? 20260930);
 const HYDRATE_EVERY = 25;
 const TODAY = '2026-09-29';
 const NOW = at(TODAY, 21, 45);
-
-const CORPUS = new URL('../../fixtures/saves/', import.meta.url);
-const BUILDS = readdirSync(CORPUS).filter((d) => /^[0-9a-f]{7}$/.test(d)).sort();
-
-/** Every save a build wrote, as the state it holds (the decoder fills only the allow-listed omissions). */
-function corpusStates(): AppState[] {
-  const out: AppState[] = [];
-  for (const b of BUILDS) {
-    for (const f of readdirSync(new URL(`${b}/`, CORPUS))) {
-      if (!f.endsWith('.json')) continue;
-      const parsed = JSON.parse(readFileSync(new URL(`${b}/${f}`, CORPUS), 'utf8')) as Obj;
-      const d = decodeState(parsed.state, 'import', { declaredVersion: parsed.v });
-      if (d.kind !== 'ok') throw new Error(`corpus ${b}/${f} does not decode: ${d.kind}`);
-      out.push(d.state);
-    }
-  }
-  return out;
-}
-
-const SEEDS: AppState[] = [...corpusStates(), buildDemo({ today: TODAY, now: NOW, local: UTC, days: 60 }), createInitialState(NOW)];
-
-/* ------------------------------------------------------------------ */
-/* The generator                                                        */
-/* ------------------------------------------------------------------ */
-
-const STRINGS: Json[] = [
-  '',
-  '__proto__',
-  'constructor',
-  'toString',
-  'prototype',
-  'hasOwnProperty',
-  'zzz-from-a-later-catalogue',
-  'h-unknown1',
-  '2026-99-01',
-  '2026-13',
-  '2026-02-29',
-  '2024-02-29',
-  '2026-09-30',
-  '2027-01-01',
-  '1000-01-01',
-  '1899-12-31',
-  '1900-01-01',
-  '2999-12-31',
-  '9999-12-31',
-  '12-31',
-  '02-30',
-  '07:30',
-  '25:00',
-  'a'.repeat(20_000),
-  'teatime',
-  'morning',
-  'evening',
-  'weekly',
-  'monthly',
-  'anniversary',
-  'companion',
-  'found',
-  'stageUp',
-  'kept',
-  'log',
-  'rest',
-  'tiny',
-  'over',
-  'sill',
-  'pond',
-  'cats',
-  'daily',
-  'days',
-  'pot',
-  'place',
-  'dawn',
-  'bloom',
-];
-const NUMBERS: Json[] = [-1, 0, 1, 2, 3, 7, 8, 9, 10, 24, 25, 0.5, 1.5, 99, 360, 361, 1439, 1440, 1e6, 1e6 + 1, 1e20, 1e300, 2 ** 53, 2 ** 60, -1e20, Date.UTC(2999, 11, 31), Date.UTC(3000, 0, 2)];
-const OTHERS: Json[] = [true, false, null, {}, [], [1], ['x'], [{}], { kind: 'x' }, { date: '2026-09-29' }];
-
-const pick = <T>(rng: Rng, list: readonly T[]): T => list[Math.floor(rng() * list.length)]!;
-
-/** Every (container, key) in a JSON tree. */
-function slots(root: Json): [Obj | Json[], string | number][] {
-  const out: [Obj | Json[], string | number][] = [];
-  const walk = (v: Json): void => {
-    if (Array.isArray(v)) {
-      v.forEach((x, i) => {
-        out.push([v, i]);
-        walk(x);
-      });
-    } else if (v !== null && typeof v === 'object') {
-      for (const k of Object.keys(v)) {
-        out.push([v, k]);
-        walk(v[k]!);
-      }
-    }
-  };
-  walk(root);
-  return out;
-}
-
-const setOwn = (o: Obj | Json[], k: string | number, v: Json): void => void Object.defineProperty(o, k, { value: v, writable: true, enumerable: true, configurable: true });
-
-/** One adversarial edit, in place. */
-function edit(state: Json, rng: Rng): string {
-  const all = slots(state);
-  const [box, key] = pick(rng, all);
-  const roll = rng();
-  if (roll < 0.1 && !Array.isArray(box)) {
-    delete box[key as string];
-    return `delete ${String(key)}`;
-  }
-  if (roll < 0.17) {
-    // A new key beside it: a reserved name or an unknown one, as an own property (as JSON.parse makes it).
-    let container: Obj | null = null;
-    if (!Array.isArray(box)) container = box;
-    else {
-      const v = box[key as number];
-      if (v !== null && v !== undefined && typeof v === 'object' && !Array.isArray(v)) container = v;
-    }
-    if (container) {
-      const k = pick(rng, ['__proto__', 'constructor', 'toString', 'valueOf', 'zzz', '2026-09-30', 'h-new|2026-09-29']);
-      const value = structuredClone(Object.values(container)[0] ?? 1) as Json;
-      setOwn(container, k, value);
-      return `add ${k}`;
-    }
-  }
-  let value: Json;
-  const kind = rng();
-  if (kind < 0.35) value = pick(rng, STRINGS);
-  else if (kind < 0.7) value = pick(rng, NUMBERS);
-  else if (kind < 0.8) value = pick(rng, OTHERS);
-  else {
-    // Another part of the same save: realistic values in the wrong place.
-    const [b2, k2] = pick(rng, all);
-    value = structuredClone((b2 as Obj)[k2 as string] ?? null) as Json;
-  }
-  if (Array.isArray(box) && rng() < 0.2) box.push(value);
-  else setOwn(box, key, value);
-  return `set ${String(key)} = ${JSON.stringify(value)?.slice(0, 40)}`;
-}
+const SEEDS = acceptedSeeds().map(({ state }) => state);
 
 /* ------------------------------------------------------------------ */
 /* The consumers                                                        */
@@ -279,11 +137,7 @@ describe('INV-6: an accepted state is a usable state', () => {
       // Let the worker answer its runner now and then (a long synchronous loop times its RPC out).
       if (i % 25 === 0) await new Promise((r) => setTimeout(r, 0));
       const seed = SEEDS[i % SEEDS.length]!;
-      const json = structuredClone(seed) as unknown as Json;
-      const edits: string[] = [];
-      const roll = rng();
-      const count = roll < 0.5 ? 1 : roll < 0.8 ? 2 : 3;
-      for (let e = 0; e < count; e++) edits.push(edit(json, rng));
+      const { state: json, edits } = adversarialCase(seed, rng);
       const text = JSON.stringify(json);
       let d: ReturnType<typeof decodeState>;
       try {

@@ -126,7 +126,7 @@ describe('profile', () => {
 describe('data', () => {
   const now = Date.UTC(2026, 8, 29, 12);
   it('names the backup file by the day', () => {
-    expect(backupFileName('2026-09-29')).toBe('catkin-backup-2026-09-29.json');
+    expect(backupFileName('2026-09-29')).toBe('little-by-little-backup-2026-09-29.json');
   });
   it('nudges only when there is something to keep and the last backup is over a month old', () => {
     expect(backupNudge({ lastBackupAt: undefined, checkins: 50, now })).toBeNull();

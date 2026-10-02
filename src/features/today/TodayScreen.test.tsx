@@ -623,7 +623,7 @@ describe('cancelled gestures on Today, and the note sheet’s draft (WP-C2)', ()
     await esc();
     await until(() => !noteSheet(), 'the note sheet closed');
     expect(question()).toBeNull();
-    await act(() => setNote(id, today.value, 'Shoes by the door.'));
+    await act(() => { setNote(id, today.value, 'Shoes by the door.'); });
     const sheet = await openNote('Walk');
     expect(sheet.querySelector('textarea')?.value).toBe('Shoes by the door.');
     await typeNote(sheet, '');

@@ -23,7 +23,7 @@ describe('wateringTimeIcs (RFC 5545)', () => {
     expect(lines).toContain('UID:catkin-watering-time-morning@catkin.app');
     expect(lines.filter((l) => l === 'BEGIN:VALARM')).toHaveLength(1);
     expect(ics).not.toMatch(/[^\r]\n/);
-    expect(wateringTimeFileName('morning')).toBe('catkin-watering-time-morning.ics');
+    expect(wateringTimeFileName('morning')).toBe('little-by-little-watering-time-morning.ics');
   });
 
   it('escapes TEXT (backslash, semicolon, comma) and folds long lines at 75 octets', () => {
@@ -63,7 +63,7 @@ describe('wateringsCsv', () => {
       '',
     ]);
     expect(wateringsCsv(g.state, '2026-03-02').split('\r\n')).toHaveLength(4);
-    expect(wateringsCsvFileName('2026-03-03')).toBe('catkin-waterings-2026-03-03.csv');
+    expect(wateringsCsvFileName('2026-03-03')).toBe('little-by-little-waterings-2026-03-03.csv');
   });
 
   it('defuses spreadsheet formulas and quotes commas and quotes in names', () => {
