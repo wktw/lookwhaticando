@@ -237,27 +237,29 @@ test.describe('an overlapping scene name tag', () => {
 test.describe('low-bed neighbours keep their own touch targets', () => {
   test.use({ viewport: { width: 390, height: 844 } });
   const failureClock = 1790961632123; // Actual failing Shelf trace, 2 October 2026 at 17:20:32 UTC.
-  for (const name of ['Waffles', 'Soot']) test(`${name} is reachable beside the occupied low bed`, async ({ page }, info) => {
-    const household = buildDemo({ today: '2026-10-02', now: failureClock });
-    await openShelf(page, household, failureClock);
-    const actor = page.getByRole('button', { name, exact: true });
-    await actor.scrollIntoViewIfNeeded();
-    // Real hit testing catches art and another pet's invisible button over the intended target.
-    const hit = await actor.evaluate(el => {
-      const r = el.getBoundingClientRect();
-      const top = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
-      return { receivesPointer: top === el, blocker: top === el ? null : { tag: top?.tagName, pet: top?.closest('[data-pet]')?.getAttribute('data-pet'), markup: top?.outerHTML.slice(0, 200) } };
+  for (const clock of [failureClock, Date.parse('2026-10-02T13:20:32Z'), Date.parse('2026-10-02T23:20:32Z')]) {
+    for (const name of ['Waffles', 'Soot']) test(`${name} is reachable beside the occupied low bed at ${new Date(clock).getUTCHours()}h`, async ({ page }, info) => {
+      const household = buildDemo({ today: '2026-10-02', now: clock });
+      await openShelf(page, household, clock);
+      const actor = page.getByRole('button', { name, exact: true });
+      await actor.scrollIntoViewIfNeeded();
+      // Real hit testing catches art and another pet's invisible button over the intended target.
+      const hit = await actor.evaluate(el => {
+        const r = el.getBoundingClientRect();
+        const top = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
+        return { receivesPointer: top === el, blocker: top === el ? null : { tag: top?.tagName, pet: top?.closest('[data-pet]')?.getAttribute('data-pet'), markup: top?.outerHTML.slice(0, 200) } };
+      });
+      expect(hit.receivesPointer, JSON.stringify(hit)).toBe(true);
+      await expectNoAxeViolations(page, info);
+      await actor.click();
+      const tag = page.getByRole('button', { name: `${name}’s card`, exact: true });
+      await expect(tag).toBeVisible();
+      await tag.click();
+      await expect(page.getByRole('dialog', { name, exact: true })).toBeVisible();
+      await page.keyboard.press('Escape');
+      await actor.focus();
+      await page.keyboard.press('Enter');
+      await expect(tag).toBeVisible();
     });
-    expect(hit.receivesPointer, JSON.stringify(hit)).toBe(true);
-    await expectNoAxeViolations(page, info);
-    await actor.click();
-    const tag = page.getByRole('button', { name: `${name}’s card`, exact: true });
-    await expect(tag).toBeVisible();
-    await tag.click();
-    await expect(page.getByRole('dialog', { name, exact: true })).toBeVisible();
-    await page.keyboard.press('Escape');
-    await actor.focus();
-    await page.keyboard.press('Enter');
-    await expect(tag).toBeVisible();
-  });
+  }
 });
