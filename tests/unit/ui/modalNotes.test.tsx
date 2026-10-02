@@ -44,6 +44,24 @@ afterEach(() => {
 });
 
 describe('modal-owned notes (WP-C3)', () => {
+  it.each(['sheet', 'load'])('the %s notes container cannot become an implicit scroll Tab stop', (kind) => {
+    mount(<>{kind === 'sheet' ? <Sheet open title="A note" onClose={() => undefined}><button>Continue</button></Sheet> : <LoadSheet open title="One moment" retryLabel="Try again" closeLabel="Close" onRetry={() => undefined} onClose={() => undefined} />}<Toaster /></>);
+    const slot = document.querySelector<HTMLElement>('[data-notes-slot]')!;
+    // The explicit attribute matters: Chromium otherwise makes an overflowing scroll container
+    // tabbable when its last live card starts leaving, even though slot.tabIndex reads -1.
+    expect(slot.getAttribute('tabindex')).toBe('-1');
+    act(() => void toast({ message: 'A plain notice.', duration: 1000 }));
+    expect(card().tabIndex).toBe(0);
+    tick(1000); expired();
+    expect(card().tabIndex).toBe(-1);
+    expect(slot.getAttribute('tabindex')).toBe('-1');
+    tick(220);
+    expect(slot.querySelector('[data-toast-id]')).toBeNull();
+    note();
+    expect(card().querySelector<HTMLButtonElement>('button')?.tabIndex).toBe(0);
+    expect(slot.getAttribute('tabindex')).toBe('-1');
+  });
+
   it.each(['sheet', 'load'])('a plain note owned by a %s is keyboard focusable and keeps its remaining reading time', (kind) => {
     mount(<>{kind === 'sheet' ? <Sheet open title="A note" onClose={() => undefined}><button id="reading-done">Continue</button></Sheet> : <LoadSheet open title="One moment" retryLabel="Try again" closeLabel="Close" onRetry={() => undefined} onClose={() => undefined} />}<Toaster /></>);
     act(() => void toast({ message: 'Little by little works offline now.', duration: 4000 }));

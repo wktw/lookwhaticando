@@ -1,6 +1,6 @@
 import type { ComponentChildren } from 'preact';
 import { createPortal } from 'preact/compat';
-import { useEffect, useId, useLayoutEffect, useRef, useState } from 'preact/hooks';
+import { useId, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { sfx } from '@/fx/sound';
 import { Button } from '@/ui/Button';
 import { overlayRoot, Z_SHEET } from '@/ui/overlay';
@@ -91,7 +91,7 @@ export function LoadSheet({ open, title, message, retryLabel, closeLabel, busy, 
   }, [phase]);
 
   // Unmounting (the sheet asked for has arrived in its place) hands the page back at once.
-  useEffect(() => release, []);
+  useLayoutEffect(() => release, []);
 
   /* Stacking: on top of whatever was open, and inert under anything opened over it. */
   useLayoutEffect(() => {
@@ -107,7 +107,7 @@ export function LoadSheet({ open, title, message, retryLabel, closeLabel, busy, 
     return onLayersChange(sync);
   }, [phase]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (phase !== 'enter' && phase !== 'open') return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape' || !isTopLayer(id)) return;
@@ -137,7 +137,7 @@ export function LoadSheet({ open, title, message, retryLabel, closeLabel, busy, 
         <h2 id={`${id}-title`} class={s.title}>
           {title}
         </h2>
-        <div ref={notesRef} class={s.notes} data-notes-slot />
+        <div ref={notesRef} class={s.notes} data-notes-slot tabIndex={-1} />
         {message && (
           <p id={`${id}-text`} class={s.text}>
             {message}
