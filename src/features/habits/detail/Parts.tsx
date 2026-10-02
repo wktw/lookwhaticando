@@ -7,7 +7,7 @@ import type { ComponentChildren } from 'preact';
 import { useState } from 'preact/hooks';
 import { PetArt } from '@/art/pets/PetArt';
 import { CoinIcon, Icon } from '@/art/icons';
-import { COMPANION, EMPTY, LOOKS, STORIES, fillLine } from '@/catalog/lines';
+import { COMPANION, EMPTY, LOOKS, NOTE_COPY, STORIES, fillLine } from '@/catalog/lines';
 import { consistencyText, num, runText } from '@/catalog/format';
 import { monthDayLabel } from '@/domain/dates';
 import type { HabitDetailVM } from '@/state/selectors';
@@ -21,14 +21,15 @@ import { haptic } from '@/fx/haptics';
 import { DETAIL_UI as D, journalLine, lookName, lookTag, nudgeWords, storyRemaining, storyText, wateringsText } from '@/features/progress/copy';
 import { lookArtOf } from '@/features/progress/looks';
 import { HeroPlant } from './HeroPlant';
+import { NoteSheet, noteDateLabel, type NoteTarget } from '@/features/today/NoteSheet';
 import s from './HabitDetail.module.css';
 
 const anchorNameOf = (id: string) => state.value.habits.find((h) => h.id === id)?.name ?? null;
 
-export function DetailSection({ id, title, children, class: cls }: { id: string; title: string; children: ComponentChildren; class?: string }) {
+export function DetailSection({ id, title, children, class: cls, focusableTitle }: { id: string; title: string; children: ComponentChildren; class?: string; focusableTitle?: boolean }) {
   return (
     <section class={cx(s.section, cls)} aria-labelledby={`detail-${id}`} data-detail={id}>
-      <h3 id={`detail-${id}`} class={s.sectionTitle}>
+      <h3 id={`detail-${id}`} class={s.sectionTitle} tabIndex={focusableTitle ? -1 : undefined}>
         {title}
       </h3>
       {children}
@@ -139,7 +140,7 @@ export function Stats({ vm }: { vm: HabitDetailVM }) {
   const current = st.current && st.current.length >= 3 ? st.current : null;
   if (current) tiles.push({ label: D.stats.now, value: runText(current, 'long') });
   else if (st.newRhythm) tiles.push({ label: D.stats.now, value: D.stats.newRhythm });
-  if (st.best && st.best.length >= 3 && (!current || st.best.length > current.length)) tiles.push({ label: D.stats.longest, value: runText(st.best, 'long') });
+  if (st.best && st.best.length >= 3 && (!current || st.best.unit !== current.unit || st.best.length > current.length)) tiles.push({ label: D.stats.longest, value: runText(st.best, 'long') });
   if (st.total.checkins > 0) tiles.push({ label: D.stats.waterings, value: wateringsText(st.total.checkins), note: st.total.tiny > 0 ? fillLine(D.stats.tiny, { count: num(st.total.tiny) }) : fillLine(D.stats.since, { date: monthDayLabel(vm.habit.startedOn) }) });
   if (tiles.length === 0) return null;
   return (
@@ -169,9 +170,10 @@ export function Why({ vm }: { vm: HabitDetailVM }) {
 }
 
 export function Moments({ vm }: { vm: HabitDetailVM }) {
+  const [note, setNoteTarget] = useState<NoteTarget | null>(null);
   const logs = state.value.logs[vm.habit.id] ?? {};
   return (
-    <DetailSection id="moments" title={D.sections.moments}>
+    <DetailSection id="moments" title={D.sections.moments} focusableTitle>
       {vm.moments.length === 0 ? (
         <p class={s.quiet}>{EMPTY.moments}</p>
       ) : (
@@ -184,6 +186,12 @@ export function Moments({ vm }: { vm: HabitDetailVM }) {
                   <div class={s.momentBody}>
                     <span class={s.momentDate}>{m.label}</span>
                     <q class={s.momentText}>{m.text}</q>
+                    <Button
+                      variant="quiet"
+                      size="sm"
+                      aria-label={fillLine(NOTE_COPY.editLabel, { habit: vm.habit.name, date: noteDateLabel(m.date) })}
+                      onClick={() => setNoteTarget({ habitId: vm.habit.id, habitName: vm.habit.name, date: m.date, note: logs[m.date]?.note ?? null })}
+                    >{NOTE_COPY.edit}</Button>
                   </div>
                   <button
                     type="button"
@@ -206,6 +214,7 @@ export function Moments({ vm }: { vm: HabitDetailVM }) {
           <p class={s.help}>{D.quoteHelp}</p>
         </>
       )}
+      <NoteSheet target={note} onClose={() => setNoteTarget(null)} onFocusLost={() => document.getElementById('detail-moments')?.focus({ preventScroll: true })} />
     </DetailSection>
   );
 }

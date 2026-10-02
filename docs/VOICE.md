@@ -154,6 +154,31 @@ Four resources, each a real object, each with one job (DESIGN §6). The internal
 
 ## 5. Today
 
+### Dated notes and removal (WP-C6)
+
+DEC-V: pending owner approval. The same sheet opens from Today, Moments and the Calendar.
+The title includes the full day and year, so an old note never looks like today’s.
+
+| Moment | Line |
+|---|---|
+| Title | "A note for {habit} · {date}" (for example, "A note for Walk · Monday, September 29, 2025") |
+| Edit button, accessible name | "Edit the note for {habit} · {date}" (visible label: "Edit the note") |
+| Field placeholder | "A line about this day" |
+| Remove button and confirmation button | "Remove note" |
+| Confirmation title | "Remove this note?" |
+| Confirmation | "This removes the note and its star from {habit} on {date}." |
+| Optional checkbox, initially off | "Also remove it from Sunday Notes" |
+| Retained copies | "Daily and weekly copies keep the note until those copies age out. Copies kept before imports or restores may keep it longer. Erase everything removes local copies. Keepsake captions and exported backup files are unchanged." |
+| A different save replaced the open note | "The save changed while this note was open. Close it and open the note again." |
+| The note’s habit or day can no longer be changed | "This note can’t be changed here now. Close it and open the note again." |
+
+Save keeps "Save note" and "Noted."; the safe cancellation is "Keep editing". A refusal while
+another window owns the save reuses "This window can’t change the save right now.". Clearing
+a kept note and choosing Save asks the same removal question as Remove note. The optional
+Sunday Note choice removes only quotations that refer to this habit and day. Other keepsake
+captions and exported files are unchanged. Ordinary note edits use the existing save status and
+retry; "Noted." means the change was accepted here, not that a failing device write succeeded.
+
 ### Greetings
 
 Top left of the band, on the card chip, above the long date. From `GREETINGS` in lines.ts. With no name
@@ -1028,7 +1053,7 @@ Say what happened and what to do. Never `failed`, never `Oops`, never a code in 
 | The demo waits for a save | "The demo opens once your last change is saved." |
 | Open in another window | "catkin is open in another window · Use here" |
 | A save from a newer catkin | "This save is from a newer catkin, so it opens read-only here. Update to make changes." |
-| Started over in another window (this window follows, and the note has a Close button). DEC-V: pending owner approval | "catkin was started over in another window, so it starts fresh here too. The daily copies stay on this device." |
+| Started over in another window (this window follows, and the note has a Close button). DEC-V: pending owner approval | "catkin was started over in another window, so it starts fresh here too." |
 | The device clock went back | "The clock on this device reads earlier than catkin last saw. Coins and stamps wait until it’s right again." |
 | The save couldn't be read, so catkin opened the one before it (its `:backup`); the note has these buttons and Close. DEC-V: pending owner approval | "catkin couldn’t read the latest save on this device, so it opened the one before it." · "Save a backup" · "Daily copies" |
 | The save couldn't be read at all, so its file is kept as it was: aside (its `:corrupt`), or, while there is no room to put it aside yet, where it was, with every change waiting and the note for a save that doesn't go through beside it. The note has these buttons and Close. DEC-V: pending owner approval (the wording is chosen to be true in both states) | "catkin couldn’t read the save on this device. The file is kept just as it was." · "Save the damaged file" · "Daily copies" · "Import a backup" |
@@ -1103,7 +1128,11 @@ Under You › Data.
 | A damaged save kept aside (a row until Start over, and the §18 note's button). DEC-V: pending owner approval | "Save the damaged file" → "The damaged file is saved." (file "catkin-damaged-save-2025-09-29.txt", its bytes exactly as they were) |
 | Last backup | "Last backup: Sep 20" / "No backup yet" |
 | The nudge | "Worth saving a backup: the last one is from Aug 2." |
-| Start over | "Start over" → "Start over? Every habit, plant and pet on this device goes. Save a backup first, just in case." · "Start over" · "Keep everything" |
+| Start over (WP-A9, DEC-V: pending owner approval) | "Start over" → "The habits, plants and pets here go. The daily copies stay on this device. Save a backup first, just in case." · "Start over" · "Keep everything" |
+| Erase, behind Start over (WP-A9, DEC-V: pending owner approval) | "Save a backup first" · "Erase everything on this device" → "Erase everything on this device?" · "The save, settings, demo and daily copies in this browser go. There is no undo. Backup files you saved elsewhere stay there." · "Erase everything" · "Keep everything" |
+| Erase result and retry (WP-A9, DEC-V: pending owner approval) | "The save, settings and daily copies on this device have been erased." · "Some data is still on this device." · "The save or settings couldn’t be erased." · "The daily copies couldn’t be erased. Close other catkin windows, then try again." · "The daily copies couldn’t be erased. Try again." · "Try erasing again" |
+| A partial erase keeps changes paused until retried (WP-A9, DEC-V: pending owner approval) | "Some data is still on this device. Changes are paused here. Open You to try again." |
+| Ownership changes while erasing (WP-A9, DEC-V: pending owner approval) | "The save changed while erasing. Some data may still be on this device." |
 | The demo | "Try the demo" · "Leave the demo" |
 
 Habits: "Archive {habit}? The plant moves to the balcony shelf, and you can bring it back anytime." ·
@@ -1349,7 +1378,9 @@ under the constant named. Same rules as everywhere (section 1).
 | calendar.unwater | "Not watered after all" |
 | calendar.windowNote | "The last 6 days are watered from the week strip on Today." |
 | calendar.openToday | "Open Today" |
-| calendar.refused | "That day is watered from the week strip on Today." |
+| calendar.refused | "That day can’t be changed here right now." (WP-B8: also covers ownership changing after an action is offered). DEC-V: pending owner approval |
+| calendar.periodLocked | "This watering can be removed once its period is outside the week strip on Today." (WP-B8). DEC-V: pending owner approval |
+| calendar.outsideDates | "That day is outside this habit’s tracking dates." (WP-B8). DEC-V: pending owner approval |
 | calendar.watered | "watered" |
 | calendar.tiny | "the tiny version" |
 | calendar.rest | "resting" |
@@ -1586,3 +1617,9 @@ under the constant named. Same rules as everywhere (section 1).
 | stepOf | "Step {n} of {count}" |
 | useHere | "Choose Use here above to carry on in this window." Under the shell's "catkin is open in another window · Use here" note, at the top of an onboarding step, when this window couldn't plant the picks (they stay picked) or move to the next step (WP-C5). A newer catkin's save says the Data line instead: "This window can’t change the save right now." DEC-V: pending owner approval |
 
+
+### Modal notes (WP-C3, 2 October 2026)
+
+No new copy. The number pad keeps "Add a note" available as a stable button; the temporary
+"Undo" and "Add a note" actions appear inside the active sheet. Existing availability announcements
+wait until those actions can be reached, and keep their approved wording.

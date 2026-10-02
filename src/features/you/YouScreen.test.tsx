@@ -97,10 +97,10 @@ describe('You (DESIGN §9.5)', () => {
 
   it('starts over only after two confirmations', async () => {
     await click(byText('Start over'), 'Start over');
-    let dlg = await until(() => dialogs().find((d) => d.textContent?.includes('Every habit, plant and pet')), 'the first confirmation');
+    let dlg = await until(() => dialogs().find((d) => d.textContent?.includes('The habits, plants and pets here go.')), 'the first confirmation');
     await click(byText('Start over', dlg), 'confirm once');
     expect(state.value.habits).toHaveLength(3);
-    dlg = await until(() => dialogs().find((d) => d.textContent?.includes('The daily copies stay')), 'the second confirmation');
+    dlg = await until(() => dialogs().find((d) => d.textContent?.includes('Start over now?')), 'the second confirmation');
     await click(byText('Start over', dlg), 'confirm twice');
     expect(state.value.habits).toHaveLength(0);
     expect(state.value.profile.onboarded).toBe(false);
@@ -123,7 +123,7 @@ describe('You (DESIGN §9.5)', () => {
 
   it('keeps everything when either confirmation is declined', async () => {
     await click(byText('Start over'), 'Start over');
-    const dlg = await until(() => dialogs().find((d) => d.textContent?.includes('Every habit, plant and pet')), 'the first confirmation');
+    const dlg = await until(() => dialogs().find((d) => d.textContent?.includes('The habits, plants and pets here go.')), 'the first confirmation');
     await click(byText('Keep everything', dlg), 'Keep everything');
     expect(state.value.habits).toHaveLength(3);
   });

@@ -143,7 +143,7 @@ describe('the calendar', () => {
     expect(stop()[0]!.dataset.date! < first.dataset.date!).toBe(true);
   });
 
-  it('an older day fixes history (no coins), and a refusal points to the week strip', async () => {
+  it('an older day fixes history (no coins), and a refused write is reported truthfully', async () => {
     await open();
     const radios = Array.from(document.querySelectorAll('[role="radio"]'));
     await click(radios.find((r) => r.textContent === 'Go for a walk'), 'the Walk filter');
@@ -159,7 +159,7 @@ describe('the calendar', () => {
     spy.mockReturnValueOnce(false);
     const again = button(/^Water it for Sep 3$|^Not watered after all$/)!;
     await click(again, 'the history edit');
-    expect(toasts.value.at(-1)?.message).toBe('That day is watered from the week strip on Today.');
+    expect(toasts.value.at(-1)?.message).toBe('That day can’t be changed here right now.');
   });
 
   it('the last 6 days point to the week strip on Today', async () => {
