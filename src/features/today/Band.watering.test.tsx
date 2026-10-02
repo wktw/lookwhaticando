@@ -6,6 +6,7 @@ import { Band, type BandHandle } from './Band';
 import { todayVM } from '@/state/views/today';
 import { createInitialState } from '@/state/defaults';
 import { runtimeLocalTime } from '@/domain/dates';
+import { habit } from '../../../tests/unit/domain/helpers';
 const pours = vi.hoisted(() => vi.fn());
 vi.mock('@/art/scene', async () => {
  const { forwardRef } = await import('preact/compat');
@@ -17,8 +18,8 @@ const advance = (ms:number) => act(()=>{vi.advanceTimersByTime(ms);});
 beforeEach(()=>{vi.useFakeTimers();pours.mockClear();document.documentElement.dataset.motion='full';host=document.createElement('div');document.body.append(host);});
 afterEach(()=>{act(()=>render(null,host));host.remove();vi.useRealTimers();delete document.documentElement.dataset.motion;});
 function rig() {
- const ref=createRef<BandHandle>();const now=new Date('2026-10-02T12:00:00Z').getTime();const state=createInitialState(now);const vm=todayVM(state,{now,today:'2026-10-02',local:runtimeLocalTime});
- const show=(damp:boolean)=>act(()=>render(<Band ref={ref} vm={{...vm,sill:[{habitId:'walk',name:'Walk',species:'begonia',stage:4,progress:0,pot:'mug',damp,pulse:damp?1:0,resident:null}]}} state={state} coins={0} onWallet={()=>undefined}/>,host));
+ const ref=createRef<BandHandle>();const now=new Date('2026-10-02T12:00:00Z').getTime();const state=createInitialState(now);state.habits=[habit({id:'walk',startedOn:'2026-10-02'})];const vm=todayVM(state,{now,today:'2026-10-02',local:runtimeLocalTime});
+ const show=(damp:boolean)=>act(()=>render(<Band ref={ref} vm={{...vm,sill:[{...vm.sill[0]!,damp,pulse:damp?1:0}]}} state={state} coins={0} onWallet={()=>undefined}/>,host));
  show(true);
  const row=host.querySelector<HTMLElement>('[role="group"]')!;
  row.scrollTo=vi.fn();row.getBoundingClientRect=()=>new DOMRect(0,0,390,100);
