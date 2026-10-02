@@ -5,7 +5,7 @@ import { cx } from './cx';
 import { toneClass } from './tone';
 import { onInterrupt } from './gesture';
 import { overlayRoot } from './overlay';
-import { anyLayerOpen, momentOpen, onLayersChange, topNotesSlot } from './sheetStack';
+import { anyLayerOpen, momentOpen, onLayersChange, restoreLayerFocus, topNotesSlot } from './sheetStack';
 import { announceToast, dismissToast, runToastAction, runToastClock, toastActions, toastLaneTop, toasts, toastsHeld, visibleToasts, type ToastAction, type ToastItem } from './toast';
 import s from './Toaster.module.css';
 
@@ -60,7 +60,7 @@ export function Toaster() {
   return createPortal(
     <section ref={stackRef} class={s.stack} data-at={lifted ? 'top' : 'bottom'} data-owned={slot ? '' : undefined} aria-label="Notes">
       {items.map((t) => (
-        <ToastCard key={t.id} item={t} hidden={hidden} />
+        <ToastCard key={t.id} item={t} hidden={hidden} owned={!!slot} />
       ))}
     </section>,
     slot ?? overlayRoot(),
@@ -82,13 +82,24 @@ function topSheetHeaderBottom(laneBottom: number): number {
 /** Keep the durable origin when Tab moves directly between two transient notes. */
 const focusOrigins = new WeakMap<HTMLElement, HTMLElement | null>();
 
-function ToastCard({ item, hidden }: { item: ToastItem; hidden: boolean }) {
+function ToastCard({ item, hidden, owned }: { item: ToastItem; hidden: boolean; owned: boolean }) {
   const [hovered, setHovered] = useState(false);
   const [focused, setFocused] = useState(false);
   const [dragging, setDragging] = useState(false);
   const held = toastsHeld.value > 0;
   const cardRef = useRef<HTMLDivElement>(null);
   const returnTo = useRef<HTMLElement | null>(null);
+  const returnFocus = () => {
+    const card = cardRef.current;
+    if (!card?.contains(document.activeElement)) return;
+    const panel = card.closest<HTMLElement>('[role="dialog"], [role="alertdialog"]');
+    const previous = returnTo.current;
+    const target = previous?.isConnected && (!panel || panel.contains(previous)) ? previous : panel;
+    restoreLayerFocus(target);
+  };
+  // A plain note can be dismissed while its text has focus. Return before it disappears,
+  // using the same durable origin as an action and preserving any newer chosen focus.
+  useLayoutEffect(() => { if (item.leaving) returnFocus(); }, [item.leaving]);
   const drag = useRef<{ y: number; id: number } | null>(null);
 
   useLayoutEffect(() => {
@@ -153,16 +164,13 @@ function ToastCard({ item, hidden }: { item: ToastItem; hidden: boolean }) {
   return (
     <ToastNote
       item={item}
+      // Plain modal notes still need a keyboard target when their lane scrolls. Focusing the
+      // card uses the same reading-time pause as an action; root notes keep their current order.
+      tabIndex={owned && !toastActions(item).length && !item.leaving ? 0 : undefined}
       noteRef={cardRef}
       onAction={(a) => {
-        const active = document.activeElement;
         // An action can open another sheet. Its focus return must point at a durable control.
-        const panel = cardRef.current?.closest<HTMLElement>('[role="dialog"], [role="alertdialog"]');
-        if (active && cardRef.current?.contains(active)) {
-          const previous = returnTo.current;
-          const target = previous?.isConnected && (!panel || panel.contains(previous)) ? previous : panel;
-          target?.focus({ preventScroll: true });
-        }
+        returnFocus();
         runToastAction(item.id, a);
       }}
       onPointerEnter={(e) => e.pointerType === 'mouse' && setHovered(true)}
