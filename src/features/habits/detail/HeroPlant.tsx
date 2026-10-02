@@ -4,6 +4,7 @@
  * companion sits on the rim's lip on the lit side (or on the sill beside a cutting's glass), facing
  * out, between the plant's back and front layers so the foliage that spills over the rim is in front.
  */
+import type { Outfit } from '@/state/types';
 import { PetArt } from '@/art/pets/PetArt';
 import { PlantArt, type PlantLookArt } from '@/art/plants';
 import { cardFrame, cardSpots } from '@/art/plants/CardPlant';
@@ -21,6 +22,7 @@ export interface HeroPlantProps {
   flourishes?: number;
   /** The companion's art id (a collectible id), living in the plant. */
   residentArtId?: string;
+  residentOutfit?: Outfit;
   size?: number;
   animated?: boolean;
   title?: string;
@@ -56,6 +58,7 @@ export function HeroPlant(p: HeroPlantProps) {
   const resident = p.residentArtId ? (
     <PetArt
       petId={p.residentArtId}
+      outfit={p.residentOutfit}
       size={petPx}
       pose="loaf"
       light={light}
