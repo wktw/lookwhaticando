@@ -1,0 +1,353 @@
+{
+  "sha": "ad27da15242987be62f8d7696cfdba98f74f36b0",
+  "schema": 2,
+  "exit": 0,
+  "scenarios": [
+    {
+      "years": 5,
+      "fixture": {
+        "years": 5,
+        "habits": 12,
+        "count": 21900,
+        "characters": 6132000,
+        "fingerprint": 3148841511,
+        "encodedCharacters": 7568844,
+        "encodedUtf8Bytes": 7568844,
+        "utf16PayloadBytes": 15137688,
+        "checkins": 21900,
+        "letters": 320
+      },
+      "timings": {
+        "progressCold": {
+          "n": 5,
+          "medianMs": 61.20000000298023,
+          "minMs": 51.399999998509884,
+          "maxMs": 78.39999999850988
+        },
+        "progressWarm": {
+          "n": 5,
+          "medianMs": 0,
+          "minMs": 0,
+          "maxMs": 0
+        },
+        "todayCold": {
+          "n": 5,
+          "medianMs": 15,
+          "minMs": 12.899999998509884,
+          "maxMs": 24.899999998509884
+        },
+        "todayWarm": {
+          "n": 5,
+          "medianMs": 0.5,
+          "minMs": 0.30000000447034836,
+          "maxMs": 0.6000000014901161
+        },
+        "detailCold": {
+          "n": 5,
+          "medianMs": 7,
+          "minMs": 5.299999997019768,
+          "maxMs": 9.399999998509884
+        },
+        "detailWarm": {
+          "n": 5,
+          "medianMs": 2.399999998509884,
+          "minMs": 1.8999999985098839,
+          "maxMs": 2.899999998509884
+        },
+        "lifetimeWalk": {
+          "n": 5,
+          "medianMs": 5.899999998509884,
+          "minMs": 4.199999995529652,
+          "maxMs": 6.700000002980232
+        },
+        "rejectedBackdate": {
+          "n": 5,
+          "medianMs": 0.10000000149011612,
+          "minMs": 0,
+          "maxMs": 0.10000000149011612
+        },
+        "actionMs": {
+          "n": 5,
+          "medianMs": 2.5,
+          "minMs": 2.0999999940395355,
+          "maxMs": 10.5
+        },
+        "serializeMs": {
+          "n": 5,
+          "medianMs": 18.899999998509884,
+          "minMs": 18.400000005960464,
+          "maxMs": 21.100000001490116
+        },
+        "commitMs": {
+          "n": 5,
+          "medianMs": 2.2999999970197678,
+          "minMs": 2,
+          "maxMs": 2.7000000029802322
+        },
+        "totalMs": {
+          "n": 5,
+          "medianMs": 24,
+          "minMs": 22.5,
+          "maxMs": 31.400000005960464
+        },
+        "rollover": {
+          "n": 5,
+          "medianMs": 45.600000001490116,
+          "minMs": 37.79999999701977,
+          "maxMs": 60
+        },
+        "compact": {
+          "n": 5,
+          "medianMs": 28.899999998509884,
+          "minMs": 25.399999998509884,
+          "maxMs": 40.600000001490116
+        },
+        "pastedImport": {
+          "n": 5,
+          "medianMs": 19.799999997019768,
+          "minMs": 18.200000002980232,
+          "maxMs": 24
+        },
+        "moments.openMs": {
+          "n": 1,
+          "medianMs": 648.8000000044703,
+          "minMs": 648.8000000044703,
+          "maxMs": 648.8000000044703
+        },
+        "moments.scrollMs": {
+          "n": 1,
+          "medianMs": 21.700000002980232,
+          "minMs": 21.700000002980232,
+          "maxMs": 21.700000002980232
+        },
+        "moments.starMs": {
+          "n": 1,
+          "medianMs": 67.29999999701977,
+          "minMs": 67.29999999701977,
+          "maxMs": 67.29999999701977
+        },
+        "memory.openMs": {
+          "n": 1,
+          "medianMs": 82.5,
+          "minMs": 82.5,
+          "maxMs": 82.5
+        },
+        "memory.readerMs": {
+          "n": 1,
+          "medianMs": 98.89999999850988,
+          "minMs": 98.89999999850988,
+          "maxMs": 98.89999999850988
+        },
+        "memory.returnMs": {
+          "n": 1,
+          "medianMs": 50,
+          "minMs": 50,
+          "maxMs": 50
+        },
+        "snapshotWrites": {
+          "n": 14,
+          "medianMs": 33.25,
+          "minMs": 28.100000001490116,
+          "maxMs": 53.099999994039536
+        },
+        "snapshotLists": {
+          "n": 5,
+          "medianMs": 249.89999999850988,
+          "minMs": 222.10000000149012,
+          "maxMs": 275.6000000014901
+        },
+        "snapshotRead": {
+          "n": 1,
+          "medianMs": 23.200000002980232,
+          "minMs": 23.200000002980232,
+          "maxMs": 23.200000002980232
+        }
+      },
+      "commitOutcomes": {
+        "QuotaExceededError": 5
+      },
+      "allPreviousKept": true,
+      "cardinalityAndSemanticChecks": "passed"
+    },
+    {
+      "years": 10,
+      "fixture": {
+        "years": 10,
+        "habits": 12,
+        "count": 43800,
+        "characters": 12264000,
+        "fingerprint": 1681579141,
+        "encodedCharacters": 14959052,
+        "encodedUtf8Bytes": 14959052,
+        "utf16PayloadBytes": 29918104,
+        "checkins": 43800,
+        "letters": 640
+      },
+      "timings": {
+        "progressCold": {
+          "n": 5,
+          "medianMs": 148.59999999403954,
+          "minMs": 131.60000000149012,
+          "maxMs": 173.5
+        },
+        "progressWarm": {
+          "n": 5,
+          "medianMs": 0,
+          "minMs": 0,
+          "maxMs": 0.10000000149011612
+        },
+        "todayCold": {
+          "n": 5,
+          "medianMs": 35.600000001490116,
+          "minMs": 34.600000001490116,
+          "maxMs": 56.100000001490116
+        },
+        "todayWarm": {
+          "n": 5,
+          "medianMs": 0.4000000059604645,
+          "minMs": 0.3999999985098839,
+          "maxMs": 0.6000000014901161
+        },
+        "detailCold": {
+          "n": 5,
+          "medianMs": 18.19999999552965,
+          "minMs": 8.899999998509884,
+          "maxMs": 32.100000001490116
+        },
+        "detailWarm": {
+          "n": 5,
+          "medianMs": 5.300000004470348,
+          "minMs": 4.799999997019768,
+          "maxMs": 12.300000004470348
+        },
+        "lifetimeWalk": {
+          "n": 5,
+          "medianMs": 17.599999994039536,
+          "minMs": 13.199999995529652,
+          "maxMs": 23.5
+        },
+        "rejectedBackdate": {
+          "n": 5,
+          "medianMs": 0.09999999403953552,
+          "minMs": 0,
+          "maxMs": 0.30000000447034836
+        },
+        "actionMs": {
+          "n": 5,
+          "medianMs": 5.100000001490116,
+          "minMs": 3.9000000059604645,
+          "maxMs": 7.4000000059604645
+        },
+        "serializeMs": {
+          "n": 5,
+          "medianMs": 39.600000001490116,
+          "minMs": 37,
+          "maxMs": 42.5
+        },
+        "commitMs": {
+          "n": 5,
+          "medianMs": 6.100000001490116,
+          "minMs": 5.0999999940395355,
+          "maxMs": 7.700000002980232
+        },
+        "totalMs": {
+          "n": 5,
+          "medianMs": 51.70000000298023,
+          "minMs": 46,
+          "maxMs": 52.899999998509884
+        },
+        "rollover": {
+          "n": 5,
+          "medianMs": 131.10000000149012,
+          "minMs": 112.90000000596046,
+          "maxMs": 209.79999999701977
+        },
+        "compact": {
+          "n": 5,
+          "medianMs": 74.19999999552965,
+          "minMs": 58.100000001490116,
+          "maxMs": 86.70000000298023
+        },
+        "pastedImport": {
+          "n": 5,
+          "medianMs": 42.600000001490116,
+          "minMs": 38.900000005960464,
+          "maxMs": 47.399999998509884
+        },
+        "moments.openMs": {
+          "n": 1,
+          "medianMs": 1611.6000000014901,
+          "minMs": 1611.6000000014901,
+          "maxMs": 1611.6000000014901
+        },
+        "moments.scrollMs": {
+          "n": 1,
+          "medianMs": 42.100000001490116,
+          "minMs": 42.100000001490116,
+          "maxMs": 42.100000001490116
+        },
+        "moments.starMs": {
+          "n": 1,
+          "medianMs": 119.69999999552965,
+          "minMs": 119.69999999552965,
+          "maxMs": 119.69999999552965
+        },
+        "memory.openMs": {
+          "n": 1,
+          "medianMs": 175,
+          "minMs": 175,
+          "maxMs": 175
+        },
+        "memory.readerMs": {
+          "n": 1,
+          "medianMs": 82.80000000447035,
+          "minMs": 82.80000000447035,
+          "maxMs": 82.80000000447035
+        },
+        "memory.returnMs": {
+          "n": 1,
+          "medianMs": 50,
+          "minMs": 50,
+          "maxMs": 50
+        },
+        "snapshotWrites": {
+          "n": 14,
+          "medianMs": 73.94999999925494,
+          "minMs": 61.600000001490116,
+          "maxMs": 89
+        },
+        "snapshotLists": {
+          "n": 5,
+          "medianMs": 606.2999999970198,
+          "minMs": 596.7000000029802,
+          "maxMs": 720.2999999970198
+        },
+        "snapshotRead": {
+          "n": 1,
+          "medianMs": 41.100000001490116,
+          "minMs": 41.100000001490116,
+          "maxMs": 41.100000001490116
+        }
+      },
+      "commitOutcomes": {
+        "QuotaExceededError": 5
+      },
+      "allPreviousKept": true,
+      "cardinalityAndSemanticChecks": "passed"
+    }
+  ],
+  "cgroupCpuDelta": {
+    "usage_usec": 38107424,
+    "user_usec": 33063561,
+    "system_usec": 5043864,
+    "nice_usec": 0,
+    "nr_periods": 370,
+    "nr_throttled": 0,
+    "throttled_usec": 0,
+    "nr_bursts": 0,
+    "burst_usec": 0
+  },
+  "memoryEventsUnchanged": true,
+  "liveRelevantProcessesBefore": 0,
+  "liveRelevantProcessesAfter": 0
+}

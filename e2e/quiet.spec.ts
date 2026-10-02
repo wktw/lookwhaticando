@@ -44,6 +44,107 @@ async function assertQuiet(page: Page) {
   expect(text).not.toMatch(/\bcoins?\b|capsules?/i);
 }
 
+/**
+ * Reparenting live notes restarts their entrance fade, and another note can arrive during axe.
+ * Audit their steady presentation without changing base opacity, colours, content, actions or
+ * application clocks. The journey and the notes' art retain ordinary motion; this temporary
+ * rule covers only card/text motion for this one scan, including notes inserted mid-scan.
+ */
+async function withSteadyToastPresentation(page: Page, audit: () => Promise<void>) {
+  const style = await page.addStyleTag({ content: `
+    [data-toast-id], [data-toast-id] > div:has(> p) {
+      animation: none !important;
+      transition: none !important;
+    }
+  ` });
+  try {
+    await audit();
+  } finally {
+    await style.evaluate(node => { node.parentNode?.removeChild(node); });
+    await style.dispose();
+  }
+}
+
+async function toastAuditFixture(page: Page) {
+  await page.setContent(`<!doctype html><html lang="en"><head><title>Notes accessibility control</title><style>
+    body { background: #fffdf9; color: #3b3236; font: 16px sans-serif; }
+    [data-toast-id] { background: #fffdf9; animation: note-entry 280ms linear both; }
+    [data-toast-id] > div { animation: text-refresh 260ms linear both; }
+    @keyframes note-entry { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+    @keyframes text-refresh { from { opacity: .55; } to { opacity: 1; } }
+    @keyframes art-turn { to { transform: rotate(360deg); } }
+    [data-note-art] { display: inline-block; animation: art-turn 1s linear infinite; }
+  </style></head><body><main><h1>Notes</h1>
+    <div data-toast-id="retained"><span data-note-art aria-hidden="true">*</span><div><p>A retained note.</p></div><button>Undo</button></div>
+  </main></body></html>`);
+  await page.evaluate(() => {
+    for (const animation of document.querySelector('[data-toast-id]')!.getAnimations({ subtree: true })) {
+      if (!Number.isFinite(animation.effect!.getComputedTiming().endTime)) continue;
+      animation.pause(); animation.currentTime = 40;
+    }
+  });
+}
+
+test('the quiet audit retains current and immediately arriving notes without muting their art', async ({ page }, info) => {
+  await toastAuditFixture(page);
+  await withSteadyToastPresentation(page, async () => {
+    // Insert during the scan and sample synchronously, before animationstart could be delivered.
+    const present = await page.evaluate(() => {
+      const first = document.querySelector<HTMLElement>('[data-toast-id]')!;
+      const late = first.cloneNode(true) as HTMLElement; late.dataset.toastId = 'late'; first.after(late);
+      return [...document.querySelectorAll<HTMLElement>('[data-toast-id]')].map(el => ({ id: el.dataset.toastId, opacity: getComputedStyle(el).opacity, textOpacity: getComputedStyle(el.querySelector('div')!).opacity }));
+    });
+    expect(present).toEqual([{ id: 'retained', opacity: '1', textOpacity: '1' }, { id: 'late', opacity: '1', textOpacity: '1' }]);
+    await expect(page.getByRole('button', { name: 'Undo' })).toHaveCount(2);
+    expect(await page.locator('[data-note-art]').first().evaluate(el => el.getAnimations().some(a => a.playState === 'running' && !Number.isFinite(a.effect!.getComputedTiming().endTime)))).toBe(true);
+    await expectNoAxeViolations(page, info);
+  });
+  await expect(page.locator('[data-toast-id]')).toHaveCount(2);
+  expect(await page.locator('[data-toast-id]').first().evaluate(el => getComputedStyle(el).animationName)).toBe('note-entry');
+});
+
+test('the quiet audit preserves genuine steady-state contrast failures and cleans up on failure', async ({ page }, info) => {
+  await toastAuditFixture(page);
+  await page.addStyleTag({ content: '[data-toast-id] { color: #aaa; }' });
+  await expect(withSteadyToastPresentation(page, () => expectNoAxeViolations(page, info))).rejects.toThrow('color-contrast');
+  expect(await page.locator('[data-toast-id]').evaluate(el => getComputedStyle(el).animationName)).toBe('note-entry');
+  expect(await page.locator('[data-toast-id]').evaluate(el => getComputedStyle(el).color)).toBe('rgb(170, 170, 170)');
+});
+
+test('the quiet audit retains a genuinely low base opacity and reports its contrast', async ({ page }, info) => {
+  await toastAuditFixture(page);
+  await page.locator('[data-toast-id]').evaluate(el => { (el as HTMLElement).style.opacity = '.3'; });
+  await expect(withSteadyToastPresentation(page, async () => {
+    expect(await page.locator('[data-toast-id]').evaluate(el => getComputedStyle(el).opacity)).toBe('0.3');
+    await expectNoAxeViolations(page, info);
+  })).rejects.toThrow('color-contrast');
+  expect(await page.locator('[data-toast-id]').evaluate(el => (el as HTMLElement).style.opacity)).toBe('0.3');
+  expect(await page.locator('[data-toast-id]').evaluate(el => getComputedStyle(el).animationName)).toBe('note-entry');
+});
+
+test('the quiet audit cleans up after a thrown scan while cards are canceled and replaced', async ({ page }) => {
+  await toastAuditFixture(page);
+  const stylesBefore = await page.locator('style').count();
+  await page.evaluate(() => {
+    (window as unknown as { oldToastAnimations: Animation[] }).oldToastAnimations = document.querySelector('[data-toast-id]')!.getAnimations({ subtree: true });
+  });
+  await expect(withSteadyToastPresentation(page, async () => {
+    const replacement = await page.evaluate(() => {
+      for (const animation of (window as unknown as { oldToastAnimations: Animation[] }).oldToastAnimations) animation.cancel();
+      const old = document.querySelector<HTMLElement>('[data-toast-id]')!;
+      const next = old.cloneNode(true) as HTMLElement;
+      next.dataset.toastId = 'replacement'; old.replaceWith(next);
+      return { id: next.dataset.toastId, opacity: getComputedStyle(next).opacity, textOpacity: getComputedStyle(next.querySelector('div')!).opacity };
+    });
+    expect(replacement).toEqual({ id: 'replacement', opacity: '1', textOpacity: '1' });
+    throw new Error('Deliberate interrupted audit');
+  })).rejects.toThrow('Deliberate interrupted audit');
+  await expect(page.locator('[data-toast-id]')).toHaveCount(1);
+  await expect(page.getByRole('button', { name: 'Undo' })).toHaveCount(1);
+  await expect(page.locator('style')).toHaveCount(stylesBefore);
+  expect(await page.locator('[data-toast-id]').evaluate(el => getComputedStyle(el).animationName)).toBe('note-entry');
+});
+
 test('quiet daily journey: water, Undo, note, history correction, detail, rest and review', async ({ page }, info) => {
   const errors = watchErrors(page);
   const seed = await boot(page);
@@ -101,7 +202,7 @@ test('quiet daily journey: water, Undo, note, history correction, detail, rest a
   await expect(correction).toBeHidden();
   await expect(page.getByText('Walked a little farther.', { exact: true })).toBeVisible();
   await assertQuiet(page);
-  await expectNoAxeViolations(page, info);
+  await withSteadyToastPresentation(page, () => expectNoAxeViolations(page, info));
   expect(await page.evaluate(() => (window as unknown as { quietLeaks: string[] }).quietLeaks)).toEqual([]);
   await page.reload();
   const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('catkin:v1')!).state);

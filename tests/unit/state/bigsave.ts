@@ -7,7 +7,7 @@ import { COLLECTIBLES, PETS, TREATS } from '@/catalog/collectibles';
 import { MACHINES } from '@/catalog/machines';
 import { BADGES } from '@/catalog/badges';
 import type { AppState, DayLog, Habit, Letter } from '@/state/types';
-import { addDays, eachDay } from '@/domain/dates';
+import { addDays, eachDay, monthFromIndex, monthIndex, startOfWeek } from '@/domain/dates';
 import { ledgerKey } from '@/domain/economy';
 import { chance, mulberry32, pick } from '@/domain/rng';
 import { Game, at } from '../domain/game';
@@ -23,17 +23,20 @@ export function fiveYearSave(): AppState {
  * long-kept sill has: companions on half the habits (and their pairings, stories and keepsakes),
  * stacked pairs, plant looks, stage days and filed seasons.
  */
-export function bigSave(opts: { years: number; habits: number }): AppState {
+export function bigSave(opts: { years: number; habits: number; notes?: 'daily' }): AppState {
   const rng = mulberry32(5);
   const g = new Game({ start: TODAY, hour: 21 });
   g.freeze = false;
-  const start = addDays(TODAY, -(opts.years * 365 + 1));
+  // The journal variant has exactly 365 days per fixture year, regardless of leap years.
+  const journal = opts.notes === 'daily';
+  const start = addDays(TODAY, journal ? 1 - opts.years * 365 : -(opts.years * 365 + 1));
   const days = eachDay(start, TODAY);
   const s = structuredClone(g.state);
   s.profile.createdAt = at(start, 9);
+  if (journal) s.profile.createdOn = start;
   s.clock = { maxDateKey: TODAY, maxEpochMs: at(TODAY, 21), lastCheckinAt: at(TODAY, 20) };
   for (let i = 0; i < opts.habits; i++) {
-    const kind = i % 4;
+    const kind = journal ? 0 : i % 4;
     const schedule: Habit['rules'][number]['schedule'] =
       kind === 0 ? { kind: 'daily' } : kind === 1 ? { kind: 'days', days: [1, 3, 5] } : kind === 2 ? { kind: 'weekly', times: 3, every: 1 } : { kind: 'daily' };
     const target = kind === 3 ? 8 : 1;
@@ -52,7 +55,7 @@ export function bigSave(opts: { years: number; habits: number }): AppState {
       anchor: 'After I pour my morning coffee',
       createdAt: at(start, 9),
       startedOn: start,
-      pauses: [{ start: addDays(start, 100), end: addDays(start, 110) }],
+      pauses: journal ? [] : [{ start: addDays(start, 100), end: addDays(start, 110) }],
       order: i,
     });
     const logs: Record<string, DayLog> = {};
@@ -61,19 +64,24 @@ export function bigSave(opts: { years: number; habits: number }): AppState {
       const wd = new Date(`${d}T12:00:00Z`).getUTCDay();
       if (kind === 1 && ![1, 3, 5].includes(wd)) continue;
       if (kind === 2 && !chance(rng, 3.3 / 7)) continue;
-      if (chance(rng, 0.03)) {
+      if (!journal && chance(rng, 0.03)) {
         logs[d] = { kind: 'rest' };
         continue;
       }
-      if (!chance(rng, 0.85)) continue;
+      if (!journal && !chance(rng, 0.85)) continue;
       const taps = target > 1 ? 8 : 1;
       const log: DayLog = { kind: 'log', count: target, at: Array.from({ length: taps }, (_, k) => at(d, 8 + k, 15)) };
-      if (chance(rng, 0.04)) log.note = 'A short reflection about how today went, kept warmly.';
+      if (journal) {
+        log.note = `Habit ${i}, ${d}. A daily reflection, kept in full. `.padEnd(280, 'A little detail from the day. ');
+        log.first = log.at![0]!;
+        log.done = log.at![log.at!.length - 1]!;
+        if (d.endsWith('-01')) log.starred = true;
+      } else if (chance(rng, 0.04)) log.note = 'A short reflection about how today went, kept warmly.';
       logs[d] = log;
       s.ledger.recent[ledgerKey(id, d)] = { coins: 5, sunshine: 1, cap: 5, lvl: 'full' }; // a never-compacted ledger
     }
     s.logs[id] = logs;
-    s.ledger.sunshine[id] = 1500;
+    s.ledger.sunshine[id] = journal ? days.length : 1500;
     s.ledger.bestStage[id] = 7;
     for (const tier of [3, 7, 14, 21, 30, 45, 60, 90, 120, 180, 365]) s.ledger.once[`rung|${id}|${tier}`] = true;
   }
@@ -81,6 +89,7 @@ export function bigSave(opts: { years: number; habits: number }): AppState {
   for (const d of days) if (chance(rng, 0.5)) s.ledger.once[`perfect|${d}`] = 12;
   for (let n = 7; n <= 1800; n += 7) s.ledger.once[`showup|${n}`] = true;
   s.lifetime = { coinsEarned: 60000, starsEarned: 3000, checkins: 18000, pulls: 2000, perfectDays: 900, showUpDays: 1800, lastShowUpDay: TODAY };
+  if (journal) Object.assign(s.lifetime, { coinsEarned: days.length * opts.habits * 5, checkins: days.length * opts.habits, perfectDays: days.length, showUpDays: days.length });
   // Everything collected, 60 pets, every place, every pin, five years of Sunday Notes and pages, two weeks of found things.
   for (const c of COLLECTIBLES) s.collection[c.id] = { count: 3, firstAt: at(start, 9) };
   for (const p of PETS.slice(0, 60)) {
@@ -94,12 +103,14 @@ export function bigSave(opts: { years: number; habits: number }): AppState {
   s.found = Array.from({ length: 14 }, (_, i) => ({ date: addDays(TODAY, i - 13), petId: PETS[i]!.id, seed: 1234 }));
   for (const b of BADGES) s.badges[b.id] = at(start, 9);
   const letters: Letter[] = [];
-  for (let w = 0; w < 5 * 52; w++) {
-    const weekStart = addDays('2021-10-04', 7 * w);
-    letters.push({ kind: 'weekly', id: `weekly-${weekStart}`, weekStart, achieved: 70, expected: 80, stars: 3, showUpDays: 7, bestHabitId: 'h-00000000', quote: { habitId: 'h-00000000', date: weekStart, text: 'A short reflection about how today went, kept warmly.' }, newFriends: ['pet-cat-orange'], plantsGrown: ['h-00000001'], readAt: at(weekStart, 9) });
+  for (let w = 0; w < (journal ? opts.years : 5) * 52; w++) {
+    const weekStart = addDays(journal ? startOfWeek(start, 1) : '2021-10-04', 7 * w);
+    const quoteDate = journal && weekStart < start ? start : weekStart;
+    const quote = journal ? s.logs['h-00000000']?.[quoteDate]?.note : undefined;
+    letters.push({ kind: 'weekly', id: `weekly-${weekStart}`, weekStart, achieved: 70, expected: 80, stars: 3, showUpDays: 7, bestHabitId: 'h-00000000', quote: { habitId: 'h-00000000', date: quoteDate, text: quote ?? 'A short reflection about how today went, kept warmly.' }, newFriends: ['pet-cat-orange'], plantsGrown: ['h-00000001'], readAt: at(weekStart, 9) });
   }
-  for (let m = 0; m < 60; m++) {
-    const month = `${2021 + Math.floor((m + 9) / 12)}-${String(((m + 9) % 12) + 1).padStart(2, '0')}`;
+  for (let m = 0; m < (journal ? opts.years * 12 : 60); m++) {
+    const month = journal ? monthFromIndex(monthIndex(start) + m) : `${2021 + Math.floor((m + 9) / 12)}-${String(((m + 9) % 12) + 1).padStart(2, '0')}`;
     letters.push({ kind: 'monthly', id: `bouquet-${month}`, month, achieved: 300, expected: 340, stars: 4, previousPct: 85, growingBonus: false, stems: s.habits.map((h) => ({ habitId: h.id, plant: h.plant, count: 7 })), readAt: 0 });
   }
   s.inbox = letters;
@@ -133,4 +144,3 @@ export function bigSave(opts: { years: number; habits: number }): AppState {
   };
   return s;
 }
-

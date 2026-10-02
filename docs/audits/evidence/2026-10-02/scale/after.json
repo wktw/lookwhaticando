@@ -1,0 +1,14 @@
+{
+  "phase": "after",
+  "utc": "2026-10-02T13:05:01.583432+00:00",
+  "sha": "ad27da15242987be62f8d7696cfdba98f74f36b0",
+  "gitPorcelain": "",
+  "cpuQuota": "400000 100000",
+  "cpuStat": "usage_usec 107734980774\nuser_usec 90730072216\nsystem_usec 17004908558\nnice_usec 34586\nnr_periods 337831\nnr_throttled 183614\nthrottled_usec 9861391122\nnr_bursts 0\nburst_usec 0",
+  "memoryLimitBytes": "17179869184",
+  "memoryCurrentBytes": "8331862016",
+  "memoryEvents": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0",
+  "loadavg": "0.17 1.48 3.66 1/5817 889243",
+  "liveRelevantProcessNames": [],
+  "zombieCount": 603
+}
