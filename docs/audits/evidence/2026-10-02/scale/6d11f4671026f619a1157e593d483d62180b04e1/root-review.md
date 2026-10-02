@@ -1,0 +1,19 @@
+# Root review of refreshed G2 evidence
+
+Measured source: `6d11f4671026f619a1157e593d483d62180b04e1`, clean `/workspace/wt/windows-forward-1640`. New raw directory: `/workspace/g2-final-measurements/6d11f4671026f619a1157e593d483d62180b04e1/`. This is a fresh observation after the two modal-notes CSS changes; the earlier ad27 measurement remains historical and immutable.
+
+I read the entire new raw JSON, complete command log, exit artifact and before/after provenance. The exact approved five/ten-year, five-sample, UI and snapshot invocation ran 17:02:38–17:03:04 UTC; C6 separately read session 57319 actual exit 0. The report is complete schema 2, exact source SHA, dirty:false, with clean git before and after. Both process observations contain zero live relevant jobs. CPU throttling counters/time and all memory-event counters are unchanged. The evidence supports the coordinated quiet local run, not an assertion about every host activity between observations.
+
+This is unthrottled desktop Chromium 143 on Linux 6.18.44 / Node 24.19, AMD EPYC 9V74, five reported CPUs with four CPU-equivalent cgroup quota, 16 GiB cgroup memory limit, 390x844 viewport, scale 1, UTC/reduced motion. It is not a physical-phone budget. The preserved build warnings concern the isolated measurement harness. The npm notice alone does not establish whether cached or network metadata supplied it.
+
+I independently recomputed all 192 statistic fields and checked complete cardinalities/semantic guards; the result is `/workspace/g2-refresh-root-recomputed.json`. Both fixtures retain 12 habits, 21,900/43,800 full 280-character notes and 320/640 letters. All repeated CPU/import/list phases have five samples. Each snapshot phase has 14 committed writes, five lists and one full read. UI is one journey per fixture, not five.
+
+All ten main-save attempts return QuotaExceededError with previousKept:true; there are zero successful main-save commits. Timings for these attempts describe work and refusal, not successful persistence latency. Both pasted imports are accepted by parse/decode/validate/normalize in all five samples, below the existing size limit; this is not application/durable-save success. UI star evidence is an in-memory state/ARIA change, not durable main storage. All maintenance journal/stacking witnesses and UI focus/scroll guards pass.
+
+Fresh five/ten-year medians include cold Progress 56.6/151.1 ms, daily rollover 44.9/153.1 ms, dense compaction 32.4/79.9 ms, accepted pasted import 19.9/44.1 ms and full-record snapshot listing 256.0/513.9 ms. Moments opening is 583.6/1675.6 ms, n=1. These observations support the previously recorded capacity, Moments rendering and metadata-listing followups. They do not establish that the CSS repair caused timing changes or that any physical device threshold passed.
+
+Raw measurement validity approved. Final report/hash approval awaits the author's derived summary, decision draft and manifest; no additional benchmark is needed. Integration/main/full remote checks remain separate.
+
+## Final report approval
+
+APPROVED for portable archival. All 192 independent statistic fields agree exactly with the author summary; all nine new artifact hashes and all nine original historical raw hashes match. I read the complete decision draft and its tables and tracked followups. The single provenance wording correction now accurately allows C3's lightweight external documentation work, and the report correctly refers to existing owner authorization for subsequent gates and backup. Final reviewed draft SHA-256: `a04a1f8db4708d9072432f910c08471b492dafed7036af320b604074e5504dcf`. New raw JSON SHA-256: `9ca239bfdb555e79d39b38c5550ef56e2aae8b732fd29b16e93c911c12fc6a58`. All eight non-draft artifacts stayed unchanged during this wording correction. No unresolved numerical, methodological or reporting finding remains.

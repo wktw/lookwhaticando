@@ -125,6 +125,11 @@ export function perchSpot(p: Perch, pose: PetPose, asleep: boolean, facing: 'lef
 /** Half a pet's footprint on the ground, in units. */
 const reach = (g: Ground) => g.petSize * 0.3;
 
+/** Low perches share the floor's touch space; raised shelves and rims leave the floor below free. */
+export function occupiesFloor(g: Ground, spot: PetSpot): boolean {
+  return !spot.perch || spot.y >= baseline(g.rows, g.d0) - reach(g);
+}
+
 function free(g: Ground, x: number, taken: readonly number[]): boolean {
   const r = reach(g);
   if (x < g.x0 + r || x > g.x1 - r) return false;
@@ -272,7 +277,8 @@ export function arrangePets(g: Ground, pets: readonly ShelfPet[], m: Moment): Ma
     }
   }
 
-  // Then everyone else, on the floor of the place.
+  // Then everyone else, on the floor of the place, clear of pets resting just above it.
+  taken.push(...[...out.values()].filter((s) => occupiesFloor(g, s)).map((s) => s.x));
   const rest = pets.filter((p) => !out.has(petKey(p)));
   rest.forEach((p, i) => {
     const key = petKey(p);
@@ -315,7 +321,7 @@ export function arrangePets(g: Ground, pets: readonly ShelfPet[], m: Moment): Ma
   });
   // Earned daytime choices also seed a still/reduced-motion scene. Night routines keep their beds.
   if (!m.light.night) {
-    const floorTaken = (...except: string[]) => [...out].filter(([key, s]) => !except.includes(key) && !s.perch).map(([, s]) => s.x);
+    const floorTaken = (...except: string[]) => [...out].filter(([key, s]) => !except.includes(key) && occupiesFloor(g, s)).map(([, s]) => s.x);
     for (const p of pets) {
       if (!p.bond) continue;
       const key = petKey(p);

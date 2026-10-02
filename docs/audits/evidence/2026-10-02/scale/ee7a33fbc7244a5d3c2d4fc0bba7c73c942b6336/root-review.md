@@ -1,0 +1,19 @@
+# Root review of final Shelf-source G2 evidence
+
+Measured source: `ee7a33fbc7244a5d3c2d4fc0bba7c73c942b6336`, clean `/workspace/wt/windows-forward-1640`. Fresh evidence is in `/workspace/g2-final-measurements/ee7a33fbc7244a5d3c2d4fc0bba7c73c942b6336/`. Both earlier measurements retain their original source identities and immutable raw artifacts.
+
+I read the entire fresh raw JSON, complete command log, exit-status artifact, and before/after provenance. C6 reports session 36679 actual exit 0; the recorded invocation ran 18:04:28–18:04:53 UTC using the unchanged five/ten-year, five-sample, UI and snapshot recipe. Schema 2 is complete, the exact source matches, dirty is false, and both git observations are clean. Both workload observations contain zero live relevant jobs. CPU throttling counters/time and memory-event counters did not increase. This supports the coordinated quiet local run; it does not assert knowledge of every host activity between observations.
+
+The environment is desktop Linux 6.18.44, Node 24.19, Chromium 143, AMD EPYC 9V74, five reported CPUs with four CPU-equivalent cgroup quota and a 16 GiB cgroup memory limit. The viewport is 390 by 844, scale 1, UTC/reduced motion, without CPU throttling. This is not a physical-phone budget measurement. The retained build warnings concern the isolated measurement harness. The npm update notice alone does not establish its metadata source.
+
+Both dense fixtures retain 12 habits, 21,900/43,800 unique full-length notes and 320/640 letters. Repeated CPU/import/list phases have five samples; each snapshot scenario has 14 committed writes, five lists, and one full read. Each UI journey is a single observation. All ten main-save attempts return QuotaExceededError with previousKept:true: there are zero successful main-save commits, so those timings describe processing and refusal, not successful persistence latency. Pasted imports are accepted at parse/decode/validate/normalize in all ten samples, which does not establish application or durable saving. Starring is an in-memory state/ARIA change. Maintenance preservation witnesses and UI focus/scroll guards pass.
+
+Raw evidence has no review finding. Final report approval awaits independent arithmetic comparison, the author's frozen decision draft and the new manifest; no further benchmark is required. Full integration/main checks and exact remote CI remain separate gates.
+
+## Final report approval
+
+APPROVED for portable archival. I independently recomputed all 192 timing statistic fields and compared every field exactly with the frozen author summary. Fixture cardinalities, maintenance witnesses, import limits, UI guards, snapshot counts and all new artifact hashes pass. Both historical nine-file manifests and their own hashes remain unchanged. The independent result is `/workspace/g2-shelf-final-root-recomputed.json`.
+
+I read the complete frozen decision draft, including its table, interpretation limits and existing tracked follow-ups. The current five/ten-year medians include cold Progress 54.1/152.6 ms, daily rollover 48.1/115.1 ms, compaction 33.2/72.4 ms, accepted pasted-import parsing 20.8/42.0 ms, and full-record snapshot listing 245.9/562.2 ms. Moments opening is 638.4/1558.6 ms, n=1. The draft accurately distinguishes refused main saves, accepted parsing, committed snapshots and in-memory UI state. It makes no causal comparison or physical-device performance claim, and adds no acceptance threshold or product change.
+
+Final reviewed decision draft SHA-256: `ef79a46aa5952d081e5ef558c2fb76d0065a0fb5c241623117c4c3251a08476b`. Raw JSON SHA-256: `c0590e5bcd2d1c4f8f82832cc4bb499bd892a8ad445b16351ea9e5fb74e02c94`. New manifest SHA-256: `8c78ee2cdbdf9e0b4396830d8ae51a896b55767909bddbdef02c1e78517cb04e`. No unresolved numerical, methodological or reporting finding remains.

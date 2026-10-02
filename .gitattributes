@@ -1,0 +1,2 @@
+# Vite SSR hashbang handling requires LF, including on core.autocrlf Windows checkouts.
+/scripts/size-budget.mjs text eol=lf

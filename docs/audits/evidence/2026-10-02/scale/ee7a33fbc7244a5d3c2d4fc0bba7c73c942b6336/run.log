@@ -1,0 +1,21 @@
+
+> little-by-little@1.0.0 perf:scale
+> node tests/perf/run.mjs --years=5,10 --samples=5 --ui=true --snapshots=true --out=/workspace/g2-final-measurements/ee7a33fbc7244a5d3c2d4fc0bba7c73c942b6336/journal-scale.json
+
+[plugin vite:reporter] 
+(!) /workspace/wt/windows-forward-1640/src/state/handoff.ts is dynamically imported by /workspace/wt/windows-forward-1640/src/state/store.ts but also statically imported by /workspace/wt/windows-forward-1640/tests/perf/operations.ts, dynamic import will not move module into another chunk.
+
+
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+Skipping host requirements validation logic because `PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS` env variable is set.
+5 years: 21900 notes, 7568844 encoded characters; commits QuotaExceededError
+10 years: 43800 notes, 14959052 encoded characters; commits QuotaExceededError
+Measurements saved to /workspace/g2-final-measurements/ee7a33fbc7244a5d3c2d4fc0bba7c73c942b6336/journal-scale.json
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.0
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.0
+npm notice To update run: npm install -g npm@12.2.0
+npm notice
