@@ -54,6 +54,8 @@ describe('injected platform capabilities', () => {
     const ctl = new AbortController(); ctl.abort();
     await expect(readImportFile(new File(['ok'], 'small'), { signal: ctl.signal })).resolves.toEqual({ ok: false, error: 'aborted' });
     await expect(readImportFile(new File(['long'], 'large'))).resolves.toEqual({ ok: false, error: 'too-large' });
+    await expect(readImportFile(new File(['long'], 'large'), { maxBytes: 100 })).resolves.toEqual({ ok: false, error: 'too-large' });
+    await expect(readImportFile(new File(['ok'], 'small'), { maxBytes: 1 })).resolves.toEqual({ ok: false, error: 'too-large' });
     const pending = Promise.resolve('backup');
     const result = copyLater(pending);
     expect(copy).toHaveBeenCalledWith(pending); // Safari needs this before the first await.
@@ -81,6 +83,17 @@ describe('injected platform capabilities', () => {
     expect(link.getAttribute('href')).toBe('cal/morning-0730.ics');
     expect(link.getAttribute('rel')).toContain('noopener');
     expect(fireEvent.click(link)).toBe(false);
+    expect(open).toHaveBeenCalledWith('cal/morning-0730.ics', { fromLink: true });
+  });
+
+  it('allows the browser default when the platform declines a real calendar link', () => {
+    const original = getPlatform();
+    const open = vi.fn(() => false);
+    restore = setPlatform({ files: { ...original.files, calendarDelivery: 'static' }, externalLinks: { open } });
+    state.value = { ...state.value, settings: { ...state.value.settings, reminders: { morning: '07:30' } } };
+    render(<RemindersSection />);
+    const link = document.querySelector<HTMLAnchorElement>('a[data-cal=morning]')!;
+    expect(fireEvent.click(link)).toBe(true);
     expect(open).toHaveBeenCalledWith('cal/morning-0730.ics', { fromLink: true });
   });
 
