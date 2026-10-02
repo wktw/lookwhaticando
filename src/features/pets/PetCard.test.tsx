@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { act } from 'preact/test-utils';
 import { buildDemo } from '@/state/demo';
 import { COLLECTIBLES, getCollectible } from '@/catalog/collectibles';
 import { runtimeLocalTime } from '@/domain/dates';
@@ -358,6 +359,28 @@ describe('the Pet Card opened to find a plant (WP-C7, integration-i6)', { timeou
 
 
 describe('last serving focus continuity (WP-C7 follow-up)', () => {
+  it('does not retain a focus request from a full pet when inventory later changes elsewhere', async () => {
+    const base = withTreats(() => 1);
+    state.value = { ...base, pets: { ...base.pets, [petId]: { ...base.pets[petId]!, daily: { ...base.pets[petId]!.daily, date: TODAY, treats: 3 } } } };
+    const d = await open();
+    const feed = feedButtons(d)[0]!;
+    const chosen = EIGHT[0]!;
+    feed.focus();
+    await click(feed, 'the full pet’s remaining serving');
+    expect(state.value.pantry[chosen.id]!.servings).toBe(1);
+    expect(state.value.pets[petId]!.daily.treats).toBe(3);
+    expect(document.activeElement).toBe(feed);
+    // A later inventory update is not the refused click completing asynchronously.
+    await act(() => {
+      state.value = { ...state.value, pantry: { ...state.value.pantry, [chosen.id]: { ...state.value.pantry[chosen.id]!, servings: 0 } } };
+    });
+    expect(feed.disabled).toBe(true);
+    const bake = d.querySelector<HTMLButtonElement>(`button[aria-label="Bake a tray · 10 coins, ${chosen.name}"]`)!;
+    expect(bake.disabled).toBe(false);
+    expect(document.activeElement).not.toBe(bake);
+    expect(state.value.wallet.coins).toBe(100);
+  });
+
   it.each([0, 7])('keeps keyboard focus usable after the last serving in position %i', async (index) => {
     state.value = withTreats(() => 1);
     const d = await open();
