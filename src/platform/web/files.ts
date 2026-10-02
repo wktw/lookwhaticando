@@ -157,6 +157,11 @@ export async function readFileText(file: File, signal?: AbortSignal): Promise<st
         return null;
       }
       const { done, value } = await reader.read();
+      // A read can finish after the chooser closes, including the terminal empty chunk.
+      if (signal?.aborted) {
+        await reader.cancel().catch(() => undefined);
+        return null;
+      }
       if (done) return text + decoder.decode();
       text += decoder.decode(value, { stream: true });
     }
