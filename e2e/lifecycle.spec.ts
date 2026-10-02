@@ -4,7 +4,7 @@
  * what the app wrote. Visibility events below are explicit harness events: headless engines keep
  * every page visible, so these do not claim physical iOS background/process-kill coverage.
  */
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Page, type Route } from '@playwright/test';
 import { createInitialState } from '../src/state/defaults';
 import { encodeEnvelope } from '../src/state/persist';
 import { transact } from '../src/domain/tx';
@@ -26,10 +26,18 @@ function household(name = 'Sam'): AppState {
 }
 async function seed(page: Page, state = household(), route = 'today', base = './') {
   await page.clock.setFixedTime(NOW);
-  await page.goto(base);
-  await page.evaluate((raw) => localStorage.setItem('catkin:v1', raw), encodeEnvelope(state, 1, NOW, 'browser-matrix', '1234567890abcdef1234567890abcdef'));
+  // Establish this origin without booting an unseeded app or interrupting its first worker/chunks.
+  // A distinct URL makes the following app visit a real navigation, even for the Today route.
+  const setupUrl = new URL('__matrix_seed__.html', new URL(base, test.info().project.use.baseURL)).href;
+  const setup = (request: Route) => request.fulfill({ status: 200, contentType: 'text/html', headers: { 'Cache-Control': 'no-store' }, body: '<!doctype html><title>Matrix setup</title>' });
+  await page.route(setupUrl, setup, { times: 1 });
+  try {
+    await page.goto(setupUrl);
+    await page.evaluate((raw) => localStorage.setItem('catkin:v1', raw), encodeEnvelope(state, 1, NOW, 'browser-matrix', '1234567890abcdef1234567890abcdef'));
+  } finally {
+    await page.unroute(setupUrl, setup);
+  }
   await page.goto(`${base}#/${route}`);
-  await page.reload();
   await expect(page.locator('main h1')).toBeVisible();
 }
 const saved = (page: Page) => page.evaluate(() => JSON.parse(localStorage.getItem('catkin:v1')!).state as AppState);
