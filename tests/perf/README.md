@@ -55,7 +55,7 @@ Measured phases:
 
 Assertions guard measurement validity: valid fixture, unchanged note count/characters/content
 fingerprint, all expected rendered notes and letters, surviving prior storage on quota failure,
-retained scroll, and a harmless rejected backdate. They impose no new timing budgets.
+a real saved star change, retained scroll and returned focus, and a harmless rejected backdate. They impose no new timing budgets.
 
 A 390-pixel desktop Chromium viewport is **not** an iPhone performance measurement. Physical
 modest-iPhone budgets remain with the parked WP-E4 device work. Desktop numbers guide a later

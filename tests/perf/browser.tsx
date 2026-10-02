@@ -140,10 +140,14 @@ async function measureUI() {
   const scrollStart = performance.now(); pane.scrollTop = pane.scrollHeight; await painted();
   const momentsScrollMs = performance.now() - scrollStart;
   const beforeStar = pane.scrollTop;
-  const star = oldest.closest('li')!.querySelector<HTMLButtonElement>('button')!;
+  const starDate = vm.moments[vm.moments.length - 1]!.date;
+  const wasStarred = state.peek().logs[vm.habit.id]?.[starDate]?.starred === true;
+  const star = oldest.closest('li')!.querySelector<HTMLButtonElement>('button[aria-pressed]')!;
   const readStart = performance.now(); star.click(); await painted();
   const momentsStarMs = performance.now() - readStart;
-  const moments = { openMs: momentsOpenMs, scrollMs: momentsScrollMs, starMs: momentsStarMs, notes: quotes.length, domNodes: pane.querySelectorAll('*').length, scrollPreserved: pane.scrollTop === beforeStar, reading: 'inline', filter: 'not available' };
+  const isStarred = state.peek().logs[vm.habit.id]?.[starDate]?.starred === true;
+  assert(isStarred !== wasStarred && star.getAttribute('aria-pressed') === String(isStarred), 'The measured star action did not change the saved note and its pressed state');
+  const moments = { openMs: momentsOpenMs, scrollMs: momentsScrollMs, starMs: momentsStarMs, starChanged: isStarred !== wasStarred, notes: quotes.length, domNodes: pane.querySelectorAll('*').length, scrollPreserved: pane.scrollTop === beforeStar, reading: 'inline', filter: 'not available' };
   assert(moments.scrollPreserved && sameJournal(prepared, state.peek()), 'Starring changed scroll or journal text');
   render(null, root); await painted();
 
@@ -166,6 +170,7 @@ async function measureUI() {
   await until(() => !document.querySelector('[data-state="open"] [role="dialog"]')); await painted();
   const memory = { openMs: memoryOpenMs, readerMs, returnMs: performance.now() - closeStart, letters: buttons.length, domNodes: row.querySelectorAll('*').length, scrollPreserved: Math.abs(row.scrollLeft - returnScroll) < 1, focusReturned: document.activeElement === button, filter: 'not available' };
   assert(memory.scrollPreserved, 'Memory shelf lost its return scroll');
+  assert(memory.focusReturned, 'Memory reader did not return focus to its originating letter');
   assert(sameJournal(prepared, state.peek()), 'Reading a letter changed journal text');
   render(null, root); await painted();
   return { moments, memory };
