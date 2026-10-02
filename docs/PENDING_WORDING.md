@@ -103,3 +103,7 @@ The capsule and order notices marked approved on 30 September are excluded. The 
 - **Full notices viewer** (VOICE §24): “Licences” · “The licences didn’t load. Try again when you have a connection.” Loading and retry reuse “One moment” and “Try again”.
 
 The legal notices themselves are verbatim upstream licence documents, generated from installed packages; they are not newly drafted app wording.
+
+## A3/A7 shared safety-copy label — pending owner approval
+
+- **Safety copy** — the Daily copies label for the existing shared `pre-import` kind. These copies can precede an import, restore or Undo; older metadata does not distinguish the action. Replaces “Before an import” without renaming or migrating stored records.

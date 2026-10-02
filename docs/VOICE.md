@@ -1126,6 +1126,7 @@ Under You › Data.
 | Undo import | "Undo import" → "Back to how things were before the import." |
 | Imported with no Undo (she confirmed importing anyway, or there was no lasting copy and nothing yet to lose). DEC-V: pending owner approval | "Imported. There is no Undo import this time." |
 | Snapshots | "Daily copies, kept on this device: 7 daily and 4 weekly." · "Restore this copy" |
+| Copy kept before an import, restore or Undo; the legacy shared kind does not identify which action. DEC-V: pending owner approval | "Safety copy" |
 | Restored (the note carries "Undo") | "Back to the copy from Sep 20." · "Undo" |
 | Restore with no copy of what's here (asked once more, like import). DEC-V: pending owner approval | "Restore without an undo?" · "Little by Little couldn’t keep a copy of what’s here, so there is no undo for this restore." · "Restore this copy" · "Keep what’s here" |
 | Undo a restore (the row after a restore; DEC-P13's generic label). DEC-V: pending owner approval | "Undo last replacement" → "Back to how things were before the restore." |
@@ -1540,7 +1541,7 @@ under the constant named. Same rules as everywhere (section 1).
 | snapshotsKept | "Kept on this device: 7 daily and 4 weekly." |
 | snapshotKinds.daily | "Daily copy" |
 | snapshotKinds.weekly | "Weekly copy" |
-| snapshotKinds.pre-import | "Before an import" |
+| snapshotKinds.pre-import | "Safety copy" (DEC-V: pending owner approval; shared by import, restore and Undo copies, including older copies) |
 | snapshotLine | "{habits} habits · {waterings} waterings" |
 | restoredSnapshot | "Back to the copy from {date}." |
 | chooseFile | "Choose a file" |
