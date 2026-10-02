@@ -1,10 +1,17 @@
 // @vitest-environment jsdom
-import { afterEach, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, expect, it, vi } from 'vitest';
 import { render } from 'preact';
 import { act } from 'preact/test-utils';
 import { NIGHT_LIGHT } from '@/art/light';
 import { PetActor, type ActorView } from './PetActor';
 import { CARRY_MS } from './touch';
+
+// Declare the real pointer handler names, which jsdom omits (as in the shared UI fixtures).
+beforeAll(() => {
+  for (const name of ['onpointerdown', 'onpointerup']) {
+    if (!(name in HTMLElement.prototype)) Object.defineProperty(HTMLElement.prototype, name, { value: null, writable: true, configurable: true });
+  }
+});
 
 let host: HTMLDivElement | undefined;
 afterEach(() => {
