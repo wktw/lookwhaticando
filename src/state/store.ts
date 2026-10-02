@@ -33,7 +33,7 @@
  * reached through `StoreRuntime`, which tests replace with `configureStore`.
  */
 import { batch, computed, signal } from '@preact/signals';
-import type { AppState, DateKey, OnboardingStep, PlacedDecor, Settings, StoryId } from './types';
+import type { AppState, BloomColour, DateKey, OnboardingStep, PlacedDecor, Settings, StoryId } from './types';
 import type {
   ActionResult,
   BackupError,
@@ -1407,8 +1407,14 @@ export function setKeepsakeNote(keepsakeId: string, text: string): void {
 
 /* ---------------- Blooms Like You (§14.2) ---------------- */
 /** "Show this look" (an index into the plant's looks) or "Classic" (null). */
-export function setPlantLook(habitId: string, index: number | null): boolean {
+export function setPlantLook(habitId: string, index: number | null | 'confirmed', expectedEpoch?: number): boolean {
+  if (!ownsSave() || (expectedEpoch !== undefined && expectedEpoch !== saveEpoch.peek())) return false;
   return actValue((tx) => signature.setPlantLook(tx, habitId, index), false);
+}
+/** A deliberate colour confirmation belongs only to the save in which its chooser opened. */
+export function confirmPlantLook(habitId: string, colour: BloomColour, expectedEpoch: number): boolean {
+  if (!ownsSave() || expectedEpoch !== saveEpoch.peek()) return false;
+  return actValue((tx) => signature.confirmPlantLook(tx, habitId, colour), false);
 }
 /** "Move to Evening" (true) or "Leave it in Morning" (false). Offered once. */
 export function answerTimeNudge(habitId: string, move: boolean): boolean {

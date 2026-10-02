@@ -18,6 +18,11 @@ export interface PlantPresentation {
 /** Paired follows the recorded earning partner; deleting it leaves the earned shape intact. */
 export function lookArtOf(s: Pick<AppState, 'plantLooks' | 'habits'>, habitId: string, look?: PlantLook | null): PlantLookArt | undefined {
   const pl = s.plantLooks?.[habitId];
+  if (look === undefined && pl?.confirmed?.shown) {
+    const c = pl.confirmed;
+    const partner = c.partnerId ? s.habits.find((h) => h.id === c.partnerId) : undefined;
+    return { colour: c.colour, shape: c.shape, ...(c.shape === 'paired' && partner ? { partnerColour: partner.color } : {}) };
+  }
   const l = look === undefined ? (pl && pl.shown !== null ? pl.looks[pl.shown] : undefined) : (look ?? undefined);
   if (!l) return undefined;
   const partnerId = l.evidence.keptTogether?.habitId ?? s.habits.find((h) => h.id === habitId)?.anchorHabitId;

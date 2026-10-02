@@ -724,6 +724,19 @@ target-user panel (AUDITS.md). **Every pillar is driven by real habit data and m
   follower was checked in before its anchor keeps that verdict (`DayLog.beforeAnchor`), so compaction never changes the count. Days are
   read against the current anchor (DEC-P12h); a day compacted under another anchor is unknown against a new one and counts on showing
   up, as backfill does (WP-B4).
+  **An honest alternative (WP-D6, DEC-P11):** once a plant has reached Blooming and completed ten scheduled
+  occurrences, an outstanding time read offers a deliberate colour choice. The count follows the existing
+  growth occurrence evaluator: flexible periods count at most their target waterings, backfill may count,
+  and no empty pause, day off or out-of-lifetime day supplies a completion. The count survives timestamp
+  compaction; no old clock time is reconstructed. The offer is explained on the plant tag, and a colour
+  is saved only after selection and confirmation. It is not a time claim and never informs the time nudge
+  or the Garden Journal’s usual time. `PlantLooks.confirmed` is optional, separate from inferred `looks`
+  and their evidence, and keeps colour, genuine shape, choice date, visibility and a fixed Paired partner.
+  It takes display precedence only when `confirmed.shown` is true; choosing Classic or an earned look
+  clears that flag. Later natural reads keep every option and preserve the gardener’s selection.
+  The snake plant’s authored cream flowers take the four colours. Plants without authored petals disclose
+  that their colour choice stays on the tag; leaves retain their own colour, and Paired retains its bee.
+  The Garden Journal states uncertainty without promising that the next watering or Blooming supplies a time.
   **No performance-graded looks.** It pays nothing. The **plant tag** explains it in plain words ("Dawn · Paired: you usually
   water it before 9, and 18 days you did it right after Walk"). A mismatch offers "You set Walk for mornings but usually
   water it after 6 pm. Move it to Evening?" (one tap; ≥ 60% of ≥ 10 eligible days in another Today block, by Today's own rule: the hours before the day start are

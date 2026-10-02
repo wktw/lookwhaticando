@@ -79,7 +79,7 @@ export function gardenJournal(s: Pick<AppState, 'habits' | 'logs' | 'plantLooks'
   // 5. Why it looks like this.
   const looks = looksOf(s, habit.id);
   const look = looks.shown !== null ? looks.looks[looks.shown] : looks.looks[looks.looks.length - 1];
-  if (ink && look) {
+  if (ink && look && !looks.confirmed?.shown) {
     out.push({ kind: 'whyItLooks', inked: true, colour: look.colour, shape: look.shape, band: look.evidence.band, usualMinute: look.evidence.usualMinute });
   } else {
     // Not at Blooming yet: the check-ins to Blooming. At Blooming, the read waits for 10 eligible

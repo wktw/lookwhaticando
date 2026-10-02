@@ -403,7 +403,7 @@ export const HERBARIUM = {
 export const GARDEN_JOURNAL = {
   usualTime: {
     ink: 'You usually water it around {time}.',
-    pencil: { one: 'Your usual time fills in after 1 more watering.', other: 'Your usual time fills in after {count} more waterings.' },
+    pencil: 'Your usual time is still uncertain.',
   },
   steadiestDay: {
     ink: '{weekday}s are when it’s watered most.',
@@ -419,7 +419,7 @@ export const GARDEN_JOURNAL = {
   },
   whyItLooks: {
     ink: 'It blooms {look} because you water it {when}.',
-    pencil: 'Why it looks the way it does fills in at Blooming.',
+    pencil: 'Your plant tag will explain its look when one is ready.',
   },
 } as const;
 

@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { act } from 'preact/test-utils';
 import { buildDemo } from '@/state/demo';
 import { COLLECTIBLES, getCollectible } from '@/catalog/collectibles';
 import { runtimeLocalTime } from '@/domain/dates';
@@ -8,6 +9,8 @@ import * as store from '@/state/store';
 import type { AppState } from '@/state/types';
 import { closeHabitEditor, closePetCard, habitEditorRequest, openPetCard, petCardRequest } from '@/features/habits/open';
 import { toasts } from '@/ui/toast';
+import { Sheet } from '@/ui/Sheet';
+import { pushLayer, removeLayer } from '@/ui/sheetStack';
 import { buttonWithText, click, installDom, mount, type, until } from '@/features/capsules/testing';
 import { lint, PET_PRONOUN } from '../../../tests/unit/voiceLint';
 import PetCardHost from './PetCardHost';
@@ -21,6 +24,7 @@ const NOW = Date.parse('2026-09-29T15:00:00');
 let demo: AppState;
 let view: ReturnType<typeof mount> | null = null;
 let petId = '';
+let extraView: ReturnType<typeof mount> | null = null;
 
 beforeAll(() => {
   vi.useFakeTimers({ toFake: ['Date'] });
@@ -39,6 +43,9 @@ afterAll(() => {
   vi.useRealTimers();
 });
 afterEach(() => {
+  extraView?.unmount();
+  extraView = null;
+  removeLayer('new-feed-layer');
   closePetCard();
   closeHabitEditor();
   view?.unmount();
@@ -347,5 +354,143 @@ describe('the Pet Card opened to find a plant (WP-C7, integration-i6)', { timeou
     expect(buttonWithText(`Find ${pet().name} a plant`)).not.toBeNull();
     expect(d.querySelector(`ul[aria-label="Find ${pet().name} a plant"]`)).toBeNull();
     expect(petCardRequest.value).toEqual({ id: petId });
+  });
+});
+
+
+describe('last serving focus continuity (WP-C7 follow-up)', () => {
+  it('does not retain a focus request from a full pet when inventory later changes elsewhere', async () => {
+    const base = withTreats(() => 1);
+    state.value = { ...base, pets: { ...base.pets, [petId]: { ...base.pets[petId]!, daily: { ...base.pets[petId]!.daily, date: TODAY, treats: 3 } } } };
+    const d = await open();
+    const feed = feedButtons(d)[0]!;
+    const chosen = EIGHT[0]!;
+    feed.focus();
+    await click(feed, 'the full pet’s remaining serving');
+    expect(state.value.pantry[chosen.id]!.servings).toBe(1);
+    expect(state.value.pets[petId]!.daily.treats).toBe(3);
+    expect(document.activeElement).toBe(feed);
+    // A later inventory update is not the refused click completing asynchronously.
+    await act(() => {
+      state.value = { ...state.value, pantry: { ...state.value.pantry, [chosen.id]: { ...state.value.pantry[chosen.id]!, servings: 0 } } };
+    });
+    expect(feed.disabled).toBe(true);
+    const bake = d.querySelector<HTMLButtonElement>(`button[aria-label="Bake a tray · 10 coins, ${chosen.name}"]`)!;
+    expect(bake.disabled).toBe(false);
+    expect(document.activeElement).not.toBe(bake);
+    expect(state.value.wallet.coins).toBe(100);
+  });
+
+  it.each([0, 7])('keeps keyboard focus usable after the last serving in position %i', async (index) => {
+    state.value = withTreats(() => 1);
+    const d = await open();
+    if (index >= 6) await click(Array.from(d.querySelectorAll('button')).find((b) => b.textContent?.trim() === 'All treats (8)') ?? null, 'All treats (8)');
+    const feed = feedButtons(d)[index]!;
+    const chosen = EIGHT[index]!;
+    feed.focus();
+    await click(feed, 'the last serving');
+    expect(state.value.pantry[chosen.id]!.servings).toBe(0);
+    expect(state.value.pets[petId]!.daily.treats).toBe(1);
+    expect(state.value.wallet.coins).toBe(100);
+    for (const t of EIGHT.filter((t) => t.id !== chosen.id)) expect(state.value.pantry[t.id]!.servings).toBe(1);
+    expect(feed.disabled).toBe(true);
+    const bake = d.querySelector<HTMLButtonElement>(`button[aria-label="Bake a tray · 10 coins, ${chosen.name}"]`)!;
+    expect(bake.disabled).toBe(false);
+    expect(document.activeElement).toBe(bake);
+  });
+
+  it('preserves deliberate focus chosen after the feed handler but before the updated row renders', async () => {
+    state.value = withTreats(() => 1);
+    const d = await open();
+    const feed = feedButtons(d)[0]!;
+    const rename = d.querySelector<HTMLButtonElement>('button[aria-label="Rename"]')!;
+    feed.focus();
+    feed.addEventListener('click', () => rename.focus(), { once: true });
+    await click(feed, 'the last serving');
+    expect(state.value.pantry[EIGHT[0]!.id]!.servings).toBe(0);
+    expect(document.activeElement).toBe(rename);
+  });
+
+  it('preserves the focus of a new modal opened by the same action', async () => {
+    state.value = withTreats(() => 1);
+    const d = await open();
+    const feed = feedButtons(d)[0]!;
+    feed.focus();
+    feed.addEventListener('click', () => {
+      extraView = mount(<Sheet open onClose={() => {}} title="Another choice"><button data-autofocus>Keep this choice</button></Sheet>);
+    }, { once: true });
+    await click(feed, 'the last serving');
+    expect(state.value.pantry[EIGHT[0]!.id]!.servings).toBe(0);
+    expect(document.activeElement?.textContent).toBe('Keep this choice');
+  });
+
+  it('does not reclaim focus while another layer owns the card', async () => {
+    state.value = withTreats(() => 1);
+    const d = await open();
+    const feed = feedButtons(d)[0]!;
+    feed.focus();
+    feed.addEventListener('click', () => { pushLayer('new-feed-layer'); feed.blur(); }, { once: true });
+    await click(feed, 'the last serving');
+    expect(state.value.pantry[EIGHT[0]!.id]!.servings).toBe(0);
+    expect(document.activeElement).toBe(document.body);
+  });
+
+  it('does not hand focus to an obsolete feed row after the save epoch changes', async () => {
+    state.value = withTreats(() => 1);
+    const d = await open();
+    const feed = feedButtons(d)[0]!;
+    feed.focus();
+    feed.addEventListener('click', () => { store.saveEpoch.value++; }, { once: true });
+    await click(feed, 'the last serving');
+    const bake = d.querySelector<HTMLButtonElement>(`button[aria-label="Bake a tray · 10 coins, ${EIGHT[0]!.name}"]`)!;
+    expect(state.value.pantry[EIGHT[0]!.id]!.servings).toBe(0);
+    expect(document.activeElement).not.toBe(bake);
+  });
+
+  it('offers another stocked treat when baking is unaffordable', async () => {
+    const base = withTreats(() => 1);
+    state.value = { ...base, wallet: { ...base.wallet, coins: 0 } };
+    const d = await open();
+    const feed = feedButtons(d)[0]!;
+    feed.focus();
+    await click(feed, 'the last serving');
+    const focused = document.activeElement as HTMLButtonElement;
+    expect(focused).not.toBe(feed);
+    expect(focused.hasAttribute('data-feed')).toBe(true);
+    expect(focused.disabled).toBe(false);
+    expect(state.value.wallet.coins).toBe(0);
+    expect(state.value.pantry[EIGHT[0]!.id]!.servings).toBe(0);
+  });
+
+  it.each([false, true])('keeps focus usable when a harvested treat runs out (only treat: %s)', async (only) => {
+    const harvest = COLLECTIBLES.find((c) => c.category === 'treat' && c.source === 'harvest')!;
+    const base = withTreats(() => 1);
+    const collection = only ? Object.fromEntries(Object.entries(base.collection).filter(([id]) => getCollectible(id)?.category !== 'treat')) : base.collection;
+    state.value = { ...base, collection: { ...collection, [harvest.id]: { count: 1, firstAt: 0 } }, pantry: { ...base.pantry, [harvest.id]: { servings: 1, restockedOn: TODAY } } };
+    const d = await open();
+    if (!only) await click(Array.from(d.querySelectorAll('button')).find((b) => b.textContent?.trim() === 'All treats (9)') ?? null, 'All treats (9)');
+    const feed = feedButtons(d).find((b) => b.getAttribute('aria-label')?.startsWith(`Feed ${harvest.name},`))!;
+    feed.focus();
+    await click(feed, 'the last harvest serving');
+    expect(state.value.pantry[harvest.id]!.servings).toBe(0);
+    expect(d.querySelector(`button[aria-label="Bake a tray · 10 coins, ${harvest.name}"]`)).toBeNull();
+    if (only) expect(document.activeElement).toBe(d);
+    else {
+      const focused = document.activeElement as HTMLButtonElement;
+      expect(focused).not.toBe(feed);
+      expect(focused.hasAttribute('data-feed')).toBe(true);
+      expect(focused.disabled).toBe(false);
+    }
+    expect(state.value.wallet.coins).toBe(100);
+  });
+
+  it('does not move focus when an unfocused treat loses its last serving', async () => {
+    state.value = withTreats(() => 1);
+    const d = await open();
+    const rename = d.querySelector<HTMLButtonElement>('button[aria-label="Rename"]')!;
+    rename.focus();
+    await click(feedButtons(d)[0]!, 'a treat without focus');
+    expect(state.value.pantry[EIGHT[0]!.id]!.servings).toBe(0);
+    expect(document.activeElement).toBe(rename);
   });
 });

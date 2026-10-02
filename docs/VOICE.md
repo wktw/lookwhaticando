@@ -991,6 +991,28 @@ words, and it pays nothing.
 - Choosing: "Show this look" · "Classic". Helper: "Classic is always here, if you prefer it."
 - Re-read at Evergreen, adding a look: "A new look for {plant}: Twilight."
 
+**WP-D6 explicit choice — DEC-V: pending owner approval.** A missing time read never becomes an
+inferred time. After Blooming and ten completed scheduled occurrences (including honest backfill),
+the plant tag offers a deliberate colour choice. The ordinary names above describe colours here.
+
+- Waiting: "There aren’t enough clear watering times to read this plant’s colour yet."
+- Explanation: "Sparse routines, late nights and habits watered together can leave the time uncertain."
+- Before the offer: "After 10 waterings that count towards your habit, you can choose a colour here."
+- Open the chooser / its title: "Choose a colour".
+- Chooser explanation: "Pick a colour you like. It won’t say anything about when you water."
+- Confirmation: "Keep this colour". The existing "Not now" dismisses without changing anything.
+- Chosen tag: "{look}: a colour you chose."
+- Chosen option label: "{look} · chosen".
+- Foliage disclosure: "This plant has no petals to colour. Your choice stays on its tag; the leaves stay the same."
+- Paired flowers with a partner still present: "Paired flowers keep the other habit’s colour. Your choice stays on the tag, and the bee stays."
+- Confirmation announcement: "Colour kept."
+- Garden Journal while the time is uncertain: "Your usual time is still uncertain."
+- Garden Journal before a look is known: "Your plant tag will explain its look when one is ready."
+
+The snake plant’s existing flower spike takes the four colours. Pothos, pilea and cat grass show the
+foliage disclosure beside the tag and before confirmation; leaves are never recoloured. Genuine
+Petite/Paired shape evidence is retained separately from the colour choice, including Paired’s bee.
+
 **The move-it-to-Evening nudge:** "You set Walk for mornings but usually water it after 6 pm. Move it to
 Evening?" · "Move to Evening" · "Leave it in Morning". Offered once; a "Leave it" is remembered.
 
@@ -1003,11 +1025,11 @@ shows a pencil line saying when it fills in, counted in waterings, never a deadl
 
 | Sentence | Inked | Pencil |
 |---|---|---|
-| Usual time | "You usually water it around 7:30 am." | "Your usual time fills in after 6 more waterings." (or "after 1 more watering.") |
+| Usual time | "You usually water it around 7:30 am." | "Your usual time is still uncertain." (WP-D6 draft above) |
 | Steadiest day | "Thursdays are when it’s watered most." | "The steadiest day fills in after the second week." |
 | Tiny days | "The tiny version was enough on 5 days." | "Tiny days fill in the first time you use the tiny version." |
 | Days in a pair | "Watered right after Walk on 18 days." | "Days in a pair fill in once it follows another habit." |
-| Why it looks this way | "It blooms Dawn because you water it before 9 am, usually." (or "at all sorts of times") | "Why it looks the way it does fills in at Blooming." |
+| Why it looks this way | "It blooms Dawn because you water it before 9 am, usually." (or "at all sorts of times") | "Your plant tag will explain its look when one is ready." (WP-D6 draft above) |
 
 ## 16. Onboarding
 

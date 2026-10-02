@@ -39,6 +39,46 @@ async function seed(page: Page, envelope: string): Promise<void> {
   }, envelope);
 }
 
+test('a sparse routine chooses a colour deliberately with keyboard and keeps it after reload', async ({ page }, info) => {
+  const g = new Game({ start: '2024-01-01' });
+  const id = g.addHabit({ name: 'Monthly tidy', plant: 'snakeplant', schedule: { kind: 'monthly', times: 1, every: 1 } });
+  for (let i = 0; i < 24; i++) { g.goTo(`${2024 + Math.floor(i / 12)}-${String(i % 12 + 1).padStart(2, '0')}-01`, 7); g.checkIn(id); }
+  await seed(page, encodeEnvelope(g.state, 1, g.now, 'e2e'));
+  await openRoute(page, 'progress');
+  await page.getByRole('button', { name: /^Monthly tidy, / }).click();
+  const detail = page.getByRole('dialog', { name: 'Monthly tidy', exact: true });
+  await expect(detail).toContainText('There aren’t enough clear watering times');
+  await expect(detail).not.toContainText('fills in after');
+  await detail.getByRole('button', { name: 'Choose a colour', exact: true }).click();
+  const chooser = page.getByRole('dialog', { name: 'Choose a colour', exact: true });
+  await expect(chooser.getByRole('button', { name: 'Keep this colour' })).toBeDisabled();
+  await expect(chooser.getByRole('radio', { name: 'Dawn', exact: true })).toBeFocused();
+  await page.keyboard.press('ArrowRight');
+  await page.keyboard.press('ArrowRight');
+  await expect(chooser.getByRole('radio', { name: 'Twilight', exact: true })).toBeFocused();
+  const artFits = await chooser.getByRole('radio').evaluateAll((radios) => radios.every((radio) => {
+    const bounds = radio.getBoundingClientRect();
+    const art = radio.querySelector('svg')!.getBoundingClientRect();
+    return art.left >= bounds.left && art.right <= bounds.right && art.top >= bounds.top && art.bottom <= bounds.bottom;
+  }));
+  expect(artFits).toBe(true);
+  await expectNoAxeViolations(page, info);
+  const overflow = await horizontalOverflow(page);
+  expect(overflow.scrollWidth - overflow.clientWidth).toBeLessThanOrEqual(1);
+  await page.screenshot({ path: info.outputPath('colour-choice.png') });
+  await page.keyboard.press('Tab');
+  await page.keyboard.press('Enter');
+  await expect(chooser).toBeHidden();
+  await expect(detail.getByRole('radio', { name: 'Twilight · chosen', exact: true })).toBeFocused();
+  await expect(detail).toContainText('Twilight: a colour you chose.');
+  await expectNoAxeViolations(page, info);
+  await page.screenshot({ path: info.outputPath('colour-kept.png') });
+  await page.keyboard.press('Escape');
+  await page.reload();
+  await page.getByRole('button', { name: /^Monthly tidy, / }).click();
+  await expect(page.getByRole('dialog', { name: 'Monthly tidy', exact: true })).toContainText('Twilight: a colour you chose.');
+});
+
 test.describe('old notes by keyboard (WP-C6)', () => {
   const noteDay = '2025-09-29';
   const noteNow = Date.UTC(2026, 8, 29, 12);
