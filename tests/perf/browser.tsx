@@ -160,10 +160,10 @@ async function measureUI() {
   const returnScroll = row.scrollLeft;
   const button = buttons[buttons.length - 1]!; button.focus({ preventScroll: true });
   const readStartMemory = performance.now(); button.click();
-  await until(() => document.querySelector('[role="dialog"][data-state="open"]')); await painted();
+  await until(() => document.querySelector('[data-state="open"] [role="dialog"]')); await painted();
   const readerMs = performance.now() - readStartMemory;
   const closeStart = performance.now(); closeRitual();
-  await until(() => !document.querySelector('[role="dialog"][data-state="open"]')); await painted();
+  await until(() => !document.querySelector('[data-state="open"] [role="dialog"]')); await painted();
   const memory = { openMs: memoryOpenMs, readerMs, returnMs: performance.now() - closeStart, letters: buttons.length, domNodes: row.querySelectorAll('*').length, scrollPreserved: Math.abs(row.scrollLeft - returnScroll) < 1, focusReturned: document.activeElement === button, filter: 'not available' };
   assert(memory.scrollPreserved, 'Memory shelf lost its return scroll');
   assert(sameJournal(prepared, state.peek()), 'Reading a letter changed journal text');
