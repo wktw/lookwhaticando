@@ -22,12 +22,14 @@ import { Moments } from '@/features/habits/detail/Parts';
 import { MemoryShelf } from '@/features/progress/Keepsakes';
 import RitualReaderHost from '@/features/rituals/RitualReaderHost';
 import { closeRitual } from '@/features/rituals/open';
+import { journal, sameJournal, measureMaintenanceAndImport } from './operations';
 import '@/styles/global.css';
 
 const env = { today: TODAY, now: at(TODAY, 21), local: UTC, rng: mulberry32(1) };
 const root = document.getElementById('scale-root')!;
 const commitKey = 'scale:commit';
 let prepared: AppState;
+let dense: AppState;
 let years = 0;
 const tick = () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 const painted = async () => { await tick(); await tick(); };
@@ -38,22 +40,11 @@ async function until(test: () => unknown) {
   const start = performance.now();
   while (!test()) { assert(performance.now() - start < 10_000, 'UI did not settle within 10 seconds (harness safety limit, not a performance budget)'); await tick(); }
 }
-function journal(s: AppState) {
-  let count = 0; let characters = 0; let hash = 2166136261;
-  for (const [id, logs] of Object.entries(s.logs)) for (const [day, log] of Object.entries(logs)) {
-    if (!log.note) continue;
-    count++; characters += log.note.length;
-    const text = `${id}|${day}|${log.note}`;
-    for (let i = 0; i < text.length; i++) hash = Math.imul(hash ^ text.charCodeAt(i), 16777619);
-  }
-  return { count, characters, fingerprint: hash >>> 0 };
-}
-const sameJournal = (a: AppState, b: AppState) => JSON.stringify(journal(a)) === JSON.stringify(journal(b));
 
 function prepare(n: number) {
   assert(n === 5 || n === 10, 'Supported fixtures are five and ten years');
   years = n;
-  const dense = bigSave({ years, habits: 12, notes: 'daily' });
+  dense = bigSave({ years, habits: 12, notes: 'daily' });
   prepared = transact(dense, env, (tx) => { compactSave(tx); return {}; }).state;
   assert(validateState(prepared).ok, 'Fixture must validate');
   assert(sameJournal(dense, prepared), 'Compaction changed journal text');
@@ -184,6 +175,7 @@ async function measureUI() {
   return { moments, memory };
 }
 
-const api = { prepare, measureState, measureSnapshots, measureUI };
+const measureMaintenanceAndPastedImport = (samples: number) => measureMaintenanceAndImport(dense, prepared, env, samples);
+const api = { prepare, measureState, measureSnapshots, measureUI, measureMaintenanceAndPastedImport };
 declare global { interface Window { journalScale: typeof api } }
 window.journalScale = api;

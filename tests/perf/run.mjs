@@ -40,7 +40,7 @@ const server = createServer(async (request, response) => {
 });
 await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
 let browser;
-const report = { schema: 1, sha, dirty, measuredAt: new Date().toISOString(), environment: { os: `${platform()} ${release()}`, node: process.version, cpu: cpus()[0]?.model, logicalCpus: cpus().length, memoryBytes: totalmem(), chromium: null, viewport: { width: 390, height: 844 }, deviceScaleFactor: 1, reducedMotion: true, timezone: 'UTC', cpuThrottling: 'none', build: 'production-compiled isolated component/function harness' }, budget: { desktop: 'observational; no new threshold agreed', phone: 'physical-device budgets and validation remain parked with WP-E4; a narrow desktop viewport is not a phone measurement' }, scenarios: [] };
+const report = { schema: 2, sha, dirty, measuredAt: new Date().toISOString(), environment: { os: `${platform()} ${release()}`, node: process.version, cpu: cpus()[0]?.model, logicalCpus: cpus().length, memoryBytes: totalmem(), chromium: null, viewport: { width: 390, height: 844 }, deviceScaleFactor: 1, reducedMotion: true, timezone: 'UTC', cpuThrottling: 'none', build: 'production-compiled isolated component/function harness' }, budget: { desktop: 'observational; no new threshold agreed', phone: 'physical-device budgets and validation remain parked with WP-E4; a narrow desktop viewport is not a phone measurement' }, scenarios: [] };
 const errors = [];
 try {
   browser = await chromium.launch();
@@ -57,6 +57,7 @@ try {
       const scenario = { fixture, samples };
       report.scenarios.push(scenario);
       const state = scenario.state = await page.evaluate((samples) => window.journalScale.measureState(samples), samples);
+      scenario.maintenanceAndImport = await page.evaluate((samples) => window.journalScale.measureMaintenanceAndPastedImport(samples), samples);
       scenario.ui = options.ui === 'false' ? { skipped: true } : await page.evaluate(() => window.journalScale.measureUI());
       scenario.snapshots = options.snapshots === 'false' ? { skipped: true } : await page.evaluate((samples) => window.journalScale.measureSnapshots(samples), samples);
       console.log(`${n} years: ${fixture.count} notes, ${fixture.encodedCharacters} encoded characters; commits ${[...new Set(state.tap.map((sample) => sample.outcome))].join(', ')}`);

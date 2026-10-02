@@ -43,6 +43,20 @@ Measured phases:
   the single-save capacity question from backup/recovery overhead.
 - Cold and warm Today, Progress and habit-detail view models, all-habit lifetime streak walks,
   and rejection of an unreasonable year-1000 backdate without state change.
+- Actual next-day `openDay` on a fresh clone of the already compacted history, including B4's
+  daily provenance reconciler. A separate sample runs `compactSave` on a fresh dense history
+  with old ledger entries and timestamps still present. These are different workloads: routine
+  daily maintenance versus full-history compaction. Before each timer, one expiring day per
+  stacked pair is made observably out of order. The real fold must preserve that verdict when
+  old timestamps disappear. Cloning, witness setup, note fingerprints, stack-count comparisons
+  and validation are outside the timed transaction; samples never cumulatively age the fixture.
+- Actual plain pasted-backup `parseBackupText`, including `JSON.parse`, migration, shared
+  decoding/validation and imported-clock normalization (A6's deferred worker decision). A real
+  backup envelope is stringified outside the timer. This measures parsing/acceptance, not file
+  reading, CK1 decompression, import-sheet rendering, snapshot creation or applying the save.
+  The existing pasted-input bound uses JavaScript `text.length`; the report names its input
+  and limit in characters and separately records UTF-8 bytes. If the real parser refuses an
+  oversized input, the sample says `too-large`, not accepted; no parse-time claim follows.
 - The actual Moments component: render, scroll to the oldest full note, star it, and retain
   scroll. Notes are read inline; this component has no separate reader or filter.
 - The actual memory-shelf and ritual-reader components: render all letters, scroll to the
@@ -57,6 +71,12 @@ Measured phases:
 Assertions guard measurement validity: valid fixture, unchanged note count/characters/content
 fingerprint, all expected rendered notes and letters, surviving prior storage on quota failure,
 a real saved star change, retained scroll and returned focus, and a harmless rejected backdate. They impose no new timing budgets.
+
+The JSON schema is version 2. `maintenanceAndImport` contains separate `rollover`, `compact`
+and `pastedImport` arrays, each with `samples` entries. The other state phases and snapshot
+metadata list also repeat `samples` times; UI interactions run once per fixture, snapshot writes
+fill fourteen slots once, and the full snapshot read runs once. Do not report a five-sample
+median for the single UI or snapshot-read observations.
 
 A 390-pixel desktop Chromium viewport is **not** an iPhone performance measurement. Physical
 modest-iPhone budgets remain with the parked WP-E4 device work. Desktop numbers guide a later
