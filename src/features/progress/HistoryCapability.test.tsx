@@ -75,6 +75,20 @@ describe('Progress without habits', () => {
     await click(button('Add a habit'));
     expect(habitEditorRequest.value).toEqual({});
   });
+  it.each(['pin', 'records', 'note', 'season'] as const)('keeps an isolated %s when it is the only history left', async (kind) => {
+    const s = base();
+    const selector = kind === 'pin' ? '[data-pin="first-checkin"]' : kind === 'records' ? '[data-section="records"]' : kind === 'note' ? '[data-ritual="anniversary"]' : '[data-memory="seasons"]';
+    if (kind === 'pin') s.badges['first-checkin'] = NOW;
+    if (kind === 'records') s.lifetime.showUpDays = 12;
+    if (kind === 'note') s.inbox = [{ kind: 'anniversary', id: 'a', date: '2026-09-01', years: 1, waterings: 50, stars: 0 }];
+    if (kind === 'season') s.seasons = { filed: [{ key: '2026-06-01', name: 'summer', start: '2026-06-01', end: '2026-08-31', hemisphere: 'north', plants: [], waterings: 12 }] };
+    useState_(s);
+    view = mount(<ProgressScreen />);
+    await until(() => document.querySelector(selector), `isolated ${kind}`);
+    expect(button('Add a habit')).not.toBeNull();
+    expect(document.querySelector('[data-section="calendar"]')).toBeNull();
+  });
+
   it('keeps a keepsake visible when it is the only history left', async () => {
     const s = base();
     s.keepsakes = [{ id: 'k-old-2', habitId: 'old', petId: 'old-pet', stage: 2, kind: 'brass-seed', date: '2026-08-01' }];
