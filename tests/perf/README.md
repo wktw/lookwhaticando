@@ -22,7 +22,8 @@ Options: `--years=5,10`, `--samples=1..20` (default 5), `--ui=true|false`,
 The machine-readable JSON records commit, dirty-tree status, OS, CPU, Node, Chromium,
 viewport and every timing sample. Milliseconds are measured inside the browser with
 `performance.now()`. No network, loading, fixture construction or clone setup time is mixed
-into derived-view samples. A cold sample has fresh habit and log identities; the immediately
+into derived-view samples. UI component samples explicitly load their bundled fonts before
+starting, so initial font fetch and font-swap reflow are excluded. A cold sample has fresh habit and log identities; the immediately
 following warm sample uses those same objects. The direct lifetime sample walks streaks for
 all twelve habits without the view model's memoization.
 

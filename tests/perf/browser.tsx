@@ -130,6 +130,10 @@ async function measureSnapshots(samples: number) {
 }
 
 async function measureUI() {
+  // Keep first-use web-font fetch/reflow outside the component measurement.
+  const fonts = await Promise.all(['400 16px Castoro', 'italic 400 16px Castoro', '400 16px Nunito', '700 16px Nunito'].map((font) => document.fonts.load(font, 'Habits 0123')));
+  assert(fonts.every((faces) => faces.length > 0 && faces.every((face) => face.status === 'loaded')), 'Measurement fonts did not load');
+  await document.fonts.ready;
   state.value = prepared;
   const vm = habitDetailVM(prepared, env, prepared.habits[0]!.id)!;
   const startMoments = performance.now();
