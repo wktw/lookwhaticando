@@ -8,6 +8,7 @@ import { getPlatform, setPlatform } from './capabilities';
 import { InstallGate, InstallGuide, shouldGateInstall } from '@/app/InstallGuide';
 import { currentInstallPlatform } from '@/app/installPrompt';
 import { AboutSection } from '@/features/you/AboutSection';
+import { readDiagnostics } from '@/features/you/Diagnostics';
 import { RemindersSection } from '@/features/you/RemindersSection';
 import { saveFile, readImportFile, copyLater } from '@/features/you/files';
 import { checkForUpdates, pageReload, reloadApp, updateReady } from '@/app/pwa';
@@ -41,6 +42,18 @@ describe('injected platform capabilities', () => {
     reloadApp();
     expect(reload).not.toHaveBeenCalled();
     await expect(checkForUpdates()).resolves.toBe('unavailable');
+  });
+
+  it('diagnostics describe injected capabilities instead of claiming the browser worker or vibration is active', () => {
+    vi.stubGlobal('navigator', { userAgent: 'test browser', platform: 'MacIntel', maxTouchPoints: 0, serviceWorker: { controller: {} }, vibrate: vi.fn() });
+    const browserRows = new Map(readDiagnostics());
+    expect(browserRows.get('Service worker')).toBe('controlling');
+    expect(browserRows.get('Haptics')).toContain(' · vibrate · ');
+    restore = setPlatform({ install: 'native', haptics: { feedback: vi.fn(), supported: () => true } });
+    updateReady.value = true;
+    const rows = new Map(readDiagnostics());
+    expect(rows.get('Service worker')).toBe('not supported');
+    expect(rows.get('Haptics')).toContain('supported · no vibrate');
   });
 
   it('file delivery outcomes, cancellation, byte limits and gesture-time clipboard calls cross the same seam', async () => {

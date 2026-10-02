@@ -7,6 +7,7 @@
  * Element.animate (transform + opacity only, on the compositor): no canvas, no per-frame JS.
  * Reduced motion: the petals appear in place and crossfade away.
  */
+import { getPlatform } from '@/platform/capabilities';
 import { BUDGET, MAX_PETALS, planPetals, petalKeyframes, type Intensity, type ParticleShape, type Petal, type PetalKind } from './particles';
 import { prefersReducedMotion } from './motion';
 
@@ -69,7 +70,7 @@ function petalElement(p: Petal): HTMLDivElement {
 
 /** Let petals drift down from a point (a card, a pot) or, without one, from the top edge. */
 export function burst(opts: BurstOptions = {}): void {
-  if (typeof window === 'undefined' || document.hidden) return;
+  if (typeof window === 'undefined' || getPlatform().lifecycle.hidden) return;
   try {
     if (typeof Element.prototype.animate !== 'function') return;
     const count = petalAllowance(BUDGET[opts.intensity ?? 'medium'], live);

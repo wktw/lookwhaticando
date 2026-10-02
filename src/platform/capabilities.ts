@@ -68,3 +68,16 @@ export function setPlatform(overrides: Partial<PlatformCapabilities>): () => voi
   Object.defineProperties(platform, Object.getOwnPropertyDescriptors(overrides));
   return () => { platform = previous; };
 }
+
+/** Device observations for the bug report, filtered to the adapter that actually supplies them. */
+export function capabilityDiagnostics(): { serviceWorker: 'controlling' | 'not controlling' | 'not supported'; shareSheet: boolean; vibration: boolean } {
+  const p = getPlatform();
+  const browser = p.install === 'web';
+  return {
+    serviceWorker: browser && p.updates !== 'bundle' && 'serviceWorker' in navigator
+      ? navigator.serviceWorker.controller ? 'controlling' : 'not controlling'
+      : 'not supported',
+    shareSheet: p.files === web.files ? browser && 'share' in navigator : p.files.canShareFiles(),
+    vibration: browser && p.haptics === web.haptics && typeof navigator.vibrate === 'function',
+  };
+}
