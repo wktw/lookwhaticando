@@ -33,7 +33,7 @@
  * reached through `StoreRuntime`, which tests replace with `configureStore`.
  */
 import { batch, computed, signal } from '@preact/signals';
-import type { AppState, DateKey, OnboardingStep, PlacedDecor, Settings, StoryId } from './types';
+import type { AppState, BloomColour, DateKey, OnboardingStep, PlacedDecor, Settings, StoryId } from './types';
 import type {
   ActionResult,
   BackupError,
@@ -1179,8 +1179,10 @@ export function toggleOffDay(date: DateKey): { ok: boolean; remaining: number } 
   const { ok, remaining } = act((tx) => logging.toggleOffDay(tx, date), { ok: false, remaining: 0 });
   return { ok, remaining };
 }
-export function setNote(habitId: string, date: DateKey, note: string): void {
-  actVoid((tx) => logging.setNote(tx, habitId, date, note));
+/** Acceptance here, not a durability receipt: ordinary edits keep the queue's retry/status contract. */
+export function setNote(habitId: string, date: DateKey, note: string, options?: { removeQuotes?: boolean; epoch?: number }): boolean {
+  if (options?.epoch !== undefined && options.epoch !== saveEpoch.peek()) return false;
+  return actValue((tx) => logging.setNote(tx, habitId, date, note, options), false);
 }
 /** Stars a day's note: only starred notes are ever quoted in a Sunday Note. False without a note. */
 export function starNote(habitId: string, date: DateKey, starred: boolean): boolean {
@@ -1405,8 +1407,14 @@ export function setKeepsakeNote(keepsakeId: string, text: string): void {
 
 /* ---------------- Blooms Like You (§14.2) ---------------- */
 /** "Show this look" (an index into the plant's looks) or "Classic" (null). */
-export function setPlantLook(habitId: string, index: number | null): boolean {
+export function setPlantLook(habitId: string, index: number | null | 'confirmed', expectedEpoch?: number): boolean {
+  if (!ownsSave() || (expectedEpoch !== undefined && expectedEpoch !== saveEpoch.peek())) return false;
   return actValue((tx) => signature.setPlantLook(tx, habitId, index), false);
+}
+/** A deliberate colour confirmation belongs only to the save in which its chooser opened. */
+export function confirmPlantLook(habitId: string, colour: BloomColour, expectedEpoch: number): boolean {
+  if (!ownsSave() || expectedEpoch !== saveEpoch.peek()) return false;
+  return actValue((tx) => signature.confirmPlantLook(tx, habitId, colour), false);
 }
 /** "Move to Evening" (true) or "Leave it in Morning" (false). Offered once. */
 export function answerTimeNudge(habitId: string, move: boolean): boolean {

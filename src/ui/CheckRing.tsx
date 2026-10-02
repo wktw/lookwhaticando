@@ -17,10 +17,10 @@ import {
   WATER_SURFACE,
   waterLevel,
   type CheckRingState,
-} from './checkRing';
+} from './checkRingModel';
 import s from './CheckRing.module.css';
 
-export { CHECK_RING_MS, CHECKIN_CHOREOGRAPHY, waterLevel, ringState, type CheckRingState } from './checkRing';
+export { CHECK_RING_MS, CHECKIN_CHOREOGRAPHY, waterLevel, ringState, type CheckRingState } from './checkRingModel';
 
 export type CheckRingMark = 'check' | 'sprout' | 'moon' | null;
 

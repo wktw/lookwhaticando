@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { SECRET_IDS, itemsInMachine } from '@/catalog/collectibles';
 import { MACHINES } from '@/catalog/machines';
-import { byTier, leafletEntries } from './leaflet';
+import { byTier, leafletEntries } from './leafletModel';
 
 describe('the lineup leaflet', () => {
   it('prints every item of the series once, numbered 01 onward, Classic first', () => {

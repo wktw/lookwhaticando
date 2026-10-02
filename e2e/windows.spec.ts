@@ -10,7 +10,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { watchErrors } from './support';
 
-const STARTED_OVER = 'catkin was started over in another window, so it starts fresh here too.';
+const STARTED_OVER = 'Little by Little was started over in another window, so it starts fresh here too.';
 const ONBOARDING_H1 = 'New place. Which plants came with you?';
 
 /** Onboarding the way a person does it, planting three habits and skipping the rest. */
