@@ -75,3 +75,31 @@ it('a second failed chunk fetch retains only the requested kind and current dura
   expect(JSON.parse(sessionStorage.getItem('catkin-recovery-retry')!)).toEqual({ kind: 'snapshots', head: x.persist.peekHead(localStorage, x.persist.SAVE_KEY) });
   reload.mockRestore();
 });
+
+it.each(['backup', 'damaged'] as const)('a prefetched %s starts delivery in the same user-activation turn', async (kind) => {
+  const x = await setup();
+  x.host.prefetchRecovery();
+  await act(async () => { x.loaded(); await new Promise((resolve) => setTimeout(resolve, 0)); });
+  x.host.requestRecovery(kind);
+  // No await between the tap and this assertion: an effect would lose the share-sheet gesture.
+  expect(kind === 'backup' ? x.backup : x.damaged).toHaveBeenCalledTimes(1);
+});
+
+it.each(['absent', 'unreadable', 'legacy', 'corrupt'] as const)('a %s save has no durable authority for an automatic recovery action', async (shape) => {
+  const x = await setup();
+  if (shape === 'absent' || shape === 'unreadable') localStorage.removeItem(x.persist.SAVE_KEY);
+  if (shape === 'legacy') localStorage.setItem(x.persist.SAVE_KEY, x.persist.encodeEnvelope(x.store.state.value, 0, Date.now(), 'legacy'));
+  if (shape === 'corrupt') localStorage.setItem(x.persist.SAVE_KEY, '{different damaged bytes');
+  sessionStorage.setItem('catkin-recovery-retry', JSON.stringify({ kind: 'backup', head: x.persist.peekHead(localStorage, x.persist.SAVE_KEY) }));
+  const original = Storage.prototype.getItem;
+  const read = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(function (this: Storage, key) {
+    if (shape === 'unreadable' && this === localStorage && key === x.persist.SAVE_KEY) throw new Error('Storage unavailable');
+    return original.call(this, key);
+  });
+  try {
+    view = mount(<x.host.RecoveryHost />);
+    await act(() => x.loaded());
+    await act(() => new Promise((resolve) => setTimeout(resolve, 50)));
+    expect(x.backup).not.toHaveBeenCalled();
+  } finally { read.mockRestore(); }
+});

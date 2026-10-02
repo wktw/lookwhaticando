@@ -12,6 +12,11 @@ const request = signal<Request | null>(null);
 const module = lazyModule(() => import('@/features/you/recovery'));
 const RETRY_KEY = 'catkin-recovery-retry';
 const known = (kind: unknown): kind is Kind => ['snapshots', 'import', 'backup', 'damaged'].includes(kind as string);
+/** Weak legacy/corrupt heads and unavailable reads cannot authorize an automatic action. */
+function durableHead() {
+  const head = peekHead(localStorage, SAVE_KEY, true);
+  return head && typeof head.gen === 'string' && /^[0-9a-f]{32}$/.test(head.gen) && Number.isSafeInteger(head.rev) && head.rev >= 0 ? head : null;
+}
 
 export function requestRecovery(kind: Kind): void {
   // A prefetched delivery action keeps the tap's user activation for the native share sheet.
@@ -28,7 +33,11 @@ export function prefetchRecovery(): void { void module.load().catch(() => undefi
 function keepRequest(): void {
   const pending = request.peek();
   if (!pending || pending.epoch !== saveEpoch.peek()) return;
-  try { sessionStorage.setItem(RETRY_KEY, JSON.stringify({ kind: pending.kind, head: peekHead(localStorage, SAVE_KEY) })); } catch { /* the next tap can ask again */ }
+  try {
+    sessionStorage.removeItem(RETRY_KEY);
+    const head = durableHead();
+    if (head) sessionStorage.setItem(RETRY_KEY, JSON.stringify({ kind: pending.kind, head }));
+  } catch { /* the next tap can ask again */ }
 }
 function resumeRequest(): void {
   try {
@@ -36,7 +45,8 @@ function resumeRequest(): void {
     sessionStorage.removeItem(RETRY_KEY);
     if (!raw) return;
     const kept = JSON.parse(raw) as { kind?: unknown; head?: unknown };
-    if (known(kept.kind) && JSON.stringify(kept.head) === JSON.stringify(peekHead(localStorage, SAVE_KEY))) requestRecovery(kept.kind);
+    const head = durableHead();
+    if (head && known(kept.kind) && JSON.stringify(kept.head) === JSON.stringify(head)) requestRecovery(kept.kind);
   } catch { /* malformed or inaccessible session storage keeps no request */ }
 }
 
