@@ -44,6 +44,50 @@ afterEach(() => {
 });
 
 describe('modal-owned notes (WP-C3)', () => {
+  it.each(['sheet', 'load'])('the %s notes container cannot become an implicit scroll Tab stop', (kind) => {
+    mount(<>{kind === 'sheet' ? <Sheet open title="A note" onClose={() => undefined}><button>Continue</button></Sheet> : <LoadSheet open title="One moment" retryLabel="Try again" closeLabel="Close" onRetry={() => undefined} onClose={() => undefined} />}<Toaster /></>);
+    const slot = document.querySelector<HTMLElement>('[data-notes-slot]')!;
+    // The explicit attribute matters: Chromium otherwise makes an overflowing scroll container
+    // tabbable when its last live card starts leaving, even though slot.tabIndex reads -1.
+    expect(slot.getAttribute('tabindex')).toBe('-1');
+    act(() => void toast({ message: 'A plain notice.', duration: 1000 }));
+    expect(card().tabIndex).toBe(0);
+    tick(1000); expired();
+    expect(card().tabIndex).toBe(-1);
+    expect(slot.getAttribute('tabindex')).toBe('-1');
+    tick(220);
+    expect(slot.querySelector('[data-toast-id]')).toBeNull();
+    note();
+    expect(card().querySelector<HTMLButtonElement>('button')?.tabIndex).toBe(0);
+    expect(slot.getAttribute('tabindex')).toBe('-1');
+  });
+
+  it.each(['sheet', 'load'])('a plain note owned by a %s is keyboard focusable and keeps its remaining reading time', (kind) => {
+    mount(<>{kind === 'sheet' ? <Sheet open title="A note" onClose={() => undefined}><button id="reading-done">Continue</button></Sheet> : <LoadSheet open title="One moment" retryLabel="Try again" closeLabel="Close" onRetry={() => undefined} onClose={() => undefined} />}<Toaster /></>);
+    act(() => void toast({ message: 'Little by little works offline now.', duration: 4000 }));
+    const panel = card().closest<HTMLElement>('[role="dialog"], [role="alertdialog"]')!;
+    expect(panel.querySelector('[data-notes-slot]')?.contains(card())).toBe(true);
+    expect(card().querySelector('button')).toBeNull();
+    expect(card().tabIndex).toBe(0);
+    tick(1000);
+    act(() => card().focus());
+    expect(document.activeElement).toBe(card());
+    tick(5000); shown();
+    act(() => panel.querySelector<HTMLButtonElement>('button')!.focus());
+    tick(2999); shown(); tick(1); expired();
+  });
+
+  it('plain root notes and action notes do not acquire an extra keyboard stop', () => {
+    mount();
+    act(() => void toast({ message: 'At the root.' }));
+    expect(card().tabIndex).toBe(-1);
+    act(() => { toasts.value = []; });
+    mount(<><Sheet open title="A note" onClose={() => undefined} /><Toaster /></>);
+    note();
+    expect(card().tabIndex).toBe(-1);
+    expect(card().querySelector('button')?.tabIndex).toBe(0);
+  });
+
   it('moves Undo into the active Pet card, then Basket, then back with its elapsed time intact', () => {
     mount(<Nested />); note(); tick(1000);
     expect(card().closest('[role="dialog"]')?.textContent).toContain('Pet card');
