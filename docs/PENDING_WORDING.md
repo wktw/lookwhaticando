@@ -27,7 +27,7 @@ The owner delegated the replacement name, and **Little by Little** was chosen on
    - “Try again”
    - “Close”
 8. **Start over happened in another window** — VOICE §18, line 1031:
-   - “Little by Little was started over in another window, so it starts fresh here too. The daily copies stay on this device.”
+   - “Little by Little was started over in another window, so it starts fresh here too.”
 9. **The previous save was recovered** — VOICE §18, line 1033:
    - “Little by Little couldn’t read the latest save on this device, so it opened the one before it.”
    - “Save a backup”
@@ -123,3 +123,7 @@ The legal notices themselves are verbatim upstream licence documents, generated 
 | Garden Journal awaiting a look | “Your plant tag will explain its look when one is ready.” |
 
 The existing colour names and “Not now” are reused. No claim about watering time is attached to an explicit choice.
+
+## A3/A7 shared safety-copy label — pending owner approval
+
+- **Safety copy** — the Daily copies label for the existing shared `pre-import` kind. These copies can precede an import, restore or Undo; older metadata does not distinguish the action. Replaces “Before an import” without renaming or migrating stored records.

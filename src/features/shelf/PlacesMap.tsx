@@ -5,6 +5,7 @@ import { PET_CARD, PLACE_LINES, fillLine } from '@/catalog/lines';
 import { num, placePhrase } from '@/catalog/format';
 import { PlaceArt } from '@/art/scene';
 import { shelfView, walletView, type PlaceVM } from '@/state/selectors';
+import { state } from '@/state/store';
 import { Button } from '@/ui/Button';
 import { ConfirmDialog } from '@/ui/ConfirmDialog';
 import { SectionHeader } from '@/ui/SectionHeader';
@@ -19,7 +20,7 @@ export const placesMap = stable(() => {
   const here = petsByPlace(v.out);
   const places = v.places.map((p) => ({ ...p, here: here.get(p.id) ?? 0 }));
   const short = places.some((p) => !p.owned && !p.canAfford);
-  return { places, jar: short ? walletView.value.coins : null };
+  return { places, jar: short && !state.value.settings.quietRewards ? walletView.value.coins : null };
 });
 
 export interface PlacesMapProps {

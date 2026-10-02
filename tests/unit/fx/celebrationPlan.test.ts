@@ -202,7 +202,7 @@ describe('planCelebration', () => {
     // Bond levels after best friends are notes, not another best-friends banner.
     const bond = planCelebration([{ type: 'petLevel', petId: 'pet-cat-orange', level: 12 }], ctx());
     expect(bond.banner).toBeNull();
-    expect(bond.toasts[0]?.message).toBe('Pudding is part of the furniture now, with a cushion that has a dent in it.');
+    expect(bond.toasts[0]?.message).toBe('Pudding is a familiar face on the sill.');
     expect(planCelebration([{ type: 'favoriteFound', petId: 'pet-cat-orange', treatId: 'treat-strawberry' }], ctx()).toasts[0]?.message).toBe('Pudding’s favourite is the strawberry. It’s on the Pet Card now.');
   });
 

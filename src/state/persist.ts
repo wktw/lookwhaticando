@@ -286,10 +286,11 @@ export function peekRev(storage: KeyValueStorage, key: string): number | null {
 
 /**
  * The identity of the save under `key` (`gen` and `rev`) without parsing or validating it, or
- * null when there is no save. A head that can't be read reads as a legacy save at rev 0.
+ * null when there is no save. A head that can't be parsed reads as a legacy save at rev 0.
+ * `strict` propagates a storage read exception, so a writer never mistakes it for a deletion.
  */
-export function peekHead(storage: KeyValueStorage, key: string): SaveHead | null {
-  const raw = safeGet(storage, key);
+export function peekHead(storage: KeyValueStorage, key: string, strict = false): SaveHead | null {
+  const raw = strict ? storage.getItem(key) : safeGet(storage, key);
   if (raw === null) return null;
   const head = headOf(raw);
   const rev = /"rev":(\d+)/.exec(head);
@@ -378,6 +379,8 @@ export interface SaveQueueOptions {
   gen?: string;
   /** The storage is memory only (no persistent storage): writes report 'volatile', never 'saved'. */
   volatile?: boolean;
+  /** Re-check the durable head immediately before writing; storage events may still be queued. */
+  canWrite?: () => boolean | 'unavailable';
   /**
    * A write that succeeded only by taking the room of the text kept aside under `:corrupt` (a full
    * disk) hands that text here: it is no longer on disk, so the caller keeps it and says so (the
@@ -482,9 +485,11 @@ export class SaveQueue {
   writeNow(state: AppState, gen: string): FlushOutcome {
     if (this.disposed) return 'disposed';
     if (this.held) return 'held';
+    const authority = this.o.canWrite?.();
+    if (authority === false) return 'disposed';
     const before = this.gen;
     this.gen = gen;
-    const status = this.write(state);
+    const status = authority === 'unavailable' ? 'unavailable' : this.write(state);
     if (status !== 'saved' && status !== 'volatile') {
       this.gen = before;
       return status;
@@ -529,7 +534,9 @@ export class SaveQueue {
     const state = this.pending;
     if (state === null) return null;
     if (this.held) return 'held';
-    const status = this.write(state);
+    const authority = this.o.canWrite?.();
+    if (authority === false) return 'disposed';
+    const status = authority === 'unavailable' ? 'unavailable' : this.write(state);
     if (status === 'saved' || status === 'volatile') {
       if (this.pending === state) this.pending = null;
       this.attempts = 0;

@@ -44,6 +44,7 @@ const pet = (id: string, extra: Partial<PetSummaryVM> = {}): PetSummaryVM => ({
   moonlit: false,
   obtainedAt: 0,
   habitId: null,
+  bestFriend: null,
   ...extra,
 });
 

@@ -152,7 +152,7 @@ describe('Special Order', () => {
     await click(orderSheet()!.querySelector('ul li button'), 'a tile');
     await click(button('Order'), 'Order');
     const alert = await until(() => document.querySelector('[role="alert"]'), 'the notice');
-    expect(alert.textContent).toBe('One moment: catkin is still getting ready in this window. No stamps were spent.');
+    expect(alert.textContent).toBe('One moment: Little by Little is still getting ready in this window. No stamps were spent.');
     ownership.value = 'granted';
     await until(() => !document.querySelector('[role="alert"]'), 'the notice to clear');
     expect(button('Order')?.disabled).toBe(false);

@@ -59,6 +59,8 @@ export interface PetSummaryVM {
   obtainedAt: number;
   /** The habit it keeps company (§14.1), or null. */
   habitId: string | null;
+  /** The pet's chosen friend from L8, including a friend currently indoors. */
+  bestFriend: string | null;
 }
 
 export function petSummary(s: AppState, pet: PetState, featured: string | null = featuredPetId(s)): PetSummaryVM {
@@ -84,6 +86,7 @@ export function petSummary(s: AppState, pet: PetState, featured: string | null =
     moonlit: moonlitBase(pet.id) !== null,
     obtainedAt: pet.obtainedAt,
     habitId: s.habits.find((h) => h.companionId === pet.id && h.archivedOn === undefined)?.id ?? null,
+    bestFriend: lp.level >= BEST_FRIEND_LEVEL ? (pet.bestFriend && pet.bestFriend !== pet.id && s.pets[pet.bestFriend] ? pet.bestFriend : chooseBestFriend(s, pet.id)) : null,
   };
 }
 
@@ -133,8 +136,8 @@ export interface PetVM extends Omit<PetSummaryVM, 'outfit'> {
   likes: { kind: 'treat'; treatId: string } | { kind: 'tag'; tag: TreatTag } | { kind: 'plant'; plant: PlantSpeciesId } | null;
   /** "Favourite spot", from level 4 (§8.2): a pot or a place. Null before. */
   spot: PetSpotClaim | null;
-  /** "Best friend", from level 8: the pet it naps next to (null before, or alone on the Shelf). */
-  bestFriend: string | null;
+  /** Its chosen friend only while both are out in the same place; otherwise the solo nap line. */
+  napFriend: string | null;
   /** "Let {name} choose": the place its species would pick now. */
   suggestedPlace: PlaceId;
   /** What it wears, per slot (null = nothing); the scene takes `PetSummaryVM.outfit`. */
@@ -201,7 +204,7 @@ export function petVM(s: AppState, env: ViewEnv, id: string): PetVM | null {
     memories: [...(pet.memories ?? [])],
     likes: likesOf(pet),
     spot: lp.level >= SPOT_LEVEL ? (pet.spot ?? claimSpot(s, id)) : null,
-    bestFriend: lp.level >= BEST_FRIEND_LEVEL ? (pet.bestFriend && s.pets[pet.bestFriend] ? pet.bestFriend : chooseBestFriend(s, id)) : null,
+    napFriend: base.bestFriend && pet.inMeadow && s.pets[base.bestFriend]?.inMeadow && petPlace(s, s.pets[base.bestFriend]!) === base.place ? base.bestFriend : null,
     suggestedPlace: suggestPlaceFor(s, id),
     favoriteTreat: {
       known: pet.favoriteKnown,

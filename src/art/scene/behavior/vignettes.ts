@@ -5,7 +5,7 @@
  * `registerVignette`.
  */
 import type { PlaceId, Species } from '@/catalog/types';
-import type { PetSpot } from '../model';
+import type { FriendshipProfile, PetSpot } from '../model';
 import { groundSpot, nearestFree, routineAt, type Ground } from '../arrange';
 import { baseline, depthScale, depthZ } from '../room';
 import { COW_BACK, WORLD_SCALE } from '@/art/pets/world';
@@ -15,6 +15,7 @@ export interface VignetteActor {
   key: string;
   species: Species;
   spot: PetSpot;
+  bond?: FriendshipProfile;
 }
 
 export interface VignetteContext {
@@ -122,7 +123,12 @@ const napPile: Vignette = {
   cast: (ctx) => {
     if (!asleep(ctx) && !(ctx.place === 'quilt' && ctx.moment.light.night)) return null;
     const free = ctx.actors.filter((a) => a.spot.perch !== 'rim');
-    return free.length >= 3 ? free.slice(0, 5).map((a) => a.key) : null;
+    if (free.length < 3) return null;
+    // Keep the first chosen pair together, even when the friend was beyond the five-pet cast.
+    // With no earned friendship the original cast and probability are unchanged.
+    const lead = free.find((a) => a.bond?.napWith && a.bond.napWith !== a.key && free.some((b) => b.key === a.bond!.napWith));
+    const ordered = lead ? [lead, free.find((a) => a.key === lead.bond!.napWith)!, ...free.filter((a) => a.key !== lead.key && a.key !== lead.bond!.napWith)] : free;
+    return ordered.slice(0, 5).map((a) => a.key);
   },
   stage: (ctx, cast) => {
     const g = ctx.ground;

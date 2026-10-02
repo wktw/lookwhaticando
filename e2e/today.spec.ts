@@ -9,6 +9,8 @@
  */
 import { devices, expect, test, type Page } from '@playwright/test';
 import { expectNoAxeViolations, horizontalOverflow, openRoute, watchErrors } from './support';
+import { buildDemo } from '../src/state/demo';
+import { encodeEnvelope } from '../src/state/persist';
 
 const PREVIEW = process.env.E2E_TARGET === 'preview';
 
@@ -320,4 +322,100 @@ test.describe('Today · quiet rewards', () => {
     await expect(page.locator('main [data-wallet-target]')).toHaveCount(0);
     await expect(page.getByText(/\+\d+ coins?/)).toHaveCount(0);
   });
+});
+
+test.describe('Today · watering truth (WP-D1)', () => {
+  test.use({ contextOptions: { reducedMotion: 'no-preference' } });
+  test('a normal-motion watering and Undo leave the soil dry', async ({ page }) => {
+    const at = new Date('2026-10-02T12:00:00Z').getTime();
+    await page.clock.setFixedTime(at);
+    const state = buildDemo({ today: '2026-10-02', now: at });
+    state.settings.reduceMotion = 'off';
+    const habit = state.habits.find((h) => h.name === 'Go for a walk')!;
+    delete state.logs[habit.id]?.['2026-10-02'];
+    const raw = encodeEnvelope(state, 1, at, 'e2e');
+    await page.addInitScript((save) => localStorage.setItem('catkin:v1', save), raw);
+    await page.goto('./#/today');
+    const ring = page.getByRole('article', { name: 'Go for a walk', exact: true }).getByRole('button', { name: 'Go for a walk', exact: true });
+    await expect(ring).toHaveAttribute('aria-pressed', 'false');
+    const soil = page.getByRole('group', { name: 'Today’s plants', exact: true }).locator(`[data-habit="${habit.id}"] .plant-soil`);
+    await expect(soil).toBeAttached();
+    const dry = await soil.getAttribute('fill');
+    await ring.click();
+    await expect(ring).toHaveAttribute('aria-pressed', 'true');
+    await expect(soil).not.toHaveAttribute('fill', dry!);
+    await page.getByRole('button', { name: 'Undo', exact: true }).first().click();
+    await expect(ring).toHaveAttribute('aria-pressed', 'false');
+    await expect(soil).toHaveAttribute('fill', dry!);
+    // The whole pour has ended: no deferred callback may darken it again.
+    await page.waitForTimeout(1200);
+    await expect(soil).toHaveAttribute('fill', dry!);
+  });
+});
+
+test('the count pad keeps Undo and Add a note reachable by keyboard through nested sheets (WP-C3)', async ({ page }, info) => {
+  await page.clock.setFixedTime(new Date('2026-10-02T12:00:00Z'));
+  await openRoute(page, 'today');
+  await page.getByRole('button', { name: 'Add a habit' }).first().click();
+  const editor = page.getByRole('dialog', { name: 'A new habit' });
+  await editor.getByRole('radio', { name: 'Drink water', exact: true }).click();
+  await editor.getByRole('button', { name: 'Plant it', exact: true }).click();
+  await expect(editor).toBeHidden();
+
+  await page.getByRole('button', { name: 'More for Drink water' }).focus();
+  await page.keyboard.press('Enter');
+  const howMany = page.getByRole('menuitem', { name: /^How many/ });
+  await howMany.focus();
+  await page.keyboard.press('Enter');
+  const pad = page.getByRole('dialog', { name: 'Drink water', exact: true });
+  await expect(pad).toBeVisible();
+  await expect(pad.getByRole('button', { name: '+1', exact: true })).toBeFocused();
+  for (let i = 0; i < 8; i++) await page.keyboard.press('Enter');
+  const undo = pad.getByRole('button', { name: 'Undo', exact: true });
+  await expect(undo).toBeVisible();
+  expect(await undo.evaluate((el) => !!el.closest('[data-notes-slot]'))).toBe(true);
+
+  const tabTo = async (name: string, scope = pad, fromNote = false) => {
+    const button = fromNote ? scope.locator('[data-toast-id]').getByRole('button', { name, exact: true }) : scope.getByRole('button', { name, exact: true, disabled: false });
+    for (let i = 0; i < 24; i++) {
+      if (await button.evaluate((el) => el === document.activeElement)) return;
+      await page.keyboard.press('Tab');
+      const focus = await scope.evaluate((el) => ({ inside: el.contains(document.activeElement), active: document.activeElement?.outerHTML }));
+      expect(focus.inside, `Tab toward ${name}: ${focus.active?.slice(0, 300)}`).toBe(true);
+    }
+    await expect(button).toBeFocused();
+  };
+  await tabTo('Undo');
+  await page.keyboard.press('Enter');
+  await expect(pad.getByText('7 of 8 glasses', { exact: true })).toBeVisible();
+  // The transient Add a note opens a child too, then returns focus inside the pad.
+  await tabTo('+1');
+  await page.keyboard.press('Enter');
+  await tabTo('Add a note', pad, true);
+  await page.keyboard.press('Enter');
+  const quickNote = page.getByRole('dialog', { name: 'A note for Drink water · Friday, October 2, 2026', exact: true });
+  await expect(quickNote.getByRole('textbox')).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(quickNote).toBeHidden();
+  expect(await pad.evaluate((el) => el.contains(document.activeElement))).toBe(true);
+  // The stable row is available after the transient action has gone.
+  await tabTo('Add a note');
+  await page.keyboard.press('Enter');
+  const note = page.getByRole('dialog', { name: 'A note for Drink water · Friday, October 2, 2026', exact: true });
+  await expect(note.getByRole('textbox')).toBeFocused();
+  await page.keyboard.type('A glass with lunch.');
+  await page.keyboard.press('Escape');
+  const ask = page.getByRole('alertdialog', { name: 'Leave without saving?' });
+  await expect(ask.getByRole('button', { name: 'Keep editing' })).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(note.getByRole('textbox')).toBeFocused();
+  await tabTo('Save note', note);
+  await page.keyboard.press('Enter');
+  await expect(note).toBeHidden();
+  expect(await pad.evaluate((el) => el.contains(document.activeElement))).toBe(true);
+  await expectNoAxeViolations(page, info);
+  const overflow = await horizontalOverflow(page);
+  expect(overflow.scrollWidth).toBeLessThanOrEqual(overflow.clientWidth + 1);
+  await page.keyboard.press('Escape');
+  await expect(pad).toBeHidden();
 });

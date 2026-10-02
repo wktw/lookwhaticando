@@ -165,7 +165,7 @@ test('a watering time offers its calendar file', async ({ page }) => {
     const add = page.getByRole('button', { name });
     const download = page.waitForEvent('download');
     await add.click();
-    expect((await download).suggestedFilename()).toBe('catkin-watering-time-morning.ics');
+    expect((await download).suggestedFilename()).toBe('little-by-little-watering-time-morning.ics');
   }
   // The static files for installed iPhone apps are served too.
   const res = await page.request.get('./cal/morning-0730.ics');
@@ -188,7 +188,11 @@ test('a backup is copied, and imported again with Undo import', async ({ page, c
   await data.getByRole('button', { name: 'Import a backup' }).click();
   const sheet = page.getByRole('dialog', { name: 'Import a backup' });
   await sheet.getByLabel('Or paste a backup here').fill(payload);
-  await expect(sheet.getByText('This backup has 3 habits, 0 waterings and 0 pets.')).toBeVisible();
+  // Wait for the real modal-owned announcement as well as the visible preview.
+  await expect(sheet.locator('[aria-live="polite"]')).toContainText('This backup has 3 habits, 0 waterings and 0 pets.');
+  const preview = sheet.getByRole('strong');
+  await expect(preview).toContainText('This backup has 3 habits, 0 waterings and 0 pets.');
+  await expect(preview).toBeVisible();
   await expectNoAxeViolations(page, info);
   await sheet.getByRole('button', { name: 'Import', exact: true }).click();
   await expect(page.getByLabel('Your name')).toHaveValue('Sam');
@@ -240,8 +244,8 @@ test('the demo opens with its pill, and leaving it brings her own plants back', 
 test('Start over asks twice, then onboarding starts again', async ({ page }) => {
   await openYou(page);
   await section(page, 'Your data').getByRole('button', { name: 'Start over' }).click();
-  await page.getByRole('alertdialog').filter({ hasText: 'Every habit, plant and pet' }).getByRole('button', { name: 'Start over' }).click();
-  const again = page.getByRole('alertdialog').filter({ hasText: 'The daily copies stay on this device.' });
+  await page.getByRole('alertdialog').filter({ hasText: 'The habits, plants and pets here go.' }).getByRole('button', { name: 'Start over' }).click();
+  const again = page.getByRole('alertdialog').filter({ hasText: 'Start over now?' });
   await expect(again).toBeVisible();
   // The last "Start over" arms itself a moment after it appears.
   await page.waitForTimeout(800);
@@ -252,7 +256,7 @@ test('Start over asks twice, then onboarding starts again', async ({ page }) => 
 test('a quick double tap on Start over keeps everything', async ({ page }) => {
   await openYou(page);
   await section(page, 'Your data').getByRole('button', { name: 'Start over' }).click();
-  const first = page.getByRole('alertdialog').filter({ hasText: 'Every habit, plant and pet' }).getByRole('button', { name: 'Start over' });
+  const first = page.getByRole('alertdialog').filter({ hasText: 'The habits, plants and pets here go.' }).getByRole('button', { name: 'Start over' });
   await expect(first).toBeVisible();
   await page.waitForTimeout(400);
   const box = (await first.boundingBox())!;
