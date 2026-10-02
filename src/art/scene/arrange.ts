@@ -130,7 +130,6 @@ export function occupiesFloor(g: Ground, spot: PetSpot): boolean {
   return !spot.perch || spot.y >= baseline(g.rows, g.d0) - reach(g);
 }
 
-
 function free(g: Ground, x: number, taken: readonly number[]): boolean {
   const r = reach(g);
   if (x < g.x0 + r || x > g.x1 - r) return false;
@@ -279,7 +278,7 @@ export function arrangePets(g: Ground, pets: readonly ShelfPet[], m: Moment): Ma
   }
 
   // Then everyone else, on the floor of the place, clear of pets resting just above it.
-  taken.push(...[...out.values()].filter(s => occupiesFloor(g, s)).map(s => s.x));
+  taken.push(...[...out.values()].filter((s) => occupiesFloor(g, s)).map((s) => s.x));
   const rest = pets.filter((p) => !out.has(petKey(p)));
   rest.forEach((p, i) => {
     const key = petKey(p);

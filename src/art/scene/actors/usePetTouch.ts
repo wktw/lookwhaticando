@@ -10,7 +10,7 @@ import { getCollectible } from '@/catalog/collectibles';
 import type { Expression } from '@/art/pets/types';
 import type { PetGesture, PetSpot, ShelfPet } from '../model';
 import { petKey, speciesOf } from '../model';
-import { groundSpot, nearestFree, REST_POSE, type Ground } from '../arrange';
+import { groundSpot, nearestFree, occupiesFloor, REST_POSE, type Ground } from '../arrange';
 import type { ActorView, PetTouch } from './PetActor';
 import { reactionFor, type Reaction } from './touch';
 import { petNode } from '../query';
@@ -103,7 +103,7 @@ export function usePetTouch(o: PetTouchOptions): PetTouchLayer {
           const unit = (sceneRef.current?.clientHeight ?? 100) / 100;
           if (!g || !at) return opts.current.release?.(key);
           const taken: number[] = [];
-          for (const [k, v] of views) if (k !== key && !v.peek().perch) taken.push(v.peek().x);
+          for (const [k, v] of views) if (k !== key && groundOf(k) === g && occupiesFloor(g, v.peek())) taken.push(v.peek().x);
           const x = nearestFree(g, at.x + dx / unit, taken);
           const spot = groundSpot(g, x, at.perch ? (g.d0 + g.d1) / 2 : at.depth, REST_POSE[species], false, at.facing);
           if (opts.current.release) opts.current.release(key, spot);

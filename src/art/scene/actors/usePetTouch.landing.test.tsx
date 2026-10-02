@@ -26,11 +26,11 @@ it.each(['low', 'raised', 'another place', 'self only'] as const)('a carried pet
     return null;
   }
   act(() => render(<Harness />, host!));
-  act(() => { layer.touchFor(pets[0]!)!.onCarry('lift', 0); layer.touchFor(pets[0]!)!.onCarry('drop', -65); });
+  act(() => { layer.touchFor(pets[0]!)!.onCarry('lift', 0); layer.touchFor(pets[0]!)!.onCarry('drop', kind === 'self only' ? 0 : -65); });
   expect(release).toHaveBeenCalledTimes(1);
   const [key, spot] = release.mock.calls[0]!;
   expect(key).toBe('visitor');
   expect(spot!.perch).toBeUndefined();
   if (kind === 'low') expect(Math.abs(spot!.x - 80)).toBeGreaterThan(g.petSize / 2);
-  else expect(spot!.x).toBe(80);
+  else expect(spot!.x).toBe(kind === 'self only' ? 145 : 80);
 });
