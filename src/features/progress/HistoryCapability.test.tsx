@@ -91,7 +91,7 @@ describe('Progress without habits', () => {
 
   it('keeps a keepsake visible when it is the only history left', async () => {
     const s = base();
-    s.keepsakes = [{ id: 'k-old-2', habitId: 'old', petId: 'old-pet', stage: 2, kind: 'brass-seed', date: '2026-08-01' }];
+    s.keepsakes = [{ id: 'k-old-1', habitId: 'old', petId: 'old-pet', stage: 1, kind: 'brass-seed', date: '2026-08-01' }];
     useState_(s);
     view = mount(<ProgressScreen />);
     await until(() => document.querySelector('[data-section="memory"]'), 'retained memory');
