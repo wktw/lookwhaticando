@@ -293,9 +293,13 @@ function DayEdit({ cell, habitId, habitName }: { cell: CalendarCell; habitId: st
       </div>
     );
   }
-  if (cell.edit !== 'history') return null;
   const done = cell.state === 'done' || cell.state === 'tiny';
-  if (cell.state === 'rest' || cell.state === 'off' || cell.state === 'paused' || cell.state === 'unscheduled') return null;
+  const allowed = done ? cell.history?.canRemove : cell.history?.canAdd;
+  if (!allowed) {
+    const reason = cell.history?.reason;
+    const line = reason === 'open-period' ? C.periodLocked : reason === 'archived' || reason === 'before-start' ? C.outsideDates : null;
+    return line ? <p class={s.quiet}>{line}</p> : null;
+  }
   return (
     <div class={s.edit}>
       <Button

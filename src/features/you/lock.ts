@@ -4,6 +4,6 @@
  * You shows its controls disabled instead of letting a switch flip and quietly not save.
  * (A full disk still takes changes: the store keeps trying.)
  */
-import { readOnly } from '@/state/store';
+import { erasePending, readOnly } from '@/state/store';
 
-export const saveLocked = (): boolean => readOnly.value === 'other-window' || readOnly.value === 'newer-version';
+export const saveLocked = (): boolean => erasePending.value || readOnly.value === 'other-window' || readOnly.value === 'newer-version';

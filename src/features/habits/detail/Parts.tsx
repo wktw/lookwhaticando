@@ -140,7 +140,7 @@ export function Stats({ vm }: { vm: HabitDetailVM }) {
   const current = st.current && st.current.length >= 3 ? st.current : null;
   if (current) tiles.push({ label: D.stats.now, value: runText(current, 'long') });
   else if (st.newRhythm) tiles.push({ label: D.stats.now, value: D.stats.newRhythm });
-  if (st.best && st.best.length >= 3 && (!current || st.best.length > current.length)) tiles.push({ label: D.stats.longest, value: runText(st.best, 'long') });
+  if (st.best && st.best.length >= 3 && (!current || st.best.unit !== current.unit || st.best.length > current.length)) tiles.push({ label: D.stats.longest, value: runText(st.best, 'long') });
   if (st.total.checkins > 0) tiles.push({ label: D.stats.waterings, value: wateringsText(st.total.checkins), note: st.total.tiny > 0 ? fillLine(D.stats.tiny, { count: num(st.total.tiny) }) : fillLine(D.stats.since, { date: monthDayLabel(vm.habit.startedOn) }) });
   if (tiles.length === 0) return null;
   return (

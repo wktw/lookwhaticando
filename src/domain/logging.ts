@@ -397,6 +397,30 @@ export function starNote(tx: Tx, habitId: string, date: DateKey, starred: boolea
   return true;
 }
 
+/** The history calendar and reducer share these guards; glyphs do not decide what is legal. */
+export interface HistoryEdit {
+  canAdd: boolean;
+  canRemove: boolean;
+  /** A reason may restrict removal alone (an open flexible period). */
+  reason: 'invalid-date' | 'missing-habit' | 'future' | 'before-start' | 'archived' | 'window' | 'open-period' | null;
+}
+
+export function historyEdit(s: AppState, habitId: string, date: DateKey, today: DateKey): HistoryEdit {
+  const refused = (reason: HistoryEdit['reason']): HistoryEdit => ({ canAdd: false, canRemove: false, reason });
+  if (!isDateKey(date)) return refused('invalid-date');
+  const habit = findHabit(s, habitId);
+  if (!habit) return refused('missing-habit');
+  if (date > today) return refused('future');
+  if (date < habit.startedOn) return refused('before-start');
+  if (!inLifetime(habit, date)) return refused('archived');
+  if (isInBackfillWindow(date, today)) return refused('window');
+  if (!isDayBased(ruleAt(habit, date))) {
+    const p = flexPeriodAt(habit, date, s.settings.weekStart);
+    if (p && p.to >= addDays(today, -BACKFILL_DAYS)) return { canAdd: true, canRemove: false, reason: 'open-period' };
+  }
+  return { canAdd: true, canRemove: true, reason: null };
+}
+
 /**
  * Calendar history edit: marks a day done / not done without any reward effect in either
  * direction (v1 §13.2 "The Progress calendar edits older days as history only"). Days before
@@ -409,13 +433,9 @@ export function starNote(tx: Tx, habitId: string, date: DateKey, starred: boolea
  *   (and once compacted, that grant is no longer visible to stop a second one).
  */
 export function editHistory(tx: Tx, habitId: string, date: DateKey, done: boolean): boolean {
-  const habit = loggable(tx, habitId, date);
-  if (!habit || isInBackfillWindow(date, tx.env.today)) return false;
-  const rule = ruleAt(habit, date);
-  if (!done && !isDayBased(rule)) {
-    const p = flexPeriodAt(habit, date, tx.s.settings.weekStart);
-    if (p && p.to >= addDays(tx.env.today, -BACKFILL_DAYS)) return false;
-  }
+  const capability = historyEdit(tx.s, habitId, date, tx.env.today);
+  if (!(done ? capability.canAdd : capability.canRemove)) return false;
+  const rule = ruleAt(findHabit(tx.s, habitId)!, date);
   const cur = asLog(tx.s.logs[habitId]?.[date]);
   const next: Log = { ...cur, count: done ? Math.max(cur.count, effectiveTarget(rule)) : 0 };
   delete next.level;
