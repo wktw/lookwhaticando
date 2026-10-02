@@ -430,6 +430,7 @@ function TreatItem({ t, coins, onFeed, onBake }: { t: Treat; coins: number; onFe
       ?? section?.querySelector<HTMLElement>('button:not([disabled])')
       ?? item.current?.closest<HTMLElement>('[role="dialog"]');
     next?.focus({ preventScroll: true });
+    next?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
   }, [empty]);
   // Baking is its own button, only where a treat has run out (never a harvest).
   const bakeable = empty && getCollectible(t.id)?.source !== 'harvest';
