@@ -27,10 +27,10 @@ const demo = buildDemo({ today, now });
  * file loading and the test running (it did once, in a gate at 03:00 UTC: the basket's empty treat was
  * restocked on boot and its Bake row never came).
  */
-async function openShelf(page: Page, state: AppState = demo): Promise<void> {
-  await page.clock.install({ time: now });
+async function openShelf(page: Page, state: AppState = demo, clockNow = now): Promise<void> {
+  await page.clock.install({ time: clockNow });
   await page.clock.resume();
-  const save = encodeEnvelope(state, 1, now, 'e2e');
+  const save = encodeEnvelope(state, 1, clockNow, 'e2e');
   await page.addInitScript(([k, v]) => localStorage.setItem(k!, v!), [SAVE_KEY, save]);
   await openRoute(page, 'shelf');
   await page.waitForLoadState('networkidle');
@@ -210,4 +210,25 @@ test.describe('nothing on the sill covers a pet', () => {
         await expectNoAxeViolations(page, info);
       });
     }
+});
+
+
+test.describe('an overlapping scene name tag', () => {
+  test.use({ viewport: { width: 1280, height: 800 } });
+  test('the selected pet’s name tag receives the pointer above a neighbouring pet', async ({ page }) => {
+    // Exact clock from the failed full run: 2026-10-02T06:02:52.761Z. At this hour the
+    // corgi stands across the first pet’s name tag in this real household.
+    const at = 1790920972761;
+    const household = buildDemo({ today: '2026-10-02', now: at });
+    const pet = Object.values(household.pets).find((p) => p.inMeadow)!;
+    await openShelf(page, household, at);
+    const actor = page.locator(`[data-pet="${pet.id}"] button`).first();
+    await actor.scrollIntoViewIfNeeded();
+    await actor.focus();
+    await page.keyboard.press('Enter');
+    const tag = page.getByRole('button', { name: `${pet.name}’s card`, exact: true });
+    await expect(tag).toBeVisible();
+    await tag.click();
+    await expect(page.getByRole('dialog', { name: pet.name, exact: true })).toBeVisible();
+  });
 });
