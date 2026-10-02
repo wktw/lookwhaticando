@@ -18,7 +18,8 @@
     "shots": "node scripts/shoot.mjs",
     "icons": "node scripts/generate-icons.mjs",
     "manifest-assets": "node scripts/manifest-assets.mjs",
-    "check": "npm run typecheck && npm run test && npm run build && npm run size && npm run build:single && npm run e2e:preview"
+    "check": "npm run typecheck && npm run test && npm run build && npm run size && npm run build:single && npm run e2e:preview",
+    "perf:scale": "node tests/perf/run.mjs"
   },
   "dependencies": {
     "@preact/signals": "^2.11.2",
