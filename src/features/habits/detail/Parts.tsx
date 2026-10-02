@@ -26,10 +26,10 @@ import s from './HabitDetail.module.css';
 
 const anchorNameOf = (id: string) => state.value.habits.find((h) => h.id === id)?.name ?? null;
 
-export function DetailSection({ id, title, children, class: cls }: { id: string; title: string; children: ComponentChildren; class?: string }) {
+export function DetailSection({ id, title, children, class: cls, focusableTitle }: { id: string; title: string; children: ComponentChildren; class?: string; focusableTitle?: boolean }) {
   return (
     <section class={cx(s.section, cls)} aria-labelledby={`detail-${id}`} data-detail={id}>
-      <h3 id={`detail-${id}`} class={s.sectionTitle}>
+      <h3 id={`detail-${id}`} class={s.sectionTitle} tabIndex={focusableTitle ? -1 : undefined}>
         {title}
       </h3>
       {children}
@@ -173,7 +173,7 @@ export function Moments({ vm }: { vm: HabitDetailVM }) {
   const [note, setNoteTarget] = useState<NoteTarget | null>(null);
   const logs = state.value.logs[vm.habit.id] ?? {};
   return (
-    <DetailSection id="moments" title={D.sections.moments}>
+    <DetailSection id="moments" title={D.sections.moments} focusableTitle>
       {vm.moments.length === 0 ? (
         <p class={s.quiet}>{EMPTY.moments}</p>
       ) : (
@@ -214,7 +214,7 @@ export function Moments({ vm }: { vm: HabitDetailVM }) {
           <p class={s.help}>{D.quoteHelp}</p>
         </>
       )}
-      <NoteSheet target={note} onClose={() => setNoteTarget(null)} />
+      <NoteSheet target={note} onClose={() => setNoteTarget(null)} onFocusLost={() => document.getElementById('detail-moments')?.focus({ preventScroll: true })} />
     </DetailSection>
   );
 }

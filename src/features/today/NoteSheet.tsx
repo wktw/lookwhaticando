@@ -1,8 +1,7 @@
 /**
- * "Add a note" (VOICE §5): a line about the day, kept as a Moment on the habit. Placeholder "A line
- * about today", button "Save note", and the note "Noted." once it is kept. An empty note removes
- * the one that was there. Closing it with a changed line (Esc, the scrim, Close, a pull down) asks
- * first, in the Habit Editor's words: "Keep editing" is the default, and Esc (WP-C2, DEC-E8).
+ * A dated note (VOICE §5), shared by Today, Moments and Calendar. Remove, or saving an emptied
+ * kept note, asks first and offers reference-based Sunday Note redaction. Closing with changes
+ * still asks in the Habit Editor's words (WP-C2). Drafts keep their save identity (WP-C6).
  */
 import { useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { CHECKIN_TOASTS, DATA_COPY, EDITOR_COPY, NOTE_COPY as N, TODAY_LINES, fillLine } from '@/catalog/lines';
@@ -28,19 +27,21 @@ export interface NoteTarget {
 export const NOTE_MAX = MAX_NOTE_LENGTH;
 export const noteDateLabel = (date: DateKey): string => `${longDateLabel(date)}, ${date.slice(0, 4)}`;
 
-export function NoteSheet({ target, onClose }: { target: NoteTarget | null; onClose: () => void }) {
+export function NoteSheet({ target, onClose, onFocusLost }: { target: NoteTarget | null; onClose: () => void; /** Return to the note's context if removal also removed the opener. */ onFocusLost?: () => void }) {
   const [text, setText] = useState('');
   const [leaving, setLeaving] = useState(false);
   const [removing, setRemoving] = useState(false);
   const [removeQuotes, setRemoveQuotes] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const epoch = useRef(saveEpoch.peek());
+  const composing = useRef(false);
   useLayoutEffect(() => {
     if (target) setText(target.note ?? '');
     setLeaving(false);
     setRemoving(false);
     setRemoveQuotes(false);
     setError(null);
+    composing.current = false;
     epoch.current = saveEpoch.peek();
   }, [target?.habitId, target?.date]);
 
@@ -52,7 +53,7 @@ export function NoteSheet({ target, onClose }: { target: NoteTarget | null; onCl
   };
 
   const apply = (value: string, redact = false) => {
-    if (!target) return;
+    if (!target || composing.current) return;
     if (!setNote(target.habitId, target.date, value, { removeQuotes: redact, epoch: epoch.current })) {
       setRemoving(false);
       setError(epoch.current !== saveEpoch.peek() ? N.replaced : readOnly.value ? DATA_COPY.readOnly : N.refused);
@@ -74,6 +75,11 @@ export function NoteSheet({ target, onClose }: { target: NoteTarget | null; onCl
   const date = target ? noteDateLabel(target.date) : '';
   const title = target ? fillLine(N.title, { habit: target.habitName, date }) : '';
   const quoted = target && state.value.inbox.some((l) => l.kind === 'weekly' && l.quote?.habitId === target.habitId && l.quote.date === target.date);
+  const returnFocus = () => {
+    // A removal closes two layers. Either can finish first: the last one returns the context
+    // only if its normal focus return had no surviving opener. Never move a user's new focus.
+    if (!target && document.activeElement === document.body) onFocusLost?.();
+  };
 
   // The question is a sibling of the sheet, not inside it (as in the Habit Editor's host).
   return (
@@ -81,6 +87,7 @@ export function NoteSheet({ target, onClose }: { target: NoteTarget | null; onCl
       <Sheet
         open={target !== null}
         onClose={close}
+        onClosed={returnFocus}
         title={title}
         detents={['content']}
         size="sm"
@@ -99,7 +106,27 @@ export function NoteSheet({ target, onClose }: { target: NoteTarget | null; onCl
             save();
           }}
         >
-          <TextArea label={title} hideLabel value={text} onValue={(v) => setText(limitNote(v))} placeholder={N.placeholder} rows={3} maxRows={6} enterkeyhint="done" />
+          <TextArea
+            label={title}
+            hideLabel
+            value={text}
+            onValue={setText}
+            // Normalize the DOM too: a clipped keystroke can leave the state unchanged, so Preact
+            // may not render again. Never rewrite the field while an IME is composing a grapheme.
+            onInputCapture={(e) => {
+              if (!composing.current && !(e as InputEvent).isComposing) e.currentTarget.value = limitNote(e.currentTarget.value);
+            }}
+            onCompositionStart={() => { composing.current = true; }}
+            onCompositionEnd={(e) => {
+              composing.current = false;
+              e.currentTarget.value = limitNote(e.currentTarget.value);
+              setText(e.currentTarget.value);
+            }}
+            placeholder={N.placeholder}
+            rows={3}
+            maxRows={6}
+            enterkeyhint="done"
+          />
           {error && <p role="alert">{error}</p>}
         </form>
       </Sheet>
@@ -115,6 +142,7 @@ export function NoteSheet({ target, onClose }: { target: NoteTarget | null; onCl
         confirmLabel={N.remove}
         cancelLabel={EDITOR_COPY.keepEditing}
         onCancel={() => setRemoving(false)}
+        onClosed={returnFocus}
         onConfirm={() => apply('', removeQuotes)}
       />
       <ConfirmDialog
@@ -125,6 +153,7 @@ export function NoteSheet({ target, onClose }: { target: NoteTarget | null; onCl
         confirmLabel={EDITOR_COPY.leave}
         cancelLabel={EDITOR_COPY.keepEditing}
         onCancel={() => setLeaving(false)}
+        onClosed={returnFocus}
         onConfirm={() => {
           setLeaving(false);
           onClose();

@@ -125,6 +125,33 @@ describe('old note controls (WP-C6)', () => {
     expect(state.value.logs[id]?.[DAY]?.note).toBe(text);
   });
 
+  it('keeps the visible textarea at its grapheme cap after another keystroke', async () => {
+    const cap = 'e\u0301'.repeat(280);
+    await act(() => { setNote(id, DAY, cap); });
+    view = mount(<Host />);
+    expect(document.querySelector('textarea')!.value).toBe(cap);
+    await type(cap + 'x');
+    expect(document.querySelector('textarea')!.value).toBe(cap);
+  });
+
+  it('keeps a composing draft intact and applies the cap only when composition ends', async () => {
+    view = mount(<Host />);
+    const el = document.querySelector('textarea')!;
+    const cap = 'e\u0301'.repeat(280);
+    await act(() => {
+      el.dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true }));
+      el.value = cap + 'x';
+      el.dispatchEvent(new InputEvent('input', { bubbles: true, isComposing: true }));
+    });
+    expect(el.value).toBe(cap + 'x');
+    await click(button('Save note'));
+    expect(state.value.logs[id]?.[DAY]?.note).toBe('The first line.');
+    await act(() => { el.dispatchEvent(new CompositionEvent('compositionend', { bubbles: true })); });
+    expect(el.value).toBe(cap);
+    await click(button('Save note'));
+    expect(state.value.logs[id]?.[DAY]?.note).toBe(cap);
+  });
+
   it('updates aggregate calendar dots and accessible names after note-only edits while mounted', async () => {
     view = mount(<Calendar habitId={null} month="2025-09" />);
     const day = () => document.querySelector(`[data-date="${DAY}"]`)!;
@@ -137,5 +164,19 @@ describe('old note controls (WP-C6)', () => {
     await act(() => { setNote(id, DAY, 'A new line.'); });
     expect(day().getAttribute('aria-label')).toBe(markedName);
     expect(day().children.length).toBe(markedChildren);
+  });
+
+  it('returns focus to the calendar day after both removal layers have closed and the opener is gone', async () => {
+    view = mount(<Calendar habitId={null} month="2025-09" />);
+    const day = document.querySelector<HTMLButtonElement>(`[data-date="${DAY}"]`)!;
+    await click(day);
+    const edit = button(/Edit the note for Walk/)!;
+    edit.focus();
+    await click(edit);
+    await click(button('Remove note'));
+    await click(button('Remove note', dialog()!));
+    await until(() => !document.querySelector('textarea, [role="alertdialog"]'), 'both removal layers closed');
+    expect(edit.isConnected).toBe(false);
+    expect(document.activeElement).toBe(day);
   });
 });
