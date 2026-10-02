@@ -321,3 +321,70 @@ test.describe('Today · quiet rewards', () => {
     await expect(page.getByText(/\+\d+ coins?/)).toHaveCount(0);
   });
 });
+
+test('the count pad keeps Undo and Add a note reachable by keyboard through nested sheets (WP-C3)', async ({ page }, info) => {
+  await page.clock.setFixedTime(new Date('2026-10-02T12:00:00Z'));
+  await openRoute(page, 'today');
+  await page.getByRole('button', { name: 'Add a habit' }).first().click();
+  const editor = page.getByRole('dialog', { name: 'A new habit' });
+  await editor.getByRole('radio', { name: 'Drink water', exact: true }).click();
+  await editor.getByRole('button', { name: 'Plant it', exact: true }).click();
+  await expect(editor).toBeHidden();
+
+  await page.getByRole('button', { name: 'More for Drink water' }).focus();
+  await page.keyboard.press('Enter');
+  const howMany = page.getByRole('menuitem', { name: /^How many/ });
+  await howMany.focus();
+  await page.keyboard.press('Enter');
+  const pad = page.getByRole('dialog', { name: 'Drink water', exact: true });
+  await expect(pad).toBeVisible();
+  await expect(pad.getByRole('button', { name: '+1', exact: true })).toBeFocused();
+  for (let i = 0; i < 8; i++) await page.keyboard.press('Enter');
+  const undo = pad.getByRole('button', { name: 'Undo', exact: true });
+  await expect(undo).toBeVisible();
+  expect(await undo.evaluate((el) => !!el.closest('[data-notes-slot]'))).toBe(true);
+
+  const tabTo = async (name: string, scope = pad, fromNote = false) => {
+    const button = fromNote ? scope.locator('[data-toast-id]').getByRole('button', { name, exact: true }) : scope.getByRole('button', { name, exact: true, disabled: false });
+    for (let i = 0; i < 24; i++) {
+      if (await button.evaluate((el) => el === document.activeElement)) return;
+      await page.keyboard.press('Tab');
+      const focus = await scope.evaluate((el) => ({ inside: el.contains(document.activeElement), active: document.activeElement?.outerHTML }));
+      expect(focus.inside, `Tab toward ${name}: ${focus.active?.slice(0, 300)}`).toBe(true);
+    }
+    await expect(button).toBeFocused();
+  };
+  await tabTo('Undo');
+  await page.keyboard.press('Enter');
+  await expect(pad.getByText('7 of 8 glasses', { exact: true })).toBeVisible();
+  // The transient Add a note opens a child too, then returns focus inside the pad.
+  await tabTo('+1');
+  await page.keyboard.press('Enter');
+  await tabTo('Add a note', pad, true);
+  await page.keyboard.press('Enter');
+  const quickNote = page.getByRole('dialog', { name: 'A note for Drink water', exact: true });
+  await expect(quickNote.getByRole('textbox')).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(quickNote).toBeHidden();
+  expect(await pad.evaluate((el) => el.contains(document.activeElement))).toBe(true);
+  // The stable row is available after the transient action has gone.
+  await tabTo('Add a note');
+  await page.keyboard.press('Enter');
+  const note = page.getByRole('dialog', { name: 'A note for Drink water', exact: true });
+  await expect(note.getByRole('textbox')).toBeFocused();
+  await page.keyboard.type('A glass with lunch.');
+  await page.keyboard.press('Escape');
+  const ask = page.getByRole('alertdialog', { name: 'Leave without saving?' });
+  await expect(ask.getByRole('button', { name: 'Keep editing' })).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(note.getByRole('textbox')).toBeFocused();
+  await tabTo('Save note', note);
+  await page.keyboard.press('Enter');
+  await expect(note).toBeHidden();
+  expect(await pad.evaluate((el) => el.contains(document.activeElement))).toBe(true);
+  await expectNoAxeViolations(page, info);
+  const overflow = await horizontalOverflow(page);
+  expect(overflow.scrollWidth).toBeLessThanOrEqual(overflow.clientWidth + 1);
+  await page.keyboard.press('Escape');
+  await expect(pad).toBeHidden();
+});
