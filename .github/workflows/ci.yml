@@ -64,7 +64,7 @@ jobs:
       - name: Upload single-file build (double-click to run on any PC)
         uses: actions/upload-artifact@v4
         with:
-          name: catkin-single-file
+          name: little-by-little-single-file
           path: dist-single/catkin.html
       - name: Upload Pages artifact
         if: github.event_name != 'pull_request'

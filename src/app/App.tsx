@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'preact/hooks';
 import { cx } from '@/ui/cx';
 import { SHELL_LINES } from '@/features/you/shellCopy';
-import { clockBehind, crossWindowNotice, damagedSave, damagedUnkept, demoMode, dismissCrossWindowNotice, durability, exitDemo, loadIssue, readOnly, retrySaving, useHere } from '@/state/store';
+import { clockBehind, crossWindowNotice, damagedSave, damagedUnkept, demoMode, erasePending, dismissCrossWindowNotice, durability, exitDemo, loadIssue, readOnly, retrySaving, useHere } from '@/state/store';
 import { toast } from '@/ui/toast';
 import { openHabitEditor } from '@/features/habits/open';
 import { onboardingActive } from '@/features/onboarding/progress';
@@ -127,6 +127,7 @@ export function ShellBanners() {
   }
   if (unkept) notes.push({ key: 'damaged', text: SHELL_LINES.damagedUnkept, actions: issue?.kind === 'corrupt-save' ? [saveDamaged, dailyCopies, importBackup] : [saveDamaged] });
   // Another window started over (or erased the save), and this one followed it (audit FS3).
+  if (erasePending.value) notes.push({ key: 'erase-pending', text: SHELL_LINES.erasePaused });
   if (crossWindowNotice.value === 'started-over') notes.push({ key: 'started-over', text: SHELL_LINES.startedOver, close: dismissCrossWindowNotice });
   if (clockBehind.value && !clockAway.value) notes.push({ key: 'clock', text: SHELL_LINES.clock, close: putClockAway });
   const demo = demoMode.value;

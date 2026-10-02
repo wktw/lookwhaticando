@@ -5,7 +5,7 @@ import { sfx } from '@/fx/sound';
 import { cx } from './cx';
 import { IconButton } from './IconButton';
 import { overlayRoot, Z_SHEET } from './overlay';
-import { isTopLayer, layerDepth, layerIndex, onLayersChange, pushLayer, removeLayer, trapTab } from './sheetStack';
+import { isTopLayer, layerDepth, layerIndex, onLayersChange, pushLayer, removeLayer, restoreLayerFocus, trapTab } from './sheetStack';
 import { pickSnap, rubberBand, velocityOf } from './sheetMotion';
 import { onInterrupt } from './gesture';
 import s from './Sheet.module.css';
@@ -83,6 +83,7 @@ export function Sheet(props: SheetProps) {
   const [depth, setDepth] = useState(0);
   const layerRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
+  const notesRef = useRef<HTMLDivElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
   const scrimRef = useRef<HTMLDivElement>(null);
   const restoreTo = useRef<HTMLElement | null>(null);
@@ -108,10 +109,11 @@ export function Sheet(props: SheetProps) {
   const release = () => {
     if (!active.current) return;
     active.current = false;
+    const ownedFocus = isTopLayer(id);
     removeLayer(id);
     const target = restoreTo.current;
     restoreTo.current = null;
-    if (target?.isConnected) target.focus({ preventScroll: true });
+    if (ownedFocus) restoreLayerFocus(target);
   };
 
   useLayoutEffect(() => {
@@ -120,7 +122,9 @@ export function Sheet(props: SheetProps) {
       if (!active.current) {
         active.current = true;
         restoreTo.current = document.activeElement as HTMLElement | null;
-        pushLayer(id);
+        pushLayer(id, { notesSlot: notesRef.current });
+        // A quick reopen can reuse the exiting layer. Browsers ignore focus while it is inert.
+        if (layerRef.current) layerRef.current.inert = false;
         const panel = panelRef.current;
         const target = panel?.querySelector<HTMLElement>(initialFocus ?? '[data-autofocus]');
         (target ?? panel)?.focus({ preventScroll: true });
@@ -143,25 +147,25 @@ export function Sheet(props: SheetProps) {
     return undefined;
   }, [phase]);
 
-  useEffect(() => release, []);
+  useLayoutEffect(() => release, []);
 
   /* ---------- stacking ---------- */
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (phase === 'closed') return;
     const sync = () => {
       setDepth(layerDepth(id));
       const layer = layerRef.current;
       if (layer) {
-        layer.inert = layerDepth(id) > 0;
+        layer.inert = phase === 'exit' || layerDepth(id) > 0;
         layer.style.zIndex = String(Z_SHEET + Math.max(0, layerIndex(id)) * 2);
       }
     };
     sync();
     return onLayersChange(sync);
-  }, [phase === 'closed']);
+  }, [phase]);
 
   /* ---------- Esc ---------- */
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (phase === 'closed' || phase === 'exit') return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape' || !isTopLayer(id)) return;
@@ -359,7 +363,7 @@ export function Sheet(props: SheetProps) {
   if (phase === 'closed' || typeof document === 'undefined') return null;
 
   return createPortal(
-    <div ref={layerRef} class={cx(s.layer, depth > 0 && s.behind)} data-state={phase}>
+    <div ref={layerRef} class={cx(s.layer, depth > 0 && s.behind)} data-state={phase} aria-hidden={phase === 'exit' ? 'true' : undefined}>
       <div ref={scrimRef} class={s.scrim} onClick={() => dismissible && onClose()} aria-hidden="true" />
       <div
         ref={panelRef}
@@ -393,6 +397,7 @@ export function Sheet(props: SheetProps) {
           {aside && <div class={s.aside}>{aside}</div>}
           {showClose && dismissible && <IconButton class={s.close} icon="close" label="Close" variant="card" size="sm" onClick={onClose} />}
         </header>
+        <div ref={notesRef} class={s.notes} data-notes-slot tabIndex={-1} />
         <div ref={bodyRef} class={s.body}>
           {children}
         </div>

@@ -1,19 +1,20 @@
 /**
- * "Add a note" (VOICE §5): a line about the day, kept as a Moment on the habit. Placeholder "A line
- * about today", button "Save note", and the note "Noted." once it is kept. An empty note removes
- * the one that was there. Closing it with a changed line (Esc, the scrim, Close, a pull down) asks
- * first, in the Habit Editor's words: "Keep editing" is the default, and Esc (WP-C2, DEC-E8).
+ * A dated note (VOICE §5), shared by Today, Moments and Calendar. Remove, or saving an emptied
+ * kept note, asks first and offers reference-based Sunday Note redaction. Closing with changes
+ * still asks in the Habit Editor's words (WP-C2). Drafts keep their save identity (WP-C6).
  */
-import { useEffect, useState } from 'preact/hooks';
-import { CHECKIN_TOASTS, EDITOR_COPY, TODAY_LINES, fillLine } from '@/catalog/lines';
-import { setNote } from '@/state/store';
+import { useLayoutEffect, useRef, useState } from 'preact/hooks';
+import { CHECKIN_TOASTS, DATA_COPY, EDITOR_COPY, NOTE_COPY as N, TODAY_LINES, fillLine } from '@/catalog/lines';
+import { longDateLabel } from '@/catalog/formatCore';
+import { limitNote, MAX_NOTE_LENGTH } from '@/domain/noteText';
+import { readOnly, saveEpoch, setNote, state } from '@/state/store';
 import type { DateKey } from '@/state/types';
 import { Sheet } from '@/ui/Sheet';
 import { TextArea } from '@/ui/TextField';
 import { Button } from '@/ui/Button';
 import { ConfirmDialog } from '@/ui/ConfirmDialog';
 import { toast } from '@/ui/toast';
-import { TODAY_COPY } from './copy';
+import { anyLayerOpen, topNotesSlot } from '@/ui/sheetStack';
 import s from './TodaySheets.module.css';
 
 export interface NoteTarget {
@@ -24,28 +25,68 @@ export interface NoteTarget {
 }
 
 /** A note is a line, not a diary: kept to this many characters. */
-export const NOTE_MAX = 280;
+export const NOTE_MAX = MAX_NOTE_LENGTH;
+export const noteDateLabel = (date: DateKey): string => `${longDateLabel(date)}, ${date.slice(0, 4)}`;
 
-export function NoteSheet({ target, onClose }: { target: NoteTarget | null; onClose: () => void }) {
+export function NoteSheet({ target, onClose, focusFallback }: { target: NoteTarget | null; onClose: () => void; /** The note's surviving context when removal also removes its opener. */ focusFallback?: () => HTMLElement | null | undefined }) {
   const [text, setText] = useState('');
   const [leaving, setLeaving] = useState(false);
-  useEffect(() => {
+  const [removing, setRemoving] = useState(false);
+  const [removeQuotes, setRemoveQuotes] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const epoch = useRef(saveEpoch.peek());
+  const composing = useRef(false);
+  useLayoutEffect(() => {
     if (target) setText(target.note ?? '');
     setLeaving(false);
+    setRemoving(false);
+    setRemoveQuotes(false);
+    setError(null);
+    composing.current = false;
+    epoch.current = saveEpoch.peek();
   }, [target?.habitId, target?.date]);
 
   // Changed from what the day holds: what Save would write differs from what is there.
-  const dirty = target !== null && text.trim() !== (target.note ?? '').trim();
+  const dirty = target !== null && limitNote(text.trim()) !== (target.note ?? '').trim();
   const close = () => {
     if (dirty) setLeaving(true);
     else onClose();
   };
 
+  const apply = (value: string, redact = false) => {
+    if (!target || composing.current) return;
+    if (!setNote(target.habitId, target.date, value, { removeQuotes: redact, epoch: epoch.current })) {
+      setRemoving(false);
+      setError(epoch.current !== saveEpoch.peek() ? N.replaced : readOnly.value ? DATA_COPY.readOnly : N.refused);
+      return;
+    }
+    if (value) toast({ key: `noted-${target.habitId}`, message: CHECKIN_TOASTS.noted, tone: 'sage' });
+    setRemoving(false);
+    onClose();
+  };
+  const askToRemove = () => {
+    setRemoveQuotes(false);
+    setRemoving(true);
+  };
   const save = () => {
     if (!target) return;
-    setNote(target.habitId, target.date, text.trim());
-    if (text.trim()) toast({ key: `noted-${target.habitId}`, message: CHECKIN_TOASTS.noted, tone: 'sage' });
-    onClose();
+    if (!text.trim() && target.note) askToRemove();
+    else apply(limitNote(text.trim()));
+  };
+  const date = target ? noteDateLabel(target.date) : '';
+  const title = target ? fillLine(N.title, { habit: target.habitName, date }) : '';
+  const quoted = target && state.value.inbox.some((l) => l.kind === 'weekly' && l.quote?.habitId === target.habitId && l.quote.date === target.date);
+  const returnFocus = () => {
+    if (target) return;
+    const context = focusFallback?.();
+    if (!context?.isConnected) return;
+    const selector = '[role="dialog"], [role="alertdialog"]';
+    const panel = topNotesSlot()?.closest<HTMLElement>(selector);
+    const owner = context.closest(selector);
+    // Either closing child can finish first. Only restore the surviving context in the current
+    // scope; a newer modal, an exiting owner or a control the user chose keeps its focus.
+    if (anyLayerOpen() ? !panel || owner !== panel : owner !== null) return;
+    if (document.activeElement === document.body || document.activeElement === panel) context.focus({ preventScroll: true });
   };
 
   // The question is a sibling of the sheet, not inside it (as in the Habit Editor's host).
@@ -54,14 +95,16 @@ export function NoteSheet({ target, onClose }: { target: NoteTarget | null; onCl
       <Sheet
         open={target !== null}
         onClose={close}
-        title={target ? fillLine(TODAY_COPY.noteTitle, { habit: target.habitName }) : ''}
+        onClosed={returnFocus}
+        title={title}
         detents={['content']}
         size="sm"
         initialFocus="textarea"
         footer={
-          <Button block size="lg" onClick={save}>
-            {TODAY_LINES.saveNote}
-          </Button>
+          <div class={s.noteForm}>
+            <Button block size="lg" onClick={save}>{TODAY_LINES.saveNote}</Button>
+            {target?.note && <Button block variant="quiet" onClick={askToRemove}>{N.remove}</Button>}
+          </div>
         }
       >
         <form
@@ -71,9 +114,45 @@ export function NoteSheet({ target, onClose }: { target: NoteTarget | null; onCl
             save();
           }}
         >
-          <TextArea label={target ? fillLine(TODAY_COPY.noteTitle, { habit: target.habitName }) : ''} hideLabel value={text} onValue={setText} placeholder={TODAY_LINES.notePlaceholder} rows={3} maxRows={6} maxLength={NOTE_MAX} enterkeyhint="done" />
+          <TextArea
+            label={title}
+            hideLabel
+            value={text}
+            onValue={setText}
+            // Normalize the DOM too: a clipped keystroke can leave the state unchanged, so Preact
+            // may not render again. Never rewrite the field while an IME is composing a grapheme.
+            onInputCapture={(e) => {
+              if (!composing.current && !(e as InputEvent).isComposing) e.currentTarget.value = limitNote(e.currentTarget.value);
+            }}
+            onCompositionStart={() => { composing.current = true; }}
+            onCompositionEnd={(e) => {
+              composing.current = false;
+              e.currentTarget.value = limitNote(e.currentTarget.value);
+              setText(e.currentTarget.value);
+            }}
+            placeholder={N.placeholder}
+            rows={3}
+            maxRows={6}
+            enterkeyhint="done"
+          />
+          {error && <p role="alert">{error}</p>}
         </form>
       </Sheet>
+      <ConfirmDialog
+        open={removing && target !== null}
+        title={N.removeTitle}
+        message={<>
+          {target && fillLine(N.removeText, { habit: target.habitName, date })}
+          {quoted && <label class={s.noteChoice}><input type="checkbox" checked={removeQuotes} onChange={(e) => setRemoveQuotes(e.currentTarget.checked)} />{N.removeQuotes}</label>}
+          <span class={s.noteCopies}>{N.copies}</span>
+        </>}
+        tone="danger"
+        confirmLabel={N.remove}
+        cancelLabel={EDITOR_COPY.keepEditing}
+        onCancel={() => setRemoving(false)}
+        onClosed={returnFocus}
+        onConfirm={() => apply('', removeQuotes)}
+      />
       <ConfirmDialog
         open={leaving && target !== null}
         title={EDITOR_COPY.leaveTitle}
@@ -82,6 +161,7 @@ export function NoteSheet({ target, onClose }: { target: NoteTarget | null; onCl
         confirmLabel={EDITOR_COPY.leave}
         cancelLabel={EDITOR_COPY.keepEditing}
         onCancel={() => setLeaving(false)}
+        onClosed={returnFocus}
         onConfirm={() => {
           setLeaving(false);
           onClose();

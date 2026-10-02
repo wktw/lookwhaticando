@@ -397,9 +397,9 @@ describe('PlantArt: growth input', () => {
 });
 
 describe('PlantArt: watering and accessibility', () => {
-  it('waters the plant only when pulse goes up after mount: a leaf lift, a glint, damp soil', () => {
+  it('animates only when pulse goes up after mount, with damp soil from the saved watering', () => {
     const host = document.createElement('div');
-    const show = (pulse: number) => act(() => render(plant({ species: 'begonia', stage: 4, pot: 'mug', pulse }), host));
+    const show = (pulse: number) => act(() => render(plant({ species: 'begonia', stage: 4, pot: 'mug', pulse, damp: pulse >= 4 }), host));
     const glint = () => host.querySelector('.plant-glint') !== null;
     const soil = () => host.querySelector('.plant-soil')!.getAttribute('fill');
     const lift = () => host.querySelector('.plant-lift-0, .plant-lift-1');

@@ -33,7 +33,7 @@
  * reached through `StoreRuntime`, which tests replace with `configureStore`.
  */
 import { batch, computed, signal } from '@preact/signals';
-import type { AppState, DateKey, OnboardingStep, PlacedDecor, Settings, StoryId } from './types';
+import type { AppState, BloomColour, DateKey, OnboardingStep, PlacedDecor, Settings, StoryId } from './types';
 import type {
   ActionResult,
   BackupError,
@@ -325,6 +325,24 @@ export const saveEpoch = signal(0);
  */
 export const replacing = signal(false);
 
+/** A partial erase keeps all ordinary writes fenced until erasure is retried or the page reloads. */
+export const erasePending = signal(false);
+export const erasing = signal(false);
+let eraseDisk: string | null = null;
+
+/** A retry belongs only to the partially erased save. Newer or replaced data needs a new choice. */
+function refreshEraseAuthority(): boolean {
+  if (!erasePending.value) return true;
+  let raw: string | null;
+  try { raw = storage().getItem(SAVE_KEY); } catch { return false; }
+  const read = readSave(storage(), SAVE_KEY);
+  if (raw === eraseDisk && read.kind !== 'newer') return true;
+  erasePending.value = false;
+  adopt(read, 'use-here');
+  saveReplaced();
+  return false;
+}
+
 /** No persistent storage this session: changes live only in memory and go when catkin closes. */
 export const volatileStorage = signal(false);
 
@@ -381,7 +399,7 @@ function envAt(ms: number, s: AppState): Env {
   return { now: ms, today: todayFor(s, ms), local: rt.local, rng: rt.rng, ...(tz ? { timeZone: tz } : {}) };
 }
 
-const writable = (): boolean => readOnly.value !== 'other-window' && readOnly.value !== 'newer-version';
+const writable = (): boolean => !erasePending.value && readOnly.value !== 'other-window' && readOnly.value !== 'newer-version';
 
 /** This window owns the save: it may write recovery copies and sidecar keys, not just queue changes. */
 export function ownsSave(): boolean {
@@ -432,6 +450,31 @@ function makeQueue(key: string, head: SaveHead): SaveQueue {
     now: rt.now,
     timers: rt.timers,
     volatile: rt.storage === null,
+    canWrite: () => {
+      if (erasePending.value || q !== queue) return false;
+      let disk: SaveHead | null;
+      let raw: string | null;
+      try { raw = storage().getItem(key); disk = peekHead(storage(), key, true); }
+      catch { return 'unavailable'; }
+      // The shared decoder owns version authority: the inner state can be newer than its
+      // wrapper, and JSON numbers/layouts need not match our writer's compact header format.
+      const incoming = raw === null ? null : parseEnvelope(raw);
+      if ((incoming === null || incoming.kind === 'ok')
+        && (sameHead(disk, { gen: q.gen, rev: q.rev }) || (disk?.gen === undefined && disk?.rev === q.rev))) return true;
+      const kept = rescue.peek();
+      const knownDamage = kept?.kind === 'damaged' ? kept.raw : kept?.damaged;
+      if (key === SAVE_KEY && raw !== null && raw === knownDamage) return true;
+      const read = readSave(storage(), key);
+      // A known damaged save may still need its replacement written. Ordinary saves, deletions
+      // and newer schemas must be adopted before any old frame/debounce callback can write.
+      if (read.kind === 'empty' && q.rev === 0) return true;
+      retireQueue();
+      adopt(read, 'storage');
+      // A newly damaged main is kept aside before the validated state already in memory is
+      // written again. It must not be mistaken for the damage a prior recovery already handled.
+      if (read.kind === 'corrupt' && writable()) queue?.schedule(state.value);
+      return false;
+    },
     compact: (s) =>
       transact(s, envAt(rt.now(), s), (tx) => {
         compactSave(tx);
@@ -548,6 +591,7 @@ let releaseLock: (() => void) | null = null;
 let lockTicket = 0;
 let unlisteners: Unlisten[] = [];
 let lastSnapshotDay: DateKey | null = null;
+const dailyTasks = new Set<Promise<unknown>>();
 
 function snapshotToday(): void {
   // Recovery copies are written only by the window that owns the save (audit FS4, P-persistence-03).
@@ -557,9 +601,17 @@ function snapshotToday(): void {
   if (lastSnapshotDay === day || !s.profile.onboarded) return;
   lastSnapshotDay = day;
   const keep = readUndoToken()?.id ?? null; // the copy an Undo still needs is never pruned (P-persistence-11)
-  void takeDailySnapshot(snapshots(), s, { day, now: rt.now(), weekStart: s.settings.weekStart, appVersion: rt.appVersion, keep }).catch(() => {
-    lastSnapshotDay = null;
-  });
+  const epoch = opEpoch;
+  const head = currentHead();
+  const task = takeDailySnapshot(snapshots(), s, { day, now: rt.now(), weekStart: s.settings.weekStart, appVersion: rt.appVersion, keep,
+    canWrite: () => {
+      if (epoch !== opEpoch || !ownsSave() || demoMode.value) return false;
+      const disk = peekHead(storage(), SAVE_KEY);
+      return disk === null ? head.rev === 0 : disk.gen === head.gen;
+    },
+  }).catch(() => { if (epoch === opEpoch) lastSnapshotDay = null; });
+  dailyTasks.add(task);
+  void task.finally(() => dailyTasks.delete(task));
 }
 
 /**
@@ -799,6 +851,7 @@ function adopt(res: LoadResult, context: AdoptContext): void {
  * save (P-persistence-03).
  */
 function whenOwned(): void {
+  if (erasePending.value && refreshEraseAuthority()) return;
   const key = currentKey();
   if (!sameHead(peekHead(storage(), key), currentHead())) adopt(readSave(storage(), key), 'grant');
   if (!writable()) {
@@ -903,6 +956,8 @@ export function hydrate(): void {
   releaseLock = null;
   retireQueue();
   saveReplaced();
+  erasePending.value = false;
+  erasing.value = false;
   demoMode.value = false;
   readOnly.value = false;
   loadIssue.value = null;
@@ -928,6 +983,7 @@ export function hydrate(): void {
         // Another window wrote, replaced or removed the save (a null key: it cleared storage).
         const key = (e as StorageEvent).key;
         if (key !== null && key !== currentKey()) return;
+        if (erasePending.value) { saveUpdated(); return; }
         const k = currentKey();
         if (sameHead(peekHead(storage(), k), currentHead())) return;
         adopt(readSave(storage(), k), 'storage');
@@ -944,6 +1000,7 @@ export function hydrate(): void {
  */
 export function useHere(): void {
   if (readOnly.value !== 'other-window') return;
+  if (erasePending.value && refreshEraseAuthority()) { acquireLock(true); return; }
   const res = readSave(storage(), currentKey());
   if (res.kind === 'newer') {
     adopt(res, 'use-here');
@@ -1122,8 +1179,10 @@ export function toggleOffDay(date: DateKey): { ok: boolean; remaining: number } 
   const { ok, remaining } = act((tx) => logging.toggleOffDay(tx, date), { ok: false, remaining: 0 });
   return { ok, remaining };
 }
-export function setNote(habitId: string, date: DateKey, note: string): void {
-  actVoid((tx) => logging.setNote(tx, habitId, date, note));
+/** Acceptance here, not a durability receipt: ordinary edits keep the queue's retry/status contract. */
+export function setNote(habitId: string, date: DateKey, note: string, options?: { removeQuotes?: boolean; epoch?: number }): boolean {
+  if (options?.epoch !== undefined && options.epoch !== saveEpoch.peek()) return false;
+  return actValue((tx) => logging.setNote(tx, habitId, date, note, options), false);
 }
 /** Stars a day's note: only starred notes are ever quoted in a Sunday Note. False without a note. */
 export function starNote(habitId: string, date: DateKey, starred: boolean): boolean {
@@ -1348,8 +1407,14 @@ export function setKeepsakeNote(keepsakeId: string, text: string): void {
 
 /* ---------------- Blooms Like You (§14.2) ---------------- */
 /** "Show this look" (an index into the plant's looks) or "Classic" (null). */
-export function setPlantLook(habitId: string, index: number | null): boolean {
+export function setPlantLook(habitId: string, index: number | null | 'confirmed', expectedEpoch?: number): boolean {
+  if (!ownsSave() || (expectedEpoch !== undefined && expectedEpoch !== saveEpoch.peek())) return false;
   return actValue((tx) => signature.setPlantLook(tx, habitId, index), false);
+}
+/** A deliberate colour confirmation belongs only to the save in which its chooser opened. */
+export function confirmPlantLook(habitId: string, colour: BloomColour, expectedEpoch: number): boolean {
+  if (!ownsSave() || expectedEpoch !== saveEpoch.peek()) return false;
+  return actValue((tx) => signature.confirmPlantLook(tx, habitId, colour), false);
 }
 /** "Move to Evening" (true) or "Leave it in Morning" (false). Offered once. */
 export function answerTimeNudge(habitId: string, move: boolean): boolean {
@@ -1496,8 +1561,9 @@ export function exportData(): string {
  * Always the user's own save ("Move my plants into the app" from the demo moves the real one).
  */
 export async function exportPayload(): Promise<string> {
+  const epoch = saveEpoch.peek();
   const payload = await backupPayload();
-  markBackup();
+  if (saveEpoch.peek() === epoch) markBackup();
   return payload;
 }
 /** The same compact payload, without marking a backup (mark it with `markBackup` once it was copied). */
@@ -1842,7 +1908,7 @@ export function restoreSnapshot(id: string, opts: { withoutUndo?: boolean; signa
  * window doesn't own the save (another window, or a newer version's save shown read-only).
  */
 export function resetAll(): void {
-  if (!writable()) return;
+  if (!ownsSave() || erasing.value) return;
   saveReplaced();
   if (demoMode.value) {
     retireQueue();
@@ -1870,6 +1936,84 @@ export function resetAll(): void {
   setState(createInitialState(rt.now()), rt.now());
 }
 
+export type EraseResult = { ok: true } | { ok: false; error: 'read-only' | 'busy' | 'superseded' }
+  | { ok: false; error: 'partial'; failures: Array<'storage' | 'snapshots-blocked' | 'snapshots-unavailable'> };
+
+/**
+ * Irreversible device erasure. Fence the queue and all daily-copy continuations first, then wait
+ * for any write already in flight before deleting the whole database. A partial result never
+ * resumes the old save's writes; its retry is the only mutation allowed in this window.
+ */
+export async function eraseEverything(): Promise<EraseResult> {
+  if (erasing.value || replacing.value) return { ok: false, error: 'busy' };
+  if (!refreshEraseAuthority()) return { ok: false, error: readOnly.value === 'newer-version' ? 'read-only' : 'superseded' };
+  if (demoMode.value || readOnly.value === 'other-window' || readOnly.value === 'newer-version'
+    || (ownership.value !== 'granted' && ownership.value !== 'unsupported')) return { ok: false, error: 'read-only' };
+  if (!erasePending.value) {
+    const latest = readSave(storage(), SAVE_KEY);
+    const disk = peekHead(storage(), SAVE_KEY);
+    const shown = currentHead();
+    const kept = rescue.peek();
+    const knownDamage = kept?.kind === 'damaged' ? kept.raw : kept?.damaged;
+    const knownRecovery = latest.kind === 'ok' && latest.fromBackup && latest.damaged !== undefined && latest.damaged === knownDamage;
+    const matches = sameHead(disk, shown) || (disk?.gen === undefined && disk?.rev === shown.rev);
+    if (latest.kind === 'newer' || (!knownRecovery && latest.kind !== 'corrupt' && !matches)) {
+      retireQueue();
+      adopt(latest, 'storage');
+      return { ok: false, error: latest.kind === 'newer' ? 'read-only' : 'superseded' };
+    }
+  }
+  erasing.value = true;
+  erasePending.value = true;
+  retireQueue();
+  recoveryCopies = null;
+  saveReplaced();
+  const epoch = opEpoch;
+  const valid = () => epoch === opEpoch && (ownership.value === 'granted' || ownership.value === 'unsupported')
+    && safeGet(storage(), SAVE_KEY) === eraseDisk;
+  const failures: Array<'storage' | 'snapshots-blocked' | 'snapshots-unavailable'> = [];
+  const adapter = storage();
+  try {
+    // Remove every sidecar before the main key, so a follower can never recover the erased save
+    // from its backup. Enumerate unknown future keys too; preserve other apps on this origin.
+    try {
+      const keys: string[] = [];
+      for (let i = 0; i < adapter.length; i++) {
+        const key = adapter.key(i);
+        if (key?.startsWith('catkin:')) keys.push(key);
+      }
+      keys.sort((a, b) => Number(a === SAVE_KEY) - Number(b === SAVE_KEY));
+      let refused = rt.storage === null;
+      for (const key of keys) {
+        try { adapter.removeItem(key); if (adapter.getItem(key) !== null) refused = true; }
+        catch { refused = true; }
+      }
+      if (refused) failures.push('storage');
+    } catch { failures.push('storage'); }
+    try { eraseDisk = adapter.getItem(SAVE_KEY); } catch { /* The storage failure is already reported. */ }
+    await Promise.allSettled([...dailyTasks]);
+    if (!valid()) return { ok: false, error: 'superseded' };
+    try {
+      const result = await snapshots().erase?.();
+      if (!result?.ok) failures.push(result?.error === 'blocked' ? 'snapshots-blocked' : 'snapshots-unavailable');
+    } catch { failures.push('snapshots-unavailable'); }
+    if (!valid()) return { ok: false, error: 'superseded' };
+    if (failures.length) return { ok: false, error: 'partial', failures };
+    realState = null;
+    lastSnapshotDay = null;
+    heldForDamage = false;
+    rescue.value = null;
+    damagedUnkept.value = null;
+    loadIssue.value = null;
+    crossWindowNotice.value = null;
+    erasePending.value = false;
+    queue = makeQueue(SAVE_KEY, { gen: mintGen(), rev: 0 });
+    setState(createInitialState(rt.now()), rt.now());
+    saveStatus.value = { status: 'idle', rev: 0, chars: 0, at: 0 };
+    return { ok: true };
+  } finally { erasing.value = false; }
+}
+
 let realState: AppState | null = null;
 /** The identity of the real save when the demo was opened (what leaving the demo compares with). */
 let realHead: SaveHead = { gen: undefined, rev: 0 };
@@ -1880,6 +2024,7 @@ let realHead: SaveHead = { gen: undefined, rev: 0 };
  * demo would leave them behind in memory (audit RISK-07).
  */
 export function enterDemo(): boolean {
+  if (erasePending.value) return false;
   if (demoMode.value) return true;
   const out = queue?.flush() ?? null;
   if (out !== null && out !== 'saved' && out !== 'volatile') return false;

@@ -1,6 +1,6 @@
 /**
  * Diagnostics (DESIGN §11.1, #/you/diagnostics, seven taps on the version): what this device says
- * about catkin, for a bug report. Display mode, storage, the save envelope, the service worker,
+ * about Little by Little, for a bug report. Display mode, storage, the save envelope, the service worker,
  * audio, share, haptics, the viewport, frame timing and the clock, with "Copy report".
  */
 import { Fragment } from 'preact';
@@ -85,7 +85,7 @@ async function storageRows(): Promise<Rows> {
 }
 
 export function reportText(rows: Rows): string {
-  return ['catkin diagnostics', new Date().toISOString(), ...rows.map(([k, v]) => `${k}: ${v}`)].join('\n');
+  return ['Little by Little diagnostics', new Date().toISOString(), ...rows.map(([k, v]) => `${k}: ${v}`)].join('\n');
 }
 
 export function Diagnostics() {

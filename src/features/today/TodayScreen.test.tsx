@@ -134,6 +134,29 @@ describe('Today', () => {
     await until(() => document.querySelector('[role="dialog"]')?.textContent?.includes('1 of 8 glasses'), 'the number pad');
   });
 
+  it('the number pad keeps Add a note available before watering, on its own day (WP-C3)', async () => {
+    state.value = seed(['water'], 'Sam', 5);
+    const boundDay = addDays(today.value, -2);
+    selectDay(boundDay, today.value);
+    view = mount(<TodayScreen />);
+    const ring = ringIn(cardOf('Drink water'))!;
+    ring.parentElement!.dispatchEvent(new MouseEvent('pointerdown', { button: 0, bubbles: true }));
+    await until(() => document.querySelector('[role="dialog"]'), 'the number pad');
+    const pad = document.querySelector<HTMLElement>('[role="dialog"]')!;
+    const add = [...pad.querySelectorAll('button')].find((b) => b.textContent === 'Add a note');
+    expect(add).toBeDefined();
+    expect(toasts.value).toHaveLength(0);
+    await click(add!, 'the stable Add a note');
+    await until(() => document.querySelector('textarea'), 'the note editor');
+    const area = document.querySelector('textarea')!;
+    await act(() => { area.value = 'A glass with lunch.'; area.dispatchEvent(new Event('input', { bubbles: true })); });
+    await click(button('Save note'), 'save the note');
+    const id = state.value.habits.find((h) => h.name === 'Drink water')!.id;
+    expect(state.value.logs[id]?.[boundDay]?.note).toBe('A glass with lunch.');
+    expect(state.value.logs[id]?.[today.value]?.note).toBeUndefined();
+    expect(document.querySelector('[role="dialog"]')).toBe(pad);
+  });
+
   it('waters on a slow tap when the card has no hold, and a short press on one with a tiny version logs the whole thing', async () => {
     state.value = seed(['vitamins', 'walk']);
     view = mount(<TodayScreen />);
@@ -600,7 +623,7 @@ describe('cancelled gestures on Today, and the note sheet’s draft (WP-C2)', ()
     await esc();
     await until(() => !noteSheet(), 'the note sheet closed');
     expect(question()).toBeNull();
-    await act(() => setNote(id, today.value, 'Shoes by the door.'));
+    await act(() => { setNote(id, today.value, 'Shoes by the door.'); });
     const sheet = await openNote('Walk');
     expect(sheet.querySelector('textarea')?.value).toBe('Shoes by the door.');
     await typeNote(sheet, '');

@@ -29,6 +29,9 @@
  * only ever added (a re-read that matches an existing look adds nothing), a new look is shown unless
  * she has chosen one herself, and Classic (`shown: null`) is always available. It pays nothing: no
  * performance-graded looks.
+ * A waiting read also offers an explicit colour after ten completed scheduled occurrences.
+ * This optional confirmation is separate from inferred evidence: no clock time is invented,
+ * existing looks survive, and a confirmed choice or Classic survives later natural reads.
  *
  * ## The nudge
  * "You set Walk for mornings but usually water it after 6 pm. Move it to Evening?": when ≥ 60% of
@@ -40,7 +43,7 @@
 import type { AppState, BloomColour, BloomShape, DateKey, Habit, PlantLook, PlantLooks, TimeBand, TimeOfDay } from '@/state/types';
 import { inLifetime, logStatus, showedUp } from './activity';
 import { addDays, zoneKey, type LocalTimeReader } from './dates';
-import { BLOOMING, EVERGREEN } from './growth';
+import { BLOOMING, EVERGREEN, sunshineFromHistory } from './growth';
 import { completedAt } from './provenance';
 import { ruleAt } from './rules';
 import { keptTogetherDays } from './stacking';
@@ -53,6 +56,8 @@ export const SIGNATURE = {
   lateFrom: 23,
   earlyUntil: 4,
   minEligibleDays: 10,
+  /** Deliberate alternative, counted from scheduled occurrences, never clock evidence. */
+  choiceOccurrences: 10,
   bandShare: 0.6,
   dawnBefore: 9 * 60,
   twilightFrom: 18 * 60,
@@ -293,16 +298,41 @@ export function readPlantLook(tx: Tx, habitId: string, displayStage: number): vo
   const exists = cur.looks.findIndex((l) => l.colour === look.colour && l.shape === look.shape);
   const looks = exists >= 0 ? cur.looks : [...cur.looks, look];
   const shown = exists < 0 && !cur.chosen ? looks.length - 1 : cur.shown;
-  const next: PlantLooks = { looks, shown, reads, ...(cur.chosen ? { chosen: true } : {}) };
+  const next: PlantLooks = { ...cur, looks, shown, reads };
   tx.set('plantLooks', { ...tx.s.plantLooks, [habitId]: next });
   if (exists < 0) tx.emit({ type: 'look', habitId, colour: look.colour, shape: look.shape, read: due });
 }
 
 /** "Show this look" (an index into the plant's looks) or "Classic" (null). */
-export function setPlantLook(tx: Tx, habitId: string, index: number | null): boolean {
+export function setPlantLook(tx: Tx, habitId: string, index: number | null | 'confirmed'): boolean {
   const cur = tx.s.plantLooks?.[habitId];
-  if (!cur || (index !== null && (!Number.isInteger(index) || index < 0 || index >= cur.looks.length))) return false;
-  tx.set('plantLooks', { ...tx.s.plantLooks, [habitId]: { ...cur, shown: index, chosen: true } });
+  if (!cur || (index === 'confirmed' ? !cur.confirmed : index !== null && (!Number.isInteger(index) || index < 0 || index >= cur.looks.length))) return false;
+  tx.set('plantLooks', { ...tx.s.plantLooks, [habitId]: { ...cur, shown: index === 'confirmed' ? null : index, chosen: true,
+    ...(cur.confirmed ? { confirmed: { ...cur.confirmed, shown: index === 'confirmed' } } : {}),
+  } });
+  return true;
+}
+
+/** The clock read still waits, but completed scheduled occurrences justify offering a choice.
+ * Counts survive timestamp compaction. Honest backfill counts; a pause or day off supplies no
+ * completion by itself. Over-target flexible days and days outside the lifetime do not count.
+ * Nothing infers a time from these counts. */
+export function lookChoiceOffer(s: AppState, habit: Habit, today: DateKey): boolean {
+  const cur = looksOf(s, habit.id);
+  if (cur.confirmed || !dueRead(cur, s.ledger.bestStage[habit.id] ?? 0)) return false;
+  return sunshineFromHistory(habit, s.logs[habit.id] ?? {}, { today, weekStart: s.settings.weekStart, offDays: s.offDays }).completedOccurrences >= SIGNATURE.choiceOccurrences;
+}
+
+/** Records one deliberately confirmed colour, with no invented time sample or inferred claim. */
+export function confirmPlantLook(tx: Tx, habitId: string, colour: BloomColour): boolean {
+  const habit = tx.s.habits.find((h) => h.id === habitId);
+  if (!habit || !(['dawn', 'sunlit', 'twilight', 'wildflower'] as const).includes(colour) || !lookChoiceOffer(tx.s, habit, tx.env.today)) return false;
+  const cur = looksOf(tx.s, habitId);
+  const shape = readShape(tx.s, habit, tx.env.today);
+  tx.set('plantLooks', { ...tx.s.plantLooks, [habitId]: { ...cur, shown: null, chosen: true, confirmed: {
+    colour, shape: shape.shape, on: tx.env.today, shown: true,
+    ...(shape.shape === 'paired' && shape.keptTogether ? { partnerId: shape.keptTogether.habitId } : {}),
+  } } });
   return true;
 }
 

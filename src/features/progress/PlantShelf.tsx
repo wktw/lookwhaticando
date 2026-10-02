@@ -9,41 +9,43 @@
  */
 import { memo } from 'preact/compat';
 import { computed } from '@preact/signals';
-import { PlantArt, type PlantLookArt } from '@/art/plants';
+import { PlantArt } from '@/art/plants';
 import type { GardenPlantVM } from '@/state/selectors';
 import { openHabitDetail } from '@/features/habits/open';
 import { fillLine } from '@/catalog/lines';
 import { haptic } from '@/fx/haptics';
-import { state } from '@/state/store';
+import { state, today, now, storeLocal } from '@/state/store';
 import { cx } from '@/ui/cx';
-import { lookArtOf } from './looks';
+import { plantPresentation, type PlantPresentation } from '@/state/views/plantPresentation';
 import { PROGRESS_UI, stageName } from './copy';
 import s from './PlantShelf.module.css';
 
-let lookMemo: { looks: unknown; habits: unknown; map: Map<string, PlantLookArt | undefined> } | null = null;
-/** Each habit's look as PlantArt takes it, recomputed only when the looks or the habits change. */
-const looksByHabit = computed(() => {
-  const { plantLooks, habits } = state.value;
-  if (lookMemo && lookMemo.looks === plantLooks && lookMemo.habits === habits) return lookMemo.map;
-  const prev = lookMemo?.map;
-  const map = new Map<string, PlantLookArt | undefined>();
-  for (const h of habits) {
-    const next = lookArtOf({ plantLooks, habits }, h.id);
-    const old = prev?.get(h.id);
-    // Keep the old object when it says the same, so the slot's comparison holds.
-    map.set(h.id, old && next && old.colour === next.colour && old.shape === next.shape && old.partnerColour === next.partnerColour ? old : next);
+let presentationMemo = new Map<string, PlantPresentation>();
+/** Keep each plant object stable until something it draws changes. Coins and pet XP do not. */
+const presentations = computed(() => {
+  const s = state.value;
+  const env = { today: today.value, now: now.value, local: storeLocal() };
+  const map = new Map<string, PlantPresentation>();
+  let changed = presentationMemo.size !== s.habits.length;
+  for (const h of s.habits) {
+    const next = plantPresentation(s, h.id, env)!;
+    const old = presentationMemo.get(h.id);
+    const same = old && JSON.stringify(old) === JSON.stringify(next);
+    map.set(h.id, same ? old : next);
+    if (!same) changed = true;
   }
-  lookMemo = { looks: plantLooks, habits, map };
-  return map;
+  if (changed) presentationMemo = map;
+  return presentationMemo;
 });
 
 export function PlantShelf({ garden, balcony = false }: { garden: readonly GardenPlantVM[]; balcony?: boolean }) {
-  const looks = looksByHabit.value;
+  const plants = presentations.value;
   return (
     <ul class={cx(s.shelf, balcony && s.balcony)} data-shelf={balcony ? 'balcony' : 'plants'}>
-      {garden.map((g) => (
-        <PlantSlot key={g.habitId} g={g} look={looks.get(g.habitId)} />
-      ))}
+      {garden.map((g) => {
+        const plant = plants.get(g.habitId);
+        return plant ? <PlantSlot key={g.habitId} g={g} plant={plant} /> : null;
+      })}
     </ul>
   );
 }
@@ -61,7 +63,7 @@ const samePlant = (a: GardenPlantVM, b: GardenPlantVM): boolean =>
     JSON.stringify(a.plant.flourishes) === JSON.stringify(b.plant.flourishes));
 
 const PlantSlot = memo(
-  function PlantSlot({ g, look }: { g: GardenPlantVM; look: PlantLookArt | undefined }) {
+  function PlantSlot({ g, plant }: { g: GardenPlantVM; plant: PlantPresentation }) {
     const stage = stageName(g.plant.displayStage);
     return (
       <li class={s.slot}>
@@ -75,7 +77,7 @@ const PlantSlot = memo(
           }}
         >
           <span class={s.art} aria-hidden="true">
-            <PlantArt species={g.plant.species} stage={g.plant.displayStage} progress={g.plant.progress} blooms={g.plant.blooms} pot={g.plant.pot} flourishes={g.plant.flourishes} look={look} withPot size="100%" animated={false} />
+            <PlantArt {...plant} withPot size="100%" animated={false} />
           </span>
           <span class={s.name} aria-hidden="true">
             {g.habitName}
@@ -87,5 +89,5 @@ const PlantSlot = memo(
       </li>
     );
   },
-  (a, b) => a.look === b.look && samePlant(a.g, b.g),
+  (a, b) => a.plant === b.plant && samePlant(a.g, b.g),
 );

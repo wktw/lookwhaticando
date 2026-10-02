@@ -23,13 +23,13 @@ function mount(node: VNode): HTMLElement {
 }
 
 describe('wordmark and sprig', () => {
-  it('sets lowercase "catkin" as real text, with an optional sprig', () => {
+  it('sets "Little by Little" as real text, with an optional sprig', () => {
     const withSprig = mount(<Wordmark size={40} />);
-    expect(withSprig.textContent).toBe('catkin');
+    expect(withSprig.textContent).toBe('Little by Little');
     expect(withSprig.querySelector('svg')).not.toBeNull();
     expect(withSprig.querySelector('svg')!.getAttribute('aria-hidden')).toBe('true');
     const bare = mount(<Wordmark sprig={false} />);
-    expect(bare.textContent).toBe('catkin');
+    expect(bare.textContent).toBe('Little by Little');
     expect(bare.querySelector('svg')).toBeNull();
     expect((withSprig.firstElementChild as HTMLElement).style.fontSize).toBe('40px');
   });
@@ -191,7 +191,7 @@ describe('launch screen and cabinet mark', () => {
   it('puts the icon’s cat and calf over the wordmark on paper in both themes', () => {
     for (const theme of ['light', 'night'] as const) {
       const host = mount(<SplashArt theme={theme} width={390} height={844} />);
-      expect(host.textContent).toBe('catkin');
+      expect(host.textContent).toBe('Little by Little');
       expect(host.querySelector('[data-animal="pet-cat-black"]')).not.toBeNull();
       expect(host.querySelector('[data-animal="pet-cow-holstein"]')).not.toBeNull();
       expect(host.querySelector('[data-splash]')!.getAttribute('data-splash')).toBe(theme);

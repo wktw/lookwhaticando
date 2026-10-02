@@ -128,7 +128,7 @@ export const ShelfScene = forwardRef(function ShelfScene(props: ShelfSceneProps,
     () =>
       pets.map((p) => {
         const seg = segments.find((x) => x.id === where(p))!;
-        return { key: petKey(p), species: speciesOf(p.petId), petId: p.petId, personality: p.personality, place: seg.id, ground: seg.ground, home: homePerch(seg.ground, p.home) };
+        return { key: petKey(p), species: speciesOf(p.petId), petId: p.petId, personality: p.personality, bond: p.bond, place: seg.id, ground: seg.ground, home: homePerch(seg.ground, p.home) };
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [pets, segments],

@@ -1,12 +1,12 @@
 /**
- * The app shell's words, in the catkin voice (DESIGN §12): plain, kind, specific, sentence case.
+ * The app shell's words, in the Little by Little voice (DESIGN §12): plain, kind, specific, sentence case.
  * No exclamation marks, no emoji, no "cozy". tests/unit/fx/copy.test.ts lints these too.
  */
 
 export const SHELL_COPY = {
-  appName: 'catkin',
+  appName: 'Little by Little',
   tagline: 'Look after the little things.',
-  brandLabel: 'catkin, go to Today',
+  brandLabel: 'Little by Little, go to Today',
   skip: 'Skip to content',
   wallet: 'Wallet',
   swapsHint: 'Swaps: every 10 become a stamp',
@@ -30,19 +30,19 @@ export const SCREEN_COPY = {
 
 /** Service worker notes. */
 export const UPDATE_COPY = {
-  ready: 'A new version of catkin is ready.',
+  ready: 'A new version of Little by Little is ready.',
   refresh: 'Refresh',
-  offline: 'catkin works offline now.',
+  offline: 'Little by Little works offline now.',
 } as const;
 
 export const INSTALL_COPY = {
-  gateTitle: 'Keep catkin on your Home Screen',
+  gateTitle: 'Keep Little by Little on your Home Screen',
   gateText: 'It opens full-screen, works offline, and your plants are kept safe on this phone.',
   gateTextMac: 'It opens in its own window, works offline, and your plants are kept safe on this Mac.',
   gatePeek: 'Just peek',
   sheetDescription: 'Full-screen, offline, and one tap away.',
-  cardTitleDock: 'catkin in your Dock',
-  cardTitleHome: 'catkin on your Home Screen',
+  cardTitleDock: 'Little by Little in your Dock',
+  cardTitleHome: 'Little by Little on your Home Screen',
   cardInstalled: 'Installed. It’s on your Home Screen or in your Dock.',
   cardPitch: 'Full-screen, offline, one tap away.',
   installed: 'Installed',
@@ -50,6 +50,6 @@ export const INSTALL_COPY = {
   showMe: 'Show me how',
   gotIt: 'Got it',
   doneTitle: 'All set',
-  doneText: 'catkin is installed. It’s on your Home Screen or in your Dock.',
-  installedToast: 'catkin is installed.',
+  doneText: 'Little by Little is installed. It’s on your Home Screen or in your Dock.',
+  installedToast: 'Little by Little is installed.',
 } as const;

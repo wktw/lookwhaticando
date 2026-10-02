@@ -3,6 +3,8 @@
  * functions of the view models (and, where a view has no field yet, of the read-only state), so they
  * are unit-tested without a DOM.
  */
+import { plantPresentation, type PlantPresentation } from '@/state/views/plantPresentation';
+import type { ViewEnv } from '@/state/views/common';
 import type { PlaceId, Species } from '@/catalog/types';
 import { getCollectible } from '@/catalog/collectibles';
 import { PLACE_BY_ID } from '@/catalog/places';
@@ -23,14 +25,9 @@ export { MAX_DECOR_PER_PLACE };
 /* ------------------------------------------------------------------ */
 
 /** A habit's plant that is not in today's lists (paused): drawn as it stands, never damp. */
-export interface RestingPot {
+export interface RestingPot extends Omit<PlantPresentation, 'resident'> {
   habitId: string;
   name: string;
-  species: Habit['plant'];
-  pot: Habit['pot'];
-  stage: number;
-  progress: number;
-  blooms: number | undefined;
 }
 
 /**
@@ -59,20 +56,26 @@ export function shelfPots(habits: readonly Pick<Habit, 'id' | 'archivedOn'>[], t
         damp: p.damp,
         pulse: p.pulse,
         ...(p.look ? { look: p.look } : {}),
+        ...(p.flourishes ? { flourishes: p.flourishes } : {}),
         ...(p.routine ? { routine: p.routine.routine } : {}),
         ...(p.bow ? { bow: true } : {}),
       });
       continue;
     }
     const r = rest.get(h.id);
-    if (r) out.push({ habitId: r.habitId, name: r.name, species: r.species, stage: r.stage, progress: r.progress, ...(r.blooms !== undefined ? { blooms: r.blooms } : {}), pot: r.pot });
+    if (r) out.push({ habitId: r.habitId, name: r.name, species: r.species, stage: r.stage, progress: r.progress, ...(r.blooms !== undefined ? { blooms: r.blooms } : {}), pot: r.pot, look: r.look, flourishes: r.flourishes });
   }
   return out;
 }
 
 /** Retired plants, living on the Balcony Box's shelf: as they last stood (plants never shrink). */
-export function retiredPots(retired: MemoryShelfVM['retired'], bestStage: Readonly<Record<string, number>>): SillPot[] {
-  return retired.map((r) => ({ habitId: r.habitId, name: r.name, species: r.plant, stage: bestStage[r.habitId] ?? 0, pot: r.pot as SillPot['pot'] }));
+export function retiredPots(retired: MemoryShelfVM['retired'], state: AppState, env: ViewEnv): SillPot[] {
+  return retired.flatMap((r) => {
+    const p = plantPresentation(state, r.habitId, env);
+    if (!p) return [];
+    const { resident: _resident, ...plant } = p;
+    return [{ habitId: r.habitId, name: r.name, ...plant }];
+  });
 }
 
 /* ------------------------------------------------------------------ */
@@ -95,6 +98,12 @@ export function shelfPets(out: readonly PetSummaryVM[], pets: AppState['pets']):
     petId: p.id,
     name: p.name,
     personality: p.personality,
+    ...(p.level >= 5 ? { bond: {
+      sunBias: 0.9,
+      frontBias: p.level >= 9 ? 0.95 : p.level >= 7 ? 0.85 : 0,
+      ...(p.level >= 8 ? { napWith: p.bestFriend } : {}),
+      ...(p.level >= 9 ? { waits: true } : {}),
+    } } : {}),
     outfit: p.outfit,
     ...(p.habitId ? { home: p.habitId } : {}),
     place: p.place,

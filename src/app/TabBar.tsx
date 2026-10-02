@@ -3,7 +3,8 @@ import { cx } from '@/ui/cx';
 import { sfx } from '@/fx/sound';
 import { haptic } from '@/fx/haptics';
 import { navigate } from './router';
-import { formatHash, ROUTES, type TabId } from './routes';
+import { formatHash, visibleRoutes, type TabId } from './routes';
+import { state } from '@/state/store';
 import { preloadScreen } from './screens';
 import { tabSpecies } from './shelfTab';
 import s from './TabBar.module.css';
@@ -25,7 +26,7 @@ export function TabBar({ tab }: { tab: TabId }) {
   return (
     <nav class={s.bar} aria-label="Main">
       <ul class={s.list}>
-        {ROUTES.map((r) => {
+        {visibleRoutes(state.value.settings.quietRewards).map((r) => {
           const active = r.id === tab;
           return (
             <li key={r.id} class={s.item}>

@@ -1,5 +1,5 @@
 /**
- * Gallery sections for the ui module: the catkin kit (day and Lamplight panels side by side),
+ * Gallery sections for the ui module: the Little by Little kit (day and Lamplight panels side by side),
  * the water-fill check ring, the kit's small drawings, notes and celebrations, petals and the
  * coin, sounds, the install guide, and the app shell at 390 px and 1200 px. The app icon and
  * launch screen stages stay here because scripts/generate-icons.mjs screenshots them.
@@ -928,7 +928,7 @@ function Notes({ params }: { params: URLSearchParams }) {
             <ToastNote item={{ message: 'The Yoga plant is potted up.', art: <EmptyPot size={30} light={lightFor(theme)} />, version: 0 }} />
             <ToastNote item={{ message: 'There’s a note on the sill.', art: <PaperNote size={30} light={lightFor(theme)} />, version: 0 }} />
             <ToastNote item={{ message: '+18 coins', art: <CoinIcon size={22} />, version: 0 }} />
-            <ToastNote item={{ message: 'A new version of catkin is ready.', action: { label: 'Refresh', onAction: noop }, version: 0 }} />
+            <ToastNote item={{ message: 'A new version of Little by Little is ready.', action: { label: 'Refresh', onAction: noop }, version: 0 }} />
           </div>
         )}
       </Panels>
@@ -940,7 +940,7 @@ function Notes({ params }: { params: URLSearchParams }) {
         <Button variant="secondary" onClick={() => rapidCheckins()}>
           Rapid coins (one note)
         </Button>
-        <Button variant="secondary" onClick={() => toast({ key: 'sw-update', message: 'A new version of catkin is ready.', tone: 'sage', duration: 0, action: { label: 'Refresh', onAction: noop } })}>
+        <Button variant="secondary" onClick={() => toast({ key: 'sw-update', message: 'A new version of Little by Little is ready.', tone: 'sage', duration: 0, action: { label: 'Refresh', onAction: noop } })}>
           Update ready
         </Button>
       </div>
@@ -1325,11 +1325,11 @@ function AppShell({ params }: { params: URLSearchParams }) {
     <div class="fxui-shots">
       <div class="fxui-stack" style={{ gap: '6px' }}>
         <Sub>Phone · 390 px</Sub>
-        <ScaledFrame title="catkin at 390 px" src={src(390)} width={390} height={760} />
+        <ScaledFrame title="Little by Little at 390 px" src={src(390)} width={390} height={760} />
       </div>
       <div class="fxui-stack" style={{ gap: '6px' }}>
         <Sub>Mac · 1200 px (scaled to fit)</Sub>
-        <ScaledFrame title="catkin at 1200 px" src={src(1200)} width={1200} height={760} max={0.7} />
+        <ScaledFrame title="Little by Little at 1200 px" src={src(1200)} width={1200} height={760} max={0.7} />
       </div>
     </div>
   );
