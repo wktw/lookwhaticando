@@ -284,6 +284,7 @@ test.describe('the Pet Card feeds every treat (WP-C7)', () => {
       pets: { ...demo.pets, [pet.id]: { ...pet, favoriteKnown: false, daily: { ...pet.daily, treats: 0 } } },
       collection,
       pantry: Object.fromEntries(eight.map((t) => [t.id, { servings: 3, restockedOn: today }])),
+      wallet: { ...demo.wallet, coins: 100 },
     };
     await seed(page, state);
     await openRoute(page, 'shelf');
@@ -304,6 +305,18 @@ test.describe('the Pet Card feeds every treat (WP-C7)', () => {
     await page.keyboard.press('Enter');
     await expect.poll(async () => (await saved(page)).pantry[eight[7]!.id]?.servings).toBe(2);
     await expect(feeds.nth(7)).toHaveAttribute('aria-label', `Feed ${eight[7]!.name}, 2 servings`);
+    await expect(feeds.nth(7)).toBeFocused();
+    await page.keyboard.press('Enter');
+    await expect.poll(async () => (await saved(page)).pantry[eight[7]!.id]?.servings).toBe(1);
+    await expect(feeds.nth(7)).toBeFocused();
+    await page.keyboard.press('Enter');
+    await expect.poll(async () => (await saved(page)).pantry[eight[7]!.id]?.servings).toBe(0);
+    await expect(feeds.nth(7)).toBeDisabled();
+    await expect(card.getByRole('button', { name: `Bake a tray · 10 coins, ${eight[7]!.name}`, exact: true })).toBeFocused();
+    const after = await saved(page);
+    expect(after.wallet.coins).toBe(100);
+    expect(after.pets[pet.id]!.daily.treats).toBe(3);
+    for (const treat of eight.slice(0, 7)) expect(after.pantry[treat.id]!.servings).toBe(3);
     await expectNoAxeViolations(page, info);
     expect(errors, errors.join('\n')).toEqual([]);
   });
