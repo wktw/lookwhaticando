@@ -44,7 +44,7 @@ it('keeps a newly opened menu when a completed scroll delivers its queued notifi
   // The browser has already scrolled the More button into view when it is clicked.
   // Its scroll event can be delivered after the menu is placed and focused.
   open();
-  await act(() => window.dispatchEvent(new Event('scroll')));
+  await act(() => void window.dispatchEvent(new Event('scroll')));
   expect(menu()).not.toBeNull();
   expect(close).not.toHaveBeenCalled();
   await click(items()[1]!, 'How many…');
@@ -55,7 +55,7 @@ it('keeps a newly opened menu when a completed scroll delivers its queued notifi
 it.each(['scrollX', 'scrollY'] as const)('closes if %s changes after the menu is placed', async (axis) => {
   open();
   vi.stubGlobal(axis, window[axis] + 1);
-  await act(() => window.dispatchEvent(new Event('scroll')));
+  await act(() => void window.dispatchEvent(new Event('scroll')));
   expect(menu()).toBeNull();
   expect(close).toHaveBeenCalledExactlyOnceWith(false);
   expect(choose).not.toHaveBeenCalled();
@@ -63,7 +63,7 @@ it.each(['scrollX', 'scrollY'] as const)('closes if %s changes after the menu is
 
 it('still closes on viewport resize even if the scroll position stays the same', async () => {
   open();
-  await act(() => window.dispatchEvent(new Event('resize')));
+  await act(() => void window.dispatchEvent(new Event('resize')));
   expect(menu()).toBeNull();
   expect(close).toHaveBeenCalledExactlyOnceWith(false);
 });
@@ -85,7 +85,7 @@ it('keeps keyboard navigation and Escape focus return', async () => {
 
 it('still closes on a pointer down outside the menu and its anchor', async () => {
   open();
-  await act(() => document.body.dispatchEvent(pointer('pointerdown')));
+  await act(() => void document.body.dispatchEvent(pointer('pointerdown')));
   expect(menu()).toBeNull();
   expect(close).toHaveBeenCalledExactlyOnceWith(false);
 });
