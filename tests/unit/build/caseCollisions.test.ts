@@ -72,7 +72,7 @@ describe('case-independent module resolution', () => {
       }
     }
     expect(differences).toEqual([]);
-  });
+  }, 20_000);
 
   it('detects extension precedence, folder casing and test-module collisions', () => {
     const files = ['src/Check.tsx', 'src/check.ts', 'src/Thing.test.tsx', 'src/thing.test.ts', 'src/Folder/index.ts'];

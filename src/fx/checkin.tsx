@@ -15,7 +15,7 @@ import { ASIDE_CHANCE, CHECKIN_ASIDES, fillLine, pickFrom } from '@/catalog/line
 import { levelForXp } from '@/domain/levels';
 import { state } from '@/state/store';
 import { CoinIcon } from '@/art/icons';
-import { CHECKIN_CHOREOGRAPHY } from '@/ui/checkRing';
+import { CHECKIN_CHOREOGRAPHY } from '@/ui/checkRingModel';
 import { themeLight, WaterDrop } from '@/ui/art/objects';
 import { announceSettled, cancelSettled } from '@/ui/announce';
 import { dismissToast, findToast, toast, type ToastAction } from '@/ui/toast';
