@@ -61,10 +61,11 @@ export function LoadSheet({ open, title, message, retryLabel, closeLabel, busy, 
   const release = () => {
     if (!active.current) return;
     active.current = false;
+    const ownedFocus = isTopLayer(id);
     removeLayer(id);
     const target = restoreTo.current;
     restoreTo.current = null;
-    restoreLayerFocus(target);
+    if (ownedFocus) restoreLayerFocus(target);
   };
 
   useLayoutEffect(() => {
@@ -91,18 +92,18 @@ export function LoadSheet({ open, title, message, retryLabel, closeLabel, busy, 
   useEffect(() => release, []);
 
   /* Stacking: on top of whatever was open, and inert under anything opened over it. */
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (phase === 'closed') return;
     const sync = () => {
       const layer = layerRef.current;
       if (!layer) return;
-      layer.inert = layerDepth(id) > 0;
+      layer.inert = phase === 'exit' || layerDepth(id) > 0;
       layer.toggleAttribute('data-over', layerIndex(id) > 0);
       layer.style.zIndex = String(Z_SHEET + Math.max(0, layerIndex(id)) * 2);
     };
     sync();
     return onLayersChange(sync);
-  }, [phase === 'closed']);
+  }, [phase]);
 
   useEffect(() => {
     if (phase !== 'enter' && phase !== 'open') return;
@@ -119,7 +120,7 @@ export function LoadSheet({ open, title, message, retryLabel, closeLabel, busy, 
   if (phase === 'closed' || typeof document === 'undefined') return null;
 
   return createPortal(
-    <div ref={layerRef} class={s.layer} data-state={phase}>
+    <div ref={layerRef} class={s.layer} data-state={phase} aria-hidden={phase === 'exit' ? 'true' : undefined}>
       <div class={s.scrim} onClick={onClose} aria-hidden="true" />
       <div
         ref={panelRef}

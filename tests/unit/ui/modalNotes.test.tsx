@@ -87,8 +87,55 @@ describe('modal-owned notes (WP-C3)', () => {
     expect(document.activeElement).toBe(origin);
   });
 
+  it.each(['sheet', 'load'])('the exiting %s gives back focus and leaves the accessibility tree immediately', (kind) => {
+    function Closing() {
+      const [open, setOpen] = useState(true);
+      return kind === 'sheet' ? <Sheet open={open} title={open ? 'Note' : ''} onClose={() => setOpen(false)}><button>Save</button></Sheet> : <LoadSheet open={open} title={open ? 'Note' : ''} retryLabel="Try again" closeLabel="Close" onRetry={() => undefined} onClose={() => setOpen(false)} />;
+    }
+    mount(<Closing />);
+    act(() => void document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })));
+    const exit = document.querySelector<HTMLElement>('[data-state="exit"]')!;
+    expect(exit).not.toBeNull();
+    expect(exit.inert).toBe(true);
+    expect(exit.getAttribute('aria-hidden')).toBe('true');
+  });
+
+  it.each(['sheet', 'load'])('removing a covered %s preserves the focused field in the top modal', (kind) => {
+    let remove!: () => void;
+    function Covered() {
+      const [lower, setLower] = useState(true);
+      remove = () => setLower(false);
+      return <>{lower && (kind === 'sheet' ? <Sheet key="lower" open title="Lower" onClose={() => undefined} /> : <LoadSheet key="lower" open title="Lower" retryLabel="Try again" closeLabel="Close" onRetry={() => undefined} onClose={() => undefined} />)}<Sheet key="upper" open title="Upper" initialFocus="textarea" onClose={() => undefined}><textarea /></Sheet></>;
+    }
+    mount(<Covered />);
+    const input = document.querySelector('textarea')!;
+    expect(document.activeElement).toBe(input);
+    act(() => remove());
+    expect(document.activeElement).toBe(input);
+  });
+
   it('counts only visible time after ten seconds hidden', () => {
     mount(); note(); tick(1500); hidden(true); tick(10000); shown(); hidden(false); tick(2499); shown(); tick(1); expired();
+  });
+
+  it('a sheet opened after keyboarding between root notes returns to a durable control', () => {
+    function OpenFromTwoNotes() {
+      const [open, setOpen] = useState(false);
+      return <><button id="origin" onClick={() => {
+        toast({ message: 'First water kept.', action: { label: 'Undo first', onAction() {} } });
+        toast({ message: 'Second water kept.', action: { label: 'Add a note', onAction: () => setOpen(true) } });
+      }}>Water</button><Sheet open={open} title="A note" onClose={() => setOpen(false)}><textarea /></Sheet><Toaster /></>;
+    }
+    mount(<OpenFromTwoNotes />);
+    const origin = document.getElementById('origin')!;
+    act(() => { origin.focus(); origin.click(); });
+    const buttons = document.querySelectorAll<HTMLButtonElement>('[data-toast-id] button');
+    act(() => buttons[0]!.focus());
+    act(() => buttons[1]!.focus());
+    act(() => buttons[1]!.click());
+    tick(1000);
+    act(() => void document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })));
+    expect(document.activeElement).toBe(origin);
   });
 
   it('hover pauses the remaining time rather than starting a new lifetime', () => {

@@ -134,9 +134,10 @@ describe('CelebrationHost', () => {
     const panel = document.querySelector('[role="dialog"]')!;
     expect(panel.contains(banner)).toBe(true);
     expect(banner.querySelector('button')).not.toBeNull();
-    act(() => banner.querySelector('button')!.click());
+    act(() => { banner.querySelector('button')!.focus(); banner.querySelector('button')!.click(); });
     await act(() => sleep(300));
     expect(document.querySelector('#overlay-root [role="region"]')).toBeNull();
+    expect(panel.contains(document.activeElement)).toBe(true);
   });
 
   it('reserves rewards the instant they arrive, and hands check-in coins to the screen’s own flourish', async () => {

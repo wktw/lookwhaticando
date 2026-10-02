@@ -349,7 +349,8 @@ test('the count pad keeps Undo and Add a note reachable by keyboard through nest
     for (let i = 0; i < 24; i++) {
       if (await button.evaluate((el) => el === document.activeElement)) return;
       await page.keyboard.press('Tab');
-      expect(await scope.evaluate((el) => el.contains(document.activeElement))).toBe(true);
+      const focus = await scope.evaluate((el) => ({ inside: el.contains(document.activeElement), active: document.activeElement?.outerHTML }));
+      expect(focus.inside, `Tab toward ${name}: ${focus.active?.slice(0, 300)}`).toBe(true);
     }
     await expect(button).toBeFocused();
   };

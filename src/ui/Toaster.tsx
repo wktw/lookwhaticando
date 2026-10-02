@@ -79,6 +79,9 @@ function topSheetHeaderBottom(laneBottom: number): number {
   return r.top < laneBottom ? r.bottom : 0;
 }
 
+/** Keep the durable origin when Tab moves directly between two transient notes. */
+const focusOrigins = new WeakMap<HTMLElement, HTMLElement | null>();
+
 function ToastCard({ item, hidden }: { item: ToastItem; hidden: boolean }) {
   const [hovered, setHovered] = useState(false);
   const [focused, setFocused] = useState(false);
@@ -165,7 +168,11 @@ function ToastCard({ item, hidden }: { item: ToastItem; hidden: boolean }) {
       onPointerEnter={(e) => e.pointerType === 'mouse' && setHovered(true)}
       onPointerLeave={(e) => e.pointerType === 'mouse' && setHovered(false)}
       onFocusIn={(e) => {
-        if (e.relatedTarget instanceof HTMLElement && !cardRef.current?.contains(e.relatedTarget)) returnTo.current = e.relatedTarget;
+        if (e.relatedTarget instanceof HTMLElement && !cardRef.current?.contains(e.relatedTarget)) {
+          const fromNote = e.relatedTarget.closest<HTMLElement>('[data-toast-id]');
+          returnTo.current = fromNote ? focusOrigins.get(fromNote) ?? null : e.relatedTarget;
+          if (cardRef.current) focusOrigins.set(cardRef.current, returnTo.current);
+        }
         setFocused(true);
       }}
       onFocusOut={(e) => { if (!cardRef.current?.contains(e.relatedTarget as Node | null)) setFocused(false); }}

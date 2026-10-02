@@ -106,6 +106,8 @@ export function CelebrationBanner({ spec, payouts = [], onDone }: { spec: Banner
   };
 
   const leave = () => {
+    const card = cardRef.current;
+    if (card?.contains(document.activeElement)) card.closest<HTMLElement>('[role="dialog"], [role="alertdialog"]')?.focus({ preventScroll: true });
     // Rewards still on the note leave with it, straight into the wallet it was covering.
     fly();
     setLeaving(true);
