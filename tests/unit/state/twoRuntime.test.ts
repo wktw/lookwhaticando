@@ -11,6 +11,7 @@ describe('two independent page runtimes (WP-04)', () => {
     first.store.completeOnboarding({ name: 'Sam', templateIds: ['water'], inFlow: true });
     first.store.flushSaves();
     expect(pages.storage.getItem(SAVE_KEY)).toContain('Sam');
+    expect(pages.writes).toContainEqual({ source: 0, key: SAVE_KEY, value: pages.storage.getItem(SAVE_KEY) });
     expect(second.store.state.value.profile.name).toBe('');
     expect(pages.pendingEvents).toBeGreaterThan(0);
     pages.deliverAll();
@@ -101,6 +102,9 @@ describe('two independent page runtimes (WP-04)', () => {
     }
     pages.tabs[owner]!.store.flushSaves();
     pages.deliverAll();
+    for (const write of pages.writes.slice(checkedWrites).filter((w) => w.key === SAVE_KEY)) expect(write.source).toBe(owner);
+    // The universal source assertions must not become vacuous if observation breaks.
+    expect(new Set(pages.writes.filter((w) => w.key === SAVE_KEY).map((w) => w.source))).toEqual(new Set([0, 1]));
     expect(seen.size).toBe(operations.length);
     expect(pages.tabs[1 - owner]!.store.state.value.profile.onboardingStep).toEqual(pages.tabs[owner]!.store.state.value.profile.onboardingStep);
   });
