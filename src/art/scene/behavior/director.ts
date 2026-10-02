@@ -8,7 +8,7 @@ import { signal, type Signal } from '@preact/signals';
 import type { PlaceId, Personality, Species } from '@/catalog/types';
 import type { FriendshipProfile, PetSpot } from '../model';
 import type { ActorView } from '../actors/PetActor';
-import type { Ground, Perch } from '../arrange';
+import { occupiesFloor, type Ground, type Perch } from '../arrange';
 import type { Moment } from '../time';
 import { seeded } from '../sill/scenery';
 import { PACE, planAct, type Step } from './plan';
@@ -112,7 +112,7 @@ export class Director {
 
   private taken(except: string, ground: Ground): number[] {
     const xs: number[] = [];
-    for (const [k, v] of this.views) if (k !== except && this.pets.get(k)?.ground === ground && !v.peek().perch) xs.push(v.peek().x);
+    for (const [k, v] of this.views) if (k !== except && this.pets.get(k)?.ground === ground && occupiesFloor(ground, v.peek())) xs.push(v.peek().x);
     return xs;
   }
 
