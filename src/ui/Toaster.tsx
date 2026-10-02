@@ -36,8 +36,13 @@ export function Toaster() {
     return onLayersChange(sync);
   }, []);
 
-  useEffect(() => {
-    return getPlatform().lifecycle.subscribe(() => setHidden(getPlatform().lifecycle.hidden));
+  useLayoutEffect(() => {
+    const lifecycle = getPlatform().lifecycle;
+    const sync = () => setHidden(lifecycle.hidden);
+    const stop = lifecycle.subscribe(sync);
+    // A pause can arrive between rendering and subscribing, before the first paint.
+    sync();
+    return stop;
   }, []);
 
   // At the top, keep clear of a banner and of the open sheet's header (transform only). The sheet

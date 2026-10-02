@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { useRef } from 'preact/hooks';
+import { useLayoutEffect, useRef } from 'preact/hooks';
 import { act } from 'preact/test-utils';
 import { setPlatform, type LifecycleEvent } from './capabilities';
 import { Toaster } from '@/ui/Toaster';
@@ -44,19 +44,34 @@ describe('UI consumers use injected lifecycle events', () => {
     view = mount(<Toaster />);
     act(() => void toast({ message: 'Water kept.', duration: 4000, action: { label: 'Undo', onAction: () => {} } }));
     const id = toasts.value[0]!.id;
-    act(() => vi.advanceTimersByTime(1500));
+    act(() => void vi.advanceTimersByTime(1500));
     send('pause');
     expect(toastIsReachable(id)).toBe(false);
-    act(() => vi.advanceTimersByTime(10000));
+    act(() => void vi.advanceTimersByTime(10000));
     expect(toasts.value[0]?.leaving).not.toBe(true);
     send('resume');
     expect(toastIsReachable(id)).toBe(true);
-    act(() => vi.advanceTimersByTime(2499));
+    act(() => void vi.advanceTimersByTime(2499));
     expect(toasts.value[0]?.leaving).not.toBe(true);
-    act(() => vi.advanceTimersByTime(1));
+    act(() => void vi.advanceTimersByTime(1));
     expect(toasts.value[0]?.leaving).toBe(true);
     view.unmount(); view = undefined;
     expect(listeners.size).toBe(0);
+  });
+
+  it.each([true, false])('does not lose a pause during mount (before sibling: %s)', (beforeSibling) => {
+    vi.useFakeTimers();
+    act(() => void toast({ message: 'Water kept.', duration: 4000, action: { label: 'Undo', onAction: () => {} } }));
+    function PauseOnMount() {
+      useLayoutEffect(() => { hidden = true; for (const listener of [...listeners]) listener('pause'); }, []);
+      return null;
+    }
+    view = mount(beforeSibling ? <><Toaster /><PauseOnMount /></> : <><PauseOnMount /><Toaster /></>);
+    const id = toasts.value[0]!.id;
+    expect(toastIsReachable(id)).toBe(false);
+    act(() => void vi.advanceTimersByTime(10000));
+    expect(toasts.value.find((item) => item.id === id)?.leaving).not.toBe(true);
+    expect(toasts.value.some((item) => item.id === id)).toBe(true);
   });
 
   it('aborts an active gesture on pause, then detaches', () => {
