@@ -11,14 +11,14 @@ import { pushLayer, removeLayer } from '@/ui/sheetStack';
 import { showCheckInNote } from '@/fx/checkin';
 
 let host: HTMLElement;
-const tick = (ms: number) => act(() => vi.advanceTimersByTime(ms));
+const tick = (ms: number) => act(() => { vi.advanceTimersByTime(ms); });
 const card = () => document.querySelector<HTMLElement>('[data-toast-id]')!;
 const live = () => [...document.querySelectorAll('[role="status"]')].map((el) => el.textContent).join(' ');
-const fire = (el: Element, name: string, props = {}) => act(() => el.dispatchEvent(Object.assign(new Event(name, { bubbles: true }), props)));
+const fire = (el: Element, name: string, props = {}) => act(() => { el.dispatchEvent(Object.assign(new Event(name, { bubbles: true }), props)); });
 const shown = () => expect(toasts.value[0]?.leaving).not.toBe(true);
 const expired = () => expect(toasts.value[0]?.leaving).toBe(true);
 const hidden = (value: boolean) => act(() => { Object.defineProperty(document, 'hidden', { configurable: true, value }); document.dispatchEvent(new Event('visibilitychange')); });
-const note = (message = 'Water kept.', duration = 4000) => act(() => toast({ message, duration, action: { label: 'Undo', onAction: vi.fn() } }));
+const note = (message = 'Water kept.', duration = 4000) => act(() => void toast({ message, duration, action: { label: 'Undo', onAction: vi.fn() } }));
 function Nested() {
   const [nested, setNested] = useState(false);
   return <><Sheet open title="Pet card" onClose={() => undefined}><button id="basket" onClick={() => setNested(true)}>Basket</button></Sheet><Sheet open={nested} title="Basket" onClose={() => setNested(false)}><button id="feed">Feed</button></Sheet><Toaster /></>;
@@ -27,6 +27,7 @@ function mount(node: preact.ComponentChild = <Toaster />) { act(() => render(nod
 
 beforeEach(() => {
   vi.useFakeTimers();
+  for (const name of ['onpointerenter', 'onpointerleave']) Object.defineProperty(HTMLElement.prototype, name, { configurable: true, value: null });
   window.scrollTo = () => undefined;
   document.body.innerHTML = '<div id="app"></div>';
   host = document.getElementById('app')!;
@@ -48,7 +49,7 @@ describe('modal-owned notes (WP-C3)', () => {
     expect(card().closest('[role="dialog"]')?.textContent).toContain('Pet card');
     act(() => document.getElementById('basket')!.click()); tick(1000);
     expect(card().closest('[role="dialog"]')?.textContent).toContain('Basket');
-    act(() => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })));
+    act(() => void document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })));
     tick(1999); shown(); tick(1); expired();
     expect(card().closest('[role="dialog"]')?.textContent).toContain('Pet card');
   });
@@ -71,6 +72,21 @@ describe('modal-owned notes (WP-C3)', () => {
     expect(card().closest('[role="dialog"]')).toBe(panel);
   });
 
+  it('a sheet opened by a root note returns focus to the durable control after the note expires', () => {
+    function OpenFromNote() {
+      const [open, setOpen] = useState(false);
+      return <><button id="origin" onClick={() => toast({ message: 'Water kept.', action: { label: 'Add a note', onAction: () => setOpen(true) } })}>Water</button><Sheet open={open} title="A note" onClose={() => setOpen(false)}><textarea /></Sheet><Toaster /></>;
+    }
+    mount(<OpenFromNote />);
+    const origin = document.getElementById('origin')!;
+    act(() => { origin.focus(); origin.click(); });
+    act(() => card().querySelector('button')!.focus());
+    act(() => card().querySelector('button')!.click());
+    tick(1000);
+    act(() => void document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })));
+    expect(document.activeElement).toBe(origin);
+  });
+
   it('counts only visible time after ten seconds hidden', () => {
     mount(); note(); tick(1500); hidden(true); tick(10000); shown(); hidden(false); tick(2499); shown(); tick(1); expired();
   });
@@ -81,7 +97,7 @@ describe('modal-owned notes (WP-C3)', () => {
   });
 
   it('focus pauses remaining time and moving between actions does not restart it', () => {
-    mount(); act(() => toast({ message: 'Water kept.', actions: [{ label: 'Undo', onAction() {} }, { label: 'Add a note', onAction() {} }] })); tick(1500);
+    mount(); act(() => void toast({ message: 'Water kept.', actions: [{ label: 'Undo', onAction() {} }, { label: 'Add a note', onAction() {} }] })); tick(1500);
     const buttons = card().querySelectorAll('button'); act(() => buttons[0]!.focus()); tick(10000); shown();
     act(() => buttons[1]!.focus()); tick(10000); shown(); act(() => buttons[1]!.blur()); tick(2499); shown(); tick(1); expired();
   });
@@ -99,8 +115,8 @@ describe('modal-owned notes (WP-C3)', () => {
   });
 
   it('a coalesced update earns a fresh lifetime while remaining paused', () => {
-    mount(); act(() => toast({ key: 'one', message: 'First.', duration: 4000 })); tick(3000); hidden(true);
-    act(() => toast({ key: 'one', message: 'Second.', duration: 4000 })); tick(10000); hidden(false); tick(3999); shown(); tick(1); expired();
+    mount(); act(() => void toast({ key: 'one', message: 'First.', duration: 4000 })); tick(3000); hidden(true);
+    act(() => void toast({ key: 'one', message: 'Second.', duration: 4000 })); tick(10000); hidden(false); tick(3999); shown(); tick(1); expired();
   });
 
   it('does not announce an action queued behind two other notes', () => {
@@ -121,7 +137,7 @@ describe('modal-owned notes (WP-C3)', () => {
 
   it('check-in burst availability waits for its note to be reachable', () => {
     mount(); act(() => pushLayer('moment-c3', { moment: true }));
-    act(() => showCheckInNote({ habitId: 'c3-water', habitName: 'Water', coins: 0, onUndo() {} }));
+    act(() => void showCheckInNote({ habitId: 'c3-water', habitName: 'Water', coins: 0, onUndo() {} }));
     tick(2000); expect(live()).not.toContain('Undo available');
     act(() => removeLayer('moment-c3')); tick(1400); expect(live()).toContain('Water, watered'); expect(live()).toContain('Undo available');
   });

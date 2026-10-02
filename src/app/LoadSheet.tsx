@@ -4,7 +4,7 @@ import { useEffect, useId, useLayoutEffect, useRef, useState } from 'preact/hook
 import { sfx } from '@/fx/sound';
 import { Button } from '@/ui/Button';
 import { overlayRoot, Z_SHEET } from '@/ui/overlay';
-import { isTopLayer, layerDepth, layerIndex, onLayersChange, pushLayer, removeLayer, trapTab } from '@/ui/sheetStack';
+import { isTopLayer, layerDepth, layerIndex, onLayersChange, pushLayer, removeLayer, restoreLayerFocus, trapTab } from '@/ui/sheetStack';
 import s from './LoadSheet.module.css';
 
 export interface LoadSheetProps {
@@ -45,6 +45,7 @@ export function LoadSheet({ open, title, message, retryLabel, closeLabel, busy, 
   const [phase, setPhase] = useState<Phase>(open ? 'enter' : 'closed');
   const layerRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
+  const notesRef = useRef<HTMLDivElement>(null);
   const retryRef = useRef<HTMLButtonElement>(null);
   const restoreTo = useRef<HTMLElement | null>(null);
   /** Holds the stack slot and the focus to give back (released as soon as closing starts). */
@@ -63,7 +64,7 @@ export function LoadSheet({ open, title, message, retryLabel, closeLabel, busy, 
     removeLayer(id);
     const target = restoreTo.current;
     restoreTo.current = null;
-    if (target?.isConnected) target.focus({ preventScroll: true });
+    restoreLayerFocus(target);
   };
 
   useLayoutEffect(() => {
@@ -71,7 +72,7 @@ export function LoadSheet({ open, title, message, retryLabel, closeLabel, busy, 
       if (!active.current) {
         active.current = true;
         restoreTo.current = document.activeElement as HTMLElement | null;
-        pushLayer(id);
+        pushLayer(id, { notesSlot: notesRef.current });
         (retryRef.current ?? panelRef.current)?.focus({ preventScroll: true });
         sfx.play('whoosh', { volume: 0.35 });
       }
@@ -133,6 +134,7 @@ export function LoadSheet({ open, title, message, retryLabel, closeLabel, busy, 
         <h2 id={`${id}-title`} class={s.title}>
           {title}
         </h2>
+        <div ref={notesRef} class={s.notes} data-notes-slot />
         {message && (
           <p id={`${id}-text`} class={s.text}>
             {message}
