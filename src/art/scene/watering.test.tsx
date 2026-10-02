@@ -20,7 +20,7 @@ afterEach(() => {
   vi.useRealTimers();
 });
 const soil = () => host.querySelector('.plant-soil')!.getAttribute('fill');
-const advance = (ms: number) => act(() => vi.advanceTimersByTime(ms));
+const advance = (ms: number) => act(() => { vi.advanceTimersByTime(ms); });
 
 function band() {
   const ref = createRef<WindowsillBandHandle>();
