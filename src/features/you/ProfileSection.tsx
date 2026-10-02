@@ -3,10 +3,11 @@ import { useEffect, useId, useRef, useState } from 'preact/hooks';
 import { BIRTHDAY, COUNTS, SETTINGS } from '@/catalog/lines';
 import { counted } from '@/catalog/format';
 import { MONTH_NAMES } from '@/domain/dates';
-import { dayOf } from './when';
+import { movedInOn } from '@/domain/eventDays';
+import { dayLabel } from './when';
 import { CatkinSprig } from '@/art/icons/brand';
 import { useArtLight } from '@/art/scene/moment';
-import { setBirthday, setName, state } from '@/state/store';
+import { setBirthday, setName, state, storeLocal } from '@/state/store';
 import { TextField } from '@/ui/TextField';
 import { fillLine } from '@/catalog/lines';
 import { Row } from './parts';
@@ -82,7 +83,7 @@ function NameRow() {
         enterKeyHint="done"
         onBlur={commit}
         onKeyDown={(e) => {
-          if (e.key === 'Enter') {
+          if (e.key === 'Enter' && !e.isComposing && e.keyCode !== 229) {
             commit();
             e.currentTarget.blur();
           }
@@ -163,7 +164,7 @@ export function ProfileSection() {
           <div class={s.who}>
             {/* No name yet: the field below asks for one; the card doesn't say it twice. */}
             {app.profile.name && <p class={s.name}>{app.profile.name}</p>}
-            <p class={s.since}>{fillLine(YOU.sinceLine, { date: dayOf(app.profile.createdAt || Date.now()) })}</p>
+            <p class={s.since}>{fillLine(YOU.sinceLine, { date: dayLabel(movedInOn(app, storeLocal())) })}</p>
             {facts && <p class={s.facts}>{facts}</p>}
           </div>
         </div>

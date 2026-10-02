@@ -35,13 +35,13 @@ describe('Profile name composition (WP-03)', () => {
       input.dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true }));
     });
     await type(input, 'さ');
-    await act(() => input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, ...composing })));
+    await act(() => void input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, ...composing })));
     expect(state.value.profile.name).toBe('Sam');
     expect(document.activeElement).toBe(input);
     await type(input, 'さくら');
-    await act(() => input.dispatchEvent(new CompositionEvent('compositionend', { data: 'さくら', bubbles: true })));
+    await act(() => void input.dispatchEvent(new CompositionEvent('compositionend', { data: 'さくら', bubbles: true })));
     expect(state.value.profile.name).toBe('Sam');
-    await act(() => input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })));
+    await act(() => void input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })));
     expect(state.value.profile.name).toBe('さくら');
     expect(document.activeElement).not.toBe(input);
   });

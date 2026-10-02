@@ -651,6 +651,11 @@ Every package in this section fills every field (a mechanical check of the ten l
 - **Rollback:** revert the lockfile.
 
 #### WP-03 Small independent correctness fixes (S, low)
+
+> **Status (2 October 2026): implemented on `track/small-fixes`; two independent reviews and the full gate pending.** Tests were committed first at `68d7588`: the two composition paths, frozen/legacy profile dates, five overflowing tray sizes and three backup-receipt cases failed against the prior implementation (12 failures, 41 passing controls). The name field now ignores Enter with either `isComposing` or Safari's key code 229; completing composition followed by ordinary Enter still saves and blurs. The two legacy export names remain compatible, but only generate contents: no receipt is made or advanced until `markBackup` is explicitly called after delivery. The domain refuses a tray at 95–99 servings before spending, with unchanged state/events; 0, 1 and the exact-fit 94 remain valid. The WP-B6 screen follow-up is also closed here: the Profile “since” line reads `movedInOn`, formats its frozen app day directly and uses the existing app-day fallback for a legacy profile, preserving the date after travel/day-start changes and the correct year.
+>
+> **Verification so far:** 70 tests in the Profile, You formatting, pantry/care and store suites pass. A source audit found only one text-field Enter commit handler; the other two Enter handlers activate a capsule crank or art interaction, so no shared commit helper was introduced. A source search of `markBackup` found the remaining UI calls only in the existing delivery boundaries (`DataSection`, `InstallSection`, `recovery`), with their save-epoch guards intact; the behavioral tests pin both legacy helpers and the existing receipt. The separate download-delivery semantics remain RM-7's scope as specified above. New in-app wording: none. A real CJK IME check on physical iPhone/desktop Safari remains WP-G3, not claimed by jsdom.
+
 - **Covers:**
   - the GLOBAL1 IME guard;
   - the P-persistence-13 residual (legacy eager-marking exports);
