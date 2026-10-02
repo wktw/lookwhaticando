@@ -34,6 +34,7 @@ import { transact, type Env, type Tx } from '@/domain/tx';
 import { addPause, archivedStretchPause, isPausedOn } from '@/domain/pauses';
 import { Game, UTC, at } from './game';
 import { randomContent } from './random';
+import { preserveFacts } from './metamorphic';
 
 /* ------------------------------------------------------------------ */
 /* Helpers                                                             */
@@ -100,8 +101,10 @@ describe('HM1: a later lifecycle action never changes a period cut by an earlier
     const before = periodOn(g, id, '2026-09-08');
     expect(before).toMatchObject({ from: '2026-09-07', to: '2026-09-09', cut: true, state: 'closed', target: 3, openDays: 4, expected: 0, short: false });
 
-    g.goTo('2026-09-11'); // Friday
-    expect(g.run((tx) => retireWithRibbon(tx, id))).toBe(true);
+    preserveFacts('Finish after a period cut', () => verdict(periodOn(g, id, '2026-09-08')), () => {
+      g.goTo('2026-09-11'); // Friday
+      expect(g.run((tx) => retireWithRibbon(tx, id))).toBe(true);
+    });
     expect(habitOf(g, id).archivedOn).toBe('2026-09-10');
     // Before WP-B5: target 3 → 2, open days 4 → 1, expected 0 → 1, short.
     expect(verdict(periodOn(g, id, '2026-09-08'))).toEqual(verdict(before));
@@ -162,7 +165,7 @@ describe('HM1: a later lifecycle action never changes a period cut by an earlier
         const before = verdict(periodOn(g, id, '2026-09-08'));
         expect(before).toMatchObject({ to: '2026-09-09', cut: true, target: 4, achieved: 0, openDays: 4, expected: 0, short: false });
         const check = () => expect(verdict(periodOn(g, id, '2026-09-08')), g.today).toEqual(before);
-        act(g, id, check);
+        preserveFacts(actName, () => verdict(periodOn(g, id, '2026-09-08')), () => act(g, id, check));
         check();
         g.goTo('2026-09-15');
         check();
@@ -710,7 +713,9 @@ describe('P-history-01: "Start tracking from…" keeps every existing period and
     g.goTo('2026-09-14').checkIn(id);
     const levelBefore = deservedLevel(g.state, habitOf(g, id), '2026-09-14', g.today);
     expect(levelBefore).toBe('over');
-    expect(g.run((tx) => habits.setStartedOn(tx, id, '2026-08-31'))).toBe(true);
+    preserveFacts('backdate on the existing grid', () => deservedLevel(g.state, habitOf(g, id), '2026-09-14', g.today), () => {
+      expect(g.run((tx) => habits.setStartedOn(tx, id, '2026-08-31'))).toBe(true);
+    });
     const h = habitOf(g, id);
     expect(h.startedOn).toBe('2026-08-31');
     expect(h.rules[0]!.from).toBe('2026-08-31');

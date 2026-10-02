@@ -127,11 +127,15 @@ export function deferredLocks(): LockManagerLike & { grant(): Promise<void>; ref
       });
     },
     async grant() {
-      answer?.({ name: 'lock' });
+      const respond = answer;
+      answer = null;
+      respond?.({ name: 'lock' });
       await settle();
     },
     async refuse() {
-      answer?.(null);
+      const respond = answer;
+      answer = null;
+      respond?.(null);
       await settle();
     },
     async steal() {

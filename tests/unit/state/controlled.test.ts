@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { memoryStorage } from '@/state/persist';
+import { memoryStorage, SAVE_KEY } from '@/state/persist';
+import * as store from '@/state/store';
 import { memorySnapshotStore, snapshotMeta } from '@/state/snapshots';
 import { createInitialState } from '@/state/defaults';
 import { capturedFrames, controlledSnapshots, faultStorage } from './controlled';
-import { deferredLocks } from './fixtures';
+import { deferredLocks, fakeBrowser } from './fixtures';
 
 describe('controlled browser adapters (WP-04)', () => {
   it('captures frames in order and leaves newly scheduled work for its own frame', () => {
@@ -47,6 +48,23 @@ describe('controlled browser adapters (WP-04)', () => {
     expect(disk.storage.getItem('b')).toBe('1234');
   });
 
+  it('keeps a real store edit pending across two failed writes and saves it on automatic retry', () => {
+    const browser = fakeBrowser();
+    const disk = faultStorage(browser.storage);
+    store.configureStore({ storage: disk.storage });
+    store.hydrate();
+    store.completeOnboarding({ name: 'Before', templateIds: [] });
+    store.flushSaves();
+    disk.fail('setItem', { key: SAVE_KEY, times: 2 });
+    store.setName('After');
+    store.flushSaves();
+    expect(store.durability.value.kind).toBe('failing');
+    expect(JSON.parse(browser.storage.getItem(SAVE_KEY)!).state.profile.name).toBe('Before');
+    browser.advance(20_000);
+    expect(store.durability.value.kind).not.toBe('failing');
+    expect(JSON.parse(browser.storage.getItem(SAVE_KEY)!).state.profile.name).toBe('After');
+  });
+
   it('can grant, steal, then refuse separate lock requests in the order asked', async () => {
     const locks = deferredLocks();
     const seen: string[] = [];
@@ -61,6 +79,19 @@ describe('controlled browser adapters (WP-04)', () => {
     await locks.refuse();
     await next;
     expect(seen).toEqual(['granted', 'refused']);
+  });
+
+  it('answers each Web Locks callback once even if a test releases its control twice', async () => {
+    const locks = deferredLocks();
+    const answers: boolean[] = [];
+    const request = locks.request('save', {}, (lock) => { answers.push(Boolean(lock)); return new Promise(() => {}); });
+    const stolen = request.catch(() => undefined);
+    await locks.grant();
+    await locks.grant();
+    await locks.refuse();
+    expect(answers).toEqual([true]);
+    await locks.steal();
+    await stolen;
   });
 
   it('holds before a snapshot write or after its commit, and preserves erase support', async () => {

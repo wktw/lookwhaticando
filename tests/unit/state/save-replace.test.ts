@@ -16,6 +16,7 @@ import { createInitialState } from '@/state/defaults';
 import * as store from '@/state/store';
 import type { AppState } from '@/state/types';
 import { deferredLocks, failWrites, fakeBrowser } from './fixtures';
+import { controlledSnapshots as gated } from './controlled';
 
 vi.setConfig({ testTimeout: 30_000 });
 
@@ -50,47 +51,6 @@ const preImports = async (s: SnapshotStore) => (await s.list()).filter((m) => m.
 function idb(): SnapshotStore {
   vi.stubGlobal('indexedDB', new IDBFactory());
   return indexedDbSnapshotStore()!;
-}
-
-type Method = 'list' | 'get' | 'put' | 'remove';
-
-/**
- * A snapshot store whose chosen call is held after it reached the inner store and before it
- * answers, so a test can act in between (a reset, the demo, a stolen lock, closing the sheet).
- */
-function gated(inner: SnapshotStore) {
-  const gates = new Map<Method, { reached: () => void; wait: Promise<void> }>();
-  const wrap =
-    <K extends Method>(k: K) =>
-    async (...args: unknown[]) => {
-      const out = await (inner[k] as (...a: unknown[]) => Promise<unknown>)(...args);
-      const g = gates.get(k);
-      if (g) {
-        gates.delete(k);
-        g.reached();
-        await g.wait;
-      }
-      return out;
-    };
-  const gatedStore = {
-    get durable() {
-      return inner.durable;
-    },
-    list: wrap('list'),
-    get: wrap('get'),
-    put: wrap('put'),
-    remove: wrap('remove'),
-  } as unknown as SnapshotStore;
-  return {
-    store: gatedStore,
-    hold(k: Method) {
-      let reached!: () => void;
-      let open!: () => void;
-      const hit = new Promise<void>((r) => (reached = r));
-      gates.set(k, { reached, wait: new Promise<void>((r) => (open = r)) });
-      return { reached: hit, release: () => open() };
-    },
-  };
 }
 
 /** Boots a window, keeps a backup of "Sam" (with Walk), then starts over as "Other". */
