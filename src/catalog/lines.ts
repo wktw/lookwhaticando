@@ -1269,7 +1269,7 @@ export const DATA_COPY = {
   erased: 'The save, settings and daily copies on this device have been erased.',
   erasePartial: 'Some data is still on this device.',
   eraseStorage: 'The save or settings couldn’t be erased.',
-  eraseBlocked: 'The daily copies couldn’t be erased. Close other catkin windows, then try again.',
+  eraseBlocked: 'The daily copies couldn’t be erased. Close other Little by Little windows, then try again.',
   eraseUnavailable: 'The daily copies couldn’t be erased. Try again.',
   eraseRetry: 'Try erasing again',
   eraseChanged: 'The save changed while erasing. Some data may still be on this device.',
