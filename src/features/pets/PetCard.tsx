@@ -6,7 +6,7 @@
  */
 import type { ComponentChildren } from 'preact';
 import { memo } from 'preact/compat';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'preact/hooks';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { COMPANION, EMPTY, PET_CARD, capitalise, fillLine, pickLine, plantPhrase } from '@/catalog/lines';
 import { getCollectible } from '@/catalog/collectibles';
 import { choseLine, movedToPlaceLine } from '@/catalog/format';
@@ -20,7 +20,7 @@ import { reactionFor } from '@/art/scene/actors/touch';
 import { Icon } from '@/art/icons';
 import type { PetVM, ShelfVM } from '@/state/selectors';
 import type { Habit, PetMemory } from '@/state/types';
-import { bakeTray, feedPet, letPetChoose, petPet, renamePet, setCompanion, setOutfit, setPetPlace, state, toggleFavoritePet, togglePetOut, today } from '@/state/store';
+import { bakeTray, feedPet, letPetChoose, petPet, renamePet, saveEpoch, setCompanion, setOutfit, setPetPlace, state, toggleFavoritePet, togglePetOut, today } from '@/state/store';
 import { BAKE } from '@/domain/pantry';
 import { MAX_PET_NAME } from '@/domain/friendship';
 import { nameIdeas } from '@/features/capsules/names';
@@ -414,11 +414,32 @@ function useFeeding(petId: string, name: string, say: Say, onReact: React_, capt
 /** One treat: feed it (a serving goes), or, run out and not a harvest, bake a tray of it. */
 function TreatItem({ t, coins, onFeed, onBake }: { t: Treat; coins: number; onFeed: (t: Treat) => void; onBake: (t: Treat) => void }) {
   const empty = t.servings < 1;
+  const item = useRef<HTMLLIElement>(null);
+  const pendingFocus = useRef<{ from: HTMLButtonElement; epoch: number } | null>(null);
+  useLayoutEffect(() => {
+    const pending = pendingFocus.current;
+    pendingFocus.current = null;
+    if (!empty || !pending || pending.epoch !== saveEpoch.value || !pending.from.isConnected) return;
+    // Disabling the feed button can leave focus there or make the browser move it to body.
+    // A deliberate focus move or a covering modal has priority over this local handoff.
+    if (document.activeElement !== pending.from && document.activeElement !== document.body) return;
+    for (let el: HTMLElement | null = item.current; el; el = el.parentElement) if (el.inert) return;
+    const section = item.current?.closest('section');
+    const next = item.current?.querySelector<HTMLElement>('button:not([disabled])')
+      ?? section?.querySelector<HTMLElement>('button[data-feed]:not([disabled])')
+      ?? section?.querySelector<HTMLElement>('button:not([disabled])')
+      ?? item.current?.closest<HTMLElement>('[role="dialog"]');
+    next?.focus({ preventScroll: true });
+  }, [empty]);
   // Baking is its own button, only where a treat has run out (never a harvest).
   const bakeable = empty && getCollectible(t.id)?.source !== 'harvest';
   return (
-    <li class={s.treatItem}>
-      <button type="button" class={s.treat} data-feed="" data-empty={empty ? '' : undefined} disabled={empty} onClick={() => onFeed(t)} aria-label={`${PET_CARD.buttons.feed} ${t.name}, ${servingsLine(t.servings)}${t.favorite ? `, ${PET_CARD_UI.favourite}` : ''}`}>
+    <li ref={item} class={s.treatItem}>
+      <button type="button" class={s.treat} data-feed="" data-empty={empty ? '' : undefined} disabled={empty} onClick={(e) => {
+        pendingFocus.current = document.activeElement === e.currentTarget ? { from: e.currentTarget, epoch: saveEpoch.value } : null;
+        onFeed(t);
+        if ((state.value.pantry[t.id]?.servings ?? 0) > 0) pendingFocus.current = null;
+      }} aria-label={`${PET_CARD.buttons.feed} ${t.name}, ${servingsLine(t.servings)}${t.favorite ? `, ${PET_CARD_UI.favourite}` : ''}`}>
         <span class={s.treatArt} aria-hidden="true">
           <CollectibleArt id={t.id} size={44} px={44} animated={false} />
         </span>
