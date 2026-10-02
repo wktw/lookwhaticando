@@ -10,6 +10,41 @@ const keys = (b: ReturnType<typeof fakeBrowser>) => [...b.storage.data.keys()].f
 afterEach(() => { store.configureStore({ locks: null }); vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 
 describe('WP-A9 erase everything', () => {
+  it('refuses a second erase while database deletion is still in flight', async () => {
+    const b = fakeBrowser(); store.hydrate(); store.completeOnboarding({ name: 'Sam', templateIds: [] });
+    await settle();
+    let release!: () => void;
+    let reached!: () => void;
+    const hit = new Promise<void>((r) => { reached = r; });
+    const held = new Promise<void>((r) => { release = r; });
+    let calls = 0;
+    b.snapshots.erase = async () => { calls++; reached(); await held; b.snapshots.records.clear(); return { ok: true }; };
+    const first = store.eraseEverything();
+    await hit;
+    const second = store.eraseEverything();
+    release();
+    expect(await second).toEqual({ ok: false, error: 'busy' });
+    expect(await first).toEqual({ ok: true });
+    expect(calls).toBe(1);
+  });
+
+  it('refuses erasure while an import is keeping its protective copy', async () => {
+    const b = fakeBrowser(); store.hydrate(); store.completeOnboarding({ name: 'Sam', templateIds: [] });
+    const backup = store.backupJson();
+    store.setName('Current'); b.advance(1000); await settle();
+    let release!: () => void;
+    let reached!: () => void;
+    const hit = new Promise<void>((r) => { reached = r; });
+    const held = new Promise<void>((r) => { release = r; });
+    const put = b.snapshots.put;
+    b.snapshots.put = async (record) => { reached(); await held; await put(record); };
+    const importing = store.applyImport(backup);
+    await hit;
+    expect(await store.eraseEverything()).toEqual({ ok: false, error: 'busy' });
+    expect(b.storage.getItem(SAVE_KEY)).not.toBeNull();
+    release();
+    expect(await importing).toMatchObject({ ok: true });
+  });
   it('removes every namespaced key and every copy, preserves unrelated storage, and stays empty after pagehide and captured saves', async () => {
     const b = fakeBrowser();
     store.hydrate();

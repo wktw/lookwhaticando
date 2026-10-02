@@ -328,6 +328,20 @@ export const replacing = signal(false);
 /** A partial erase keeps all ordinary writes fenced until erasure is retried or the page reloads. */
 export const erasePending = signal(false);
 export const erasing = signal(false);
+let eraseDisk: string | null = null;
+
+/** A retry belongs only to the partially erased save. Newer or replaced data needs a new choice. */
+function refreshEraseAuthority(): boolean {
+  if (!erasePending.value) return true;
+  let raw: string | null;
+  try { raw = storage().getItem(SAVE_KEY); } catch { return false; }
+  const read = readSave(storage(), SAVE_KEY);
+  if (raw === eraseDisk && read.kind !== 'newer') return true;
+  erasePending.value = false;
+  adopt(read, 'use-here');
+  saveReplaced();
+  return false;
+}
 
 /** No persistent storage this session: changes live only in memory and go when catkin closes. */
 export const volatileStorage = signal(false);
@@ -436,6 +450,18 @@ function makeQueue(key: string, head: SaveHead): SaveQueue {
     now: rt.now,
     timers: rt.timers,
     volatile: rt.storage === null,
+    canWrite: () => {
+      if (erasePending.value || q !== queue) return false;
+      const disk = peekHead(storage(), key);
+      if (sameHead(disk, { gen: q.gen, rev: q.rev })) return true;
+      const read = readSave(storage(), key);
+      // A known damaged save may still need its replacement written. Ordinary saves, deletions
+      // and newer schemas must be adopted before any old frame/debounce callback can write.
+      if (read.kind === 'corrupt' || (read.kind === 'empty' && q.rev === 0)) return true;
+      retireQueue();
+      adopt(read, 'storage');
+      return false;
+    },
     compact: (s) =>
       transact(s, envAt(rt.now(), s), (tx) => {
         compactSave(tx);
@@ -563,8 +589,13 @@ function snapshotToday(): void {
   lastSnapshotDay = day;
   const keep = readUndoToken()?.id ?? null; // the copy an Undo still needs is never pruned (P-persistence-11)
   const epoch = opEpoch;
+  const head = currentHead();
   const task = takeDailySnapshot(snapshots(), s, { day, now: rt.now(), weekStart: s.settings.weekStart, appVersion: rt.appVersion, keep,
-    canWrite: () => epoch === opEpoch && ownsSave() && !demoMode.value,
+    canWrite: () => {
+      if (epoch !== opEpoch || !ownsSave() || demoMode.value) return false;
+      const disk = peekHead(storage(), SAVE_KEY);
+      return disk === null ? head.rev === 0 : disk.gen === head.gen;
+    },
   }).catch(() => { if (epoch === opEpoch) lastSnapshotDay = null; });
   dailyTasks.add(task);
   void task.finally(() => dailyTasks.delete(task));
@@ -807,7 +838,7 @@ function adopt(res: LoadResult, context: AdoptContext): void {
  * save (P-persistence-03).
  */
 function whenOwned(): void {
-  if (erasePending.value) return; // A retry takes ownership without reviving the partially erased save.
+  if (erasePending.value && refreshEraseAuthority()) return;
   const key = currentKey();
   if (!sameHead(peekHead(storage(), key), currentHead())) adopt(readSave(storage(), key), 'grant');
   if (!writable()) {
@@ -936,10 +967,10 @@ export function hydrate(): void {
   if (rt.listen) {
     unlisteners.push(
       rt.listen('window', 'storage', (e) => {
-        if (erasePending.value) { saveUpdated(); return; }
         // Another window wrote, replaced or removed the save (a null key: it cleared storage).
         const key = (e as StorageEvent).key;
         if (key !== null && key !== currentKey()) return;
+        if (erasePending.value) { saveUpdated(); return; }
         const k = currentKey();
         if (sameHead(peekHead(storage(), k), currentHead())) return;
         adopt(readSave(storage(), k), 'storage');
@@ -956,7 +987,7 @@ export function hydrate(): void {
  */
 export function useHere(): void {
   if (readOnly.value !== 'other-window') return;
-  if (erasePending.value) { acquireLock(true); return; }
+  if (erasePending.value && refreshEraseAuthority()) { acquireLock(true); return; }
   const res = readSave(storage(), currentKey());
   if (res.kind === 'newer') {
     adopt(res, 'use-here');
@@ -1509,8 +1540,9 @@ export function exportData(): string {
  * Always the user's own save ("Move my plants into the app" from the demo moves the real one).
  */
 export async function exportPayload(): Promise<string> {
+  const epoch = saveEpoch.peek();
   const payload = await backupPayload();
-  markBackup();
+  if (saveEpoch.peek() === epoch) markBackup();
   return payload;
 }
 /** The same compact payload, without marking a backup (mark it with `markBackup` once it was copied). */
@@ -1893,15 +1925,25 @@ export type EraseResult = { ok: true } | { ok: false; error: 'read-only' | 'busy
  */
 export async function eraseEverything(): Promise<EraseResult> {
   if (erasing.value || replacing.value) return { ok: false, error: 'busy' };
+  if (!refreshEraseAuthority()) return { ok: false, error: readOnly.value === 'newer-version' ? 'read-only' : 'superseded' };
   if (demoMode.value || readOnly.value === 'other-window' || readOnly.value === 'newer-version'
     || (ownership.value !== 'granted' && ownership.value !== 'unsupported')) return { ok: false, error: 'read-only' };
+  if (!erasePending.value) {
+    const latest = readSave(storage(), SAVE_KEY);
+    if (latest.kind === 'newer' || (latest.kind !== 'corrupt' && !sameHead(peekHead(storage(), SAVE_KEY), currentHead()))) {
+      retireQueue();
+      adopt(latest, 'storage');
+      return { ok: false, error: latest.kind === 'newer' ? 'read-only' : 'superseded' };
+    }
+  }
   erasing.value = true;
   erasePending.value = true;
   retireQueue();
   recoveryCopies = null;
   saveReplaced();
   const epoch = opEpoch;
-  const valid = () => epoch === opEpoch && (ownership.value === 'granted' || ownership.value === 'unsupported');
+  const valid = () => epoch === opEpoch && (ownership.value === 'granted' || ownership.value === 'unsupported')
+    && safeGet(storage(), SAVE_KEY) === eraseDisk;
   const failures: Array<'storage' | 'snapshots-blocked' | 'snapshots-unavailable'> = [];
   const adapter = storage();
   try {
@@ -1921,6 +1963,7 @@ export async function eraseEverything(): Promise<EraseResult> {
       }
       if (refused) failures.push('storage');
     } catch { failures.push('storage'); }
+    try { eraseDisk = adapter.getItem(SAVE_KEY); } catch { /* The storage failure is already reported. */ }
     await Promise.allSettled([...dailyTasks]);
     if (!valid()) return { ok: false, error: 'superseded' };
     try {

@@ -7,12 +7,34 @@ import * as store from '@/state/store';
 import { button, click, installDom, mount, until } from '@/features/capsules/testing';
 import { fakeBrowser } from './fixtures';
 import { toasts } from '@/ui/toast';
+import { SAVE_KEY } from '@/state/persist';
 
 beforeAll(() => { installDom(); window.matchMedia ??= (() => ({ matches: false, addEventListener() {}, removeEventListener() {} })) as unknown as typeof window.matchMedia; });
 let view: ReturnType<typeof mount> | undefined;
 afterEach(() => { view?.unmount(); toasts.value = []; });
 
 describe('the erase choice', () => {
+  it('lets the owner erase a damaged save held for lack of space, and retry a blocked copy deletion', async () => {
+    const damaged = JSON.stringify({ v: 1, appVersion: 'test', rev: 99, savedAt: 1, state: { version: 1, note: 'x'.repeat(20_000) } });
+    const b = fakeBrowser({ quotaChars: Math.ceil(damaged.length * 2.2) });
+    store.hydrate(); store.completeOnboarding({ name: 'Sam', templateIds: [] }); b.advance(1000);
+    b.storage.setItem(SAVE_KEY, damaged);
+    b.storage.setItem('other-site:cache', 'x'.repeat(Math.ceil(damaged.length * 0.8)));
+    b.fire('storage', { key: SAVE_KEY });
+    expect(store.readOnly.value).toBe('storage-full');
+    expect(store.ownsSave()).toBe(true);
+    expect(b.storage.getItem(SAVE_KEY)).toBe(damaged);
+    b.snapshots.erase = async () => ({ ok: false, error: 'blocked' });
+    view = mount(<DataSection />);
+    await click(button(DATA.startOver), 'Start over for full storage');
+    await click(await until(() => button(DATA_COPY.erase), 'the erase choice'), 'erase choice');
+    await click(await until(() => button(DATA_COPY.eraseButton), 'the irreversible confirmation'), 'erase');
+    await until(() => document.querySelector('[role="alert"]')?.textContent?.includes('Close other catkin windows'), 'the blocked explanation');
+    b.snapshots.erase = async () => { b.snapshots.records.clear(); return { ok: true }; };
+    await click([...document.querySelectorAll('[role="alertdialog"] [data-confirm]')].find((b) => b.textContent === DATA_COPY.eraseRetry) ?? null, 'retry');
+    await until(() => store.state.value.profile.onboarded === false, 'fresh state');
+    expect(b.storage.getItem(SAVE_KEY)).toBeNull();
+  });
   it('discloses retained daily copies in the first Start over dialog, with a backup and separate irreversible erase choice', async () => {
     fakeBrowser(); store.hydrate(); store.completeOnboarding({ name: 'Sam', templateIds: [] });
     view = mount(<DataSection />);
@@ -37,7 +59,7 @@ describe('the erase choice', () => {
     expect(toasts.value.some((t) => t.key === 'erased')).toBe(false);
     expect(store.state.value.profile.name).toBe('Sam');
     b.snapshots.erase = async () => { b.snapshots.records.clear(); return { ok: true }; };
-    await click(button(DATA_COPY.eraseRetry), 'retry');
+    await click([...document.querySelectorAll('[role="alertdialog"] [data-confirm]')].find((b) => b.textContent === DATA_COPY.eraseRetry) ?? null, 'retry');
     await until(() => store.state.value.profile.onboarded === false, 'fresh state');
   });
 

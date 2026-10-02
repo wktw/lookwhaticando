@@ -378,6 +378,8 @@ export interface SaveQueueOptions {
   gen?: string;
   /** The storage is memory only (no persistent storage): writes report 'volatile', never 'saved'. */
   volatile?: boolean;
+  /** Re-check the durable head immediately before writing; storage events may still be queued. */
+  canWrite?: () => boolean;
   /**
    * A write that succeeded only by taking the room of the text kept aside under `:corrupt` (a full
    * disk) hands that text here: it is no longer on disk, so the caller keeps it and says so (the
@@ -482,6 +484,7 @@ export class SaveQueue {
   writeNow(state: AppState, gen: string): FlushOutcome {
     if (this.disposed) return 'disposed';
     if (this.held) return 'held';
+    if (this.o.canWrite?.() === false) return 'disposed';
     const before = this.gen;
     this.gen = gen;
     const status = this.write(state);
@@ -529,6 +532,7 @@ export class SaveQueue {
     const state = this.pending;
     if (state === null) return null;
     if (this.held) return 'held';
+    if (this.o.canWrite?.() === false) return 'disposed';
     const status = this.write(state);
     if (status === 'saved' || status === 'volatile') {
       if (this.pending === state) this.pending = null;

@@ -120,7 +120,7 @@ export const FINAL_ARM_MS = 700;
  * first dialog's "Start over" was, and "Start over" (below it) only answers a tap that began
  * after it had been on screen for a moment. Two quick taps on the first dialog keep everything.
  */
-export function FinalStartOver({ open, onConfirm, onCancel }: { open: boolean; onConfirm: () => void; onCancel: () => void }) {
+export function FinalStartOver({ open, onConfirm, onCancel, minHeight = 0 }: { open: boolean; onConfirm: () => void; onCancel: () => void; minHeight?: number }) {
   const messageId = useId();
   const openedAt = useRef(0);
   const armedPress = useRef(false);
@@ -129,14 +129,14 @@ export function FinalStartOver({ open, onConfirm, onCancel }: { open: boolean; o
   const armed = () => openedAt.current > 0 && performance.now() - openedAt.current >= FINAL_ARM_MS;
   return (
     <Sheet open={open} onClose={onCancel} title={DATA_COPY.startOverAgainTitle} hideTitle describedBy={messageId} size="sm" role="alertdialog" showClose={false} initialFocus="[data-cancel]">
-      <div class={cs.content}>
+      <div class={cs.content} style={minHeight ? { minHeight } : undefined}>
         <p class={cs.title} aria-hidden="true">
           {DATA_COPY.startOverAgainTitle}
         </p>
         <p class={cs.message} id={messageId}>
           {DATA_COPY.startOverAgain}
         </p>
-        <div class={cs.actions}>
+        <div class={cs.actions} style={minHeight ? { marginTop: 'auto' } : undefined}>
           <Button variant="primary" size="lg" block onClick={onCancel} data-cancel>
             {DATA.keepEverything}
           </Button>
@@ -176,6 +176,8 @@ export function DataSection() {
   const [resetStep, setResetStep] = useState<0 | 1 | 2 | 3>(0);
   const [eraseResult, setEraseResult] = useState<EraseResult | null>(null);
   const eraseEpoch = useRef(0);
+  const firstMessage = useRef<HTMLSpanElement>(null);
+  const [resetHeight, setResetHeight] = useState(0);
   const [, bump] = useState(0);
   const inDemo = demoMode.value;
   const locked = saveLocked();
@@ -186,13 +188,17 @@ export function DataSection() {
 
   // No await before the copy starts: iPhone Safari only copies from inside the tap.
   const copyBackup = () => {
+    const epoch = saveEpoch.peek();
     const payload = backupPayload();
     void copyLater(payload).then(async (ok) => {
       if (ok) {
-        markBackup();
+        if (saveEpoch.peek() === epoch) markBackup();
         toast({ key: 'backup-copied', message: DATA.copied, tone: 'sage' });
       }
-      else setByHand(await payload);
+      else {
+        const text = await payload;
+        if (saveEpoch.peek() === epoch) setByHand(text);
+      }
     });
   };
 
@@ -281,8 +287,8 @@ export function DataSection() {
         />
       </div>
       <div class={s.card} style={{ marginTop: 'var(--s-3)' }}>
-        <ListRow leading="trash" leadingTone="peach" title={DATA.startOver} destructive chevron={false} disabled={locked || !!readOnly.value || busyReplacing || ownership.value === 'acquiring'} onClick={() => setResetStep(1)} />
-        {erasePending.value && <ListRow title={DATA_COPY.eraseRetry} destructive chevron={false} disabled={busyErasing || !!readOnly.value} onClick={() => setResetStep(3)} />}
+        <ListRow leading="trash" leadingTone="peach" title={DATA.startOver} destructive chevron={false} disabled={locked || busyReplacing || ownership.value === 'acquiring'} onClick={() => setResetStep(1)} />
+        {erasePending.value && <ListRow title={DATA_COPY.eraseRetry} destructive chevron={false} disabled={busyErasing || readOnly.value === 'other-window' || readOnly.value === 'newer-version'} onClick={() => setResetStep(3)} />}
       </div>
 
       <ImportSheet open={importing} onClose={() => setImporting(false)} onImported={() => bump((n) => n + 1)} />
@@ -291,18 +297,22 @@ export function DataSection() {
       <ConfirmDialog
         open={resetStep === 1}
         title={DATA.startOver}
-        message={<>
+        message={<span ref={firstMessage}>
           {DATA.startOverConfirm}
           <Button variant="secondary" block onClick={() => void saveBackupNow()}>{DATA_COPY.saveFirst}</Button>
           {!inDemo && <Button variant="danger" block onClick={() => { eraseEpoch.current = saveEpoch.value; setEraseResult(null); setResetStep(3); }}>{DATA_COPY.erase}</Button>}
-        </>}
+        </span>}
         confirmLabel={DATA.startOver}
         cancelLabel={DATA.keepEverything}
         tone="danger"
-        onConfirm={() => setResetStep(2)}
+        onConfirm={() => {
+          // Keep the first action's position: a quick second tap lands on Keep everything.
+          setResetHeight(firstMessage.current?.parentElement?.parentElement?.getBoundingClientRect().height ?? 0);
+          setResetStep(2);
+        }}
         onCancel={() => setResetStep(0)}
       />
-      <FinalStartOver open={resetStep === 2} onConfirm={startOver} onCancel={() => setResetStep(0)} />
+      <FinalStartOver open={resetStep === 2} minHeight={resetHeight} onConfirm={startOver} onCancel={() => setResetStep(0)} />
       <ConfirmDialog
         open={resetStep === 3}
         title={DATA_COPY.eraseTitle}

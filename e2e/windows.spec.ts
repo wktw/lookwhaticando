@@ -39,7 +39,7 @@ test('starting over in one window starts the other one fresh, with a calm note',
   const a = await context.newPage();
   const errorsA = watchErrors(a);
   await onboard(a);
-  expect(await savedHabits(a)).toContain('Walk');
+  await expect.poll(() => savedHabits(a)).toContain('Walk');
 
   // The second window opens read-only on the same save.
   const b = await context.newPage();
@@ -107,7 +107,7 @@ test('erasing in one window removes every copy, the other follows, and neither r
   await confirm.getByRole('button', { name: 'Erase everything', exact: true }).click();
   await expect(owner.locator('main h1')).toHaveText(ONBOARDING_H1);
   await expect(follower.locator('main h1')).toHaveText(ONBOARDING_H1);
-  await expect(follower.locator('[data-banner="started-over"]')).toHaveText(STARTED_OVER + 'Close');
+  await expect(follower.locator('[data-banner="started-over"]')).toHaveText(STARTED_OVER);
   await expect.poll(() => owner.evaluate(() => Object.keys(localStorage).filter((key) => key.startsWith('catkin:')))).toEqual([]);
   expect(await owner.evaluate(() => localStorage.getItem('unrelated-app'))).toBe('keep');
   expect(await owner.evaluate(async () => (await indexedDB.databases()).filter((db) => db.name === 'catkin'))).toEqual([]);
