@@ -71,6 +71,8 @@
 /* ── Pets ─────────────────────────────────────────────────────────────────────── */
 
 .actor {
+  /* The painted canvas must not intercept another pet's real control. */
+  pointer-events: none;
   position: absolute;
   left: 0;
   top: 0;
@@ -225,6 +227,11 @@
   position: relative;
   width: 100%;
   height: 100%;
+}
+
+.petHit,
+button.nameTag {
+  pointer-events: auto;
 }
 
 .petHit {
