@@ -29,7 +29,7 @@ The separately reviewed shared “Safety copy” label is carried from WP-D4 wit
 its stored kind. Its pending wording is retained alongside the other draft sections.
 The final consolidated wording ledger must also retain A9/B8/C6 and later package rows.
 
-This is source preparation and focused validation. Ordered track and main full checks,
+The full track check is now complete as recorded below. Ordered main verification,
 backup and GitHub checks remain required before final acceptance.
 
 The first full track run at `58747df` stopped in units with two stale A9 UI expectations
@@ -41,4 +41,15 @@ five cases afterward. Root approved test quality; the independent runtime review
 34 erase UI/state/race/schema/IndexedDB/backup controls and killed both generic-error and
 ignored-retry mutations, then restored all five UI controls. No application change was
 needed. The original red log remains `/workspace/name-integration-check.log`; the complete
-track check must restart after this twice-reviewed fixture correction (`334ecab`).
+track check restarted after this twice-reviewed fixture correction (`334ecab`).
+
+Full track verification passed on 2 October 2026 at clean source
+`9726c0948b562f794e3fe8a3fe944b146ec17cb7`. The exact command was
+`CI=1 PLAYWRIGHT_BROWSERS_PATH=/workspace/pw-browsers TZ=UTC npm run check`;
+actual session 6247 exit 0 and the complete log were read. All 3,747 unit tests passed,
+with one generated-art test skipped; both builds passed, first-paint JavaScript was
+136.1 KB gzip, and 359 browser tests passed with 56 intentional project skips in
+14.4 minutes. There were no failures, retries or flaky cases. The skip set is unchanged
+from WP-D4, including the offline-licences case that runs in the service-worker project.
+Log: `/workspace/name-integration-check-retry1.log`. This final checkpoint changes only
+this evidence documentation; main verification and backup remain separate.
