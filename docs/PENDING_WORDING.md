@@ -108,7 +108,7 @@ The legal notices themselves are verbatim upstream licence documents, generated 
 
 | Context | Exact draft |
 |---|---|
-| Waiting tag | “There aren’t enough clear check-in times to read this plant’s colour yet.” |
+| Waiting tag | “There aren’t enough clear watering times to read this plant’s colour yet.” |
 | Why a read can wait | “Sparse routines, late nights and habits watered together can leave the time uncertain.” |
 | Before choice is available | “After 10 waterings that count towards your habit, you can choose a colour here.” |
 | Open chooser / title | “Choose a colour” |
@@ -116,7 +116,9 @@ The legal notices themselves are verbatim upstream licence documents, generated 
 | Confirm | “Keep this colour” |
 | Explicit-choice tag | “{look}: a colour you chose.” |
 | Explicit-choice option | “{look} · chosen” |
-| Foliage disclosure | “This plant has no petals to colour. Your choice stays on its tag; its leaves keep their own colour.” |
+| Foliage disclosure | “This plant has no petals to colour. Your choice stays on its tag; the leaves stay the same.” |
 | Confirmation announcement | “Colour kept.” |
+| Uncertain Garden Journal time | “Your usual time is still uncertain.” |
+| Garden Journal awaiting a look | “Your plant tag will explain its look when one is ready.” |
 
 The existing colour names and “Not now” are reused. No claim about watering time is attached to an explicit choice.

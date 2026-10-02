@@ -47,7 +47,8 @@ describe('a deliberate alternative to an uncertain time read', () => {
     const { g, id } = monthly(9);
     expect(view(g, id).looks.waiting).not.toBeNull();
     expect(view(g, id).looks.choice).toBe(false);
-    for (let day = 2; day <= 14; day++) { g.goTo(`2024-09-${String(day).padStart(2, '0')}`); g.checkIn(id); }
+    g.goTo('2024-09-14');
+    for (let day = 2; day < 14; day++) g.checkIn(id, `2024-09-${String(day).padStart(2, '0')}`);
     expect(view(g, id).looks.choice).toBe(false);
     expect(g.run((tx) => signature.confirmPlantLook(tx, id, 'dawn'))).toBe(false);
     g.goTo('2024-10-01'); g.checkIn(id);
@@ -102,8 +103,40 @@ describe('a deliberate alternative to an uncertain time read', () => {
   });
 
   it.each([{ colour: 'moonlight' }, { shape: 'giant' }, { on: 'never' }, { shown: 'yes' }, { partnerId: 7 }])('rejects malformed explicit provenance %j', (bad) => {
-    const { g, id } = monthly(10);
+    const { g, id } = monthly(9);
+    g.goTo('2024-10-01');
     g.state = { ...g.state, plantLooks: { [id]: { looks: [], shown: null, reads: {}, chosen: true, confirmed: { colour: 'dawn', shape: 'classic', on: g.today, shown: true, ...bad } } } } as typeof g.state;
     expect(validateState(g.state).ok).toBe(false);
+  });
+
+  it('does not count pauses, days off or an empty future lifetime as completed occurrences', () => {
+    const { g, id } = monthly(9);
+    g.goTo('2024-10-01');
+    const habit = g.state.habits[0]!;
+    const altered = [
+      { ...g.state, habits: [{ ...habit, pauses: [{ start: '2024-10-01', end: '2024-10-31' }] }] },
+      { ...g.state, offDays: { '2024-10-01': true as const } },
+      { ...g.state, habits: [{ ...habit, archivedOn: habit.startedOn, unstarted: true as const }] },
+    ];
+    for (const state of altered) expect(signature.lookChoiceOffer(state, state.habits[0]!, g.today)).toBe(false);
+    expect(signature.lookChoiceOffer(g.state, habit, g.today)).toBe(false);
+    expect(g.run((tx) => signature.confirmPlantLook(tx, id, 'moonlight' as never))).toBe(false);
+  });
+
+  it('keeps a confirmed option and the later choice of Classic through both natural Blooming and Evergreen reads', () => {
+    const g = new Game({ start: '2026-01-01' });
+    const id = g.addHabit({ plant: 'begonia' });
+    for (let i = 0; i < 50; i++) { g.goTo(addDays('2026-01-01', i), 23, 30); g.checkIn(id); }
+    expect(g.run((tx) => signature.confirmPlantLook(tx, id, 'twilight'))).toBe(true);
+    for (let i = 50; i < 61; i++) { g.goTo(addDays('2026-01-01', i), 7); g.checkIn(id); }
+    const bloom = structuredClone(g.state.plantLooks![id]!.looks[0]);
+    expect(bloom).toMatchObject({ colour: 'dawn', read: 'bloom' });
+    expect(lookArtOf(g.state, id)).toMatchObject({ colour: 'twilight' });
+    g.run((tx) => signature.setPlantLook(tx, id, null));
+    for (let i = 61; i < 185; i++) { g.goTo(addDays('2026-01-01', i), 19); g.checkIn(id); }
+    expect(g.state.plantLooks![id]!.reads.evergreen).toBeDefined();
+    expect(g.state.plantLooks![id]!.looks[0]).toEqual(bloom);
+    expect(g.state.plantLooks![id]!.confirmed).toMatchObject({ colour: 'twilight', shown: false });
+    expect(lookArtOf(g.state, id)).toBeUndefined();
   });
 });

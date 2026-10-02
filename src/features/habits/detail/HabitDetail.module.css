@@ -230,6 +230,26 @@
   height: 44px;
 }
 
+.colourChoices {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s-2);
+  margin-top: var(--s-3);
+}
+
+.colourChoices .look {
+  flex-direction: column;
+  padding: 4px 8px 10px;
+  border-radius: var(--r-md);
+}
+
+.choiceArt {
+  display: block;
+  width: 64px;
+  height: 64px;
+  flex-shrink: 0;
+}
+
 /* ---------- offers and nudges ---------- */
 .offer {
   margin-top: var(--s-4);

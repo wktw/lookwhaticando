@@ -23,7 +23,7 @@ function setup(plant: 'begonia' | 'snakeplant' | 'pothos' | 'pilea' | 'catgrass'
 describe('the waiting plant tag and deliberate colour choice', () => {
   it('explains uncertainty before the tenth completed occurrence without promising that any next tap supplies a time', () => {
     setup('begonia', 9);
-    expect(view!.root.textContent).toContain('There aren’t enough clear check-in times');
+    expect(view!.root.textContent).toContain('There aren’t enough clear watering times');
     expect(view!.root.textContent).toContain('After 10 waterings that count towards your habit');
     expect(button('Choose a colour')).toBeNull();
   });
@@ -52,9 +52,10 @@ describe('the waiting plant tag and deliberate colour choice', () => {
     expect(view!.root.textContent).toContain('This plant has no petals to colour');
     await click(button('Choose a colour'), 'open chooser');
     const sheet = await until(() => document.querySelector('[role="dialog"]'), 'dialog');
+    expect(sheet.querySelectorAll('[role="radio"]')).toHaveLength(4);
     for (const radio of sheet.querySelectorAll<HTMLButtonElement>('[role="radio"]')) {
       await click(radio, 'colour');
-      expect(sheet.textContent).toContain('its leaves keep their own colour');
+      expect(sheet.textContent).toContain('the leaves stay the same');
     }
     await click(button('Not now'), 'decline choice');
     expect(state.value.plantLooks).toBeUndefined();
