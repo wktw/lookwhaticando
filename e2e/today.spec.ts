@@ -379,3 +379,32 @@ test('the count pad keeps Undo and Add a note reachable by keyboard through nest
   await page.keyboard.press('Escape');
   await expect(pad).toBeHidden();
 });
+
+test.describe('Today · watering truth (WP-D1)', () => {
+  test.use({ contextOptions: { reducedMotion: 'no-preference' } });
+  test('a normal-motion watering and Undo leave the soil dry', async ({ page }) => {
+    const at = new Date('2026-10-02T12:00:00Z').getTime();
+    await page.clock.setFixedTime(at);
+    const state = buildDemo({ today: '2026-10-02', now: at });
+    state.settings.reduceMotion = 'off';
+    const habit = state.habits.find((h) => h.name === 'Go for a walk')!;
+    delete state.logs[habit.id]?.['2026-10-02'];
+    const raw = encodeEnvelope(state, 1, at, 'e2e');
+    await page.addInitScript((save) => localStorage.setItem('catkin:v1', save), raw);
+    await page.goto('./#/today');
+    const ring = page.getByRole('article', { name: 'Go for a walk', exact: true }).getByRole('button', { name: 'Go for a walk', exact: true });
+    await expect(ring).toHaveAttribute('aria-pressed', 'false');
+    const soil = page.getByRole('group', { name: 'Today’s plants', exact: true }).locator(`[data-habit="${habit.id}"] .plant-soil`);
+    await expect(soil).toBeAttached();
+    const dry = await soil.getAttribute('fill');
+    await ring.click();
+    await expect(ring).toHaveAttribute('aria-pressed', 'true');
+    await expect(soil).not.toHaveAttribute('fill', dry!);
+    await page.getByRole('button', { name: 'Undo', exact: true }).first().click();
+    await expect(ring).toHaveAttribute('aria-pressed', 'false');
+    await expect(soil).toHaveAttribute('fill', dry!);
+    // The whole pour has ended: no deferred callback may darken it again.
+    await page.waitForTimeout(1200);
+    await expect(soil).toHaveAttribute('fill', dry!);
+  });
+});

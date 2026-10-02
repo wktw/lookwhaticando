@@ -38,8 +38,7 @@ export interface SillSegmentProps {
   uid: string;
   tags?: boolean;
   animated?: boolean;
-  /** Per-habit overrides from the Today band (a pour darkens the soil and bumps the pulse). */
-  damp?: ReadonlySet<string>;
+  /** Per-habit animation pulses from the Today band. Soil comes from the pot's saved state. */
   pulses?: Readonly<Record<string, number>>;
   potRef?: (habitId: string, el: HTMLDivElement | null) => void;
   jarRef?: (el: HTMLDivElement | null) => void;
@@ -67,7 +66,7 @@ export function cuttingPath(world: SillWorld, from: Pt): Pt[] {
   return [from, [jl, from[1] - 3], [jl, 2], [jr, 2], [jr, rows.sillBack - 2]];
 }
 
-export function SillSegment({ world, room, view, light, pots, coins, uid, tags, animated, damp, pulses, potRef, jarRef, potClass, tagFor, pinned, moonX, extras, edit, children }: SillSegmentProps) {
+export function SillSegment({ world, room, view, light, pots, coins, uid, tags, animated, pulses, potRef, jarRef, potClass, tagFor, pinned, moonX, extras, edit, children }: SillSegmentProps) {
   const { layout, beam, casts, cast, decor } = world;
   const { rows, scale } = layout.spec;
   const jar = layout.jar;
@@ -116,8 +115,7 @@ export function SillSegment({ world, room, view, light, pots, coins, uid, tags, 
             light={light}
             tag={tags || tagFor === pot.habitId}
             animated={animated}
-            damp={damp?.has(pot.habitId) || undefined}
-            pulse={pulses?.[pot.habitId]}
+            pulse={pulses ? pulses[pot.habitId] ?? 0 : undefined}
             slotRef={potRef ? (el) => potRef(pot.habitId, el) : undefined}
             class={potClass}
           />

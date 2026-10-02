@@ -10,7 +10,7 @@
  */
 import { Fragment, type JSX, type Ref } from 'preact';
 import { forwardRef } from 'preact/compat';
-import { useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'preact/hooks';
+import { useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { effect, signal, type ReadonlySignal } from '@preact/signals';
 import type { Hemisphere } from '@/art/light';
 import { prefersReducedMotion } from '@/fx/motion';
@@ -144,21 +144,44 @@ export const WindowsillBand = forwardRef(function WindowsillBand(props: Windowsi
     return effect(() => applyCollapse(band.current, collapse.value, chipInset));
   }, [collapse, chipInset]);
 
-  // Choreography state: pours in flight, soil watered, plant pulses, a coin, passing looks.
+  // Choreography state: pours in flight, plant pulses, a coin, passing looks.
+  // Soil is read only from the pot's current watering state, including Undo and a new day.
   const [pours, setPours] = useState<Pour[]>([]);
-  const [damp, setDamp] = useState<ReadonlySet<string>>(() => new Set());
   const [pulses, setPulses] = useState<Record<string, number>>({});
   const [coin, setCoin] = useState({ n: 0, still: false });
   const [looks, setLooks] = useState<Record<string, ActorView['expression']>>({});
   const jar = useRef<HTMLDivElement>(null);
-  const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
-  useEffect(() => () => timers.current.forEach(clearTimeout), []);
+  const timers = useRef(new Set<ReturnType<typeof setTimeout>>());
+  const pendingWater = useRef(new Map<ReturnType<typeof setTimeout>, string>());
+  const currentPots = useRef(pots);
+  currentPots.current = pots;
+  useEffect(() => () => {
+    timers.current.forEach(clearTimeout);
+    timers.current.clear();
+    pendingWater.current.clear();
+  }, []);
   const later = useCallback((fn: () => void, ms: number) => {
-    timers.current.push(setTimeout(fn, ms));
+    const timer = setTimeout(() => {
+      timers.current.delete(timer);
+      pendingWater.current.delete(timer);
+      fn();
+    }, ms);
+    timers.current.add(timer);
+    return timer;
   }, []);
 
+  // Cancel the lift belonging to an undone or departed watering. A later re-check gets its
+  // own timer; the earlier pour must not lift that newer occurrence before its water arrives.
+  useLayoutEffect(() => {
+    for (const [timer, id] of pendingWater.current) {
+      if (pots.some((p) => p.habitId === id && p.damp)) continue;
+      clearTimeout(timer);
+      timers.current.delete(timer);
+      pendingWater.current.delete(timer);
+    }
+  }, [pots]);
+
   const water = useCallback((habitId: string) => {
-    setDamp((d) => new Set(d).add(habitId));
     setPulses((p) => ({ ...p, [habitId]: (p[habitId] ?? 0) + 1 }));
   }, []);
 
@@ -174,7 +197,10 @@ export const WindowsillBand = forwardRef(function WindowsillBand(props: Windowsi
         // Onto the soil just inside the rim, on the side away from the resident.
         const side = at.tagSide === 'left' ? -1 : 1;
         setPours((list) => [...list, { id, x: at.x + side * at.metrics.mouth.hw * 0.5 * (size / 100), y: soil }]);
-        later(() => water(habitId), SOIL_AT_MS);
+        const timer = later(() => {
+          if (currentPots.current.some((p) => p.habitId === habitId && p.damp)) water(habitId);
+        }, SOIL_AT_MS);
+        pendingWater.current.set(timer, habitId);
         later(() => setPours((list) => list.filter((p) => p.id !== id)), POUR_MS + 400);
       },
       coinToJar() {
@@ -228,7 +254,7 @@ export const WindowsillBand = forwardRef(function WindowsillBand(props: Windowsi
         <div class={b.follow} style={{ ...sceneTokens(room.tokens), background: room.wall }}>
           <div ref={sceneRef} class={[s.scene, b.scroll, room.night ? s.night : ''].filter(Boolean).join(' ')} style={{ right: u(E.width), background: room.wall }} data-time={moment.time} tabIndex={0} role="group" aria-label="Today’s plants" onKeyDown={onScrollKey}>
             <div class={s.track} style={{ width: u(world.layout.width) }}>
-              <SillSegment world={world} room={room} view={view} light={light} pots={pots} coins={coins} uid={uid} animated damp={damp} pulses={pulses} potClass={b.snap} pinned moonX={bandMoonX(widthU)} tags={props.tags} tagFor={props.tagFor}>
+              <SillSegment world={world} room={room} view={view} light={light} pots={pots} coins={coins} uid={uid} animated pulses={pulses} potClass={b.snap} pinned moonX={bandMoonX(widthU)} tags={props.tags} tagFor={props.tagFor}>
                 <PetLayer pets={residents} views={views} size={BAND_SPEC.scale.pet} light={light} animated expressions={looks} />
                 {pours.map((p) => (
                   <Fragment key={p.id}>
