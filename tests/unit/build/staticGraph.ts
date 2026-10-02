@@ -41,7 +41,9 @@ export function staticGraph(entry = 'src/main.tsx', root = ROOT): Map<string, st
       queue.push(dep);
     }
   }
-  return new Map([...seen].map(([f, chain]) => [relative(root, f), chain.map((c) => relative(root, c))]));
+  // Filesystem paths are native; graph names and diagnostic chains use portable repository-relative paths.
+  const portable = (file: string) => relative(root, file).replaceAll('\\', '/');
+  return new Map([...seen].map(([f, chain]) => [portable(f), chain.map(portable)]));
 }
 
 /** For each of `files` the graph reaches, the chain that reaches it ("a → b → c"). */
