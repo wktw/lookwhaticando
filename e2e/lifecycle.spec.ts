@@ -166,7 +166,15 @@ test.describe('a shell recovery chunk that cannot load', () => {
       await expect(error).toBeVisible();
       blocked = false;
       await error.getByRole('button', { name: 'Try again', exact: true }).click();
-      await expect(page.getByRole('dialog', { name: 'Daily copies', exact: true })).toBeVisible();
+      const recovered = page.getByRole('dialog', { name: 'Daily copies', exact: true });
+      await expect(recovered).toBeVisible();
+      // These styles belong to the lazily delivered You module, not just the shell's modal CSS.
+      const helper = recovered.locator('[class*="_helper_"]').first();
+      await expect(helper).toHaveCSS('font-size', '14px');
+      await expect(recovered).toHaveCSS('display', 'flex');
+      await expect(page.locator('link[rel="modulepreload"]')).toHaveCount(0);
+      await page.keyboard.press('Escape');
+      await expect(recovered).toBeHidden();
     } finally { await origin.close(); }
   });
 });
