@@ -5,10 +5,11 @@
   "description": "Little by Little: a habit tracker where your habits grow houseplants, and the plants become a home for small real animals.",
   "type": "module",
   "scripts": {
-    "dev": "vite --host",
+    "dev": "vite",
+    "dev:lan": "vite --host",
     "build": "vite build",
     "build:single": "vite build --mode single && node -e \"require('node:fs').renameSync('dist-single/index.html','dist-single/catkin.html')\"",
-    "preview": "vite preview --host",
+    "preview": "vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p e2e/tsconfig.json",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -37,7 +38,7 @@
     "vite": "^7.3.6",
     "vite-plugin-pwa": "^1.3.0",
     "vite-plugin-singlefile": "^2.3.3",
-    "vitest": "^3.2.7",
+    "vitest": "4.1.11",
     "workbox-window": "^7.4.1"
   }
 }
