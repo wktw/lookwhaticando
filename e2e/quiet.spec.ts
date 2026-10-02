@@ -111,6 +111,40 @@ test('the quiet audit preserves genuine steady-state contrast failures and clean
   expect(await page.locator('[data-toast-id]').evaluate(el => getComputedStyle(el).color)).toBe('rgb(170, 170, 170)');
 });
 
+test('the quiet audit retains a genuinely low base opacity and reports its contrast', async ({ page }, info) => {
+  await toastAuditFixture(page);
+  await page.locator('[data-toast-id]').evaluate(el => { (el as HTMLElement).style.opacity = '.3'; });
+  await expect(withSteadyToastPresentation(page, async () => {
+    expect(await page.locator('[data-toast-id]').evaluate(el => getComputedStyle(el).opacity)).toBe('0.3');
+    await expectNoAxeViolations(page, info);
+  })).rejects.toThrow('color-contrast');
+  expect(await page.locator('[data-toast-id]').evaluate(el => (el as HTMLElement).style.opacity)).toBe('0.3');
+  expect(await page.locator('[data-toast-id]').evaluate(el => getComputedStyle(el).animationName)).toBe('note-entry');
+});
+
+test('the quiet audit cleans up after a thrown scan while cards are canceled and replaced', async ({ page }) => {
+  await toastAuditFixture(page);
+  const stylesBefore = await page.locator('style').count();
+  await page.evaluate(() => {
+    (window as unknown as { oldToastAnimations: Animation[] }).oldToastAnimations = document.querySelector('[data-toast-id]')!.getAnimations({ subtree: true });
+  });
+  await expect(withSteadyToastPresentation(page, async () => {
+    const replacement = await page.evaluate(() => {
+      for (const animation of (window as unknown as { oldToastAnimations: Animation[] }).oldToastAnimations) animation.cancel();
+      const old = document.querySelector<HTMLElement>('[data-toast-id]')!;
+      const next = old.cloneNode(true) as HTMLElement;
+      next.dataset.toastId = 'replacement'; old.replaceWith(next);
+      return { id: next.dataset.toastId, opacity: getComputedStyle(next).opacity, textOpacity: getComputedStyle(next.querySelector('div')!).opacity };
+    });
+    expect(replacement).toEqual({ id: 'replacement', opacity: '1', textOpacity: '1' });
+    throw new Error('Deliberate interrupted audit');
+  })).rejects.toThrow('Deliberate interrupted audit');
+  await expect(page.locator('[data-toast-id]')).toHaveCount(1);
+  await expect(page.getByRole('button', { name: 'Undo' })).toHaveCount(1);
+  await expect(page.locator('style')).toHaveCount(stylesBefore);
+  expect(await page.locator('[data-toast-id]').evaluate(el => getComputedStyle(el).animationName)).toBe('note-entry');
+});
+
 test('quiet daily journey: water, Undo, note, history correction, detail, rest and review', async ({ page }, info) => {
   const errors = watchErrors(page);
   const seed = await boot(page);
