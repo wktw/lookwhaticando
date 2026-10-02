@@ -3,6 +3,8 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite
 import { act } from 'preact/test-utils';
 import { useState } from 'preact/hooks';
 import { Sheet } from '@/ui/Sheet';
+import { pushLayer, removeLayer } from '@/ui/sheetStack';
+import { Calendar } from '@/features/progress/Calendar';
 import { Moments } from '@/features/habits/detail/Parts';
 import { selectHabitDetail } from '@/state/selectors';
 import { readOnly, state } from '@/state/store';
@@ -111,5 +113,26 @@ describe('old note removal inside the persistent Habit Detail sheet', () => {
     tick(320);
     expect(heading()).toBeNull();
     expect(document.activeElement).toBe(chosen);
+  });
+
+  it('keeps a root Calendar return behind a newer modal without a notes slot', () => {
+    view!.unmount();
+    view = mount(<Calendar habitId={null} month="2025-09" />);
+    click(document.querySelector<HTMLButtonElement>(`[data-date="${DAY}"]`));
+    removeNote();
+    // Full-screen moment layers can deliberately omit a notes slot. They still own focus.
+    const priorTabIndex = document.body.getAttribute('tabindex');
+    pushLayer('root-review-moment');
+    document.body.tabIndex = -1;
+    document.body.focus();
+    try {
+      tick(320);
+      expect(document.querySelector('textarea, [role="alertdialog"]')).toBeNull();
+      expect(document.activeElement).toBe(document.body);
+    } finally {
+      removeLayer('root-review-moment');
+      if (priorTabIndex === null) document.body.removeAttribute('tabindex');
+      else document.body.setAttribute('tabindex', priorTabIndex);
+    }
   });
 });
