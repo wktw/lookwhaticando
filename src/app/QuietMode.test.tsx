@@ -132,6 +132,10 @@ describe('complete quiet mode (WP-D3)', () => {
     else { view.unmount(); view = null; }
     await act(async () => { await vi.advanceTimersByTimeAsync(1800); });
     expect(announce.mock.calls.map(([line]) => line).join(' ')).not.toMatch(/capsule/i);
+    if (after === 'quiet') {
+      expect.soft(Array.from(document.querySelectorAll('[aria-live]')).map((node) => node.textContent).join(' ')).not.toMatch(/coins?|capsule/i);
+      expect.soft(toasts.value.map((item) => item.label ?? item.message).join(' ')).not.toMatch(/coins?|capsule/i);
+    }
   });
 
   it('keeps history correction helper and success toast quiet', async () => {
