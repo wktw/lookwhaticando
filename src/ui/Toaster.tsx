@@ -124,6 +124,7 @@ function ToastCard({ item, hidden, owned }: { item: ToastItem; hidden: boolean; 
   useEffect(() => () => void endDrag(), []);
 
   const onPointerDown = (e: PointerEvent) => {
+    if (item.leaving) { e.preventDefault(); return; }
     if ((e.target as HTMLElement).closest('button')) return;
     endDrag();
     drag.current = { y: e.clientY, id: e.pointerId };

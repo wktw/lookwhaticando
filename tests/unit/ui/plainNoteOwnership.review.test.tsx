@@ -13,6 +13,8 @@ const tick = (ms: number) => act(() => { vi.advanceTimersByTime(ms); });
 const card = () => document.querySelector<HTMLElement>('[data-toast-id]')!;
 beforeEach(() => {
   vi.useFakeTimers();
+  // Expose native pointer properties so Preact subscribes with the browser event names.
+  for (const name of ['onpointerdown', 'onpointercancel']) Object.defineProperty(HTMLElement.prototype, name, { configurable: true, value: null });
   window.scrollTo = () => undefined;
   document.body.innerHTML = '<div id="app"></div>';
   host = document.getElementById('app')!;
