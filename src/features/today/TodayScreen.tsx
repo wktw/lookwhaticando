@@ -418,6 +418,7 @@ export function TodayScreen() {
         card={padCard}
         date={pad?.date ?? t}
         past={pad !== null && pad.date < t}
+        onAddNote={(c) => pad && stage.addNote(c.id, pad.date)}
         onCount={(c, n) => pad && countTo(c, pad.date, n, padRing(c.id), padStage)}
         onTiny={(c) => {
           if (!pad) return;

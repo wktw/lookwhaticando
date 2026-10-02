@@ -145,3 +145,12 @@
     opacity: 0;
   }
 }
+
+.anchor[data-owned] {
+  position: relative;
+  top: auto;
+  left: auto;
+  width: auto;
+  margin: 0 16px 12px;
+  transform: none;
+}
