@@ -44,6 +44,57 @@ async function assertQuiet(page: Page) {
   expect(text).not.toMatch(/\bcoins?\b|capsules?/i);
 }
 
+/** Scope this stable-state audit to toast cards and their text, never the app's ordinary motion. */
+async function withSteadyToastPresentation(page: Page, audit: () => Promise<void>) {
+  await audit();
+}
+
+async function toastAuditFixture(page: Page) {
+  await page.setContent(`<!doctype html><html lang="en"><head><title>Notes accessibility control</title><style>
+    body { background: #fffdf9; color: #3b3236; font: 16px sans-serif; }
+    [data-toast-id] { background: #fffdf9; animation: note-entry 280ms linear both; }
+    [data-toast-id] > div { animation: text-refresh 260ms linear both; }
+    @keyframes note-entry { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+    @keyframes text-refresh { from { opacity: .55; } to { opacity: 1; } }
+    @keyframes art-turn { to { transform: rotate(360deg); } }
+    [data-note-art] { display: inline-block; animation: art-turn 1s linear infinite; }
+  </style></head><body><main><h1>Notes</h1>
+    <div data-toast-id="retained"><span data-note-art aria-hidden="true">*</span><div><p>A retained note.</p></div><button>Undo</button></div>
+  </main></body></html>`);
+  await page.evaluate(() => {
+    for (const animation of document.querySelector('[data-toast-id]')!.getAnimations({ subtree: true })) {
+      if (!Number.isFinite(animation.effect!.getComputedTiming().endTime)) continue;
+      animation.pause(); animation.currentTime = 40;
+    }
+  });
+}
+
+test('the quiet audit retains current and immediately arriving notes without muting their art', async ({ page }, info) => {
+  await toastAuditFixture(page);
+  await withSteadyToastPresentation(page, async () => {
+    // Insert during the scan and sample synchronously, before animationstart could be delivered.
+    const present = await page.evaluate(() => {
+      const first = document.querySelector<HTMLElement>('[data-toast-id]')!;
+      const late = first.cloneNode(true) as HTMLElement; late.dataset.toastId = 'late'; first.after(late);
+      return [...document.querySelectorAll<HTMLElement>('[data-toast-id]')].map(el => ({ id: el.dataset.toastId, opacity: getComputedStyle(el).opacity, textOpacity: getComputedStyle(el.querySelector('div')!).opacity }));
+    });
+    expect(present).toEqual([{ id: 'retained', opacity: '1', textOpacity: '1' }, { id: 'late', opacity: '1', textOpacity: '1' }]);
+    await expect(page.getByRole('button', { name: 'Undo' })).toHaveCount(2);
+    expect(await page.locator('[data-note-art]').first().evaluate(el => el.getAnimations().some(a => a.playState === 'running' && !Number.isFinite(a.effect!.getComputedTiming().endTime)))).toBe(true);
+    await expectNoAxeViolations(page, info);
+  });
+  await expect(page.locator('[data-toast-id]')).toHaveCount(2);
+  expect(await page.locator('[data-toast-id]').first().evaluate(el => getComputedStyle(el).animationName)).toBe('note-entry');
+});
+
+test('the quiet audit preserves genuine steady-state contrast failures and cleans up on failure', async ({ page }, info) => {
+  await toastAuditFixture(page);
+  await page.addStyleTag({ content: '[data-toast-id] { color: #aaa; }' });
+  await expect(withSteadyToastPresentation(page, () => expectNoAxeViolations(page, info))).rejects.toThrow('color-contrast');
+  expect(await page.locator('[data-toast-id]').evaluate(el => getComputedStyle(el).animationName)).toBe('note-entry');
+  expect(await page.locator('[data-toast-id]').evaluate(el => getComputedStyle(el).color)).toBe('rgb(170, 170, 170)');
+});
+
 test('quiet daily journey: water, Undo, note, history correction, detail, rest and review', async ({ page }, info) => {
   const errors = watchErrors(page);
   const seed = await boot(page);
@@ -101,7 +152,7 @@ test('quiet daily journey: water, Undo, note, history correction, detail, rest a
   await expect(correction).toBeHidden();
   await expect(page.getByText('Walked a little farther.', { exact: true })).toBeVisible();
   await assertQuiet(page);
-  await expectNoAxeViolations(page, info);
+  await withSteadyToastPresentation(page, () => expectNoAxeViolations(page, info));
   expect(await page.evaluate(() => (window as unknown as { quietLeaks: string[] }).quietLeaks)).toEqual([]);
   await page.reload();
   const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('catkin:v1')!).state);
