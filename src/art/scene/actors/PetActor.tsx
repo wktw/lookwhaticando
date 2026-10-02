@@ -90,6 +90,9 @@ const LONGER = 1.35;
 /** How high a carried pet is lifted, as a share of its canvas. */
 const LIFT = 0.36;
 
+/** An open name tag clears ordinary scene art; decor editing and carried pets stay above it. */
+const TAG_Z = 3000;
+
 const CAT_SCALE = RIGS.cat!.scale;
 
 /**
@@ -179,7 +182,7 @@ export function PetActor({ id, petId, species, view, size: baseSize, light, outf
       style={{
         width: u(size),
         height: u(size),
-        zIndex: carry ? 5000 : view.z,
+        zIndex: carry ? 5000 : touch?.tagOpen ? TAG_Z : view.z,
         transform: moveTo(view.x, view.y, size, PET_BASELINE, scale),
         transformOrigin: `50% ${PET_BASELINE}%`,
         transitionDuration: view.move ? `${Math.round(view.move)}ms` : undefined,

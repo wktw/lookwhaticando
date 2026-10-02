@@ -39,7 +39,11 @@ export interface SnapshotStore {
   get(id: string): Promise<SnapshotRecord | null>;
   put(record: SnapshotRecord): Promise<void>;
   remove(id: string): Promise<void>;
+  /** Deletes the whole store, including data unknown to this build. Missing adapters refuse. */
+  erase?(): Promise<EraseSnapshotsResult>;
 }
+
+export type EraseSnapshotsResult = { ok: true } | { ok: false; error: 'blocked' | 'unavailable' };
 
 export const KEEP = { daily: 7, weekly: 4, 'pre-import': 3 } as const;
 
@@ -76,17 +80,22 @@ export function retentionPlan(metas: readonly SnapshotMeta[], keep: string | nul
 export async function takeDailySnapshot(
   store: SnapshotStore,
   state: AppState,
-  opts: { day: DateKey; now: number; weekStart: WeekStart; appVersion: string; keep?: string | null },
+  opts: { day: DateKey; now: number; weekStart: WeekStart; appVersion: string; keep?: string | null; canWrite?: () => boolean },
 ): Promise<boolean> {
-  if (!decodesAsSave(state)) return false;
+  if (opts.canWrite?.() === false || !decodesAsSave(state)) return false;
   const daily = `daily-${opts.day}`;
   await store.put({ ...snapshotMeta(state, 'daily', daily, opts.day, opts.now, opts.appVersion), state });
+  if (opts.canWrite?.() === false) return false;
   const weekly = `weekly-${startOfWeek(opts.day, opts.weekStart)}`;
   const metas = await store.list();
+  if (opts.canWrite?.() === false) return false;
   if (!metas.some((m) => m.id === weekly)) {
     await store.put({ ...snapshotMeta(state, 'weekly', weekly, opts.day, opts.now, opts.appVersion), state });
   }
-  for (const id of retentionPlan(await store.list(), opts.keep ?? null)) await store.remove(id);
+  for (const id of retentionPlan(await store.list(), opts.keep ?? null)) {
+    if (opts.canWrite?.() === false) return false;
+    await store.remove(id);
+  }
   return true;
 }
 
@@ -104,6 +113,7 @@ export function memorySnapshotStore(opts: { durable?: boolean } = {}): SnapshotS
     get: async (id) => (records.has(id) ? copy(records.get(id)!) : null),
     put: async (r) => void records.set(r.id, copy(r)),
     remove: async (id) => void records.delete(id),
+    erase: async () => { records.clear(); return { ok: true }; },
   };
 }
 
@@ -188,6 +198,8 @@ export function indexedDbSnapshotStore(): SnapshotStore | null {
   const idb = (globalThis as { indexedDB?: IDBFactory }).indexedDB;
   if (!idb) return null;
   let dbp: Promise<IDBDatabase> | null = null;
+  let deleting = false;
+  let generation = 0;
   const forget = (p: Promise<IDBDatabase>) => {
     if (dbp === p) dbp = null;
   };
@@ -238,8 +250,11 @@ export function indexedDbSnapshotStore(): SnapshotStore | null {
   const db = (): Promise<IDBDatabase> => (dbp ??= open());
   /** A transaction on the store; a connection that has closed underneath is forgotten. */
   const begin = async (mode: IDBTransactionMode): Promise<IDBTransaction> => {
+    if (deleting) throw new DOMException('Erasing the snapshot database', 'AbortError');
+    const started = generation;
     const p = db();
     const conn = await p;
+    if (deleting || started !== generation) throw new DOMException('Snapshot operation retired', 'AbortError');
     try {
       return conn.transaction(STORE, mode);
     } catch (e) {
@@ -249,6 +264,26 @@ export function indexedDbSnapshotStore(): SnapshotStore | null {
   };
   return {
     durable: true,
+    async erase() {
+      // A blocked delete remains queued in IndexedDB. Keep writes fenced until its eventual
+      // success; opening the database now could otherwise queue a resurrection behind it.
+      if (deleting) return { ok: false, error: 'blocked' };
+      deleting = true;
+      generation++;
+      const current = dbp;
+      dbp = null;
+      if (current) {
+        try { (await current).close(); } catch { /* Delete even if the older open was refused. */ }
+      }
+      return new Promise<EraseSnapshotsResult>((resolve) => {
+        let request: IDBOpenDBRequest;
+        try { request = idb.deleteDatabase(DB_NAME); }
+        catch { deleting = false; resolve({ ok: false, error: 'unavailable' }); return; }
+        request.onsuccess = () => { deleting = false; resolve({ ok: true }); };
+        request.onerror = () => { deleting = false; resolve({ ok: false, error: 'unavailable' }); };
+        request.onblocked = () => resolve({ ok: false, error: 'blocked' });
+      });
+    },
     async list() {
       const tx = await begin('readonly');
       const done = quiet(txDone(tx));

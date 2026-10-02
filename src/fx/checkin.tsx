@@ -9,16 +9,17 @@
  * harvest, or now and then what the habit's companion did), and offers "Undo" and "Add a note".
  */
 import type { CheckInResult, GameEvent } from '@/state/api';
+import { computed, effect } from '@preact/signals';
 import type { Species } from '@/catalog/types';
 import { getCollectible } from '@/catalog/collectibles';
 import { ASIDE_CHANCE, CHECKIN_ASIDES, fillLine, pickFrom } from '@/catalog/lines';
 import { levelForXp } from '@/domain/levels';
 import { state } from '@/state/store';
 import { CoinIcon } from '@/art/icons';
-import { CHECKIN_CHOREOGRAPHY } from '@/ui/checkRing';
+import { CHECKIN_CHOREOGRAPHY } from '@/ui/checkRingModel';
 import { themeLight, WaterDrop } from '@/ui/art/objects';
 import { announceSettled, cancelSettled } from '@/ui/announce';
-import { dismissToast, findToast, toast, type ToastAction } from '@/ui/toast';
+import { dismissToast, findToast, toast, toastIsReachable, toasts, updateToastContent, type ToastAction, type ToastContent, type ToastOptions } from '@/ui/toast';
 import { flyCoins } from './coinFly';
 import { floatText } from './floatingText';
 import { haptic } from './haptics';
@@ -168,6 +169,7 @@ interface Heard {
   coins: number;
   tiny: boolean;
   note?: string;
+  quietNote?: string;
   kind?: CheckInKind;
 }
 
@@ -184,6 +186,28 @@ function putAway(key: string) {
 const heard = new Map<string, Heard>();
 const SETTLE_GROUP = 'checkin';
 
+// Transient presentation only. Keep the same note and actions when the setting changes;
+// discard its two presentations when the note leaves the queue.
+const rewardNotes = new Map<string, { version: number; regular: ToastContent; quiet: ToastContent }>();
+const quietRewards = computed(() => state.value.settings.quietRewards);
+effect(() => {
+  const quiet = quietRewards.value;
+  const items = toasts.value;
+  for (const [id, content] of rewardNotes) {
+    const item = items.find((t) => t.id === id);
+    if (!item) rewardNotes.delete(id);
+    else if (item.version === content.version) updateToastContent(id, quiet ? content.quiet : content.regular);
+  }
+});
+
+function rewardToast(opts: ToastOptions, quiet: ToastContent): string {
+  const regular: ToastContent = { message: opts.message, note: opts.note, label: opts.label };
+  const id = toast({ ...opts, ...(state.peek().settings.quietRewards ? quiet : regular) });
+  const item = toasts.peek().find((t) => t.id === id)!;
+  rewardNotes.set(id, { version: item.version, regular, quiet });
+  return id;
+}
+
 /** How many reactions a settled burst reads out after the count of habits. */
 export const MAX_SETTLED_NOTES = 2;
 
@@ -191,25 +215,29 @@ export const MAX_SETTLED_NOTES = 2;
  * One sentence for every check-in since the last quiet (VOICE §5): "Walk, watered. Plus 5 coins.
  * Pudding opened one eye. Undo available." · "3 habits watered. Plus 14 coins. Undo available."
  */
-export function settledCheckInLine(entries: readonly Heard[]): string {
+export function settledCheckInLine(entries: readonly Heard[], quiet = false): string {
   if (entries.length === 0) return '';
-  const coins = entries.reduce((sum, e) => sum + e.coins, 0);
+  const coins = quiet ? 0 : entries.reduce((sum, e) => sum + e.coins, 0);
   const undo = `${FX_UI.undo} available.`;
   if (entries.length === 1) {
     const e = entries[0]!;
     const kind = e.kind ?? checkInKind({ coins: e.coins, tiny: e.tiny });
-    return [checkInLine(kind, { habit: e.name }), plusCoins(e.coins), e.note ?? '', undo].filter(Boolean).join(' ');
+    return [checkInLine(kind, { habit: e.name }, quiet), plusCoins(quiet ? 0 : e.coins), (quiet ? e.quietNote : e.note) ?? '', undo].filter(Boolean).join(' ');
   }
   // The pet and plant reactions sighted users read on each note: the latest distinct ones, at most two.
-  const notes = [...new Set(entries.map((e) => e.note?.trim()).filter((n): n is string => !!n))].slice(-MAX_SETTLED_NOTES);
+  const notes = [...new Set(entries.map((e) => (quiet ? e.quietNote : e.note)?.trim()).filter((n): n is string => !!n))].slice(-MAX_SETTLED_NOTES);
   return [wateredBatchLine(entries.length, coins), ...notes, undo].join(' ');
 }
 
 function announceCheckIns() {
   announceSettled(SETTLE_GROUP, () => {
-    const line = settledCheckInLine([...heard.values()]);
-    heard.clear();
-    return line;
+    const ready = [...heard].filter(([id]) => {
+      const note = findToast(checkInKey(id));
+      if (!note) heard.delete(id);
+      return note && toastIsReachable(note.id);
+    });
+    for (const [id] of ready) heard.delete(id);
+    return settledCheckInLine(ready.map(([, entry]) => entry), state.peek().settings.quietRewards);
   });
 }
 
@@ -224,11 +252,13 @@ export function showCheckInNote(opts: CheckInNoteOptions): string {
   const kind = opts.kind ?? checkInKind({ coins, tiny, count, history: !!date });
   const line = checkInLine(kind, { habit: habitName, count, unit, date });
   const note = opts.note ?? (events.length ? asideFromState(habitId, events) : undefined);
+  const quietNote = opts.note ?? (events.some((e) => e.type === 'harvest' && e.habitId === habitId) ? undefined : note);
+  const quietLine = checkInLine(kind, { habit: habitName, count, unit, date }, true);
   const chip = coins > 0 && kind !== 'history';
   // Watered again: the "not watered after all" note has had its say.
   putAway(uncheckKey(habitId));
   heard.delete(habitId);
-  heard.set(habitId, { name: habitName, coins: chip ? coins : 0, tiny, note, kind });
+  heard.set(habitId, { name: habitName, coins: chip ? coins : 0, tiny, note, quietNote, kind });
   announceCheckIns();
   const actions: ToastAction[] = [
     {
@@ -241,7 +271,7 @@ export function showCheckInNote(opts: CheckInNoteOptions): string {
     },
   ];
   if (onAddNote) actions.push({ label: FX_UI.addNote, onAction: onAddNote });
-  return toast({
+  return rewardToast({
     key: checkInKey(habitId),
     message: (
       <>
@@ -257,11 +287,12 @@ export function showCheckInNote(opts: CheckInNoteOptions): string {
     note,
     label: [line, chip ? plusCoins(coins) : '', note ?? ''].filter(Boolean).join(' '),
     silent: true,
+    onReachable: announceCheckIns,
     art: <WaterDrop size={22} light={themeLight()} />,
     tone: 'sky',
     duration: 4000,
     actions,
-  });
+  }, { message: quietLine, note: quietNote, label: [quietLine, quietNote ?? ''].filter(Boolean).join(' ') });
 }
 
 /**
@@ -274,5 +305,5 @@ export function showUncheckNote({ habitId, habitName, refunded, spent = 0 }: { h
   heard.delete(habitId);
   // The check-in note (its aside, its Undo) no longer holds: put it away rather than merge into it.
   putAway(checkInKey(habitId));
-  return toast({ key: uncheckKey(habitId), message, art: <WaterDrop size={22} light={themeLight()} />, tone: 'sky' });
+  return rewardToast({ key: uncheckKey(habitId), message, art: <WaterDrop size={22} light={themeLight()} />, tone: 'sky' }, { message: uncheckLine(habitName, { refunded: 0 }), note: undefined, label: undefined });
 }

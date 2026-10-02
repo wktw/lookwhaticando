@@ -53,14 +53,14 @@
   fill: var(--sprig-bract);
 }
 
-/* ---------- Wordmark: lowercase Castoro, the sprig leaning in from the left ---------- */
+/* ---------- Wordmark: two lines of Castoro, the sprig leaning in from the left ---------- */
 .wordmark {
   display: inline-flex;
-  align-items: flex-end;
-  gap: 0.06em;
+  align-items: center;
+  gap: 0.12em;
   font-family: var(--font-display);
   font-weight: 400;
-  line-height: 1;
+  line-height: 0.98;
   letter-spacing: -0.012em;
   white-space: nowrap;
 }
@@ -72,4 +72,8 @@
 .word {
   display: inline-block;
   padding-bottom: 0.1em;
+}
+
+.wordTail {
+  display: block;
 }

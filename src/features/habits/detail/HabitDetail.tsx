@@ -9,10 +9,10 @@ import { LOOKS, fillLine } from '@/catalog/lines';
 import { monthDayLabel } from '@/domain/dates';
 import { stageLine } from '@/fx/copy';
 import type { HabitDetailVM } from '@/state/selectors';
-import { state } from '@/state/store';
+import { state, today, now, storeLocal } from '@/state/store';
 import { Calendar } from '@/features/progress/Calendar';
 import { DETAIL_UI as D, stageName } from '@/features/progress/copy';
-import { lookArtOf } from '@/features/progress/looks';
+import { plantPresentation } from '@/state/views/plantPresentation';
 import { Actions } from './Actions';
 import { HeroPlant } from './HeroPlant';
 import { Company, DetailSection, Journal, Ladder, Moments, NudgeCard, Offer, PlantTagCard, Stats, Why } from './Parts';
@@ -21,7 +21,8 @@ import s from './HabitDetail.module.css';
 export function HabitDetail({ vm, onGone }: { vm: HabitDetailVM; onGone: () => void }) {
   const h = vm.habit;
   const p = vm.plant;
-  const pet = vm.companion ? state.value.pets[vm.companion.petId] : undefined;
+  const plant = plantPresentation(state.value, h.id, { today: today.value, now: now.value, local: storeLocal() });
+  if (!plant) return null;
   const forecast = forecastLine(p);
   const evergreen = p.displayStage >= 7;
   const status = vm.archived
@@ -43,15 +44,10 @@ export function HabitDetail({ vm, onGone }: { vm: HabitDetailVM; onGone: () => v
       <div class={s.hero}>
         <div class={s.heroArt}>
           <HeroPlant
-            species={p.species}
-            stage={p.displayStage}
-            progress={p.progress}
-            blooms={p.blooms}
-            pot={p.pot}
+            {...plant}
             damp={isDampToday(vm)}
-            look={lookArtOf(state.value, h.id)}
-            flourishes={p.flourishes}
-            residentArtId={pet?.id}
+            residentArtId={vm.companion ? plant.resident?.petId : undefined}
+            residentOutfit={vm.companion ? plant.resident?.outfit : undefined}
             size={184}
             animated
             title={`${h.name}, ${stageName(p.displayStage)}`}

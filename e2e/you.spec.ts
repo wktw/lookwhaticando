@@ -33,6 +33,39 @@ async function openYou(page: Page) {
 
 const section = (page: Page, name: string) => page.locator('section').filter({ has: page.getByRole('heading', { level: 2, name, exact: true }) }).first();
 
+test('About Credits opens complete readable licences', async ({ page }, info) => {
+  await openYou(page);
+  await section(page, 'About').getByRole('button', { name: 'Credits' }).click();
+  await page.getByRole('dialog', { name: 'Credits', exact: true }).getByRole('button', { name: 'Licences' }).click();
+  const licences = page.getByRole('dialog', { name: 'Licences', exact: true });
+  await expect(licences).toContainText('SIL OPEN FONT LICENSE Version 1.1');
+  await expect(licences).toContainText('@preact/signals-core@');
+  await expect(licences).toContainText('workbox-precaching@');
+  const text = await licences.locator('pre').textContent();
+  const { readFileSync } = await import('node:fs');
+  for (const name of ['@fontsource/castoro', '@fontsource-variable/nunito', 'preact', '@preact/signals', 'workbox-window']) expect(text).toContain(readFileSync(`node_modules/${name}/LICENSE`, 'utf8').trim());
+  if (process.env.E2E_TARGET === 'preview') expect(text).toBe(readFileSync('dist/licenses.txt', 'utf8'));
+  await licences.locator('pre').focus();
+  await page.keyboard.press('PageDown');
+  await expect.poll(() => licences.locator('pre').evaluate((el) => el.parentElement!.scrollTop)).toBeGreaterThan(0);
+  await expectNoAxeViolations(page, info);
+  await licences.getByRole('button', { name: 'Close', exact: true }).click();
+  await expect(page.getByRole('dialog', { name: 'Credits', exact: true })).toBeVisible();
+});
+
+test('@pwa licence notices remain available offline', async ({ page, context }, info) => {
+  test.skip(info.project.use.serviceWorkers !== 'allow', 'needs the installed service worker');
+  await openYou(page);
+  await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
+  await page.reload();
+  await expect.poll(() => page.evaluate(() => !!navigator.serviceWorker.controller)).toBe(true);
+  await context.setOffline(true);
+  await section(page, 'About').getByRole('button', { name: 'Credits' }).click();
+  await page.getByRole('button', { name: 'Licences', exact: true }).click();
+  await expect(page.getByRole('dialog', { name: 'Licences', exact: true })).toContainText('SIL OPEN FONT LICENSE Version 1.1');
+  await context.setOffline(false);
+});
+
 test('You renders every section cleanly and passes axe', async ({ page }, info) => {
   const errors = watchErrors(page);
   await openYou(page);
@@ -132,7 +165,7 @@ test('a watering time offers its calendar file', async ({ page }) => {
     const add = page.getByRole('button', { name });
     const download = page.waitForEvent('download');
     await add.click();
-    expect((await download).suggestedFilename()).toBe('catkin-watering-time-morning.ics');
+    expect((await download).suggestedFilename()).toBe('little-by-little-watering-time-morning.ics');
   }
   // The static files for installed iPhone apps are served too.
   const res = await page.request.get('./cal/morning-0730.ics');
@@ -155,7 +188,11 @@ test('a backup is copied, and imported again with Undo import', async ({ page, c
   await data.getByRole('button', { name: 'Import a backup' }).click();
   const sheet = page.getByRole('dialog', { name: 'Import a backup' });
   await sheet.getByLabel('Or paste a backup here').fill(payload);
-  await expect(sheet.getByText('This backup has 3 habits, 0 waterings and 0 pets.')).toBeVisible();
+  // Wait for the real modal-owned announcement as well as the visible preview.
+  await expect(sheet.locator('[aria-live="polite"]')).toContainText('This backup has 3 habits, 0 waterings and 0 pets.');
+  const preview = sheet.getByRole('strong');
+  await expect(preview).toContainText('This backup has 3 habits, 0 waterings and 0 pets.');
+  await expect(preview).toBeVisible();
   await expectNoAxeViolations(page, info);
   await sheet.getByRole('button', { name: 'Import', exact: true }).click();
   await expect(page.getByLabel('Your name')).toHaveValue('Sam');
@@ -207,8 +244,8 @@ test('the demo opens with its pill, and leaving it brings her own plants back', 
 test('Start over asks twice, then onboarding starts again', async ({ page }) => {
   await openYou(page);
   await section(page, 'Your data').getByRole('button', { name: 'Start over' }).click();
-  await page.getByRole('alertdialog').filter({ hasText: 'Every habit, plant and pet' }).getByRole('button', { name: 'Start over' }).click();
-  const again = page.getByRole('alertdialog').filter({ hasText: 'The daily copies stay on this device.' });
+  await page.getByRole('alertdialog').filter({ hasText: 'The habits, plants and pets here go.' }).getByRole('button', { name: 'Start over' }).click();
+  const again = page.getByRole('alertdialog').filter({ hasText: 'Start over now?' });
   await expect(again).toBeVisible();
   // The last "Start over" arms itself a moment after it appears.
   await page.waitForTimeout(800);
@@ -219,7 +256,7 @@ test('Start over asks twice, then onboarding starts again', async ({ page }) => 
 test('a quick double tap on Start over keeps everything', async ({ page }) => {
   await openYou(page);
   await section(page, 'Your data').getByRole('button', { name: 'Start over' }).click();
-  const first = page.getByRole('alertdialog').filter({ hasText: 'Every habit, plant and pet' }).getByRole('button', { name: 'Start over' });
+  const first = page.getByRole('alertdialog').filter({ hasText: 'The habits, plants and pets here go.' }).getByRole('button', { name: 'Start over' });
   await expect(first).toBeVisible();
   await page.waitForTimeout(400);
   const box = (await first.boundingBox())!;

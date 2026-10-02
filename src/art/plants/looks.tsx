@@ -28,6 +28,7 @@ export const PETAL_INKS: Partial<Record<PlantSpeciesId, readonly string[]>> = {
   hoya: ['#F5CCD6', '#EDC3CF', '#C9546E'],
   lavender: ['#B4A1E0', '#9C87CD'],
   orchid: ['#F6DAE3', '#EEBFCD', '#EAD4DA', '#D46A8E'],
+  snakeplant: ['#F6EBCF'],
   strawberry: ['#F8F3EA', '#F3F1E2'],
   violet: ['#A78CD8', '#8F72C9', '#B7A3DC'],
   xmascactus: ['#F4A7C2', '#EE86AB', '#F6C2D2', '#E0567F'],

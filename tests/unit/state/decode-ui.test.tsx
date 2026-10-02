@@ -92,6 +92,6 @@ describe('You › Data with a newer catkin’s save', () => {
 
   it('new line: a newer catkin’s daily copy is refused in its own words', () => {
     expect(replaceErrorText('newer-copy')).toBe(DATA_COPY.copyNewer);
-    expect(DATA_COPY.copyNewer).toBe('That copy is from a newer catkin. Update, then restore it.');
+    expect(DATA_COPY.copyNewer).toBe('That copy is from a newer version of Little by Little. Update, then restore it.');
   });
 });

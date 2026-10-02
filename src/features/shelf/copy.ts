@@ -36,9 +36,9 @@ export function jarLine(coins: number): string {
 }
 
 /** Not enough coins for a place: what it costs and what is in the jar (never a count of 0). */
-export function shortLine(place: PlaceId, price: number, coins: number): string {
+export function shortLine(place: PlaceId, price: number, coins: number, quiet = false): string {
   const Place = capitalise(placePhrase(place));
-  const t = coins <= 0 ? SHELF_COPY.placeMap.shortNone : coins === 1 ? SHELF_COPY.placeMap.shortOne : SHELF_COPY.placeMap.short;
+  const t = quiet ? SHELF_COPY.placeMap.shortQuiet : coins <= 0 ? SHELF_COPY.placeMap.shortNone : coins === 1 ? SHELF_COPY.placeMap.shortOne : SHELF_COPY.placeMap.short;
   return fillLine(t, { Place, price: num(price), count: num(coins) });
 }
 

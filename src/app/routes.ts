@@ -60,8 +60,14 @@ export function formatHash(tab: TabId, rest: readonly string[] = []): string {
   return `#/${[tab, ...rest.map(encodeURIComponent)].join('/')}`;
 }
 
+/** Quiet mode changes navigation visibility only, never the route table or its identities. */
+export const visibleRoutes = (quiet: boolean): readonly RouteDef[] => quiet ? ROUTES.filter((r) => r.id !== 'capsules') : ROUTES;
+
+/** Stable route ids keep their digits even when a destination is hidden. */
+const DIGITS: Readonly<Record<TabId, string>> = { today: '1', progress: '2', capsules: '3', shelf: '4', you: '5' };
+export const digitForTab = (tab: TabId): string => DIGITS[tab];
+
 /** Keyboard shortcut digits: '1' → today … '5' → you. */
 export function tabForDigit(key: string): TabId | null {
-  const i = Number(key) - 1;
-  return Number.isInteger(i) && i >= 0 && i < TAB_IDS.length ? TAB_IDS[i]! : null;
+  return TAB_IDS.find((tab) => DIGITS[tab] === key) ?? null;
 }
