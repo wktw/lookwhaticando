@@ -137,7 +137,7 @@ export function LoadSheet({ open, title, message, retryLabel, closeLabel, busy, 
         <h2 id={`${id}-title`} class={s.title}>
           {title}
         </h2>
-        <div ref={notesRef} class={s.notes} data-notes-slot />
+        <div ref={notesRef} class={s.notes} data-notes-slot tabIndex={-1} />
         {message && (
           <p id={`${id}-text`} class={s.text}>
             {message}

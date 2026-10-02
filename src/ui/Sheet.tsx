@@ -397,7 +397,7 @@ export function Sheet(props: SheetProps) {
           {aside && <div class={s.aside}>{aside}</div>}
           {showClose && dismissible && <IconButton class={s.close} icon="close" label="Close" variant="card" size="sm" onClick={onClose} />}
         </header>
-        <div ref={notesRef} class={s.notes} data-notes-slot />
+        <div ref={notesRef} class={s.notes} data-notes-slot tabIndex={-1} />
         <div ref={bodyRef} class={s.body}>
           {children}
         </div>
