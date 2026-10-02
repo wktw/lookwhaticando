@@ -14,6 +14,12 @@ const RETRY_KEY = 'catkin-recovery-retry';
 const known = (kind: unknown): kind is Kind => ['snapshots', 'import', 'backup', 'damaged'].includes(kind as string);
 
 export function requestRecovery(kind: Kind): void {
+  // A prefetched delivery action keeps the tap's user activation for the native share sheet.
+  const ready = module.current();
+  if (ready && (kind === 'backup' || kind === 'damaged')) {
+    void (kind === 'backup' ? ready.saveBackupNow() : ready.saveDamagedFile());
+    return;
+  }
   request.value = { kind, epoch: saveEpoch.peek() };
 }
 export function prefetchRecovery(): void { void module.load().catch(() => undefined); }

@@ -112,7 +112,7 @@ test('a real waiting update stays held while storage refuses a change', async ({
   await page.evaluate(() => navigator.serviceWorker.register('./sw.js?matrix=update', { scope: './' }).then(() => undefined));
   await expect.poll(() => page.evaluate(async () => !!(await navigator.serviceWorker.getRegistration())?.waiting)).toBe(true);
   await page.getByRole('button', { name: 'Check for updates', exact: true }).click();
-  await expect(page.getByText('A new version of catkin is ready.', { exact: true }).first()).toBeVisible();
+  await expect(page.getByText('A new version is ready', { exact: true }).first()).toBeVisible();
   await visibility(page, true);
   await page.waitForTimeout(100);
   expect(await page.evaluate(() => navigator.serviceWorker.controller!.scriptURL)).toBe(active);
@@ -123,6 +123,40 @@ test('a real waiting update stays held while storage refuses a change', async ({
   expect(await page.evaluate(() => (window as unknown as { matrixPage: string }).matrixPage)).toBe('same document');
   await expect(page.getByLabel('Your name')).toHaveValue('Unsaved name');
   expect((await saved(page)).profile.name).toBe('Sam');
+});
+
+test('a cold page offers a waiting update without interrupting input', async ({ page, context }) => {
+  test.skip(process.env.E2E_TARGET !== 'preview', 'the update controls belong to the built PWA');
+  await seed(page, household(), 'you');
+  await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
+  await page.reload();
+  await expect.poll(() => page.evaluate(() => !!navigator.serviceWorker.controller)).toBe(true);
+  await page.evaluate(() => navigator.serviceWorker.register('./sw.js?matrix=cold', { scope: './' }).then(() => undefined));
+  await expect.poll(() => page.evaluate(async () => !!(await navigator.serviceWorker.getRegistration())?.waiting)).toBe(true);
+  // Keep the original controlled page open so browser activation cannot erase the waiting case.
+  const fresh = await context.newPage();
+  await fresh.goto('./#/you');
+  await expect(fresh.locator('main h1')).toHaveText('You');
+  await expect(fresh.getByText('A new version is ready', { exact: true }).first()).toBeVisible();
+  expect(await fresh.evaluate(async () => !!(await navigator.serviceWorker.getRegistration())?.waiting)).toBe(true);
+  await fresh.close();
+});
+
+test.describe('a shell recovery chunk that cannot load', () => {
+  test.use({ serviceWorkers: 'block' }); // Route faults must reach the network instead of its precache.
+  test('Daily copies has a visible retry, and a fresh fetch keeps the requested sheet', async ({ page }) => {
+    await seed(page);
+    const recovery = /(?:\/assets\/recovery-[^/]+\.js|\/src\/features\/you\/recovery\.tsx)(?:\?|$)/;
+    await page.route(recovery, (route) => route.abort('failed'));
+    await page.evaluate(() => localStorage.setItem('catkin:v1', '{damaged save'));
+    await page.reload();
+    await page.locator('[data-banner="corrupt"]').getByRole('button', { name: 'Daily copies', exact: true }).click();
+    const error = page.getByRole('alertdialog', { name: 'This didn’t open', exact: true });
+    await expect(error).toBeVisible();
+    await page.unroute(recovery);
+    await error.getByRole('button', { name: 'Try again', exact: true }).click();
+    await expect(page.getByRole('dialog', { name: 'Daily copies', exact: true })).toBeVisible();
+  });
 });
 
 test('@colors a keyboard watering and toast Undo leave the soil dry after animation', async ({ page }, info) => {
