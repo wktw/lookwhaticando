@@ -1,10 +1,12 @@
 # catkin audit implementation plan
 
+> **Current completion record (2 October 2026):** use the [web completion ledger](WEB_COMPLETION_LEDGER.md) for the accepted implementation, independent reviews, full track/main checks, exact backups and GitHub CI. This plan preserves its original planning baseline and the chronology of later Status notes. Statements such as “nothing has been implemented”, “consent pending”, or “main/CI pending” describe the checkpoint where they were written; they are not the current queue. The owner subsequently approved the disclosed audit, which completed with zero vulnerabilities; [receipt](evidence/2026-10-02/dependency-audit.md). The ledger separately identifies the parked packages and the owner’s later project-review phase.
+
 - **Plan date:** 30 September 2026
 - **Planned against:** branch `claude/eloquent-hawking-v69lhr`, HEAD `d1554a0`, working tree clean. The only later commit, `e25a2b2`, is a WIP checkpoint of this document made outside this planning task; it changes no application file, so every `file:line` here still refers to the `d1554a0` source.
 - **Source audit:** `docs/audits/CATKIN_COMPREHENSIVE_AUDIT_2026-09-29.md` (main pin `c66f588`, first integrated pin `7d16f11`).
 - **Brief:** `docs/audits/OPUS_5_5_AUDIT_IMPLEMENTATION_PROMPT.txt`.
-- **Status of this document:** planning only. No application source, test or configuration was changed to write it, and this task made no commit. Nothing here has been implemented. The recommended first package (§7.5) has not been started.
+- **Original planning status (30 September 2026):** planning only. No application source, test or configuration was changed to write it, and this task made no commit. Nothing here has been implemented. The recommended first package (§7.5) has not been started.
 
 This plan maps every audit finding, every deeper second-pass entry, every substantive unnumbered risk and opportunity, and the native/subscription/release items to a current disposition, the evidence for it, and a work package or an explicit decision. It then orders the work, specifies each package, and defines how the fixes will be validated.
 
@@ -2525,6 +2527,8 @@ These guardrails are copy-linted and tested.
 - **Rollback:** make a flaky project non-blocking again with a recorded reason; never delete a journey.
 
 #### WP-G2 Scale and long history (M, medium)
+
+> **Current acceptance:** see the [G2 ledger row and final code checkpoint](WEB_COMPLETION_LEDGER.md) and [reviewed measurement summary](evidence/2026-10-02/scale.md). The notes below retain the measurement, review and gate chronology; earlier pending-gate/consent statements are historical. The current reviewed measured source is `ee7a33fb`; both earlier `ad27da1` and `6d11f467` archives remain immutable. All are distinct from later evidence-only and integration commits.
 
 > **Final Shelf-source measurements (2 October 2026): both output reviews approved; fresh full gates pending.** One quiet invocation on clean `ee7a33fbc7244a5d3c2d4fc0bba7c73c942b6336` completed with actual exit 0 (18:04:28–18:04:53 UTC) after the reviewed Shelf occupancy/hit-testing correction. Root and A9 independently approved all 192 statistic fields, 48 table cells, exact counts/guards and nine artifact hashes. The byte-identical [final source-keyed archive](evidence/2026-10-02/scale/ee7a33fbc7244a5d3c2d4fc0bba7c73c942b6336/README.md) includes both final reviews; all eighteen earlier artifacts and both manifests remain unchanged. Five CPU/import/list samples, fourteen snapshot writes, one read and one UI journey per history keep their distinct scopes. All ten main-save attempts preserve prior data on quota refusal, with zero successful commits; accepted parsing and in-memory stars are not durable saves. Existing capacity/render/listing/maintenance follow-ups remain observational, without causal timing or physical-device claims. No further measurement is required; track/main checks and corrected exact Linux/Windows CI remain pending.
 
