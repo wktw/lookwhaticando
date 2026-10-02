@@ -604,6 +604,9 @@ Every package in this section fills every field (a mechanical check of the ten l
 ### Phase 0: Foundations
 
 #### WP-01 Portability and CI coverage (S, low)
+
+**Status — partial: crescent rounding portability reproduced and fixed; other WP-01 work remains.** A full B8 gate reproduced `crescents.test.ts` committed-data failure on Linux / Node 24.19.0, independently of B8 (the unchanged baseline fails too). Node 22.23.3 passes the baseline. The first `pond.pebble0.top` intersection is mathematically 76.85: Node 22 produces 76.8499999999999801 and Node 24 produces 76.8499999999999943, so multiplying by ten straddles the half-tenth rounding boundary. Eight regression cases cover both runtime values, either side of the tie, negative coordinates and values outside the narrow normalization band; three new cases fail before the fix. The offline generator now snaps only roundoff within 1e-10 art units of a half-tenth before applying the existing `Math.round` convention. Exact committed-table equality remains mandatory; regenerated data canonicalizes seven paths (including collinearity consequences), with the full 13-case crescent suite passing on both Node versions. No stored data, user wording or runtime generator is changed. Independent reviews and the resumed full gate remain pending. The audit's Windows-specific report remains unverified; case collisions, the Windows CI lane, portable scripts and seeded preview journeys are still outstanding.
+
 - **Covers:** integration-i1, P-release-01, P-release-02, P-release-05.
 - **Files:**
   - `src/ui/checkRing.ts` becomes `checkRingModel.ts`, and `src/features/capsules/leaflet.ts` becomes `leafletModel.ts`, each with its test (`git mv`).
