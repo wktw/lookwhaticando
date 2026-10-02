@@ -102,6 +102,36 @@ test('the matrix fixture surfaces a refused seed write', async ({ page }) => {
   expect(await page.evaluate(() => localStorage.getItem('catkin:v1'))).toBeNull();
 });
 
+test('the matrix fixture removes its pending setup route when navigation fails', async ({ page }) => {
+  const setupUrl = new URL('__matrix_seed__.html', test.info().project.use.baseURL).href;
+  let fallbackCalls = 0;
+  const fallback = async (route: Route) => {
+    fallbackCalls++;
+    await route.fulfill({ status: 200, contentType: 'text/html', body: '<!doctype html><title>Underlying route</title>' });
+  };
+  await page.route(setupUrl, fallback);
+  const navigate = page.goto.bind(page);
+  page.goto = async (url, options) => {
+    if (url === setupUrl) throw new Error('Fixture setup navigation refused');
+    return navigate(url, options);
+  };
+  try {
+    await expect(seed(page)).rejects.toThrow('Fixture setup navigation refused');
+  } finally {
+    page.goto = navigate;
+  }
+  // The failed navigation never consumed seed's one-use route. Its finally must remove it
+  // without removing a different handler registered for the same URL.
+  try {
+    await page.goto(setupUrl);
+    expect(fallbackCalls).toBe(1);
+    await expect(page).toHaveTitle('Underlying route');
+    expect(await page.evaluate(() => localStorage.getItem('catkin:v1'))).toBeNull();
+  } finally {
+    await page.unroute(setupUrl, fallback);
+  }
+});
+
 test('an offline watering survives a real origin outage and reload', async ({ page }) => {
   test.skip(process.env.E2E_TARGET !== 'preview', 'offline launch needs the built service worker');
   // Playwright WebKit's offline emulator blocks before the service worker (#42775).
