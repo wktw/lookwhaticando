@@ -3,7 +3,8 @@
  * "Quilt"). One habit or all habits.
  */
 import type { AppState, DateKey, Habit } from '../types';
-import { inLifetime, isInBackfillWindow, logStatus } from '@/domain/activity';
+import { inLifetime, logStatus } from '@/domain/activity';
+import { historyEdit, type HistoryEdit } from '@/domain/logging';
 import { canStartFrom } from '@/domain/habits';
 import { dayCompletion, habitTally, isPctReady, monthWindow, percent, trackingOf, aggregateTally, type Tally } from '@/domain/consistency';
 import {
@@ -53,6 +54,8 @@ export interface CalendarCell {
    * history-only calendar edit, 'start-earlier' = before startedOn ("Start tracking from…"),
    * null = not editable (future, or the aggregate calendar).
    */
+  /** Domain permissions for this habit/day; null on the aggregate calendar. */
+  history: HistoryEdit | null;
   edit: 'window' | 'history' | 'start-earlier' | null;
 }
 
@@ -125,11 +128,12 @@ export function calendarMonthVM(s: AppState, env: ViewEnv, habitId: string | nul
     if (habit) {
       const st = habitDayState(s, habit, d, today);
       const log = s.logs[habit.id]?.[d];
-      const edit: CalendarCell['edit'] = d > today ? null : d < habit.startedOn ? (canStartFrom(habit, d, today) ? 'start-earlier' : null) : isInBackfillWindow(d, today) ? 'window' : 'history';
-      cells.set(d, { ...base, state: st.state, fraction: st.fraction, count: st.count, target: st.target, ...(log?.note ? { note: log.note } : {}), edit });
+      const history = historyEdit(s, habit.id, d, today);
+      const edit: CalendarCell['edit'] = history.reason === 'before-start' && canStartFrom(habit, d, today) ? 'start-earlier' : history.reason === 'window' ? 'window' : history.canAdd || history.canRemove ? 'history' : null;
+      cells.set(d, { ...base, state: st.state, fraction: st.fraction, count: st.count, target: st.target, ...(log?.note ? { note: log.note } : {}), edit, history });
     } else {
       const st = aggregateDayState(s, d, today, firstTracked);
-      cells.set(d, { ...base, state: st.state, fraction: st.fraction, edit: null });
+      cells.set(d, { ...base, state: st.state, fraction: st.fraction, edit: null, history: null });
     }
   }
   const weeks: (CalendarCell | null)[][] = [];

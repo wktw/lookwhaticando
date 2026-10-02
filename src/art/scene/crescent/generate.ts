@@ -190,7 +190,13 @@ export function crescentPolygon(input: readonly Pt[], by: Pt): Pt[] | null {
 }
 
 const r1 = (n: number) => {
-  const v = Math.round(n * 10) / 10;
+  const tenths = n * 10;
+  const half = Math.floor(tenths) + 0.5;
+  // Curve/intersection arithmetic can put the same geometric half-tenth a few ulps either
+  // side of the tie on different JS runtimes. Snap only that noise (1e-10 art units) to the
+  // half, then retain Math.round's ties toward positive infinity and exact generated data.
+  const stable = Math.abs(tenths - half) <= 1e-9 ? half : tenths;
+  const v = Math.round(stable) / 10;
   return Object.is(v, -0) ? 0 : v;
 };
 

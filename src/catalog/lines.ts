@@ -513,6 +513,21 @@ export const TODAY_LINES = {
 /* Progress (VOICE.md §6)                                                    */
 /* ------------------------------------------------------------------------ */
 
+/** Dated note control (VOICE §5, WP-C6). DEC-V: pending owner approval. */
+export const NOTE_COPY = {
+  title: 'A note for {habit} · {date}',
+  edit: 'Edit the note',
+  editLabel: 'Edit the note for {habit} · {date}',
+  placeholder: 'A line about this day',
+  remove: 'Remove note',
+  removeTitle: 'Remove this note?',
+  removeText: 'This removes the note and its star from {habit} on {date}.',
+  removeQuotes: 'Also remove it from Sunday Notes',
+  copies: 'Daily and weekly copies keep the note until those copies age out. Copies kept before imports or restores may keep it longer. Erase everything removes local copies. Keepsake captions and exported backup files are unchanged.',
+  replaced: 'The save changed while this note was open. Close it and open the note again.',
+  refused: 'This note can’t be changed here now. Close it and open the note again.',
+} as const;
+
 /** Counted nouns, in numerals. Slot: {count}. */
 export const COUNTS = {
   waterings: { one: '1 watering', other: '{count} waterings' },
@@ -766,7 +781,8 @@ export const ERRORS = {
   useHere: 'Use here',
   newerSave: 'This save is from a newer catkin, so it opens read-only here. Update to make changes.',
   /** Another window started over (or erased the save), and this one followed it (WP-A2). DEC-V: pending owner approval. */
-  startedOver: 'catkin was started over in another window, so it starts fresh here too. The daily copies stay on this device.',
+  startedOver: 'catkin was started over in another window, so it starts fresh here too.',
+  erasePaused: 'Some data is still on this device. Changes are paused here. Open You to try again.',
   clock: 'The clock on this device reads earlier than catkin last saw. Coins and stamps wait until it’s right again.',
   /**
    * The load notes and their buttons (WP-A7, audit data-d10): a save that couldn't be read, so the
@@ -1095,7 +1111,9 @@ export const PROGRESS_UI = {
     unwater: 'Not watered after all',
     windowNote: 'The last 6 days are watered from the week strip on Today.',
     openToday: 'Open Today',
-    refused: 'That day is watered from the week strip on Today.',
+    refused: 'That day can’t be changed here right now.',
+    periodLocked: 'This watering can be removed once its period is outside the week strip on Today.',
+    outsideDates: 'That day is outside this habit’s tracking dates.',
     watered: 'watered',
     tiny: 'the tiny version',
     rest: 'resting',
@@ -1238,6 +1256,19 @@ export const DATA_COPY = {
   inDemo: 'Leave the demo to import a backup. The demo keeps its own plants.',
   startOverAgainTitle: 'Start over now?',
   startOverAgain: 'Everything here goes. The daily copies stay on this device.',
+  /** Device erasure (WP-A9). DEC-V: pending owner approval. */
+  saveFirst: 'Save a backup first',
+  erase: 'Erase everything on this device',
+  eraseTitle: 'Erase everything on this device?',
+  eraseConfirm: 'The save, settings, demo and daily copies in this browser go. There is no undo. Backup files you saved elsewhere stay there.',
+  eraseButton: 'Erase everything',
+  erased: 'The save, settings and daily copies on this device have been erased.',
+  erasePartial: 'Some data is still on this device.',
+  eraseStorage: 'The save or settings couldn’t be erased.',
+  eraseBlocked: 'The daily copies couldn’t be erased. Close other catkin windows, then try again.',
+  eraseUnavailable: 'The daily copies couldn’t be erased. Try again.',
+  eraseRetry: 'Try erasing again',
+  eraseChanged: 'The save changed while erasing. Some data may still be on this device.',
   demoLine: 'A made-up sill with a few months of watering. Your own sill stays just as it is.',
   /** The demo doesn't open over a change that hasn't been written yet. */
   demoWaits: 'The demo opens once your last change is saved.',
