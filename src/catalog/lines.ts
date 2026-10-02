@@ -116,7 +116,7 @@ export const BLOOM_EVENTS: Readonly<Record<PlantSpeciesId, string>> = {
   snakeplant: 'sent up a spike of flowers',
   catgrass: 'grew thick enough to lie in',
   monstera: 'opened a first split leaf',
-  strawberry: 'flowered and set the first berries',
+  strawberry: 'flowered',
   lavender: 'opened purple spikes',
   catnip: 'flowered at the tips',
   hoya: 'opened a cluster of flowers',

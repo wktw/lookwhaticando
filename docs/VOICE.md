@@ -387,7 +387,7 @@ A multi-stage jump plays as a time-lapse and announces only the last stage.
 - Snake Plant: "{Plant} has sent up a spike of small cream flowers, which snake plants hardly ever do."
 - Cat Grass: "{Plant} is thick and tall enough to lie in."
 - Monstera: "{Plant} has opened a first split leaf."
-- Strawberry: "{Plant} has white flowers and the first small berries."
+- Strawberry: "{Plant} has white flowers."
 - Lavender: "{Plant} has purple spikes, and the sill smells of lavender."
 - Catnip: "{Plant} has small white flowers at the tips."
 - Hoya: "{Plant} has a cluster of star-shaped flowers."
@@ -401,6 +401,9 @@ A multi-stage jump plays as a time-lapse and announces only the last stage.
 In a note, the same moment in the past tense (`BLOOM_EVENTS`): "The Walk plant grew thick enough to lie
 in on Thursday." · "The Read plant trailed past the edge of the sill on Monday." Where the species
 doesn't matter: "reached Blooming".
+
+**DEC-V: pending owner approval (WP-D4):** Strawberry at Blooming says "{Plant} has white flowers."
+and its past-tense event says "flowered". Berries appear at the following art stage.
 
 **Forecast** on Habit Detail, in waterings, never sunshine numbers and never a date (a date slides later
 whenever she rests): "4 more waterings to Blooming." · "1 more watering to Blooming." · at Evergreen,
@@ -545,8 +548,8 @@ Bond levels, after best friends. Each says what the pet does now, and none of th
 |---|---|---|
 | 11 | "Settled in" | "{name} has settled in for good." |
 | 12 | "A familiar face" | "{name} is a familiar face on the sill." |
-| 13 | "Good company" | "{name} has kept you company through many waterings." |
-| 14 | "Among old friends" | "{name} is among old friends here." |
+| 13 | "Good company" | "{name} is good company." |
+| 14 | "Part of the place" | "{name} is part of the place now." |
 | 15 | "Old friends" | "{name} is an old friend now, and here for good." |
 
 **DEC-V: pending owner approval (WP-D4):** the level 11–14 observations and level 12–14 names above.

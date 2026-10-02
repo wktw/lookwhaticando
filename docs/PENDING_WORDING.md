@@ -95,8 +95,9 @@ The capsule and order notices marked approved on 30 September are excluded. The 
 
 ## WP-D4 additions — pending owner approval
 
+- **Strawberry at Blooming** (VOICE §7): “{Plant} has white flowers.” · past-tense event “flowered”. Its berries appear at the following stage.
 - **Corrected flourish visitors** (VOICE §7): “A snail has settled beside {plant}.” · “{Plant} has a new hanging trail.” · “A second shoot has come up beside {plant}.”
-- **Friendship 11–14** (VOICE §9): “Settled in” / “{name} has settled in for good.”; “A familiar face” / “{name} is a familiar face on the sill.”; “Good company” / “{name} has kept you company through many waterings.”; “Among old friends” / “{name} is among old friends here.” The level 11 name is reused; the other three names are new.
+- **Friendship 11–14** (VOICE §9): “Settled in” / “{name} has settled in for good.”; “A familiar face” / “{name} is a familiar face on the sill.”; “Good company” / “{name} is good company.”; “Part of the place” / “{name} is part of the place now.” The level 11 name is reused; the other three names are new. These observations also fit a single pet whose friendship came entirely from petting.
 - **Odds ownership explanation** (VOICE §10): “Each is the printed item’s chance before new-first weighting. Something you already own can be less likely than an unowned item in a rarer tier. Guarantees can change the next capsule’s chances.”
 - **Type credit** (VOICE §24): “Castoro by John Hudson and Paul Hanslow (Tiro Typeworks), assisted by Kaja Słojewska. Nunito by Vernon Adams, extended by Jacques Le Bailly. Both under the SIL Open Font License.”
 - **Full notices viewer** (VOICE §24): “Licences” · “The licences didn’t load. Try again when you have a connection.” Loading and retry reuse “One moment” and “Try again”.

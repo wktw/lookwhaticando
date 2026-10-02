@@ -30,7 +30,7 @@ export function licenseNotices(root: string): string {
   const roots = [...Object.keys(readPackage(appFile).dependencies ?? {}), '@fontsource/castoro', '@fontsource-variable/nunito',
     'workbox-window', 'workbox-precaching', 'workbox-routing', 'workbox-strategies', 'workbox-cacheable-response', 'workbox-expiration'];
   const notices = new Map<string, string>();
-  const visit = (name: string, from: NodeRequire) => {
+  const visit = (name: string, from: NodeRequire, dependencies = true) => {
     const file = packageFile(name, from);
     const pkg = readPackage(file);
     const id = `${pkg.name}@${pkg.version}`;
@@ -40,9 +40,12 @@ export function licenseNotices(root: string): string {
     if (!licence) throw new Error(`Missing full licence for ${id}`);
     notices.set(id, `${id}\n${'='.repeat(id.length)}\n${readFileSync(licence, 'utf8').trim()}\n`);
     const local = createRequire(file);
-    for (const dependency of Object.keys(pkg.dependencies ?? {})) visit(dependency, local);
+    if (dependencies) for (const dependency of Object.keys(pkg.dependencies ?? {})) visit(dependency, local);
   };
   for (const name of roots) visit(name, require_);
+  // Vite emits module-preload helpers into the app. Its installed LICENSE also includes its
+  // bundled notices; its build-only dependency graph is not part of our runtime graph.
+  visit('vite', require_, false);
   return [...notices.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([, text]) => text).join('\n');
 }
 
