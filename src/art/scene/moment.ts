@@ -14,6 +14,7 @@
  *
  * The clock runs only while something uses it (`retainWindowClock`, which the hooks call).
  */
+import { getPlatform } from '@/platform/capabilities';
 import { computed, signal, type ReadonlySignal } from '@preact/signals';
 import { useEffect } from 'preact/hooks';
 import { NIGHT_LIGHT, type Hemisphere, type Light } from '@/art/light';
@@ -77,18 +78,17 @@ function startClock(): () => void {
     timer = setTimeout(tick, msToNextQuarter(t));
   };
   tick();
-  const onVisible = () => {
-    if (document.visibilityState === 'visible') tick();
-  };
+  const stopLifecycle = getPlatform().lifecycle.subscribe((event) => {
+    if (event !== 'pause') tick();
+  });
   const onTheme = () => (pageLamplight.value = readLamplight());
-  document.addEventListener('visibilitychange', onVisible);
   const observer = typeof MutationObserver === 'function' ? new MutationObserver(onTheme) : null;
   observer?.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
   const media = typeof matchMedia === 'function' ? matchMedia('(prefers-color-scheme: dark)') : null;
   media?.addEventListener?.('change', onTheme);
   return () => {
     clearTimeout(timer);
-    document.removeEventListener('visibilitychange', onVisible);
+    stopLifecycle();
     observer?.disconnect();
     media?.removeEventListener?.('change', onTheme);
   };

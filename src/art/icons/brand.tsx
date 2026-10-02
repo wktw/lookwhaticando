@@ -1,7 +1,6 @@
 /**
- * The catkin mark and wordmark (DESIGN §1). The mark is a single sprig: a thin twig with three soft,
- * silver-grey catkins (willow flower spikes). The wordmark is lowercase "catkin" set in Castoro as real
- * text, with the sprig as an optional lead-in. No faces, no ears on letters.
+ * The Little by Little mark and wordmark (DESIGN §1). A willow sprig beside a two-line Castoro name:
+ * the wider name fits small headers without shrinking its letters. The words remain real text.
  */
 import type { JSX } from 'preact';
 import { DAY_LIGHT, type Light, type LightFrom } from '@/art/light';
@@ -107,12 +106,12 @@ export interface WordmarkProps {
   light?: Light;
 }
 
-/** Lowercase "catkin" in Castoro, as real text, with an optional sprig. Inherits `color`. */
+/** The full name in Castoro, as real text on two lines, with an optional sprig. Inherits `color`. */
 export function Wordmark({ size = 32, sprig = true, class: cls, style, light }: WordmarkProps) {
   return (
     <span class={[css.wordmark, cls].filter(Boolean).join(' ')} style={{ fontSize: `${size}px`, ...style }}>
-      {sprig && <CatkinSprig size="1.3em" class={css.lead} light={light} />}
-      <span class={css.word}>catkin</span>
+      {sprig && <CatkinSprig size="1.9em" class={css.lead} light={light} />}
+      <span class={css.word}>Little <span class={css.wordTail}>by Little</span></span>
     </span>
   );
 }

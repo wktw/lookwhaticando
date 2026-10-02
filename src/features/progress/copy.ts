@@ -109,7 +109,7 @@ export function journalLine(e: JournalEntry, anchorName: (id: string) => string 
   if (!e.inked) {
     switch (e.kind) {
       case 'usualTime':
-        return fillLine(plural(Math.max(1, e.remaining ?? 1), J.usualTime.pencil), { count: num(Math.max(1, e.remaining ?? 1)) });
+        return J.usualTime.pencil;
       case 'steadiestDay':
         return J.steadiestDay.pencil;
       case 'tinyDays':

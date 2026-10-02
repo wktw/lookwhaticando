@@ -2,6 +2,7 @@
  * You › Preferences (DESIGN §9.5, VOICE §22): the day, the look and sound, Today and the capsules,
  * and accessibility. Every change is saved at once (`updateSettings`, which clamps and validates).
  */
+import { getPlatform } from '@/platform/capabilities';
 import { SETTINGS } from '@/catalog/lines';
 import { DAY_STARTS_AT_MAX, DAY_STARTS_AT_MIN } from '@/domain/dates';
 import { hemisphereOf } from '@/domain/hemisphere';
@@ -28,10 +29,7 @@ export function keyboardLikely(): boolean {
 
 /** Haptics only where the device can play them: a phone's vibration, or an iPhone's switch tick. */
 export function hapticsSupported(): boolean {
-  if (typeof navigator === 'undefined') return false;
-  const appleTouch = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-  const coarse = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
-  return appleTouch || (coarse && typeof navigator.vibrate === 'function');
+  return getPlatform().haptics.supported();
 }
 
 const set = (patch: Partial<Settings>) => updateSettings(patch);

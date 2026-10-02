@@ -364,6 +364,17 @@ export const LOOKS = {
   show: 'Show this look',
   classic: 'Classic',
   helper: 'Classic is always here, if you prefer it.',
+  waiting: 'There aren’t enough clear watering times to read this plant’s colour yet.',
+  uncertain: 'Sparse routines, late nights and habits watered together can leave the time uncertain.',
+  choiceLater: 'After 10 waterings that count towards your habit, you can choose a colour here.',
+  choose: 'Choose a colour',
+  choiceHelp: 'Pick a colour you like. It won’t say anything about when you water.',
+  confirm: 'Keep this colour',
+  chosenTag: '{look}: a colour you chose.',
+  chosenOption: '{look} · chosen',
+  foliage: 'This plant has no petals to colour. Your choice stays on its tag; the leaves stay the same.',
+  pairedChoice: 'Paired flowers keep the other habit’s colour. Your choice stays on the tag, and the bee stays.',
+  confirmed: 'Colour kept.',
   newLook: 'A new look for {plant}: {look}.',
   stacking: { after: 'After {anchor}', kept: { one: 'Right after {anchor} on 1 day', other: 'Right after {anchor} on {count} days' } },
 } as const;
@@ -407,19 +418,19 @@ export const REMINDERS = {
   title: 'Watering time',
   rows: { morning: 'Morning', midday: 'Midday', evening: 'Evening' },
   add: 'Add to calendar',
-  helper: 'catkin can’t send notifications, so it makes a calendar event that repeats every day. Your calendar does the reminding.',
+  helper: 'Little by Little can’t send notifications, so it makes a calendar event that repeats every day. Your calendar does the reminding.',
   summary: 'Watering time',
   description: '{Block} plants: {habits}.',
   descriptionEmpty: '{Block} plants.',
   alarm: 'Watering time',
-  file: 'catkin-watering-time-{block}.ics',
+  file: 'little-by-little-watering-time-{block}.ics',
 } as const;
 
 /** Data (§21). Slots: {count}, {habits}, {waterings}, {pets}, {date}, {habit}. */
 export const DATA = {
   save: 'Save a backup',
   saved: 'Backup saved.',
-  file: 'catkin-backup-{date}.json',
+  file: 'little-by-little-backup-{date}.json',
   copy: 'Copy backup',
   copied: 'Copied. Paste it somewhere safe, like a note to yourself.',
   import: 'Import a backup',
@@ -432,9 +443,9 @@ export const DATA = {
   snapshots: 'Daily copies, kept on this device: 7 daily and 4 weekly.',
   restoreSnapshot: 'Restore this copy',
   csv: 'Export waterings as CSV',
-  csvFile: 'catkin-waterings-{date}.csv',
-  /** The CSV of a newer catkin's save: only what this catkin can read (WP-A4). DEC-V: pending owner approval. */
-  csvPartialFile: 'catkin-waterings-{date}-partial.csv',
+  csvFile: 'little-by-little-waterings-{date}.csv',
+  /** The CSV of a newer version of Little by Little's save: only what this version of Little by Little can read (WP-A4). DEC-V: pending owner approval. */
+  csvPartialFile: 'little-by-little-waterings-{date}-partial.csv',
   /** The CSV's header row and state words (`exportCsv`). */
   csvColumns: ['date', 'habit', 'count', 'target', 'state'],
   csvStates: { watered: 'watered', tiny: 'tiny', partial: 'partial', rest: 'rest' },

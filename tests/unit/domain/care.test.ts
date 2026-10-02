@@ -260,6 +260,25 @@ describe('pantry (DESIGN §8.2: 2 servings every morning, bank up to 5)', () => 
     expect(g.state.pantry['treat-strawberry']!.servings).toBe(7);
     expect(g.coins).toBe(5);
   });
+
+  it.each([95, 96, 97, 98, 99])('refuses a tray at %i servings without spending coins or changing the pantry', (servings) => {
+    const g = new Game();
+    g.setWallet({ coins: 15 });
+    own(g, ['treat-strawberry'], servings);
+    const before = g.state;
+    expect(g.run((tx) => pantry.bakeTray(tx, 'treat-strawberry'))).toEqual({ ok: false });
+    expect(g.state).toEqual(before);
+    expect(g.last).toEqual([]);
+  });
+
+  it.each([0, 1, 94])('bakes the whole tray at %i servings for exactly 10 coins', (servings) => {
+    const g = new Game();
+    g.setWallet({ coins: 15 });
+    own(g, ['treat-strawberry'], servings);
+    expect(g.run((tx) => pantry.bakeTray(tx, 'treat-strawberry'))).toEqual({ ok: true });
+    expect(g.state.pantry['treat-strawberry']!.servings).toBe(servings + 5);
+    expect(g.coins).toBe(5);
+  });
 });
 
 describe('the Shelf (DESIGN §8.3 decor, §8.4 places)', () => {

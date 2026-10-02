@@ -156,7 +156,7 @@ export const REVEAL_LINES: Readonly<Record<Rarity, readonly string[]>> = {
 };
 
 /**
- * The Secret reveal: the one exclamation mark catkin has (DESIGN §12 allows it). Slots: {series},
+ * The Secret reveal: the one exclamation mark Little by Little has (DESIGN §12 allows it). Slots: {series},
  * {A}, {secretLine} (from SECRET_LINES).
  */
 export const SECRET_REVEAL = '{series}, the secret one! {A}, {secretLine}';
@@ -403,7 +403,7 @@ export const HERBARIUM = {
 export const GARDEN_JOURNAL = {
   usualTime: {
     ink: 'You usually water it around {time}.',
-    pencil: { one: 'Your usual time fills in after 1 more watering.', other: 'Your usual time fills in after {count} more waterings.' },
+    pencil: 'Your usual time is still uncertain.',
   },
   steadiestDay: {
     ink: '{weekday}s are when it’s watered most.',
@@ -419,7 +419,7 @@ export const GARDEN_JOURNAL = {
   },
   whyItLooks: {
     ink: 'It blooms {look} because you water it {when}.',
-    pencil: 'Why it looks the way it does fills in at Blooming.',
+    pencil: 'Your plant tag will explain its look when one is ready.',
   },
 } as const;
 
@@ -488,7 +488,7 @@ export const TODAY_LINES = {
   notNow: 'Not now',
   historyNote: 'Fixes history. No coins for this one.',
   historyNoteQuiet: 'Fixes history.',
-  clockBehind: 'The clock on this device reads earlier than catkin last saw. Coins and stamps wait until it’s right again.',
+  clockBehind: 'The clock on this device reads earlier than Little by Little last saw. Coins and stamps wait until it’s right again.',
   openShelf: 'Open the Shelf',
   firstCapsule: 'Your first capsule: water anything.',
   /** The same card while the onboarding capsule is still on the house (`firstCapsuleWaiting`). */
@@ -779,50 +779,50 @@ export const ERRORS = {
   sheetClose: 'Close',
   /** The same sheet while a first load takes a moment (P-ui-23): its title, over a busy "Try again" and "Close". DEC-V: pending owner approval. */
   sheetSlow: 'One moment',
-  save: 'That change didn’t save yet. catkin is trying again, and your last backup is safe.',
+  save: 'That change didn’t save yet. Little by Little is trying again, and your last backup is safe.',
   /** No persistent storage at all this session (blocked or missing): nothing is kept past closing. */
-  volatile: 'This browser isn’t keeping catkin’s save right now. Save a backup before you close it.',
-  otherWindow: 'catkin is open in another window · Use here',
+  volatile: 'This browser isn’t keeping Little by Little’s save right now. Save a backup before you close it.',
+  otherWindow: 'Little by Little is open in another window · Use here',
   useHere: 'Use here',
-  newerSave: 'This save is from a newer catkin, so it opens read-only here. Update to make changes.',
+  newerSave: 'This save is from a newer version of Little by Little, so it opens read-only here. Update to make changes.',
   /** Another window started over (or erased the save), and this one followed it (WP-A2). DEC-V: pending owner approval. */
-  startedOver: 'catkin was started over in another window, so it starts fresh here too.',
+  startedOver: 'Little by Little was started over in another window, so it starts fresh here too.',
   erasePaused: 'Some data is still on this device. Changes are paused here. Open You to try again.',
-  clock: 'The clock on this device reads earlier than catkin last saw. Coins and stamps wait until it’s right again.',
+  clock: 'The clock on this device reads earlier than Little by Little last saw. Coins and stamps wait until it’s right again.',
   /**
    * The load notes and their buttons (WP-A7, audit data-d10): a save that couldn't be read, so the
    * one before it (`:backup`) opened, or so it was kept aside (`:corrupt`); "Try again" on a save
    * that didn't go through, and what a Try again that still didn't save says. DEC-V: pending owner approval.
    */
-  recovered: 'catkin couldn’t read the latest save on this device, so it opened the one before it.',
-  corrupt: 'catkin couldn’t read the save on this device. The file is kept just as it was.',
+  recovered: 'Little by Little couldn’t read the latest save on this device, so it opened the one before it.',
+  corrupt: 'Little by Little couldn’t read the save on this device. The file is kept just as it was.',
   /** A full disk took the room the damaged file was kept in: it is only in this window now (the WP-A7 review). DEC-V: pending owner approval. */
-  damagedUnkept: 'catkin needed the room to save your changes, so the damaged file isn’t kept on this device any more. Save it now to keep it.',
+  damagedUnkept: 'Little by Little needed the room to save your changes, so the damaged file isn’t kept on this device any more. Save it now to keep it.',
   saveDamaged: 'Save the damaged file',
   tryAgain: 'Try again',
-  stillNotSaved: 'Still not saved. catkin keeps trying.',
-  safariTab: 'In a Safari tab, a save can be cleared after 7 days. Keep catkin on your Home Screen to keep it safe.',
+  stillNotSaved: 'Still not saved. Little by Little keeps trying.',
+  safariTab: 'In a Safari tab, a save can be cleared after 7 days. Keep Little by Little on your Home Screen to keep it safe.',
   copy: 'Couldn’t copy. Select the text and copy it by hand.',
   share: 'Saved to Downloads instead.',
-  notBackup: 'That file isn’t a catkin backup.',
-  newerBackup: 'This backup is from a newer catkin. Update, then import it.',
+  notBackup: 'That file isn’t a Little by Little backup.',
+  newerBackup: 'This backup is from a newer version of Little by Little. Update, then import it.',
   /** An import past the bounds (a file over 64 MB, or a payload that expands past 128 MB; WP-A5). DEC-V: pending owner approval. */
-  tooLarge: 'That’s too big to be a catkin backup.',
+  tooLarge: 'That’s too big to be a Little by Little backup.',
   fileBuild: 'Test copy · saved only in this browser, for this file',
   diagnostics: 'Copy report',
 } as const;
 
 /** The install guide (§19). */
 export const INSTALL = {
-  gate: 'Keep catkin on your Home Screen',
+  gate: 'Keep Little by Little on your Home Screen',
   peek: 'Just peek',
-  ios: ['Tap Share.', 'Tap Add to Home Screen.', 'Open catkin from there.'],
-  macSafari: ['Choose File › Add to Dock.', 'Open catkin from the Dock.'],
-  chromium: ['Click Install in the address bar.', 'Open catkin from your apps.'],
+  ios: ['Tap Share.', 'Tap Add to Home Screen.', 'Open Little by Little from there.'],
+  macSafari: ['Choose File › Add to Dock.', 'Open Little by Little from the Dock.'],
+  chromium: ['Click Install in the address bar.', 'Open Little by Little from your apps.'],
   android: ['Tap the menu, then Install app.'],
   singleFile: ['Double-click catkin.html. It works offline, in this browser.'],
   handoff: 'Move my plants into the app',
-  handoffCopied: 'Copied. Open catkin from your Home Screen and tap Paste my plants.',
+  handoffCopied: 'Copied. Open Little by Little from your Home Screen and tap Paste my plants.',
   paste: 'Paste my plants',
   updateReady: 'A new version is ready · Reload',
   upToDate: 'Up to date.',
@@ -903,11 +903,11 @@ export const CAPSULE_NOTICES = {
   notVisited: 'The {season} hasn’t visited yet. Its things can be ordered once it has.',
   /** Commit before reveal (audit FS4, FS10): a capsule or order whose save didn't go through is rolled back, never shown. */
   notSaved: 'This capsule couldn’t be saved, so it wasn’t opened. Nothing was spent.',
-  notKept: 'This browser isn’t keeping catkin’s save, so the capsule stayed closed. Nothing was spent.',
-  settling: 'One moment: catkin is still getting ready in this window. Nothing was spent.',
+  notKept: 'This browser isn’t keeping Little by Little’s save, so the capsule stayed closed. Nothing was spent.',
+  settling: 'One moment: Little by Little is still getting ready in this window. Nothing was spent.',
   orderNotSaved: 'That order couldn’t be saved, so it wasn’t placed. No stamps were spent.',
-  orderNotKept: 'This browser isn’t keeping catkin’s save, so the order wasn’t placed. No stamps were spent.',
-  orderSettling: 'One moment: catkin is still getting ready in this window. No stamps were spent.',
+  orderNotKept: 'This browser isn’t keeping Little by Little’s save, so the order wasn’t placed. No stamps were spent.',
+  orderSettling: 'One moment: Little by Little is still getting ready in this window. No stamps were spent.',
 } as const;
 
 /** The names the M1 contract map uses for two of the groups above. */
@@ -1229,22 +1229,22 @@ export const DATA_COPY = {
   snapshotsRow: 'Daily copies',
   /** DATA.snapshots without repeating the sheet's title. */
   snapshotsKept: 'Kept on this device: 7 daily and 4 weekly.',
-  snapshotKinds: { daily: 'Daily copy', weekly: 'Weekly copy', 'pre-import': 'Before an import' },
+  snapshotKinds: { daily: 'Daily copy', weekly: 'Weekly copy', 'pre-import': 'Safety copy' },
   snapshotLine: '{habits} habits · {waterings} waterings',
   restoredSnapshot: 'Back to the copy from {date}.',
   chooseFile: 'Choose a file',
   pasteLabel: 'Or paste a backup here',
-  pasteHelper: 'A backup starts with CK1, or it is a catkin backup file.',
+  pasteHelper: 'A backup starts with CK1, or it is a Little by Little backup file.',
   /** While a chosen backup is read and described; what was described before has gone (WP-A6). DEC-V: pending owner approval. */
   reading: 'Reading the backup…',
   noUndoTitle: 'Import without an undo?',
-  noUndo: 'catkin couldn’t keep a copy of what’s here, so there is no Undo import this time.',
+  noUndo: 'Little by Little couldn’t keep a copy of what’s here, so there is no Undo import this time.',
   importAnyway: 'Import anyway',
   /** An import that kept no copy to go back to (WP-A3, VOICE §21). DEC-V: pending owner approval. */
   importedNoUndo: 'Imported. There is no Undo import this time.',
   /** A restore with no copy of what's here: asked once more, like import (WP-A3). DEC-V: pending owner approval. */
   restoreNoUndoTitle: 'Restore without an undo?',
-  restoreNoUndo: 'catkin couldn’t keep a copy of what’s here, so there is no undo for this restore.',
+  restoreNoUndo: 'Little by Little couldn’t keep a copy of what’s here, so there is no undo for this restore.',
   /** The Undo row after a restore (DEC-P13's generic label). DEC-V: pending owner approval. */
   undoRestore: 'Undo last replacement',
   undoneRestore: 'Back to how things were before the restore.',
@@ -1253,8 +1253,8 @@ export const DATA_COPY = {
   superseded: 'The save changed just then, so nothing was replaced. Try again.',
   copyUnreadable: 'That copy can’t be read on this device right now, so nothing changed.',
   copyGone: 'That copy isn’t on this device any more, so nothing changed.',
-  /** A daily copy a newer catkin kept (WP-A4, P-persistence-04). DEC-V: pending owner approval. */
-  copyNewer: 'That copy is from a newer catkin. Update, then restore it.',
+  /** A daily copy a newer version of Little by Little kept (WP-A4, P-persistence-04). DEC-V: pending owner approval. */
+  copyNewer: 'That copy is from a newer version of Little by Little. Update, then restore it.',
   /** An Undo no longer on offer (expired, or the save shown is another one): its copy may still be there. DEC-V: pending owner approval. */
   undoGone: 'That Undo isn’t on offer any more, so nothing changed.',
   cannotOpen: 'This browser can’t open that backup. Try the backup file instead.',
@@ -1271,7 +1271,7 @@ export const DATA_COPY = {
   erased: 'The save, settings and daily copies on this device have been erased.',
   erasePartial: 'Some data is still on this device.',
   eraseStorage: 'The save or settings couldn’t be erased.',
-  eraseBlocked: 'The daily copies couldn’t be erased. Close other catkin windows, then try again.',
+  eraseBlocked: 'The daily copies couldn’t be erased. Close other Little by Little windows, then try again.',
   eraseUnavailable: 'The daily copies couldn’t be erased. Try again.',
   eraseRetry: 'Try erasing again',
   eraseChanged: 'The save changed while erasing. Some data may still be on this device.',
@@ -1289,23 +1289,23 @@ export const DATA_COPY = {
    */
   storageAcquiring: 'Getting ready to save',
   snapshotsError: 'The daily copies can’t be read on this device right now.',
-  damagedFile: 'catkin-damaged-save-{date}.txt',
+  damagedFile: 'little-by-little-damaged-save-{date}.txt',
   damagedSaved: 'The damaged file is saved.',
   /**
-   * The CSV of a newer catkin's save shown read-only: only what this catkin can read of it, so it
+   * The CSV of a newer version of Little by Little's save shown read-only: only what this version of Little by Little can read of it, so it
    * says so, in its note and its file name; and a newer save it can't read at all gives none (WP-A4,
    * FS2). DEC-V: pending owner approval.
    */
-  csvPartial: 'Saved the waterings this catkin can read. A backup keeps the whole newer save.',
-  csvNewer: 'This catkin can’t read the waterings in a newer save. A backup keeps all of it.',
+  csvPartial: 'Saved the waterings this version of Little by Little can read. A backup keeps the whole newer save.',
+  csvNewer: 'This version of Little by Little can’t read the waterings in a newer save. A backup keeps all of it.',
   fileBuild: 'Saved in this browser, for this file',
 } as const;
 
 export const ABOUT_COPY = {
-  principlesTitle: 'What catkin keeps to',
+  principlesTitle: 'What Little by Little keeps to',
   principles: [
     'Growth only adds. A resting plant keeps every leaf.',
-    'With Quiet rewards on, catkin is just the tracker.',
+    'With Quiet rewards on, Little by Little is just the tracker.',
     'The odds are printed on every cabinet.',
   ],
   how: [
@@ -1332,7 +1332,7 @@ export const ABOUT_COPY = {
 export const DIAG_COPY = {
   title: 'Diagnostics',
   back: 'You',
-  lead: 'What this device says about catkin. Copy the report to share it.',
+  lead: 'What this device says about Little by Little. Copy the report to share it.',
   device: 'This device',
   copied: 'Report copied.',
   measure: 'Measure frame timing',

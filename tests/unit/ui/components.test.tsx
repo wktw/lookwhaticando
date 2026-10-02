@@ -434,12 +434,12 @@ describe('Sheet gestures: a cancelled drag is not a release (UI2-05, P-ui-01)', 
         send('pointermove', 400);
       });
       expect(panel.style.transform).toBe('translateY(300px)');
-      expect(live.map(([t]) => t).sort()).toEqual(['blur', 'pointercancel', 'pointermove', 'pointerup', 'visibilitychange']);
+      expect(live.map(([t]) => t).sort()).toEqual(['blur', 'pageshow', 'pointercancel', 'pointermove', 'pointerup', 'visibilitychange']);
       act(() => void header.dispatchEvent(pointer('pointerdown', { clientY: 100 })));
-      // The old pull is aborted: back at rest, and only the new pull's five listeners are live.
+      // The old pull is aborted: back at rest, and only the new pull's six listeners are live.
       expect(panel.style.transform).toBe('');
       expect(panel.style.transition).toBe('');
-      expect(live.length).toBe(5);
+      expect(live.map(([t]) => t).sort()).toEqual(['blur', 'pageshow', 'pointercancel', 'pointermove', 'pointerup', 'visibilitychange']);
       act(() => void send('pointerup', 102));
       expect(live).toEqual([]);
     } finally {

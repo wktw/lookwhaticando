@@ -4,14 +4,16 @@
  * offers, and the companion with its three stories.
  */
 import type { ComponentChildren } from 'preact';
-import { useState } from 'preact/hooks';
+import { useRef, useState } from 'preact/hooks';
 import { PetArt } from '@/art/pets/PetArt';
 import { CoinIcon, Icon } from '@/art/icons';
 import { COMPANION, EMPTY, LOOKS, NOTE_COPY, STORIES, fillLine } from '@/catalog/lines';
 import { consistencyText, num, runText } from '@/catalog/format';
 import { monthDayLabel } from '@/domain/dates';
 import type { HabitDetailVM } from '@/state/selectors';
-import { acceptGrowOffer, answerTimeNudge, declineOffer, answerWhy, readStory, setPlantLook, starNote, state, updateHabit } from '@/state/store';
+import { acceptGrowOffer, answerTimeNudge, declineOffer, answerWhy, readStory, setPlantLook, starNote, state, updateHabit, saveEpoch } from '@/state/store';
+import { PETAL_INKS } from '@/art/plants/looks';
+import { LookChoiceSheet } from './LookChoiceSheet';
 import { Button } from '@/ui/Button';
 import { TextField } from '@/ui/TextField';
 import { toast } from '@/ui/toast';
@@ -43,15 +45,21 @@ export function DetailSection({ id, title, children, class: cls, focusableTitle 
 
 export function PlantTagCard({ vm }: { vm: HabitDetailVM }) {
   const { looks } = vm;
-  if (looks.looks.length === 0) return null;
+  const [choiceEpoch, setChoiceEpoch] = useState<number | null>(null);
+  const choiceConfirmed = useRef(false);
+  const tagRoot = useRef<HTMLDivElement>(null);
+  const epoch = saveEpoch.value;
+  if (looks.looks.length === 0 && !looks.waiting && !looks.confirmed) return null;
   const tag = looks.tag;
-  const options: { index: number | null; label: string }[] = [{ index: null, label: LOOKS.classic }, ...looks.looks.map((l, i) => ({ index: i, label: lookName(l) }))];
-  const pick = (index: number | null) => {
-    if (index === looks.shown) return;
-    if (setPlantLook(vm.habit.id, index)) haptic('light');
+  const shown = looks.confirmed?.shown ? 'confirmed' : looks.shown;
+  const options: { index: number | null | 'confirmed'; label: string }[] = [{ index: null, label: LOOKS.classic }, ...looks.looks.map((l, i) => ({ index: i, label: lookName(l) }))];
+  if (looks.confirmed) options.push({ index: 'confirmed', label: fillLine(LOOKS.chosenOption, { look: lookName(looks.confirmed) }) });
+  const pick = (index: number | null | 'confirmed') => {
+    if (index === shown) return;
+    if (setPlantLook(vm.habit.id, index, epoch)) haptic('light');
   };
   const onKey = (e: KeyboardEvent) => {
-    const i = Math.max(0, options.findIndex((o) => o.index === looks.shown));
+    const i = Math.max(0, options.findIndex((o) => o.index === shown));
     const dir = e.key === 'ArrowRight' || e.key === 'ArrowDown' ? 1 : e.key === 'ArrowLeft' || e.key === 'ArrowUp' ? -1 : 0;
     if (!dir) return;
     e.preventDefault();
@@ -62,13 +70,25 @@ export function PlantTagCard({ vm }: { vm: HabitDetailVM }) {
   };
   return (
     <DetailSection id="tag" title={D.sections.tag} class={s.tagSection}>
-      <div class={s.tag}>
+      <div class={s.tag} ref={tagRoot}>
         <span class={s.tagHole} aria-hidden="true" />
-        {tag && <p class={s.tagWhy}>{lookTag(tag, anchorNameOf)}</p>}
-        <div class={s.looks} role="radiogroup" aria-label={D.looks.label} onKeyDown={onKey}>
+        {looks.confirmed?.shown ? <p class={s.tagWhy}>{fillLine(LOOKS.chosenTag, { look: lookName(looks.confirmed) })}</p> : tag && <p class={s.tagWhy}>{lookTag(tag, anchorNameOf)}</p>}
+        {looks.waiting && !looks.confirmed && <>
+          <p class={s.tagWhy}>{LOOKS.waiting}</p>
+          <p class={s.help}>{LOOKS.uncertain}</p>
+          {!looks.choice && <p class={s.help}>{LOOKS.choiceLater}</p>}
+        </>}
+        {!PETAL_INKS[vm.plant.species] && <p class={s.help}>{LOOKS.foliage}</p>}
+        {PETAL_INKS[vm.plant.species] && looks.confirmed?.shown && looks.confirmed.shape === 'paired'
+          && state.value.habits.some((h) => h.id === looks.confirmed!.partnerId) && <p class={s.help}>{LOOKS.pairedChoice}</p>}
+        {(looks.looks.length > 0 || looks.confirmed) && <div class={s.looks} role="radiogroup" aria-label={D.looks.label} onKeyDown={onKey}>
           {options.map((o) => {
-            const on = o.index === looks.shown;
-            const art = o.index === null ? undefined : lookArtOf(state.value, vm.habit.id, looks.looks[o.index]!);
+            const on = o.index === shown;
+            const c = looks.confirmed;
+            const art = o.index === null ? undefined : o.index === 'confirmed' && c ? {
+              colour: c.colour, shape: c.shape,
+              ...(c.partnerId ? { partnerColour: state.value.habits.find((h) => h.id === c.partnerId)?.color } : {}),
+            } : lookArtOf(state.value, vm.habit.id, looks.looks[o.index as number]!);
             return (
               <button key={o.label + String(o.index)} type="button" role="radio" aria-checked={on} tabIndex={on ? 0 : -1} class={cx(s.look, on && s.lookOn)} onClick={() => pick(o.index)}>
                 <span class={s.lookArt} aria-hidden="true">
@@ -78,9 +98,13 @@ export function PlantTagCard({ vm }: { vm: HabitDetailVM }) {
               </button>
             );
           })}
-        </div>
-        <p class={s.help}>{LOOKS.helper}</p>
+        </div>}
+        {(looks.looks.length > 0 || looks.confirmed) && <p class={s.help}>{LOOKS.helper}</p>}
+        {looks.choice && <Button size="sm" onClick={() => { choiceConfirmed.current = false; setChoiceEpoch(epoch); }}>{LOOKS.choose}</Button>}
       </div>
+      <LookChoiceSheet vm={vm} epoch={choiceEpoch} open={choiceEpoch !== null && choiceEpoch === epoch}
+        onClose={() => setChoiceEpoch(null)} onConfirm={() => { choiceConfirmed.current = true; setChoiceEpoch(null); }}
+        onClosed={() => { if (choiceConfirmed.current) tagRoot.current?.querySelector<HTMLElement>('[aria-checked="true"]')?.focus(); }} />
     </DetailSection>
   );
 }
@@ -110,7 +134,7 @@ export function NudgeCard({ vm }: { vm: HabitDetailVM }) {
 
 export function Journal({ vm }: { vm: HabitDetailVM }) {
   // The plant tag above already says why it looks the way it does.
-  const tagShown = vm.looks.looks.length > 0 && !!vm.looks.tag;
+  const tagShown = (vm.looks.looks.length > 0 && !!vm.looks.tag) || !!vm.looks.confirmed?.shown;
   const lines = vm.journal
     .filter((e) => !(tagShown && e.kind === 'whyItLooks'))
     .map((e) => ({ e, text: journalLine(e, anchorNameOf) })).filter((x): x is { e: (typeof vm.journal)[number]; text: string } => !!x.text);
@@ -214,7 +238,7 @@ export function Moments({ vm }: { vm: HabitDetailVM }) {
           <p class={s.help}>{D.quoteHelp}</p>
         </>
       )}
-      <NoteSheet target={note} onClose={() => setNoteTarget(null)} onFocusLost={() => document.getElementById('detail-moments')?.focus({ preventScroll: true })} />
+      <NoteSheet target={note} onClose={() => setNoteTarget(null)} focusFallback={() => document.getElementById('detail-moments')} />
     </DetailSection>
   );
 }

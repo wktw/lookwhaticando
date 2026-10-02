@@ -103,12 +103,12 @@ describe('capsules copy', () => {
     const order = { rarity: 'uncommon', price: 4 } as const;
     expect(pullErrorNotice('storage-full', cats).text).toBe('This capsule couldn’t be saved, so it wasn’t opened. Nothing was spent.');
     expect(pullErrorNotice('unavailable', cats).text).toBe(pullErrorNotice('storage-full', cats).text);
-    expect(pullErrorNotice('volatile', cats).text).toBe('This browser isn’t keeping catkin’s save, so the capsule stayed closed. Nothing was spent.');
-    expect(pullErrorNotice('acquiring', cats).text).toBe('One moment: catkin is still getting ready in this window. Nothing was spent.');
+    expect(pullErrorNotice('volatile', cats).text).toBe('This browser isn’t keeping Little by Little’s save, so the capsule stayed closed. Nothing was spent.');
+    expect(pullErrorNotice('acquiring', cats).text).toBe('One moment: Little by Little is still getting ready in this window. Nothing was spent.');
     expect(orderErrorText('storage-full', order, 2)).toBe('That order couldn’t be saved, so it wasn’t placed. No stamps were spent.');
     expect(orderErrorText('unavailable', order, 2)).toBe(orderErrorText('storage-full', order, 2));
-    expect(orderErrorText('volatile', order, 2)).toBe('This browser isn’t keeping catkin’s save, so the order wasn’t placed. No stamps were spent.');
-    expect(orderErrorText('acquiring', order, 2)).toBe('One moment: catkin is still getting ready in this window. No stamps were spent.');
+    expect(orderErrorText('volatile', order, 2)).toBe('This browser isn’t keeping Little by Little’s save, so the order wasn’t placed. No stamps were spent.');
+    expect(orderErrorText('acquiring', order, 2)).toBe('One moment: Little by Little is still getting ready in this window. No stamps were spent.');
   });
 
   it('announces a reveal as a sentence; only the Secret may exclaim', () => {

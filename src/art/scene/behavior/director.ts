@@ -6,7 +6,7 @@
  */
 import { signal, type Signal } from '@preact/signals';
 import type { PlaceId, Personality, Species } from '@/catalog/types';
-import type { PetSpot } from '../model';
+import type { FriendshipProfile, PetSpot } from '../model';
 import type { ActorView } from '../actors/PetActor';
 import type { Ground, Perch } from '../arrange';
 import type { Moment } from '../time';
@@ -20,6 +20,7 @@ export interface DirectorPet {
   /** Which pet (sizes it on a pot rim). */
   petId?: string;
   personality?: Personality;
+  bond?: FriendshipProfile;
   place: PlaceId;
   ground: Ground;
   home?: Perch;
@@ -115,6 +116,13 @@ export class Director {
     return xs;
   }
 
+  private friendOf(pet: DirectorPet): { key: string; spot: PetSpot } | undefined {
+    const key = pet.bond?.napWith;
+    if (!key || key === pet.key || this.busy.has(key) || this.pets.get(key)?.ground !== pet.ground) return undefined;
+    const spot = this.views.get(key)?.peek();
+    return spot ? { key, spot } : undefined;
+  }
+
   private next(key: string): void {
     if (!this.running || this.busy.has(key)) return;
     const pet = this.pets.get(key)!;
@@ -123,6 +131,9 @@ export class Director {
       species: pet.species,
       petId: pet.petId,
       personality: pet.personality,
+      key,
+      bond: pet.bond,
+      friend: this.friendOf(pet),
       at: view.peek(),
       home: pet.home,
       ground: pet.ground,
@@ -159,7 +170,7 @@ export class Director {
     for (const p of this.pets.values()) if (!this.busy.has(p.key)) places.set(p.place, [...(places.get(p.place) ?? []), p]);
     for (const [place, pets] of places) {
       const ground = pets[0]!.ground;
-      const found = findVignette({ place, ground, moment: this.moment, actors: pets.map((p) => ({ key: p.key, species: p.species, spot: this.views.get(p.key)!.peek() })) }, this.rnd());
+      const found = findVignette({ place, ground, moment: this.moment, actors: pets.map((p) => ({ key: p.key, species: p.species, bond: p.bond, spot: this.views.get(p.key)!.peek() })) }, this.rnd());
       if (found) {
         this.stageVignette(found.vignette, found.cast, place, ground);
         break;
@@ -177,7 +188,7 @@ export class Director {
     for (const place of new Set(pets.map((p) => p.place))) {
       const here = pets.filter((p) => p.place === place);
       const ground = here[0]!.ground;
-      const cast = v.cast({ place, ground, moment: this.moment, actors: here.map((p) => ({ key: p.key, species: p.species, spot: this.views.get(p.key)!.peek() })) });
+      const cast = v.cast({ place, ground, moment: this.moment, actors: here.map((p) => ({ key: p.key, species: p.species, bond: p.bond, spot: this.views.get(p.key)!.peek() })) });
       if (cast) {
         for (const key of cast) {
           const t = this.timers.get(key);
@@ -191,7 +202,7 @@ export class Director {
   }
 
   private stageVignette(v: Vignette, cast: readonly string[], place: PlaceId, ground: Ground): void {
-    const actors = [...this.pets.values()].filter((p) => p.place === place).map((p) => ({ key: p.key, species: p.species, spot: this.views.get(p.key)!.peek() }));
+    const actors = [...this.pets.values()].filter((p) => p.place === place).map((p) => ({ key: p.key, species: p.species, bond: p.bond, spot: this.views.get(p.key)!.peek() }));
     const spots = v.stage({ place, ground, moment: this.moment, actors }, cast);
     const release = () => {
       for (const key of members) {
@@ -250,12 +261,14 @@ export class Director {
   /** Reduced motion: one pet fades out, and back in somewhere else. */
   private relocateOne(): void {
     if (!this.running) return;
-    const keys = [...this.pets.keys()];
+    // Earned placements (and their nap partners) remain still under reduced motion.
+    const partners = new Set([...this.pets.values()].map((p) => p.bond?.napWith).filter(Boolean));
+    const keys = [...this.pets.keys()].filter((key) => !this.pets.get(key)?.bond && !partners.has(key));
     if (keys.length) {
       const key = keys[this.turn++ % keys.length]!;
       const pet = this.pets.get(key)!;
       const view = this.views.get(key)!;
-      const { steps } = planAct({ species: pet.species, petId: pet.petId, personality: pet.personality, at: view.peek(), home: pet.home, ground: pet.ground, hour: this.moment.hour, night: this.moment.light.night, taken: this.taken(key, pet.ground), perchesTaken: this.perchesTaken(key), rnd: this.rnd });
+      const { steps } = planAct({ species: pet.species, petId: pet.petId, personality: pet.personality, key, bond: pet.bond, friend: this.friendOf(pet), at: view.peek(), home: pet.home, ground: pet.ground, hour: this.moment.hour, night: this.moment.light.night, taken: this.taken(key, pet.ground), perchesTaken: this.perchesTaken(key), rnd: this.rnd });
       const last = steps[steps.length - 1]!;
       const el = this.opts.element?.(key);
       const place = () => {

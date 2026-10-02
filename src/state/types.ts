@@ -577,12 +577,24 @@ export interface PlantLook {
   };
 }
 
+/** An explicit colour choice, never evidence of a watering time. Shape is read from real history. */
+export interface ConfirmedPlantLook {
+  colour: BloomColour;
+  shape: BloomShape;
+  on: DateKey;
+  shown: boolean;
+  /** Fixed earning partner for a Paired shape; a later unstack does not borrow another plant. */
+  partnerId?: string;
+}
+
 export interface PlantLooks {
   looks: PlantLook[];
   /** Index into `looks` of the look shown; null = Classic (always available). */
   shown: number | null;
   /** She picked `shown` herself: a later look is added without switching to it. */
   chosen?: true;
+  /** Optional and additive: older saves have no explicit colour choice. */
+  confirmed?: ConfirmedPlantLook;
   /**
    * The reads made (the day of each). A read that is due but not made yet (fewer than 10 eligible
    * live check-in days) is retried on each later check-in.

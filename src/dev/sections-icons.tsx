@@ -98,7 +98,7 @@ function AppIcons({ params }: { params: URLSearchParams }) {
   }
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
-      <AppIconArt size={1024} shape="squircle" title="catkin app icon, 1024 px" />
+      <AppIconArt size={1024} shape="squircle" title="Little by Little app icon, 1024 px" />
       {WALLPAPERS.map((w) => (
         <div key={w.name} style={{ background: w.bg, borderRadius: '18px', padding: '18px 22px 22px', color: w.ink }}>
           <h3 style={{ margin: '0 0 14px', font: '600 13px/1.2 var(--font-ui, system-ui)', color: w.ink }}>{w.name}</h3>

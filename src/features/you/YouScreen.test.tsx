@@ -1,8 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act } from 'preact/test-utils';
-import { createInitialState } from '@/state/defaults';
-import { archiveHabit, completeOnboarding, configureStore, exportData, readOnly, setName, state } from '@/state/store';
+import { archiveHabit, completeOnboarding, configureStore, exportData, flushSaves, hydrate, readOnly, setName, state } from '@/state/store';
 import { memorySnapshotStore } from '@/state/snapshots';
 import { routeRest } from '@/app/router';
 import { toasts } from '@/ui/toast';
@@ -23,7 +22,8 @@ beforeAll(() => {
 });
 beforeEach(() => {
   localStorage.clear();
-  state.value = createInitialState(Date.now());
+  // Retire the prior test's queue as well as its bytes before planting this save.
+  hydrate();
   completeOnboarding({ name: 'Sam', templateIds: ['water', 'walk', 'read'] });
   routeRest.value = [];
   toasts.value = [];
@@ -97,6 +97,9 @@ describe('You (DESIGN §9.5)', () => {
     await click(button('Move Read up'), 'Move Read up');
     expect(ids()).toEqual(['Read', 'Walk', 'Drink water']);
     await until(() => document.body.textContent?.includes('Read, 1 of 3.'), 'the move read out');
+    // A delayed save must keep this order and the controls that announce it.
+    await act(() => flushSaves());
+    expect(ids()).toEqual(['Read', 'Walk', 'Drink water']);
     expect((button('Move Read up') as HTMLButtonElement).disabled).toBe(true);
     await click(byText('Done'), 'Done');
     expect(button('Move Read')).toBeNull();
@@ -172,7 +175,7 @@ describe('You (DESIGN §9.5)', () => {
     await click(button('Import a backup'), 'Import a backup');
     const sheet = await until(() => dialogs().find((d) => d.querySelector('textarea')), 'the import sheet');
     await type(sheet.querySelector('textarea') as unknown as HTMLInputElement, 'hello');
-    await until(() => sheet.textContent?.includes('That file isn’t a catkin backup.'), 'the error');
+    await until(() => sheet.textContent?.includes('That file isn’t a Little by Little backup.'), 'the error');
     expect(byText('Import', sheet)).toBeNull();
   });
 

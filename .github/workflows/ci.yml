@@ -43,6 +43,8 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - name: Dependency security audit
+        run: npm audit --audit-level=moderate
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
@@ -64,7 +66,7 @@ jobs:
       - name: Upload single-file build (double-click to run on any PC)
         uses: actions/upload-artifact@v4
         with:
-          name: catkin-single-file
+          name: little-by-little-single-file
           path: dist-single/catkin.html
       - name: Upload Pages artifact
         if: github.event_name != 'pull_request'
