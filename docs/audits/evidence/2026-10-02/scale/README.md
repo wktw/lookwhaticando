@@ -1,6 +1,6 @@
 # G2 final quiet measurement evidence
 
-The measurement and final report are approved by both independent reviewers. The required G2 track and main full checks remain separate and pending.
+The measurement and final report are approved by both independent reviewers. The corrected G2 track full check passed at `e05ae2279c0b5253f096eb58db03d42d12ba0600`: 3,994 unit tests plus one skip, both builds/137.9 KB, 510 browser passes plus 24 intentional skips, zero retries or flaky results. The separate main full check, backup and CI remain pending.
 
 Measured source: `ad27da15242987be62f8d7696cfdba98f74f36b0`, clean before and after the run. The single invocation completed with actual exit 0 on 2 October 2026, 13:04:05–13:04:32 UTC. This later evidence-only commit is not the measured source.
 
@@ -14,4 +14,4 @@ Both five- and ten-year fixtures completed with 12 habits and 21,900 / 43,800 fu
 
 All ten main-save attempts were quota refusals with the prior durable value retained; there were zero successful localStorage commits. Both pasted imports were accepted by the actual decoder and preserved journal content, which does not mean those dense journals were durably saved. The UI star check is explicitly in-memory. The report records concrete existing follow-ups for capacity, Moments rendering and metadata listing, with future implementation and physical-device budgets kept separate.
 
-The environment is desktop Chromium in the recorded container, not a physical iPhone. The report adds no new threshold, migration, pruning, worker or pagination implementation. Package/main checks, backup and remote CI remain distinct acceptance stages; the audit/remote consent hold is not changed by this evidence archive.
+The environment is desktop Chromium in the recorded container, not a physical iPhone. The report adds no new threshold, migration, pruning, worker or pagination implementation. Package/main checks, backup and remote CI remain distinct acceptance stages; the owner subsequently approved the registry disclosure and the fresh audit completed with zero vulnerabilities; earlier hold references in archived snapshots are historical.
