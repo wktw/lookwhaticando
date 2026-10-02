@@ -95,3 +95,24 @@ describe('the waiting plant tag and deliberate colour choice', () => {
     expect(view!.root.querySelector('[data-flourish="bee"]')).not.toBeNull();
   });
 });
+
+it('supports Home and End without saving, then cancellation returns focus to the durable opener', async () => {
+  const id = setup();
+  const opener = button('Choose a colour')!;
+  opener.focus();
+  await click(opener, 'open chooser');
+  const sheet = await until(() => document.querySelector('[role="dialog"]'), 'dialog');
+  const radios = [...sheet.querySelectorAll<HTMLButtonElement>('[role="radio"]')];
+  await until(() => document.activeElement === radios[0] ? radios[0] : null, 'initial radio focus');
+  await key(radios[0]!, 'End');
+  expect(document.activeElement).toBe(radios[3]);
+  expect(radios[3]!.getAttribute('aria-checked')).toBe('true');
+  await key(radios[3]!, 'Home');
+  expect(document.activeElement).toBe(radios[0]);
+  expect(radios[0]!.getAttribute('aria-checked')).toBe('true');
+  expect(state.value.plantLooks?.[id]?.confirmed).toBeUndefined();
+  await click(button('Not now'), 'cancel');
+  await until(() => !document.querySelector('[role="dialog"]') ? true : null, 'closed chooser');
+  expect(document.activeElement).toBe(opener);
+  expect(state.value.plantLooks?.[id]?.confirmed).toBeUndefined();
+});
