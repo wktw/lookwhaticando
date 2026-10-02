@@ -5,6 +5,8 @@ import { act } from 'preact/test-utils';
 import { NIGHT_LIGHT } from '@/art/light';
 import { PetActor, type ActorView } from './PetActor';
 import { CARRY_MS } from './touch';
+import { SillScene } from '../SillScene';
+import { lightAtSun } from '../lighting';
 
 // Declare the real pointer handler names, which jsdom omits (as in the shared UI fixtures).
 beforeAll(() => {
@@ -50,13 +52,34 @@ it('keeps a carried pet above the selected name tag and restores its depth after
   vi.useFakeTimers();
   draw(true);
   const button = actor('nearer').querySelector('button')!;
-  act(() => button.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, button: 0, clientX: 10, clientY: 10 })));
-  act(() => vi.advanceTimersByTime(CARRY_MS + 1));
+  act(() => { button.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, button: 0, clientX: 10, clientY: 10 })); });
+  act(() => { vi.advanceTimersByTime(CARRY_MS + 1); });
   expect(actor('nearer').hasAttribute('data-held')).toBe(true);
   expect(z('nearer')).toBeGreaterThan(z('selected'));
-  act(() => button.dispatchEvent(new MouseEvent('pointerup', { bubbles: true, button: 0, clientX: 10, clientY: 10 })));
+  act(() => { button.dispatchEvent(new MouseEvent('pointerup', { bubbles: true, button: 0, clientX: 10, clientY: 10 })); });
   expect(actor('nearer').hasAttribute('data-held')).toBe(false);
   expect(z('selected')).toBeGreaterThan(z('nearer'));
   draw(false);
   expect(z('selected')).toBeLessThan(z('nearer'));
+});
+
+
+it('keeps actual decor editing controls above an open pet name tag', () => {
+  host = document.createElement('div'); document.body.appendChild(host);
+  act(() => render(<SillScene
+    pots={[]}
+    pets={[{ key: 'selected', petId: 'pet-cat-calico', name: 'Juniper' }]}
+    decor={[{ key: 'yarn', itemId: 'decor-yarn-ball' }]}
+    moment={{ light: lightAtSun(0, true), time: 'night', season: 'autumn', hour: 21 }}
+    live={false}
+    onPet={() => {}}
+    onOpenPet={() => {}}
+    editDecor={{ onMove: () => {}, onFlip: () => {}, onRemove: () => {} }}
+  />, host!));
+  const button = actor('selected').querySelector('button')!;
+  act(() => { button.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); });
+  expect(actor('selected').querySelector('[aria-label="Juniper’s card"]')).not.toBeNull();
+  const edit = host.querySelector<HTMLElement>('[data-edit="yarn"]')!;
+  expect(edit).not.toBeNull();
+  expect(z('selected')).toBeLessThan(Number(edit.style.zIndex));
 });
