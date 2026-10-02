@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
-import { afterEach, beforeAll, describe, expect, it } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { act } from 'preact/test-utils';
 import { effect } from '@preact/signals';
 import { createInitialState } from '@/state/defaults';
 import type { AppState } from '@/state/types';
 import { state } from '@/state/store';
-import { todayVM } from '@/state/views/today';
+import { todayVM, bandPots as viewBandPots } from '@/state/views/today';
 import { progressVM } from '@/state/views/progress';
 import { habitDetailVM } from '@/state/views/habit';
 import { bandPots } from '@/features/today/Band';
@@ -13,8 +13,11 @@ import * as shelf from '@/features/shelf/ShelfScreen';
 import { PlantShelf } from './PlantShelf';
 import { HabitDetail } from '@/features/habits/detail/HabitDetail';
 import { lookArtOf } from './looks';
+import { lookInk } from '@/art/plants/looks';
 import { habit } from '../../../tests/unit/domain/helpers';
 import { NOW, TODAY, UTC, demoState, installDom, mount, useState_ } from './testing';
+
+vi.mock('@/art/scene/moment', async (load) => ({ ...await load<object>(), useArtLight: () => ({ from: 'left', night: false }) }));
 
 const env = { now: NOW, today: TODAY, local: UTC };
 let view: ReturnType<typeof mount> | null = null;
@@ -39,6 +42,7 @@ describe('one earned plant presentation (WP-D2)', () => {
   it('Today and Shelf keep the recorded partner colour and five flourishes', () => {
     const s = fixture(); useState_(s);
     expect(bandPots(todayVM(s, env), s.habits).find((p) => p.habitId === 'plant')).toMatchObject(earned);
+    expect(viewBandPots(todayVM(s, env)).find((p) => p.habitId === 'plant')).toMatchObject(earned);
     expect(shelf.scenePots.value.find((p) => p.habitId === 'plant')).toMatchObject(earned);
   });
 
@@ -97,6 +101,15 @@ describe('one earned plant presentation (WP-D2)', () => {
     expect(shelf.scenePots.value).not.toBe(beforeColour);
     expect(shelf.scenePots.value.find((p) => p.habitId === 'plant')?.look?.partnerColour).toBe('butter');
     dispose();
+  });
+
+  it('the real Detail hero draws the recorded Paired partner petals and earned snail', () => {
+    const s = fixture(); useState_(s);
+    view = mount(<HabitDetail vm={habitDetailVM(s, env, 'plant')!} onGone={() => undefined} />);
+    const hero = view.root.querySelector('[data-hero-plant]')!;
+    const ink = lookInk('#FCEEF1', { colour: 'dawn', shape: 'paired', partnerColour: 'blush' }, 0);
+    expect(hero.querySelector(`[fill="${ink}"]`)).not.toBeNull();
+    expect(hero.querySelector('[data-flourish="snail"]')).not.toBeNull();
   });
 
   it('the Detail hero and company portrait both wear the resident’s outfit', () => {
