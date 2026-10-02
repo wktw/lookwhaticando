@@ -513,6 +513,21 @@ export const TODAY_LINES = {
 /* Progress (VOICE.md §6)                                                    */
 /* ------------------------------------------------------------------------ */
 
+/** Dated note control (VOICE §5, WP-C6). DEC-V: pending owner approval. */
+export const NOTE_COPY = {
+  title: 'A note for {habit} · {date}',
+  edit: 'Edit the note',
+  editLabel: 'Edit the note for {habit} · {date}',
+  placeholder: 'A line about this day',
+  remove: 'Remove note',
+  removeTitle: 'Remove this note?',
+  removeText: 'This removes the note and its star from {habit} on {date}.',
+  removeQuotes: 'Also remove it from Sunday Notes',
+  copies: 'Daily and weekly copies keep the note until those copies age out. Copies kept before imports or restores may keep it longer. Erase everything removes local copies. Keepsake captions and exported backup files are unchanged.',
+  replaced: 'The save changed while this note was open. Close it and open the note again.',
+  refused: 'This note can’t be changed here now. Close it and open the note again.',
+} as const;
+
 /** Counted nouns, in numerals. Slot: {count}. */
 export const COUNTS = {
   waterings: { one: '1 watering', other: '{count} waterings' },

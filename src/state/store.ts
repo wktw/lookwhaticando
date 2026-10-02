@@ -1179,8 +1179,10 @@ export function toggleOffDay(date: DateKey): { ok: boolean; remaining: number } 
   const { ok, remaining } = act((tx) => logging.toggleOffDay(tx, date), { ok: false, remaining: 0 });
   return { ok, remaining };
 }
-export function setNote(habitId: string, date: DateKey, note: string): void {
-  actVoid((tx) => logging.setNote(tx, habitId, date, note));
+/** Acceptance here, not a durability receipt: ordinary edits keep the queue's retry/status contract. */
+export function setNote(habitId: string, date: DateKey, note: string, options?: { removeQuotes?: boolean; epoch?: number }): boolean {
+  if (options?.epoch !== undefined && options.epoch !== saveEpoch.peek()) return false;
+  return actValue((tx) => logging.setNote(tx, habitId, date, note, options), false);
 }
 /** Stars a day's note: only starred notes are ever quoted in a Sunday Note. False without a note. */
 export function starNote(habitId: string, date: DateKey, starred: boolean): boolean {
