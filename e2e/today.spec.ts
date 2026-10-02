@@ -388,3 +388,43 @@ test('the count pad keeps Undo and Add a note reachable by keyboard through nest
   await page.keyboard.press('Escape');
   await expect(pad).toBeHidden();
 });
+
+
+test('exiting modal notes do not become implicit scroll-container Tab stops', async ({ page }) => {
+  await page.clock.setFixedTime(new Date('2026-10-02T12:00:00Z'));
+  await openRoute(page, 'today');
+  await page.getByRole('button', { name: 'Add a habit' }).first().click();
+  const editor = page.getByRole('dialog', { name: 'A new habit' });
+  await editor.getByRole('radio', { name: 'Drink water', exact: true }).click();
+  await editor.getByRole('button', { name: 'Plant it', exact: true }).click();
+  await expect(editor).toBeHidden();
+  await page.getByRole('button', { name: 'More for Drink water' }).click();
+  await page.getByRole('menuitem', { name: /^How many/ }).click();
+  const pad = page.getByRole('dialog', { name: 'Drink water', exact: true });
+  await expect(pad.getByRole('button', { name: '+1', exact: true })).toBeFocused();
+  // A real short viewport makes this lane scroll using the shipped styles.
+  await page.setViewportSize({ width: 390, height: 320 });
+  const slot = pad.locator('[data-notes-slot]');
+  const notice = slot.locator('[data-toast-id]').filter({ hasText: 'It roots with the first watering.' });
+  await expect(notice).toHaveAttribute('tabindex', '0');
+  await pad.getByRole('button', { name: 'Close', exact: true }).focus();
+  const leaving = await notice.evaluate((element) => new Promise<{ overflow: boolean; tabbableChildren: number }>((resolve) => {
+    const inspect = () => {
+      if (!element.hasAttribute('data-toast-leaving')) return;
+      observer.disconnect();
+      const lane = element.closest<HTMLElement>('[data-notes-slot]')!;
+      resolve({ overflow: lane.scrollHeight > lane.clientHeight && lane.clientHeight > 0, tabbableChildren: lane.querySelectorAll('button:not([disabled]), [tabindex="0"]').length });
+    };
+    const observer = new MutationObserver(inspect);
+    observer.observe(element, { attributes: true });
+    inspect();
+  }));
+  expect(leaving).toEqual({ overflow: true, tabbableChildren: 0 });
+  await page.keyboard.press('Tab');
+  const afterTab = await pad.evaluate((panel) => ({ inside: panel.contains(document.activeElement), slotFocused: document.activeElement?.hasAttribute('data-notes-slot') }));
+  expect(afterTab).toEqual({ inside: true, slotFocused: false });
+  // Wait for actual removal, not only its fade; focus must remain in the active pad.
+  await expect(notice).toHaveCount(0);
+  expect(await pad.evaluate((panel) => panel.contains(document.activeElement))).toBe(true);
+  await expect(pad.getByRole('button', { name: 'Decrease How many for Drink water' })).toBeFocused();
+});
