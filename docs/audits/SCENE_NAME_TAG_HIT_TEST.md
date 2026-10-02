@@ -16,7 +16,7 @@ pet (5000). The existing actor element, coordinates and transform are retained. 
 the tag restores the exact `view.z`. The actor source was identical in the current C3
 and later combined D5/G1 tree, so this is a shared scene correction.
 
-Validation before independent review:
+Validation:
 
 - The pinned browser case fails first on the original bundle with the exact pointer
   interception. After the fix it and all four existing Shelf name-tag journeys pass:
@@ -36,5 +36,8 @@ Local detailed logs: `/workspace/scene-name-tag-red.log`,
 `/workspace/scene-name-tag-browser-green.log` and
 `/workspace/scene-name-tag-types-final.log`.
 
-Independent review and the restarted integrated full checks remain required. This
-change adds no saved fields or in-app wording.
+Two independent reviews approved source checkpoint `e329af6`. Each independently
+ran all 34 scene controls. Mutation review rejected raising every actor permanently,
+removing the active-tag elevation, and raising an open tag above the actual decor-edit
+layer. All mutations were restored. The integrated track and main full checks remain
+required after this correction. This change adds no saved fields or in-app wording.
