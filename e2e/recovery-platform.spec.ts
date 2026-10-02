@@ -86,6 +86,10 @@ test('emulated clipboard denial leaves manual copy and paste available', async (
   expect(await page.evaluate(() => window.__g1ClipboardFaults.writes)).toBeGreaterThan(0);
   expect(await page.evaluate(() => window.__g1ClipboardFaults.legacyCopies)).toBeGreaterThan(0);
   await page.keyboard.press('Escape');
+  // Navigation flushes queued work: a falsely recorded receipt must not hide behind the debounce.
+  await page.reload();
+  await expect(page.locator('main h1')).toHaveText('You');
+  expect((await saved(page)).lastBackupAt).toBeUndefined();
   await data(page).getByRole('button', { name: 'Import a backup', exact: true }).click();
   const sheet = page.getByRole('dialog', { name: 'Import a backup', exact: true });
   await sheet.getByRole('button', { name: 'Paste my plants', exact: true }).click();

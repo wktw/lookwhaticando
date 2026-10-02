@@ -31,7 +31,7 @@ const desktop = { ...devices['Desktop Chrome'], viewport: { width: 1280, height:
 const routes = /routes\.spec\.ts$/;
 const screens = /(you|onboarding|today|progress|shelf|capsules|quiet)\.spec\.ts$/;
 // The focused matrix exercises browser differences without repeating the four colour/size suites.
-const matrixFiles = /(lifecycle|windows|quiet)\.spec\.ts$/;
+const matrixFiles = /(lifecycle|windows|quiet|capsules|recovery-platform)\.spec\.ts$/;
 
 const projects: Project[] = [
   { name: 'phone-light', testMatch: routes, use: { ...phone, colorScheme: 'light' } },
