@@ -55,6 +55,45 @@ async function keyActivate(page: Page, control: ReturnType<Page['getByRole']>) {
   await page.keyboard.press('Enter');
 }
 
+test('the matrix fixture starts one seeded app boot and later reloads retain app writes', async ({ page }) => {
+  const boots: Array<string | null> = [];
+  await page.exposeFunction('__recordMatrixBoot', (raw: string | null) => { boots.push(raw); });
+  // Observe the durable bytes before app scripts run. This observer never writes storage.
+  await page.addInitScript(() => {
+    const raw = localStorage.getItem('catkin:v1');
+    document.addEventListener('DOMContentLoaded', () => {
+      if (document.querySelector('script[type="module"][src]')) {
+        void (window as unknown as { __recordMatrixBoot: (raw: string | null) => Promise<void> }).__recordMatrixBoot(raw);
+      }
+    }, { once: true });
+  });
+  const initial = household('Seeded once');
+  await seed(page, initial, 'you');
+  await expect.poll(() => boots.length).toBeGreaterThan(0);
+  expect(boots).toEqual([encodeEnvelope(initial, 1, NOW, 'browser-matrix', '1234567890abcdef1234567890abcdef')]);
+  await expect(page.getByLabel('Your name')).toHaveValue('Seeded once');
+  await page.getByLabel('Your name').fill('Kept after reload');
+  await page.getByLabel('Your name').press('Enter');
+  await expect.poll(async () => (await saved(page)).profile.name).toBe('Kept after reload');
+  await page.reload();
+  await expect(page.getByLabel('Your name')).toHaveValue('Kept after reload');
+  await expect.poll(() => boots.length).toBe(2);
+  expect(JSON.parse(boots[1]!).state.profile.name).toBe('Kept after reload');
+  expect((await saved(page)).profile.name).toBe('Kept after reload');
+});
+
+test('the matrix fixture surfaces a refused seed write', async ({ page }) => {
+  await page.addInitScript(() => {
+    const original = Storage.prototype.setItem;
+    Storage.prototype.setItem = function (key, value) {
+      if (this === localStorage && key === 'catkin:v1') throw new DOMException('Fixture seed write refused', 'SecurityError');
+      return original.call(this, key, value);
+    };
+  });
+  await expect(seed(page)).rejects.toThrow('Fixture seed write refused');
+  expect(await page.evaluate(() => localStorage.getItem('catkin:v1'))).toBeNull();
+});
+
 test('an offline watering survives a real origin outage and reload', async ({ page }) => {
   test.skip(process.env.E2E_TARGET !== 'preview', 'offline launch needs the built service worker');
   // Playwright WebKit's offline emulator blocks before the service worker (#42775).
