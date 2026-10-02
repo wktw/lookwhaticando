@@ -51,6 +51,25 @@ async function start(page: Page) {
   await expect(sill).toBeVisible();
 }
 
+test('the full app name fits beside onboarding navigation', async ({ page }) => {
+  const viewport = page.viewportSize();
+  if (viewport && viewport.width < 900) await page.setViewportSize({ ...viewport, width: 320 });
+  await start(page);
+  await page.evaluate(() => document.fonts.ready);
+  const brand = page.getByText('Little by Little', { exact: true });
+  await expect(brand).toBeVisible();
+  const name = await brand.boundingBox();
+  const steps = await page.locator('header ol').boundingBox();
+  const skip = await page.getByRole('button', { name: 'Skip', exact: true }).boundingBox();
+  expect(name).not.toBeNull();
+  expect(steps).not.toBeNull();
+  expect(skip).not.toBeNull();
+  expect(name!.x + name!.width).toBeLessThan(steps!.x);
+  expect(steps!.x + steps!.width).toBeLessThan(skip!.x);
+  const header = await page.locator('header').evaluate((element) => ({ width: element.clientWidth, scroll: element.scrollWidth }));
+  expect(header.scroll).toBeLessThanOrEqual(header.width);
+});
+
 test('a first boot is onboarding: sill → picks → water → the four cabinets → Today', async ({ page }, info) => {
   const errors = watchErrors(page);
   await start(page);
@@ -240,7 +259,7 @@ test.describe('in an iPhone Safari tab', () => {
   test('the install gate comes first; "Just peek" opens the demo with its pill; leaving it goes to step 1', async ({ page }, info) => {
     const errors = watchErrors(page);
     await page.goto('./#/today');
-    await expect(h1(page)).toHaveText('Keep catkin on your Home Screen');
+    await expect(h1(page)).toHaveText('Keep Little by Little on your Home Screen');
     await expect(page.getByRole('button', { name: 'Paste my plants' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Keep it in this tab' })).toBeVisible();
     await page.waitForLoadState('networkidle');

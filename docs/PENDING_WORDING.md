@@ -27,7 +27,7 @@ The owner delegated the replacement name, and **Little by Little** was chosen on
    - “Try again”
    - “Close”
 8. **Start over happened in another window** — VOICE §18, line 1031:
-   - “Little by Little was started over in another window, so it starts fresh here too. The daily copies stay on this device.”
+   - “Little by Little was started over in another window, so it starts fresh here too.”
 9. **The previous save was recovered** — VOICE §18, line 1033:
    - “Little by Little couldn’t read the latest save on this device, so it opened the one before it.”
    - “Save a backup”

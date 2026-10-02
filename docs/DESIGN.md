@@ -1,9 +1,9 @@
-# catkin: Design Bible (v2)
+# Little by Little: Design Bible (v2)
 
 > **Look after the little things.**
 > *Your habits grow the plants. The plants become a home.*
 
-This is the single source of truth for every product, creative and technical decision in catkin. It builds on the
+This is the single source of truth for every product, creative and technical decision in Little by Little. It builds on the
 client's concept ([`ORIGINAL_CONCEPT.md`](./ORIGINAL_CONCEPT.md)). It also replaces the first design direction, "Mochi
 Meadow" (archived in [`archive/DESIGN-v1-mochi.md`](./archive/DESIGN-v1-mochi.md)), which the client turned down as
 "done many times". Every rule here has come through at least one adversarial audit ([`AUDITS.md`](./AUDITS.md)). When
@@ -13,7 +13,7 @@ code and this document disagree, fix one of them the same day.
 
 ## 0. The pitch
 
-catkin is a habit tracker for iPhone and Mac. **Every habit is a real houseplant** on your windowsill. It starts as a
+Little by Little is a habit tracker for iPhone and Mac. **Every habit is a real houseplant** on your windowsill. It starts as a
 cutting in a glass of water, roots, gets potted up, and grows as you keep the habit. Watering it *is* the check-in.
 Check-ins earn brass coins for the **capsule machines** on the side table. They're full of cats, cows and small
 friends the size of a capsule toy, who **move into the plants your habits grow**. There is a cow living in your water
@@ -27,19 +27,19 @@ opening the tracker is something to look forward to.
 
 | | |
 |---|---|
-| **Name** | **catkin**, always written lowercase. A real botanical word: the soft, furry flower spikes of willow and birch, named from the old Dutch *katteken*, "kitten". A plant whose name means kitten holds two of her loves in one word, and "cat kin" (a small family) is quietly true. No pun and no misspelling. |
-| **Wordmark** | Lowercase **Castoro**. The mark is a single catkin sprig: a twig with three soft silver-grey catkins. There are no cat ears on the letters and no faces on the mark. |
+| **Name** | **Little by Little**, with those capitals. Chosen on 2 October 2026 under the owner’s delegated naming decision. It describes the app’s central idea: habits, plants and friendships grow through small repeated actions. |
+| **Wordmark** | **Castoro**, set on two lines: “Little”, then “by Little”. The full name stays legible in the phone header and desktop sidebar. The mark remains a willow sprig: a twig with three soft silver-grey catkins. There are no cat ears on the letters and no faces on the mark. |
 | **Tagline** | "Look after the little things." |
 | **Explainer** | "Your habits grow the plants. The plants become a home." |
 | **App icon** | A small black cat loafing on the rim of a terracotta pot with two leaves, and a small Holstein calf sitting on the sill at the pot's right, in a slanting diagonal window beam. Both are PetArt's own drawings (pet-cat-black loafing, pet-cow-holstein sitting) and cast hard shadows on a soft lavender wall. The launch screen shows the same cat and calf, without the room, above the wordmark (`src/art/icons/appIcon.tsx`, `splash.tsx`). It must stay legible at 29 px on light and dark wallpapers: the cat fills ≥ 35% of the icon width, and the calf reads as a calf (horn buds, muzzle, black-and-white patches) at 29 px. |
-| **Many animals** | catkin is not a cat app. Eight species live here: cats, cows, dogs, rabbits, frogs, ducklings, bear cubs and hamsters. Cats are about a quarter of the pets (21 of 88). The name and the icon lean cat, so every other surface shows the mix. The app icon pairs the black cat with a small Holstein calf. The Shelf tab shows the silhouette of *your* closest pet. The first pick offers four cabinets (Cats · Cows · Dogs · Pond). Every demo, example and screenshot uses a mixed cast. Candidate new species for later updates: a lamb and a hedgehog. |
-| **No mascot** | Every app in the genre is fronted by a chatty mascot. catkin deliberately has none. **The animals never speak.** Personality shows through what real animals do (the slow blink, the loaf, the cud-chew, the throat-puff) and through short third-person captions. |
+| **Many animals** | Little by Little is not a cat app. Eight species live here: cats, cows, dogs, rabbits, frogs, ducklings, bear cubs and hamsters. Cats are about a quarter of the pets (21 of 88). Every surface shows the mix. The app icon pairs the black cat with a small Holstein calf. The Shelf tab shows the silhouette of *your* closest pet. The first pick offers four cabinets (Cats · Cows · Dogs · Pond). Every demo, example and screenshot uses a mixed cast. Candidate new species for later updates: a lamb and a hedgehog. |
+| **No mascot** | Every app in the genre is fronted by a chatty mascot. Little by Little deliberately has none. **The animals never speak.** Personality shows through what real animals do (the slow blink, the loaf, the cud-chew, the throat-puff) and through short third-person captions. |
 | **Narrator** | An unnamed voice that writes like a friend's plant-sitting note: brief, kind, specific, observed. "Walk, watered. +5 · Pudding opened one eye." (§12) |
-| **Namespace** | Storage keys `catkin:*`; backup format `catkin-backup`; clipboard handoff prefix `CK1:`. |
+| **Compatibility identifiers** | Storage keys `catkin:*`, IndexedDB database `catkin`, writer lock `catkin:writer`, backup format `catkin-backup`, and clipboard handoff prefixes `CK1:` / `CK0:` retain their original values. The PWA manifest identity and launch URL also stay unchanged. A display-name change must not create a fresh household or split ownership between app versions. |
 
 ## 2. Platform
 
-catkin is an **installable Progressive Web App**. This follows directly from the requirements:
+Little by Little is an **installable Progressive Web App**. This follows directly from the requirements:
 
 | Requirement | Native SwiftUI | **PWA (chosen)** |
 |---|---|---|
@@ -81,7 +81,7 @@ Five destinations: a bottom tab bar on phones, and a left sidebar at ≥ 900 px 
 | **Progress** | a pressed leaf | Consistency, trends, calendar, the year, plants, records, pins, the memory shelf |
 | **Capsules** | a small capsule cabinet | The series, pulls, reveals, Special Order, lineups |
 | **Shelf** | your closest pet on a pot (§1) | The home: plants, places, pets, decor, the Field Guide |
-| **You** | a catkin sprig | Habits, preferences, reminders, data, install guide, about |
+| **You** | a willow sprig | Habits, preferences, reminders, data, install guide, about |
 
 Overlays (sheets, never routed): Habit Editor · Habit Detail · Pet Card · Capsule Reveal (full-screen) · Special
 Order · Lineup · Odds · Wallet ("What can I get?") · Sunday Note · Herbarium page · Season Review. Tab state is mirrored
@@ -570,7 +570,7 @@ celebration queue, physics) · `src/ui` (kit) · `src/features/*` (screens).
   which commits, persists and emits **GameEvents**.
 * **Persistence**: localStorage envelope `{v, appVersion, rev, savedAt, state}` under `catkin:v1`. try/catch every write.
   Compact the ledger to the 7-day window. Daily IndexedDB snapshots (7 daily + 4 weekly, validated). Single writer via Web Locks
-  (other windows show "catkin is open in another window · Use here"). Newer-schema saves open read-only. Wallet-changing
+  (other windows show "Little by Little is open in another window · Use here"). Newer-schema saves open read-only. Wallet-changing
   actions write immediately. The demo lives in `catkin:demo:v1`. Reset removes only `catkin:*` keys.
 * **Dates** are local app-day keys with UTC-noon arithmetic (DST-safe). **Randomness** is injectable (crypto in
   production, seeded in tests).
@@ -579,7 +579,7 @@ celebration queue, physics) · `src/ui` (kit) · `src/features/*` (screens).
 
 ### 11.1 iPhone & Mac specifics
 
-* **Install-first gate**: iOS/iPadOS Safari and macOS Safari tabs with no save get "Keep catkin on your Home Screen"
+* **Install-first gate**: iOS/iPadOS Safari and macOS Safari tabs with no save get "Keep Little by Little on your Home Screen"
   (illustrated per OS version). "Just peek" opens the demo.
 * **Handoff**: "Move my plants into the app" copies `CK1:` + base64url(gzip(JSON)), and the app offers "Paste my plants". The same payload
   moves between devices.

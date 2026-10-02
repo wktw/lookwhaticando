@@ -1,6 +1,6 @@
-# catkin voice: the copy deck
+# Little by Little voice: the copy deck
 
-This is the final copy for every moment in catkin, and the rules behind it. It extends
+This is the final copy for every moment in Little by Little, and the rules behind it. It extends
 [DESIGN §12](./DESIGN.md#12-voice). Where a line is data (captions, stage lines, reveal lines, note
 templates), `src/catalog/lines.ts` is the source and this deck quotes it. Slots are written in braces:
 {habit} is the habit's name as she wrote it, {name} is a pet's name, and {plant} is the habit's plant: "the
@@ -52,6 +52,10 @@ numerals. Warmth comes from specifics (names, plants, times), not adjectives.
 
 ### Style
 
+- **App name:** Little by Little, with those capitals, is the owner-authorized proper name. The exact
+  name is allowed in copy; the lowercase phrase remains barred as generic encouragement. No other
+  voice rule changes. The copy awaiting approval is collected in [`PENDING_WORDING.md`](./PENDING_WORDING.md).
+
 - **Numbers:** numerals everywhere: "26 of the last 30 days", "+5", "4 more waterings to Blooming". Spell
   a count out only where it opens a sentence in a note ("Nineteen waterings."), inside a note's P.S.
   ("P.S. Juniper slept on the book four evenings."), in an engraved pin name ("Fifty waterings") or at
@@ -63,7 +67,7 @@ numerals. Warmth comes from specifics (names, plants, times), not adjectives.
   American-ordered: "Sep 22", "Mon, Sep 22". Times: "7:30 am", "6 pm", "7 am" (no ":00"). The examples in
   this deck are all in 2025: "Mon, Sep 22" and "Week of Sep 22" start the same week.
 - **Emoji:** none in UI chrome, ever. A note may carry at most one (Emoji 12.0 or earlier, never
-  currency); catkin's own notes use none. The only emoji she sees are ones she typed. No dingbats as
+  currency); Little by Little's own notes use none. The only emoji she sees are ones she typed. No dingbats as
   decoration either: no sparkles, stars, hearts, moons or flowers. The check mark stays: "Tiny version ✓".
 - **Verbs:** a check-in is a watering. Buttons, toasts and notes say "water" and "watered", and period
   goals say "watered for the week". The word `check-in` is for help text and screen readers only where
@@ -304,7 +308,7 @@ habits watered. Plus 14 coins."
   on a Thursday would read as today. DEC-V: pending owner approval.
   - A habit's editor: "Back to today. {habit} for {day} is as you left it."
   - "Take today off?": "Back to today. {day} is as you left it."
-- The clock guard: "The clock on this device reads earlier than catkin last saw. Coins and stamps wait
+- The clock guard: "The clock on this device reads earlier than Little by Little last saw. Coins and stamps wait
   until it’s right again."
 
 ### Perfect day
@@ -659,7 +663,7 @@ tier word and its finish, one line from `REVEAL_LINES`, then the item's flavor t
 | Super rare (holographic) | "{series}. {A}, one of the Super rares." |
 | Secret (holographic, with a ?) | "{series}, the secret one! {A}, {secretLine}" |
 
-The Secret carries the only exclamation mark in catkin, and one sparkle. Each series Secret has its own
+The Secret carries the only exclamation mark in Little by Little, and one sparkle. Each series Secret has its own
 line (`SECRET_LINES`), and each says something the flavor text below it doesn't:
 
 - "No. 02 · Cows, the secret one! A Highland, about the size of your thumb, who would like somewhere soft."
@@ -752,11 +756,11 @@ in the jar or on the card, the notice leaves the count out.
 | Special Order, not sold | "This one isn’t sold at the counter. It comes from showing up." |
 | Special Order, season not yet visited | "The Winter Edition hasn’t visited yet. Its things can be ordered once it has." |
 | A capsule that couldn’t be saved (storage full or unavailable) | "This capsule couldn’t be saved, so it wasn’t opened. Nothing was spent." |
-| A capsule in a browser that keeps nothing | "This browser isn’t keeping catkin’s save, so the capsule stayed closed. Nothing was spent." |
-| A capsule while this window is still getting ready | "One moment: catkin is still getting ready in this window. Nothing was spent." |
+| A capsule in a browser that keeps nothing | "This browser isn’t keeping Little by Little’s save, so the capsule stayed closed. Nothing was spent." |
+| A capsule while this window is still getting ready | "One moment: Little by Little is still getting ready in this window. Nothing was spent." |
 | Special Order that couldn’t be saved | "That order couldn’t be saved, so it wasn’t placed. No stamps were spent." |
-| Special Order in a browser that keeps nothing | "This browser isn’t keeping catkin’s save, so the order wasn’t placed. No stamps were spent." |
-| Special Order while this window is still getting ready | "One moment: catkin is still getting ready in this window. No stamps were spent." |
+| Special Order in a browser that keeps nothing | "This browser isn’t keeping Little by Little’s save, so the order wasn’t placed. No stamps were spent." |
+| Special Order while this window is still getting ready | "One moment: Little by Little is still getting ready in this window. No stamps were spent." |
 
 ## 11. Places
 
@@ -1059,39 +1063,39 @@ Say what happened and what to do. Never `failed`, never `Oops`, never a code in 
 | When | Copy |
 |---|---|
 | A screen doesn't load | "This screen didn’t load. Your plants and coins are saved." · "Reload" |
-| A sheet doesn't open: its part of catkin hasn’t downloaded (offline before it was ever kept, or an update took the old part away). A small sheet; "Try again" keeps what was asked for, "Close" lets it go (WP-C4). DEC-V: pending owner approval | "This didn’t open" · "It needs a connection the first time it opens. Your plants and coins are saved." · "Try again" · "Close" |
-| A sheet is slow to open the first time: its part of catkin is still downloading (only before catkin has been kept for offline). After a moment, the same small sheet, its "Try again" busy; "Close" lets it go. If the part can't come, the sheet says the line above (WP-C4 follow-up, P-ui-23). DEC-V: pending owner approval | "One moment" · "Try again" · "Close" |
-| A save doesn't go through | "That change didn’t save yet. catkin is trying again, and your last backup is safe." |
-| Nothing can be kept in this browser | "This browser isn’t keeping catkin’s save right now. Save a backup before you close it." |
+| A sheet doesn't open: its part of Little by Little hasn’t downloaded (offline before it was ever kept, or an update took the old part away). A small sheet; "Try again" keeps what was asked for, "Close" lets it go (WP-C4). DEC-V: pending owner approval | "This didn’t open" · "It needs a connection the first time it opens. Your plants and coins are saved." · "Try again" · "Close" |
+| A sheet is slow to open the first time: its part of Little by Little is still downloading (only before Little by Little has been kept for offline). After a moment, the same small sheet, its "Try again" busy; "Close" lets it go. If the part can't come, the sheet says the line above (WP-C4 follow-up, P-ui-23). DEC-V: pending owner approval | "One moment" · "Try again" · "Close" |
+| A save doesn't go through | "That change didn’t save yet. Little by Little is trying again, and your last backup is safe." |
+| Nothing can be kept in this browser | "This browser isn’t keeping Little by Little’s save right now. Save a backup before you close it." |
 | The demo waits for a save | "The demo opens once your last change is saved." |
-| Open in another window | "catkin is open in another window · Use here" |
-| A save from a newer catkin | "This save is from a newer catkin, so it opens read-only here. Update to make changes." |
-| Started over in another window (this window follows, and the note has a Close button). DEC-V: pending owner approval | "catkin was started over in another window, so it starts fresh here too." |
-| The device clock went back | "The clock on this device reads earlier than catkin last saw. Coins and stamps wait until it’s right again." |
-| The save couldn't be read, so catkin opened the one before it (its `:backup`); the note has these buttons and Close. DEC-V: pending owner approval | "catkin couldn’t read the latest save on this device, so it opened the one before it." · "Save a backup" · "Daily copies" |
-| The save couldn't be read at all, so its file is kept as it was: aside (its `:corrupt`), or, while there is no room to put it aside yet, where it was, with every change waiting and the note for a save that doesn't go through beside it. The note has these buttons and Close. DEC-V: pending owner approval (the wording is chosen to be true in both states) | "catkin couldn’t read the save on this device. The file is kept just as it was." · "Save the damaged file" · "Daily copies" · "Import a backup" |
-| A full disk: a later change could only be saved by taking the room the damaged file was kept in, so its text is only in this window now (gone on reload). This note replaces the one above (with its Daily copies and Import a backup when that one showed) and has no Close; it goes once the damaged file is saved. DEC-V: pending owner approval | "catkin needed the room to save your changes, so the damaged file isn’t kept on this device any more. Save it now to keep it." · "Save the damaged file" |
-| A save that doesn't go through: the note above gains two buttons. After a Try again that still didn't save, a note says so. DEC-V: pending owner approval | "Try again" · "Save a backup" → "Still not saved. catkin keeps trying." |
-| Nothing can be kept in this browser, and a save from a newer catkin: the notes above gain "Save a backup" (for a newer catkin's save, its own bytes). There is no Try again: a browser that keeps nothing can only be tried again by reloading | "Save a backup" |
+| Open in another window | "Little by Little is open in another window · Use here" |
+| A save from a newer version of Little by Little | "This save is from a newer version of Little by Little, so it opens read-only here. Update to make changes." |
+| Started over in another window (this window follows, and the note has a Close button). DEC-V: pending owner approval | "Little by Little was started over in another window, so it starts fresh here too." |
+| The device clock went back | "The clock on this device reads earlier than Little by Little last saw. Coins and stamps wait until it’s right again." |
+| The save couldn't be read, so Little by Little opened the one before it (its `:backup`); the note has these buttons and Close. DEC-V: pending owner approval | "Little by Little couldn’t read the latest save on this device, so it opened the one before it." · "Save a backup" · "Daily copies" |
+| The save couldn't be read at all, so its file is kept as it was: aside (its `:corrupt`), or, while there is no room to put it aside yet, where it was, with every change waiting and the note for a save that doesn't go through beside it. The note has these buttons and Close. DEC-V: pending owner approval (the wording is chosen to be true in both states) | "Little by Little couldn’t read the save on this device. The file is kept just as it was." · "Save the damaged file" · "Daily copies" · "Import a backup" |
+| A full disk: a later change could only be saved by taking the room the damaged file was kept in, so its text is only in this window now (gone on reload). This note replaces the one above (with its Daily copies and Import a backup when that one showed) and has no Close; it goes once the damaged file is saved. DEC-V: pending owner approval | "Little by Little needed the room to save your changes, so the damaged file isn’t kept on this device any more. Save it now to keep it." · "Save the damaged file" |
+| A save that doesn't go through: the note above gains two buttons. After a Try again that still didn't save, a note says so. DEC-V: pending owner approval | "Try again" · "Save a backup" → "Still not saved. Little by Little keeps trying." |
+| Nothing can be kept in this browser, and a save from a newer version of Little by Little: the notes above gain "Save a backup" (for a newer version of Little by Little's save, its own bytes). There is no Try again: a browser that keeps nothing can only be tried again by reloading | "Save a backup" |
 | Reload app, or the update's Reload, while a change isn't written yet (the note's button reloads all the same). DEC-V: pending owner approval | "Your latest changes aren’t saved yet. Reloading now would clear anything that isn’t saved." · "Reload anyway" |
-| Safari tab storage | "In a Safari tab, a save can be cleared after 7 days. Keep catkin on your Home Screen to keep it safe." |
+| Safari tab storage | "In a Safari tab, a save can be cleared after 7 days. Keep Little by Little on your Home Screen to keep it safe." |
 | Copy didn't work | "Couldn’t copy. Select the text and copy it by hand." |
 | Share sheet unavailable | "Saved to Downloads instead." |
-| Import, not a backup | "That file isn’t a catkin backup." |
-| Import, from a newer catkin | "This backup is from a newer catkin. Update, then import it." |
-| Import, too big to be a backup: a file over 64 MB (refused before it is read), or pasted text or a CK1 payload that is, or expands, past the bounds (a lived-in backup is well under 1 MB). Nothing changes. DEC-V: pending owner approval | "That’s too big to be a catkin backup." |
+| Import, not a backup | "That file isn’t a Little by Little backup." |
+| Import, from a newer version of Little by Little | "This backup is from a newer version of Little by Little. Update, then import it." |
+| Import, too big to be a backup: a file over 64 MB (refused before it is read), or pasted text or a CK1 payload that is, or expands, past the bounds (a lived-in backup is well under 1 MB). Nothing changes. DEC-V: pending owner approval | "That’s too big to be a Little by Little backup." |
 | The file:// build | "Test copy · saved only in this browser, for this file" |
 | Diagnostics | "Copy report" |
 
 ## 19. Install guide
 
-- The gate on iPhone and Mac Safari tabs: "Keep catkin on your Home Screen" · "Just peek" (opens the demo).
-- iPhone and iPad, Safari: "Tap Share." · "Tap Add to Home Screen." · "Open catkin from there."
-- Mac, Safari: "Choose File › Add to Dock." · "Open catkin from the Dock."
-- Chrome and Edge: "Click Install in the address bar." · "Open catkin from your apps."
+- The gate on iPhone and Mac Safari tabs: "Keep Little by Little on your Home Screen" · "Just peek" (opens the demo).
+- iPhone and iPad, Safari: "Tap Share." · "Tap Add to Home Screen." · "Open Little by Little from there."
+- Mac, Safari: "Choose File › Add to Dock." · "Open Little by Little from the Dock."
+- Chrome and Edge: "Click Install in the address bar." · "Open Little by Little from your apps."
 - Android: "Tap the menu, then Install app."
 - Windows, the single file: "Double-click catkin.html. It works offline, in this browser."
-- Moving plants into the installed app: "Move my plants into the app" → "Copied. Open catkin from your Home
+- Moving plants into the installed app: "Move my plants into the app" → "Copied. Open Little by Little from your Home
   Screen and tap Paste my plants." · "Paste my plants"
 - Updates: "A new version is ready · Reload" · "Up to date." · "Check for updates" · "Reload app".
 
@@ -1100,11 +1104,11 @@ Say what happened and what to do. Never `failed`, never `Oops`, never a code in 
 Web push would need a server, so reminders are calendar events she adds herself (DESIGN §11.1).
 
 - Settings: "Watering time" with rows "Morning" · "Midday" · "Evening", a time each, and "Add to
-  calendar". Helper: "catkin can’t send notifications, so it makes a calendar event that repeats every
+  calendar". Helper: "Little by Little can’t send notifications, so it makes a calendar event that repeats every
   day. Your calendar does the reminding."
 - The `.ics` event: SUMMARY "Watering time", DESCRIPTION "Morning plants: Walk, Stretch, Take vitamins.",
   alarm text "Watering time". With no habits in that block: DESCRIPTION "Morning plants." Built by
-  `wateringTimeIcs()` in `src/domain/profile.ts`; the file is "catkin-watering-time-morning.ics".
+  `wateringTimeIcs()` in `src/domain/profile.ts`; the file is "little-by-little-watering-time-morning.ics".
 - Never `Don't forget`, never a count, never a name of a pet.
 
 ## 21. Data
@@ -1113,7 +1117,7 @@ Under You › Data.
 
 | Action | Copy |
 |---|---|
-| Save a backup | "Save a backup" → "Backup saved." (file "catkin-backup-2025-09-29.json") |
+| Save a backup | "Save a backup" → "Backup saved." (file "little-by-little-backup-2025-09-29.json") |
 | Copy backup | "Copy backup" → "Copied. Paste it somewhere safe, like a note to yourself." |
 | Import | "Import a backup" |
 | Import preview | "This backup has 5 habits, 312 waterings and 7 pets. Saved Sep 20." · "Import" · "Keep what’s here" |
@@ -1124,27 +1128,27 @@ Under You › Data.
 | Snapshots | "Daily copies, kept on this device: 7 daily and 4 weekly." · "Restore this copy" |
 | Copy kept before an import, restore or Undo; the legacy shared kind does not identify which action. DEC-V: pending owner approval | "Safety copy" |
 | Restored (the note carries "Undo") | "Back to the copy from Sep 20." · "Undo" |
-| Restore with no copy of what's here (asked once more, like import). DEC-V: pending owner approval | "Restore without an undo?" · "catkin couldn’t keep a copy of what’s here, so there is no undo for this restore." · "Restore this copy" · "Keep what’s here" |
+| Restore with no copy of what's here (asked once more, like import). DEC-V: pending owner approval | "Restore without an undo?" · "Little by Little couldn’t keep a copy of what’s here, so there is no undo for this restore." · "Restore this copy" · "Keep what’s here" |
 | Undo a restore (the row after a restore; DEC-P13's generic label). DEC-V: pending owner approval | "Undo last replacement" → "Back to how things were before the restore." |
 | An import, restore or Undo whose save couldn't be written (nothing changed). DEC-V: pending owner approval | "That couldn’t be saved on this device, so nothing changed." |
 | The save changed while an import, restore or Undo was under way (Start over, the demo, another window). DEC-V: pending owner approval | "The save changed just then, so nothing was replaced. Try again." |
 | A daily copy that can't be read right now. DEC-V: pending owner approval | "That copy can’t be read on this device right now, so nothing changed." |
 | A copy that is gone (its Undo goes too). DEC-V: pending owner approval | "That copy isn’t on this device any more, so nothing changed." |
 | An Undo that is no longer on offer (over 24 hours, or the save shown has been replaced since, say from another window; its copy may still be under Daily copies). DEC-V: pending owner approval | "That Undo isn’t on offer any more, so nothing changed." |
-| A daily copy a newer catkin kept (restoring it is refused, and nothing changes). DEC-V: pending owner approval | "That copy is from a newer catkin. Update, then restore it." |
-| CSV | "Export waterings as CSV" (file "catkin-waterings-2025-09-29.csv"; columns "date", "habit", "count", "target", "state"; states "watered", "tiny", "partial", "rest") |
-| CSV from a newer catkin’s save shown read-only: only what this catkin can read, labelled partial in its note and its file name. DEC-V: pending owner approval | "Saved the waterings this catkin can read. A backup keeps the whole newer save." (file "catkin-waterings-2025-09-29-partial.csv") |
-| CSV from a newer catkin’s save this catkin can’t read at all (no file). DEC-V: pending owner approval | "This catkin can’t read the waterings in a newer save. A backup keeps all of it." |
+| A daily copy a newer version of Little by Little kept (restoring it is refused, and nothing changes). DEC-V: pending owner approval | "That copy is from a newer version of Little by Little. Update, then restore it." |
+| CSV | "Export waterings as CSV" (file "little-by-little-waterings-2025-09-29.csv"; columns "date", "habit", "count", "target", "state"; states "watered", "tiny", "partial", "rest") |
+| CSV from a newer version of Little by Little’s save shown read-only: only what this version of Little by Little can read, labelled partial in its note and its file name. DEC-V: pending owner approval | "Saved the waterings this version of Little by Little can read. A backup keeps the whole newer save." (file "little-by-little-waterings-2025-09-29-partial.csv") |
+| CSV from a newer version of Little by Little’s save this Little by Little can’t read at all (no file). DEC-V: pending owner approval | "This version of Little by Little can’t read the waterings in a newer save. A backup keeps all of it." |
 | Storage | "Saved on this device" / "Saved in this browser tab" |
-| Storage, while a change didn't save yet, or nothing can be kept (the §18 lines) | "That change didn’t save yet. catkin is trying again, and your last backup is safe." / "This browser isn’t keeping catkin’s save right now. Save a backup before you close it." |
+| Storage, while a change didn't save yet, or nothing can be kept (the §18 lines) | "That change didn’t save yet. Little by Little is trying again, and your last backup is safe." / "This browser isn’t keeping Little by Little’s save right now. Save a backup before you close it." |
 | Storage, while this window waits to become the one that saves. DEC-V: pending owner approval | "Getting ready to save" |
 | Daily copies that can't be read right now (the sheet says so, never the empty line). DEC-V: pending owner approval | "The daily copies can’t be read on this device right now." · "Try again" |
-| A damaged save kept aside (a row until Start over, and the §18 note's button). DEC-V: pending owner approval | "Save the damaged file" → "The damaged file is saved." (file "catkin-damaged-save-2025-09-29.txt", its bytes exactly as they were) |
+| A damaged save kept aside (a row until Start over, and the §18 note's button). DEC-V: pending owner approval | "Save the damaged file" → "The damaged file is saved." (file "little-by-little-damaged-save-2025-09-29.txt", its bytes exactly as they were) |
 | Last backup | "Last backup: Sep 20" / "No backup yet" |
 | The nudge | "Worth saving a backup: the last one is from Aug 2." |
 | Start over (WP-A9, DEC-V: pending owner approval) | "Start over" → "The habits, plants and pets here go. The daily copies stay on this device. Save a backup first, just in case." · "Start over" · "Keep everything" |
 | Erase, behind Start over (WP-A9, DEC-V: pending owner approval) | "Save a backup first" · "Erase everything on this device" → "Erase everything on this device?" · "The save, settings, demo and daily copies in this browser go. There is no undo. Backup files you saved elsewhere stay there." · "Erase everything" · "Keep everything" |
-| Erase result and retry (WP-A9, DEC-V: pending owner approval) | "The save, settings and daily copies on this device have been erased." · "Some data is still on this device." · "The save or settings couldn’t be erased." · "The daily copies couldn’t be erased. Close other catkin windows, then try again." · "The daily copies couldn’t be erased. Try again." · "Try erasing again" |
+| Erase result and retry (WP-A9, DEC-V: pending owner approval) | "The save, settings and daily copies on this device have been erased." · "Some data is still on this device." · "The save or settings couldn’t be erased." · "The daily copies couldn’t be erased. Close other Little by Little windows, then try again." · "The daily copies couldn’t be erased. Try again." · "Try erasing again" |
 | A partial erase keeps changes paused until retried (WP-A9, DEC-V: pending owner approval) | "Some data is still on this device. Changes are paused here. Open You to try again." |
 | Ownership changes while erasing (WP-A9, DEC-V: pending owner approval) | "The save changed while erasing. Some data may still be on this device." |
 | The demo | "Try the demo" · "Leave the demo" |
@@ -1542,10 +1546,10 @@ under the constant named. Same rules as everywhere (section 1).
 | restoredSnapshot | "Back to the copy from {date}." |
 | chooseFile | "Choose a file" |
 | pasteLabel | "Or paste a backup here" |
-| pasteHelper | "A backup starts with CK1, or it is a catkin backup file." |
+| pasteHelper | "A backup starts with CK1, or it is a Little by Little backup file." |
 | reading | "Reading the backup…" (DEC-V: pending owner approval) |
 | noUndoTitle | "Import without an undo?" |
-| noUndo | "catkin couldn’t keep a copy of what’s here, so there is no Undo import this time." |
+| noUndo | "Little by Little couldn’t keep a copy of what’s here, so there is no Undo import this time." |
 | importAnyway | "Import anyway" |
 | cannotOpen | "This browser can’t open that backup. Try the backup file instead." |
 | readOnly | "This window can’t change the save right now." |
@@ -1559,7 +1563,7 @@ under the constant named. Same rules as everywhere (section 1).
 | csvSaved | "Waterings saved." |
 | storageAcquiring | "Getting ready to save" (DEC-V: pending owner approval) |
 | snapshotsError | "The daily copies can’t be read on this device right now." (DEC-V: pending owner approval) |
-| damagedFile | "catkin-damaged-save-{date}.txt" (DEC-V: pending owner approval) |
+| damagedFile | "little-by-little-damaged-save-{date}.txt" (DEC-V: pending owner approval) |
 | damagedSaved | "The damaged file is saved." (DEC-V: pending owner approval) |
 | fileBuild | "Saved in this browser, for this file" |
 
@@ -1567,9 +1571,9 @@ under the constant named. Same rules as everywhere (section 1).
 
 | Key | Line |
 |---|---|
-| principlesTitle | "What catkin keeps to" |
+| principlesTitle | "What Little by Little keeps to" |
 | principles[0] | "Growth only adds. A resting plant keeps every leaf." |
-| principles[1] | "With Quiet rewards on, catkin is just the tracker." |
+| principles[1] | "With Quiet rewards on, Little by Little is just the tracker." |
 | principles[2] | "The odds are printed on every cabinet." |
 | how[0].title | "Your habits are plants" |
 | how[0].text | "Each habit starts as a cutting in a glass of water. Watering it counts the day, and the plant grows as you keep the habit: roots, a pot, leaves, buds, flowers." |
@@ -1611,7 +1615,7 @@ and [Nunito’s Google Fonts description](https://github.com/google/fonts/blob/m
 |---|---|
 | title | "Diagnostics" |
 | back | "You" |
-| lead | "What this device says about catkin. Copy the report to share it." |
+| lead | "What this device says about Little by Little. Copy the report to share it." |
 | device | "This device" |
 | copied | "Report copied." |
 | measure | "Measure frame timing" |
@@ -1636,7 +1640,7 @@ and [Nunito’s Google Fonts description](https://github.com/google/fonts/blob/m
 | anotherName | "Another name" |
 | plantsLead | "Tap a plant, and {name} moves in." |
 | stepOf | "Step {n} of {count}" |
-| useHere | "Choose Use here above to carry on in this window." Under the shell's "catkin is open in another window · Use here" note, at the top of an onboarding step, when this window couldn't plant the picks (they stay picked) or move to the next step (WP-C5). A newer catkin's save says the Data line instead: "This window can’t change the save right now." DEC-V: pending owner approval |
+| useHere | "Choose Use here above to carry on in this window." Under the shell's "Little by Little is open in another window · Use here" note, at the top of an onboarding step, when this window couldn't plant the picks (they stay picked) or move to the next step (WP-C5). A newer Little by Little's save says the Data line instead: "This window can’t change the save right now." DEC-V: pending owner approval |
 
 
 ### Modal notes (WP-C3, 2 October 2026)

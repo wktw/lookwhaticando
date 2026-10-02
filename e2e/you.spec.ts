@@ -165,7 +165,7 @@ test('a watering time offers its calendar file', async ({ page }) => {
     const add = page.getByRole('button', { name });
     const download = page.waitForEvent('download');
     await add.click();
-    expect((await download).suggestedFilename()).toBe('catkin-watering-time-morning.ics');
+    expect((await download).suggestedFilename()).toBe('little-by-little-watering-time-morning.ics');
   }
   // The static files for installed iPhone apps are served too.
   const res = await page.request.get('./cal/morning-0730.ics');

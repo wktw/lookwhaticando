@@ -175,7 +175,7 @@ describe('You (DESIGN §9.5)', () => {
     await click(button('Import a backup'), 'Import a backup');
     const sheet = await until(() => dialogs().find((d) => d.querySelector('textarea')), 'the import sheet');
     await type(sheet.querySelector('textarea') as unknown as HTMLInputElement, 'hello');
-    await until(() => sheet.textContent?.includes('That file isn’t a catkin backup.'), 'the error');
+    await until(() => sheet.textContent?.includes('That file isn’t a Little by Little backup.'), 'the error');
     expect(byText('Import', sheet)).toBeNull();
   });
 
