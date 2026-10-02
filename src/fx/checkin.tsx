@@ -18,7 +18,7 @@ import { CoinIcon } from '@/art/icons';
 import { CHECKIN_CHOREOGRAPHY } from '@/ui/checkRingModel';
 import { themeLight, WaterDrop } from '@/ui/art/objects';
 import { announceSettled, cancelSettled } from '@/ui/announce';
-import { dismissToast, findToast, toast, type ToastAction } from '@/ui/toast';
+import { dismissToast, findToast, toast, toastIsReachable, type ToastAction } from '@/ui/toast';
 import { flyCoins } from './coinFly';
 import { floatText } from './floatingText';
 import { haptic } from './haptics';
@@ -207,9 +207,13 @@ export function settledCheckInLine(entries: readonly Heard[]): string {
 
 function announceCheckIns() {
   announceSettled(SETTLE_GROUP, () => {
-    const line = settledCheckInLine([...heard.values()]);
-    heard.clear();
-    return line;
+    const ready = [...heard].filter(([id]) => {
+      const note = findToast(checkInKey(id));
+      if (!note) heard.delete(id);
+      return note && toastIsReachable(note.id);
+    });
+    for (const [id] of ready) heard.delete(id);
+    return settledCheckInLine(ready.map(([, entry]) => entry));
   });
 }
 
@@ -257,6 +261,7 @@ export function showCheckInNote(opts: CheckInNoteOptions): string {
     note,
     label: [line, chip ? plusCoins(coins) : '', note ?? ''].filter(Boolean).join(' '),
     silent: true,
+    onReachable: announceCheckIns,
     art: <WaterDrop size={22} light={themeLight()} />,
     tone: 'sky',
     duration: 4000,

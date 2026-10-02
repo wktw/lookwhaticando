@@ -4,6 +4,7 @@ import { render } from 'preact';
 import { act } from 'preact/test-utils';
 import { AnimatedNumber } from '@/ui/AnimatedNumber';
 import { Toaster } from '@/ui/Toaster';
+import { Sheet } from '@/ui/Sheet';
 import { toasts } from '@/ui/toast';
 import { BATCH_MS, CelebrationHost, markCelebratedLocally } from '@/fx/celebrations';
 import { loadCelebrationArt } from '@/fx/celebrationArtLoader';
@@ -122,6 +123,21 @@ describe('CelebrationHost', () => {
       removeLayer('sheet-over');
       removeLayer('sheet-under');
     });
+  });
+
+  it('a banner raised inside a sheet puts its dismiss button inside the active focus scope (WP-C3)', async () => {
+    await loadCelebrationArt();
+    act(() => render(<><Sheet open title="Pet card" onClose={() => undefined}><button>Feed</button></Sheet><Toaster /><CelebrationHost /></>, host));
+    act(() => emitGameEvents([{ type: 'badge', badgeId: 'checkins-50', stars: 2 }]));
+    await act(() => sleep(BATCH_MS + 30));
+    const banner = document.querySelector('#overlay-root [role="region"]')!;
+    const panel = document.querySelector('[role="dialog"]')!;
+    expect(panel.contains(banner)).toBe(true);
+    expect(banner.querySelector('button')).not.toBeNull();
+    act(() => { banner.querySelector('button')!.focus(); banner.querySelector('button')!.click(); });
+    await act(() => sleep(300));
+    expect(document.querySelector('#overlay-root [role="region"]')).toBeNull();
+    expect(panel.contains(document.activeElement)).toBe(true);
   });
 
   it('reserves rewards the instant they arrive, and hands check-in coins to the screen’s own flourish', async () => {

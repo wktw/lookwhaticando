@@ -1,11 +1,13 @@
 import type { JSX } from 'preact';
+import { createPortal } from 'preact/compat';
+import { overlayRoot } from '@/ui/overlay';
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { CoinIcon, StampIcon, SwapIcon, TicketIcon } from '@/art/icons';
 import { IconButton } from '@/ui/IconButton';
 import { cx } from '@/ui/cx';
 import { toneClass } from '@/ui/tone';
 import { toastLaneTop } from '@/ui/toast';
-import { layerCount, onLayersChange } from '@/ui/sheetStack';
+import { layerCount, onLayersChange, topNotesSlot } from '@/ui/sheetStack';
 import { burst } from './confetti';
 import { flyPayout } from './coinFly';
 import { LazyCelebrationArt } from './celebrationArtLoader';
@@ -89,6 +91,7 @@ export function CelebrationBanner({ spec, payouts = [], onDone }: { spec: Banner
   const [leaving, setLeaving] = useState(false);
   const [paused, setPaused] = useState(false);
   const [place] = useState(placement);
+  const [slot, setSlot] = useState(topNotesSlot);
   const anchorRef = useRef<HTMLDivElement>(null);
   const cardRef = useRef<HTMLDivElement>(null);
   const chipsRef = useRef<HTMLDivElement>(null);
@@ -103,6 +106,8 @@ export function CelebrationBanner({ spec, payouts = [], onDone }: { spec: Banner
   };
 
   const leave = () => {
+    const card = cardRef.current;
+    if (card?.contains(document.activeElement)) card.closest<HTMLElement>('[role="dialog"], [role="alertdialog"]')?.focus({ preventScroll: true });
     // Rewards still on the note leave with it, straight into the wallet it was covering.
     fly();
     setLeaving(true);
@@ -128,9 +133,11 @@ export function CelebrationBanner({ spec, payouts = [], onDone }: { spec: Banner
   // (a moment from inside a sheet) keeps it.
   useEffect(() => {
     let open = layerCount();
+    setSlot(topNotesSlot());
     return onLayersChange(() => {
       const now = layerCount();
       if (now > open) leave();
+      else setSlot(topNotesSlot());
       open = now;
     });
   }, []);
@@ -158,9 +165,9 @@ export function CelebrationBanner({ spec, payouts = [], onDone }: { spec: Banner
     return () => clearTimeout(t);
   }, []);
 
-  return (
+  return createPortal(
     // A landmark of its own (axe: all content in a region), named for the moment.
-    <div class={cx(s.anchor, place && s.placed)} ref={anchorRef} style={place} role="region" aria-label={`${spec.eyebrow}: ${spec.title}`}>
+    <div class={cx(s.anchor, place && s.placed)} ref={anchorRef} style={slot ? undefined : place} data-owned={slot ? '' : undefined} role="region" aria-label={`${spec.eyebrow}: ${spec.title}`}>
       <div
         ref={cardRef}
         class={cx(s.note, leaving && s.leaving, toneClass(spec.tone))}
@@ -186,8 +193,9 @@ export function CelebrationBanner({ spec, payouts = [], onDone }: { spec: Banner
           )}
           {hasRewards && <RewardChips rewards={spec.rewards} chipsRef={chipsRef} />}
         </div>
-        <IconButton class={s.close} icon="close" label={FX_UI.dismiss} size="sm" onClick={leave} />
+        <IconButton class={s.close} icon="close" label={FX_UI.dismiss} size="sm" disabled={leaving} onClick={leave} />
       </div>
-    </div>
+    </div>,
+    slot ?? overlayRoot(),
   );
 }
