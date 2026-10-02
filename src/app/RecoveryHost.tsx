@@ -1,7 +1,7 @@
 import { signal } from '@preact/signals';
 import { useEffect, useState } from 'preact/hooks';
 import { saveEpoch } from '@/state/store';
-import { peekHead, SAVE_KEY } from '@/state/persist';
+import { parseEnvelope, SAVE_KEY } from '@/state/persist';
 import { LoadSheet } from './LoadSheet';
 import { SCREEN_COPY } from './copy';
 import { lazyModule, useLazyModule } from './useLazyModule';
@@ -14,8 +14,14 @@ const RETRY_KEY = 'catkin-recovery-retry';
 const known = (kind: unknown): kind is Kind => ['snapshots', 'import', 'backup', 'damaged'].includes(kind as string);
 /** Weak legacy/corrupt heads and unavailable reads cannot authorize an automatic action. */
 function durableHead() {
-  const head = peekHead(localStorage, SAVE_KEY, true);
-  return head && typeof head.gen === 'string' && /^[0-9a-f]{32}$/.test(head.gen) && Number.isSafeInteger(head.rev) && head.rev >= 0 ? head : null;
+  const raw = localStorage.getItem(SAVE_KEY); // A read failure propagates; it is never an empty save.
+  if (raw === null) return null;
+  const envelope: unknown = JSON.parse(raw);
+  if (!envelope || typeof envelope !== 'object' || Array.isArray(envelope)) return null;
+  const { gen, rev } = envelope as Record<string, unknown>;
+  if (typeof gen !== 'string' || !/^[0-9a-f]{32}$/.test(gen) || typeof rev !== 'number' || !Number.isSafeInteger(rev) || rev < 0) return null;
+  // Decode this main value directly: a readable fallback copy cannot authorize its damaged main.
+  return parseEnvelope(raw).kind === 'ok' ? { gen, rev } : null;
 }
 
 export function requestRecovery(kind: Kind): void {

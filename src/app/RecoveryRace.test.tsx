@@ -103,3 +103,30 @@ it.each(['absent', 'unreadable', 'legacy', 'corrupt'] as const)('a %s save has n
     expect(x.backup).not.toHaveBeenCalled();
   } finally { read.mockRestore(); }
 });
+
+it.each(['missing', 'fractional', 'negative'] as const)('a %s stored revision cannot authorize automatic delivery', async (revision) => {
+  const x = await setup();
+  const gen = '0123456789abcdef0123456789abcdef';
+  const rev = revision === 'missing' ? '' : revision === 'fractional' ? '"rev":1.5,' : '"rev":-1,';
+  localStorage.setItem(x.persist.SAVE_KEY, `{${rev}"gen":"${gen}","state":{}}`);
+  sessionStorage.setItem('catkin-recovery-retry', JSON.stringify({ kind: 'backup', head: x.persist.peekHead(localStorage, x.persist.SAVE_KEY) }));
+  view = mount(<x.host.RecoveryHost />);
+  await act(() => x.loaded());
+  await act(() => new Promise((resolve) => setTimeout(resolve, 50)));
+  expect(x.backup).not.toHaveBeenCalled();
+});
+
+it.each(['corrupt', 'newer'] as const)('a readable fallback cannot authorize an automatic action for a %s main save', async (shape) => {
+  const x = await setup();
+  const raw = localStorage.getItem(x.persist.SAVE_KEY)!;
+  localStorage.setItem(x.persist.backupKeyOf(x.persist.SAVE_KEY), raw);
+  const envelope = JSON.parse(raw);
+  if (shape === 'corrupt') envelope.state = {};
+  else envelope.v = 2;
+  localStorage.setItem(x.persist.SAVE_KEY, JSON.stringify(envelope));
+  sessionStorage.setItem('catkin-recovery-retry', JSON.stringify({ kind: 'backup', head: x.persist.peekHead(localStorage, x.persist.SAVE_KEY) }));
+  view = mount(<x.host.RecoveryHost />);
+  await act(() => x.loaded());
+  await act(() => new Promise((resolve) => setTimeout(resolve, 50)));
+  expect(x.backup).not.toHaveBeenCalled();
+});
