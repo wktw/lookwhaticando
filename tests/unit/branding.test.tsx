@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { SHELL_COPY } from '@/app/copy';
+import { DATA_COPY, ERRORS } from '@/catalog/lines';
+import { SHELL_LINES } from '@/features/you/shellCopy';
 import { MANIFEST } from '../../vite.config';
 import { loadSave, memoryStorage, SAVE_KEY } from '@/state/persist';
 import { parseBackupText } from '@/state/handoff';
@@ -16,6 +18,15 @@ describe('Little by Little: the name changes, the saved household stays', () => 
     const html = readFileSync('index.html', 'utf8');
     expect(html).toContain('<title>Little by Little</title>');
     expect(html).toContain('<meta name="apple-mobile-web-app-title" content="Little by Little"');
+  });
+
+  it('keeps the renamed erasure guidance truthful across windows', () => {
+    expect(DATA_COPY.eraseBlocked).toBe('The daily copies couldn’t be erased. Close other Little by Little windows, then try again.');
+    // Erase everything and Start over share this follower note; daily copies may be gone.
+    expect(ERRORS.startedOver).toBe('Little by Little was started over in another window, so it starts fresh here too.');
+    expect(SHELL_LINES.startedOver).toBe(ERRORS.startedOver);
+    expect(SHELL_LINES.erasePaused).toBe(ERRORS.erasePaused);
+    expect(SHELL_LINES.erasePaused).toBe('Some data is still on this device. Changes are paused here. Open You to try again.');
   });
 
   it('opens a household saved by the original app at its original storage key', () => {
