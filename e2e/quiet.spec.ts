@@ -44,9 +44,25 @@ async function assertQuiet(page: Page) {
   expect(text).not.toMatch(/\bcoins?\b|capsules?/i);
 }
 
-/** Scope this stable-state audit to toast cards and their text, never the app's ordinary motion. */
+/**
+ * Reparenting live notes restarts their entrance fade, and another note can arrive during axe.
+ * Audit their steady presentation without changing base opacity, colours, content, actions or
+ * application clocks. The journey and the notes' art retain ordinary motion; this temporary
+ * rule covers only card/text motion for this one scan, including notes inserted mid-scan.
+ */
 async function withSteadyToastPresentation(page: Page, audit: () => Promise<void>) {
-  await audit();
+  const style = await page.addStyleTag({ content: `
+    [data-toast-id], [data-toast-id] > div:has(> p) {
+      animation: none !important;
+      transition: none !important;
+    }
+  ` });
+  try {
+    await audit();
+  } finally {
+    await style.evaluate(node => { node.parentNode?.removeChild(node); });
+    await style.dispose();
+  }
 }
 
 async function toastAuditFixture(page: Page) {
