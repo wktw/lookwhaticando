@@ -98,6 +98,21 @@ for (const vp of viewports) {
 test.describe('journeys', () => {
   test.use({ viewport: { width: 390, height: 844 } });
 
+  test('retained keepsakes can be reached and scrolled by keyboard after the habits are gone', async ({ page }, info) => {
+    const saved = buildDemo({ today, now });
+    saved.habits = [];
+    saved.keepsakes = Array.from({ length: 12 }, (_, i) => ({ id: `kept-${i}`, habitId: 'gone', petId: 'gone', stage: 2 as const, kind: 'brass-seed' as const, date: today }));
+    await seed(page, encodeEnvelope(saved, 1, now, 'e2e'));
+    await openRoute(page, 'progress');
+    const row = page.getByRole('list', { name: 'Memory shelf', exact: true });
+    await expect(row).toHaveAttribute('tabindex', '0');
+    await row.focus();
+    await expect(row).toBeFocused();
+    await page.keyboard.press('ArrowRight');
+    await expect.poll(() => row.evaluate((el) => el.scrollLeft)).toBeGreaterThan(0);
+    await expectNoAxeViolations(page, info);
+  });
+
   test('filter the calendar by a habit and read a day', async ({ page }) => {
     const errors = watchErrors(page);
     await seed(page, DEMO);

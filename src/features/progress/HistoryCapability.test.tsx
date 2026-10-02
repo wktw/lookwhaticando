@@ -96,6 +96,11 @@ describe('Progress without habits', () => {
     view = mount(<ProgressScreen />);
     await until(() => document.querySelector('[data-section="memory"]'), 'retained memory');
     expect(document.querySelector('[data-memory="keepsakes"]')?.textContent).toContain('Aug 1');
+    const row = document.querySelector<HTMLElement>('[data-memory="keepsakes"]')!;
+    expect(row.tabIndex).toBe(0);
+    expect(row.getAttribute('aria-label')).toBe('Memory shelf');
+    row.focus();
+    expect(document.activeElement).toBe(row);
     expect(button('Add a habit')).not.toBeNull();
   });
 });

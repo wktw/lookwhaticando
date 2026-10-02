@@ -224,7 +224,7 @@ export function MemoryShelf({ shelf, retired }: { shelf: MemoryShelfVM; retired:
         </ul>
       )}
       {keepsakes.length > 0 && (
-        <ul class={s.memoryRow} data-memory="keepsakes">
+        <ul class={s.memoryRow} data-memory="keepsakes" tabIndex={0} aria-label={PROGRESS_UI.sections.memory}>
           {keepsakes.map((k) => (
             <li key={k.id}>
               <div class={cx(s.memoryItem, s.keepsake)}>
