@@ -26,6 +26,7 @@ import { newPetState } from '../src/domain/friendship';
 import { encodeEnvelope } from '../src/state/persist';
 import type { AppState } from '../src/state/types';
 import { expectNoAxeViolations, openRoute, watchErrors } from './support';
+import { withSteadyToastPresentation } from './steadyToastPresentation';
 
 const now = Date.now();
 const today = appDayKey(now, 180, runtimeLocalTime);
@@ -98,7 +99,7 @@ test.describe('the routed Capsules screen hands a reveal on (WP-C7)', () => {
     const chooser = card.getByRole('list', { name: `Find ${name} a plant` });
     await expect(chooser.getByRole('button').first()).toBeFocused();
     await page.waitForTimeout(400);
-    await expectNoAxeViolations(page, info);
+    await withSteadyToastPresentation(page, () => expectNoAxeViolations(page, info));
     // A plant no one keeps company yet: Tab along the chips to it, then Enter.
     const chips = chooser.getByRole('button');
     const n = await chips.count();
