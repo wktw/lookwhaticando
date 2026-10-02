@@ -20,7 +20,6 @@ export interface PotSlotProps {
   light: Light;
   tag?: boolean;
   animated?: boolean;
-  damp?: boolean;
   pulse?: number;
   /** Lets the Today band find the pot to pour on it. */
   slotRef?: (el: HTMLDivElement | null) => void;
@@ -57,7 +56,7 @@ export function tagBox(place: PotPlace, name: string, note: string | undefined, 
   return [x0, a.y, x0 + w, a.y + h];
 }
 
-export function PotSlot({ pot, place, z, light, tag, animated, damp, pulse, slotRef, class: cls }: PotSlotProps) {
+export function PotSlot({ pot, place, z, light, tag, animated, pulse, slotRef, class: cls }: PotSlotProps) {
   const stand = standAt(place.x, place.y, place.size, place.metrics.foot, z, place.scale);
   const stage = Math.max(0, Math.floor(pot.stage) || 0);
   const common = {
@@ -68,7 +67,7 @@ export function PotSlot({ pot, place, z, light, tag, animated, damp, pulse, slot
     pot: pot.pot,
     size: '100%',
     light,
-    damp: damp ?? pot.damp,
+    damp: pot.damp,
     pulse: pulse ?? pot.pulse,
     animated,
     look: pot.look,

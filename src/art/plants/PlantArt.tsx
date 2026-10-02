@@ -194,7 +194,7 @@ export function PlantArt(props: PlantArtProps) {
   const light = props.light ?? DAY_LIGHT;
   const k = kitFor(light);
   const g = growthOf(props.stage, props.progress, props.blooms);
-  const damp = !!props.damp || waterings > 0;
+  const damp = !!props.damp;
 
   const lookKey = look ? `${look.colour}/${look.shape}/${look.partnerColour ?? ''}` : '';
   // eslint-disable-next-line react-hooks/exhaustive-deps
