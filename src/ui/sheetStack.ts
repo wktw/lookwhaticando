@@ -164,7 +164,7 @@ export function trapTab(e: KeyboardEvent, root: HTMLElement): void {
   if (e.shiftKey && (active === first || active === root)) {
     e.preventDefault();
     last.focus();
-  } else if (!e.shiftKey && active === last) {
+  } else if (!e.shiftKey && (active === last || active === root)) {
     e.preventDefault();
     first.focus();
   }

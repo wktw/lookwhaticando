@@ -11,9 +11,9 @@ import s from './Toaster.module.css';
 
 /**
  * Mount once near the app root. Notes sit at the bottom, above the tab bar, where the thumb
- * can reach Undo. While a sheet is open they move to the top, so they never cover its buttons,
- * and slide below a celebration banner there, and below the sheet's own header (its title and
- * close button) when the sheet reaches that high. While a full-screen moment is open (the capsule
+ * can reach Undo. While a sheet is open its notes slot owns them, below the header and inside
+ * its Tab cycle. Layers without a slot retain the old top lane, clear of any banner or header.
+ * While a full-screen moment is open (the capsule
  * reveal, the epic card) they wait, unseen and with their timers stopped, and arrive after it.
  */
 export function Toaster() {

@@ -100,8 +100,8 @@ export function toastDuration(t: ToastOptions): number {
 }
 
 /**
- * Show (or coalesce) a toast. Its text is announced through the shared aria-live="polite" region,
- * unless it is `silent`.
+ * Show (or coalesce) a toast. Plain statuses announce immediately; actionable notes wait until
+ * their mounted card enters the active focus scope. A `silent` caller owns its announcement.
  */
 export function toast(opts: ToastOptions): string {
   const { list, id } = upsertToast(toasts.value, opts, `t${++seq}`);

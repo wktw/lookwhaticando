@@ -114,6 +114,34 @@ describe('modal-owned notes (WP-C3)', () => {
     expect(document.activeElement).toBe(input);
   });
 
+  it('forward Tab from a modal panel fallback explicitly enters its first control', () => {
+    mount(<Sheet open title="A note" onClose={() => undefined}><button>Inside</button></Sheet>);
+    const panel = document.querySelector<HTMLElement>('[role="dialog"]')!;
+    act(() => panel.focus());
+    fire(panel, 'keydown', { key: 'Tab', shiftKey: false });
+    expect(document.activeElement).toBe(panel.querySelector('button'));
+  });
+
+  it.each(['sheet', 'load'])('reopening an exiting %s clears inert before its initial focus', (kind) => {
+    let show!: () => void;
+    function Reopen() {
+      const [open, setOpen] = useState(true);
+      show = () => setOpen(true);
+      return <><button id="origin">Open</button>{kind === 'sheet' ? <Sheet open={open} title="Note" initialFocus="textarea" onClose={() => setOpen(false)}><textarea /></Sheet> : <LoadSheet open={open} title="Note" retryLabel="Try again" closeLabel="Close" onRetry={() => undefined} onClose={() => setOpen(false)} />}</>;
+    }
+    mount(<Reopen />);
+    const layer = document.querySelector<HTMLElement>('[data-state]')!;
+    const target = layer.querySelector<HTMLElement>(kind === 'sheet' ? 'textarea' : 'button')!;
+    // jsdom has no inert focus behavior. Match the browser: focusing an inert element does nothing.
+    const nativeFocus = target.focus.bind(target);
+    vi.spyOn(target, 'focus').mockImplementation((options) => { if (!layer.inert) nativeFocus(options); });
+    act(() => void document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })));
+    tick(100);
+    act(() => document.getElementById('origin')!.focus());
+    act(() => show());
+    expect(document.activeElement).toBe(target);
+  });
+
   it('counts only visible time after ten seconds hidden', () => {
     mount(); note(); tick(1500); hidden(true); tick(10000); shown(); hidden(false); tick(2499); shown(); tick(1); expired();
   });

@@ -74,6 +74,8 @@ export function LoadSheet({ open, title, message, retryLabel, closeLabel, busy, 
         active.current = true;
         restoreTo.current = document.activeElement as HTMLElement | null;
         pushLayer(id, { notesSlot: notesRef.current });
+        // A quick reopen can reuse the exiting layer. Browsers ignore focus while it is inert.
+        if (layerRef.current) layerRef.current.inert = false;
         (retryRef.current ?? panelRef.current)?.focus({ preventScroll: true });
         sfx.play('whoosh', { volume: 0.35 });
       }
