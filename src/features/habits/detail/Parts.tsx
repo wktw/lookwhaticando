@@ -214,7 +214,7 @@ export function Moments({ vm }: { vm: HabitDetailVM }) {
           <p class={s.help}>{D.quoteHelp}</p>
         </>
       )}
-      <NoteSheet target={note} onClose={() => setNoteTarget(null)} onFocusLost={() => document.getElementById('detail-moments')?.focus({ preventScroll: true })} />
+      <NoteSheet target={note} onClose={() => setNoteTarget(null)} focusFallback={() => document.getElementById('detail-moments')} />
     </DetailSection>
   );
 }

@@ -239,7 +239,7 @@ function DayPanel({ cell, habitId, agg, idPrefix, Heading }: { cell: CalendarCel
         <p class={s.quiet}>{fillLine(PROGRESS_LINES.calendarNoNotes, { date: monthDayLabel(date) })}</p>
       )}
       {habit && <DayEdit cell={cell} habitId={habit.id} habitName={habit.name} />}
-      <NoteSheet target={note} onClose={() => setNoteTarget(null)} onFocusLost={() => panel.current?.parentElement?.querySelector<HTMLButtonElement>(`button[data-date="${date}"]`)?.focus({ preventScroll: true })} />
+      <NoteSheet target={note} onClose={() => setNoteTarget(null)} focusFallback={() => panel.current?.parentElement?.querySelector<HTMLButtonElement>(`button[data-date="${date}"]`)} />
     </section>
   );
 }
