@@ -197,6 +197,9 @@ export default defineConfig(({ mode }) => {
     build: {
       outDir: single ? 'dist-single' : 'dist',
       target: ['es2020', 'safari15'],
+      // WebKit retains a failed modulepreload across reloads. Native imports retry normally.
+      // Vite still loads dynamic CSS dependencies; initial font preloads are independent.
+      modulePreload: false,
       assetsInlineLimit: single ? 100_000_000 : 4096,
       cssCodeSplit: !single,
       rollupOptions: single ? {} : { output: { manualChunks } },

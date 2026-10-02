@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'preact/hooks';
+import { useEffect } from 'preact/hooks';
 import { cx } from '@/ui/cx';
 import { SHELL_LINES } from '@/features/you/shellCopy';
 import { clockBehind, crossWindowNotice, damagedSave, damagedUnkept, demoMode, erasePending, dismissCrossWindowNotice, durability, exitDemo, loadIssue, readOnly, retrySaving, useHere } from '@/state/store';
@@ -13,6 +13,7 @@ import { routeFor } from './routes';
 import { preloadAllWhenIdle } from './screens';
 import { ScreenHost, ScreenLoading, ScreenError } from './ScreenHost';
 import { SheetHosts } from './SheetHosts';
+import { RecoveryHost, requestRecovery, prefetchRecovery } from './RecoveryHost';
 import { lazyModule, useLazyModule } from './useLazyModule';
 import { Sidebar } from './Sidebar';
 import { TabBar } from './TabBar';
@@ -37,40 +38,6 @@ function putClockAway(): void {
   } catch {
     /* for this page only, then */
   }
-}
-
-type Recovery = typeof import('@/features/you/recovery');
-let recoveryChunk: Promise<Recovery> | null = null;
-/** The recovery actions and sheets (You › Data's), loaded only when a note offers them. */
-function loadRecovery(): Promise<Recovery> {
-  recoveryChunk ??= import('@/features/you/recovery').catch((e: unknown) => {
-    recoveryChunk = null;
-    throw e;
-  });
-  return recoveryChunk;
-}
-const withRecovery = (use: (m: Recovery) => unknown) => () => void loadRecovery().then(use, () => undefined);
-
-/** The Daily copies or Import sheet a note opened, right where she is (onboarding has no tabs). */
-const recoverySheet = signal<null | 'snapshots' | 'import'>(null);
-
-/** Hosts the sheets a note opens, once its module is in. */
-function RecoveryHost() {
-  const open = recoverySheet.value;
-  const [mod, setMod] = useState<Recovery | null>(null);
-  useEffect(() => {
-    if (!open || mod) return;
-    let live = true;
-    loadRecovery().then(
-      (m) => live && setMod(m),
-      () => live && (recoverySheet.value = null),
-    );
-    return () => {
-      live = false;
-    };
-  }, [open, mod]);
-  if (!mod) return null;
-  return <mod.RecoverySheets open={open} onClose={() => (recoverySheet.value = null)} />;
 }
 
 /** The load note she put away, for this visit (a later load issue is a new object, and shows). */
@@ -99,8 +66,8 @@ type Note = { key: string; text: string; actions?: Action[]; close?: () => void 
  */
 export function ShellBanners() {
   const ro = readOnly.value;
-  const saveBackup: Action = { label: SHELL_LINES.saveBackup, run: withRecovery((m) => m.saveBackupNow()) };
-  const dailyCopies: Action = { label: SHELL_LINES.dailyCopies, run: () => void (recoverySheet.value = 'snapshots') };
+  const saveBackup: Action = { label: SHELL_LINES.saveBackup, run: () => requestRecovery('backup') };
+  const dailyCopies: Action = { label: SHELL_LINES.dailyCopies, run: () => requestRecovery('snapshots') };
   const notes: Note[] = [];
   if (ro === 'other-window') {
     const [text = SHELL_LINES.otherWindow] = SHELL_LINES.otherWindow.split(' · ');
@@ -115,8 +82,8 @@ export function ShellBanners() {
   }
   // A save that couldn't be read: the one before it opened, or it was kept aside (audit data-d10).
   const issue = loadIssue.value;
-  const saveDamaged: Action = { label: SHELL_LINES.saveDamaged, run: withRecovery((m) => m.saveDamagedFile()) };
-  const importBackup: Action = { label: SHELL_LINES.importBackup, run: () => void (recoverySheet.value = 'import') };
+  const saveDamaged: Action = { label: SHELL_LINES.saveDamaged, run: () => requestRecovery('damaged') };
+  const importBackup: Action = { label: SHELL_LINES.importBackup, run: () => requestRecovery('import') };
   // A full disk took the room the damaged file was kept in: it is only here now, so this note
   // takes the damaged note's place (it no longer is "kept"), with no Close, until it is saved.
   const unkept = damagedUnkept.value !== null;
@@ -134,7 +101,7 @@ export function ShellBanners() {
   // The actions' module is fetched as soon as a note offers one, so a tap (the share sheet) finds it in.
   const offersRecovery = notes.some((n) => n.key !== 'other-window' && n.actions?.length);
   useEffect(() => {
-    if (offersRecovery) void loadRecovery().catch(() => undefined);
+    if (offersRecovery) prefetchRecovery();
   }, [offersRecovery]);
   return (
     <>
@@ -218,7 +185,7 @@ export function App() {
         {skip}
         <main id="main" class={s.onboarding} tabIndex={-1} aria-label={SHELL_COPY.appName}>
           <ShellBanners />
-          {Flow ? <Flow /> : flowStatus === 'error' ? <ScreenError onRetry={retry} /> : <ScreenLoading />}
+          {Flow ? <Flow /> : flowStatus === 'error' ? <ScreenError onRetry={retry} /> : <ScreenLoading heading />}
         </main>
       </div>
     );

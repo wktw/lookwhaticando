@@ -82,7 +82,7 @@ export function ScreenHost({ tab }: { tab: TabId }) {
       ) : status === 'error' ? (
         <ScreenError onRetry={retry} />
       ) : (
-        <ScreenLoading />
+        <ScreenLoading heading />
       )}
     </div>
   );
@@ -131,11 +131,12 @@ export function ScreenError({ onRetry, as }: { onRetry: () => void; as?: 'h2' | 
 }
 
 /** The lazy-load placeholder: a cutting in a glass. It fades in only if loading takes a moment. */
-export function ScreenLoading() {
+export function ScreenLoading({ heading = false }: { heading?: boolean }) {
+  const Text = heading ? 'h1' : 'p';
   return (
     <div class={s.loading} role="status">
       <SillArt what="cutting" size={84} />
-      <p class={s.loadingText}>{SCREEN_COPY.loading}</p>
+      <Text class={s.loadingText}>{SCREEN_COPY.loading}</Text>
     </div>
   );
 }

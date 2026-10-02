@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { manualChunks, MANIFEST, PRECACHE_GLOB, PRECACHE_IGNORE, PRELOAD_FONTS, STARTUP_END, STARTUP_START, stripBetween } from '../../../vite.config';
+import config, { manualChunks, MANIFEST, PRECACHE_GLOB, PRECACHE_IGNORE, PRELOAD_FONTS, STARTUP_END, STARTUP_START, stripBetween } from '../../../vite.config';
 
 describe('vite.config.ts', () => {
   it('keeps launch screens, screenshots and Latin Extended Nunito out of the precache', () => {
@@ -44,4 +44,10 @@ describe('vite.config.ts', () => {
     const files = [...(MANIFEST.icons ?? []), ...(MANIFEST.shortcuts ?? []).flatMap((s) => s.icons ?? []), ...(MANIFEST.screenshots ?? [])].map((i) => i.src);
     for (const f of files) expect(() => readFileSync(`public/${f}`), f).not.toThrow();
   });
+});
+
+
+it('disables script preloads so a failed request can recover after a Safari reload', async () => {
+  const built = await config({ command: 'build', mode: 'production' });
+  expect(built.build?.modulePreload).toBe(false);
 });

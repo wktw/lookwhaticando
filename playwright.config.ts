@@ -10,7 +10,8 @@
  *  - single-file: dist-single/catkin.html opened from file:// (e2e/single-file.spec.ts).
  *  - pwa: the service worker takes over and the app opens offline (preview only, e2e/pwa.spec.ts).
  *  - two-windows: a second window starts over; the first follows it (e2e/windows.spec.ts).
- * All of them run Chromium with reduced motion, so nothing is mid-animation when axe reads it.
+ * Existing projects use Chromium with reduced motion. The focused browser matrix also runs
+ * actual WebKit, ordinary-motion Chromium, and a forced-colours subset.
  */
 import { defineConfig, devices, type Project } from '@playwright/test';
 import { existsSync } from 'node:fs';
@@ -29,6 +30,8 @@ const phone = { ...devices['iPhone 13'], browserName: 'chromium' as const, viewp
 const desktop = { ...devices['Desktop Chrome'], viewport: { width: 1280, height: 800 } };
 const routes = /routes\.spec\.ts$/;
 const screens = /(you|onboarding|today|progress|shelf|capsules|quiet)\.spec\.ts$/;
+// The focused matrix exercises browser differences without repeating the four colour/size suites.
+const matrixFiles = /(lifecycle|windows|quiet|capsules|recovery-platform)\.spec\.ts$/;
 
 const projects: Project[] = [
   { name: 'phone-light', testMatch: routes, use: { ...phone, colorScheme: 'light' } },
@@ -44,6 +47,9 @@ const projects: Project[] = [
   { name: 'screens-phone-dark', testMatch: screens, use: { ...phone, colorScheme: 'dark' } },
   { name: 'screens-desktop-light', testMatch: screens, use: { ...desktop, colorScheme: 'light' } },
   { name: 'screens-desktop-dark', testMatch: screens, use: { ...desktop, colorScheme: 'dark' } },
+  { name: 'webkit-phone', testMatch: matrixFiles, use: { ...phone, browserName: 'webkit', serviceWorkers: 'allow', contextOptions: { reducedMotion: 'no-preference' } } },
+  { name: 'chromium-motion', testMatch: matrixFiles, use: { ...desktop, serviceWorkers: 'allow', contextOptions: { reducedMotion: 'no-preference' } } },
+  { name: 'chromium-forced-colors', testMatch: /lifecycle\.spec\.ts$/, grep: /@colors|@layout/, use: { ...desktop, forcedColors: 'active', contextOptions: { reducedMotion: 'no-preference' } } },
 ];
 if (TARGET === 'preview') {
   projects.push({ name: 'pwa', testMatch: /pwa\.spec\.ts$/, use: { ...desktop, serviceWorkers: 'allow' } });
