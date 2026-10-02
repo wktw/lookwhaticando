@@ -5,7 +5,7 @@ import type { HabitInput } from '@/state/api';
 import { createInitialState } from '@/state/defaults';
 import { validateState } from '@/state/validate';
 import { appDayKey, monotonicDayKey, zonedLocalTime } from '@/domain/dates';
-import { evaluateDay, lifetimeEnd } from '@/domain/activity';
+import { evaluateDay, inLifetime, lifetimeEnd } from '@/domain/activity';
 import { deservedLevel, logsOf, trackingCtx } from '@/domain/economy';
 import * as habits from '@/domain/habits';
 import { checkIn } from '@/domain/logging';
@@ -28,7 +28,7 @@ class ZonedHistory {
     this.run((tx) => habits.completeOnboarding(tx, { name: 'Sam', templateIds: [] }));
   }
   get local() { return zonedLocalTime(this.zone); }
-  get today() { return monotonicDayKey(appDayKey(this.now, 210, this.local), this.state.clock.maxDateKey); }
+  get today() { return monotonicDayKey(appDayKey(this.now, this.state.settings.dayStartsAt, this.local), this.state.clock.maxDateKey); }
   run<T>(action: (tx: Tx) => T): T {
     const out = transact(this.state, { now: this.now, today: this.today, local: this.local, timeZone: this.zone, rng: this.rng }, (tx) => {
       openDay(tx);
@@ -89,6 +89,7 @@ describe.each(ZONES)('$zone: B5 through the 03:30 app-day boundary', (row) => {
     expect(g.habit(empty)).toMatchObject({ startedOn: '2026-10-05', archivedOn: '2026-10-05', unstarted: true });
     expect(lifetimeEnd(g.habit(empty), '2026-10-05')).toBeNull();
     for (const day of ['2026-10-05', '2026-10-06']) {
+      expect(inLifetime(g.habit(empty), day)).toBe(false);
       expect(evaluateDay(g.habit(empty), {}, day, trackingCtx(g.state, '2026-10-06')).outcome).toBe('transparent');
     }
   });
