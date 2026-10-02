@@ -82,5 +82,6 @@ describe('case-independent module resolution', () => {
     expect(resolved(files, 'src/main.ts', './folder', false)).toBeNull();
     expect(resolved(files, 'src/main.ts', './folder', true)).toBe('src/Folder/index.ts');
     expect(imports('src/main.ts', "import type { T } from './Check'; export { T } from './Folder'; const later = import('./check'); type U = import('./Thing.test').U;")).toEqual(['./Check', './Folder', './check', './Thing.test']);
+    expect(imports('src/main.ts', "const helper = require('./check'); import Folder = require('./Folder');")).toEqual(['./check', './Folder']);
   });
 });

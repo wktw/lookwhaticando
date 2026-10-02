@@ -12,7 +12,7 @@ import { expectNoAxeViolations, horizontalOverflow, openRoute, watchErrors } fro
 import { buildDemo } from '../src/state/demo';
 import { encodeEnvelope, SAVE_KEY } from '../src/state/persist';
 import { appDayKey, zonedLocalTime } from '../src/domain/dates';
-import type { Settings } from '../src/state/types';
+import type { AppState, Settings } from '../src/state/types';
 
 /** A phone is an iPhone 13 on Chromium, with touch (the browser type is the project's). */
 const { defaultBrowserType: _webkit, ...IPHONE } = devices['iPhone 13']; // eslint-disable-line @typescript-eslint/no-unused-vars
@@ -310,5 +310,20 @@ test.describe('Today · quiet rewards', () => {
     await seedDemo(page, { quietRewards: true });
     await expect(page.locator('main [data-wallet-target]')).toHaveCount(0);
     await expect(page.getByText(/\+\d+ coins?/)).toHaveCount(0);
+  });
+});
+
+test.describe('Today · portable demo seed', () => {
+  test.use({ timezoneId: 'Pacific/Honolulu' });
+  test('the runner uses the browser’s clock and zone for demo timestamps', async ({ page }) => {
+    await page.clock.install({ time: new Date('2026-09-29T17:00:00Z') }); // 07:00 in Honolulu, 17:00 on the UTC runner
+    await seedDemo(page);
+    const stored = await page.evaluate(() => {
+      const state = (JSON.parse(localStorage.getItem('catkin:v1')!) as { state: AppState }).state;
+      const created = new Date(state.profile.createdAt);
+      return { hour: created.getHours(), minute: created.getMinutes(), maxDateKey: state.clock.maxDateKey };
+    });
+    expect(stored).toEqual({ hour: 8, minute: 5, maxDateKey: '2026-09-29' });
+    await expect(page.getByRole('article', { name: 'Take vitamins', exact: true }).getByRole('button', { name: 'Take vitamins', exact: true })).toHaveAttribute('aria-pressed', 'false');
   });
 });
