@@ -243,10 +243,12 @@ test.describe('low-bed neighbours keep their own touch targets', () => {
     const actor = page.getByRole('button', { name, exact: true });
     await actor.scrollIntoViewIfNeeded();
     // Real hit testing catches art and another pet's invisible button over the intended target.
-    expect(await actor.evaluate(el => {
+    const hit = await actor.evaluate(el => {
       const r = el.getBoundingClientRect();
-      return document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2) === el;
-    })).toBe(true);
+      const top = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
+      return { receivesPointer: top === el, blocker: top === el ? null : { tag: top?.tagName, pet: top?.closest('[data-pet]')?.getAttribute('data-pet'), markup: top?.outerHTML.slice(0, 200) } };
+    });
+    expect(hit.receivesPointer, JSON.stringify(hit)).toBe(true);
     await expectNoAxeViolations(page, info);
     await actor.click();
     const tag = page.getByRole('button', { name: `${name}’s card`, exact: true });
