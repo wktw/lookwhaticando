@@ -31,12 +31,12 @@ function scene(level: number): ShelfPet[] {
 const ground: Ground = {
   rows: { glassBottom: 50, sillBack: 65, sillFront: 85, nosing: 88 },
   x0: 0, x1: 180, d0: 0.2, d1: 0.95, surface: '#fff',
-  beam: { x0: 24, x1: 65, slant: 18 }, perches: [], obstacles: [], petSize: 20,
+  beam: { x0: 24, x1: 65, slant: 18, bar: { x: 40, w: 1 }, rail: { depth: 0.5, h: 1 } }, perches: [], obstacles: [], petSize: 20,
 };
 const moment: Moment = { light: lightAtSun(0.6, false), time: skyTime(lightAtSun(0.6, false)), season: 'autumn', hour: 14 };
 const from = groundSpot(ground, 140, 0.3, 'sit', false, 'left');
 const friendAt = groundSpot(ground, 95, 0.88, 'sleep', true, 'right');
-const bondOf = (pet: ShelfPet) => (pet as ShelfPet & { bond?: unknown }).bond;
+const bondOf = (pet: ShelfPet) => pet.bond;
 const input = (level: number, seed: number, extra: object = {}): PlanInput => ({
   species: 'cat', petId: me, at: from, ground, hour: 14, night: false, taken: [friendAt.x], rnd: seeded(seed),
   bond: bondOf(scene(level)[0]!), friend: { key: friend, spot: friendAt }, ...extra,
@@ -61,13 +61,24 @@ describe('friendship reaches the scene', () => {
     else s.pets[friend] = { ...s.pets[friend]!, inMeadow: where !== 'indoors', place: where === 'elsewhere' ? 'pond' : 'sill' };
     s.shelf = { ...s.shelf, places: ['sill', 'pond'] };
     const vm = petVM(s, env, me)!;
-    const napFriend = (vm as typeof vm & { napFriend?: string | null }).napFriend;
+    const napFriend = vm.napFriend;
     expect(napFriend).toBeNull();
     expect(levelLine(vm.name, vm.level, vm.species, napFriend ? s.pets[napFriend]!.name : null)).toBe(`${vm.name} naps in the same spot every afternoon now.`);
   });
 });
 
 describe('seeded friendship plans', () => {
+  it('later levels keep their earned sunlight preference outside the afternoon nap', () => {
+    for (const level of [7, 8, 9, 15]) {
+      let sun = 0, n = 0;
+      for (let seed = 1; seed <= 200; seed++) {
+        const p = planAct(input(level, seed, { hour: 11 }));
+        if (p.kind === 'wander' || p.kind === 'sit') { n++; sun += Number(spotInSun(ground, last(p))); }
+      }
+      expect(sun / n, `level ${level}`).toBeGreaterThan(0.8);
+    }
+  });
+
   it('level 5 follows sunlight more often than level 4, while level 7 naps nearer the front', () => {
     const totals = (level: number) => {
       let sun = 0, n = 0, depth = 0, naps = 0;
@@ -108,6 +119,21 @@ describe('seeded friendship plans', () => {
       return naps[0];
     });
     expect(spots[0]).toEqual(spots[1]);
+  });
+
+  it('solo afternoon naps keep their spot as the sun moves, and never try to share a narrow pot rim', () => {
+    const nap = (extra: object) => Array.from({ length: 100 }, (_, i) => planAct(input(8, i + 1, extra))).filter((p) => p.kind === 'nap').map(last);
+    const alone = nap({ friend: undefined });
+    expect(nap({ friend: undefined, ground: { ...ground, beam: { ...ground.beam!, x0: 105, x1: 145 } } })).toEqual(alone);
+    expect(nap({ friend: { key: friend, spot: { ...friendAt, perch: 'rim', y: 30 } } })).toEqual(alone);
+  });
+
+  it('leaves the original plans exactly alone at level 4, including beds and night routines', () => {
+    const baseline = { ...input(4, 1), bond: undefined, friend: undefined };
+    for (const night of [false, true]) for (let seed = 1; seed <= 150; seed++) {
+      expect(planAct({ ...input(4, seed), night })).toEqual(planAct({ ...baseline, night, rnd: seeded(seed) }));
+      if (night) expect(planAct({ ...input(9, seed), night })).toEqual(planAct({ ...baseline, night, rnd: seeded(seed) }));
+    }
   });
 
   it('level 9 spends most daytime acts resting at the front, including from a home perch', () => {

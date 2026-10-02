@@ -10,7 +10,7 @@ export function stageVignette(id: string, place: PlaceId, ground: Ground, moment
   const out = new Map(spots);
   const v = vignetteById(id);
   if (!v || (v.ready && !v.ready())) return out;
-  const ctx = { place, ground, moment, actors: pets.filter((p) => spots.has(petKey(p))).map((p) => ({ key: petKey(p), species: speciesOf(p.petId), spot: spots.get(petKey(p))! })) };
+  const ctx = { place, ground, moment, actors: pets.filter((p) => spots.has(petKey(p))).map((p) => ({ key: petKey(p), species: speciesOf(p.petId), bond: p.bond, spot: spots.get(petKey(p))! })) };
   const cast = v.cast(ctx);
   if (!cast) return out;
   for (const [key, spot] of v.stage(ctx, cast)) out.set(key, spot);

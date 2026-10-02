@@ -42,6 +42,15 @@ export interface SillPot {
   routine?: Routine;
 }
 
+/** Earned habits, derived from friendship. No scene observation is persisted. */
+export interface FriendshipProfile {
+  sunBias: number;
+  frontBias: number;
+  /** Undefined before L8; null means a regular solo afternoon nap. */
+  napWith?: string | null;
+  waits?: boolean;
+}
+
 /** A pet out on the Shelf. */
 export interface ShelfPet {
   /** Unique key (the pet's state id); defaults to `petId`. */
@@ -50,6 +59,7 @@ export interface ShelfPet {
   petId: string;
   name?: string;
   personality?: Personality;
+  bond?: FriendshipProfile;
   outfit?: Outfit;
   /** The habit it keeps company: it lives in that plant (DESIGN §14.1). */
   home?: string;

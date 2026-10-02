@@ -125,7 +125,7 @@ export function PetCard({ pet, places, out, capacity, intent }: PetCardProps) {
   }, [pet.outfit, preview]);
 
   const level = levelName(pet.level);
-  const line = levelLine(pet.name, pet.level, species, pet.bestFriend ? (state.value.pets[pet.bestFriend]?.name ?? null) : null);
+  const line = levelLine(pet.name, pet.level, species, pet.napFriend ? (state.value.pets[pet.napFriend]?.name ?? null) : null);
   const coins = state.value.wallet.coins;
   const treats = useSame(pet.treats);
   const wardrobe = useSame(pet.wardrobe);

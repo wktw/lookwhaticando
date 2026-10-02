@@ -329,7 +329,7 @@ Holstein, Jersey, Belted Galloway, Brown Swiss, Dexter, Hereford, Highland. Fant
   (cows) · L4 claims a favourite spot (stored as the pet's `spot`: the place or pot it uses most, else its species'
   favourite place) · L5 follows the sunbeam · L6 leaves a small **found thing** on the sill on days you check in (a button,
   a leaf, a bead; 1 swap, never a chore) · L7 naps at the front of the sill, nearest you · L8 naps next to a best friend
-  (the pet it has spent the most time out with) · L10 **best friends** (a tiny brass tag). Every 150 XP after L10 adds a dated **Memory** from real
+  (the pet’s choice, rather than a measured time together) · L10 **best friends** (a tiny brass tag). Every 150 XP after L10 adds a dated **Memory** from real
   events ("Came home Sep 29", "The day Read bloomed").
 * **Gestures** (Shelf): tap = look up + a tiny hop · stroke (drag ≥ 40 px) = happy squint, purr, lean-in · boop (top 30%
   face zone) = a cat blep, a cow nose-lick, a bunny ear flop · carry (300 ms long-press) = lift with dangling feet, a springy

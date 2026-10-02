@@ -5,9 +5,9 @@
  */
 import type { Personality, Species } from '@/catalog/types';
 import { PERSONALITY_BY_ID } from '@/catalog/personalities';
-import type { PetSpot } from '../model';
+import type { FriendshipProfile, PetSpot } from '../model';
 import type { PetPose } from '../actors/adapters';
-import { AWAKE_POSE, REST_POSE, gatherX, groundSpot, nearestFree, perchSpot, routineFor, seatOn, type Ground, type Perch } from '../arrange';
+import { AWAKE_POSE, REST_POSE, friendshipSpot, gatherX, groundSpot, nearestFree, perchSpot, routineFor, seatOn, type Ground, type Perch } from '../arrange';
 import { clamp } from '../room';
 
 export type ActKind = 'idle' | 'wander' | 'sit' | 'nap' | 'play';
@@ -58,6 +58,10 @@ export interface PlanInput {
   /** Which pet (its look sizes it on a pot rim); the species' own pet when left out. */
   petId?: string;
   personality?: Personality;
+  bond?: FriendshipProfile;
+  /** Current view of the chosen friend, only when present on this ground and free to join. */
+  friend?: { key: string; spot: PetSpot };
+  key?: string;
   /** Where it is now. */
   at: PetSpot;
   /** Its home rim, if it keeps a habit company. */
@@ -77,11 +81,19 @@ const between = (rnd: () => number, a: number, b: number) => a + rnd() * (b - a)
 /** The next act as one or two steps. */
 export function planAct(input: PlanInput): { kind: ActKind; steps: Step[] } {
   const { species, at, ground: g, rnd } = input;
-  const kind = pickAct(actWeights(input.personality, input.hour, input.night, species), rnd());
+  const weights = actWeights(input.personality, input.hour, input.night, species);
+  const bond = input.night ? undefined : input.bond;
+  const afternoon = input.hour >= 13 && input.hour < 17;
+  if (bond?.napWith !== undefined && afternoon) weights.nap += 18;
+  if (bond?.waits) { weights.idle += 8; weights.sit += 8; }
+  const kind = pickAct(weights, rnd());
   const routine = routineFor(species, input.hour, input.night);
   const rest: PetPose = REST_POSE[species];
   const awake: PetPose = AWAKE_POSE[species];
   const mid = (g.x0 + g.x1) / 2;
+  const earned = () => friendshipSpot(g, bond!, input.key ?? input.petId ?? species, input.taken,
+    kind === 'nap' && afternoon && input.friend && input.friend.key === bond?.napWith ? input.friend.spot : undefined,
+    kind === 'nap' && afternoon && bond?.napWith !== undefined);
   const travel = (to: PetSpot, pose: PetPose, asleep: boolean, hold: number): Step[] => {
     const dist = Math.hypot(to.x - at.x, (to.y - at.y) * 2);
     const hop = !!to.perch !== !!at.perch || (to.perch === 'rim' && at.perch === 'rim');
@@ -98,6 +110,7 @@ export function planAct(input: PlanInput): { kind: ActKind; steps: Step[] } {
 
   // Where to go, if anywhere.
   const target = (): PetSpot => {
+    if (bond && ((kind === 'nap' && bond.frontBias > 0) || bond.waits || (g.beam && rnd() < bond.sunBias))) return earned();
     if (input.home && (kind === 'nap' || kind === 'sit') && rnd() < 0.45) return seatOn(g, input.home, species, rest, false, at.facing, input.petId);
     const liked = g.perches.filter((q) => q.kind !== 'rim' && q.likes?.includes(species) && !input.perchesTaken?.has(q.id) && q.id !== at.perchId);
     if (liked.length && (kind === 'nap' || kind === 'sit' || kind === 'idle') && rnd() < 0.5) return perchSpot(liked[Math.floor(rnd() * liked.length)]!, rest, false, at.facing);
@@ -119,7 +132,7 @@ export function planAct(input: PlanInput): { kind: ActKind; steps: Step[] } {
 
   switch (kind) {
     case 'nap': {
-      const to = routine === 'sleep' && at.perch ? at : (bed() ?? target());
+      const to = bond && (bond.frontBias > 0 || bond.napWith !== undefined) ? earned() : routine === 'sleep' && at.perch ? at : (bed() ?? target());
       return { kind, steps: travel(to, 'sleep', true, between(rnd, 22000, 48000)) };
     }
     case 'sit':
@@ -133,6 +146,7 @@ export function planAct(input: PlanInput): { kind: ActKind; steps: Step[] } {
       return { kind, steps };
     }
     default:
+      if (bond?.waits) return { kind, steps: travel(earned(), awake, false, between(rnd, 9000, 18000)) };
       return { kind, steps: [{ spot: { ...at, pose: at.perch ? at.pose : rnd() < 0.5 ? awake : rest, asleep: false }, move: 0, walk: false, hop: false, hold: between(rnd, 5000, 11000) }] };
   }
 }

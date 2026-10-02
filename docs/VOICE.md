@@ -521,6 +521,8 @@ the window for hours."
 
 ### Friendship levels
 
+WP-D5 keeps the existing L5/L7/L8/L9 wording below. The L8 solo sentence also applies while the chosen friend is indoors or in another place; the profile keeps the chosen friend’s name. No new wording is proposed for this package.
+
 Plain names, and a line that says what the pet does now (`FRIENDSHIP_LEVELS`). Nothing ever decays, and
 no level mentions a number of friendship points.
 

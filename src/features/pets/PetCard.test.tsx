@@ -56,6 +56,20 @@ async function open(id = petId) {
 }
 
 describe('the Pet Card', () => {
+  it('uses the solo nap line when the chosen friend comes indoors, while keeping the friend’s name in the profile', async () => {
+    const friendId = Object.keys(demo.pets).find((id) => id !== petId)!;
+    state.value = { ...demo, pets: { ...demo.pets,
+      [petId]: { ...demo.pets[petId]!, xp: 540, inMeadow: true, place: 'sill', bestFriend: friendId },
+      [friendId]: { ...demo.pets[friendId]!, inMeadow: true, place: 'sill' },
+    } };
+    const d = await open();
+    expect(d.textContent).toContain(`${pet().name} naps next to ${state.value.pets[friendId]!.name} now, most afternoons.`);
+    state.value = { ...state.value, pets: { ...state.value.pets, [friendId]: { ...state.value.pets[friendId]!, inMeadow: false } } };
+    await until(() => d.textContent?.includes(`${pet().name} naps in the same spot every afternoon now.`), 'the solo nap line');
+    expect(d.textContent).not.toContain('naps next to');
+    expect(d.textContent).toContain(state.value.pets[friendId]!.name);
+  });
+
   it('is an adoption profile: name, friendship, Likes, Came home, all in the voice', async () => {
     const d = await open();
     expect(d.getAttribute('aria-labelledby')).toBeTruthy();

@@ -95,6 +95,12 @@ export function shelfPets(out: readonly PetSummaryVM[], pets: AppState['pets']):
     petId: p.id,
     name: p.name,
     personality: p.personality,
+    ...(p.level >= 5 ? { bond: {
+      sunBias: 0.9,
+      frontBias: p.level >= 9 ? 0.95 : p.level >= 7 ? 0.85 : 0,
+      ...(p.level >= 8 ? { napWith: p.bestFriend } : {}),
+      ...(p.level >= 9 ? { waits: true } : {}),
+    } } : {}),
     outfit: p.outfit,
     ...(p.habitId ? { home: p.habitId } : {}),
     place: p.place,
