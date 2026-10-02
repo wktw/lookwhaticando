@@ -31,3 +31,14 @@ The final consolidated wording ledger must also retain A9/B8/C6 and later packag
 
 This is source preparation and focused validation. Ordered track and main full checks,
 backup and GitHub checks remain required before final acceptance.
+
+The first full track run at `58747df` stopped in units with two stale A9 UI expectations
+for “Close other catkin windows” (3,745 passed, two failed, one skipped; actual exit 1).
+Both fixtures now require the complete independently written, approved Little by Little
+blocked-erasure sentence. The deletion, no-false-success and successful-retry assertions
+and their timeouts remain unchanged. The exact file failed twice before and passed all
+five cases afterward. Root approved test quality; the independent runtime review passed
+34 erase UI/state/race/schema/IndexedDB/backup controls and killed both generic-error and
+ignored-retry mutations, then restored all five UI controls. No application change was
+needed. The original red log remains `/workspace/name-integration-check.log`; the complete
+track check must restart after this twice-reviewed fixture correction (`334ecab`).
