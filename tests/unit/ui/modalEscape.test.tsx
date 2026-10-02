@@ -2,7 +2,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'preact';
 import { act } from 'preact/test-utils';
-import { useLayoutEffect } from 'preact/hooks';
+import { useLayoutEffect, useState } from 'preact/hooks';
+import { removeLayer, layerCount } from '@/ui/sheetStack';
 import { Sheet } from '@/ui/Sheet';
 import { LoadSheet } from '@/app/LoadSheet';
 
@@ -82,4 +83,33 @@ describe('Escape is ready when a modal owns focus', () => {
     expect(current).toHaveBeenCalledTimes(1);
   });
 
+});
+
+// Independent review: an immediate Escape actually removes the child before passive effects.
+it.each(['sheet', 'load'] as const)('%s immediate unmount returns active ownership to its parent', (kind) => {
+  const lower = vi.fn();
+  const observations: unknown[] = [];
+  const after = vi.fn(() => {
+    observations.push({ insideParent: document.activeElement?.closest('[role="dialog"]')?.textContent?.includes('Durable parent') ?? false, layers: layerCount(), handled: escape().defaultPrevented, calls: lower.mock.calls.length });
+  });
+  let childId: string | undefined;
+  function Flow() {
+    const [shown, setShown] = useState(true);
+    return <><Sheet open title="Durable parent" onClose={lower}><button data-autofocus>Continue</button></Sheet>{shown ? <>
+      {kind === 'sheet' ? <Sheet open title="Temporary child" onClose={() => setShown(false)} /> : <LoadSheet open title="Temporary child" retryLabel="Try again" closeLabel="Close" onRetry={() => undefined} onClose={() => setShown(false)} />}
+      <EscapeAtLayout key="before" check={() => {
+        childId = document.activeElement?.closest('[role="dialog"], [role="alertdialog"]')?.getAttribute('aria-labelledby')?.replace(/-title$/, '');
+        expect(escape().defaultPrevented).toBe(true);
+      }} />
+    </> : <EscapeAtLayout key="after" check={after} />}</>;
+  }
+  try {
+    act(() => render(<Flow />, host));
+    expect(after).toHaveBeenCalledTimes(1);
+    observations.push({ afterEffects: true, insideParent: document.activeElement?.closest('[role="dialog"]')?.textContent?.includes('Durable parent') ?? false, layers: layerCount() });
+    expect(observations).toEqual([
+      { insideParent: true, layers: 1, handled: true, calls: 1 },
+      { afterEffects: true, insideParent: true, layers: 1 },
+    ]);
+  } finally { if (childId) removeLayer(childId); }
 });
