@@ -362,7 +362,7 @@ test('the count pad keeps Undo and Add a note reachable by keyboard through nest
   await page.keyboard.press('Enter');
   await tabTo('Add a note', pad, true);
   await page.keyboard.press('Enter');
-  const quickNote = page.getByRole('dialog', { name: 'A note for Drink water', exact: true });
+  const quickNote = page.getByRole('dialog', { name: 'A note for Drink water · Friday, October 2, 2026', exact: true });
   await expect(quickNote.getByRole('textbox')).toBeFocused();
   await page.keyboard.press('Escape');
   await expect(quickNote).toBeHidden();
@@ -370,7 +370,7 @@ test('the count pad keeps Undo and Add a note reachable by keyboard through nest
   // The stable row is available after the transient action has gone.
   await tabTo('Add a note');
   await page.keyboard.press('Enter');
-  const note = page.getByRole('dialog', { name: 'A note for Drink water', exact: true });
+  const note = page.getByRole('dialog', { name: 'A note for Drink water · Friday, October 2, 2026', exact: true });
   await expect(note.getByRole('textbox')).toBeFocused();
   await page.keyboard.type('A glass with lunch.');
   await page.keyboard.press('Escape');
