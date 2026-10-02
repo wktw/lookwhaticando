@@ -4,15 +4,15 @@
  * collapse, the first card's height budget, reflow at 320 px, and axe, on a phone and a desktop, in
  * Paper and Lamplight.
  *
- * A demo household is seeded through the dev server's own modules (the real reducers, `buildDemo`),
- * so those checks run against `npm run e2e` (the dev server) and are skipped against a preview build.
+ * A demo household is built by the test runner with the real reducers, then its encoded envelope
+ * is placed in browser storage. The same journeys run against development and production preview.
  */
 import { devices, expect, test, type Page } from '@playwright/test';
 import { expectNoAxeViolations, horizontalOverflow, openRoute, watchErrors } from './support';
 import { buildDemo } from '../src/state/demo';
-import { encodeEnvelope } from '../src/state/persist';
-
-const PREVIEW = process.env.E2E_TARGET === 'preview';
+import { encodeEnvelope, SAVE_KEY } from '../src/state/persist';
+import { appDayKey, zonedLocalTime } from '../src/domain/dates';
+import type { AppState, Settings } from '../src/state/types';
 
 /** A phone is an iPhone 13 on Chromium, with touch (the browser type is the project's). */
 const { defaultBrowserType: _webkit, ...IPHONE } = devices['iPhone 13']; // eslint-disable-line @typescript-eslint/no-unused-vars
@@ -33,20 +33,16 @@ async function press(page: Page, ring: ReturnType<Page['getByRole']>, ms: number
 }
 
 /** Seeds the demo household (about 120 days, seven habits, pets) as the real save, then reloads. */
-async function seedDemo(page: Page, patch: Record<string, unknown> = {}): Promise<void> {
+async function seedDemo(page: Page, patch: Partial<Settings> = {}): Promise<void> {
   await page.goto('./#/today');
-  await page.evaluate(async (settings) => {
-    // The dev server serves the app's own modules by path (typed loosely: this runs in the page).
-    const load = (path: string): Promise<any> => import(/* @vite-ignore */ path); // eslint-disable-line @typescript-eslint/no-explicit-any
-    const demo = await load('/src/state/demo.ts');
-    const persist = await load('/src/state/persist.ts');
-    const dates = await load('/src/domain/dates.ts');
-    const now = Date.now();
-    const today = dates.appDayKey(now, 180, dates.runtimeLocalTime);
-    const s = demo.buildDemo({ today, now, name: 'Sam' });
-    const state = { ...s, settings: { ...s.settings, ...settings } };
-    localStorage.setItem('catkin:v1', persist.encodeEnvelope(state, 1, now, 'e2e'));
-  }, patch);
+  // Browser clock mocks and its emulated time zone remain the authority for this household.
+  const clock = await page.evaluate(() => ({ now: Date.now(), zone: Intl.DateTimeFormat().resolvedOptions().timeZone }));
+  const local = zonedLocalTime(clock.zone);
+  const today = appDayKey(clock.now, 180, local);
+  const seeded = buildDemo({ today, now: clock.now, local, name: 'Sam' });
+  const state = { ...seeded, settings: { ...seeded.settings, ...patch } };
+  const raw = encodeEnvelope(state, 1, clock.now, 'e2e');
+  await page.evaluate(({ key, value }) => localStorage.setItem(key, value), { key: SAVE_KEY, value: raw });
   await page.reload();
   await expect(page.locator('main h1')).toBeVisible();
 }
@@ -83,7 +79,6 @@ for (const v of VIEWS) {
       });
 
       test('a busy household: the band, the list, the menu, a past day, and axe', async ({ page }, info) => {
-        test.skip(PREVIEW, 'seeds through the dev server');
         const errors = watchErrors(page);
         await seedDemo(page);
         await page.waitForLoadState('networkidle');
@@ -138,7 +133,6 @@ test.describe('Today · phone with touch · the ring, the strip and the band', (
   });
 
   test('a slow tap still waters, a long press opens the number pad, and ⋯ opens it too', async ({ page }) => {
-    test.skip(PREVIEW, 'seeds through the dev server');
     const errors = watchErrors(page);
     await seedDemo(page);
     // Phone-free bedtime has no tiny version and no count: a 700 ms press is a tap.
@@ -161,7 +155,6 @@ test.describe('Today · phone with touch · the ring, the strip and the band', (
   });
 
   test('picking a past day never moves the strip', async ({ page }) => {
-    test.skip(PREVIEW, 'seeds through the dev server');
     await seedDemo(page);
     const strip = page.getByRole('radiogroup', { name: 'The last 7 days' });
     const before = (await strip.boundingBox())!;
@@ -173,7 +166,6 @@ test.describe('Today · phone with touch · the ring, the strip and the band', (
   });
 
   test('a watering brings its pot into the band’s view before the pour', async ({ page }) => {
-    test.skip(PREVIEW, 'seeds through the dev server');
     await seedDemo(page);
     const row = page.getByRole('group', { name: 'Today’s plants' });
     // Scroll the pots to the far end, so the first card's pot is out of view.
@@ -195,12 +187,10 @@ test.describe('Today · phone · 320 px', () => {
     await openRoute(page, 'today');
     let o = await horizontalOverflow(page);
     expect(o.scrollWidth, o.culprits.join('\n')).toBeLessThanOrEqual(o.clientWidth);
-    if (!PREVIEW) {
-      await seedDemo(page, { compactToday: true });
-      await page.waitForLoadState('networkidle');
-      o = await horizontalOverflow(page);
-      expect(o.scrollWidth, o.culprits.join('\n')).toBeLessThanOrEqual(o.clientWidth);
-    }
+    await seedDemo(page, { compactToday: true });
+    await page.waitForLoadState('networkidle');
+    o = await horizontalOverflow(page);
+    expect(o.scrollWidth, o.culprits.join('\n')).toBeLessThanOrEqual(o.clientWidth);
     expect(errors, errors.join('\n')).toEqual([]);
   });
 });
@@ -208,7 +198,7 @@ test.describe('Today · phone · 320 px', () => {
 test.describe('Today · speed (E2E_PERF=1)', () => {
   test.use({ ...PHONE, colorScheme: 'light' });
   test('switching to Today and a tap each take a frame or two', async ({ page }) => {
-    test.skip(PREVIEW || !process.env.E2E_PERF, 'a timing check: run with E2E_PERF=1 on a quiet machine');
+    test.skip(!process.env.E2E_PERF, 'a timing check: run with E2E_PERF=1 on a quiet machine');
     await seedDemo(page);
     await page.evaluate(() => (location.hash = '#/you'));
     await page.waitForTimeout(1500);
@@ -317,10 +307,24 @@ test('the sheet that didn’t open fits the screen and gives focus back (WP-C4, 
 
 test.describe('Today · quiet rewards', () => {
   test('hides the wallet and the coins', async ({ page }) => {
-    test.skip(PREVIEW, 'seeds through the dev server');
     await seedDemo(page, { quietRewards: true });
     await expect(page.locator('main [data-wallet-target]')).toHaveCount(0);
     await expect(page.getByText(/\+\d+ coins?/)).toHaveCount(0);
+  });
+});
+
+test.describe('Today · portable demo seed', () => {
+  test.use({ timezoneId: 'Pacific/Honolulu' });
+  test('the runner uses the browser’s clock and zone for demo timestamps', async ({ page }) => {
+    await page.clock.install({ time: new Date('2026-09-29T17:00:00Z') }); // 07:00 in Honolulu, 17:00 on the UTC runner
+    await seedDemo(page);
+    const stored = await page.evaluate(() => {
+      const state = (JSON.parse(localStorage.getItem('catkin:v1')!) as { state: AppState }).state;
+      const created = new Date(state.profile.createdAt);
+      return { hour: created.getHours(), minute: created.getMinutes(), maxDateKey: state.clock.maxDateKey };
+    });
+    expect(stored).toEqual({ hour: 8, minute: 5, maxDateKey: '2026-09-29' });
+    await expect(page.getByRole('article', { name: 'Take vitamins', exact: true }).getByRole('button', { name: 'Take vitamins', exact: true })).toHaveAttribute('aria-pressed', 'false');
   });
 });
 

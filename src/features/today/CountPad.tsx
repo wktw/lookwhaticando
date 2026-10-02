@@ -14,7 +14,7 @@ import { Sheet } from '@/ui/Sheet';
 import { Stepper } from '@/ui/Stepper';
 import { Button } from '@/ui/Button';
 import { CheckRingArt } from '@/ui/CheckRing';
-import { waterLevel } from '@/ui/checkRing';
+import { waterLevel } from '@/ui/checkRingModel';
 import { TODAY_COPY } from './copy';
 import s from './TodaySheets.module.css';
 
