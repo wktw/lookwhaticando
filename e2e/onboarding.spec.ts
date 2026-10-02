@@ -70,6 +70,55 @@ test('the full app name fits beside onboarding navigation', async ({ page }) => 
   expect(header.scroll).toBeLessThanOrEqual(header.width);
 });
 
+/** A watering's decorative +5 has a finite fade even with reduced motion. */
+async function afterWateringFlourish(page: Page, audit: () => Promise<void>) {
+  await audit();
+}
+
+async function fadingWateringFixture(page: Page) {
+  await page.setContent(`<!doctype html><html lang="en"><head><title>Watering audit control</title><style>
+    body { background: #fffdf9; color: #3b3236; font: 16px sans-serif; }
+    .ck-fx-float { background: #fffdf9; }
+  </style></head><body><main><h1>Watered</h1><p id="persistent">Your watering is saved.</p><button>Next</button></main>
+  <div class="ck-fx-layer" aria-hidden="true"><div class="ck-fx-float">+5</div></div></body></html>`);
+  await page.evaluate(() => {
+    const chip = document.querySelector<HTMLElement>('.ck-fx-float')!;
+    const fade = chip.animate([{ opacity: 0 }, { opacity: 1, offset: .2 }, { opacity: 1, offset: .75 }, { opacity: 0 }], { duration: 1000, fill: 'both' });
+    fade.pause(); fade.currentTime = 982;
+    void fade.finished.catch(() => undefined).then(() => chip.remove());
+    (window as unknown as { wateringFade: Animation }).wateringFade = fade;
+  });
+}
+
+const finishWateringFade = (page: Page) => page.evaluate(() => (window as unknown as { wateringFade: Animation }).wateringFade.finish());
+
+test('the watering audit waits for the finite flourish and then checks the retained page', async ({ page }, info) => {
+  await fadingWateringFixture(page);
+  let audited = false;
+  const scan = afterWateringFlourish(page, async () => { audited = true; await expectNoAxeViolations(page, info); }).then(() => null, error => error);
+  try {
+    await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => resolve())));
+    expect(audited).toBe(false);
+    await expect(page.locator('.ck-fx-float')).toHaveCount(1);
+    await finishWateringFade(page);
+    expect(await scan).toBeNull();
+    expect(audited).toBe(true);
+    await expect(page.getByText('Your watering is saved.', { exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Next', exact: true })).toBeVisible();
+  } finally {
+    await finishWateringFade(page);
+    await scan;
+  }
+});
+
+test('the watering audit still reports persistent low-contrast text after the flourish', async ({ page }, info) => {
+  await fadingWateringFixture(page);
+  await page.locator('#persistent').evaluate(el => { (el as HTMLElement).style.color = '#aaa'; });
+  await finishWateringFade(page);
+  await expect(afterWateringFlourish(page, () => expectNoAxeViolations(page, info))).rejects.toThrow('color-contrast');
+  await expect(page.locator('#persistent')).toHaveCSS('color', 'rgb(170, 170, 170)');
+});
+
 test('a first boot is onboarding: sill → picks → water → the four cabinets → Today', async ({ page }, info) => {
   const errors = watchErrors(page);
   await start(page);
@@ -95,7 +144,7 @@ test('a first boot is onboarding: sill → picks → water → the four cabinets
   await page.waitForTimeout(900);
   await expect(pinBanner(page)).toHaveCount(0);
   await expect(page.getByRole('region', { name: 'Notes' })).toHaveCount(0);
-  await expectNoAxeViolations(page, info);
+  await afterWateringFlourish(page, () => expectNoAxeViolations(page, info));
   await expect(page.getByRole('button', { name: 'Add 1 glass to Drink water' })).toBeVisible();
 
   // A reload lands back on the same step.
