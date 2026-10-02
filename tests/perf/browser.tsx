@@ -82,8 +82,9 @@ function measureState(samples: number) {
     rejectedBackdate.push(impossible.ms);
 
     const id = prepared.habits[0]!.id;
+    const countFor = (snapshot: AppState) => { const log = snapshot.logs[id]?.[TODAY]; return log?.kind === 'log' ? log.count : 0; };
     const before = transact(prepared, env, (tx) => { undoCheckIn(tx, id, TODAY); return {}; }).state;
-    assert(prepared.logs[id]?.[TODAY]?.count === 1 && (before.logs[id]?.[TODAY]?.count ?? 0) === 0, 'Watering sample did not begin with an undone daily check-in');
+    assert(countFor(prepared) === 1 && countFor(before) === 0, 'Watering sample did not begin with an undone daily check-in');
     localStorage.setItem(commitKey, 'previous durable copy');
     const begin = performance.now();
     const action = elapsed(() => transact(before, env, (tx) => { openDay(tx); checkIn(tx, id, TODAY); return {}; }).state);
@@ -95,7 +96,7 @@ function measureState(samples: number) {
     });
     const totalMs = performance.now() - begin;
     // Validate outside all measured phases; a no-op must never masquerade as a fast action.
-    assert(action.value !== before && action.value.logs[id]?.[TODAY]?.count === 1, 'The measured watering did not complete the daily habit');
+    assert(action.value !== before && countFor(action.value) === 1, 'The measured watering did not complete the daily habit');
     const kept = localStorage.getItem(commitKey);
     const previousKept = outcome === 'committed' ? kept === serial.value : kept === 'previous durable copy';
     assert(previousKept, 'Commit corrupted the previous durable value');
