@@ -6,26 +6,36 @@ import { Band, type BandHandle } from './Band';
 import { todayVM } from '@/state/views/today';
 import { createInitialState } from '@/state/defaults';
 import { runtimeLocalTime } from '@/domain/dates';
+import type { DateKey } from '@/state/types';
 import { habit } from '../../../tests/unit/domain/helpers';
 const pours = vi.hoisted(() => vi.fn());
 vi.mock('@/art/scene', async () => {
  const { forwardRef } = await import('preact/compat');
  const { useImperativeHandle } = await import('preact/hooks');
- return { BAND_CLOSED_PX:64, BAND_MAX_POTS:6, BAND_OPEN_PX:168, WindowsillBand:forwardRef((_p, ref) => { useImperativeHandle(ref, () => ({pour:pours,react() {}})); return <div role="group" aria-label="Plants"><div data-habit="walk" /></div>; }) };
+ return { BAND_CLOSED_PX:64, BAND_MAX_POTS:6, BAND_OPEN_PX:168, WindowsillBand:forwardRef((_p, ref) => { useImperativeHandle(ref, () => ({pour:pours,react() {}})); return <div role="group" aria-label="Plants">{(_p as { pots: { habitId: string }[] }).pots.slice(0, 6).map((pot) => <div key={pot.habitId} data-habit={pot.habitId} />)}</div>; }) };
 });
 let host:HTMLElement;
 const advance = (ms:number) => act(()=>{vi.advanceTimersByTime(ms);});
 beforeEach(()=>{vi.useFakeTimers();pours.mockClear();document.documentElement.dataset.motion='full';host=document.createElement('div');document.body.append(host);});
 afterEach(()=>{act(()=>render(null,host));host.remove();vi.useRealTimers();delete document.documentElement.dataset.motion;});
-function rig() {
- const ref=createRef<BandHandle>();const now=new Date('2026-10-02T12:00:00Z').getTime();const state=createInitialState(now);state.habits=[habit({id:'walk',startedOn:'2026-10-02'})];const vm=todayVM(state,{now,today:'2026-10-02',local:runtimeLocalTime});
- const show=(damp:boolean)=>act(()=>render(<Band ref={ref} vm={{...vm,sill:[{...vm.sill[0]!,damp,pulse:damp?1:0}]}} state={state} coins={0} onWallet={()=>undefined}/>,host));
- show(true);
+function rig({ initialDamp = true, guest = false } = {}) {
+ const ref=createRef<BandHandle>();const now=new Date('2026-10-02T12:00:00Z').getTime();const state=createInitialState(now);
+ state.habits = [...(guest ? Array.from({length:6},(_,i)=>habit({id:`first-${i}`,startedOn:'2026-10-02'})) : []),habit({id:'walk',startedOn:'2026-10-02'})];
+ const vm=todayVM(state,{now,today:'2026-10-02',local:runtimeLocalTime});
+ const show=(damp:boolean, date:DateKey = '2026-10-02', present = true)=>act(()=>render(<Band ref={ref} vm={{...vm,date,sill:vm.sill.filter((p)=>present||p.habitId!=='walk').map((p)=>({...p,damp:p.habitId==='walk'?damp:false,pulse:p.habitId==='walk'&&damp?1:0}))}} state={state} coins={0} onWallet={()=>undefined}/>,host));
+ show(initialDamp);
  const row=host.querySelector<HTMLElement>('[role="group"]')!;
  row.scrollTo=vi.fn();row.getBoundingClientRect=()=>new DOMRect(0,0,390,100);
- row.querySelector<HTMLElement>('[data-habit]')!.getBoundingClientRect=()=>new DOMRect(500,0,100,100);
+ const pot=row.querySelector<HTMLElement>('[data-habit="walk"]');
+ if(pot)pot.getBoundingClientRect=()=>new DOMRect(500,0,100,100);
  return {show,pour:()=>act(()=>ref.current!.pour('walk'))};
 }
 it('review: undo while scrolling cancels the waiting outer Band pour',()=>{const r=rig();r.pour();advance(100);r.show(false);advance(220);expect(pours).not.toHaveBeenCalled();});
 it('review: a re-check waits for its own scroll delay instead of dispatching an earlier undone pour',()=>{const r=rig();r.pour();advance(100);r.show(false);advance(40);r.show(true);r.pour();advance(180);expect(pours).not.toHaveBeenCalled();advance(140);expect(pours).toHaveBeenCalledTimes(1);});
 it('review: unmount clears the outer Band scroll-delay timer',()=>{const r=rig();r.pour();act(()=>render(null,host));expect(vi.getTimerCount()).toBe(0);});
+
+it('control: a delayed same-tap pour sees the newer watered VM at delivery',()=>{const r=rig({initialDamp:false});r.pour();r.show(true);advance(319);expect(pours).not.toHaveBeenCalled();advance(1);expect(pours).toHaveBeenCalledExactlyOnceWith('walk');});
+it('review: a pending scroll pour does not cross the date boundary even if the next day is damp',()=>{const r=rig();r.pour();advance(100);r.show(true,'2026-10-03');advance(500);expect(pours).not.toHaveBeenCalled();});
+it('review: removing a pot cancels its scroll pour even if the same habit later returns',()=>{const r=rig();r.pour();advance(100);r.show(true,'2026-10-02',false);advance(40);r.show(true);advance(300);expect(pours).not.toHaveBeenCalled();});
+it('review: a guest pour is cancelled before its frame when its watering is undone',()=>{const r=rig({guest:true});r.pour();r.show(false);advance(1000);expect(pours).not.toHaveBeenCalled();});
+it('control: a guest same-tap pour sees the newer watered VM before its frame',()=>{const r=rig({guest:true,initialDamp:false});r.pour();r.show(true);advance(1000);expect(pours).toHaveBeenCalledExactlyOnceWith('walk');});
