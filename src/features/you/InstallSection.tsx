@@ -3,6 +3,7 @@
  * handoff between a Safari tab and the installed app ("Move my plants into the app" copies the
  * save as CK1 text; the installed app offers "Paste my plants").
  */
+import { getPlatform } from '@/platform/capabilities';
 import { useState } from 'preact/hooks';
 import { INSTALL } from '@/catalog/lines';
 import { InstallGuide } from '@/app/InstallGuide';
@@ -23,7 +24,7 @@ export function InstallSection() {
   const [byHand, setByHand] = useState<string | null>(null);
   const installed = currentInstallPlatform() === 'installed';
   const hasPlants = state.value.habits.length > 0;
-  const single = location.protocol === 'file:';
+  const single = getPlatform().installation.localFile;
 
   // Straight from the tap (iPhone Safari copies and pastes only inside one).
   const handoff = () => {

@@ -2,6 +2,7 @@
  * You › Watering time (DESIGN §11.1, VOICE §20): a time for Morning, Midday and Evening, each with
  * "Add to calendar". catkin can't send notifications, so the calendar does the reminding.
  */
+import { getPlatform } from '@/platform/capabilities';
 import { EMPTY, REMINDERS } from '@/catalog/lines';
 import type { WateringSlot } from '@/domain/profile';
 import { state, updateSettings, wateringTimeFile } from '@/state/store';
@@ -12,7 +13,7 @@ import { toneClass } from '@/ui/tone';
 import bs from '@/ui/Button.module.css';
 import { Group } from './parts';
 import { PREFS_COPY } from './copy';
-import { WATERING_SLOTS, clockLabel, isAppleTouch, slotTimes, staticCalPath, wantsStaticCal } from './calendar';
+import { WATERING_SLOTS, clockLabel, slotTimes, staticCalPath } from './calendar';
 import { downloadText } from './files';
 import s from './You.module.css';
 
@@ -24,7 +25,7 @@ function setTime(slot: WateringSlot, time: string | null) {
 }
 
 function staticCal(): boolean {
-  return wantsStaticCal({ single: __SINGLE_FILE__, protocol: location.protocol, appleTouch: isAppleTouch() });
+  return getPlatform().files.calendarDelivery === 'static';
 }
 
 function AddToCalendar({ slot, time }: { slot: WateringSlot; time: string }) {
@@ -32,7 +33,11 @@ function AddToCalendar({ slot, time }: { slot: WateringSlot; time: string }) {
   if (staticCal()) {
     // A real link to a real file: Calendar takes it from an installed iPhone app.
     return (
-      <a class={cx(bs.btn, bs.secondary, bs.sm, toneClass('blush'))} href={staticCalPath(slot, time)} target="_blank" rel="noopener" aria-label={label} data-cal={slot}>
+      <a class={cx(bs.btn, bs.secondary, bs.sm, toneClass('blush'))} href={staticCalPath(slot, time)} target="_blank" rel="noopener" aria-label={label} data-cal={slot}
+        onClick={(event) => {
+          if (getPlatform().externalLinks.open(staticCalPath(slot, time), { fromLink: true })) event.preventDefault();
+        }}
+      >
         <span class={bs.icon}>
           <Icon name="calendar" size={18} />
         </span>
