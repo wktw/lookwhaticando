@@ -5,6 +5,7 @@ import { viteSingleFile } from 'vite-plugin-singlefile';
 import { readFileSync } from 'node:fs';
 import { execSync } from 'node:child_process';
 import { fileURLToPath, URL } from 'node:url';
+import { noticesPlugin } from './scripts/notices';
 
 /**
  * Two build targets from one codebase:
@@ -28,8 +29,8 @@ export const STARTUP_END = '<!--/startup-images-->';
  */
 export const MANIFEST: Partial<ManifestOptions> = {
   id: './',
-  name: 'catkin',
-  short_name: 'catkin',
+  name: 'Little by Little',
+  short_name: 'Little by Little',
   description: 'Look after the little things. Your habits grow the plants. The plants become a home.',
   start_url: './',
   scope: './',
@@ -72,7 +73,7 @@ export const MANIFEST: Partial<ManifestOptions> = {
  * runtime). public/ is not listed in `includeAssets`, which would bypass these ignores, and the
  * plugin's own manifest and manifest-icon entries are left off, since the glob already has them.
  */
-export const PRECACHE_GLOB: readonly string[] = ['**/*.{js,css,html,woff2,png,svg,ics}'];
+export const PRECACHE_GLOB: readonly string[] = ['**/*.{js,css,html,woff2,png,svg,ics}', 'licenses.txt'];
 export const PRECACHE_IGNORE: readonly string[] = ['splash/**', 'screenshots/**', 'assets/nunito-latin-ext-*.woff2'];
 
 /** The two big generated art tables get chunks of their own, so they cache apart from the code. */
@@ -148,7 +149,7 @@ export function buildId(now = new Date()): string {
 
 export default defineConfig(({ mode }) => {
   const single = mode === 'single';
-  const plugins: PluginOption[] = [preact()];
+  const plugins: PluginOption[] = [preact(), noticesPlugin(fileURLToPath(new URL('.', import.meta.url)), single)];
 
   if (single) {
     plugins.push(singleFileHtml(new URL('./public/', import.meta.url).href), viteSingleFile({ removeViteModuleLoader: true }));

@@ -14,7 +14,7 @@ import { Sheet } from '@/ui/Sheet';
 import { Stepper } from '@/ui/Stepper';
 import { Button } from '@/ui/Button';
 import { CheckRingArt } from '@/ui/CheckRing';
-import { waterLevel } from '@/ui/checkRing';
+import { waterLevel } from '@/ui/checkRingModel';
 import { TODAY_COPY } from './copy';
 import s from './TodaySheets.module.css';
 
@@ -26,6 +26,7 @@ export interface CountPadProps {
   past: boolean;
   onCount: (card: HabitCardVM, count: number) => void;
   onTiny: (card: HabitCardVM) => void;
+  onAddNote: (card: HabitCardVM) => void;
   onClose: () => void;
 }
 
@@ -34,7 +35,7 @@ export function quickAdds(step: number): number[] {
   return [...new Set([1, step, step * 2])].filter((n) => n > 0);
 }
 
-export function CountPad({ card, date, past, onCount, onTiny, onClose }: CountPadProps) {
+export function CountPad({ card, date, past, onCount, onTiny, onAddNote, onClose }: CountPadProps) {
   const c = card;
   const name = c ? (past ? forDayLabel(c.name, date) : c.name) : '';
   return (
@@ -55,6 +56,9 @@ export function CountPad({ card, date, past, onCount, onTiny, onClose }: CountPa
               </Button>
             ))}
           </div>
+          <Button variant="secondary" block onClick={() => onAddNote(c)}>
+            {TODAY_COPY.menu.note}
+          </Button>
           <div class={s.padFoot}>
             {c.tinyLabel && c.canTiny && (
               <Button variant="secondary" icon="tiny" onClick={() => onTiny(c)}>

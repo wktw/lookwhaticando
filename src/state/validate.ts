@@ -368,6 +368,12 @@ function checkLooks(r: Report, v: unknown, path: string): void {
   });
   r.check(o.shown === null || (isInt(o.shown) && o.shown >= 0 && o.shown < looks.length), `${path}.shown`, 'not a look');
   r.check(o.chosen === undefined || o.chosen === true, `${path}.chosen`, 'not true');
+  if (o.confirmed !== undefined) {
+    const c = o.confirmed;
+    r.check(isObj(c) && oneOf(['dawn', 'sunlit', 'twilight', 'wildflower'] as const)(c.colour)
+      && oneOf(['classic', 'petite', 'paired'] as const)(c.shape) && isDay(c.on)
+      && typeof c.shown === 'boolean' && optional(isId)(c.partnerId), `${path}.confirmed`, 'bad confirmed look');
+  }
   const reads = o.reads as Obj;
   r.check(optional(isDay)(reads.bloom) && optional(isDay)(reads.evergreen), `${path}.reads`, 'bad reads');
 }

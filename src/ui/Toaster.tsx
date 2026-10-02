@@ -5,15 +5,15 @@ import { cx } from './cx';
 import { toneClass } from './tone';
 import { onInterrupt } from './gesture';
 import { overlayRoot } from './overlay';
-import { anyLayerOpen, momentOpen, onLayersChange } from './sheetStack';
-import { dismissToast, runToastAction, toastActions, toastDuration, toastLaneTop, toasts, toastsHeld, visibleToasts, type ToastAction, type ToastItem } from './toast';
+import { anyLayerOpen, momentOpen, onLayersChange, restoreLayerFocus, topNotesSlot } from './sheetStack';
+import { announceToast, dismissToast, runToastAction, runToastClock, toastActions, toastLaneTop, toasts, toastsHeld, visibleToasts, type ToastAction, type ToastItem } from './toast';
 import s from './Toaster.module.css';
 
 /**
  * Mount once near the app root. Notes sit at the bottom, above the tab bar, where the thumb
- * can reach Undo. While a sheet is open they move to the top, so they never cover its buttons,
- * and slide below a celebration banner there, and below the sheet's own header (its title and
- * close button) when the sheet reaches that high. While a full-screen moment is open (the capsule
+ * can reach Undo. While a sheet is open its notes slot owns them, below the header and inside
+ * its Tab cycle. Layers without a slot retain the old top lane, clear of any banner or header.
+ * While a full-screen moment is open (the capsule
  * reveal, the epic card) they wait, unseen and with their timers stopped, and arrive after it.
  */
 export function Toaster() {
@@ -21,16 +21,25 @@ export function Toaster() {
   const bannerBottom = toastLaneTop.value;
   const [lifted, setLifted] = useState(anyLayerOpen);
   const [waiting, setWaiting] = useState(() => momentOpen());
+  const [slot, setSlot] = useState(topNotesSlot);
+  const [hidden, setHidden] = useState(() => document.hidden);
   const stackRef = useRef<HTMLElement>(null);
 
-  useEffect(
-    () =>
-      onLayersChange(() => {
-        setLifted(anyLayerOpen());
-        setWaiting(momentOpen());
-      }),
-    [],
-  );
+  useLayoutEffect(() => {
+    const sync = () => {
+      setLifted(anyLayerOpen());
+      setWaiting(momentOpen());
+      setSlot(topNotesSlot());
+    };
+    sync();
+    return onLayersChange(sync);
+  }, []);
+
+  useEffect(() => {
+    const sync = () => setHidden(document.hidden);
+    document.addEventListener('visibilitychange', sync);
+    return () => document.removeEventListener('visibilitychange', sync);
+  }, []);
 
   // At the top, keep clear of a banner and of the open sheet's header (transform only). The sheet
   // may still be sliding in, so it is measured again once it has settled.
@@ -38,23 +47,23 @@ export function Toaster() {
     const el = stackRef.current;
     if (!el) return;
     const place = () => {
-      const clearOf = lifted ? Math.max(bannerBottom ?? 0, topSheetHeaderBottom(el.offsetTop + el.offsetHeight)) : 0;
+      const clearOf = lifted && !slot ? Math.max(bannerBottom ?? 0, topSheetHeaderBottom(el.offsetTop + el.offsetHeight)) : 0;
       el.style.setProperty('--lane-shift', clearOf ? `${Math.max(0, clearOf + 10 - el.offsetTop)}px` : '0px');
     };
     place();
     if (!lifted) return;
     const timer = setTimeout(place, 400);
     return () => clearTimeout(timer);
-  }, [items.length, bannerBottom, lifted]);
+  }, [items.length, bannerBottom, lifted, slot]);
 
   if (!items.length || waiting || typeof document === 'undefined') return null;
   return createPortal(
-    <section ref={stackRef} class={s.stack} data-at={lifted ? 'top' : 'bottom'} aria-label="Notes">
+    <section ref={stackRef} class={s.stack} data-at={lifted ? 'top' : 'bottom'} data-owned={slot ? '' : undefined} aria-label="Notes">
       {items.map((t) => (
-        <ToastCard key={t.id} item={t} />
+        <ToastCard key={t.id} item={t} hidden={hidden} owned={!!slot} />
       ))}
     </section>,
-    overlayRoot(),
+    slot ?? overlayRoot(),
   );
 }
 
@@ -70,18 +79,37 @@ function topSheetHeaderBottom(laneBottom: number): number {
   return r.top < laneBottom ? r.bottom : 0;
 }
 
-function ToastCard({ item }: { item: ToastItem }) {
-  const [paused, setPaused] = useState(false);
+/** Keep the durable origin when Tab moves directly between two transient notes. */
+const focusOrigins = new WeakMap<HTMLElement, HTMLElement | null>();
+
+function ToastCard({ item, hidden, owned }: { item: ToastItem; hidden: boolean; owned: boolean }) {
+  const [hovered, setHovered] = useState(false);
+  const [focused, setFocused] = useState(false);
+  const [dragging, setDragging] = useState(false);
   const held = toastsHeld.value > 0;
   const cardRef = useRef<HTMLDivElement>(null);
+  const returnTo = useRef<HTMLElement | null>(null);
+  const returnFocus = () => {
+    const card = cardRef.current;
+    if (!card?.contains(document.activeElement)) return;
+    const panel = card.closest<HTMLElement>('[role="dialog"], [role="alertdialog"]');
+    const previous = returnTo.current;
+    const target = previous?.isConnected && (!panel || panel.contains(previous)) ? previous : panel;
+    restoreLayerFocus(target);
+  };
+  // A plain note can be dismissed while its text has focus. Return before it disappears,
+  // using the same durable origin as an action and preserving any newer chosen focus.
+  useLayoutEffect(() => { if (item.leaving) returnFocus(); }, [item.leaving]);
   const drag = useRef<{ y: number; id: number } | null>(null);
 
-  useEffect(() => {
-    const ms = toastDuration(item);
-    if (paused || held || item.leaving || !ms) return;
-    const timer = setTimeout(() => dismissToast(item.id), ms);
-    return () => clearTimeout(timer);
-  }, [item.version, paused, held, item.leaving]);
+  useLayoutEffect(() => {
+    if (hovered || focused || dragging || hidden || held || item.leaving) return;
+    return runToastClock(item);
+  }, [item, hovered, focused, dragging, hidden, held]);
+
+  useLayoutEffect(() => {
+    if (!hidden && !held && !item.leaving) announceToast(item);
+  }, [item, hidden, held]);
 
   // A flick (up or down) puts the note away; a cancelled one (pointercancel, a capture lost
   // without a pointerup, the window losing focus) puts it back where it was and leaves it up.
@@ -103,7 +131,7 @@ function ToastCard({ item }: { item: ToastItem }) {
     const el = cardRef.current;
     el?.setPointerCapture(e.pointerId);
     if (el) el.style.transition = 'none';
-    setPaused(true);
+    setDragging(true);
   };
   const onPointerMove = (e: PointerEvent) => {
     const d = drag.current;
@@ -114,7 +142,7 @@ function ToastCard({ item }: { item: ToastItem }) {
   const onPointerUp = (e: PointerEvent) => {
     const d = endDrag();
     const el = cardRef.current;
-    setPaused(false);
+    setDragging(false);
     if (!d || !el) return;
     const dy = e.clientY - d.y;
     el.style.transition = '';
@@ -126,7 +154,7 @@ function ToastCard({ item }: { item: ToastItem }) {
   const abort = (e?: PointerEvent) => {
     if (!drag.current || (e && e.pointerId !== drag.current.id)) return;
     endDrag();
-    setPaused(false);
+    setDragging(false);
     const el = cardRef.current;
     if (!el) return;
     el.style.transition = '';
@@ -136,12 +164,26 @@ function ToastCard({ item }: { item: ToastItem }) {
   return (
     <ToastNote
       item={item}
+      // Plain modal notes still need a keyboard target when their lane scrolls. Focusing the
+      // card uses the same reading-time pause as an action; root notes keep their current order.
+      tabIndex={owned && !toastActions(item).length && !item.leaving ? 0 : undefined}
       noteRef={cardRef}
-      onAction={(a) => runToastAction(item.id, a)}
-      onPointerEnter={(e) => e.pointerType === 'mouse' && setPaused(true)}
-      onPointerLeave={(e) => e.pointerType === 'mouse' && !drag.current && setPaused(false)}
-      onFocusIn={() => setPaused(true)}
-      onFocusOut={() => setPaused(false)}
+      onAction={(a) => {
+        // An action can open another sheet. Its focus return must point at a durable control.
+        returnFocus();
+        runToastAction(item.id, a);
+      }}
+      onPointerEnter={(e) => e.pointerType === 'mouse' && setHovered(true)}
+      onPointerLeave={(e) => e.pointerType === 'mouse' && setHovered(false)}
+      onFocusIn={(e) => {
+        if (e.relatedTarget instanceof HTMLElement && !cardRef.current?.contains(e.relatedTarget)) {
+          const fromNote = e.relatedTarget.closest<HTMLElement>('[data-toast-id]');
+          returnTo.current = fromNote ? focusOrigins.get(fromNote) ?? null : e.relatedTarget;
+          if (cardRef.current) focusOrigins.set(cardRef.current, returnTo.current);
+        }
+        setFocused(true);
+      }}
+      onFocusOut={(e) => { if (!cardRef.current?.contains(e.relatedTarget as Node | null)) setFocused(false); }}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
@@ -162,7 +204,7 @@ export interface ToastNoteProps extends Omit<JSX.HTMLAttributes<HTMLDivElement>,
 export function ToastNote({ item, noteRef, onAction, class: cls, ...rest }: ToastNoteProps) {
   const actions = toastActions(item);
   return (
-    <div {...rest} ref={noteRef} class={cx(s.toast, item.leaving && s.leaving, toneClass(item.tone ?? 'blush'), cls as string)} data-toast-id={item.id}>
+    <div {...rest} ref={noteRef} class={cx(s.toast, item.leaving && s.leaving, toneClass(item.tone ?? 'blush'), cls as string)} data-toast-id={item.id} data-toast-leaving={item.leaving ? '' : undefined}>
       {item.art && (
         <span class={s.art} data-toast-art>
           {item.art}
@@ -175,7 +217,7 @@ export function ToastNote({ item, noteRef, onAction, class: cls, ...rest }: Toas
       {actions.length > 0 && (
         <div class={s.actions}>
           {actions.map((a) => (
-            <button key={a.label} type="button" class={s.action} onClick={() => (onAction ? onAction(a) : a.onAction())}>
+            <button key={a.label} type="button" class={s.action} disabled={item.leaving} onClick={() => (onAction ? onAction(a) : a.onAction())}>
               {a.label}
             </button>
           ))}

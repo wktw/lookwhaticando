@@ -16,7 +16,7 @@ import type { HabitCardVM } from '@/state/selectors';
 import { checkIn, checkInTiny, setCount, toggleRest, undoCheckIn } from '@/state/store';
 import { CHECKIN_TOASTS, fillLine } from '@/catalog/lines';
 import { num } from '@/catalog/format';
-import { CHECKIN_CHOREOGRAPHY } from '@/ui/checkRing';
+import { CHECKIN_CHOREOGRAPHY } from '@/ui/checkRingModel';
 import { announce } from '@/ui/announce';
 import { toast } from '@/ui/toast';
 import { celebrateCheckIn, showCheckInNote, showUncheckNote } from '@/fx/checkin';

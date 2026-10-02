@@ -15,6 +15,7 @@ import * as store from '@/state/store';
 import { DATA, DATA_COPY } from '@/catalog/lines';
 import { ImportSheet, replaceErrorText } from '@/features/you/ImportSheet';
 import { DataSection } from '@/features/you/DataSection';
+import { SnapshotsSheet } from '@/features/you/SnapshotsSheet';
 import { toasts } from '@/ui/toast';
 import { button, click, installDom, mount, type, until } from '@/features/capsules/testing';
 import { failWrites, fakeBrowser } from './fixtures';
@@ -134,6 +135,54 @@ describe('Daily copies: a restore that keeps a copy', () => {
     const undone = await until(() => toast('import-undone'), 'the undone note');
     expect(undone.message).toBe(DATA_COPY.undoneRestore);
     expect(store.state.value.profile.name).toBe('Renamed');
+  });
+});
+
+describe('the shared safety-copy label (WP-A3/A7 followup)', () => {
+  it.each(['import', 'restore', 'undo'] as const)('labels the copy produced by an actual %s without inventing its origin', async (operation) => {
+    const { b, backup } = twoSaves();
+    await new Promise((r) => setTimeout(r, 0));
+    if (operation === 'import') {
+      view = mount(<ImportSheet open onClose={() => undefined} />);
+      await pasteAndImport(backup);
+      await until(() => toast('imported'), 'the successful import');
+      expect(store.state.value.profile.name).toBe('Sam');
+    } else if (operation === 'restore') {
+      store.setName('Renamed');
+      b.advance(1000);
+      view = mount(<DataSection />);
+      await click(button(new RegExp(`^${DATA_COPY.snapshotsRow}`)), 'Daily copies');
+      await click(await until(() => button(DATA.restoreSnapshot), 'a saved copy'), 'Restore this copy');
+      await click(await until(() => document.querySelector<HTMLButtonElement>('[role="alertdialog"] [data-confirm]'), 'the confirmation'), 'confirm');
+      await until(() => toast('snapshot-restored'), 'the successful restore');
+      expect(store.state.value.profile.name).not.toBe('Renamed');
+    } else {
+      expect(await store.applyImport(backup)).toMatchObject({ ok: true });
+      view = mount(<DataSection />);
+      await click(await until(() => button(DATA.undoImport), 'Undo import'), 'Undo import');
+      await until(() => toast('import-undone'), 'the successful Undo');
+      expect(store.state.value.profile.name).toBe('Other');
+    }
+    view.unmount();
+    view = null;
+    const copies = (await b.snapshots.list()).sort((a, b) => b.savedAt - a.savedAt);
+    const protectedCopies = copies.filter((copy) => copy.kind === 'pre-import');
+    expect(protectedCopies.length).toBe(operation === 'undo' ? 2 : 1);
+    const protectedNames = await Promise.all(protectedCopies.map(async (copy) => (await b.snapshots.get(copy.id))!.state.profile.name));
+    expect(protectedNames).toContain(operation === 'restore' ? 'Renamed' : operation === 'undo' ? 'Sam' : 'Other');
+    const beforeReading = JSON.stringify([...b.snapshots.records]);
+    view = mount(<SnapshotsSheet open onClose={() => undefined} onRestored={() => undefined} />);
+    const rows = await until(() => {
+      const found = document.querySelectorAll('[role="dialog"] li');
+      return found.length === copies.length ? [...found] : null;
+    }, 'the real snapshot list');
+    copies.forEach((copy, index) => {
+      const expected = copy.kind === 'pre-import' ? 'Safety copy' : copy.kind === 'weekly' ? 'Weekly copy' : 'Daily copy';
+      expect(rows[index]!.textContent).toContain(` · ${expected}`);
+      expect(rows[index]!.textContent).not.toContain('Before an import');
+      expect(rows[index]!.querySelector('button')?.textContent).toBe('Restore this copy');
+    });
+    expect(JSON.stringify([...b.snapshots.records])).toBe(beforeReading);
   });
 });
 

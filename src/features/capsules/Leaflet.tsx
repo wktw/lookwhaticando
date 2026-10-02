@@ -4,7 +4,7 @@ import { seriesLabel } from '@/catalog/machines';
 import { state } from '@/state/store';
 import { CollectibleArt } from '@/art/CollectibleArt';
 import { collectedLabel, tierLabel } from './copy';
-import { byTier, leafletEntries, type LeafletEntry } from './leaflet';
+import { byTier, leafletEntries, type LeafletEntry } from './leafletModel';
 import { cx } from '@/ui/cx';
 import s from './Leaflet.module.css';
 

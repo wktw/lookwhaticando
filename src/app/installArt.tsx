@@ -42,7 +42,7 @@ export function ShareStepArt({ inAddressBar = false }: { inAddressBar?: boolean 
       <rect class={s.screen} x="12" y="8" width="216" height="116" rx="20" />
       <rect class={s.well} x="30" y="24" width="180" height="28" rx="14" />
       <text class={s.url} x="120" y="42" text-anchor="middle">
-        catkin
+        Little by Little
       </text>
       {inAddressBar ? (
         <>
@@ -102,7 +102,7 @@ export function CompactShareArt() {
       <path class={s.glyph} d="M41 96 l-6 6 l6 6" />
       <rect class={s.well} x="58" y="88" width="124" height="28" rx="14" />
       <text class={s.url} x="120" y="106" text-anchor="middle">
-        catkin
+        Little by Little
       </text>
       <Ring x={202} y={102} r={14} />
       <MoreGlyph x={202} y={102} />
@@ -174,7 +174,7 @@ export function AddToHomeArt() {
   );
 }
 
-/** A home screen with the catkin icon newly arrived. */
+/** A home screen with the Little by Little icon newly arrived. */
 export function HomeScreenArt() {
   const others: [number, number, string][] = [
     [46, 30, s.appSky!],
@@ -185,7 +185,7 @@ export function HomeScreenArt() {
     [196, 84, s.appMint!],
   ];
   return (
-    <Frame label="Home screen with the catkin icon">
+    <Frame label="Home screen with the Little by Little icon">
       <rect class={s.wallpaper} x="12" y="4" width="216" height="124" rx="20" />
       {others.map(([x, y, c]) => (
         <g key={`${x}-${y}`}>
@@ -198,7 +198,7 @@ export function HomeScreenArt() {
           <AppIconArt size="100" shape="squircle" />
         </svg>
         <text class={s.appLabel} x="146" y="62" text-anchor="middle">
-          catkin
+          Little by Little
         </text>
       </g>
     </Frame>
@@ -244,7 +244,7 @@ export function MacDockArt() {
   );
 }
 
-/** A Mac Dock with catkin newly settled in (and running). */
+/** A Mac Dock with Little by Little newly settled in (and running). */
 export function DockArt() {
   const icons: [number, string][] = [
     [40, s.appSky!],
@@ -253,7 +253,7 @@ export function DockArt() {
     [200, s.appLavender!],
   ];
   return (
-    <Frame label="Mac Dock with the catkin icon">
+    <Frame label="Mac Dock with the Little by Little icon">
       <rect class={s.wallpaper} x="6" y="6" width="228" height="120" rx="14" />
       <rect class={s.dock} x="22" y="78" width="196" height="40" rx="14" />
       {icons.map(([x, c]) => (
@@ -267,7 +267,7 @@ export function DockArt() {
       </g>
       <rect class={s.tooltip} x="84" y="30" width="72" height="20" rx="8" />
       <text class={s.appLabel} x="120" y="44" text-anchor="middle">
-        catkin
+        Little by Little
       </text>
     </Frame>
   );
@@ -280,7 +280,7 @@ export function ChromeInstallArt() {
       <rect class={s.screen} x="8" y="8" width="224" height="116" rx="14" />
       <rect class={s.well} x="18" y="20" width="204" height="28" rx="14" />
       <text class={s.url} x="94" y="38" text-anchor="middle">
-        catkin
+        Little by Little
       </text>
       <Ring x={202} y={34} r={13} />
       <g class={s.glyph} transform="translate(202 34)">

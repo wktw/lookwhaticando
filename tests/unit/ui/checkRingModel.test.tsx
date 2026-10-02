@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { render } from 'preact';
 import { act } from 'preact/test-utils';
 import { CheckRing } from '@/ui/CheckRing';
-import { CHECK_RING_MS, CHECKIN_CHOREOGRAPHY, countLabelPlacement, ringState, surfaceY, waterLevel } from '@/ui/checkRing';
+import { CHECK_RING_MS, CHECKIN_CHOREOGRAPHY, countLabelPlacement, ringState, surfaceY, waterLevel } from '@/ui/checkRingModel';
 
 let host: HTMLElement;
 

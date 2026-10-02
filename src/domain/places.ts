@@ -111,8 +111,9 @@ export function claimSpot(s: Pick<AppState, 'habits' | 'shelf' | 'pets'>, petId:
 
 /**
  * The best friend a pet naps next to from level 8 (§8.2 L8): another pet, preferring one out in the
- * same place, then one of the same species, then the one they have shared the Shelf with longest
- * (the later of their came-home times is earliest), then the closest friend. Null alone.
+ * same place, then one of the same species, then the earliest shared arrival date
+ * (the later of their came-home times), then the closest friend. This is a deterministic choice,
+ * not a measured time together. Null alone.
  */
 export function chooseBestFriend(s: Pick<AppState, 'pets' | 'shelf'>, petId: string): string | null {
   const me = s.pets[petId];
