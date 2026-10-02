@@ -28,3 +28,5 @@ teach `openRoute` in `support.ts` to start from a finished onboarding.
 
 The browsers come from `PLAYWRIGHT_BROWSERS_PATH` (the container sets `/opt/pw-browsers`); CI runs
 `npx playwright install --with-deps chromium webkit`. Playwright 1.57 or later is required for the WebKit reload fix ([#37766](https://github.com/microsoft/playwright/issues/37766)). Each checkout gets its own port, so worktrees can run in parallel.
+
+The production build disables JavaScript module preloads because WebKit caches their failed responses across page reloads ([WebKit #71726](https://github.com/WebKit/WebKit/pull/71726)). Native lazy imports and Vite's dynamic stylesheet loading remain; the first-paint fonts still preload. The real-server recovery test is the regression for this build setting, and the styled/axe journeys cover its CSS behavior.
