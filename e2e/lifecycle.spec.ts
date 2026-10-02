@@ -4,7 +4,7 @@
  * what the app wrote. Visibility events below are explicit harness events: headless engines keep
  * every page visible, so these do not claim physical iOS background/process-kill coverage.
  */
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Page, type Route } from '@playwright/test';
 import { createInitialState } from '../src/state/defaults';
 import { encodeEnvelope } from '../src/state/persist';
 import { transact } from '../src/domain/tx';
@@ -26,10 +26,18 @@ function household(name = 'Sam'): AppState {
 }
 async function seed(page: Page, state = household(), route = 'today', base = './') {
   await page.clock.setFixedTime(NOW);
-  await page.goto(base);
-  await page.evaluate((raw) => localStorage.setItem('catkin:v1', raw), encodeEnvelope(state, 1, NOW, 'browser-matrix', '1234567890abcdef1234567890abcdef'));
+  // Establish this origin without booting an unseeded app or interrupting its first worker/chunks.
+  // A distinct URL makes the following app visit a real navigation, even for the Today route.
+  const setupUrl = new URL('__matrix_seed__.html', new URL(base, test.info().project.use.baseURL)).href;
+  const setup = (request: Route) => request.fulfill({ status: 200, contentType: 'text/html', headers: { 'Cache-Control': 'no-store' }, body: '<!doctype html><title>Matrix setup</title>' });
+  await page.route(setupUrl, setup, { times: 1 });
+  try {
+    await page.goto(setupUrl);
+    await page.evaluate((raw) => localStorage.setItem('catkin:v1', raw), encodeEnvelope(state, 1, NOW, 'browser-matrix', '1234567890abcdef1234567890abcdef'));
+  } finally {
+    await page.unroute(setupUrl, setup);
+  }
   await page.goto(`${base}#/${route}`);
-  await page.reload();
   await expect(page.locator('main h1')).toBeVisible();
 }
 const saved = (page: Page) => page.evaluate(() => JSON.parse(localStorage.getItem('catkin:v1')!).state as AppState);
@@ -54,6 +62,75 @@ async function keyActivate(page: Page, control: ReturnType<Page['getByRole']>) {
   await expect(control).toBeFocused();
   await page.keyboard.press('Enter');
 }
+
+test('the matrix fixture starts one seeded app boot and later reloads retain app writes', async ({ page }) => {
+  const boots: Array<string | null> = [];
+  await page.exposeFunction('__recordMatrixBoot', (raw: string | null) => { boots.push(raw); });
+  // Observe the durable bytes before app scripts run. This observer never writes storage.
+  await page.addInitScript(() => {
+    const raw = localStorage.getItem('catkin:v1');
+    document.addEventListener('DOMContentLoaded', () => {
+      if (document.querySelector('script[type="module"][src]')) {
+        void (window as unknown as { __recordMatrixBoot: (raw: string | null) => Promise<void> }).__recordMatrixBoot(raw);
+      }
+    }, { once: true });
+  });
+  const initial = household('Seeded once');
+  await seed(page, initial, 'you');
+  await expect.poll(() => boots.length).toBeGreaterThan(0);
+  expect(boots).toEqual([encodeEnvelope(initial, 1, NOW, 'browser-matrix', '1234567890abcdef1234567890abcdef')]);
+  await expect(page.getByLabel('Your name')).toHaveValue('Seeded once');
+  await page.getByLabel('Your name').fill('Kept after reload');
+  await page.getByLabel('Your name').press('Enter');
+  await expect.poll(async () => (await saved(page)).profile.name).toBe('Kept after reload');
+  await page.reload();
+  await expect(page.getByLabel('Your name')).toHaveValue('Kept after reload');
+  await expect.poll(() => boots.length).toBe(2);
+  expect(JSON.parse(boots[1]!).state.profile.name).toBe('Kept after reload');
+  expect((await saved(page)).profile.name).toBe('Kept after reload');
+});
+
+test('the matrix fixture surfaces a refused seed write', async ({ page }) => {
+  await page.addInitScript(() => {
+    const original = Storage.prototype.setItem;
+    Storage.prototype.setItem = function (key, value) {
+      if (this === localStorage && key === 'catkin:v1') throw new DOMException('Fixture seed write refused', 'SecurityError');
+      return original.call(this, key, value);
+    };
+  });
+  await expect(seed(page)).rejects.toThrow('Fixture seed write refused');
+  expect(await page.evaluate(() => localStorage.getItem('catkin:v1'))).toBeNull();
+});
+
+test('the matrix fixture removes its pending setup route when navigation fails', async ({ page }) => {
+  const setupUrl = new URL('__matrix_seed__.html', test.info().project.use.baseURL).href;
+  let fallbackCalls = 0;
+  const fallback = async (route: Route) => {
+    fallbackCalls++;
+    await route.fulfill({ status: 200, contentType: 'text/html', body: '<!doctype html><title>Underlying route</title>' });
+  };
+  await page.route(setupUrl, fallback);
+  const navigate = page.goto.bind(page);
+  page.goto = async (url, options) => {
+    if (url === setupUrl) throw new Error('Fixture setup navigation refused');
+    return navigate(url, options);
+  };
+  try {
+    await expect(seed(page)).rejects.toThrow('Fixture setup navigation refused');
+  } finally {
+    page.goto = navigate;
+  }
+  // The failed navigation never consumed seed's one-use route. Its finally must remove it
+  // without removing a different handler registered for the same URL.
+  try {
+    await page.goto(setupUrl);
+    expect(fallbackCalls).toBe(1);
+    await expect(page).toHaveTitle('Underlying route');
+    expect(await page.evaluate(() => localStorage.getItem('catkin:v1'))).toBeNull();
+  } finally {
+    await page.unroute(setupUrl, fallback);
+  }
+});
 
 test('an offline watering survives a real origin outage and reload', async ({ page }) => {
   test.skip(process.env.E2E_TARGET !== 'preview', 'offline launch needs the built service worker');

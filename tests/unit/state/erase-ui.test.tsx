@@ -45,7 +45,7 @@ describe('the erase choice', () => {
     await click(button(DATA.startOver), 'Start over for full storage');
     await click(await until(() => button(DATA_COPY.erase), 'the erase choice'), 'erase choice');
     await click(await until(() => button(DATA_COPY.eraseButton), 'the irreversible confirmation'), 'erase');
-    await until(() => document.querySelector('[role="alert"]')?.textContent?.includes('Close other catkin windows'), 'the blocked explanation');
+    await until(() => document.querySelector('[role="alert"]')?.textContent?.includes('The daily copies couldn’t be erased. Close other Little by Little windows, then try again.'), 'the blocked explanation');
     b.snapshots.erase = async () => { b.snapshots.records.clear(); return { ok: true }; };
     await click([...document.querySelectorAll('[role="alertdialog"] [data-confirm]')].find((b) => b.textContent === DATA_COPY.eraseRetry) ?? null, 'retry');
     await until(() => store.state.value.profile.onboarded === false, 'fresh state');
@@ -71,7 +71,7 @@ describe('the erase choice', () => {
     await click(button(DATA.startOver), 'Start over');
     await click(await until(() => button('Erase everything on this device'), 'erase choice'), 'erase choice');
     await click(await until(() => button(DATA_COPY.eraseButton), 'erase confirmation'), 'confirm');
-    await until(() => document.querySelector('[role="alert"]')?.textContent?.includes('Close other catkin windows'), 'the blocked explanation');
+    await until(() => document.querySelector('[role="alert"]')?.textContent?.includes('The daily copies couldn’t be erased. Close other Little by Little windows, then try again.'), 'the blocked explanation');
     expect(toasts.value.some((t) => t.key === 'erased')).toBe(false);
     expect(store.state.value.profile.name).toBe('Sam');
     b.snapshots.erase = async () => { b.snapshots.records.clear(); return { ok: true }; };
