@@ -2,7 +2,7 @@ import { Icon, Wordmark } from '@/art/icons';
 import { themeLight } from '@/ui/art/objects';
 import { cx } from '@/ui/cx';
 import { navigate } from './router';
-import { formatHash, ROUTES, type TabId } from './routes';
+import { digitForTab, formatHash, visibleRoutes, type TabId } from './routes';
 import { preloadScreen } from './screens';
 import { tabSpecies } from './shelfTab';
 import { state } from '@/state/store';
@@ -28,7 +28,7 @@ export function Sidebar({ tab }: { tab: TabId }) {
 
       <nav aria-label="Main">
         <ul class={s.list}>
-          {ROUTES.map((r, i) => {
+          {visibleRoutes(state.value.settings.quietRewards).map((r) => {
             const active = r.id === tab;
             return (
               <li key={r.id}>
@@ -36,7 +36,7 @@ export function Sidebar({ tab }: { tab: TabId }) {
                   href={formatHash(r.id)}
                   class={cx(s.link, active && s.active)}
                   aria-current={active ? 'page' : undefined}
-                  aria-keyshortcuts={String(i + 1)}
+                  aria-keyshortcuts={digitForTab(r.id)}
                   onClick={(e) => (e.preventDefault(), navigate(r.id))}
                   onPointerEnter={() => preloadScreen(r.id)}
                 >
@@ -45,7 +45,7 @@ export function Sidebar({ tab }: { tab: TabId }) {
                   </span>
                   <span class={s.label}>{r.label}</span>
                   <kbd class={s.kbd} aria-hidden="true">
-                    {i + 1}
+                    {digitForTab(r.id)}
                   </kbd>
                 </a>
               </li>

@@ -189,6 +189,7 @@ const Stage = memo(function Stage({ sceneRef, editing, edit, onPet, onOpenPet, o
 /** The coins in the header (the sidebar's wallet shows them on wide screens). */
 function Coins() {
   const coins = sceneCoins.value;
+  if (state.value.settings.quietRewards) return null;
   return (
     <p class={s.coins} data-wallet-target="coins">
       <CoinIcon size={22} />
@@ -221,18 +222,19 @@ function EditTray({ place, selected, focusItem, onAdd, onFlip, onRemove, onDone 
 }
 
 const EmptyPets = memo(function EmptyPets() {
+  const quiet = state.value.settings.quietRewards;
   return (
     <section class={s.roster} aria-labelledby="shelf-pets">
       <SectionHeader id="shelf-pets" title={SHELF_COPY.pets} class={s.sectionHead} />
       <EmptyState
         title={EMPTY_TITLE}
         action={
-          <Button variant="secondary" onClick={() => (location.hash = '#/capsules')}>
+          !quiet && <Button variant="secondary" onClick={() => (location.hash = '#/capsules')}>
             {SHELF_COPY.capsules}
           </Button>
         }
       >
-        {EMPTY_TEXT}
+        {!quiet && EMPTY_TEXT}
       </EmptyState>
     </section>
   );
@@ -429,7 +431,7 @@ export function ShelfScreen() {
     if (!def) return;
     const r = buyPlace(place);
     if (!r.ok) {
-      if (r.error === 'not-enough-coins') toast({ message: shortLine(place, def.price, walletView.peek().coins), tone: 'butter', key: 'shelf-place' });
+      if (r.error === 'not-enough-coins') toast({ message: shortLine(place, def.price, walletView.peek().coins, state.peek().settings.quietRewards), tone: 'butter', key: 'shelf-place' });
       return;
     }
     const first = r.movedIn[0] ? (state.peek().pets[r.movedIn[0]]?.name ?? null) : null;
