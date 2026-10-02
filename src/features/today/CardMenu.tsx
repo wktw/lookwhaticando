@@ -32,9 +32,11 @@ const WIDTH = 236;
 
 export function CardMenu({ anchor, label, items, onClose }: CardMenuProps) {
   const menu = useRef<HTMLDivElement>(null);
+  const placedAt = useRef({ x: 0, y: 0 });
   const [pos, setPos] = useState<{ top: number; left: number; up: boolean } | null>(null);
 
   useLayoutEffect(() => {
+    placedAt.current = { x: scrollX, y: scrollY };
     const r = anchor.getBoundingClientRect();
     const h = menu.current?.offsetHeight ?? 44 * items.length + 12;
     const up = r.bottom + h + 12 > innerHeight && r.top - h - 8 > 0;
@@ -47,14 +49,19 @@ export function CardMenu({ anchor, label, items, onClose }: CardMenuProps) {
     const onDown = (e: PointerEvent) => {
       if (!menu.current?.contains(e.target as Node) && !anchor.contains(e.target as Node)) onClose(false);
     };
-    const onScroll = () => onClose(false);
+    // Scrolling the anchor into view can queue an event that arrives after this menu opens.
+    // Its position already accounts for that scroll; only later movement dismisses it.
+    const onScroll = () => {
+      if (scrollX !== placedAt.current.x || scrollY !== placedAt.current.y) onClose(false);
+    };
+    const onResize = () => onClose(false);
     document.addEventListener('pointerdown', onDown, true);
     addEventListener('scroll', onScroll, { passive: true });
-    addEventListener('resize', onScroll);
+    addEventListener('resize', onResize);
     return () => {
       document.removeEventListener('pointerdown', onDown, true);
       removeEventListener('scroll', onScroll);
-      removeEventListener('resize', onScroll);
+      removeEventListener('resize', onResize);
     };
   }, [anchor]);
 
