@@ -44,6 +44,7 @@ describe('plain modal note focus ownership', () => {
     const id = card().dataset.toastId!;
     expect(document.activeElement).toBe(card());
     act(() => dismissToast(id));
+    expect(card().tabIndex).toBe(-1);
     tick(500);
     expect(document.querySelector(`[data-toast-id="${id}"]`)).toBeNull();
     expect(document.activeElement).toBe(origin);
