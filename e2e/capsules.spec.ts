@@ -271,6 +271,44 @@ test.describe('"Open Today" on a calendar day (WP-C7)', () => {
 });
 
 test.describe('the Pet Card feeds every treat (WP-C7)', () => {
+  test('last serving keeps the fallback control visible in a scrolled treat row', async ({ page }) => {
+    await page.setViewportSize({ width: 320, height: 640 });
+    const pet = Object.values(demo.pets).find((p) => p.inMeadow)!;
+    const eight = COLLECTIBLES.filter((c) => c.category === 'treat' && c.source !== 'harvest').slice(0, 8).sort((a, b) => a.name.localeCompare(b.name));
+    const collection = Object.fromEntries(Object.entries(demo.collection).filter(([id]) => getCollectible(id)?.category !== 'treat'));
+    for (const t of eight) collection[t.id] = { count: 1, firstAt: 0 };
+    await seed(page, { ...demo, pets: { ...demo.pets, [pet.id]: { ...pet, favoriteKnown: false, daily: { ...pet.daily, treats: 0 } } }, collection,
+      pantry: Object.fromEntries(eight.map((t) => [t.id, { servings: 1, restockedOn: today }])), wallet: { ...demo.wallet, coins: 0 } });
+    await openRoute(page, 'shelf');
+    await page.locator(`[data-pet-tile="${pet.id}"]`).click();
+    const card = page.getByRole('dialog', { name: pet.name });
+    const feeds = card.locator('button[data-feed]');
+    await expect(feeds).toHaveCount(6);
+    const inside = (index: number) => feeds.nth(index).evaluate((el) => {
+      const r = el.getBoundingClientRect();
+      let left = 0, right = innerWidth, top = 0, bottom = innerHeight;
+      for (let parent = el.parentElement; parent; parent = parent.parentElement) {
+        const style = getComputedStyle(parent), box = parent.getBoundingClientRect();
+        if (/auto|scroll|hidden|clip/.test(style.overflowX)) { left = Math.max(left, box.left); right = Math.min(right, box.right); }
+        if (/auto|scroll|hidden|clip/.test(style.overflowY)) { top = Math.max(top, box.top); bottom = Math.min(bottom, box.bottom); }
+      }
+      return r.left >= left - 1 && r.right <= right + 1 && r.top >= top - 1 && r.bottom <= bottom + 1;
+    });
+    await feeds.nth(5).focus();
+    await expect(feeds.nth(5)).toBeFocused();
+    await expect.poll(() => inside(5)).toBe(true);
+    await expect.poll(() => inside(0)).toBe(false);
+    const pageScroll = await page.evaluate(() => ({ x: scrollX, y: scrollY }));
+    await page.keyboard.press('Enter');
+    await expect.poll(async () => (await saved(page)).pantry[eight[5]!.id]?.servings).toBe(0);
+    await expect(feeds.nth(0)).toBeFocused();
+    await expect.poll(() => inside(0)).toBe(true);
+    expect(await page.evaluate(() => ({ x: scrollX, y: scrollY }))).toEqual(pageScroll);
+    const after = await saved(page);
+    expect(after.wallet.coins).toBe(0);
+    expect(after.pets[pet.id]!.daily.treats).toBe(1);
+    for (const treat of eight.filter((t) => t.id !== eight[5]!.id)) expect(after.pantry[treat.id]!.servings).toBe(1);
+  });
   test('"All treats (8)" opens the rest with focus on the first, and the 8th of 8 is fed', async ({ page }, info) => {
     const errors = watchErrors(page);
     const pet = Object.values(demo.pets).find((p) => p.inMeadow)!;
