@@ -423,6 +423,9 @@ test('exiting modal notes do not become implicit scroll-container Tab stops', as
   await expect(notice).toHaveAttribute('data-toast-leaving', '');
   // Pointer dismissal must restore the durable origin itself, before native Tab continues.
   await expect(pad.getByRole('button', { name: 'Close', exact: true })).toBeFocused();
+  // A second real press during the paused exit must not refocus the disappearing card.
+  await notice.click({ position: { x: 20, y: 10 } });
+  await expect(pad.getByRole('button', { name: 'Close', exact: true })).toBeFocused();
   expect(await slot.evaluate((lane) => ({ overflow: lane.scrollHeight > lane.clientHeight && lane.clientHeight > 0, tabbableChildren: lane.querySelectorAll('button:not([disabled]), [tabindex="0"]').length }))).toEqual({ overflow: true, tabbableChildren: 0 });
   await page.keyboard.press('Tab');
   const afterTab = await pad.evaluate((panel) => ({ inside: panel.contains(document.activeElement), slotFocused: document.activeElement?.hasAttribute('data-notes-slot') }));

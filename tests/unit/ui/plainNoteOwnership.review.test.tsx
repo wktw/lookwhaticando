@@ -23,6 +23,7 @@ beforeEach(() => {
 afterEach(() => {
   act(() => render(null, host));
   toasts.value = [];
+  vi.restoreAllMocks();
   vi.clearAllTimers(); vi.useRealTimers();
   document.body.innerHTML = '';
 });
@@ -96,6 +97,48 @@ describe('plain modal note focus ownership', () => {
     tick(500);
     expect(document.querySelector(`[data-toast-id="${id}"]`)).toBeNull();
     expect(document.activeElement).toBe(chosen);
+  });
+
+  it.each(['sheet', 'load'])('a repeated pointer press on a leaving %s note cannot acquire focus or start a gesture', (kind) => {
+    const panel = mount(kind);
+    const item = card();
+    act(() => item.focus());
+    act(() => dismissToast(item.dataset.toastId!));
+    const chosen = [...panel.querySelectorAll<HTMLButtonElement>('button')].at(-1)!;
+    act(() => chosen.focus());
+    const capture = vi.fn();
+    item.setPointerCapture = capture;
+    const win = vi.spyOn(window, 'addEventListener');
+    const doc = vi.spyOn(document, 'addEventListener');
+    const down = Object.assign(new Event('pointerdown', { bubbles: true, cancelable: true }), { pointerId: 3, clientY: 40 });
+    act(() => item.dispatchEvent(down));
+    expect(down.defaultPrevented).toBe(true);
+    expect(capture).not.toHaveBeenCalled();
+    expect(win.mock.calls.some(([type]) => type === 'blur')).toBe(false);
+    expect(doc.mock.calls.some(([type]) => type === 'visibilitychange')).toBe(false);
+    expect(item.style.transition).not.toBe('none');
+    expect(document.activeElement).toBe(chosen);
+    tick(220);
+    expect(document.activeElement).toBe(chosen);
+  });
+
+  it.each(['sheet', 'load'])('a live %s note still starts and cancels its ordinary pointer gesture', (kind) => {
+    mount(kind);
+    const item = card();
+    const capture = vi.fn();
+    item.setPointerCapture = capture;
+    const win = vi.spyOn(window, 'addEventListener');
+    const doc = vi.spyOn(document, 'addEventListener');
+    const down = Object.assign(new Event('pointerdown', { bubbles: true, cancelable: true }), { pointerId: 3, clientY: 40 });
+    act(() => item.dispatchEvent(down));
+    expect(down.defaultPrevented).toBe(false);
+    expect(capture).toHaveBeenCalledWith(3);
+    expect(win.mock.calls.some(([type]) => type === 'blur')).toBe(true);
+    expect(doc.mock.calls.some(([type]) => type === 'visibilitychange')).toBe(true);
+    expect(item.style.transition).toBe('none');
+    act(() => item.dispatchEvent(Object.assign(new Event('pointercancel', { bubbles: true }), { pointerId: 3 })));
+    expect(item.style.transition).toBe('');
+    expect(toasts.value[0]?.leaving).not.toBe(true);
   });
 
 });
