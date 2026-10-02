@@ -45,6 +45,9 @@ test('About Credits opens complete readable licences', async ({ page }, info) =>
   const { readFileSync } = await import('node:fs');
   for (const name of ['@fontsource/castoro', '@fontsource-variable/nunito', 'preact', '@preact/signals', 'workbox-window']) expect(text).toContain(readFileSync(`node_modules/${name}/LICENSE`, 'utf8').trim());
   if (process.env.E2E_TARGET === 'preview') expect(text).toBe(readFileSync('dist/licenses.txt', 'utf8'));
+  await licences.locator('pre').focus();
+  await page.keyboard.press('PageDown');
+  await expect.poll(() => licences.locator('pre').evaluate((el) => el.parentElement!.scrollTop)).toBeGreaterThan(0);
   await expectNoAxeViolations(page, info);
   await licences.getByRole('button', { name: 'Close', exact: true }).click();
   await expect(page.getByRole('dialog', { name: 'Credits', exact: true })).toBeVisible();

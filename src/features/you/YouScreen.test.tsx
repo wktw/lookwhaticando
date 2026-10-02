@@ -46,6 +46,7 @@ describe('You (DESIGN §9.5)', () => {
     byText('Licences', credits)?.focus();
     await click(byText('Licences', credits), 'Licences');
     const notices = await until(() => dialogs().find((d) => d.textContent?.includes('SIL OPEN FONT LICENSE')), 'the full notices');
+    expect(notices.querySelector('[role="document"]')?.getAttribute('tabindex')).toBe('0');
     expect(fetch_).toHaveBeenCalledTimes(1);
     await key(notices, 'Escape');
     expect(credits.isConnected).toBe(true);
