@@ -1,8 +1,7 @@
 // @vitest-environment jsdom
-import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act } from 'preact/test-utils';
-import { createInitialState } from '@/state/defaults';
-import { archiveHabit, completeOnboarding, configureStore, exportData, readOnly, setName, state } from '@/state/store';
+import { archiveHabit, completeOnboarding, configureStore, exportData, flushSaves, hydrate, readOnly, setName, state } from '@/state/store';
 import { memorySnapshotStore } from '@/state/snapshots';
 import { routeRest } from '@/app/router';
 import { toasts } from '@/ui/toast';
@@ -23,13 +22,15 @@ beforeAll(() => {
 });
 beforeEach(() => {
   localStorage.clear();
-  state.value = createInitialState(Date.now());
+  // Retire the prior test's queue as well as its bytes before planting this save.
+  hydrate();
   completeOnboarding({ name: 'Sam', templateIds: ['water', 'walk', 'read'] });
   routeRest.value = [];
   toasts.value = [];
   view = mount(<YouScreen />);
 });
 afterEach(() => {
+  vi.unstubAllGlobals();
   readOnly.value = false;
   view?.unmount();
   view = null;
@@ -37,6 +38,32 @@ afterEach(() => {
 });
 
 describe('You (DESIGN §9.5)', () => {
+  it('opens full licences from Credits and returns to the same sheet', async () => {
+    const fetch_ = vi.fn().mockResolvedValue({ ok: true, text: async () => 'SIL OPEN FONT LICENSE Version 1.1\nCopyright The Project Authors' });
+    vi.stubGlobal('fetch', fetch_);
+    await click(byText('Credits'), 'Credits');
+    const credits = dialogs().find((d) => d.textContent?.includes('Castoro'))!;
+    byText('Licences', credits)?.focus();
+    await click(byText('Licences', credits), 'Licences');
+    const notices = await until(() => dialogs().find((d) => d.textContent?.includes('SIL OPEN FONT LICENSE')), 'the full notices');
+    expect(notices.querySelector('[role="document"]')?.getAttribute('tabindex')).toBe('0');
+    expect(fetch_).toHaveBeenCalledTimes(1);
+    await key(notices, 'Escape');
+    expect(credits.isConnected).toBe(true);
+    expect(byText('Licences', credits)).toBe(document.activeElement);
+  });
+
+  it('keeps a failed licence load retryable inside its sheet', async () => {
+    const fetch_ = vi.fn().mockRejectedValueOnce(new Error('offline')).mockResolvedValueOnce({ ok: true, text: async () => 'SIL OPEN FONT LICENSE Version 1.1' });
+    vi.stubGlobal('fetch', fetch_);
+    await click(byText('Credits'), 'Credits');
+    await click(byText('Licences'), 'Licences');
+    await until(() => byText('Try again'), 'a retry after the failed request');
+    await click(byText('Try again'), 'Try again');
+    await until(() => document.body.textContent?.includes('SIL OPEN FONT LICENSE'), 'the retried notices');
+    expect(fetch_).toHaveBeenCalledTimes(2);
+  });
+
   it('has exactly one h1 and every section, each under its own h2', () => {
     const h1s = view!.root.querySelectorAll('h1');
     expect(h1s).toHaveLength(1);
@@ -70,6 +97,9 @@ describe('You (DESIGN §9.5)', () => {
     await click(button('Move Read up'), 'Move Read up');
     expect(ids()).toEqual(['Read', 'Walk', 'Drink water']);
     await until(() => document.body.textContent?.includes('Read, 1 of 3.'), 'the move read out');
+    // A delayed save must keep this order and the controls that announce it.
+    await act(() => flushSaves());
+    expect(ids()).toEqual(['Read', 'Walk', 'Drink water']);
     expect((button('Move Read up') as HTMLButtonElement).disabled).toBe(true);
     await click(byText('Done'), 'Done');
     expect(button('Move Read')).toBeNull();
@@ -97,10 +127,10 @@ describe('You (DESIGN §9.5)', () => {
 
   it('starts over only after two confirmations', async () => {
     await click(byText('Start over'), 'Start over');
-    let dlg = await until(() => dialogs().find((d) => d.textContent?.includes('Every habit, plant and pet')), 'the first confirmation');
+    let dlg = await until(() => dialogs().find((d) => d.textContent?.includes('The habits, plants and pets here go.')), 'the first confirmation');
     await click(byText('Start over', dlg), 'confirm once');
     expect(state.value.habits).toHaveLength(3);
-    dlg = await until(() => dialogs().find((d) => d.textContent?.includes('The daily copies stay')), 'the second confirmation');
+    dlg = await until(() => dialogs().find((d) => d.textContent?.includes('Start over now?')), 'the second confirmation');
     await click(byText('Start over', dlg), 'confirm twice');
     expect(state.value.habits).toHaveLength(0);
     expect(state.value.profile.onboarded).toBe(false);
@@ -123,7 +153,7 @@ describe('You (DESIGN §9.5)', () => {
 
   it('keeps everything when either confirmation is declined', async () => {
     await click(byText('Start over'), 'Start over');
-    const dlg = await until(() => dialogs().find((d) => d.textContent?.includes('Every habit, plant and pet')), 'the first confirmation');
+    const dlg = await until(() => dialogs().find((d) => d.textContent?.includes('The habits, plants and pets here go.')), 'the first confirmation');
     await click(byText('Keep everything', dlg), 'Keep everything');
     expect(state.value.habits).toHaveLength(3);
   });

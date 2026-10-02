@@ -271,8 +271,10 @@ Tabletop **capsule cabinets** named like real blind-box series. Each has a numbe
 | **No. 07 Night** | **3 stamps** | night-coat variants, pyjamas & lamps, **Moonlit** variants of pets you own. Better odds (40/30/20/10) |
 | **Seasonal editions** | 25 coins | **Autumn** Sep 1–Nov 10 · **Winter** Nov 11–Jan 14 · **Valentine** Jan 15–Feb 29 · **Spring** Mar 1–May 31 · **Summer** Jun 1–Aug 31. Fixed calendar dates, returning every year. |
 
-**Odds** (coin series): Classic 60 · Special 25 · Rare 10 · Super rare 5. Tiers are balanced so every individual rarer item is less
-likely than every individual commoner one (big series 8/5/5/3, seasonal 7/4/3/2, Night 5/4/5/3). **Each series has one
+**Odds** (coin series): Classic 60 · Special 25 · Rare 10 · Super rare 5. Tier odds, and printed-item odds under equal
+ownership, decrease with rarity (big series 8/5/5/3, seasonal 7/4/3/2, Night 5/4/5/3). Current item chances also
+reflect ownership and guarantees: an owned item can be less likely than an unowned item in a rarer tier. The
+odds sheet labels its ordinary, pre-weighting figures and explains this difference. **Each series has one
 Secret** (a Super rare), shown on the lineup as a "?" with one sparkle. **Pity**: Rare within 10 pulls (forces the rare
 tier only). Super rare within 40 (independent). A pity roll picks an **unowned** item where possible, and counters hide once their tier is fully owned.
 A counter counts only pulls made while its tier still has something unowned, so it can't fire the moment a Moonlit

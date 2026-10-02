@@ -27,7 +27,7 @@ The owner delegated the replacement name, and **Little by Little** was chosen on
    - “Try again”
    - “Close”
 8. **Start over happened in another window** — VOICE §18, line 1031:
-   - “Little by Little was started over in another window, so it starts fresh here too. The daily copies stay on this device.”
+   - “Little by Little was started over in another window, so it starts fresh here too.”
 9. **The previous save was recovered** — VOICE §18, line 1033:
    - “Little by Little couldn’t read the latest save on this device, so it opened the one before it.”
    - “Save a backup”
@@ -92,3 +92,14 @@ The owner delegated the replacement name, and **Little by Little** was chosen on
     - For a newer save, the existing Data line: “This window can’t change the save right now.”
 
 The capsule and order notices marked approved on 30 September are excluded. The repeated source-key rows at VOICE lines 1501 and 1515–1518 are covered above. The erase-everything wording for WP-A9 is not part of this baseline and must be added after drafting.
+
+## WP-D4 additions — pending owner approval
+
+- **Strawberry at Blooming** (VOICE §7): “{Plant} has white flowers.” · past-tense event “flowered”. Its berries appear at the following stage.
+- **Corrected flourish visitors** (VOICE §7): “A snail has settled beside {plant}.” · “{Plant} has a new hanging trail.” · “A second shoot has come up beside {plant}.”
+- **Friendship 11–14** (VOICE §9): “Settled in” / “{name} has settled in for good.”; “A familiar face” / “{name} is a familiar face on the sill.”; “Good company” / “{name} is good company.”; “Part of the place” / “{name} is part of the place now.” The level 11 name is reused; the other three names are new. These observations also fit a single pet whose friendship came entirely from petting.
+- **Odds ownership explanation** (VOICE §10): “Each is the printed item’s chance before new-first weighting. Something you already own can be less likely than an unowned item in a rarer tier. Guarantees can change the next capsule’s chances.”
+- **Type credit** (VOICE §24): “Castoro by John Hudson and Paul Hanslow (Tiro Typeworks), assisted by Kaja Słojewska. Nunito by Vernon Adams, extended by Jacques Le Bailly. Both under the SIL Open Font License.”
+- **Full notices viewer** (VOICE §24): “Licences” · “The licences didn’t load. Try again when you have a connection.” Loading and retry reuse “One moment” and “Try again”.
+
+The legal notices themselves are verbatim upstream licence documents, generated from installed packages; they are not newly drafted app wording.

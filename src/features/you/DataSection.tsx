@@ -10,6 +10,7 @@
  * save yet, a browser that keeps nothing, or a window still getting ready to save. While a damaged
  * save is kept aside, "Save the damaged file" gives its bytes.
  */
+import type { ComponentChildren } from 'preact';
 import { useId, useRef, useState } from 'preact/hooks';
 import { DATA, ERRORS, fillLine } from '@/catalog/lines';
 import { dayOf } from './when';
@@ -18,16 +19,23 @@ import {
   demoMode,
   enterDemo,
   exitDemo,
+  eraseEverything,
+  erasePending,
+  erasing,
   exportCsv,
   backupPayload,
   markBackup,
   readOnly,
   replacing,
   resetAll,
+  ownsSave,
+  ownership,
+  saveEpoch,
   durability,
   state,
   undoOffer,
   type Durability,
+  type EraseResult,
 } from '@/state/store';
 import { navigate } from '@/app/router';
 import { currentInstallPlatform } from '@/app/installPrompt';
@@ -93,7 +101,7 @@ function StatusRow() {
   return (
     <ListRow
       leading={<span class={cx(s.dot, !standalone && s.dotTab)} aria-hidden="true" />}
-      title={storageLine(durability.value, standalone)}
+      title={erasePending.value ? ERRORS.erasePaused : storageLine(durability.value, standalone)}
       subtitle={
         <>
           {last ? fillLine(DATA.lastBackup, { date: dateOfMs(last) }) : DATA.noBackup}
@@ -113,7 +121,15 @@ export const FINAL_ARM_MS = 700;
  * first dialog's "Start over" was, and "Start over" (below it) only answers a tap that began
  * after it had been on screen for a moment. Two quick taps on the first dialog keep everything.
  */
-export function FinalStartOver({ open, onConfirm, onCancel }: { open: boolean; onConfirm: () => void; onCancel: () => void }) {
+export function FinalStartOver({ open, onConfirm, onCancel, minHeight = 0 }: { open: boolean; onConfirm: () => void; onCancel: () => void; minHeight?: number }) {
+  return <ArmedConfirmation open={open} onConfirm={onConfirm} onCancel={onCancel} minHeight={minHeight} title={DATA_COPY.startOverAgainTitle} message={DATA_COPY.startOverAgain} confirmLabel={DATA.startOver} cancelLabel={DATA.keepEverything} />;
+}
+
+/** Both irreversible device erasure and ordinary reset reject taps carried over from the choice. */
+function ArmedConfirmation({ open, onConfirm, onCancel, minHeight = 0, title, message, confirmLabel, cancelLabel, busy = false }: {
+  open: boolean; onConfirm: () => void; onCancel: () => void; minHeight?: number;
+  title: string; message: ComponentChildren; confirmLabel: string; cancelLabel: string; busy?: boolean;
+}) {
   const messageId = useId();
   const openedAt = useRef(0);
   const armedPress = useRef(false);
@@ -121,22 +137,23 @@ export function FinalStartOver({ open, onConfirm, onCancel }: { open: boolean; o
   if (!open) openedAt.current = 0;
   const armed = () => openedAt.current > 0 && performance.now() - openedAt.current >= FINAL_ARM_MS;
   return (
-    <Sheet open={open} onClose={onCancel} title={DATA_COPY.startOverAgainTitle} hideTitle describedBy={messageId} size="sm" role="alertdialog" showClose={false} initialFocus="[data-cancel]">
-      <div class={cs.content}>
+    <Sheet open={open} onClose={onCancel} title={title} hideTitle describedBy={messageId} size="sm" role="alertdialog" showClose={false} initialFocus="[data-cancel]" dismissible={!busy}>
+      <div class={cs.content} style={minHeight ? { minHeight } : undefined}>
         <p class={cs.title} aria-hidden="true">
-          {DATA_COPY.startOverAgainTitle}
+          {title}
         </p>
         <p class={cs.message} id={messageId}>
-          {DATA_COPY.startOverAgain}
+          {message}
         </p>
-        <div class={cs.actions}>
-          <Button variant="primary" size="lg" block onClick={onCancel} data-cancel>
-            {DATA.keepEverything}
+        <div class={cs.actions} style={minHeight ? { marginTop: 'auto' } : undefined}>
+          <Button variant="primary" size="lg" block onClick={onCancel} disabled={busy} data-cancel>
+            {cancelLabel}
           </Button>
           <Button
             variant="danger"
             size="lg"
             block
+            loading={busy}
             data-confirm
             onPointerDown={() => (armedPress.current = armed())}
             onClick={(e: MouseEvent) => {
@@ -146,7 +163,7 @@ export function FinalStartOver({ open, onConfirm, onCancel }: { open: boolean; o
               if (ok) onConfirm();
             }}
           >
-            {DATA.startOver}
+            {confirmLabel}
           </Button>
         </div>
       </div>
@@ -166,23 +183,32 @@ export function DataSection() {
   const [importing, setImporting] = useState(false);
   const [snapshots, setSnapshots] = useState(false);
   const [byHand, setByHand] = useState<string | null>(null);
-  const [resetStep, setResetStep] = useState<0 | 1 | 2>(0);
+  const [resetStep, setResetStep] = useState<0 | 1 | 2 | 3>(0);
+  const [eraseResult, setEraseResult] = useState<EraseResult | null>(null);
+  const eraseEpoch = useRef(0);
+  const firstMessage = useRef<HTMLSpanElement>(null);
+  const [resetHeight, setResetHeight] = useState(0);
   const [, bump] = useState(0);
   const inDemo = demoMode.value;
   const locked = saveLocked();
   const busyReplacing = replacing.value;
+  const busyErasing = erasing.value;
   const offer = !inDemo && !locked ? undoOffer() : null;
   const damaged = damagedSave() !== null;
 
   // No await before the copy starts: iPhone Safari only copies from inside the tap.
   const copyBackup = () => {
+    const epoch = saveEpoch.peek();
     const payload = backupPayload();
     void copyLater(payload).then(async (ok) => {
       if (ok) {
-        markBackup();
+        if (saveEpoch.peek() === epoch) markBackup();
         toast({ key: 'backup-copied', message: DATA.copied, tone: 'sage' });
       }
-      else setByHand(await payload);
+      else {
+        const text = await payload;
+        if (saveEpoch.peek() === epoch) setByHand(text);
+      }
     });
   };
 
@@ -207,11 +233,33 @@ export function DataSection() {
   };
 
   const startOver = () => {
+    if (!ownsSave()) return;
     setResetStep(0);
     resetAll();
     reloadProgress();
     navigate('today');
   };
+
+  const erase = async () => {
+    if (!erasePending.value && eraseEpoch.current !== saveEpoch.value) {
+      setEraseResult({ ok: false, error: 'superseded' });
+      return;
+    }
+    const result = await eraseEverything();
+    setEraseResult(result);
+    if (result.ok) {
+      setResetStep(0);
+      reloadProgress();
+      navigate('today');
+      toast({ key: 'erased', message: DATA_COPY.erased, tone: 'sage' });
+    }
+  };
+
+  const eraseFailure = eraseResult && !eraseResult.ok
+    ? eraseResult.error === 'partial'
+      ? [DATA_COPY.erasePartial, ...eraseResult.failures.map((failure) => failure === 'storage' ? DATA_COPY.eraseStorage : failure === 'snapshots-blocked' ? DATA_COPY.eraseBlocked : DATA_COPY.eraseUnavailable)].join(' ')
+      : eraseResult.error === 'read-only' ? DATA_COPY.readOnly : DATA_COPY.eraseChanged
+    : null;
 
   return (
     <section class={s.group} aria-labelledby="you-data">
@@ -249,7 +297,8 @@ export function DataSection() {
         />
       </div>
       <div class={s.card} style={{ marginTop: 'var(--s-3)' }}>
-        <ListRow leading="trash" leadingTone="peach" title={DATA.startOver} destructive chevron={false} disabled={locked || !!readOnly.value || busyReplacing} onClick={() => setResetStep(1)} />
+        <ListRow leading="trash" leadingTone="peach" title={DATA.startOver} destructive chevron={false} disabled={locked || busyReplacing || ownership.value === 'acquiring'} onClick={() => setResetStep(1)} />
+        {erasePending.value && <ListRow title={DATA_COPY.eraseRetry} destructive chevron={false} disabled={busyErasing || readOnly.value === 'other-window' || readOnly.value === 'newer-version'} onClick={() => setResetStep(3)} />}
       </div>
 
       <ImportSheet open={importing} onClose={() => setImporting(false)} onImported={() => bump((n) => n + 1)} />
@@ -258,14 +307,32 @@ export function DataSection() {
       <ConfirmDialog
         open={resetStep === 1}
         title={DATA.startOver}
-        message={DATA.startOverConfirm}
+        message={<span ref={firstMessage}>
+          {DATA.startOverConfirm}
+          <Button variant="secondary" block onClick={() => void saveBackupNow()}>{DATA_COPY.saveFirst}</Button>
+          {!inDemo && <Button variant="danger" block onClick={() => { eraseEpoch.current = saveEpoch.value; setEraseResult(null); setResetStep(3); }}>{DATA_COPY.erase}</Button>}
+        </span>}
         confirmLabel={DATA.startOver}
         cancelLabel={DATA.keepEverything}
         tone="danger"
-        onConfirm={() => setResetStep(2)}
+        onConfirm={() => {
+          // Keep the first action's position: a quick second tap lands on Keep everything.
+          setResetHeight(firstMessage.current?.parentElement?.parentElement?.getBoundingClientRect().height ?? 0);
+          setResetStep(2);
+        }}
         onCancel={() => setResetStep(0)}
       />
-      <FinalStartOver open={resetStep === 2} onConfirm={startOver} onCancel={() => setResetStep(0)} />
+      <FinalStartOver open={resetStep === 2} minHeight={resetHeight} onConfirm={startOver} onCancel={() => setResetStep(0)} />
+      <ArmedConfirmation
+        open={resetStep === 3}
+        title={DATA_COPY.eraseTitle}
+        message={<>{DATA_COPY.eraseConfirm}{eraseFailure && <span role="alert" style={{ display: 'block', marginTop: 'var(--s-3)' }}>{eraseFailure}</span>}</>}
+        confirmLabel={erasePending.value ? DATA_COPY.eraseRetry : DATA_COPY.eraseButton}
+        cancelLabel={erasePending.value ? ERRORS.sheetClose : DATA.keepEverything}
+        busy={busyErasing}
+        onConfirm={() => void erase()}
+        onCancel={() => { if (!busyErasing) setResetStep(0); }}
+      />
     </section>
   );
 }

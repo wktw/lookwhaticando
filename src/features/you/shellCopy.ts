@@ -9,7 +9,8 @@ export const SHELL_LINES = {
   useHere: 'Use here',
   newerSave: 'This save is from a newer version of Little by Little, so it opens read-only here. Update to make changes.',
   /** ERRORS.startedOver: another window started over, and this one followed. */
-  startedOver: 'Little by Little was started over in another window, so it starts fresh here too. The daily copies stay on this device.',
+  startedOver: 'Little by Little was started over in another window, so it starts fresh here too.',
+  erasePaused: 'Some data is still on this device. Changes are paused here. Open You to try again.',
   save: 'That change didn’t save yet. Little by Little is trying again, and your last backup is safe.',
   volatile: 'This browser isn’t keeping Little by Little’s save right now. Save a backup before you close it.',
   clock: 'The clock on this device reads earlier than Little by Little last saw. Coins and stamps wait until it’s right again.',

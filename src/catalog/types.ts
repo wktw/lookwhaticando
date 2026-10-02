@@ -5,6 +5,9 @@
  */
 
 export type Rarity = 'common' | 'uncommon' | 'rare' | 'ultra';
+/** Earned visitors, shared by their drawings and the copy deck. */
+export const FLOURISHES = ['ladybird', 'bee', 'snail', 'butterfly', 'trail', 'moss', 'shoot', 'ribbon'] as const;
+export type Flourish = (typeof FLOURISHES)[number];
 /** Blind-box display labels (internal ids stay common/uncommon/rare/ultra). The series Secret shows 'Secret'. */
 export const RARITY_LABEL: Record<Rarity, string> = { common: 'Classic', uncommon: 'Special', rare: 'Rare', ultra: 'Super rare' };
 /** Static print finish per tier (never color alone; DESIGN §7.1). */

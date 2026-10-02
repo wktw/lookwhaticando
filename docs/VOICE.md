@@ -158,6 +158,31 @@ Four resources, each a real object, each with one job (DESIGN §6). The internal
 
 ## 5. Today
 
+### Dated notes and removal (WP-C6)
+
+DEC-V: pending owner approval. The same sheet opens from Today, Moments and the Calendar.
+The title includes the full day and year, so an old note never looks like today’s.
+
+| Moment | Line |
+|---|---|
+| Title | "A note for {habit} · {date}" (for example, "A note for Walk · Monday, September 29, 2025") |
+| Edit button, accessible name | "Edit the note for {habit} · {date}" (visible label: "Edit the note") |
+| Field placeholder | "A line about this day" |
+| Remove button and confirmation button | "Remove note" |
+| Confirmation title | "Remove this note?" |
+| Confirmation | "This removes the note and its star from {habit} on {date}." |
+| Optional checkbox, initially off | "Also remove it from Sunday Notes" |
+| Retained copies | "Daily and weekly copies keep the note until those copies age out. Copies kept before imports or restores may keep it longer. Erase everything removes local copies. Keepsake captions and exported backup files are unchanged." |
+| A different save replaced the open note | "The save changed while this note was open. Close it and open the note again." |
+| The note’s habit or day can no longer be changed | "This note can’t be changed here now. Close it and open the note again." |
+
+Save keeps "Save note" and "Noted."; the safe cancellation is "Keep editing". A refusal while
+another window owns the save reuses "This window can’t change the save right now.". Clearing
+a kept note and choosing Save asks the same removal question as Remove note. The optional
+Sunday Note choice removes only quotations that refer to this habit and day. Other keepsake
+captions and exported files are unchanged. Ordinary note edits use the existing save status and
+retry; "Noted." means the change was accepted here, not that a failing device write succeeded.
+
 ### Greetings
 
 Top left of the band, on the card chip, above the long date. From `GREETINGS` in lines.ts. With no name
@@ -391,7 +416,7 @@ A multi-stage jump plays as a time-lapse and announces only the last stage.
 - Snake Plant: "{Plant} has sent up a spike of small cream flowers, which snake plants hardly ever do."
 - Cat Grass: "{Plant} is thick and tall enough to lie in."
 - Monstera: "{Plant} has opened a first split leaf."
-- Strawberry: "{Plant} has white flowers and the first small berries."
+- Strawberry: "{Plant} has white flowers."
 - Lavender: "{Plant} has purple spikes, and the sill smells of lavender."
 - Catnip: "{Plant} has small white flowers at the tips."
 - Hoya: "{Plant} has a cluster of star-shaped flowers."
@@ -406,15 +431,20 @@ In a note, the same moment in the past tense (`BLOOM_EVENTS`): "The Walk plant g
 in on Thursday." · "The Read plant trailed past the edge of the sill on Monday." Where the species
 doesn't matter: "reached Blooming".
 
+**DEC-V: pending owner approval (WP-D4):** Strawberry at Blooming says "{Plant} has white flowers."
+and its past-tense event says "flowered". Berries appear at the following art stage.
+
 **Forecast** on Habit Detail, in waterings, never sunshine numbers and never a date (a date slides later
 whenever she rests): "4 more waterings to Blooming." · "1 more watering to Blooming." · at Evergreen,
 "Evergreen. Small visitors arrive from here on." (`STAGE_FORECAST`, worded by `forecastLine()`).
 
 **Flourishes** after Evergreen (`FLOURISH_LINES`): "A ladybird has moved into {plant}." · "A bee visits
-{plant} now." · "A robin looks in at {plant} from the ledge most mornings." · "A butterfly stops at
-{plant} most afternoons." · "There’s a new shoot at the base of {plant}." · "Moss has grown round the
-foot of {plant}." · "{Plant} has grown taller than the window latch." · "{Plant} has a ribbon tied round
-the pot."
+{plant} now." · "A snail has settled beside {plant}." · "A butterfly stops at
+{plant} most afternoons." · "{Plant} has a new hanging trail." · "Moss has grown round the
+foot of {plant}." · "A second shoot has come up beside {plant}." · "{Plant} has a ribbon tied round
+the pot." Copy is keyed by the drawn flourish id, never its position in this list.
+
+**DEC-V: pending owner approval (WP-D4):** the corrected snail, trail and second-shoot lines above.
 
 **Graduation**, offered and never automatic:
 
@@ -545,11 +575,15 @@ Bond levels, after best friends. Each says what the pet does now, and none of th
 
 | Level | Name | Line |
 |---|---|---|
-| 11 | "Settled in" | "{name} has settled in for good, and falls asleep mid-stroke now." |
-| 12 | "Part of the furniture" | "{name} is part of the furniture now, with a cushion that has a dent in it." |
-| 13 | "Has a routine" | "{name} has a routine now: the sunbeam after lunch, the lamp after dark." |
-| 14 | "Knows every pot" | "{name} knows every pot on the sill now, and which ones are warm." |
+| 11 | "Settled in" | "{name} has settled in for good." |
+| 12 | "A familiar face" | "{name} is a familiar face on the sill." |
+| 13 | "Good company" | "{name} is good company." |
+| 14 | "Part of the place" | "{name} is part of the place now." |
 | 15 | "Old friends" | "{name} is an old friend now, and here for good." |
+
+**DEC-V: pending owner approval (WP-D4):** the level 11–14 observations and level 12–14 names above.
+They describe the friendship already earned, without promising furniture, petting or timed routines.
+The level 5/7/8/9 scene promises are covered by WP-D5.
 
 The best-friends banner: eyebrow "Best friends", title "You and {name}", text "There’s a small brass tag
 to show it." Memories arrive along the way after that, from real days, and read like dates in a diary:
@@ -676,6 +710,10 @@ then each item's own odds. The explanations:
 - "After 4 repeats in a row, the next one is always new."
 - "Ones you already had go on the swap shelf: 2, 4, 8 or 15 swaps, by tier. Every 10 swaps make a stamp."
 - "Each series has one Secret, shown as a ? until it turns up."
+
+Below the odds table (`ODDS_COPY.ownership`): "Each is the printed item’s chance before new-first
+weighting. Something you already own can be less likely than an unowned item in a rarer tier.
+Guarantees can change the next capsule’s chances." **DEC-V: pending owner approval (WP-D4).**
 
 ### The lineup
 
@@ -1032,7 +1070,7 @@ Say what happened and what to do. Never `failed`, never `Oops`, never a code in 
 | The demo waits for a save | "The demo opens once your last change is saved." |
 | Open in another window | "Little by Little is open in another window · Use here" |
 | A save from a newer version of Little by Little | "This save is from a newer version of Little by Little, so it opens read-only here. Update to make changes." |
-| Started over in another window (this window follows, and the note has a Close button). DEC-V: pending owner approval | "Little by Little was started over in another window, so it starts fresh here too. The daily copies stay on this device." |
+| Started over in another window (this window follows, and the note has a Close button). DEC-V: pending owner approval | "Little by Little was started over in another window, so it starts fresh here too." |
 | The device clock went back | "The clock on this device reads earlier than Little by Little last saw. Coins and stamps wait until it’s right again." |
 | The save couldn't be read, so Little by Little opened the one before it (its `:backup`); the note has these buttons and Close. DEC-V: pending owner approval | "Little by Little couldn’t read the latest save on this device, so it opened the one before it." · "Save a backup" · "Daily copies" |
 | The save couldn't be read at all, so its file is kept as it was: aside (its `:corrupt`), or, while there is no room to put it aside yet, where it was, with every change waiting and the note for a save that doesn't go through beside it. The note has these buttons and Close. DEC-V: pending owner approval (the wording is chosen to be true in both states) | "Little by Little couldn’t read the save on this device. The file is kept just as it was." · "Save the damaged file" · "Daily copies" · "Import a backup" |
@@ -1107,7 +1145,11 @@ Under You › Data.
 | A damaged save kept aside (a row until Start over, and the §18 note's button). DEC-V: pending owner approval | "Save the damaged file" → "The damaged file is saved." (file "little-by-little-damaged-save-2025-09-29.txt", its bytes exactly as they were) |
 | Last backup | "Last backup: Sep 20" / "No backup yet" |
 | The nudge | "Worth saving a backup: the last one is from Aug 2." |
-| Start over | "Start over" → "Start over? Every habit, plant and pet on this device goes. Save a backup first, just in case." · "Start over" · "Keep everything" |
+| Start over (WP-A9, DEC-V: pending owner approval) | "Start over" → "The habits, plants and pets here go. The daily copies stay on this device. Save a backup first, just in case." · "Start over" · "Keep everything" |
+| Erase, behind Start over (WP-A9, DEC-V: pending owner approval) | "Save a backup first" · "Erase everything on this device" → "Erase everything on this device?" · "The save, settings, demo and daily copies in this browser go. There is no undo. Backup files you saved elsewhere stay there." · "Erase everything" · "Keep everything" |
+| Erase result and retry (WP-A9, DEC-V: pending owner approval) | "The save, settings and daily copies on this device have been erased." · "Some data is still on this device." · "The save or settings couldn’t be erased." · "The daily copies couldn’t be erased. Close other catkin windows, then try again." · "The daily copies couldn’t be erased. Try again." · "Try erasing again" |
+| A partial erase keeps changes paused until retried (WP-A9, DEC-V: pending owner approval) | "Some data is still on this device. Changes are paused here. Open You to try again." |
+| Ownership changes while erasing (WP-A9, DEC-V: pending owner approval) | "The save changed while erasing. Some data may still be on this device." |
 | The demo | "Try the demo" · "Leave the demo" |
 
 Habits: "Archive {habit}? The plant moves to the balcony shelf, and you can bring it back anytime." ·
@@ -1353,7 +1395,9 @@ under the constant named. Same rules as everywhere (section 1).
 | calendar.unwater | "Not watered after all" |
 | calendar.windowNote | "The last 6 days are watered from the week strip on Today." |
 | calendar.openToday | "Open Today" |
-| calendar.refused | "That day is watered from the week strip on Today." |
+| calendar.refused | "That day can’t be changed here right now." (WP-B8: also covers ownership changing after an action is offered). DEC-V: pending owner approval |
+| calendar.periodLocked | "This watering can be removed once its period is outside the week strip on Today." (WP-B8). DEC-V: pending owner approval |
+| calendar.outsideDates | "That day is outside this habit’s tracking dates." (WP-B8). DEC-V: pending owner approval |
 | calendar.watered | "watered" |
 | calendar.tiny | "the tiny version" |
 | calendar.rest | "resting" |
@@ -1545,9 +1589,11 @@ under the constant named. Same rules as everywhere (section 1).
 | credits[0].title | "Drawn in code" |
 | credits[0].text | "Every plant, pot, pet and cabinet is drawn by hand as code, lit by one window." |
 | credits[1].title | "Type" |
-| credits[1].text | "Castoro by Tiffany Wardle and Nunito by Vernon Adams, both under the SIL Open Font License." |
+| credits[1].text | "Castoro by John Hudson and Paul Hanslow (Tiro Typeworks), assisted by Kaja Słojewska. Nunito by Vernon Adams, extended by Jacques Le Bailly. Both under the SIL Open Font License." |
 | credits[2].title | "Made with" |
 | credits[2].text | "Preact, Vite and Workbox." |
+| licences.title | "Licences" |
+| licences.error | "The licences didn’t load. Try again when you have a connection." |
 | build.pwa | "Home Screen app" |
 | build.tab | "In the browser" |
 | build.single | "Single file" |
@@ -1556,6 +1602,11 @@ under the constant named. Same rules as everywhere (section 1).
 | updatesOther | "Updates arrive with the hosted app." |
 | checking | "Checking" |
 | diagnosticsIn | "Diagnostics in {n} taps" |
+
+**DEC-V: pending owner approval (WP-D4):** corrected Type credit, Licences title and failed-load
+message. Loading and retry reuse the existing "One moment" and "Try again". Credits verified on
+2 October 2026 against [Castoro’s upstream README](https://github.com/TiroTypeworks/Castoro/blob/master/README.md)
+and [Nunito’s Google Fonts description](https://github.com/google/fonts/blob/main/ofl/nunito/DESCRIPTION.en_us.html).
 
 ### You › Diagnostics (`DIAG_COPY`)
 
@@ -1590,3 +1641,9 @@ under the constant named. Same rules as everywhere (section 1).
 | stepOf | "Step {n} of {count}" |
 | useHere | "Choose Use here above to carry on in this window." Under the shell's "Little by Little is open in another window · Use here" note, at the top of an onboarding step, when this window couldn't plant the picks (they stay picked) or move to the next step (WP-C5). A newer Little by Little's save says the Data line instead: "This window can’t change the save right now." DEC-V: pending owner approval |
 
+
+### Modal notes (WP-C3, 2 October 2026)
+
+No new copy. The number pad keeps "Add a note" available as a stable button; the temporary
+"Undo" and "Add a note" actions appear inside the active sheet. Existing availability announcements
+wait until those actions can be reached, and keep their approved wording.

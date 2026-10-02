@@ -4,6 +4,7 @@
  */
 import { render } from 'preact';
 import { h, type JSX } from 'preact';
+import { act } from 'preact/test-utils';
 import { pathPoints } from '@/art/plants/svgBounds.testutil';
 
 /** Arguments per path command. */
@@ -33,9 +34,9 @@ export function pathDataError(d: string): string | null {
 /** Renders `node` inside an <svg viewBox="0 0 100 100"> and returns the svg element (call `done` to unmount). */
 export function mount(node: JSX.Element): { svg: SVGSVGElement; html: string; done: () => void } {
   const host = document.createElement('div');
-  render(h('svg', { viewBox: '0 0 100 100' }, node), host);
+  act(() => render(h('svg', { viewBox: '0 0 100 100' }, node), host));
   const svg = host.querySelector('svg')!;
-  return { svg, html: host.innerHTML, done: () => render(null, host) };
+  return { svg, html: host.innerHTML, done: () => { act(() => render(null, host)); } };
 }
 
 /**
