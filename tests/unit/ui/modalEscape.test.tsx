@@ -113,3 +113,22 @@ it.each(['sheet', 'load'] as const)('%s immediate unmount returns active ownersh
     ]);
   } finally { if (childId) removeLayer(childId); }
 });
+
+it.each(['sheet', 'load'] as const)('removing the lower %s before passive effects preserves the newer owner and its chosen control', (kind) => {
+  let chosen: Element | null = null;
+  const after = vi.fn(() => {
+    expect(layerCount()).toBe(1);
+    expect(document.activeElement).toBe(chosen);
+    expect(document.activeElement?.textContent).toBe('Keep focus here');
+  });
+  function Flow() {
+    const [shown, setShown] = useState(true);
+    return <>{shown && (kind === 'sheet' ? <Sheet open title="Older layer" onClose={() => undefined} /> : <LoadSheet open title="Older layer" retryLabel="Try again" closeLabel="Close" onRetry={() => undefined} onClose={() => undefined} />)}
+      <Sheet open title="Newer owner" onClose={() => undefined}><button data-autofocus>Keep focus here</button></Sheet>
+      {shown ? <EscapeAtLayout key="before" check={() => { chosen = document.activeElement; setShown(false); }} /> : <EscapeAtLayout key="after" check={after} />}
+    </>;
+  }
+  act(() => render(<Flow />, host));
+  expect(after).toHaveBeenCalledTimes(1);
+  expect(document.activeElement).toBe(chosen);
+});
