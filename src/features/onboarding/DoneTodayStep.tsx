@@ -45,8 +45,10 @@ export function DoneTodayStep({ habitIds, onNext, canChange }: { habitIds: strin
   const cards = cardsFor(habitIds);
   const [topUp, setTopUp] = useState(() => state.value.wallet.coins >= 25 && state.value.lifetime.checkins > 0);
   const topUpTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const mounted = useRef(true);
   const quiet = state.value.settings.quietRewards;
   useEffect(() => () => {
+    mounted.current = false;
     if (topUpTimer.current !== null) clearTimeout(topUpTimer.current);
   }, []);
   const anyDone = cards.some((c) => c.done);
@@ -89,7 +91,7 @@ export function DoneTodayStep({ habitIds, onNext, canChange }: { habitIds: strin
         if (topUpTimer.current !== null) clearTimeout(topUpTimer.current);
         topUpTimer.current = setTimeout(() => {
           topUpTimer.current = null;
-          if (!state.peek().settings.quietRewards && saveEpoch.peek() === epoch) announce(ONBOARDING.topUp);
+          announce(() => mounted.current && !state.peek().settings.quietRewards && saveEpoch.peek() === epoch ? ONBOARDING.topUp : '');
         }, 1600);
       }
     }

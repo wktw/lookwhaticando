@@ -165,7 +165,8 @@ describe('complete quiet mode (WP-D3)', () => {
     expect(document.activeElement).toBe(undo);
     expect(document.querySelector('[data-toast-id]')?.textContent).not.toMatch(/\+5|coins?|capsule/i);
     await click(undo);
-    expect(store.state.value.logs[id]?.[store.today.value]?.count ?? 0).toBe(0);
+    const undone = store.state.value.logs[id]?.[store.today.value];
+    expect(undone?.kind === 'log' ? undone.count : 0).toBe(0);
     expect(store.state.value.wallet.coins).toBe(coins - 5);
     await act(async () => { await vi.advanceTimersByTimeAsync(100); });
     expect(toasts.value.filter((item) => !item.leaving).map((item) => item.label ?? item.message).join(' ')).not.toMatch(/coins?|capsule/i);
