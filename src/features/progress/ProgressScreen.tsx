@@ -134,6 +134,11 @@ export function ProgressScreen() {
   // A filtered habit that was deleted meanwhile falls back to all habits.
   const filter = calHabit && vm.garden.some((g) => g.habitId === calHabit) ? calHabit : null;
   const watered = vm.records.totalCheckins > 0;
+  const saved = state.value;
+  const hasRecords = vm.records.perfectDays > 0 || vm.records.showUpDays > 0;
+  const hasPins = vm.badges.earned > 0;
+  const hasMemories = saved.inbox.length > 0 || (saved.seasons?.filed.length ?? 0) > 0 || (saved.keepsakes?.length ?? 0) > 0;
+  const hasHistory = hasRecords || hasPins || hasMemories;
 
   return (
     <div class={s.screen} data-screen="progress">
@@ -141,7 +146,7 @@ export function ProgressScreen() {
         <h1 class={s.title}>{PROGRESS_UI.title}</h1>
       </header>
 
-      {!hasHabits ? (
+      {!hasHabits && (
         // The kit's empty state, with its line as a sentence rather than a heading (h1 → h3 would skip a level).
         <div class={es.empty} data-empty="progress">
           <div class={es.tile} aria-hidden="true">
@@ -152,9 +157,10 @@ export function ProgressScreen() {
             <Button onClick={() => openHabitEditor()}>{EMPTY.addHabit}</Button>
           </div>
         </div>
-      ) : (
+      )}
+      {(hasHabits || hasHistory) && (
         <>
-          <Hero vm={vm} />
+          {hasHabits && <Hero vm={vm} />}
 
           {/* A month with no days yet has nothing to draw: the hero already says it fills in. */}
           {hasMonths(vm.recentMonths) && (
@@ -163,19 +169,21 @@ export function ProgressScreen() {
             </Section>
           )}
 
-          <Section id="plants" title={T.plants}>
-            {live.length > 0 && <PlantShelf garden={live} />}
-            {retired.length > 0 && (
-              <>
-                <h3 id={BALCONY_ID} class={s.subTitle} tabIndex={-1}>
-                  {T.balcony}
-                </h3>
-                <PlantShelf garden={retired} balcony />
-              </>
-            )}
-          </Section>
+          {hasHabits && (
+            <Section id="plants" title={T.plants}>
+              {live.length > 0 && <PlantShelf garden={live} />}
+              {retired.length > 0 && (
+                <>
+                  <h3 id={BALCONY_ID} class={s.subTitle} tabIndex={-1}>
+                    {T.balcony}
+                  </h3>
+                  <PlantShelf garden={retired} balcony />
+                </>
+              )}
+            </Section>
+          )}
 
-          {stage >= 1 && (
+          {stage >= 1 && hasHabits && (
             <Section id="calendar" class={s.later} title={T.calendar}>
               <HabitFilter value={filter} onChange={setCalHabit} />
               <div class={s.card}>
@@ -195,17 +203,21 @@ export function ProgressScreen() {
           {stage >= 3 && (
             <>
               <div class={cx(s.pair, s.later)}>
-                <Section id="records" title={T.records}>
-                  <Records records={vm.records} />
-                </Section>
-                <Section id="insights" title={T.insights}>
-                  <Insights insights={vm.insights} />
-                </Section>
+                {(hasHabits || hasRecords) && (
+                  <Section id="records" title={T.records}>
+                    <Records records={vm.records} />
+                  </Section>
+                )}
+                {hasHabits && (
+                  <Section id="insights" title={T.insights}>
+                    <Insights insights={vm.insights} />
+                  </Section>
+                )}
               </div>
-              <PinsSection />
+              {(hasHabits || hasPins) && <PinsSection />}
             </>
           )}
-          {stage >= 4 && <MemorySection retired={retired.length} />}
+          {stage >= 4 && (hasHabits || hasMemories) && <MemorySection retired={retired.length} />}
           {stage < STAGES && <div class={s.pending} style={{ minHeight: `${(STAGES - stage) * 450}px` }} aria-hidden="true" />}
         </>
       )}
