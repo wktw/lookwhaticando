@@ -1125,12 +1125,22 @@ pause."
 | Haptics | "Haptics" | "Where your device supports it." |
 | Reduce motion | "Reduce motion" | "Automatic" · "On" · "Off" |
 | Quick open | "Quick open" | "Skip the wait when opening capsules." |
-| Quiet rewards | "Quiet rewards" | "Hide coins, capsules and the wallet. Just the tracker." |
+| Quiet rewards | "Quiet rewards" | "Hide coin totals, the wallet and the Capsules tab. Turn this off to return to collecting. Everything earned stays kept." |
 | Compact Today | "Compact Today" | "Smaller cards, more habits on screen." |
 | Companions | "Show companions" | "Show who keeps each habit company, on its card." |
 | Quoted notes | "Quote my notes in the Sunday Note" | "Only notes you’ve starred." |
 | Hemisphere | "Where’s your summer?" | "June to August" · "December to February" |
 | Reminders | "Watering time" | see section 20 |
+
+**WP-D3 · DEC-V: pending owner approval (2 October 2026).** The Quiet rewards helper above describes the hidden navigation and the lossless way back. Directly opening Capsules still works. Functional purchase prices stay visible; wallet totals do not. Quiet mode adds these variants:
+
+| Moment | Line |
+|---|---|
+| Old-history correction helper | "Fixes history." |
+| An old-history correction saved | "{habit}, watered for {date}. History only." |
+| A place price after the available balance changes | "{Place} is {price} coins." |
+
+The empty Shelf keeps only "The sill is ready for someone." while quiet. Onboarding keeps its watering and Undo notes, without coin amounts or the first-capsule top-up line. Every earned item and the pending reveal remain saved.
 
 The Habit Editor: "Name" · "Icon" · "Colour" · "Plant" · "Pot" · "How often" ("Every day" · "On certain
 days" · "A few times a week" · "A few times a month") · "How much" · "Tiny version" (placeholder "Shoes
@@ -1585,4 +1595,3 @@ under the constant named. Same rules as everywhere (section 1).
 | plantsLead | "Tap a plant, and {name} moves in." |
 | stepOf | "Step {n} of {count}" |
 | useHere | "Choose Use here above to carry on in this window." Under the shell's "catkin is open in another window · Use here" note, at the top of an onboarding step, when this window couldn't plant the picks (they stay picked) or move to the next step (WP-C5). A newer catkin's save says the Data line instead: "This window can’t change the save right now." DEC-V: pending owner approval |
-

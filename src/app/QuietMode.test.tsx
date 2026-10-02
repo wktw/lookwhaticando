@@ -35,7 +35,7 @@ afterEach(() => {
 });
 
 describe('complete quiet mode (WP-D3)', () => {
-  it.each([Sidebar, TabBar])('%s hides only the Capsules destination and restores it losslessly', async (Nav) => {
+  it.each([['Sidebar', Sidebar], ['TabBar', TabBar]] as const)('%s hides only the Capsules destination and restores it losslessly', async (_name, Nav) => {
     view = mount(<Nav tab="shelf" />);
     const links = () => Array.from(view!.root.querySelectorAll('nav a')).map((a) => a.getAttribute('href'));
     expect(links()).toEqual(['#/today', '#/progress', '#/capsules', '#/shelf', '#/you']);
@@ -69,7 +69,7 @@ describe('complete quiet mode (WP-D3)', () => {
     const toggle = () => Array.from(view!.root.querySelectorAll<HTMLInputElement>('input')).find((input) => input.closest('label')?.textContent?.includes('Quiet rewards'))!;
     await click(toggle());
     expect(store.state.value.settings.quietRewards).toBe(true);
-    expect(view.root.textContent).toContain('Turn this off to show them again. Everything earned stays kept.');
+    expect(view.root.textContent).toContain('Turn this off to return to collecting. Everything earned stays kept.');
     expect({ ...store.state.value, settings: before.settings }).toEqual(before);
     await click(toggle());
     expect(store.state.value).toEqual(before);
@@ -77,6 +77,7 @@ describe('complete quiet mode (WP-D3)', () => {
   });
 
   it('hides Shelf wallet totals and the empty-pet capsule invitation, retaining functional prices', async () => {
+    store.state.value = { ...store.state.value, wallet: { ...store.state.value.wallet, coins: 123 } };
     store.updateSettings({ quietRewards: true });
     view = mount(<ShelfScreen />);
     await until(() => view!.root.querySelector('[aria-labelledby="shelf-places"]'), 'places');
@@ -98,10 +99,27 @@ describe('complete quiet mode (WP-D3)', () => {
     expect(store.state.value.wallet.coins).toBeGreaterThanOrEqual(25);
     expect(view.root.textContent).not.toMatch(/coin|capsule/i);
     expect(toasts.value.map((t) => t.label ?? t.message).join(' ')).not.toMatch(/coin|capsule/i);
-    await act(() => vi.advanceTimersByTimeAsync(1800));
+    await act(async () => { await vi.advanceTimersByTimeAsync(1800); });
     expect(Array.from(document.querySelectorAll('[aria-live]')).map((n) => n.textContent).join(' ')).not.toMatch(/coin|capsule/i);
     await click(button('Walk'));
     expect(toasts.value.map((t) => t.label ?? t.message).join(' ')).not.toMatch(/coin|capsule/i);
+  });
+
+  it('keeps the purchase price but hides the wallet total if a confirmed place becomes unaffordable', async () => {
+    store.state.value = { ...store.state.value, wallet: { ...store.state.value.wallet, coins: 5000 } };
+    store.updateSettings({ quietRewards: true });
+    view = mount(<ShelfScreen />);
+    await until(() => view!.root.querySelector('[data-open-place]'), 'place purchase');
+    const first = view.root.querySelector<HTMLButtonElement>('[data-open-place]')!;
+    const label = first.textContent!.trim();
+    await click(first);
+    await until(() => document.querySelector('[role="alertdialog"]'), 'confirmation');
+    await act(() => { store.state.value = { ...store.state.value, wallet: { ...store.state.value.wallet, coins: 123 } }; });
+    const confirm = document.querySelector('[role="alertdialog"]')!;
+    await click(Array.from(confirm.querySelectorAll('button')).find((b) => b.textContent?.trim() === label) ?? null);
+    expect(toasts.value.find((t) => t.key === 'shelf-place')?.message).toMatch(/is \d+ coins\./);
+    expect(toasts.value.find((t) => t.key === 'shelf-place')?.message).not.toMatch(/123|in the jar/);
+    expect(store.state.value.wallet.coins).toBe(123);
   });
 
   it.each(['quiet', 'unmount'] as const)('does not read an old top-up after %s', async (after) => {
@@ -112,7 +130,7 @@ describe('complete quiet mode (WP-D3)', () => {
     await click(button('Walk'));
     if (after === 'quiet') await act(() => store.updateSettings({ quietRewards: true }));
     else { view.unmount(); view = null; }
-    await act(() => vi.advanceTimersByTimeAsync(1800));
+    await act(async () => { await vi.advanceTimersByTimeAsync(1800); });
     expect(announce.mock.calls.map(([line]) => line).join(' ')).not.toMatch(/capsule/i);
   });
 
@@ -124,7 +142,7 @@ describe('complete quiet mode (WP-D3)', () => {
     await click(view.root.querySelector('[data-date="2026-09-01"]'));
     expect(view.root.textContent).not.toMatch(/coin|capsule/i);
     await click(button('Water it for Sep 1'));
-    expect(store.state.value.logs[id]?.['2026-09-01']?.count).toBe(1);
+    expect(store.state.value.logs[id]?.['2026-09-01']).toMatchObject({ kind: 'log', count: 1 });
     expect(toasts.value.map((t) => t.label ?? t.message).join(' ')).not.toMatch(/coin|capsule/i);
   });
 });

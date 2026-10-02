@@ -245,6 +245,7 @@ function useStable<T>(v: T): T {
 const capitalFirst = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
 
 function DayEdit({ cell, habitId, habitName }: { cell: CalendarCell; habitId: string; habitName: string }) {
+  const quiet = state.value.settings.quietRewards;
   const date = cell.date;
   if (cell.edit === 'window') {
     return (
@@ -300,15 +301,14 @@ function DayEdit({ cell, habitId, habitName }: { cell: CalendarCell; habitId: st
           }
           haptic(done ? 'light' : 'success');
           toast({
-            message: done ? fillLine(CHECKIN_TOASTS.uncheckedNoCoins, { habit: habitName }) : fillLine(CHECKIN_TOASTS.history, { habit: habitName, date: monthDayLabel(date) }),
+            message: done ? fillLine(CHECKIN_TOASTS.uncheckedNoCoins, { habit: habitName }) : fillLine(state.peek().settings.quietRewards ? CHECKIN_TOASTS.historyQuiet : CHECKIN_TOASTS.history, { habit: habitName, date: monthDayLabel(date) }),
             key: 'calendar-history',
           });
         }}
       >
         {done ? C.unwater : fillLine(C.water, { date: monthDayLabel(date) })}
       </Button>
-      <p class={s.fine}>{TODAY_LINES.historyNote}</p>
+      <p class={s.fine}>{quiet ? TODAY_LINES.historyNoteQuiet : TODAY_LINES.historyNote}</p>
     </div>
   );
 }
-
