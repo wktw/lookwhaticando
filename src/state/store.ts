@@ -452,14 +452,23 @@ function makeQueue(key: string, head: SaveHead): SaveQueue {
     volatile: rt.storage === null,
     canWrite: () => {
       if (erasePending.value || q !== queue) return false;
-      const disk = peekHead(storage(), key);
-      if (sameHead(disk, { gen: q.gen, rev: q.rev })) return true;
+      let disk: SaveHead | null;
+      let raw: string | null;
+      try { raw = storage().getItem(key); disk = peekHead(storage(), key, true); }
+      catch { return 'unavailable'; }
+      if (sameHead(disk, { gen: q.gen, rev: q.rev }) || (disk?.gen === undefined && disk?.rev === q.rev)) return true;
+      const kept = rescue.peek();
+      const knownDamage = kept?.kind === 'damaged' ? kept.raw : kept?.damaged;
+      if (key === SAVE_KEY && raw !== null && raw === knownDamage) return true;
       const read = readSave(storage(), key);
       // A known damaged save may still need its replacement written. Ordinary saves, deletions
       // and newer schemas must be adopted before any old frame/debounce callback can write.
-      if (read.kind === 'corrupt' || (read.kind === 'empty' && q.rev === 0)) return true;
+      if (read.kind === 'empty' && q.rev === 0) return true;
       retireQueue();
       adopt(read, 'storage');
+      // A newly damaged main is kept aside before the validated state already in memory is
+      // written again. It must not be mistaken for the damage a prior recovery already handled.
+      if (read.kind === 'corrupt' && writable()) queue?.schedule(state.value);
       return false;
     },
     compact: (s) =>
@@ -1930,7 +1939,13 @@ export async function eraseEverything(): Promise<EraseResult> {
     || (ownership.value !== 'granted' && ownership.value !== 'unsupported')) return { ok: false, error: 'read-only' };
   if (!erasePending.value) {
     const latest = readSave(storage(), SAVE_KEY);
-    if (latest.kind === 'newer' || (latest.kind !== 'corrupt' && !sameHead(peekHead(storage(), SAVE_KEY), currentHead()))) {
+    const disk = peekHead(storage(), SAVE_KEY);
+    const shown = currentHead();
+    const kept = rescue.peek();
+    const knownDamage = kept?.kind === 'damaged' ? kept.raw : kept?.damaged;
+    const knownRecovery = latest.kind === 'ok' && latest.fromBackup && latest.damaged !== undefined && latest.damaged === knownDamage;
+    const matches = sameHead(disk, shown) || (disk?.gen === undefined && disk?.rev === shown.rev);
+    if (latest.kind === 'newer' || (!knownRecovery && latest.kind !== 'corrupt' && !matches)) {
       retireQueue();
       adopt(latest, 'storage');
       return { ok: false, error: latest.kind === 'newer' ? 'read-only' : 'superseded' };

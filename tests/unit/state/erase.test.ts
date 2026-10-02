@@ -10,6 +10,19 @@ const keys = (b: ReturnType<typeof fakeBrowser>) => [...b.storage.data.keys()].f
 afterEach(() => { store.configureStore({ locks: null }); vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 
 describe('WP-A9 erase everything', () => {
+  it('does not mistake unreadable storage for an erased save when a pending writer checks authority', () => {
+    const b = fakeBrowser(); store.hydrate(); store.completeOnboarding({ name: 'Sam', templateIds: [] }); b.advance(1000);
+    store.setName('Waiting');
+    const get = b.storage.getItem;
+    b.storage.getItem = () => { throw new Error('storage denied'); };
+    b.advance(1000);
+    expect(store.state.value.profile.name).toBe('Waiting');
+    expect(store.saveStatus.value.status).toBe('unavailable');
+    expect(store.hasUnsavedWork()).toBe(true);
+    b.storage.getItem = get;
+    b.advance(5000);
+    expect(JSON.parse(b.storage.getItem(SAVE_KEY)!).state.profile.name).toBe('Waiting');
+  });
   it('refuses a second erase while database deletion is still in flight', async () => {
     const b = fakeBrowser(); store.hydrate(); store.completeOnboarding({ name: 'Sam', templateIds: [] });
     await settle();
