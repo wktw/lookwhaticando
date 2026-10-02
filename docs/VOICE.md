@@ -154,6 +154,31 @@ Four resources, each a real object, each with one job (DESIGN §6). The internal
 
 ## 5. Today
 
+### Dated notes and removal (WP-C6)
+
+DEC-V: pending owner approval. The same sheet opens from Today, Moments and the Calendar.
+The title includes the full day and year, so an old note never looks like today’s.
+
+| Moment | Line |
+|---|---|
+| Title | "A note for {habit} · {date}" (for example, "A note for Walk · Monday, September 29, 2025") |
+| Edit button, accessible name | "Edit the note for {habit} · {date}" (visible label: "Edit the note") |
+| Field placeholder | "A line about this day" |
+| Remove button and confirmation button | "Remove note" |
+| Confirmation title | "Remove this note?" |
+| Confirmation | "This removes the note and its star from {habit} on {date}." |
+| Optional checkbox, initially off | "Also remove it from Sunday Notes" |
+| Retained copies | "Daily and weekly copies keep the note until those copies age out. Copies kept before imports or restores may keep it longer. Erase everything removes local copies. Keepsake captions and exported backup files are unchanged." |
+| A different save replaced the open note | "The save changed while this note was open. Close it and open the note again." |
+| The note’s habit or day can no longer be changed | "This note can’t be changed here now. Close it and open the note again." |
+
+Save keeps "Save note" and "Noted."; the safe cancellation is "Keep editing". A refusal while
+another window owns the save reuses "This window can’t change the save right now.". Clearing
+a kept note and choosing Save asks the same removal question as Remove note. The optional
+Sunday Note choice removes only quotations that refer to this habit and day. Other keepsake
+captions and exported files are unchanged. Ordinary note edits use the existing save status and
+retry; "Noted." means the change was accepted here, not that a failing device write succeeded.
+
 ### Greetings
 
 Top left of the band, on the card chip, above the long date. From `GREETINGS` in lines.ts. With no name

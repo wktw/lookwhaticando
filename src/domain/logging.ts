@@ -56,6 +56,7 @@ import { companionCheckin } from './company';
 import { BLOOMING } from './growth';
 import { topUpLetters } from './letters';
 import { harvest } from './pantry';
+import { limitNote } from './noteText';
 import { firstCheckinAt, withoutStaleProvenance } from './provenance';
 import { ruleAt } from './rules';
 import { effectiveTarget, isDayBased } from './schedule';
@@ -64,7 +65,7 @@ import type { Tx } from './tx';
 import { rewardsPaused } from './wallet';
 
 export const MAX_STAMPS_PER_DAY = 24;
-export const MAX_NOTE_LENGTH = 280;
+export { MAX_NOTE_LENGTH } from './noteText';
 /** Sanity cap for count logs (targets go up to 100 000). */
 export const MAX_COUNT = 1_000_000;
 
@@ -357,11 +358,11 @@ export function toggleOffDay(tx: Tx, date: DateKey): { ok: boolean; remaining: n
   return { ok: true, remaining: offDaysRemaining(tx.s.offDays, date) };
 }
 
-/** A note for a day (≤ 280 characters; empty removes it). Never rewards anything. */
-export function setNote(tx: Tx, habitId: string, date: DateKey, note: string): void {
+/** A note for a day (≤ 280 graphemes; empty removes it). Never rewards anything. */
+export function setNote(tx: Tx, habitId: string, date: DateKey, note: string, options?: { removeQuotes?: boolean }): boolean {
   const habit = loggable(tx, habitId, date);
-  if (!habit) return;
-  const text = Array.from(note.trim()).slice(0, MAX_NOTE_LENGTH).join('');
+  if (!habit) return false;
+  const text = limitNote(note.trim());
   const cur = tx.s.logs[habitId]?.[date];
   const next: DayLog = cur ? { ...cur } : { kind: 'log', count: 0 };
   if (text) next.note = text;
@@ -370,6 +371,16 @@ export function setNote(tx: Tx, habitId: string, date: DateKey, note: string): v
     delete next.starred;
   }
   writeLog(tx, habitId, date, next);
+  if (!text && options?.removeQuotes) {
+    for (let i = 0; i < tx.s.inbox.length; i++) {
+      const letter = tx.s.inbox[i]!;
+      if (letter.kind !== 'weekly' || letter.quote?.habitId !== habitId || letter.quote.date !== date) continue;
+      // Frozen words can differ from the current note: redact by its reference, never by its text.
+      const { quote: _quote, ...rest } = letter;
+      tx.section('inbox')[i] = rest;
+    }
+  }
+  return true;
 }
 
 /**

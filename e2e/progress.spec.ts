@@ -18,6 +18,9 @@ import { appDayKey, runtimeLocalTime } from '../src/domain/dates';
 import { encodeEnvelope } from '../src/state/persist';
 import type { AppState } from '../src/state/types';
 import { expectNoAxeViolations, horizontalOverflow, openRoute, watchErrors } from './support';
+import { Game } from '../tests/unit/domain/game';
+import * as logging from '../src/domain/logging';
+import { archiveHabit } from '../src/domain/habits';
 
 const now = Date.now();
 const today = appDayKey(now, 180, runtimeLocalTime);
@@ -35,6 +38,74 @@ async function seed(page: Page, envelope: string): Promise<void> {
     sessionStorage.setItem('ck-e2e-seeded', '1');
   }, envelope);
 }
+
+test.describe('old notes by keyboard (WP-C6)', () => {
+  const noteDay = '2025-09-29';
+  const noteNow = Date.UTC(2026, 8, 29, 12);
+  const g = new Game({ start: noteDay });
+  const id = g.addHabit();
+  g.run((tx) => logging.setNote(tx, id, noteDay, 'The first line.'));
+  g.run((tx) => logging.starNote(tx, id, noteDay, true));
+  g.advance();
+  g.run((tx) => archiveHabit(tx, id));
+  g.goTo('2026-09-29');
+  const envelope = encodeEnvelope(g.state, 1, noteNow, 'e2e');
+  const saved = (page: Page) => page.evaluate(() => JSON.parse(localStorage.getItem('catkin:v1')!).state as AppState);
+
+  for (const from of ['Moments', 'Calendar'] as const) {
+    test(`edit and remove a year-old archived note from ${from}`, async ({ page }, info) => {
+      const errors = watchErrors(page);
+      await page.clock.setFixedTime(new Date(noteNow));
+      await seed(page, envelope);
+      await openRoute(page, 'progress');
+      if (from === 'Moments') {
+        const plant = page.getByRole('button', { name: 'Walk, on the balcony shelf' });
+        await plant.focus();
+        await page.keyboard.press('Enter');
+        await expect(page.getByRole('dialog', { name: 'Walk', exact: true })).toBeVisible();
+      } else {
+        const calendar = page.locator('[data-section="calendar"]');
+        const prev = calendar.getByRole('button', { name: 'Previous month' });
+        await prev.focus();
+        for (let i = 0; i < 12; i++) await page.keyboard.press('Enter');
+        await expect(calendar.getByRole('heading', { name: 'September 2025', exact: true })).toBeVisible();
+        await calendar.locator(`[data-date="${noteDay}"]`).focus();
+        await page.keyboard.press('Enter');
+      }
+      const edit = page.getByRole('button', { name: 'Edit the note for Walk · Monday, September 29, 2025', exact: true });
+      await edit.focus();
+      await page.keyboard.press('Enter');
+      const note = page.getByRole('dialog', { name: 'A note for Walk · Monday, September 29, 2025', exact: true });
+      await expect(note.getByRole('textbox')).toBeFocused();
+      await page.keyboard.press('ControlOrMeta+A');
+      await page.keyboard.type('Corrected by keyboard.');
+      await page.keyboard.press('Tab');
+      await expect(note.getByRole('button', { name: 'Save note', exact: true })).toBeFocused();
+      await expectNoAxeViolations(page, info);
+      await page.keyboard.press('Enter');
+      await expect(note).toBeHidden();
+      await expect(edit).toBeFocused();
+      await expect.poll(async () => (await saved(page)).logs[id]?.[noteDay]?.note).toBe('Corrected by keyboard.');
+      await page.keyboard.press('Enter');
+      await expect(note.getByRole('textbox')).toBeFocused();
+      await page.keyboard.press('Tab'); // Save note
+      await page.keyboard.press('Tab'); // Remove note
+      await expect(note.getByRole('button', { name: 'Remove note', exact: true })).toBeFocused();
+      await page.keyboard.press('Enter');
+      const confirm = page.getByRole('alertdialog', { name: 'Remove this note?', exact: true });
+      await expect(confirm.getByRole('button', { name: 'Keep editing' })).toBeFocused();
+      await expect(confirm).toContainText('exported backup files are unchanged');
+      await expectNoAxeViolations(page, info);
+      await page.keyboard.press('Shift+Tab');
+      await expect(confirm.getByRole('button', { name: 'Remove note', exact: true })).toBeFocused();
+      await page.keyboard.press('Enter');
+      await expect(note).toBeHidden();
+      await expect.poll(async () => (await saved(page)).logs[id]?.[noteDay]).toBeUndefined();
+      await expect(from === 'Moments' ? page.getByRole('heading', { name: 'Moments', exact: true }) : page.locator(`[data-section="calendar"] [data-date="${noteDay}"]`)).toBeFocused();
+      expect(errors, errors.join('\n')).toEqual([]);
+    });
+  }
+});
 
 // A cold dev server compiles the screen, the sheets and the art on first request: warm them once,
 // so the first test on a busy machine isn't timing Vite.
