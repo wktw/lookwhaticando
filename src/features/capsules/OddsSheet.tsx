@@ -1,4 +1,5 @@
 import type { MachineDef } from '@/catalog/types';
+import { ODDS_COPY } from '@/catalog/lines';
 import { NEW_ITEM_WEIGHT, PITY_RARE, PITY_ULTRA, STARDUST_FOR_DUPLICATE, seriesLabel } from '@/catalog/machines';
 import { capsulesView, selectSeries } from '@/state/selectors';
 import { Sheet } from '@/ui/Sheet';
@@ -59,7 +60,7 @@ export function OddsSheet({ machine, open, onClose }: OddsSheetProps) {
           ))}
         </tbody>
       </table>
-      <p class={s.footnote}>Each thing’s chance is before new-first weighting, which only ever raises the chance of something new.</p>
+      <p class={s.footnote}>{ODDS_COPY.ownership}</p>
 
       <ul class={s.promises}>
         <li>Things you don’t have yet are {NEW_ITEM_WEIGHT} times as likely.</li>

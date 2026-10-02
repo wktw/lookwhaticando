@@ -72,7 +72,7 @@ export const BLOOM_LINES: Readonly<Record<PlantSpeciesId, string>> = {
   snakeplant: '{Plant} has sent up a spike of small cream flowers, which snake plants hardly ever do.',
   catgrass: '{Plant} is thick and tall enough to lie in.',
   monstera: '{Plant} has opened a first split leaf.',
-  strawberry: '{Plant} has white flowers and the first small berries.',
+  strawberry: '{Plant} has white flowers.',
   lavender: '{Plant} has purple spikes, and the sill smells of lavender.',
   catnip: '{Plant} has small white flowers at the tips.',
   hoya: '{Plant} has a cluster of star-shaped flowers.',
@@ -155,10 +155,10 @@ export const FRIENDSHIP_LEVELS: readonly { level: number; name: string; lines: r
   },
   { level: 9, name: 'Waits for you', lines: ['{name} is usually waiting at the front of the sill now.'] },
   { level: 10, name: 'Best friends', lines: ['{name} is your best friend now. There’s a small brass tag to show it.'] },
-  { level: 11, name: 'Settled in', lines: ['{name} has settled in for good, and falls asleep mid-stroke now.'] },
-  { level: 12, name: 'Part of the furniture', lines: ['{name} is part of the furniture now, with a cushion that has a dent in it.'] },
-  { level: 13, name: 'Has a routine', lines: ['{name} has a routine now: the sunbeam after lunch, the lamp after dark.'] },
-  { level: 14, name: 'Knows every pot', lines: ['{name} knows every pot on the sill now, and which ones are warm.'] },
+  { level: 11, name: 'Settled in', lines: ['{name} has settled in for good.'] },
+  { level: 12, name: 'A familiar face', lines: ['{name} is a familiar face on the sill.'] },
+  { level: 13, name: 'Good company', lines: ['{name} is good company.'] },
+  { level: 14, name: 'Part of the place', lines: ['{name} is part of the place now.'] },
   { level: 15, name: 'Old friends', lines: ['{name} is an old friend now, and here for good.'] },
 ];
 

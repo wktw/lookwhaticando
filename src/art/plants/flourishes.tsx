@@ -5,7 +5,7 @@
  * they stand where the pot and the plant's painted frame say (so they fit any species in any pot).
  */
 import type { JSX } from 'preact';
-import type { PlantSpeciesId, PotId } from '@/catalog/types';
+import { FLOURISHES, type Flourish, type PlantSpeciesId, type PotId } from '@/catalog/types';
 import { ICON_FRAMES } from './iconFrames';
 import type { Kit } from './kit';
 import { SHADE } from './kit';
@@ -13,8 +13,7 @@ import { f } from './math';
 import { POTS, FOOT_Y } from './pots';
 import { Bee } from './looks';
 
-export const FLOURISHES = ['ladybird', 'bee', 'snail', 'butterfly', 'trail', 'moss', 'shoot', 'ribbon'] as const;
-export type Flourish = (typeof FLOURISHES)[number];
+export { FLOURISHES, type Flourish } from '@/catalog/types';
 
 /** At most this many visitors (DESIGN §5.5). */
 export const MAX_FLOURISHES = FLOURISHES.length;
