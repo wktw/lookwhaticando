@@ -28,8 +28,8 @@ export const STARTUP_END = '<!--/startup-images-->';
  */
 export const MANIFEST: Partial<ManifestOptions> = {
   id: './',
-  name: 'catkin',
-  short_name: 'catkin',
+  name: 'Little by Little',
+  short_name: 'Little by Little',
   description: 'Look after the little things. Your habits grow the plants. The plants become a home.',
   start_url: './',
   scope: './',

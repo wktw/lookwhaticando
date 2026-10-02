@@ -108,8 +108,11 @@ export function lint(text: string, opts: { prose?: boolean; pronouns?: RegExp | 
   if (/[A-Za-z]'[A-Za-z-]/.test(text)) out.push('a straight apostrophe (use ’)');
   const bangs = (text.match(/!/g) ?? []).length;
   if (bangs > 0 && !(bangs === 1 && SECRET_SHAPE.test(text))) out.push('an exclamation mark (only the Secret reveal gets one)');
+  // The owner chose this proper name on 2 October 2026. Only its exact capitalization is a
+  // brand reference; ordinary “little by little” remains a platitude, and nearby copy is checked.
+  const named = text.replace(/\bLittle by Little\b/g, 'the app');
   for (const rule of RULES) {
-    const m = rule.pattern.exec(text);
+    const m = rule.pattern.exec(named);
     if (m) out.push(`${rule.why}: "${m[0]}"`);
   }
   const spelled = SPELLED_COUNT.exec(text);
@@ -119,4 +122,3 @@ export function lint(text: string, opts: { prose?: boolean; pronouns?: RegExp | 
   if (p) out.push(`a pronoun: "${p[0]}"`);
   return out;
 }
-
