@@ -71,6 +71,26 @@ describe('crescent generator', () => {
     expect(polygonPath(p)).toMatch(/^M.*Z$/);
   });
 
+  it.each([
+    ['Node 22 intersection', 76.84999999999998],
+    ['Node 24 intersection', 76.85],
+    ['just below the half', 76.85 - 1e-12],
+    ['just above the half', 76.85 + 1e-12],
+  ])('rounds the same geometric half-tenth consistently: %s', (_label, y) => {
+    expect(polygonPath([[0, y], [2, 78], [0, 80]])).toBe('M0 76.9L2 78L0 80Z');
+    // Math.round ties toward positive infinity, including negative coordinates.
+    expect(polygonPath([[0, -y], [2, -78], [0, -80]])).toBe('M0 -76.8L2 -78L0 -80Z');
+  });
+
+  it.each([
+    [76.85 - 1e-7, 76.8],
+    [76.85 + 1e-7, 76.9],
+    [-76.85 - 1e-7, -76.9],
+    [-76.85 + 1e-7, -76.8],
+  ])('preserves a coordinate genuinely outside the rounding boundary: %s', (y, rounded) => {
+    expect(polygonPath([[0, y], [2, 100], [0, 110]])).toBe(`M0 ${rounded}L2 100L0 110Z`);
+  });
+
   it('matches the committed data (regenerate after changing a shape)', () => {
     const table = buildCrescents(ALL_CRESCENT_SPECS);
     if (process.env.WRITE_CRESCENTS) {

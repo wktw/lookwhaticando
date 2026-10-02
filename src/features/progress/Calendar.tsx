@@ -11,7 +11,7 @@
  */
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { DayGlyph } from '@/art/progress';
-import { CHECKIN_TOASTS, PROGRESS_LINES, TODAY_LINES, fillLine } from '@/catalog/lines';
+import { CHECKIN_TOASTS, NOTE_COPY, PROGRESS_LINES, TODAY_LINES, fillLine } from '@/catalog/lines';
 import { longDateLabel, num } from '@/catalog/format';
 import { WEEKDAY_NAMES, addDays, monthDayLabel, shortDateLabel, weekdayOrder } from '@/domain/dates';
 import { dayCompletion, trackingOf } from '@/domain/consistency';
@@ -25,6 +25,7 @@ import { Button } from '@/ui/Button';
 import { IconButton } from '@/ui/IconButton';
 import { haptic } from '@/fx/haptics';
 import { cx } from '@/ui/cx';
+import { NoteSheet, noteDateLabel, type NoteTarget } from '@/features/today/NoteSheet';
 import { PROGRESS_UI, dayAria, stateWord } from './copy';
 import s from './Calendar.module.css';
 
@@ -86,7 +87,7 @@ export function Calendar({ habitId, month: initial, headingLevel: H = 'h3', idPr
       for (const c of cells) if (logs[c.date]?.note) set.add(c.date);
     }
     return set;
-  }, [vm, habitId]);
+  }, [vm, habitId, s0.logs, s0.habits]);
 
   const go = (to: string | null) => {
     if (!to) return;
@@ -201,6 +202,8 @@ function DayButton({ cell, note, tab, selected, label, onPick, onKey }: { cell: 
 
 /** What a tapped day shows: its notes, and for one habit what can be done about it. */
 function DayPanel({ cell, habitId, agg, idPrefix, Heading }: { cell: CalendarCell; habitId: string | null; agg: { done: number; due: number } | null; idPrefix: string; Heading: 'h4' | 'h5' }) {
+  const [note, setNoteTarget] = useState<NoteTarget | null>(null);
+  const panel = useRef<HTMLElement>(null);
   const s0 = state.value;
   const date = cell.date;
   const title = longDateLabel(date);
@@ -212,7 +215,7 @@ function DayPanel({ cell, habitId, agg, idPrefix, Heading }: { cell: CalendarCel
   const summary = habit ? stateWord(cell.state, cell.count ?? 0, cell.target ?? 1, habit.unit ?? null) : agg && agg.due > 0 && agg.done > 0 ? fillLine(TODAY_LINES.dayAria, { done: num(agg.done), total: num(agg.due) }) : null;
   const panelId = `${idPrefix}-day`;
   return (
-    <section class={s.panel} aria-labelledby={panelId}>
+    <section ref={panel} class={s.panel} aria-labelledby={panelId}>
       <Heading id={panelId} class={s.panelTitle}>
         {title}
       </Heading>
@@ -223,6 +226,12 @@ function DayPanel({ cell, habitId, agg, idPrefix, Heading }: { cell: CalendarCel
             <li key={n.id}>
               {!habitId && <span class={s.noteHabit}>{n.name}</span>}
               <q class={s.noteText}>{n.note}</q>
+              <Button
+                variant="quiet"
+                size="sm"
+                aria-label={fillLine(NOTE_COPY.editLabel, { habit: n.name, date: noteDateLabel(date) })}
+                onClick={() => setNoteTarget({ habitId: n.id, habitName: n.name, date, note: n.note })}
+              >{NOTE_COPY.edit}</Button>
             </li>
           ))}
         </ul>
@@ -230,6 +239,7 @@ function DayPanel({ cell, habitId, agg, idPrefix, Heading }: { cell: CalendarCel
         <p class={s.quiet}>{fillLine(PROGRESS_LINES.calendarNoNotes, { date: monthDayLabel(date) })}</p>
       )}
       {habit && <DayEdit cell={cell} habitId={habit.id} habitName={habit.name} />}
+      <NoteSheet target={note} onClose={() => setNoteTarget(null)} focusFallback={() => panel.current?.parentElement?.querySelector<HTMLButtonElement>(`button[data-date="${date}"]`)} />
     </section>
   );
 }
@@ -283,9 +293,13 @@ function DayEdit({ cell, habitId, habitName }: { cell: CalendarCell; habitId: st
       </div>
     );
   }
-  if (cell.edit !== 'history') return null;
   const done = cell.state === 'done' || cell.state === 'tiny';
-  if (cell.state === 'rest' || cell.state === 'off' || cell.state === 'paused' || cell.state === 'unscheduled') return null;
+  const allowed = done ? cell.history?.canRemove : cell.history?.canAdd;
+  if (!allowed) {
+    const reason = cell.history?.reason;
+    const line = reason === 'open-period' ? C.periodLocked : reason === 'archived' || reason === 'before-start' ? C.outsideDates : null;
+    return line ? <p class={s.quiet}>{line}</p> : null;
+  }
   return (
     <div class={s.edit}>
       <Button
@@ -311,4 +325,3 @@ function DayEdit({ cell, habitId, habitName }: { cell: CalendarCell; habitId: st
     </div>
   );
 }
-
