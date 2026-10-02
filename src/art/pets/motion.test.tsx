@@ -46,9 +46,18 @@ describe('pets under reduced motion', () => {
     ['CRLF', '\r\n'],
   ])('breathe by at most 1.5%, and switch off only the larger motions under reduce (%s)', (_name, newline) => {
     const css = read('./pet.css').replace(/\r?\n/g, newline);
-    const breathe = css.slice(css.indexOf('@keyframes pet-breathe'), css.indexOf('}\n}', css.indexOf('@keyframes pet-breathe')));
-    for (const m of breathe.matchAll(/scale\(([\d.]+)(?:,\s*([\d.]+))?\)/g)) for (const v of [m[1], m[2]].filter(Boolean)) expect(Math.abs(Number(v) - 1)).toBeLessThanOrEqual(0.015);
-    const reduced = css.slice(css.indexOf('@media (prefers-reduced-motion: reduce)'));
+    const start = css.indexOf('@keyframes pet-breathe');
+    expect(start, 'breathing keyframes exist').toBeGreaterThanOrEqual(0);
+    // A Windows checkout uses CRLF: stop at this rule, before the larger throat pulse.
+    const end = css.slice(start).search(/}\r?\n}/);
+    expect(end, 'breathing keyframes close').toBeGreaterThan(0);
+    const breathe = css.slice(start, start + end);
+    const scales = [...breathe.matchAll(/scale\(([\d.]+)(?:,\s*([\d.]+))?\)/g)];
+    expect(scales.length, 'breathing scale values are checked').toBeGreaterThan(0);
+    for (const m of scales) for (const v of [m[1], m[2]].filter(Boolean)) expect(Math.abs(Number(v) - 1)).toBeLessThanOrEqual(0.015);
+    const reducedStart = css.indexOf('@media (prefers-reduced-motion: reduce)');
+    expect(reducedStart, 'reduced-motion overrides exist').toBeGreaterThanOrEqual(0);
+    const reduced = css.slice(reducedStart);
     expect(reduced).not.toMatch(/\.pet-blink\b|\.pet-slowblink\b|pet-breathe/);
   });
 });
