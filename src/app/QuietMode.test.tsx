@@ -13,6 +13,7 @@ import { TodayPrefsSection } from '@/features/you/PreferencesSection';
 import { DoneTodayStep } from '@/features/onboarding/DoneTodayStep';
 import { Calendar } from '@/features/progress/Calendar';
 import { toasts } from '@/ui/toast';
+import { Toaster } from '@/ui/Toaster';
 import * as live from '@/ui/announce';
 
 let view: ReturnType<typeof mount> | null = null;
@@ -94,7 +95,7 @@ describe('complete quiet mode (WP-D3)', () => {
     vi.useFakeTimers();
     store.updateSettings({ quietRewards: true });
     const id = store.state.value.habits[0]!.id;
-    view = mount(<DoneTodayStep habitIds={[id]} onNext={() => undefined} />);
+    view = mount(<><DoneTodayStep habitIds={[id]} onNext={() => undefined} /><Toaster /></>);
     await click(button('Walk'));
     expect(store.state.value.wallet.coins).toBeGreaterThanOrEqual(25);
     expect(view.root.textContent).not.toMatch(/coin|capsule/i);
@@ -126,7 +127,7 @@ describe('complete quiet mode (WP-D3)', () => {
     vi.useFakeTimers();
     const announce = vi.spyOn(live, 'announce');
     const id = store.state.value.habits[0]!.id;
-    view = mount(<DoneTodayStep habitIds={[id]} onNext={() => undefined} />);
+    view = mount(<><DoneTodayStep habitIds={[id]} onNext={() => undefined} /><Toaster /></>);
     await click(button('Walk'));
     if (after === 'quiet') await act(() => store.updateSettings({ quietRewards: true }));
     else { view.unmount(); view = null; }
@@ -136,6 +137,77 @@ describe('complete quiet mode (WP-D3)', () => {
       expect.soft(Array.from(document.querySelectorAll('[aria-live]')).map((node) => node.textContent).join(' ')).not.toMatch(/coins?|capsule/i);
       expect.soft(toasts.value.map((item) => item.label ?? item.message).join(' ')).not.toMatch(/coins?|capsule/i);
     }
+  });
+
+  it.each(['quiet', 'unmount', 'replacement'] as const)('does not deliver a top-up already queued in the live region after %s', async (after) => {
+    vi.useFakeTimers();
+    const id = store.state.value.habits[0]!.id;
+    view = mount(<><DoneTodayStep habitIds={[id]} onNext={() => undefined} /><Toaster /></>);
+    await click(button('Walk'));
+    await act(async () => { await vi.advanceTimersByTimeAsync(1610); });
+    if (after === 'quiet') await act(() => store.updateSettings({ quietRewards: true }));
+    else if (after === 'unmount') { view.unmount(); view = null; }
+    else await act(() => { store.saveEpoch.value++; });
+    await act(async () => { await vi.advanceTimersByTimeAsync(100); });
+    expect(Array.from(document.querySelectorAll('[aria-live]')).map((el) => el.textContent).join(' ')).not.toMatch(/coins?|capsule/i);
+  });
+
+  it.each([true, false])('keeps focused toast Undo usable when quiet began before watering: %s', async (initialQuiet) => {
+    vi.useFakeTimers();
+    store.updateSettings({ quietRewards: initialQuiet });
+    const id = store.state.value.habits[0]!.id;
+    view = mount(<><DoneTodayStep habitIds={[id]} onNext={() => undefined} /><Toaster /></>);
+    await click(button('Walk'));
+    const coins = store.state.value.wallet.coins;
+    const undo = button('Undo')!;
+    await act(() => undo.focus());
+    if (!initialQuiet) await act(() => store.updateSettings({ quietRewards: true }));
+    expect(document.activeElement).toBe(undo);
+    expect(document.querySelector('[data-toast-id]')?.textContent).not.toMatch(/\+5|coins?|capsule/i);
+    await click(undo);
+    expect(store.state.value.logs[id]?.[store.today.value]?.count ?? 0).toBe(0);
+    expect(store.state.value.wallet.coins).toBe(coins - 5);
+    await act(async () => { await vi.advanceTimersByTimeAsync(100); });
+    expect(toasts.value.filter((item) => !item.leaving).map((item) => item.label ?? item.message).join(' ')).not.toMatch(/coins?|capsule/i);
+    expect(Array.from(document.querySelectorAll('[aria-live]')).map((el) => el.textContent).join(' ')).not.toMatch(/coins?|capsule/i);
+  });
+
+  it('changes an already-visible note without restarting its remaining lifetime', async () => {
+    vi.useFakeTimers();
+    const id = store.state.value.habits[0]!.id;
+    view = mount(<><DoneTodayStep habitIds={[id]} onNext={() => undefined} /><Toaster /></>);
+    await click(button('Walk'));
+    const item = toasts.value.find((t) => t.key === `checkin-${id}`)!;
+    expect(document.querySelector(`[data-toast-id="${item.id}"]`)?.textContent).toContain('+5');
+    await act(async () => { await vi.advanceTimersByTimeAsync(2000); });
+    await act(() => store.updateSettings({ quietRewards: true }));
+    const quietItem = toasts.value.find((t) => t.id === item.id)!;
+    expect(quietItem.version).toBe(item.version);
+    expect(quietItem.actions).toBe(item.actions);
+    expect(quietItem.label).not.toMatch(/coin/i);
+    expect(document.querySelector(`[data-toast-id="${item.id}"]`)?.textContent).not.toContain('+5');
+    await act(async () => { await vi.advanceTimersByTimeAsync(1999); });
+    expect(toasts.value.find((t) => t.id === item.id)?.leaving).not.toBe(true);
+    await act(async () => { await vi.advanceTimersByTimeAsync(1); });
+    expect(toasts.value.find((t) => t.id === item.id)?.leaving).toBe(true);
+  });
+
+  it('uses the current setting during the last live-write delay for a check-in and its refund', async () => {
+    vi.useFakeTimers();
+    const id = store.state.value.habits[0]!.id;
+    view = mount(<><DoneTodayStep habitIds={[id]} onNext={() => undefined} /><Toaster /></>);
+    await click(button('Walk'));
+    await act(async () => { await vi.advanceTimersByTimeAsync(1210); });
+    await act(() => store.updateSettings({ quietRewards: true }));
+    await act(async () => { await vi.advanceTimersByTimeAsync(70); });
+    expect(Array.from(document.querySelectorAll('[aria-live]')).map((el) => el.textContent).join(' ')).not.toMatch(/coins?|capsule/i);
+    await act(() => store.updateSettings({ quietRewards: false }));
+    await click(button('Undo'));
+    await act(async () => { await vi.advanceTimersByTimeAsync(10); });
+    await act(() => store.updateSettings({ quietRewards: true }));
+    await act(async () => { await vi.advanceTimersByTimeAsync(70); });
+    expect(Array.from(document.querySelectorAll('[aria-live]')).map((el) => el.textContent).join(' ')).not.toMatch(/coins?|capsule/i);
+    expect(document.querySelector('[data-toast-id]:not([data-toast-leaving])')?.textContent).not.toMatch(/coins?|capsule/i);
   });
 
   it('keeps history correction helper and success toast quiet', async () => {
