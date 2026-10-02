@@ -268,6 +268,12 @@ function headOf(raw: string): string {
   return raw.slice(0, at < 0 ? 300 : Math.min(at, 300));
 }
 
+/** Envelope schema in its small header; an unknown layout must go through the full decoder. */
+export function peekSchema(raw: string): number | null {
+  const match = /"v"\s*:\s*(\d+)/.exec(headOf(raw));
+  return match ? Number(match[1]) : null;
+}
+
 /** Whether `prev` is an earlier write of the save `good` (the same lineage, not a newer schema), from their heads. */
 function olderWriteOf(prev: string, good: string): boolean {
   const gen = (raw: string) => /"gen":"([0-9a-f]{32})"/.exec(headOf(raw))?.[1];
