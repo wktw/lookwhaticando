@@ -103,3 +103,20 @@ The capsule and order notices marked approved on 30 September are excluded. The 
 - **Full notices viewer** (VOICE §24): “Licences” · “The licences didn’t load. Try again when you have a connection.” Loading and retry reuse “One moment” and “Try again”.
 
 The legal notices themselves are verbatim upstream licence documents, generated from installed packages; they are not newly drafted app wording.
+
+## WP-D6 — honest personalisation (pending owner approval)
+
+| Context | Exact draft |
+|---|---|
+| Waiting tag | “There aren’t enough clear check-in times to read this plant’s colour yet.” |
+| Why a read can wait | “Sparse routines, late nights and habits watered together can leave the time uncertain.” |
+| Before choice is available | “After 10 waterings that count towards your habit, you can choose a colour here.” |
+| Open chooser / title | “Choose a colour” |
+| Chooser explanation | “Pick a colour you like. It won’t say anything about when you water.” |
+| Confirm | “Keep this colour” |
+| Explicit-choice tag | “{look}: a colour you chose.” |
+| Explicit-choice option | “{look} · chosen” |
+| Foliage disclosure | “This plant has no petals to colour. Your choice stays on its tag; its leaves keep their own colour.” |
+| Confirmation announcement | “Colour kept.” |
+
+The existing colour names and “Not now” are reused. No claim about watering time is attached to an explicit choice.
