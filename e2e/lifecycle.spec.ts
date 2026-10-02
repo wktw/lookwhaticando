@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 /**
  * WP-G1: actual WebKit and ordinary-motion Chromium, with a focused forced-colours subset.
  * Fixtures are made by real reducers and seeded once through page.evaluate; reloads read only
@@ -427,4 +428,54 @@ for (const viewport of [{ width: 320, height: 640 }, { width: 844, height: 390 }
     const overflow = await horizontalOverflow(page);
     expect(overflow.scrollWidth, overflow.culprits.join('\n')).toBeLessThanOrEqual(overflow.clientWidth + 1);
   });
+}
+
+
+// Use both real stylesheet sources in the browser: jsdom cannot establish native scrolling.
+for (const [kind, cssFile] of [['Sheet', '../src/ui/Sheet.module.css'], ['LoadSheet', '../src/app/LoadSheet.module.css']] as const) {
+  for (const motion of ['no-preference', 'reduce'] as const) {
+    test(`${kind} notes preserve live keyboard access and retire an all-departing scroll lane (${motion})`, async ({ page }, info) => {
+      await page.emulateMedia({ reducedMotion: motion });
+      const css = readFileSync(new URL(cssFile, import.meta.url), 'utf8');
+      await page.setContent(`<!doctype html><html lang="en"><head><title>Modal notes lifecycle</title><style>${css}
+        body { background: #fffdf9; color: #3b3236; font: 16px sans-serif; }
+        .notes { width: 240px; height: 42px; }
+        [data-toast-id] p { margin: 0; padding: 8px; }
+        .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); }
+      </style></head><body><main><h1>Modal notes</h1><button id="before">Before the notes</button>
+        <div class="notes" data-notes-slot tabindex="-1"><section aria-label="Notes">
+          <div data-toast-id="first" tabindex="0"><p>A long plain note remains readable with the keyboard. Its complete text continues below the edge of this small notes area.</p></div>
+        </section><div class="sr-only" role="status" aria-live="polite">The treat was served.</div></div>
+        <button id="after">After the notes</button></main></body></html>`);
+      const lane = page.locator('[data-notes-slot]');
+      const first = lane.locator('[data-toast-id="first"]');
+      const scrollWithKeys = async (note: import('@playwright/test').Locator) => {
+        await note.focus();
+        await lane.evaluate(el => { el.scrollTop = 0; });
+        await page.keyboard.press('ArrowDown');
+        await expect.poll(() => lane.evaluate(el => el.scrollTop)).toBeGreaterThan(0);
+      };
+      expect(await lane.evaluate(el => el.scrollHeight > el.clientHeight)).toBe(true);
+      await scrollWithKeys(first);
+      await expectNoAxeViolations(page, info);
+      await first.evaluate(el => { el.setAttribute('data-toast-leaving', ''); el.setAttribute('tabindex', '-1'); });
+      await page.locator('#before').focus();
+      await page.keyboard.press('Tab');
+      await expect(page.locator('#after')).toBeFocused();
+      // Departure keeps its visual DOM; it must not leave an unreachable scroll region.
+      await expect(first).toBeAttached();
+      await expect(page.getByRole('status')).toHaveText('The treat was served.');
+      await expectNoAxeViolations(page, info);
+      await lane.locator('section').evaluate(el => el.insertAdjacentHTML('beforeend', '<div data-toast-id="second" tabindex="0"><p>A fresh live note needs keyboard access even while the earlier note is departing. Its full text must still scroll into view.</p></div>'));
+      const second = lane.locator('[data-toast-id="second"]');
+      await page.locator('#before').focus();
+      await page.keyboard.press('Tab');
+      await expect(second).toBeFocused();
+      await scrollWithKeys(second);
+      await expectNoAxeViolations(page, info);
+      await first.evaluate(el => el.remove());
+      await scrollWithKeys(second);
+      await expect(page.getByRole('status')).toHaveText('The treat was served.');
+    });
+  }
 }
