@@ -49,9 +49,14 @@ describe('WP-D4: catalogue promises match the things drawn', () => {
 
   it('has a Blooming observation for every drawn species, including the snake plant’s spike', () => {
     expect(Object.keys(BLOOM_EVENTS).sort()).toEqual([...PLANT_SPECIES_WITH_ART].sort());
-    expect(BLOOM_EVENTS.snakeplant).toContain('spike of flowers');
-    expect(BLOOM_EVENTS.monstera).toContain('split leaf');
-    expect(BLOOM_EVENTS.pothos).toContain('trailed');
+    // Independently read in species drawing code, with locations in WP_D4_BLOOM_COPY_CONTRACT.md.
+    const observed = {
+      pothos: /trail/i, pilea: /round leaves/i, begonia: /pink flowers/i, snakeplant: /spike of flowers/i,
+      catgrass: /thick/i, monstera: /split leaf/i, strawberry: /flower/i, lavender: /purple spikes/i,
+      catnip: /flower.*tips/i, hoya: /cluster of flowers/i, orchid: /flower/i, calathea: /striped leaf/i,
+      violet: /purple flowers/i, tulip: /single cup/i, xmascactus: /pink.*tips/i, sunflower: /one flower/i,
+    };
+    for (const species of PLANT_SPECIES_WITH_ART) expect(BLOOM_EVENTS[species], species).toMatch(observed[species]);
   });
 });
 
