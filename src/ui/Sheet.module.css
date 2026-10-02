@@ -261,3 +261,9 @@
   overflow-y: auto;
   overscroll-behavior: contain;
 }
+
+/* Departing cards have no live keyboard target. Keep their visual exit and the spoken status,
+   but stop offering a scroll region until a live card arrives again. */
+.notes:has([data-toast-leaving]):not(:has([data-toast-id]:not([data-toast-leaving]))) {
+  overflow-y: hidden;
+}
