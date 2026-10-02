@@ -11,7 +11,7 @@
  */
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { DayGlyph } from '@/art/progress';
-import { CHECKIN_TOASTS, PROGRESS_LINES, TODAY_LINES, fillLine } from '@/catalog/lines';
+import { CHECKIN_TOASTS, NOTE_COPY, PROGRESS_LINES, TODAY_LINES, fillLine } from '@/catalog/lines';
 import { longDateLabel, num } from '@/catalog/format';
 import { WEEKDAY_NAMES, addDays, monthDayLabel, shortDateLabel, weekdayOrder } from '@/domain/dates';
 import { dayCompletion, trackingOf } from '@/domain/consistency';
@@ -25,6 +25,7 @@ import { Button } from '@/ui/Button';
 import { IconButton } from '@/ui/IconButton';
 import { haptic } from '@/fx/haptics';
 import { cx } from '@/ui/cx';
+import { NoteSheet, noteDateLabel, type NoteTarget } from '@/features/today/NoteSheet';
 import { PROGRESS_UI, dayAria, stateWord } from './copy';
 import s from './Calendar.module.css';
 
@@ -86,7 +87,7 @@ export function Calendar({ habitId, month: initial, headingLevel: H = 'h3', idPr
       for (const c of cells) if (logs[c.date]?.note) set.add(c.date);
     }
     return set;
-  }, [vm, habitId]);
+  }, [vm, habitId, s0.logs, s0.habits]);
 
   const go = (to: string | null) => {
     if (!to) return;
@@ -201,6 +202,7 @@ function DayButton({ cell, note, tab, selected, label, onPick, onKey }: { cell: 
 
 /** What a tapped day shows: its notes, and for one habit what can be done about it. */
 function DayPanel({ cell, habitId, agg, idPrefix, Heading }: { cell: CalendarCell; habitId: string | null; agg: { done: number; due: number } | null; idPrefix: string; Heading: 'h4' | 'h5' }) {
+  const [note, setNoteTarget] = useState<NoteTarget | null>(null);
   const s0 = state.value;
   const date = cell.date;
   const title = longDateLabel(date);
@@ -223,6 +225,12 @@ function DayPanel({ cell, habitId, agg, idPrefix, Heading }: { cell: CalendarCel
             <li key={n.id}>
               {!habitId && <span class={s.noteHabit}>{n.name}</span>}
               <q class={s.noteText}>{n.note}</q>
+              <Button
+                variant="quiet"
+                size="sm"
+                aria-label={fillLine(NOTE_COPY.editLabel, { habit: n.name, date: noteDateLabel(date) })}
+                onClick={() => setNoteTarget({ habitId: n.id, habitName: n.name, date, note: n.note })}
+              >{NOTE_COPY.edit}</Button>
             </li>
           ))}
         </ul>
@@ -230,6 +238,7 @@ function DayPanel({ cell, habitId, agg, idPrefix, Heading }: { cell: CalendarCel
         <p class={s.quiet}>{fillLine(PROGRESS_LINES.calendarNoNotes, { date: monthDayLabel(date) })}</p>
       )}
       {habit && <DayEdit cell={cell} habitId={habit.id} habitName={habit.name} />}
+      <NoteSheet target={note} onClose={() => setNoteTarget(null)} />
     </section>
   );
 }
@@ -311,4 +320,3 @@ function DayEdit({ cell, habitId, habitName }: { cell: CalendarCell; habitId: st
     </div>
   );
 }
-

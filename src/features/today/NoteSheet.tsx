@@ -4,16 +4,17 @@
  * the one that was there. Closing it with a changed line (Esc, the scrim, Close, a pull down) asks
  * first, in the Habit Editor's words: "Keep editing" is the default, and Esc (WP-C2, DEC-E8).
  */
-import { useEffect, useState } from 'preact/hooks';
-import { CHECKIN_TOASTS, EDITOR_COPY, TODAY_LINES, fillLine } from '@/catalog/lines';
-import { setNote } from '@/state/store';
+import { useLayoutEffect, useRef, useState } from 'preact/hooks';
+import { CHECKIN_TOASTS, DATA_COPY, EDITOR_COPY, NOTE_COPY as N, TODAY_LINES, fillLine } from '@/catalog/lines';
+import { longDateLabel } from '@/catalog/formatCore';
+import { limitNote, MAX_NOTE_LENGTH } from '@/domain/noteText';
+import { readOnly, saveEpoch, setNote, state } from '@/state/store';
 import type { DateKey } from '@/state/types';
 import { Sheet } from '@/ui/Sheet';
 import { TextArea } from '@/ui/TextField';
 import { Button } from '@/ui/Button';
 import { ConfirmDialog } from '@/ui/ConfirmDialog';
 import { toast } from '@/ui/toast';
-import { TODAY_COPY } from './copy';
 import s from './TodaySheets.module.css';
 
 export interface NoteTarget {
@@ -24,29 +25,55 @@ export interface NoteTarget {
 }
 
 /** A note is a line, not a diary: kept to this many characters. */
-export const NOTE_MAX = 280;
+export const NOTE_MAX = MAX_NOTE_LENGTH;
+export const noteDateLabel = (date: DateKey): string => `${longDateLabel(date)}, ${date.slice(0, 4)}`;
 
 export function NoteSheet({ target, onClose }: { target: NoteTarget | null; onClose: () => void }) {
   const [text, setText] = useState('');
   const [leaving, setLeaving] = useState(false);
-  useEffect(() => {
+  const [removing, setRemoving] = useState(false);
+  const [removeQuotes, setRemoveQuotes] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const epoch = useRef(saveEpoch.peek());
+  useLayoutEffect(() => {
     if (target) setText(target.note ?? '');
     setLeaving(false);
+    setRemoving(false);
+    setRemoveQuotes(false);
+    setError(null);
+    epoch.current = saveEpoch.peek();
   }, [target?.habitId, target?.date]);
 
   // Changed from what the day holds: what Save would write differs from what is there.
-  const dirty = target !== null && text.trim() !== (target.note ?? '').trim();
+  const dirty = target !== null && limitNote(text.trim()) !== (target.note ?? '').trim();
   const close = () => {
     if (dirty) setLeaving(true);
     else onClose();
   };
 
-  const save = () => {
+  const apply = (value: string, redact = false) => {
     if (!target) return;
-    setNote(target.habitId, target.date, text.trim());
-    if (text.trim()) toast({ key: `noted-${target.habitId}`, message: CHECKIN_TOASTS.noted, tone: 'sage' });
+    if (!setNote(target.habitId, target.date, value, { removeQuotes: redact, epoch: epoch.current })) {
+      setRemoving(false);
+      setError(epoch.current !== saveEpoch.peek() ? N.replaced : readOnly.value ? DATA_COPY.readOnly : N.refused);
+      return;
+    }
+    if (value) toast({ key: `noted-${target.habitId}`, message: CHECKIN_TOASTS.noted, tone: 'sage' });
+    setRemoving(false);
     onClose();
   };
+  const askToRemove = () => {
+    setRemoveQuotes(false);
+    setRemoving(true);
+  };
+  const save = () => {
+    if (!target) return;
+    if (!text.trim() && target.note) askToRemove();
+    else apply(limitNote(text.trim()));
+  };
+  const date = target ? noteDateLabel(target.date) : '';
+  const title = target ? fillLine(N.title, { habit: target.habitName, date }) : '';
+  const quoted = target && state.value.inbox.some((l) => l.kind === 'weekly' && l.quote?.habitId === target.habitId && l.quote.date === target.date);
 
   // The question is a sibling of the sheet, not inside it (as in the Habit Editor's host).
   return (
@@ -54,14 +81,15 @@ export function NoteSheet({ target, onClose }: { target: NoteTarget | null; onCl
       <Sheet
         open={target !== null}
         onClose={close}
-        title={target ? fillLine(TODAY_COPY.noteTitle, { habit: target.habitName }) : ''}
+        title={title}
         detents={['content']}
         size="sm"
         initialFocus="textarea"
         footer={
-          <Button block size="lg" onClick={save}>
-            {TODAY_LINES.saveNote}
-          </Button>
+          <div class={s.noteForm}>
+            <Button block size="lg" onClick={save}>{TODAY_LINES.saveNote}</Button>
+            {target?.note && <Button block variant="quiet" onClick={askToRemove}>{N.remove}</Button>}
+          </div>
         }
       >
         <form
@@ -71,9 +99,24 @@ export function NoteSheet({ target, onClose }: { target: NoteTarget | null; onCl
             save();
           }}
         >
-          <TextArea label={target ? fillLine(TODAY_COPY.noteTitle, { habit: target.habitName }) : ''} hideLabel value={text} onValue={setText} placeholder={TODAY_LINES.notePlaceholder} rows={3} maxRows={6} maxLength={NOTE_MAX} enterkeyhint="done" />
+          <TextArea label={title} hideLabel value={text} onValue={(v) => setText(limitNote(v))} placeholder={N.placeholder} rows={3} maxRows={6} enterkeyhint="done" />
+          {error && <p role="alert">{error}</p>}
         </form>
       </Sheet>
+      <ConfirmDialog
+        open={removing && target !== null}
+        title={N.removeTitle}
+        message={<>
+          {target && fillLine(N.removeText, { habit: target.habitName, date })}
+          {quoted && <label class={s.noteChoice}><input type="checkbox" checked={removeQuotes} onChange={(e) => setRemoveQuotes(e.currentTarget.checked)} />{N.removeQuotes}</label>}
+          <span class={s.noteCopies}>{N.copies}</span>
+        </>}
+        tone="danger"
+        confirmLabel={N.remove}
+        cancelLabel={EDITOR_COPY.keepEditing}
+        onCancel={() => setRemoving(false)}
+        onConfirm={() => apply('', removeQuotes)}
+      />
       <ConfirmDialog
         open={leaving && target !== null}
         title={EDITOR_COPY.leaveTitle}

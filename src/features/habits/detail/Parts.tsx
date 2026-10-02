@@ -7,7 +7,7 @@ import type { ComponentChildren } from 'preact';
 import { useState } from 'preact/hooks';
 import { PetArt } from '@/art/pets/PetArt';
 import { CoinIcon, Icon } from '@/art/icons';
-import { COMPANION, EMPTY, LOOKS, STORIES, fillLine } from '@/catalog/lines';
+import { COMPANION, EMPTY, LOOKS, NOTE_COPY, STORIES, fillLine } from '@/catalog/lines';
 import { consistencyText, num, runText } from '@/catalog/format';
 import { monthDayLabel } from '@/domain/dates';
 import type { HabitDetailVM } from '@/state/selectors';
@@ -21,6 +21,7 @@ import { haptic } from '@/fx/haptics';
 import { DETAIL_UI as D, journalLine, lookName, lookTag, nudgeWords, storyRemaining, storyText, wateringsText } from '@/features/progress/copy';
 import { lookArtOf } from '@/features/progress/looks';
 import { HeroPlant } from './HeroPlant';
+import { NoteSheet, noteDateLabel, type NoteTarget } from '@/features/today/NoteSheet';
 import s from './HabitDetail.module.css';
 
 const anchorNameOf = (id: string) => state.value.habits.find((h) => h.id === id)?.name ?? null;
@@ -169,6 +170,7 @@ export function Why({ vm }: { vm: HabitDetailVM }) {
 }
 
 export function Moments({ vm }: { vm: HabitDetailVM }) {
+  const [note, setNoteTarget] = useState<NoteTarget | null>(null);
   const logs = state.value.logs[vm.habit.id] ?? {};
   return (
     <DetailSection id="moments" title={D.sections.moments}>
@@ -184,6 +186,12 @@ export function Moments({ vm }: { vm: HabitDetailVM }) {
                   <div class={s.momentBody}>
                     <span class={s.momentDate}>{m.label}</span>
                     <q class={s.momentText}>{m.text}</q>
+                    <Button
+                      variant="quiet"
+                      size="sm"
+                      aria-label={fillLine(NOTE_COPY.editLabel, { habit: vm.habit.name, date: noteDateLabel(m.date) })}
+                      onClick={() => setNoteTarget({ habitId: vm.habit.id, habitName: vm.habit.name, date: m.date, note: logs[m.date]?.note ?? null })}
+                    >{NOTE_COPY.edit}</Button>
                   </div>
                   <button
                     type="button"
@@ -206,6 +214,7 @@ export function Moments({ vm }: { vm: HabitDetailVM }) {
           <p class={s.help}>{D.quoteHelp}</p>
         </>
       )}
+      <NoteSheet target={note} onClose={() => setNoteTarget(null)} />
     </DetailSection>
   );
 }
