@@ -7,8 +7,27 @@ import { COLLECTIBLES, PETS } from '@/catalog/collectibles';
 import { itemChances } from '@/domain/gacha';
 import { mulberry32 } from '@/domain/rng';
 import type { AppState } from '@/state/types';
+import { Game } from './domain/game';
+import { newPetState, petPet } from '@/domain/friendship';
+import { levelForXp } from '@/domain/levels';
+import { friendshipLine } from '@/fx/copy';
 
 describe('WP-D4: catalogue promises match the things drawn', () => {
+  it('a friendship earned entirely by petting makes no claim about waterings', () => {
+    const g = new Game();
+    const id = 'pet-cat-calico';
+    g.state = { ...g.state, pets: { [id]: newPetState(id, g.rng, g.now, g.today, true) }, collection: { ...g.state.collection, [id]: { count: 1, firstAt: g.now } } };
+    for (let day = 0; day < 410; day++) {
+      if (day) g.advance();
+      for (let stroke = 0; stroke < 5; stroke++) g.run((tx) => petPet(tx, id));
+    }
+    expect(g.state.lifetime.checkins).toBe(0);
+    expect(g.state.habits).toHaveLength(0);
+    expect(Object.keys(g.state.pets)).toHaveLength(1);
+    expect(levelForXp(g.state.pets[id]!.xp)).toBe(13);
+    expect(friendshipLine(g.state.pets[id]!.name, 13, 'cat')).not.toContain('waterings');
+  });
+
   it('keys each flourish by the visitor actually drawn, so reorderings cannot relabel it', () => {
     expect(Object.keys(FLOURISH_LINES).sort()).toEqual([...FLOURISHES].sort());
     const words = FLOURISH_LINES as unknown as Record<string, string>;
