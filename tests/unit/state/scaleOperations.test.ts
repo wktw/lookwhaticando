@@ -3,6 +3,8 @@ import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { addDays } from '@/domain/dates';
 import * as logging from '@/domain/logging';
 import * as rollover from '@/domain/rollover';
+import * as economy from '@/domain/economy';
+import * as pantry from '@/domain/pantry';
 import { mulberry32 } from '@/domain/rng';
 import { transact, type Env } from '@/domain/tx';
 import * as decoder from '@/state/decode';
@@ -13,7 +15,7 @@ import { createInitialState } from '@/state/defaults';
 import type { AppState } from '@/state/types';
 import { UTC, at } from '../domain/game';
 import { bigSave, TODAY } from './bigsave';
-import { measureMaintenance, measurePlainImport } from '../../perf/operations';
+import { measureMaintenance, measurePlainImport, measureMaintenanceAndImport } from '../../perf/operations';
 
 const env: Env = { today: TODAY, now: at(TODAY, 21), local: UTC, rng: mulberry32(1) };
 let dense: AppState;
@@ -68,6 +70,16 @@ describe('G2 maintenance samples', () => {
     expect(() => measureMaintenance(dense, env, 'compact')).toThrow(/provenance/i);
   });
 
+  it('rejects skipping ledger compaction even when provenance was reconciled', () => {
+    vi.spyOn(economy, 'compactLedger').mockImplementation(() => {});
+    expect(() => measureMaintenance(dense, env, 'compact')).toThrow(/ledger/i);
+  });
+
+  it('requires the actual next-morning restock rather than just updating the clock', () => {
+    vi.spyOn(pantry, 'restockPantry').mockImplementation(() => {});
+    expect(() => measureMaintenance(compacted, env, 'rollover')).toThrow(/restock/i);
+  });
+
   it('rejects dropping the reversed-order verdict after stamps have gone', () => {
     const prune = logging.pruneOldStamps;
     vi.spyOn(logging, 'pruneOldStamps').mockImplementation((tx) => {
@@ -93,6 +105,21 @@ describe('G2 maintenance samples', () => {
     });
     expect(() => measureMaintenance(dense, env, 'compact')).toThrow(/journal/i);
   });
+});
+
+it('collects each real maintenance and import phase for every requested sample', async () => {
+  const prune = vi.spyOn(logging, 'pruneOldStamps');
+  const parse = vi.spyOn(handoff, 'parseBackupText');
+  const report = await measureMaintenanceAndImport(dense, compacted, env, 2);
+  expect(report.rollover).toHaveLength(2);
+  expect(report.compact).toHaveLength(2);
+  expect(report.pastedImport).toHaveLength(2);
+  expect(prune).toHaveBeenCalledTimes(4);
+  expect(parse).toHaveBeenCalledTimes(2);
+  expect(report.rollover.every((sample) => sample.oldLiveDaysBefore === 2 && sample.journalPreserved)).toBe(true);
+  expect(report.compact.every((sample) => sample.oldLiveDaysBefore > 400 && sample.journalPreserved)).toBe(true);
+  expect(report.pastedImport.every((sample) => sample.outcome === 'accepted' && sample.journalPreserved)).toBe(true);
+  expect(report.importUtf8Bytes).toBe(new TextEncoder().encode(parse.mock.calls[0]![0]).length);
 });
 
 describe('G2 pasted JSON import samples', () => {
@@ -132,5 +159,10 @@ describe('G2 pasted JSON import samples', () => {
     const sample = await measurePlainImport(text, compacted, UTC, clock().now);
     expect(sample).toMatchObject({ outcome: 'too-large', inputCharacters: MAX_IMPORT_BYTES + 1, limitCharacters: MAX_IMPORT_BYTES, journalPreserved: null });
     expect(parse).not.toHaveBeenCalled();
+  });
+
+  it('does not turn a different parser failure into a claimed size refusal', async () => {
+    vi.spyOn(handoff, 'parseBackupText').mockResolvedValue({ ok: false, error: 'not-a-backup' });
+    await expect(measurePlainImport(' '.repeat(MAX_IMPORT_BYTES + 1), compacted, UTC)).rejects.toThrow(/bound/i);
   });
 });
