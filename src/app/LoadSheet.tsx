@@ -1,6 +1,6 @@
 import type { ComponentChildren } from 'preact';
 import { createPortal } from 'preact/compat';
-import { useEffect, useId, useLayoutEffect, useRef, useState } from 'preact/hooks';
+import { useId, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { sfx } from '@/fx/sound';
 import { Button } from '@/ui/Button';
 import { overlayRoot, Z_SHEET } from '@/ui/overlay';
@@ -91,7 +91,7 @@ export function LoadSheet({ open, title, message, retryLabel, closeLabel, busy, 
   }, [phase]);
 
   // Unmounting (the sheet asked for has arrived in its place) hands the page back at once.
-  useEffect(() => release, []);
+  useLayoutEffect(() => release, []);
 
   /* Stacking: on top of whatever was open, and inert under anything opened over it. */
   useLayoutEffect(() => {

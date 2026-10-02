@@ -147,7 +147,7 @@ export function Sheet(props: SheetProps) {
     return undefined;
   }, [phase]);
 
-  useEffect(() => release, []);
+  useLayoutEffect(() => release, []);
 
   /* ---------- stacking ---------- */
   useLayoutEffect(() => {
