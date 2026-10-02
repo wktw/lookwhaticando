@@ -62,19 +62,15 @@ export function greetingLine(g: TodayVM['greeting'], dayOfMonth: number): string
 }
 
 /** The band's pots: the view model's sill (card order, the current block first), with looks, bows and routines. */
-export function bandPots(vm: Pick<TodayVM, 'sill' | 'blocks' | 'doneForPeriod' | 'thisMonth' | 'notToday'>, habits: AppState['habits']): SillPot[] {
-  const colour = new Map(habits.map((h) => [h.id, h]));
-  const cards = new Map([...vm.blocks.flatMap((b) => b.cards), ...vm.doneForPeriod, ...vm.thisMonth, ...vm.notToday].map((c) => [c.id, c]));
+export function bandPots(vm: Pick<TodayVM, 'sill'>, _habits?: AppState['habits']): SillPot[] {
   return vm.sill.map((p) => {
-    const card = cards.get(p.habitId);
-    const partner = card?.after ? colour.get(card.after.habitId)?.color : undefined;
     const pot: SillPot = { habitId: p.habitId, name: p.name, species: p.species, stage: p.stage, progress: p.progress, pot: p.pot, damp: p.damp, pulse: p.pulse };
     if (p.note) pot.note = p.note;
     if (p.blooms !== undefined) pot.blooms = p.blooms;
-    if (p.look) pot.look = { colour: p.look.colour, shape: p.look.shape, ...(p.look.shape === 'paired' && partner ? { partnerColour: partner } : {}) };
+    if (p.look) pot.look = p.look;
     if (p.bow) pot.bow = true;
     if (p.routine) pot.routine = p.routine.routine;
-    if (card && card.plant.flourishes > 0) pot.flourishes = card.plant.flourishes;
+    if (p.flourishes) pot.flourishes = p.flourishes;
     return pot;
   });
 }

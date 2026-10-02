@@ -73,10 +73,10 @@ describe('one earned plant presentation (WP-D2)', () => {
   it('the actual Shelf pot and Progress plant draw their earned flourish nodes', () => {
     const s = fixture(); useState_(s);
     view = mount(<shelf.ShelfScreen />);
-    expect(view.root.querySelector('[data-habit="plant"] [data-flourish]')).not.toBeNull();
+    expect(view.root.querySelector('[data-habit="plant"] [data-flourish="snail"], [data-habit-front="plant"] [data-flourish="snail"]')).not.toBeNull();
     view.unmount();
     view = mount(<PlantShelf garden={progressVM(s, env).garden.filter((g) => g.habitId === 'plant')} />);
-    expect(view.root.querySelector('[data-flourish]')).not.toBeNull();
+    expect(view.root.querySelector('[data-flourish="snail"]')).not.toBeNull();
   });
 
   it('a twenty-habit scene stays stable for coin and pet-XP changes but notices earned fields', () => {
