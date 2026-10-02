@@ -592,8 +592,9 @@ celebration queue, physics) · `src/ui` (kit) · `src/features/*` (screens).
   `navigator.vibrate` elsewhere. **Audio**: `audioSession.type='ambient'` before the AudioContext is created, which is lazy and resumed in gestures.
 * **Reminders**: optional Morning/Midday/Evening "watering time" static `.ics` files (floating local time, daily,
   DISPLAY alarm), opened by a real tap. Web Push would need a server, so it's out of scope.
-* **Updates**: checked on resume (> 30 min). A waiting worker applies on cold launch before input, otherwise on the next hide→show, and
-  never during a sheet, a reveal or onboarding. About has *Check for updates* and *Reload app*.
+* **Updates**: checked at launch and on resume (> 30 min). A waiting version is offered without interrupting input, including on a fresh page.
+  It applies when the page hides only if there are no unsaved changes, sheets, reveal or onboarding. About has *Check for updates* and
+  *Reload app*; unsaved work requires a separate *Reload anyway* confirmation.
 * **Performance**: the cabinet's capsules may render on `<canvas>` from pre-rasterized sprites. Shelf pets are absolutely
   positioned elements moved with `translate3d`. Loops pause when hidden or off-tab. **Auto-lite** kicks in at median frame > 25 ms.
   Budget: p95 ≤ 16.7 ms.

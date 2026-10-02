@@ -13,6 +13,7 @@ import { mulberry32 } from '../src/domain/rng';
 import { runtimeLocalTime } from '../src/domain/dates';
 import type { AppState } from '../src/state/types';
 import { expectNoAxeViolations, horizontalOverflow, openRoute } from './support';
+import { productionOrigin } from './production-origin';
 
 const NOW = Date.parse('2026-10-02T12:00:00Z');
 const DAY = '2026-10-02';
@@ -23,11 +24,11 @@ function household(name = 'Sam'): AppState {
   }).state;
   return { ...made, wallet: { ...made.wallet, coins: 200 }, settings: { ...made.settings, sound: false, reduceMotion: 'off' } };
 }
-async function seed(page: Page, state = household(), route = 'today') {
+async function seed(page: Page, state = household(), route = 'today', base = './') {
   await page.clock.setFixedTime(NOW);
-  await page.goto('./');
-  await page.evaluate((raw) => localStorage.setItem('catkin:v1', raw), encodeEnvelope(state, 1, NOW, 'browser-matrix', 'matrix-household'));
-  await page.goto(`./#/${route}`);
+  await page.goto(base);
+  await page.evaluate((raw) => localStorage.setItem('catkin:v1', raw), encodeEnvelope(state, 1, NOW, 'browser-matrix', '1234567890abcdef1234567890abcdef'));
+  await page.goto(`${base}#/${route}`);
   await page.reload();
   await expect(page.locator('main h1')).toBeVisible();
 }
@@ -54,18 +55,24 @@ async function keyActivate(page: Page, control: ReturnType<Page['getByRole']>) {
   await page.keyboard.press('Enter');
 }
 
-test('an offline watering survives a real reload', async ({ page, context }) => {
+test('an offline watering survives a real origin outage and reload', async ({ page }) => {
   test.skip(process.env.E2E_TARGET !== 'preview', 'offline launch needs the built service worker');
-  await seed(page);
-  await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
-  await page.reload();
-  await expect.poll(() => page.evaluate(() => !!navigator.serviceWorker.controller)).toBe(true);
-  await context.setOffline(true);
-  await walk(page).click();
-  await expect(walk(page)).toHaveAttribute('aria-pressed', 'true');
-  await page.reload();
-  await expect(walk(page)).toHaveAttribute('aria-pressed', 'true');
-  await context.setOffline(false);
+  // Playwright WebKit's offline emulator blocks before the service worker (#42775).
+  // A closed private origin is a genuine outage and leaves other parallel tests untouched.
+  const origin = await productionOrigin();
+  try {
+    await seed(page, household(), 'today', origin.url);
+    await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
+    await page.reload();
+    await expect.poll(() => page.evaluate(() => !!navigator.serviceWorker.controller)).toBe(true);
+    await origin.close();
+    expect(origin.listening).toBe(false);
+    await expect(fetch(origin.url)).rejects.toThrow();
+    await walk(page).click();
+    await expect(walk(page)).toHaveAttribute('aria-pressed', 'true');
+    await page.reload();
+    await expect(walk(page)).toHaveAttribute('aria-pressed', 'true');
+  } finally { await origin.close(); }
 });
 
 test('keyboard-only import confirmation, reload and durable Undo', async ({ page }) => {
@@ -111,7 +118,6 @@ test('a real waiting update stays held while storage refuses a change', async ({
   // without replacing the worker API or changing the release build's files.
   await page.evaluate(() => navigator.serviceWorker.register('./sw.js?matrix=update', { scope: './' }).then(() => undefined));
   await expect.poll(() => page.evaluate(async () => !!(await navigator.serviceWorker.getRegistration())?.waiting)).toBe(true);
-  await page.getByRole('button', { name: 'Check for updates', exact: true }).click();
   await expect(page.getByText('A new version is ready', { exact: true }).first()).toBeVisible();
   await visibility(page, true);
   await page.waitForTimeout(100);
@@ -143,19 +149,25 @@ test('a cold page offers a waiting update without interrupting input', async ({ 
 });
 
 test.describe('a shell recovery chunk that cannot load', () => {
-  test.use({ serviceWorkers: 'block' }); // Route faults must reach the network instead of its precache.
+  test.use({ serviceWorkers: 'block' }); // The server fault must reach the network instead of its precache.
   test('Daily copies has a visible retry, and a fresh fetch keeps the requested sheet', async ({ page }) => {
-    await seed(page);
-    const recovery = /(?:\/assets\/recovery-[^/]+\.js|\/src\/features\/you\/recovery\.tsx)(?:\?|$)/;
-    await page.route(recovery, (route) => route.abort('failed'));
-    await page.evaluate(() => localStorage.setItem('catkin:v1', '{damaged save'));
-    await page.reload();
-    await page.locator('[data-banner="corrupt"]').getByRole('button', { name: 'Daily copies', exact: true }).click();
-    const error = page.getByRole('alertdialog', { name: 'This didn’t open', exact: true });
-    await expect(error).toBeVisible();
-    await page.unroute(recovery);
-    await error.getByRole('button', { name: 'Try again', exact: true }).click();
-    await expect(page.getByRole('dialog', { name: 'Daily copies', exact: true })).toBeVisible();
+    test.skip(process.env.E2E_TARGET !== 'preview', 'the chunk fault uses the built production origin');
+    let blocked = true;
+    const origin = await productionOrigin((path) => blocked && /\/assets\/recovery-[^/]+\.js$/.test(path));
+    try {
+      await seed(page, household(), 'today', origin.url);
+      await page.evaluate(() => {
+        localStorage.setItem('catkin:v1', '{damaged save');
+        localStorage.removeItem('catkin:v1:backup'); // Reach damaged boot, rather than valid-backup recovery.
+      });
+      await page.reload();
+      await page.locator('[data-banner="corrupt"]').getByRole('button', { name: 'Daily copies', exact: true }).click();
+      const error = page.getByRole('alertdialog', { name: 'This didn’t open', exact: true });
+      await expect(error).toBeVisible();
+      blocked = false;
+      await error.getByRole('button', { name: 'Try again', exact: true }).click();
+      await expect(page.getByRole('dialog', { name: 'Daily copies', exact: true })).toBeVisible();
+    } finally { await origin.close(); }
   });
 });
 
@@ -252,6 +264,7 @@ test('a delayed first onboarding chunk keeps a main heading until it arrives', a
   await expect(page.locator('main h1')).toBeVisible();
   release();
   const stay = page.getByRole('button', { name: 'Keep it in this tab' });
+  await expect(stay.or(page.getByLabel('Your name'))).toBeVisible();
   if (await stay.isVisible()) await stay.click();
   await expect(page.locator('main h1')).toHaveText('New place. Which plants came with you?');
 });

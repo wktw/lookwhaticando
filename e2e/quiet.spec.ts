@@ -25,13 +25,13 @@ async function boot(page: Page, pending = false) {
   await page.clock.install({ time: now });
   await page.clock.resume();
   const state = household(pending);
-  await page.addInitScript((raw) => {
-    if (sessionStorage.getItem('quiet-seeded')) return;
+  await page.goto('./');
+  await page.evaluate((raw) => {
     localStorage.setItem('catkin:v1', raw);
-    sessionStorage.setItem('quiet-seeded', '1');
     sessionStorage.setItem('catkin:stay-in-tab', '1');
   }, encodeEnvelope(state, 1, now, 'e2e'));
   await page.goto('./#/today');
+  await page.reload();
   const stay = page.getByRole('button', { name: 'Keep it in this tab' });
   await expect(stay.or(page.locator('main h1'))).toBeVisible();
   if (await stay.isVisible()) await stay.click();

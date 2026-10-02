@@ -10,7 +10,8 @@
  *  - single-file: dist-single/catkin.html opened from file:// (e2e/single-file.spec.ts).
  *  - pwa: the service worker takes over and the app opens offline (preview only, e2e/pwa.spec.ts).
  *  - two-windows: a second window starts over; the first follows it (e2e/windows.spec.ts).
- * All of them run Chromium with reduced motion, so nothing is mid-animation when axe reads it.
+ * Existing projects use Chromium with reduced motion. The focused browser matrix also runs
+ * actual WebKit, ordinary-motion Chromium, and a forced-colours subset.
  */
 import { defineConfig, devices, type Project } from '@playwright/test';
 import { existsSync } from 'node:fs';
