@@ -6,6 +6,7 @@
  */
 const stack: string[] = [];
 const moments = new Set<string>();
+const notesSlots = new Map<string, HTMLElement>();
 const listeners = new Set<() => void>();
 
 let lockedScrollY = 0;
@@ -44,11 +45,14 @@ function notify() {
 export interface LayerOptions {
   /** A full-screen moment (the capsule reveal, the epic card): banners and toasts wait for it. */
   moment?: boolean;
+  /** Notes share this modal’s focus scope, below its header. */
+  notesSlot?: HTMLElement | null;
 }
 
 export function pushLayer(id: string, opts: LayerOptions = {}): void {
   if (stack.includes(id)) return;
   if (opts.moment) moments.add(id);
+  if (opts.notesSlot) notesSlots.set(id, opts.notesSlot);
   if (!stack.length) {
     lockScroll();
     setAppInert(true);
@@ -62,6 +66,7 @@ export function removeLayer(id: string): void {
   if (i < 0) return;
   stack.splice(i, 1);
   moments.delete(id);
+  notesSlots.delete(id);
   if (!stack.length) {
     setAppInert(false);
     unlockScroll();
@@ -81,6 +86,18 @@ export function layerDepth(id: string): number {
 
 export function layerIndex(id: string): number {
   return stack.indexOf(id);
+}
+
+/** The active modal’s notes slot; never a covered layer’s slot. */
+export function topNotesSlot(): HTMLElement | null {
+  return notesSlots.get(stack[stack.length - 1] ?? '') ?? null;
+}
+
+/** A transient opener may have expired while its child modal was open. */
+export function restoreLayerFocus(target: HTMLElement | null): void {
+  const panel = topNotesSlot()?.closest<HTMLElement>('[role="dialog"], [role="alertdialog"]');
+  if (target?.isConnected && !target.closest('[data-toast-leaving]') && (!panel || panel.contains(target))) target.focus({ preventScroll: true });
+  else if (panel) panel.focus({ preventScroll: true });
 }
 
 export function anyLayerOpen(): boolean {
@@ -147,7 +164,7 @@ export function trapTab(e: KeyboardEvent, root: HTMLElement): void {
   if (e.shiftKey && (active === first || active === root)) {
     e.preventDefault();
     last.focus();
-  } else if (!e.shiftKey && active === last) {
+  } else if (!e.shiftKey && (active === last || active === root)) {
     e.preventDefault();
     first.focus();
   }

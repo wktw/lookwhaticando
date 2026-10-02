@@ -2,6 +2,8 @@
  * Screen-reader announcements through shared visually-hidden live regions
  * ("Walk done, plus 5 coins"). Safe to call anywhere, any time.
  */
+import { topNotesSlot } from './sheetStack';
+
 const regions: Partial<Record<'polite' | 'assertive', HTMLElement>> = {};
 const timers: Partial<Record<'polite' | 'assertive', number>> = {};
 
@@ -18,13 +20,19 @@ function region(politeness: 'polite' | 'assertive'): HTMLElement {
   return el;
 }
 
-export function announce(message: string, politeness: 'polite' | 'assertive' = 'polite'): void {
+export function announce(message: string | (() => string), politeness: 'polite' | 'assertive' = 'polite'): void {
   if (typeof document === 'undefined' || !message) return;
   const el = region(politeness);
   // Clear first so repeating the same sentence is still announced.
   el.textContent = '';
   clearTimeout(timers[politeness]);
-  timers[politeness] = window.setTimeout(() => (el.textContent = message), 60);
+  timers[politeness] = window.setTimeout(() => {
+    const text = typeof message === 'function' ? message() : message;
+    if (!text) return;
+    // Modal screen readers must hear the same note whose actions are inside their focus scope.
+    (topNotesSlot() ?? el.ownerDocument.body).appendChild(el);
+    el.textContent = text;
+  }, 60);
 }
 
 /** The burst rule's quiet time (DESIGN §9.1): rapid check-ins are announced once, after this. */
@@ -45,7 +53,7 @@ export function announceSettled(group: string, message: string | (() => string),
     message: typeof message === 'function' ? message : () => message,
     timer: window.setTimeout(() => {
       settling.delete(group);
-      announce(entry.message());
+      announce(entry.message);
     }, quietMs),
   };
   settling.set(group, entry);

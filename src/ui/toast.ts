@@ -8,6 +8,7 @@ import type { ComponentChildren } from 'preact';
 import { signal } from '@preact/signals';
 import type { Tone } from './tone';
 import { announce } from './announce';
+import { anyLayerOpen, momentOpen, topNotesSlot } from './sheetStack';
 
 export interface ToastAction {
   label: string;
@@ -34,6 +35,8 @@ export interface ToastOptions {
   key?: string;
   /** Not announced here: the caller announces it (check-ins wait for quiet, DESIGN §9.1). */
   silent?: boolean;
+  /** A caller-owned announcement can settle once this note enters the active focus scope. */
+  onReachable?: () => void;
 }
 
 export interface ToastItem extends ToastOptions {
@@ -97,16 +100,61 @@ export function toastDuration(t: ToastOptions): number {
 }
 
 /**
- * Show (or coalesce) a toast. Its text is announced through the shared aria-live="polite" region,
- * unless it is `silent`.
+ * Show (or coalesce) a toast. Plain statuses announce immediately; actionable notes wait until
+ * their mounted card enters the active focus scope. A `silent` caller owns its announcement.
  */
 export function toast(opts: ToastOptions): string {
   const { list, id } = upsertToast(toasts.value, opts, `t${++seq}`);
+  // Plain status lines have no expiring action to make reachable first.
+  if (!opts.silent && !toastActions(opts).length) {
+    const text = opts.label ?? [opts.message, opts.note].filter((x): x is string => typeof x === 'string').join(' ');
+    lifetime(list.find((item) => item.id === id)!).announced = true;
+    if (text) announce(text);
+  }
   toasts.value = list;
-  const text = opts.label ?? [opts.message, opts.note].filter((x): x is string => typeof x === 'string').join(' ');
-  const buttons = toastActions(opts).map((a) => a.label);
-  if (text && !opts.silent) announce(buttons.length ? `${text}. ${buttons.join(' or ')} available.` : text);
   return id;
+}
+
+/** Kept by item identity so a portal move or full-screen moment cannot restart its clock. */
+const lifetimes = new WeakMap<ToastItem, { remaining: number; announced?: boolean }>();
+function lifetime(item: ToastItem) {
+  let value = lifetimes.get(item);
+  if (!value) lifetimes.set(item, value = { remaining: toastDuration(item) });
+  return value;
+}
+
+/** Run only while the card is visible and unpaused; cleanup preserves elapsed time. */
+export function runToastClock(item: ToastItem): () => void {
+  const clock = lifetime(item);
+  if (!toastDuration(item) || item.leaving) return () => undefined;
+  const started = performance.now();
+  const timer = setTimeout(() => dismissToast(item.id), clock.remaining);
+  return () => {
+    clearTimeout(timer);
+    clock.remaining = Math.max(0, clock.remaining - (performance.now() - started));
+  };
+}
+
+export function toastIsReachable(id: string): boolean {
+  if (typeof document === 'undefined' || document.hidden || momentOpen() || toastsHeld.peek() > 0) return false;
+  const item = toasts.peek().find((t) => t.id === id && !t.leaving);
+  const card = document.querySelector(`[data-toast-id="${id}"]`);
+  return !!item && !!card && (!anyLayerOpen() || !!topNotesSlot()?.contains(card));
+}
+
+/** Called after the card is in the DOM; re-check at the live-region write, too. */
+export function announceToast(item: ToastItem): void {
+  if (!toastIsReachable(item.id)) return;
+  item.onReachable?.();
+  const clock = lifetime(item);
+  if (item.silent || clock.announced) return;
+  announce(() => {
+    if (!toastIsReachable(item.id) || !toasts.peek().includes(item)) return '';
+    clock.announced = true;
+    const text = item.label ?? [item.message, item.note].filter((x): x is string => typeof x === 'string').join(' ');
+    const buttons = toastActions(item).map((a) => a.label);
+    return text && buttons.length ? `${text.replace(/\.$/, '')}. ${buttons.join(' or ')} available.` : text;
+  });
 }
 
 export function findToast(key: string): ToastItem | undefined {

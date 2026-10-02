@@ -1616,3 +1616,10 @@ under the constant named. Same rules as everywhere (section 1).
 | plantsLead | "Tap a plant, and {name} moves in." |
 | stepOf | "Step {n} of {count}" |
 | useHere | "Choose Use here above to carry on in this window." Under the shell's "catkin is open in another window · Use here" note, at the top of an onboarding step, when this window couldn't plant the picks (they stay picked) or move to the next step (WP-C5). A newer catkin's save says the Data line instead: "This window can’t change the save right now." DEC-V: pending owner approval |
+
+
+### Modal notes (WP-C3, 2 October 2026)
+
+No new copy. The number pad keeps "Add a note" available as a stable button; the temporary
+"Undo" and "Add a note" actions appear inside the active sheet. Existing availability announcements
+wait until those actions can be reached, and keep their approved wording.
