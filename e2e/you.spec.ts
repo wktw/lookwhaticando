@@ -33,6 +33,39 @@ async function openYou(page: Page) {
 
 const section = (page: Page, name: string) => page.locator('section').filter({ has: page.getByRole('heading', { level: 2, name, exact: true }) }).first();
 
+test('About Credits opens complete readable licences', async ({ page }, info) => {
+  await openYou(page);
+  await section(page, 'About').getByRole('button', { name: 'Credits' }).click();
+  await page.getByRole('dialog', { name: 'Credits', exact: true }).getByRole('button', { name: 'Licences' }).click();
+  const licences = page.getByRole('dialog', { name: 'Licences', exact: true });
+  await expect(licences).toContainText('SIL OPEN FONT LICENSE Version 1.1');
+  await expect(licences).toContainText('@preact/signals-core@');
+  await expect(licences).toContainText('workbox-precaching@');
+  const text = await licences.locator('pre').textContent();
+  const { readFileSync } = await import('node:fs');
+  for (const name of ['@fontsource/castoro', '@fontsource-variable/nunito', 'preact', '@preact/signals', 'workbox-window']) expect(text).toContain(readFileSync(`node_modules/${name}/LICENSE`, 'utf8').trim());
+  if (process.env.E2E_TARGET === 'preview') expect(text).toBe(readFileSync('dist/licenses.txt', 'utf8'));
+  await licences.locator('pre').focus();
+  await page.keyboard.press('PageDown');
+  await expect.poll(() => licences.locator('pre').evaluate((el) => el.parentElement!.scrollTop)).toBeGreaterThan(0);
+  await expectNoAxeViolations(page, info);
+  await licences.getByRole('button', { name: 'Close', exact: true }).click();
+  await expect(page.getByRole('dialog', { name: 'Credits', exact: true })).toBeVisible();
+});
+
+test('@pwa licence notices remain available offline', async ({ page, context }, info) => {
+  test.skip(info.project.use.serviceWorkers !== 'allow', 'needs the installed service worker');
+  await openYou(page);
+  await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
+  await page.reload();
+  await expect.poll(() => page.evaluate(() => !!navigator.serviceWorker.controller)).toBe(true);
+  await context.setOffline(true);
+  await section(page, 'About').getByRole('button', { name: 'Credits' }).click();
+  await page.getByRole('button', { name: 'Licences', exact: true }).click();
+  await expect(page.getByRole('dialog', { name: 'Licences', exact: true })).toContainText('SIL OPEN FONT LICENSE Version 1.1');
+  await context.setOffline(false);
+});
+
 test('You renders every section cleanly and passes axe', async ({ page }, info) => {
   const errors = watchErrors(page);
   await openYou(page);
