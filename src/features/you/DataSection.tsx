@@ -18,16 +18,23 @@ import {
   demoMode,
   enterDemo,
   exitDemo,
+  eraseEverything,
+  erasePending,
+  erasing,
   exportCsv,
   backupPayload,
   markBackup,
   readOnly,
   replacing,
   resetAll,
+  ownsSave,
+  ownership,
+  saveEpoch,
   durability,
   state,
   undoOffer,
   type Durability,
+  type EraseResult,
 } from '@/state/store';
 import { navigate } from '@/app/router';
 import { currentInstallPlatform } from '@/app/installPrompt';
@@ -93,7 +100,7 @@ function StatusRow() {
   return (
     <ListRow
       leading={<span class={cx(s.dot, !standalone && s.dotTab)} aria-hidden="true" />}
-      title={storageLine(durability.value, standalone)}
+      title={erasePending.value ? ERRORS.erasePaused : storageLine(durability.value, standalone)}
       subtitle={
         <>
           {last ? fillLine(DATA.lastBackup, { date: dateOfMs(last) }) : DATA.noBackup}
@@ -166,11 +173,14 @@ export function DataSection() {
   const [importing, setImporting] = useState(false);
   const [snapshots, setSnapshots] = useState(false);
   const [byHand, setByHand] = useState<string | null>(null);
-  const [resetStep, setResetStep] = useState<0 | 1 | 2>(0);
+  const [resetStep, setResetStep] = useState<0 | 1 | 2 | 3>(0);
+  const [eraseResult, setEraseResult] = useState<EraseResult | null>(null);
+  const eraseEpoch = useRef(0);
   const [, bump] = useState(0);
   const inDemo = demoMode.value;
   const locked = saveLocked();
   const busyReplacing = replacing.value;
+  const busyErasing = erasing.value;
   const offer = !inDemo && !locked ? undoOffer() : null;
   const damaged = damagedSave() !== null;
 
@@ -207,11 +217,33 @@ export function DataSection() {
   };
 
   const startOver = () => {
+    if (!ownsSave()) return;
     setResetStep(0);
     resetAll();
     reloadProgress();
     navigate('today');
   };
+
+  const erase = async () => {
+    if (!erasePending.value && eraseEpoch.current !== saveEpoch.value) {
+      setEraseResult({ ok: false, error: 'superseded' });
+      return;
+    }
+    const result = await eraseEverything();
+    setEraseResult(result);
+    if (result.ok) {
+      setResetStep(0);
+      reloadProgress();
+      navigate('today');
+      toast({ key: 'erased', message: DATA_COPY.erased, tone: 'sage' });
+    }
+  };
+
+  const eraseFailure = eraseResult && !eraseResult.ok
+    ? eraseResult.error === 'partial'
+      ? [DATA_COPY.erasePartial, ...eraseResult.failures.map((failure) => failure === 'storage' ? DATA_COPY.eraseStorage : failure === 'snapshots-blocked' ? DATA_COPY.eraseBlocked : DATA_COPY.eraseUnavailable)].join(' ')
+      : eraseResult.error === 'read-only' ? DATA_COPY.readOnly : DATA_COPY.eraseChanged
+    : null;
 
   return (
     <section class={s.group} aria-labelledby="you-data">
@@ -249,7 +281,8 @@ export function DataSection() {
         />
       </div>
       <div class={s.card} style={{ marginTop: 'var(--s-3)' }}>
-        <ListRow leading="trash" leadingTone="peach" title={DATA.startOver} destructive chevron={false} disabled={locked || !!readOnly.value || busyReplacing} onClick={() => setResetStep(1)} />
+        <ListRow leading="trash" leadingTone="peach" title={DATA.startOver} destructive chevron={false} disabled={locked || !!readOnly.value || busyReplacing || ownership.value === 'acquiring'} onClick={() => setResetStep(1)} />
+        {erasePending.value && <ListRow title={DATA_COPY.eraseRetry} destructive chevron={false} disabled={busyErasing || !!readOnly.value} onClick={() => setResetStep(3)} />}
       </div>
 
       <ImportSheet open={importing} onClose={() => setImporting(false)} onImported={() => bump((n) => n + 1)} />
@@ -258,7 +291,11 @@ export function DataSection() {
       <ConfirmDialog
         open={resetStep === 1}
         title={DATA.startOver}
-        message={DATA.startOverConfirm}
+        message={<>
+          {DATA.startOverConfirm}
+          <Button variant="secondary" block onClick={() => void saveBackupNow()}>{DATA_COPY.saveFirst}</Button>
+          {!inDemo && <Button variant="danger" block onClick={() => { eraseEpoch.current = saveEpoch.value; setEraseResult(null); setResetStep(3); }}>{DATA_COPY.erase}</Button>}
+        </>}
         confirmLabel={DATA.startOver}
         cancelLabel={DATA.keepEverything}
         tone="danger"
@@ -266,6 +303,17 @@ export function DataSection() {
         onCancel={() => setResetStep(0)}
       />
       <FinalStartOver open={resetStep === 2} onConfirm={startOver} onCancel={() => setResetStep(0)} />
+      <ConfirmDialog
+        open={resetStep === 3}
+        title={DATA_COPY.eraseTitle}
+        message={<>{DATA_COPY.eraseConfirm}{eraseFailure && <span role="alert" style={{ display: 'block', marginTop: 'var(--s-3)' }}>{eraseFailure}</span>}</>}
+        confirmLabel={erasePending.value ? DATA_COPY.eraseRetry : DATA_COPY.eraseButton}
+        cancelLabel={erasePending.value ? ERRORS.sheetClose : DATA.keepEverything}
+        tone="danger"
+        busy={busyErasing}
+        onConfirm={() => void erase()}
+        onCancel={() => { if (!busyErasing) setResetStep(0); }}
+      />
     </section>
   );
 }

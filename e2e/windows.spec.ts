@@ -10,7 +10,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { watchErrors } from './support';
 
-const STARTED_OVER = 'catkin was started over in another window, so it starts fresh here too. The daily copies stay on this device.';
+const STARTED_OVER = 'catkin was started over in another window, so it starts fresh here too.';
 const ONBOARDING_H1 = 'New place. Which plants came with you?';
 
 /** Onboarding the way a person does it, planting three habits and skipping the rest. */
@@ -59,8 +59,8 @@ test('starting over in one window starts the other one fresh, with a calm note',
   await expect(b.locator('main h1')).toHaveText('You');
   const data = b.locator('section').filter({ has: b.getByRole('heading', { level: 2, name: 'Your data', exact: true }) }).first();
   await data.getByRole('button', { name: 'Start over' }).click();
-  await b.getByRole('alertdialog').filter({ hasText: 'Every habit, plant and pet' }).getByRole('button', { name: 'Start over' }).click();
-  const again = b.getByRole('alertdialog').filter({ hasText: 'The daily copies stay on this device.' });
+  await b.getByRole('alertdialog').filter({ hasText: 'The habits, plants and pets here go.' }).getByRole('button', { name: 'Start over' }).click();
+  const again = b.getByRole('alertdialog').filter({ hasText: 'Start over now?' });
   await expect(again).toBeVisible();
   await b.waitForTimeout(800); // the last "Start over" arms itself a moment after it appears
   await again.getByRole('button', { name: 'Start over' }).click();
@@ -85,6 +85,37 @@ test('starting over in one window starts the other one fresh, with a calm note',
   await note.getByRole('button', { name: 'Close' }).click();
   await expect(note).toHaveCount(0);
   expect([...errorsA, ...errorsB], [...errorsA, ...errorsB].join('\n')).toEqual([]);
+});
+
+test('erasing in one window removes every copy, the other follows, and neither revives the old save', async ({ context }) => {
+  const owner = await context.newPage();
+  const errors = watchErrors(owner);
+  await onboard(owner);
+  const follower = await context.newPage();
+  const followerErrors = watchErrors(follower);
+  await follower.goto('./#/today');
+  await expect(follower.locator('[data-banner="other-window"]')).toBeVisible();
+  await owner.evaluate(() => {
+    localStorage.setItem('catkin:unknown-private-data', 'private');
+    localStorage.setItem('unrelated-app', 'keep');
+    location.hash = '#/you';
+  });
+  await owner.getByRole('button', { name: 'Start over', exact: true }).click();
+  await owner.getByRole('button', { name: 'Erase everything on this device', exact: true }).click();
+  const confirm = owner.getByRole('alertdialog').filter({ hasText: 'There is no undo.' });
+  await expect(confirm).toBeVisible();
+  await confirm.getByRole('button', { name: 'Erase everything', exact: true }).click();
+  await expect(owner.locator('main h1')).toHaveText(ONBOARDING_H1);
+  await expect(follower.locator('main h1')).toHaveText(ONBOARDING_H1);
+  await expect(follower.locator('[data-banner="started-over"]')).toHaveText(STARTED_OVER + 'Close');
+  await expect.poll(() => owner.evaluate(() => Object.keys(localStorage).filter((key) => key.startsWith('catkin:')))).toEqual([]);
+  expect(await owner.evaluate(() => localStorage.getItem('unrelated-app'))).toBe('keep');
+  expect(await owner.evaluate(async () => (await indexedDB.databases()).filter((db) => db.name === 'catkin'))).toEqual([]);
+  await follower.close();
+  await owner.reload();
+  await expect(owner.locator('main h1')).toHaveText(ONBOARDING_H1);
+  expect(await savedHabits(owner)).toEqual([]);
+  expect([...errors, ...followerErrors]).toEqual([]);
 });
 
 /**
